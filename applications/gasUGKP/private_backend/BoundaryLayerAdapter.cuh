@@ -43,13 +43,12 @@ try
         const auto workspaceBytes=ugkwp::gasBoundaryLayerWorkspaceBytes<double,ugkwp::compiledGasSpecies>(a.nodes);
         if(!workspaceBytes)
         {setLastErrorText("boundaryLayer nodes have no compiled workspace/equation storage");return 1;}
-        int device=0,multiprocessors=0;std::size_t freeBytes=0,totalBytes=0;
+        int device=0,multiprocessors=0;
         if(cudaGetDevice(&device)!=cudaSuccess
-            || cudaDeviceGetAttribute(&multiprocessors,cudaDevAttrMultiProcessorCount,device)!=cudaSuccess
-            || cudaMemGetInfo(&freeBytes,&totalBytes)!=cudaSuccess)
-        {setLastErrorText("cannot query boundaryLayer scratch memory/device");return 1;}
+            || cudaDeviceGetAttribute(&multiprocessors,cudaDevAttrMultiProcessorCount,device)!=cudaSuccess)
+        {setLastErrorText("cannot query boundaryLayer scratch device");return 1;}
         sizing=ugkwp::resolveBoundaryLayerWorkspace(a.wallCount,a.workspaceSlots,multiprocessors,
-            freeBytes,workspaceBytes);
+            0,workspaceBytes);
         if(sizing.slots<=0){setLastErrorText("boundaryLayer scratch size is not representable");return 1;}
     }
 
@@ -117,8 +116,8 @@ try
     invalidateSharedGasConfiguration(s);
     if(syncBoundaryLayerConfiguration(s))
     {s->gasModelPoisoned=true;return 1;}
-    std::fprintf(stderr,"boundaryLayer scratch: nodes=%u capacity=%d slots=%d bytes=%zu budget=%zu (auto=%s)\n",
-        a.nodes,model.workspaceCapacity,model.workspaceCount,sizing.bytes,sizing.budget,a.workspaceSlots==0?"yes":"no");
+    std::fprintf(stderr,"boundaryLayer scratch: nodes=%u capacity=%d slots=%d bytes=%zu (auto=%s)\n",
+        a.nodes,model.workspaceCapacity,model.workspaceCount,sizing.bytes,a.workspaceSlots==0?"yes":"no");
     return 0;
 }
 catch(const std::bad_alloc&)

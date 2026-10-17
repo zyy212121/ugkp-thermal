@@ -1,4 +1,5 @@
 #include "GpuSolidThermalProperties.H"
+#include "ThermalHostDiagnostics.H"
 
 #include "List.H"
 #include "Tuple2.H"
@@ -239,6 +240,15 @@ scalar GpuSolidThermalProperties::evaluate
                 temperature < property.temperatures.first()
               ? property.values.first() : property.values.last()
             );
+        }
+        if (hostDiagnosticWarningsEnabled())
+        {
+            WarningInFunction
+                << "finite solid table extrapolation; legacy outOfBounds=error"
+                << "; property=" << property.name
+                << "; temperature=" << temperature
+                << "; tableMinimum=" << property.temperatures.first()
+                << "; tableMaximum=" << property.temperatures.last() << '\n';
         }
     }
 

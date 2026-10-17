@@ -226,7 +226,9 @@ void rejectsMalformedGrossWithdrawals() {
     auto p=physics();auto h=state(p,1,1,{});std::vector<CpuFilmForcing> f(1);
     f[0].withdrawnMass=.1;f[0].withdrawnSpecies[0]=.2;
     CpuFilmCandidate c;std::string error;
-    require(!advanceCpuFilmCandidate(h,p,.1,f,drive(h),c,error),"gross species must close to gross mass");
+    ugkp::diagnostics::DeviceContext diagnostics{};p.diagnostics=&diagnostics;
+    require(advanceCpuFilmCandidate(h,p,.1,f,drive(h),c,error),"finite gross-species discrepancy retains update");
+    require(diagnostics.warnings[0].count>0&&!diagnostics.fatalClaim,"gross species discrepancy warns");
 }
 void localStep() {
     auto p=physics();auto h=state(p,3,3,tangentX*.75+tangentY*.75);auto d=drive(h);

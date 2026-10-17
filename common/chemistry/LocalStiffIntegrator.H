@@ -8,7 +8,7 @@ UGKWP_GAS_HD inline bool hasUsableChemistryResult(const ChemistryStatus& status)
      || (status.code==ChemistryCode::TemperatureFailure && status.thermoCode==ThermoStatus::IterationLimit);
 }
 UGKWP_GAS_HD inline void retainDiagnostic(ChemistryStatus& output,const ChemistryStatus& input) noexcept {
- if(output && !input){output.code=input.code;output.thermoCode=input.thermoCode;output.reaction=input.reaction;output.observed=input.observed;output.reference=input.reference;output.nonlinearIteration=input.nonlinearIteration;}
+ if(output && !input){output.linearFailure=input.linearFailure;output.code=input.code;output.thermoCode=input.thermoCode;output.reaction=input.reaction;output.observed=input.observed;output.reference=input.reference;output.nonlinearIteration=input.nonlinearIteration;}
 }
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline R coordinateNorm(const ReactorContext<R,N,TableReal>& context,const R* residual,const R* mass) noexcept {
  R norm=0;int rank=context.mechanism.independentRank;
@@ -40,7 +40,7 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD UGKWP_CHEMISTRY_
    // One actual Newton update retains stiff relaxation below the error floor.
    if(norm<=context.controls.newtonTolerance && (iteration>0 || norm==R(0)))return status;
    R delta[N]={};for(int i=0;i<rank;++i){delta[i]=-residual[i];for(int j=0;j<rank;++j)jac[i*N+j]=(i==j?R(1):R(0))-stageProduct(interval,coefficient,jac[i*N+j]);}
-   if(!solveDense<R,N,true>(rank,jac,delta)){status.code=ChemistryCode::SingularJacobian;return status;}
+   if(!solveDense<R,N,true>(rank,jac,delta,nullptr,&status.linearFailure)){status.code=ChemistryCode::SingularJacobian;return status;}
    // A Newton update is part of the single implicit solve. Never retry a
    // failed state evaluator with a smaller candidate or another algorithm.
    for(int i=0;i<rank;++i)z[i]+=delta[i];
@@ -70,7 +70,7 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD inline Chemistry
 template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD inline ChemistryStatus sdirkStep
 (const ClosedReactorInput<R,N>& base,Time interval,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& controls,ClosedReactorResult<R,N>& result,R initialTemperature) noexcept {
  ReactorContext<R,N,TableReal> context(base,t,m,controls);ChemistryStatus st;
- if(!context.prepare()){st.code=ChemistryCode::InvalidModel;return st;}
+ if(!context.prepare(nullptr,&st.linearFailure)){st.code=ChemistryCode::InvalidModel;return st;}
  return sdirkStep(context,interval,result,initialTemperature);
 }
 }}
@@ -93,7 +93,7 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD inline Chemistry
    result.temperature=temperature;if(evaluated)*evaluated=true;return status;
  }
  ReactorContext<R,N,TableReal> context(base,t,m,controls,false);
- if(!context.prepare()){status.code=ChemistryCode::InvalidModel;return status;}
+ if(!context.prepare(nullptr,&status.linearFailure)){status.code=ChemistryCode::InvalidModel;return status;}
  bool available=false;
  ChemistryStatus step=sdirkStep(context,interval,result,temperature,&available);
  step.attemptedSteps=1;

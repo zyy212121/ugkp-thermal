@@ -137,7 +137,7 @@ public:
 };
 
 // The history must outlive this cursor and must not be changed while it is in
-// use. Every candidate/replay uses a fresh cursor; failed slice calls are atomic.
+// use. Each interval consumer uses a fresh cursor; failed slice calls are atomic.
 class IntervalCursor {
     const IntervalHistory* history_=nullptr;
     WindowTime time_{};

@@ -37,13 +37,10 @@ CHMT_HD inline bool recoverMaterial(const SolidQ& q, Real volume, const PhysicsC
         conductivity+=constituentVolume*p.condensed[c].conductivity/volume;
     }
     Real phi=1-occupied/volume;
-    if (absValue(occupied-volume)<=32*std::numeric_limits<Real>::epsilon()*maxValue(occupied,volume)) {
-        phi=0; // Derived geometry roundoff only; no mass or energy is altered.
-    }
-    if ((!(occupied>0) || !finite(phi) || phi<p.material.minimumPorosity
-        || phi>=p.material.maximumPorosity || phi>=1)) {
+    if (!(occupied>0)||!clipPhysicsMassFraction(p,phi,3822,index))
         return failStatus(status,ErrorCode::Inventory,index,phi,ErrorLocation::Cell);
-    }
+    if(phi<p.material.minimumPorosity||phi>=p.material.maximumPorosity)
+        reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3823,phi,phi<p.material.minimumPorosity?p.material.minimumPorosity:p.material.maximumPorosity);
     SolidQ thermal=q;
     thermal.porosity=phi;
     MaterialPrimitive next;
@@ -76,8 +73,8 @@ CHMT_HD inline bool boundedReactionRates(const SolidQ& evaluation, const SolidQ&
     Real volume, const PhysicsConfig& p, Real dt, Real* rates,
     DeviceStatus* status=nullptr, int index=-1,bool* numericalFailure=nullptr) {
     if(numericalFailure)*numericalFailure=true;
-    if(!rates){if(numericalFailure)*numericalFailure=false;return false;}
-    if((!finite(dt)||dt<=0))return false;
+    if(!rates){if(numericalFailure)*numericalFailure=false;return failStatus(status,ErrorCode::InvalidInput,index,0,ErrorLocation::Cell);}
+    if((!finite(dt)||dt<=0))return failStatus(status,ErrorCode::InvalidInput,index,dt,ErrorLocation::Cell);
     for (int r=0; r<Nr; ++r) rates[r]=0;
     if (!p.enableReactions) return true;
     Real T=0;
@@ -85,7 +82,7 @@ CHMT_HD inline bool boundedReactionRates(const SolidQ& evaluation, const SolidQ&
     SolidQ consumption;
     for (int r=0; r<p.nReactions; ++r) {
         rates[r]=reactionRate<Terminal>(p.reactions[r],evaluation.condensed,volume,T);
-        if ((!finite(rates[r]) || rates[r]<0)) return false;
+        if ((!finite(rates[r]) || rates[r]<0)) return failStatus(status,ErrorCode::Nonfinite,index,rates[r],ErrorLocation::Cell);
         for (int c=0; c<Nc; ++c) {
             consumption.condensed[c]-=rates[r]*p.reactions[r].condensedNu[c];
         }
@@ -100,7 +97,7 @@ CHMT_HD inline bool boundedReactionRates(const SolidQ& evaluation, const SolidQ&
     for (int species=0; species<Ns; ++species) if (consumption.pore[species]>0) {
         factor=minValue(factor,capacity.pore[species]/(dt*consumption.pore[species]));
     }
-    if ((!finite(factor) || factor<0)) return false;
+    if ((!finite(factor) || factor<0)) return failStatus(status,ErrorCode::Nonfinite,index,factor,ErrorLocation::Cell);
     for (int r=0; r<p.nReactions; ++r) rates[r]*=factor;
     return true;
 }
@@ -192,11 +189,6 @@ CHMT_HD inline bool darcyConductionFlux(const SolidQ& left, const SolidQ& right,
 
 inline bool validateMaterialPolicy(const PhysicsConfig& p, std::string& error) {
     const MaterialPolicyConfig& m=p.material;
-    if (!finite(m.minimumPorosity) || !finite(m.maximumPorosity) || m.minimumPorosity<0
-        || m.minimumPorosity>=m.maximumPorosity || m.maximumPorosity>1) {
-        error="material porosity bounds must satisfy 0 <= minimum < maximum <= 1";
-        return false;
-    }
     if (!finite(m.gasContactResistance) || !finite(m.solidContactResistance)
         || m.gasContactResistance<0 || m.solidContactResistance<0) {
         error="material contact resistances must be finite nonnegative m^2 K/W";
@@ -213,18 +205,20 @@ inline bool validateMaterialPolicy(const PhysicsConfig& p, std::string& error) {
         }
         Real sum=0, elements[Ne]{};
         for (int s=0; s<Ns; ++s) {
-            if (!finite(m.phaseFilmY[s]) || m.phaseFilmY[s]<0) {
+            if (!finite(m.phaseFilmY[s])) {
                 error="phase composition is invalid"; return false;
             }
-            sum+=m.phaseFilmY[s];
-            for (int e=0; e<Ne; ++e) elements[e]+=m.phaseFilmY[s]*p.species[s].element[e];
+            const Real fraction=physicalFraction(p,m.phaseFilmY[s],s);sum+=fraction;
+            for (int e=0; e<Ne; ++e) elements[e]+=fraction*p.species[s].element[e];
         }
+        if(!finite(sum)){error="nonfinite phase composition sum="+std::to_string(sum);return false;}
         if (!closeEnough(sum,1,1e-14,p.tolerances.relativeMass)) {
-            error="phase composition does not sum to one"; return false;
+            reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,3836,sum-1,1e-14);
         }
         for (int e=0; e<Ne; ++e) {
+            if(!finite(elements[e])||!finite(p.condensed[m.phaseCondensed].element[e])){error="nonfinite phase element "+std::to_string(e)+" value="+std::to_string(elements[e]);return false;}
             if (!closeEnough(elements[e],p.condensed[m.phaseCondensed].element[e],1e-13,1e-12)) {
-                error="phase map changes elemental inventory"; return false;
+                reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,3837,elements[e]-p.condensed[m.phaseCondensed].element[e],1e-13,0,e);
             }
         }
     }
@@ -247,7 +241,7 @@ inline bool validateMaterialPolicy(const PhysicsConfig& p, std::string& error) {
     bool active=false;
     for (int s=0; s<Ns; ++s) {
         const Real a=m.evaporationAccommodation[s];
-        if (!finite(a) || a<0 || a>1 || !finite(m.saturationPressureScale[s])
+        if (!finite(a) || !finite(m.saturationPressureScale[s])
             || !finite(m.saturationTemperature[s]) || m.saturationPressureScale[s]<0
             || m.saturationTemperature[s]<0 || (a>0 && m.saturationPressureScale[s]<=0)) {
             error="invalid Hertz-Knudsen/saturation inputs"; return false;

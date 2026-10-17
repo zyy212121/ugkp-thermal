@@ -43,7 +43,7 @@ ck(d.firstFatal.sourceSiteId==30400,"caller site missing");ck(output.rho==123&&y
 ''')
 
 @pytest.mark.parametrize('fault',['s.rhoUx[0]=bad;','s.rhoE[0]=bad;','s.gravityX=bad;'])
-@pytest.mark.parametrize('mode',['false','true,true'])
+@pytest.mark.parametrize('mode',['false','true','true,true'])
 def test_gas_gravity_fault_records_without_publication(tmp_path,fault,mode):
     compile_probe(tmp_path,source_fixture()+r'''
 int main(){DeviceState s;setup(s);ugkp::diagnostics::DeviceContext d{};s.diagnostics=&d;
@@ -89,7 +89,7 @@ ck(!ugkp::diagnostics::hasFatal(&d),"finite gravity rejected");
 ck(gas.rhoE[0]==particle.rhoE[0]&&gas.rhoUx[0]==particle.rhoUx[0],"finite gravity math changed");}}
 ''')
 
-@pytest.mark.parametrize('mode',['false','true,true'])
+@pytest.mark.parametrize('mode',['false','true','true,true'])
 def test_diagnosed_gravity_preserves_state_after_prior_physical_error(tmp_path,mode):
     compile_probe(tmp_path,source_fixture()+r'''
 int main(){DeviceState s;setup(s);ugkp::diagnostics::DeviceContext d{};s.diagnostics=&d;

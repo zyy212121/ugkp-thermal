@@ -17,7 +17,9 @@ inline bool reject(std::string& error,const char* message) {
 }
 // The first supported representation has two fixed axis-aligned layers. Pairing
 // is exact and reconstructed from authoritative points/topology, never nearest
-// neighbour tolerance or an independently persisted cache.
+// neighbour tolerance or an independently persisted cache. These equalities
+// define the implemented zero-normal-flux operator; they are not accuracy
+// admission tolerances. Arbitrary warped/rotated layers need a different operator.
 
 
 struct CoordinateLess {
@@ -46,6 +48,9 @@ inline bool build(const HostMesh& mesh,Extrusion& output,std::string& error) {
         for(int k=begin;k<end;++k)if((mesh.facePoints[k]<0 || static_cast<std::size_t>(mesh.facePoints[k])>=mesh.points.size()))
             return reject(error,"invalid face vertex index");
         if(mesh.boundaryKind[f]!=BoundaryKind::Empty)continue;
+        if(!finite(mesh.areaVectors[f]))return reject(error,"nonfinite Empty area vector");
+        for(int k=begin;k<end;++k)if(!finite(mesh.points[mesh.facePoints[k]]))
+            return reject(error,"nonfinite layer point");
         int axis=-1;
         for(int d=0;d<3;++d)if(component(mesh.areaVectors[f],d)!=0) {
             if((axis!=-1))return reject(error,"rotated/non-axis-aligned Empty plane");

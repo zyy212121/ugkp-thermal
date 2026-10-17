@@ -15,9 +15,9 @@ struct Evaluation {
 bool reject(std::string& error,const char* message,std::size_t index) {
     error=std::string("CPU film ")+message+" at "+std::to_string(index);return false;
 }
-bool numericReject(std::string& error,const char* message,std::size_t index,bool* numericalFailure){
+bool numericReject(std::string& error,const char* message,std::size_t index,bool* numericalFailure,Real observed=0,Real reference=0){
     if(numericalFailure)*numericalFailure=true;
-    return reject(error,message,index);
+    reject(error,message,index);error+=" observed="+std::to_string(observed)+" reference="+std::to_string(reference);return false;
 }
 template<class T> bool optionalSize(const std::vector<T>& value,std::size_t n) {
     return value.empty()||(value.size()==n);
@@ -39,7 +39,7 @@ bool validate(const HostState& h,const PhysicsConfig& p,Real dt,
         if(numericalFailure)*numericalFailure=h.filmAux.size()>=n&&m.area.size()>=n&&m.normal.size()>=n&&forcing.size()>=n&&drive.size()>=n;
         return reject(error,"invalid dimensions or interval",n);
     }
-    if((!finite(dt)||dt<=0))return numericReject(error,"invalid dimensions or interval",n,numericalFailure);
+    if((!finite(dt)||dt<=0))return numericReject(error,"invalid dimensions or interval",n,numericalFailure,dt,0);
     if(n==0) {
         if(ne) return reject(error,"edges without film faces",ne);
         return true;
@@ -49,7 +49,7 @@ bool validate(const HostState& h,const PhysicsConfig& p,Real dt,
     if((!validCondensed(p.liquid)||!finite(p.liquid.conductivity)||p.liquid.conductivity<0
         ||!finite(p.liquidViscosity)||p.liquidViscosity<=0||!finite(p.gravity)
         ||(p.spatialOrder!=1&&p.spatialOrder!=2))) return numericReject(error,"invalid constitutive configuration",0,numericalFailure);
-    if((p.enableRadiation&&(!finite(p.emissivity)||p.emissivity<0||p.emissivity>1
+    if((p.enableRadiation&&(!finite(p.emissivity)
         ||!finite(p.ambientTemperature)||p.ambientTemperature<=0)))
         return numericReject(error,"invalid radiation configuration",0,numericalFailure);
     if(!optionalSize(m.gasFace,n)||!optionalSize(m.baseVelocity,n)
@@ -66,17 +66,19 @@ bool validate(const HostState& h,const PhysicsConfig& p,Real dt,
     for(std::size_t f=0;f<n;++f) {
         const auto& a=forcing[f];const auto& d=drive[f];
         if((!finite(m.area[f])||m.area[f]<=0||!finite(m.normal[f])
-            ||!closeEnough(mag(m.normal[f]),1,1e-12,1e-12)
+            ||mag(m.normal[f])==0
             ||!finite(d.pressure)||!finite(endpointPressure(d))||!finite(d.shear)
-            ||!finite(h.filmAux[f].pressure))) return numericReject(error,"invalid geometry or pressure/traction trace",f,numericalFailure);
+            ||!finite(h.filmAux[f].pressure))) return numericReject(error,"invalid geometry or pressure/traction trace",f,numericalFailure,m.area[f],d.pressure);
+        if(!closeEnough(mag(m.normal[f]),1,1e-12,1e-12))
+            reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,4210,mag(m.normal[f])-1,1e-12);
         if((!finite(a.mass)||!finite(a.energy)||!finite(a.phaseMass)||!finite(a.phaseEnergy)
             ||!finite(a.phaseKineticOutflow)||!finite(a.interfaceKineticOutflow)
             ||!finite(a.radiationEnergy)||!finite(a.withdrawnMass)||a.withdrawnMass<0))
-            return numericReject(error,"invalid integrated forcing",f,numericalFailure);
+            return numericReject(error,"invalid integrated forcing",f,numericalFailure,a.mass,a.energy);
         Real mass=0,phaseMass=0,gross=0;
         for(int s=0;s<Ns;++s) {
             if((!finite(a.species[s])||!finite(a.phaseSpecies[s])||!finite(a.withdrawnSpecies[s])||a.withdrawnSpecies[s]<0))
-                return numericReject(error,"invalid integrated species forcing",f,numericalFailure);
+                return numericReject(error,"invalid integrated species forcing",f,numericalFailure,a.species[s],s);
             mass+=a.species[s];phaseMass+=a.phaseSpecies[s];gross+=a.withdrawnSpecies[s];
         }
         if((!closeEnough(mass,a.mass,p.tolerances.absoluteMass,p.tolerances.relativeMass)))
@@ -102,7 +104,7 @@ bool validate(const HostState& h,const PhysicsConfig& p,Real dt,
             ||(neighbour>=0&&static_cast<std::size_t>(neighbour)>=n)))return numericReject(error,"invalid surface edge",e,numericalFailure);
         if((owner==neighbour
             ||!finite(m.edgeLength[e])||m.edgeLength[e]<=0||!finite(m.edgeConormal[e])
-            ||!closeEnough(mag(m.edgeConormal[e]),1,1e-12,1e-12)
+            ||mag(m.edgeConormal[e])==0
             ||!finite(m.edgeOwnerOffset[e])||!finite(m.edgeNeighbourOffset[e])
             ||(!m.sweptEdgeArea.empty()&&!finite(m.sweptEdgeArea[e]))))
             return numericReject(error,"invalid surface edge",e,numericalFailure);
@@ -110,10 +112,14 @@ bool validate(const HostState& h,const PhysicsConfig& p,Real dt,
         // conormal is tangent to the bisector plane, not either face alone.
         // Open edges retain their owner-face metric.
         const Vec3 hingeNormal=neighbour>=0?normalized(m.normal[owner]+m.normal[neighbour]):m.normal[owner];
-        if((mag(hingeNormal)==0||!closeEnough(dot(m.edgeConormal[e],hingeNormal),0,1e-10,0)))
-            return numericReject(error,"edge conormal is not tangential",e,numericalFailure);
+        if(mag(hingeNormal)==0)
+            return numericReject(error,"undefined hinge normal",e,numericalFailure,mag(hingeNormal),0);
+        if(!closeEnough(mag(m.edgeConormal[e]),1,1e-12,1e-12))
+            reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,4211,mag(m.edgeConormal[e])-1,1e-12);
+        if(!closeEnough(dot(m.edgeConormal[e],hingeNormal),0,1e-10,0))
+            reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,4212,dot(m.edgeConormal[e],hingeNormal),1e-10);
         if((neighbour>=0&&dot(m.edgeOwnerOffset[e]-m.edgeNeighbourOffset[e],m.edgeConormal[e])<=0))
-            return numericReject(error,"nonpositive surface edge distance",e,numericalFailure);
+            return numericReject(error,"nonpositive surface edge distance",e,numericalFailure,dot(m.edgeOwnerOffset[e]-m.edgeNeighbourOffset[e],m.edgeConormal[e]),0);
     }
     return true;
 }
@@ -192,7 +198,7 @@ bool recoverAndProfile(const HostState& h,const PhysicsConfig& p,
         e.q[f].enthalpy+=pressureVolumeProduct(h.filmAux[f].pressure,h.film[f].mass/p.liquid.rho,
             d.pressure,h.film[f].mass/p.liquid.rho);
         if(coupled) {
-            if(!setCoupledFilmNormalTrace(a,m.normal[f],h.film[f].mass>0,d.bottomNormalVelocity,d.topNormalVelocity))
+            if(!setCoupledFilmNormalTrace(a,m.normal[f],h.film[f].mass>0,d.bottomNormalVelocity,d.topNormalVelocity,nullptr,static_cast<int>(f),p.diagnostics))
                 return numericReject(error,"invalid coupled profile trace",f,numericalFailure);
             a.normalVelocity=d.interfaceNormalVelocity;a.solidNormalVelocity=d.solidNormalVelocity;
         }
@@ -254,7 +260,7 @@ bool evaluate(const HostState& h,const PhysicsConfig& p,Real dt,
         const Vec3 velocity=neighbour>=0?(e.aux[owner].meanVelocity+e.aux[neighbour].meanVelocity)*.5:e.aux[owner].meanVelocity;
         const Real lengthRate=length*dot(velocity,conormal)-meshRate;
 
-        if(!finite(lengthRate))return numericReject(error,"non-finite film edge transport rate",edge,numericalFailure);
+        if(!finite(lengthRate))return numericReject(error,"non-finite film edge transport rate",edge,numericalFailure,lengthRate,0);
         const int donor=lengthRate>=0||neighbour<0?owner:neighbour;
         FilmQ reconstructed;
         if(!reconstruct(donor,donor==owner?m.edgeOwnerOffset[edge]:m.edgeNeighbourOffset[edge],e,m,p,reconstructed))
@@ -270,7 +276,7 @@ bool evaluate(const HostState& h,const PhysicsConfig& p,Real dt,
             flux.enthalpy+=conductance*(e.aux[owner].temperature-e.aux[neighbour].temperature);
             e.conductance[owner]+=conductance;e.conductance[neighbour]+=conductance;
         }
-        if((!finite(flux.mass)||!finite(flux.enthalpy)))return numericReject(error,"nonfinite edge flux",edge,numericalFailure);
+        if((!finite(flux.mass)||!finite(flux.enthalpy)))return numericReject(error,"nonfinite edge flux",edge,numericalFailure,flux.mass,flux.enthalpy);
         addRate(e.rhs[owner],flux,-1);
         const FilmProfile profile=faceProfile(donor,e,m,p);
         sideVolumeRate[owner]+=profile.delta*meshRate;
@@ -321,8 +327,8 @@ bool finalizeCpuFilmPhasePacketImpl(const FilmQ& accepted,Real acceptedPressure,
     for(int c=0;c<Nc;++c)candidate.condensed[c]=c==p.material.phaseCondensed?candidate.mass:0;
     for(int s=0;s<Ns;++s) {
         const Real species=(accepted.species[s]+dt*localRate.species[s])+primary.species[s];
-        if((!closeEnough(species,available*p.material.phaseFilmY[s],p.tolerances.absoluteMass,p.tolerances.relativeMass))) {
-            reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,4202,species-available*p.material.phaseFilmY[s],0,0,s);
+        if((!closeEnough(species,available*physicalFraction(p,p.material.phaseFilmY[s],s),p.tolerances.absoluteMass,p.tolerances.relativeMass))) {
+            reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,4202,species-available*physicalFraction(p,p.material.phaseFilmY[s],s),0,0,s);
         }
         candidate.species[s]=-species;
     }
@@ -346,10 +352,10 @@ bool advanceCpuFilmCandidateImpl(const HostState& h,const PhysicsConfig& p,Real 
     for(std::size_t f=0;f<h.film.size();++f) {
         const auto& old=h.film[f];const auto& source=forcing[f];
         const Real withdrawn=dt*e.withdrawal[f].mass+maxValue(source.withdrawnMass,maxValue(0,-source.mass)+maxValue(0,-source.phaseMass));
-        if((!finite(withdrawn)||withdrawn-old.mass>16*std::numeric_limits<Real>::epsilon()*(absValue(withdrawn)+absValue(old.mass))))return numericReject(error,"aggregate mass donor exhausted",f,numericalFailure);
+        if((!finite(withdrawn)||withdrawn-old.mass>16*std::numeric_limits<Real>::epsilon()*(absValue(withdrawn)+absValue(old.mass))))return numericReject(error,"aggregate mass donor exhausted",f,numericalFailure,withdrawn,old.mass);
         for(int s=0;s<Ns;++s) {
             const Real removed=dt*e.withdrawal[f].species[s]+maxValue(source.withdrawnSpecies[s],maxValue(0,-source.species[s])+maxValue(0,-source.phaseSpecies[s]));
-            if((!finite(removed)||removed-old.species[s]>16*std::numeric_limits<Real>::epsilon()*(absValue(removed)+absValue(old.species[s]))))return numericReject(error,"aggregate species donor exhausted",f,numericalFailure);
+            if((!finite(removed)||removed-old.species[s]>16*std::numeric_limits<Real>::epsilon()*(absValue(removed)+absValue(old.species[s]))))return numericReject(error,"aggregate species donor exhausted",f,numericalFailure,removed,old.species[s]);
         }
         auto& q=next.film[f];auto& a=next.filmAux[f];
         q.mass=(old.mass+dt*e.rhs[f].mass+source.mass)+source.phaseMass;
@@ -377,12 +383,12 @@ bool advanceCpuFilmCandidateImpl(const HostState& h,const PhysicsConfig& p,Real 
         q.enthalpy=physical+newPV;
         if(q.mass!=0)for(int species=0;species<Ns;++species){
             Real Y=q.species[species]/q.mass;const Real originalY=Y;
-            if(!clipPhysicsMassFraction(p,Y,4204,species))return numericReject(error,"nonfinite film mass fraction",f,numericalFailure);
+            if(!clipPhysicsMassFraction(p,Y,4204,species))return numericReject(error,"nonfinite film mass fraction",f,numericalFailure,Y,species);
             if(Y!=originalY)q.species[species]=q.mass*Y;
         }
-        if((!validFilmInventory(q,false,p.diagnostics)))return numericReject(error,"invalid candidate inventory or unaligned dryout event",f,numericalFailure);
+        if((!validFilmInventory(q,false,p.diagnostics)))return numericReject(error,"invalid candidate inventory or unaligned dryout event",f,numericalFailure,q.mass,q.enthalpy);
         if(!recoverFilmThermalState(q,h.surface.area[f],newPressure,p,h.surface.normal[f],coupledFace(h.surface,f),a))
-            return numericReject(error,"candidate EOS or dryout event failed",f,numericalFailure);
+            return numericReject(error,"candidate EOS or dryout event failed",f,numericalFailure,q.mass,q.enthalpy);
         a.solidFront=h.filmAux[f].solidFront+dt*e.aux[f].solidNormalVelocity;
         a.gasFront=h.filmAux[f].gasFront+dt*e.aux[f].normalVelocity;
         if((!finite(a.solidFront)||!finite(a.gasFront)))return numericReject(error,"nonfinite front motion",f,numericalFailure);
@@ -415,7 +421,7 @@ bool evaluateCpuFilmTransportImpl(const HostState& h,const PhysicsConfig& p,Real
 bool estimateCpuFilmStepImpl(const HostState& h,const PhysicsConfig& p,
     const std::vector<CpuFilmForcing>& forcing,const std::vector<CpuFilmDrive>& drive,
     Real forcingInterval,Real maxDt,Real& output,std::string& error,bool* numericalFailure) {
-    if((!finite(maxDt)||maxDt<=0))return numericReject(error,"invalid local maximum interval",0,numericalFailure);
+    if((!finite(maxDt)||maxDt<=0))return numericReject(error,"invalid local maximum interval",0,numericalFailure,maxDt,0);
     Evaluation e;if(!evaluate(h,p,forcingInterval,forcing,drive,e,error,numericalFailure))return false;
     Real dt=minValue(maxDt,forcingInterval);const Real safety=.4;
     for(std::size_t f=0;f<h.film.size();++f) {
@@ -432,7 +438,7 @@ bool estimateCpuFilmStepImpl(const HostState& h,const PhysicsConfig& p,
             const Real capacity=q.mass*cp;
             if(e.conductance[f]>0)dt=minValue(dt,safety*capacity/e.conductance[f]);
             if(p.enableRadiation&&!coupledFace(h.surface,f)) {
-                const Real radiationSlope=4*5.670374419e-8*p.emissivity*h.surface.area[f]*a.temperature*a.temperature*a.temperature;
+                const Real radiationSlope=4*5.670374419e-8*physicalFraction(p,p.emissivity)*h.surface.area[f]*a.temperature*a.temperature*a.temperature;
                 if(radiationSlope>0)dt=minValue(dt,safety*capacity/radiationSlope);
             }
             const Real energyRate=e.rhs[f].enthalpy+(source.energy+source.phaseEnergy+source.interfaceKineticOutflow+source.phaseKineticOutflow+source.radiationEnergy)/forcingInterval;
@@ -440,13 +446,12 @@ bool estimateCpuFilmStepImpl(const HostState& h,const PhysicsConfig& p,
             const Real specificU=filmInternalEnergy(q,h.filmAux[f].pressure,p)/q.mass;
             const Real thermalRate=energyRate-specificU*massRate;
             if(thermalRate!=0&&!source.exactPhaseEvent) {
-                const Real range=thermalRate>0?p.liquid.Tmax-a.temperature:a.temperature-p.liquid.Tmin;
-                const Real permitted=minValue(.1*a.temperature,safety*range);
+                const Real permitted=.1*a.temperature;
                 dt=minValue(dt,capacity*permitted/absValue(thermalRate));
             }
         }
     }
-    if((!finite(dt)||dt<0))return numericReject(error,"invalid local source/donor/thermal estimate",0,numericalFailure);
+    if((!finite(dt)||dt<0))return numericReject(error,"invalid local source/donor/thermal estimate",0,numericalFailure,dt,maxDt);
     output=dt;error.clear();return true;
 }
 

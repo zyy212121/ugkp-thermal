@@ -37,9 +37,19 @@ UGKWP_GAS_HD inline ChemistryStatus recordFailure
         (status.code==ChemistryCode::SingularJacobian?Quantity::LinearSystem:
          status.code==ChemistryCode::TemperatureFailure?Quantity::Temperature:
          status.code==ChemistryCode::InvalidComposition?Quantity::MassFraction:Quantity::Unspecified));
-    // A coarse solver status does not establish a zero pivot versus nonfinite
-    // matrix/RHS. Preserve its category without inventing a narrower cause.
     record.metadata=static_cast<std::uint32_t>(status.code)&detailCodeMask;
+    const auto& linear=status.linearFailure;
+    if(linear.quantity!=DenseLinearQuantity::None)
+    {
+        const bool zero=linear.quantity==DenseLinearQuantity::Pivot || linear.quantity==DenseLinearQuantity::RowScale;
+        const Code linearCode=!gasFinite(linear.value)?Code::NonFinite:
+            (zero?Code::ZeroDenominator:Code::InvalidPhysicalState);
+        // Row is component; column is reference; metadata names the failing
+        // quantity. The exact consumed scalar is observed (never the norm).
+        record=makeRecord(linearCode,2207,22,0,EntityKind::Cell,cell,linear.row,
+            linear.value,linear.column,linear.value,Quantity::LinearSystem);
+        record.metadata=static_cast<std::uint32_t>(linear.quantity);
+    }
     if(warning)recordWarning(state.diagnostics,record);
     else recordFatal(state.diagnostics,record);
     if (cell>=0 && cell<state.nCells)

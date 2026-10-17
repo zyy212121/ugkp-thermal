@@ -46,7 +46,7 @@ template<class S>void output(const S&s){
 }
 '''
 
-@pytest.mark.parametrize('source',['gravity','drag','heat','volume','recovery'])
+@pytest.mark.parametrize('source',['drag','heat','volume','recovery'])
 def test_exact_bounded_energy_fallbacks(tmp_path,original_root,source):
     action={'gravity':'s.gravityX=1;applyGasGravityCell<true>(s,0,1.);',
             'drag':'drag<0>(&s,.25,0);','heat':'s.gasMu=1e-5;applyEulerianParticleMaterialHeatKernel(&s,.25);',
@@ -62,6 +62,13 @@ output(s);std::printf("particle %a %a %a %a %a\n",double(s.momRhoUPx[0]),double(
     expected=build_run(tmp_path,'original',original_root,body)
     actual=build_run(tmp_path,'corrected',ROOT,body)
     assert actual==expected
+
+def test_exact_ordinary_finite_gravity_arithmetic(tmp_path,original_root):
+    body=source_fixture()+PRINT+r'''
+int main(){for(double value:{-100.,0.,100.,1e299}){DeviceState s;setup(s);s.rhoE[0]=value;
+s.gravityX=1;applyGasGravityCell<true>(s,0,1.);output(s);}}
+'''
+    assert build_run(tmp_path,'current-gravity',ROOT,body)==build_run(tmp_path,'original-gravity',original_root,body)
 
 @pytest.mark.parametrize('kernel',['positivity','convective','diffusion','sst','sst_update','divergence'])
 def test_exact_skipped_face_and_zero_trip_loops(tmp_path,original_root,kernel):

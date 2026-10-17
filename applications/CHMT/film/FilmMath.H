@@ -47,10 +47,12 @@ CHMT_HD inline FilmProfile withNormalProfile(FilmProfile p, Vec3 normal, Real bo
 // of film mass. A dry owner explicitly clears it; no old wet trace is inferred.
 template<bool Terminal=false>
 CHMT_HD inline bool setCoupledFilmNormalTrace(FilmAux& aux, Vec3 normal, bool wet,
-    Real bottom, Real top, DeviceStatus* status=nullptr, int index=-1) {
-    if ((!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12) || !finite(aux.baseVelocity))) {
+    Real bottom, Real top, DeviceStatus* status=nullptr, int index=-1,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
+    if ((!finite(normal) || mag(normal)==0 || !finite(aux.baseVelocity))) {
         return failStatus(status,ErrorCode::InvalidInput,index,0,ErrorLocation::Face);
     }
+    if(!closeEnough(mag(normal),1,1e-12,1e-12)){using namespace ugkp::diagnostics;
+        recordWarning(diagnostics,makeRecord(Code::AccuracyResidual,4217,42,0,EntityKind::Face,index,-1,mag(normal)-1,1e-12,0,Quantity::Accuracy));}
     FilmAux next=aux;
     if (wet) {
         if ((!finite(bottom) || !finite(top) || !finite(aux.meanVelocity) || !finite(aux.topVelocity))) {
@@ -74,9 +76,10 @@ template<bool Terminal=false>
 CHMT_HD inline bool recoverFilmThermalState(const FilmQ& q, Real area, Real pressure,
     const PhysicsConfig& p, Vec3 normal, bool coupled, FilmAux& aux,
     DeviceStatus* status=nullptr, int index=-1) {
-    if ((!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12) || !finite(aux.baseVelocity))) {
+    if ((!finite(normal) || mag(normal)==0 || !finite(aux.baseVelocity))) {
         return failStatus(status,ErrorCode::InvalidInput,index,0,ErrorLocation::Face);
     }
+    if(!closeEnough(mag(normal),1,1e-12,1e-12))reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,4218,mag(normal)-1,1e-12);
     Real meanNormal=0, topNormal=0;
     if (coupled) {
         if ((!finite(aux.meanVelocity) || !finite(aux.topVelocity))) {
@@ -104,9 +107,10 @@ CHMT_HD inline bool recoverFilmThermalState(const FilmQ& q, Real area, Real pres
 template<bool Terminal=false>
 CHMT_HD inline bool updateFilmProfileState(FilmAux& aux, const PhysicsConfig& p, Vec3 normal,
     Vec3 shear, Vec3 pressureBodyGradient, bool coupled, DeviceStatus* status=nullptr, int index=-1) {
-    if ((!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12))) {
+    if ((!finite(normal) || mag(normal)==0)) {
         return failStatus(status,ErrorCode::InvalidInput,index,aux.area,ErrorLocation::Face);
     }
+    if(!closeEnough(mag(normal),1,1e-12,1e-12))reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,4219,mag(normal)-1,1e-12);
     Real bottom=dot(aux.baseVelocity,normal), top=bottom;
     if (coupled) {
         if ((!finite(aux.meanVelocity) || !finite(aux.topVelocity))) {
@@ -167,15 +171,18 @@ CHMT_HD inline FilmQ filmAdvectiveFlux(const FilmQ& density, Real sweptLengthRat
 CHMT_HD inline Real grayRadiation(Real temperature, const PhysicsConfig& p) {
     if (!p.enableRadiation) return 0;
     const Real t2=temperature*temperature, a2=p.ambientTemperature*p.ambientTemperature;
-    return 5.670374419e-8*p.emissivity*(a2*a2-t2*t2);
+    return 5.670374419e-8*physicalFraction(p,p.emissivity)*(a2*a2-t2*t2);
 }
 CHMT_HD inline bool freezeFilmRemainder(const FilmQ& q, Real pressure,
     const PhysicsConfig& p, ExchangePacket& out) {
     const int c=p.material.phaseCondensed;
     if (c<0 || c>=Nc || !validFilmInventory(q) || q.mass<=0) return false;
     for (int s=0; s<Ns; ++s) {
-        if (!closeEnough(q.species[s],q.mass*p.material.phaseFilmY[s],
-            p.tolerances.absoluteMass,p.tolerances.relativeMass)) return false;
+        const Real expected=q.mass*physicalFraction(p,p.material.phaseFilmY[s],s);
+        if(!finite(expected))return false;
+        if (!closeEnough(q.species[s],expected,
+            p.tolerances.absoluteMass,p.tolerances.relativeMass))
+            reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,4213,q.species[s]-q.mass*physicalFraction(p,p.material.phaseFilmY[s],s),0,0,s);
     }
     ExchangePacket packet;
     packet.kind=ExchangeKind::SolidFilm;

@@ -17,15 +17,14 @@ inline BoundaryLayerWorkspaceSizing resolveBoundaryLayerWorkspace(
 {
     BoundaryLayerWorkspaceSizing result;
     if(faces<=0 || bytesPerWorkspace==0)return result;
+    (void)freeBytes; // Advisory free memory must not impose an allocation policy.
     if(requestedSlots==0)
     {
-        result.budget=std::min(freeBytes/8,std::size_t(1)<<30);
         const std::size_t desired=std::size_t(std::max(multiprocessors,1))*32;
-        result.slots=int(std::min({std::size_t(faces),desired,std::size_t(4096),std::max(std::size_t(1),result.budget/bytesPerWorkspace)}));
+        result.slots=int(std::min(std::size_t(faces),desired));
     }
     else
     {
-        result.budget=freeBytes;
         result.slots=int(std::min(std::uint32_t(faces),requestedSlots));
     }
 

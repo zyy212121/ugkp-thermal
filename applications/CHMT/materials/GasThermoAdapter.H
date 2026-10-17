@@ -59,7 +59,7 @@ struct MaterialEnergyEvaluator {
     const SpeciesThermo* supplied=nullptr;
     CHMT_HD ugkwp::ThermoStatus evaluate(Real T,Real& energy,Real& capacity) const {
         if(!finite(T))return ugkwp::ThermoStatus::NonFiniteInput;
-        if(T<0)return ugkwp::ThermoStatus::TemperatureOutOfRange;
+        if(T<=0)return ugkwp::ThermoStatus::TemperatureOutOfRange;
         Real value=a0+T*(a1+Real(.5)*a2*T),derivative=a1+a2*T;
         for(int s=0;s<Ns;++s) {
             if((!finite(gasMass[s])||gasMass[s]<0))return ugkwp::ThermoStatus::InvalidComposition;
@@ -91,7 +91,7 @@ CHMT_HD inline Real gasCapacitySecantBranch(const SpeciesThermo& s,Real a,Real b
 template<bool Terminal=false>
 CHMT_HD inline Real speciesEnergySecant(const SpeciesThermo& s,Real a,Real b) {
     if(a==b)return speciesCv(s,a);
-    if((!finite(a)||!finite(b)||a<s.Tmin||a>s.Tmax||b<s.Tmin||b>s.Tmax))return undefinedValue();
+    if((!finite(a)||!finite(b)||a<=0||b<=0))return undefinedValue();
     if(a>b){const Real swap=a;a=b;b=swap;}
     if(s.model==ugkwp::SpeciesThermoModel::NASA7&&a<=s.Tmid&&b>s.Tmid) {
         // Evaluate both one-sided values with the shared evaluator. Source

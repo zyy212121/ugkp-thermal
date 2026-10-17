@@ -1,5 +1,6 @@
 #include "mesh/SweepConstraints.H"
 #include "mesh/TrajectorySurface.H"
+#include "DiagnosticsHost.H"
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
@@ -101,16 +102,17 @@ void rejectIncompatibleTargets() {
     for (std::size_t p=0;p<mesh.points.size();++p)
         if (mesh.points[p].x==1 && mesh.points[p].z==1) direction[p]={0,0,1};
     HostMesh output=base.gasMesh; output.geometryVersion=987;
-    const auto sentinelPoints=output.points; std::vector<Real> sweeps={123,456};
+    std::vector<Real> sweeps={123,456};
     SweepConstraintReport report; std::string error;
-    require(!constrainFaceSweeps(mesh,base.surface.solidFace,{-.03,-.08},displacement,fixed,direction,
-        1,output,sweeps,report,error),"incompatible shared-edge targets must be rejected");
-    require(report.status==SweepConstraintStatus::Incompatible,"numerical rank/incompatibility diagnostic: "+error);
-    require(report.rank<report.constraints,"rank deficiency reported");
-    require(output.geometryVersion==987 && output.points.size()==sentinelPoints.size()
-        && sweeps==std::vector<Real>({123,456}),"failed solve preserves output sentinels");
-    for (std::size_t p=0;p<sentinelPoints.size();++p)
-        require(mag(output.points[p]-sentinelPoints[p])==0,"failed solve preserves output coordinates");
+    ugkp::diagnostics::DeviceContext diagnostics{};ugkp::diagnostics::reset(diagnostics,1,34);
+    Tolerances tolerances;tolerances.diagnostics=&diagnostics;
+    require(constrainFaceSweeps(mesh,base.surface.solidFace,{-.03,-.08},displacement,fixed,direction,
+        1,output,sweeps,report,error,SweepConstraintControls{},tolerances),"finite incompatible residual retains geometry: "+error);
+    require(report.status==SweepConstraintStatus::Success && report.rank<report.constraints,"rank deficiency remains reported");
+    require(!ugkp::diagnostics::takeSnapshot(diagnostics).warnings.empty(),"finite incompatible targets warn");
+    require(report.maximumSweepResidual>1e-6,"finite unmet target is not hidden");
+    require(maximumGclResidual(mesh,output,sweeps)<1e-12,"retained incompatible-target result has independent GCL");
+
 }
 void stationaryNeedsNoDenseSolve() {
     const HostState base=coupledPair(); HostMesh gas,solid; SurfaceMesh surface;
@@ -318,9 +320,9 @@ void boundedSolveLimitAndNonfiniteInput() {
     const HostState base=coupledPair(); HostMesh gas=base.gasMesh,solid=base.solidMesh;
     SurfaceMesh surface=base.surface; SweepConstraintControls controls; controls.maximumDegreesOfFreedom=1;
     SweepConstraintReport report; std::string error;
-    require(!moveCoupledMeshesConstrained(base,base.filmAux,{-.04,-.1},1,gas,solid,surface,report,error,controls),
-        "bounded dense solve must reject oversized correction");
-    require(report.status==SweepConstraintStatus::SizeLimit,"size-limit diagnostic");
+    require(moveCoupledMeshesConstrained(base,base.filmAux,{-.04,-.1},1,gas,solid,surface,report,error,controls),
+        "legacy DOF cap must not reject actual correction: "+error);
+    require(report.status==SweepConstraintStatus::Success && report.degreesOfFreedom>1,"actual solve exceeds legacy cap");
     require(!moveCoupledMeshesConstrained(base,base.filmAux,{undefinedValue(),0},1,gas,solid,surface,report,error),
         "nonfinite target rejected");
     require(report.status==SweepConstraintStatus::InvalidInput,"nonfinite target diagnostic");
@@ -382,10 +384,17 @@ void rejectRoundedTrajectoryResidual() {
     require(rebuildGeometry(base.gasMesh,error),error);
     HostMesh gas=base.gasMesh,solid=base.solidMesh; SurfaceMesh surface=base.surface;
     gas.geometryVersion=77; solid.geometryVersion=88; SweepConstraintReport report;
-    const bool ok=moveCoupledMeshesConstrained(base,base.filmAux,{-.04,-.1},1,gas,solid,surface,report,error);
-    require(!ok,"local-frame convergence cannot substitute for actual world-coordinate target sweeps");
-    require(error.find("actual target swept volume")!=std::string::npos,"rounded trajectory residual diagnosis: "+error);
-    require(gas.geometryVersion==77 && solid.geometryVersion==88,"rounded-trajectory rejection preserves outputs");
+    ugkp::diagnostics::DeviceContext diagnostics{};ugkp::diagnostics::reset(diagnostics,1,34);
+    Tolerances tolerances;tolerances.diagnostics=&diagnostics;
+    const bool ok=moveCoupledMeshesConstrained(base,base.filmAux,{-.04,-.1},1,gas,solid,surface,report,error,SweepConstraintControls{},tolerances);
+    require(ok,"finite world-coordinate sweep residual continues: "+error);
+    require(!ugkp::diagnostics::takeSnapshot(diagnostics).warnings.empty(),"rounded trajectory residual warns");
+    const std::vector<Real> targets={-.04,-.1};Real maximum=0;
+    for(std::size_t i=0;i<targets.size();++i)maximum=maxValue(maximum,
+        absValue(quadratureSweep(base.solidMesh,solid.points,base.surface.solidFace[i])-targets[i]));
+    require(maximum>1e-12 && absValue(maximum-report.maximumSweepResidual)<1e-12,
+        "reported world-coordinate residual matches independent quadrature and is not repaired");
+
 }
 
 void denseSmallCellSweepAccuracy() {
@@ -432,11 +441,19 @@ void hardSweepCeilingsValidateAndRejectUnrepresentableMotion() {
     SurfaceMesh surface;SweepConstraintReport report;
     SweepConstraintControls explicitCeiling;
     for(int f:base.surface.solidFace)explicitCeiling.faceVolumeTolerance.push_back(8*std::numeric_limits<Real>::epsilon()*base.solidMesh.volumes[base.solidMesh.owner[f]]);
-    require(!moveCoupledMeshesConstrained(base,base.filmAux,{-.04,-.1},1,gas,solid,surface,report,error,explicitCeiling),
-        "world-coordinate quantization may not override an explicit material inventory ceiling");
-    require(report.status==SweepConstraintStatus::InvalidTrajectory||report.status==SweepConstraintStatus::Nonconverged,
-        "unrepresentable inventory accuracy has a typed rejection");
-    require(gas.geometryVersion==77&&solid.geometryVersion==88,"unrepresentable material motion preserves outputs");
+    ugkp::diagnostics::DeviceContext diagnostics{};ugkp::diagnostics::reset(diagnostics,1,34);
+    Tolerances tolerances;tolerances.diagnostics=&diagnostics;
+    require(moveCoupledMeshesConstrained(base,base.filmAux,{-.04,-.1},1,gas,solid,surface,report,error,explicitCeiling,tolerances),
+        "finite explicit inventory-ceiling residual retains motion: "+error);
+    require(report.status==SweepConstraintStatus::Success,"finite accuracy residual is not a trajectory error");
+    require(!ugkp::diagnostics::takeSnapshot(diagnostics).warnings.empty(),"explicit inventory-ceiling residual warns");
+    const std::vector<Real> targets={-.04,-.1};bool exceeds=false;
+    for(std::size_t i=0;i<targets.size();++i) {
+        const Real residual=absValue(quadratureSweep(base.solidMesh,solid.points,base.surface.solidFace[i])-targets[i]);
+        exceeds=exceeds || residual>explicitCeiling.faceVolumeTolerance[i];
+    }
+    require(exceeds,"test exercises real finite ceiling excess without coordinate repair");
+
 }
 
 }

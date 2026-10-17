@@ -5,6 +5,7 @@
 #undef main
 #include "mesh/SweepWorkspace.H"
 #include <cstring>
+#include "DiagnosticsHost.H"
 
 namespace {
 struct LargeFixture {
@@ -52,7 +53,7 @@ LargeFixture largeFixture(bool tetra,int blocks,int activeBlocks) {
 }
 
 struct SolveResult {
-    bool accepted=false;
+    bool accepted=false, warned=false;
     HostMesh output;
     std::vector<Real> sweeps;
     SweepConstraintReport report;
@@ -62,8 +63,11 @@ struct SolveResult {
 SolveResult solve(const LargeFixture& x,const SweepConstraintControls& controls) {
     SolveResult r; r.output=x.mesh; r.output.geometryVersion=991;
     r.sweeps={123,456};
+    ugkp::diagnostics::DeviceContext diagnostics{};ugkp::diagnostics::reset(diagnostics,1,34);
+    Tolerances tolerances;tolerances.diagnostics=&diagnostics;
     r.accepted=constrainFaceSweeps(x.mesh,x.faces,x.targets,x.zero,x.fixed,x.directions,
-        1,r.output,r.sweeps,r.report,r.error,controls);
+        1,r.output,r.sweeps,r.report,r.error,controls,tolerances);
+    r.warned=!ugkp::diagnostics::takeSnapshot(diagnostics).warnings.empty();
     return r;
 }
 
@@ -101,7 +105,7 @@ void checkPlanarTrajectory(const HostMesh& old,const HostMesh& endpoint) {
     }
 }
 
-void checkPhysicalResult(const LargeFixture& x,const SolveResult& result) {
+void checkPhysicalResult(const LargeFixture& x,const SolveResult& result,bool targetsMet=true) {
     require(result.accepted && result.report.status==SweepConstraintStatus::Success,
         "real geometry correction must succeed: "+result.error);
     require(result.error.empty(),"successful correction clears diagnostic");
@@ -111,7 +115,7 @@ void checkPhysicalResult(const LargeFixture& x,const SolveResult& result) {
     require(result.output.owner==x.mesh.owner && result.output.neighbour==x.mesh.neighbour
         && result.output.faceOffsets==x.mesh.faceOffsets && result.output.facePoints==x.mesh.facePoints,
         "correction preserves mesh topology");
-    for (std::size_t i=0;i<x.faces.size();++i)
+    if(targetsMet)for (std::size_t i=0;i<x.faces.size();++i)
         require(absValue(result.sweeps[x.faces[i]]-x.targets[i])<1e-12,"all original target sweeps retained");
     for (std::size_t f=0;f<result.sweeps.size();++f)
         require(absValue(result.sweeps[f]-quadratureSweep(x.mesh,result.output.points,static_cast<int>(f)))<1e-12,
@@ -121,7 +125,7 @@ void checkPhysicalResult(const LargeFixture& x,const SolveResult& result) {
     checkPlanarTrajectory(x.mesh,result.output);
 }
 
-void compareResults(const LargeFixture& x,const SolveResult& reference,const SolveResult& candidate) {
+void compareResults(const LargeFixture& x,const SolveResult& reference,const SolveResult& candidate,bool targetsMet=true) {
     require(reference.accepted==candidate.accepted && reference.report.status==candidate.report.status,
         "cached/reference acceptance and rejection classification agree");
     require(reference.report.rank==candidate.report.rank
@@ -131,7 +135,7 @@ void compareResults(const LargeFixture& x,const SolveResult& reference,const Sol
     if (!candidate.accepted) {
         checkRejectedOutputs(x,reference); checkRejectedOutputs(x,candidate); return;
     }
-    checkPhysicalResult(x,reference); checkPhysicalResult(x,candidate);
+    checkPhysicalResult(x,reference,targetsMet); checkPhysicalResult(x,candidate,targetsMet);
     require(reference.output.geometryVersion==candidate.output.geometryVersion,"output geometry version agrees");
     for (std::size_t p=0;p<x.mesh.points.size();++p)
         require(mag(reference.output.points[p]-candidate.output.points[p])<2e-11,"weighted physical endpoint agrees");
@@ -139,10 +143,9 @@ void compareResults(const LargeFixture& x,const SolveResult& reference,const Sol
         require(absValue(reference.sweeps[f]-candidate.sweeps[f])<2e-12,"all cached/reference face sweeps agree");
 }
 
-void checkWorkspaceReport(const SolveResult& result,const SweepConstraintControls& controls) {
-    require(result.report.peakWorkspaceBytes>0
-        && result.report.peakWorkspaceBytes<=controls.maximumWorkspaceBytes,
-        "accounted solver workspace stays within its explicit byte budget");
+void checkWorkspaceReport(const SolveResult& result,const SweepConstraintControls&) {
+    require(result.report.peakWorkspaceBytes>0,
+        "actual solver workspace is accounted without a policy ceiling");
     const std::size_t dof=static_cast<std::size_t>(result.report.degreesOfFreedom);
     if (result.accepted) {
         const std::size_t expected=result.report.streamedModes?2*result.report.iterations*dof:dof;
@@ -168,7 +171,7 @@ void checkLarge(const std::string& name) {
     require(name!="tet880" || x.mesh.points.size()*candidate.report.degreesOfFreedom==2112000,
         "point-mode fixture independently exceeds the former two-million-entry cap");
     require(candidate.accepted,"default production entry must solve "+name+": "+candidate.error);
-    require(candidate.report.streamedModes==stress,"default budget caches fitting modes and regenerates larger ones");
+    require(candidate.report.streamedModes,"one streamed construction for every mesh size");
     checkWorkspaceReport(candidate,SweepConstraintControls{});
     if (stress) {
         checkPhysicalResult(x,candidate);
@@ -227,18 +230,15 @@ void checkNearRank() {
         const LargeFixture x=nearRankFixture(sigma,target);
         const SolveResult result=solve(x,SweepConstraintControls{});
         const bool expected=sigma==1e-10;
-        require(result.accepted==expected,"two-tetra near-rank original acceptance set");
+        require(result.accepted,"finite near-rank residual retains actual geometry: "+result.error);
         require(result.report.rank==(expected?2:1),"two-tetra original QR rank");
-        if (expected) checkPhysicalResult(x,result);
-        else {
-            require(result.report.status==SweepConstraintStatus::Incompatible,"near-rank typed incompatibility");
-            checkRejectedOutputs(x,result);
-        }
-        require(!result.report.streamedModes,"default near-rank reference uses cached modes");
-        require(result.report.peakWorkspaceBytes>1,"cached reference reports accounted workspace");
+        checkPhysicalResult(x,result,expected);
+        if(!expected)require(result.warned,"rank-deficient finite residual is diagnosed");
+        require(result.report.streamedModes,"near-rank uses deterministic streamed modes");
+        require(result.report.peakWorkspaceBytes>1,"reference reports actual workspace");
         SweepConstraintControls bounded; bounded.maximumWorkspaceBytes=result.report.peakWorkspaceBytes-1;
         const SolveResult streamed=solve(x,bounded);
-        compareResults(x,result,streamed);
+        compareResults(x,result,streamed,expected);
         require(streamed.report.streamedModes,"near-rank real production fixture exercises regenerated modes");
         checkWorkspaceReport(streamed,bounded);
         std::cout << "near_rank sigma=" << sigma << " target2=" << target
@@ -263,12 +263,12 @@ void checkNonlinear() {
     for (int face:x.faces) x.targets.push_back(quadratureSweep(x.mesh,known,face));
     const SolveResult cached=solve(x,SweepConstraintControls{});
     checkPhysicalResult(x,cached); checkWorkspaceReport(cached,SweepConstraintControls{});
-    require(cached.report.iterations>=2 && !cached.report.streamedModes,"nonlinear cached reference needs repeated Newton");
+    require(cached.report.iterations>=2 && cached.report.streamedModes,"nonlinear streamed solve needs repeated Newton");
     SweepConstraintControls bounded; bounded.maximumWorkspaceBytes=cached.report.peakWorkspaceBytes-1;
     const SolveResult streamed=solve(x,bounded);
     compareResults(x,cached,streamed); checkWorkspaceReport(streamed,bounded);
     require(streamed.report.streamedModes,"nonlinear fixture regenerates each Newton's modes");
-    require(streamed.report.modeSolves>cached.report.modeSolves,"multiple Newton recomputation is visible");
+    require(streamed.report.modeSolves==cached.report.modeSolves,"legacy caps cannot alter mode construction or work");
 }
 
 void checkControls() {
@@ -276,22 +276,26 @@ void checkControls() {
     const SweepConstraintControls defaults;
     require(defaults.maximumDegreesOfFreedom==0 && defaults.maximumConstraints==0
         && defaults.maximumModeEntries==0,"default legacy dimension caps are resource-budget driven");
-    require(defaults.maximumWorkspaceBytes==256ull*1024*1024,"default solver workspace budget is 256 MiB");
+    require(defaults.maximumWorkspaceBytes==0,"no default workspace policy cap");
     const SolveResult cached=solve(x,defaults);
     checkPhysicalResult(x,cached); checkWorkspaceReport(cached,defaults);
-    const auto reject=[&](const SweepConstraintControls& controls,SweepConstraintStatus status) {
+    const auto continueWith=[&](const SweepConstraintControls& controls) {
         const SolveResult result=solve(x,controls);
-        require(!result.accepted && result.report.status==status,"explicit limit/invalid-control typed rejection: "+result.error);
-        checkRejectedOutputs(x,result);
+        compareResults(x,cached,result);
+        require(result.report.modeSolves==cached.report.modeSolves,"legacy caps do not alter solve work");
     };
-    SweepConstraintControls controls=defaults; controls.maximumDegreesOfFreedom=1;
-    reject(controls,SweepConstraintStatus::SizeLimit);
-    controls=defaults; controls.maximumConstraints=1; reject(controls,SweepConstraintStatus::SizeLimit);
-    controls=defaults; controls.maximumModeEntries=1; reject(controls,SweepConstraintStatus::SizeLimit);
-    controls=defaults; controls.maximumWorkspaceBytes=1; reject(controls,SweepConstraintStatus::SizeLimit);
-    controls=defaults; controls.maximumWorkspaceBytes=0; reject(controls,SweepConstraintStatus::InvalidInput);
-    controls=defaults; controls.maximumDegreesOfFreedom=-1; reject(controls,SweepConstraintStatus::InvalidInput);
-    controls=defaults; controls.maximumConstraints=-1; reject(controls,SweepConstraintStatus::InvalidInput);
+    SweepConstraintControls controls=defaults; controls.maximumDegreesOfFreedom=1;continueWith(controls);
+    controls=defaults; controls.maximumConstraints=1;continueWith(controls);
+    controls=defaults; controls.maximumModeEntries=1;continueWith(controls);
+    controls=defaults; controls.maximumWorkspaceBytes=1;continueWith(controls);
+    controls=defaults; controls.maximumWorkspaceBytes=0;continueWith(controls);
+    controls=defaults; controls.maximumDegreesOfFreedom=-1;continueWith(controls);
+    controls=defaults; controls.maximumConstraints=-1;continueWith(controls);
+    LargeFixture invalid=x;invalid.faces[0]=static_cast<int>(x.mesh.owner.size());
+    const SolveResult badIndex=solve(invalid,defaults);
+    require(!badIndex.accepted && badIndex.report.status==SweepConstraintStatus::InvalidInput,
+        "actual out-of-bounds face remains error");
+    checkRejectedOutputs(invalid,badIndex);
     LargeFixture stationary=x; stationary.targets.assign(x.faces.size(),0);
     controls=defaults; controls.maximumDegreesOfFreedom=1; controls.maximumConstraints=1;
     controls.maximumModeEntries=1; controls.maximumWorkspaceBytes=1;
@@ -333,10 +337,15 @@ void checkOriginalTrajectoryPolynomials() {
     }
     require(exercisedAll,"fixture exercises all three nonzero original trajectory coefficients");
     const SolveResult result=solve(x,SweepConstraintControls{});
-    require(!result.accepted && result.report.status==SweepConstraintStatus::Incompatible
-        && result.report.rank==0 && result.report.constraints==43,
-        "all three trajectory equations reject a frozen endpoint-only-planar motion before certification");
-    checkRejectedOutputs(x,result);
+    require(result.accepted && result.report.status==SweepConstraintStatus::Success
+        && result.report.rank==0 && result.report.constraints==43 && result.warned,
+        "finite frozen planarity residual warns with all three equations retained");
+    for(std::size_t p=0;p<endpoint.size();++p)
+        require(mag(result.output.points[p]-endpoint[p])<1e-14,"frozen finite endpoint is retained");
+    for(std::size_t f=0;f<result.sweeps.size();++f)
+        require(absValue(result.sweeps[f]-quadratureSweep(x.mesh,endpoint,static_cast<int>(f)))<1e-12,
+            "finite planarity warning preserves independently integrated sweep");
+
 }
 
 bool samePointBits(const Vec3& a,const Vec3& b) {
@@ -421,7 +430,7 @@ void checkHarmonicModes() {
                 require(samePointBits(actual[p],expected[p]),
                     "sorted cached graph preserves the full public harmonic mode at every tested amplitude");
         }
-        require(budget.live>0 && peak<=budget.limit,"harmonic cache and scratch are budget-accounted");
+        require(budget.live>0 && peak>=budget.live,"harmonic graph and scratch allocations are accounted");
     }
     require(budget.live==0,"destroyed harmonic cache and modes return all accounted storage");
 }
@@ -429,21 +438,19 @@ void checkHarmonicModes() {
 void checkWorkspaceAllocator() {
     std::size_t peak=0; sweep_detail::Budget tiny(1,peak);
     bool rejected=false;
-    try {
-        sweep_detail::Points point(1,Vec3{},sweep_detail::Allocator<Vec3>(tiny));
-    } catch (const sweep_detail::WorkspaceLimit&) { rejected=true; }
-    require(rejected && tiny.live==0 && peak==0,"tiny budget rejects before an allocation is acquired");
-
-    peak=0; sweep_detail::Budget budget(2*sizeof(Real),peak);
+    {sweep_detail::Points point(1,Vec3{},sweep_detail::Allocator<Vec3>(tiny));
+     require(tiny.live==sizeof(Vec3) && peak==sizeof(Vec3),"tiny legacy budget retains actual allocation");}
+    require(tiny.live==0,"tiny allocation released");
+    peak=0;sweep_detail::Budget budget(2*sizeof(Real),peak);
     {
         sweep_detail::Reals values(2,Real(7),sweep_detail::Allocator<Real>(budget));
         require(budget.live==2*sizeof(Real) && peak==budget.live,"live payload bytes and peak are recorded");
-        rejected=false;
-        try { values.reserve(3); } catch (const sweep_detail::WorkspaceLimit&) { rejected=true; }
-        require(rejected && values.size()==2 && values[0]==7 && values[1]==7
-            && budget.live==2*sizeof(Real),"failed growth retains original allocation and data");
+        values.reserve(3);
+        require(values.size()==2 && values[0]==7 && values[1]==7 && budget.live>=3*sizeof(Real),
+            "growth beyond policy cap retains original data");
+        require(peak>=5*sizeof(Real),"simultaneously live old and new allocations are counted");
     }
-    require(budget.live==0,"vector destruction returns the complete allocation charge");
+    require(budget.live==0,"vector destruction returns complete allocation charge");
 
     const std::size_t maximum=std::numeric_limits<std::size_t>::max();
     rejected=false;

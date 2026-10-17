@@ -422,6 +422,8 @@ private:
         view_.rhoMin=1e-30;view_.TgasMin=1e-12;view_.gasMu=model.physics.gasViscosity;
         view_.gasPrClamped=1;
         view_.gasThermalConductivity=model.physics.gasConductivity;
+        // CHMT uses zero for disabled conduction, never a negative unset sentinel.
+        view_.gasThermalConductivityConfigured=true;
         view_.maxDiffusionNumber=.25;view_.turbulentPrandtl=model.physics.sst.turbulentPrandtl;
         view_.sstCoefficients=ugkwp::defaultSstCoefficients();
         const auto& st=model.physics.sst;auto& coeff=view_.sstCoefficients;
@@ -462,30 +464,29 @@ public:
             layer.workspaceCapacity=ugkwp::gasBoundaryLayerWorkspaceCapacity(layer.config.nodes);
             const std::size_t bytes=ugkwp::gasBoundaryLayerWorkspaceBytes<Real,Ns>(layer.config.nodes);
 #if defined(__CUDACC__) && defined(CUDART_VERSION)
-            int device=0,multiprocessors=0;std::size_t freeBytes=0,totalBytes=0;
+            int device=0,multiprocessors=0;
             if(!fault_.check(cudaGetDevice(&device),"query wall workspace device")
-                ||!fault_.check(cudaDeviceGetAttribute(&multiprocessors,cudaDevAttrMultiProcessorCount,device),"query wall workspace multiprocessors")
-                ||!fault_.check(cudaMemGetInfo(&freeBytes,&totalBytes),"query wall workspace memory")){error=fault_.message;return false;}
-            sizing=ugkwp::resolveBoundaryLayerWorkspace(view_.gasBoundaryLayer.count,physics.wallWorkspaceSlots,multiprocessors,freeBytes,bytes);
+                ||!fault_.check(cudaDeviceGetAttribute(&multiprocessors,cudaDevAttrMultiProcessorCount,device),"query wall workspace multiprocessors")){error=fault_.message;return false;}
+            sizing=ugkwp::resolveBoundaryLayerWorkspace(view_.gasBoundaryLayer.count,physics.wallWorkspaceSlots,multiprocessors,0,bytes);
 #else
             // Host CUDA shims do not represent a GPU. A serial worker gives a
             // deterministic functional test without pretending device sizing.
             sizing=ugkwp::resolveBoundaryLayerWorkspace(view_.gasBoundaryLayer.count,1,1,bytes,bytes);
 #endif
-            if(sizing.slots==0){error="boundaryLayer workspace does not fit the selected device memory budget";return false;}
+            if(sizing.slots==0){error="boundaryLayer workspace has no compiled capacity or its byte count is not representable";return false;}
         }
         if(wallWorkspace_.size()!=sizing.bytes)wallWorkspace_.swap(previousWorkspace_);
         if(!wallWorkspace_.resize(sizing.bytes,fault_)){error=fault_.message;return false;}
         layer.workspaceCount=sizing.slots;layer.workspace=wallWorkspace_.data();
-        std::fprintf(stderr,"CHMT boundaryLayer workspace requested=%d resolved=%d capacity=%d bytes=%zu budget=%zu\n",
-            physics.wallWorkspaceSlots,layer.workspaceCount,layer.workspaceCapacity,sizing.bytes,sizing.budget);
+        std::fprintf(stderr,"CHMT boundaryLayer workspace requested=%d resolved=%d capacity=%d bytes=%zu\n",
+            physics.wallWorkspaceSlots,layer.workspaceCount,layer.workspaceCapacity,sizing.bytes);
         return true;
     }
     bool prepareWallGeometry(const HostMesh& mesh){
         if(!wallGeometry_||!view_.gasBoundaryLayer.enabled)return true;
         if(wallGeometryReady_&&wallGeometryVersion_==mesh.geometryVersion
             &&wallGeometry_->matchesGeometry(mesh.geometryVersion,wallFaces_,view_.gasBoundaryLayerModel.config))return true;
-        std::string error;if(!wallGeometry_->prepareGeometry(mesh,wallFaces_,error,view_.gasBoundaryLayerModel.config)){fault_.message=error;return false;}
+        std::string error;if(!wallGeometry_->prepareGeometry(mesh,wallFaces_,error,view_.gasBoundaryLayerModel.config,geometryTolerances_.diagnostics)){fault_.message=error;return false;}
         const auto& geometry=wallGeometry_->descriptors();const int count=int(geometry.size());
         std::vector<int> faceSlot(mesh.owner.size(),-1),ownerSlot(mesh.volumes.size(),-1),offsets(1,0),cells;
         std::vector<Real> distances,weights,matchingWeights;std::vector<std::size_t> qStart;

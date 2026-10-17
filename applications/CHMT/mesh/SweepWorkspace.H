@@ -9,9 +9,8 @@
 #include <vector>
 
 namespace chmt { namespace sweep_detail {
-// This budget covers correction-owned allocation requests, including vector
-// capacities and row objects. It excludes the caller's mesh and the existing
-// geometry/certification copies, allocator metadata, and process RSS.
+// Track correction-owned allocation requests (not process RSS). Legacy byte
+// budgets do not reject work: only actual size overflow or allocation failure does.
 struct WorkspaceLimit : std::bad_alloc {};
 inline std::size_t product(std::size_t a,std::size_t b) {
     if(b && a>std::numeric_limits<std::size_t>::max()/b)throw WorkspaceLimit{};
@@ -22,11 +21,10 @@ inline std::size_t sum(std::size_t a,std::size_t b) {
     return a+b;
 }
 struct Budget {
-    std::size_t limit,live=0;
+    std::size_t live=0;
     std::size_t& peak;
-    Budget(std::size_t bytes,std::size_t& highWater):limit(bytes),peak(highWater) {}
-    bool fits(std::size_t bytes)const {return live<=limit && bytes<=limit-live;}
-    void check(std::size_t bytes)const {if(!fits(bytes))throw WorkspaceLimit{};}
+    Budget(std::size_t,std::size_t& highWater):peak(highWater) {}
+    void check(std::size_t bytes)const {(void)sum(live,bytes);}
     void acquired(std::size_t bytes) {live+=bytes;peak=std::max(peak,live);}
     void released(std::size_t bytes) {live-=bytes;}
 };
@@ -39,7 +37,7 @@ template<class T> struct Allocator {
     T* allocate(std::size_t n) {
         const std::size_t bytes=product(n,sizeof(T));
         if(!budget)throw WorkspaceLimit{};
-        budget->check(bytes); // before the underlying allocation, not afterward
+        budget->check(bytes); // size accounting must remain representable
         T* result=std::allocator<T>{}.allocate(n);
         budget->acquired(bytes);
         return result;

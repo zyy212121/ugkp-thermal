@@ -12,11 +12,11 @@ struct SweepConstraintControls {
     Real rankTolerance=1e-11;
     int maximumIterations=24;
     int maximumLineSearch=24; // Compatibility field; no line search is performed.
-    // Zero selects the workspace-based policy. Explicit positive legacy limits
-    // remain hard limits, including the logical point x mode count.
+    // Compatibility-only fields. Allocation is limited by actual representable
+    // sizes and allocator availability, never by a configured policy cap.
     int maximumDegreesOfFreedom=0, maximumConstraints=0;
     std::size_t maximumModeEntries=0;
-    std::size_t maximumWorkspaceBytes=256ull*1024*1024;
+    std::size_t maximumWorkspaceBytes=0;
 };
 // Bound both cell-inventory arithmetic and endpoint coordinate quantization.
 // A thin cell far from the coordinate origin cannot resolve eight epsilon of

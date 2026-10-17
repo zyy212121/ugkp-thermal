@@ -151,12 +151,18 @@ def test_production_diagnostic_callsite_ids_are_unique():
     positions={'makeRecord':1,'wallFatal':2,'wallWarning':2,'reportPhysicsWarning':2,
                'clipPhysicsMassFraction':2,'gasRecordFaceFailure':3,
                'gasRecordEvaluatedFaceFailure':3,'gasRecordTransportDiagnostic':4,'failure':1,
-               'gasEddyFinite':3,'gasProducerScalarValid':3,'gasStencilIndexFailure':3}
+               'gasEddyFinite':3,'gasProducerScalarValid':3,'gasStencilIndexFailure':3,'interfaceFailure':1,'materialInversionFailure':1}
     seen={}
+    resolved_sources=set()
     for folder in ('common','applications'):
         for path in sorted((ROOT/folder).rglob('*')):
             if path.suffix not in ('.H','.cuh','.cu','.C') or path.name.startswith('Diagnostics'):
                 continue
+            # A compatibility symlink is the same physical call site, not a second ID.
+            resolved=path.resolve()
+            if resolved in resolved_sources:
+                continue
+            resolved_sources.add(resolved)
             source=path.read_text()
             masked=re.sub(r'//[^\n]*|/\*[\s\S]*?\*/|"(?:\\.|[^"\\])*"',
                           lambda m: ''.join('\n' if c=='\n' else ' ' for c in m[0]),source)

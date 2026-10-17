@@ -30,8 +30,8 @@ void materialWarning(const HostState& state,ugkp::diagnostics::Code code,const c
     dispatch(snapshot,makeFoamSink());
 }
 Foam::pointField foamPoints(const std::vector<Vec3>& points){Foam::pointField result(points.size());for(std::size_t i=0;i<points.size();++i)result[i]=Foam::point(points[i].x,points[i].y,points[i].z);return result;}
-bool controlsValid(const CpuMaterialControls& c){return (finite(c.maxSubstep)&&c.maxSubstep>=0&&((finite(c.transportCfl)&&c.transportCfl>0&&c.transportCfl<=1))
-    &&((finite(c.reactionCfl)&&c.reactionCfl>0&&c.reactionCfl<=1&&finite(c.reactionMaxSubstep)&&c.reactionMaxSubstep>=0))
+bool controlsValid(const CpuMaterialControls& c){return (finite(c.maxSubstep)&&c.maxSubstep>=0&&((finite(c.transportCfl)&&c.transportCfl>0))
+    &&((finite(c.reactionCfl)&&c.reactionCfl>0&&finite(c.reactionMaxSubstep)&&c.reactionMaxSubstep>=0))
     &&finite(c.driveRelativeTolerance)&&c.driveRelativeTolerance>=0&&finite(c.driveSourceFraction)&&c.driveSourceFraction>0
     &&finite(c.driveTractionScale)&&c.driveTractionScale>0&&(c.maxSubsteps>0)&&((c.nonlinearMaxIterations>0&&finite(c.nonlinearRelativeTolerance)&&c.nonlinearRelativeTolerance>=0
     &&finite(c.energyAbsoluteTolerance)&&c.energyAbsoluteTolerance>=0&&finite(c.energyRelativeTolerance)&&c.energyRelativeTolerance>=0)));}
@@ -61,7 +61,7 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
     std::vector<MaterialCaloric> caloric(n);std::vector<Real> anchor(n),target(n);
     for(std::size_t c=0;c<n;++c){bool numerical=false;if(!materialCaloric<false>(next.solid[c],p,caloric[c],error,&numerical)){if(numerical)report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}MaterialPrimitive primitive;
         if(!recoverMaterial<false>(old.solid[c],old.solidMesh.volumes[c],p,primitive,nullptr,-1,&numerical)){error="CPU conduction old EOS recovery failed";if(numerical)report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
-        anchor[c]=std::max(caloric[c].minimumTemperature,std::min(caloric[c].maximumTemperature,primitive.temperature));temperature[c]=anchor[c];
+        anchor[c]=primitive.temperature;temperature[c]=anchor[c];
         target[c]=next.solid[c].energy;}
     forAll(mesh.boundary(),patch)if(patchTypes[patch]==Foam::fixedValueFvPatchScalarField::typeName)forAll(mesh.boundary()[patch],f){const int face=mesh.boundary()[patch].start()+f;temperature.boundaryFieldRef()[patch][f]=next.solidMesh.boundaryPrimitive[face].temperature;}
     Foam::wordList coefficientTypes(mesh.boundary().size(),Foam::zeroGradientFvPatchScalarField::typeName);
@@ -83,8 +83,8 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
             // so the cell-integral energy equation is unchanged.
             const Real materialVolume=next.solidMesh.volumes[c];
             Real occupied=0,k=0,poreMass=0;for(int j=0;j<Nc;++j){if(next.solid[c].condensed[j]==0)continue;const Real v=next.solid[c].condensed[j]/p.condensed[j].rho;occupied+=v;k+=v*p.condensed[j].conductivity/materialVolume;}
-            for(int s=0;s<Ns;++s)poreMass+=next.solid[c].pore[s];Real phi=1-occupied/materialVolume;if(absValue(occupied-materialVolume)<=32*std::numeric_limits<Real>::epsilon()*maxValue(occupied,materialVolume))phi=0;
-            if((!finite(phi)||phi<p.material.minimumPorosity||phi>=p.material.maximumPorosity)){error="material mass/geometry incompatible during implicit solve";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
+            for(int s=0;s<Ns;++s)poreMass+=next.solid[c].pore[s];Real phi=1-occupied/materialVolume;
+            if((!clipPhysicsMassFraction(p,phi,3824,static_cast<int>(c)))){error="material mass/geometry incompatible during implicit solve";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
             next.solid[c].porosity=phi;conductivity[c]=k+(poreMass>0?phi*p.gasConductivity:0);}
         capacity.correctBoundaryConditions();conductivity.correctBoundaryConditions();temperature.correctBoundaryConditions();
         Foam::surfaceScalarField faceK(Foam::fvc::interpolate(conductivity));
@@ -160,7 +160,7 @@ struct CpuMaterialDriver::Implementation {
         if(wall){
             terminalWallFailure=true;
             auto config=p.wallModel;config.enableSst=p.enableSst;
-            if(!wall->prepareGeometry(state.gasMesh,state.surface.gasFace,error,config))return false;
+            if(!wall->prepareGeometry(state.gasMesh,state.surface.gasFace,error,config,p.diagnostics))return false;
             std::vector<GasWallMatchingSample> fresh;
             if(!recorded){if(!wall->sample(state,p,fresh,error))return false;recorded=&fresh;}
             ugkwp::GasMechanismView<Real,Ns> view;
@@ -358,7 +358,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 if(data_->wall&&p.enableFilm){
                     const auto& matching=driveRecord->gasWallMatching;
                     if(trialElapsed==windowEnd&&!endpointMatchingReady){
-                        if(!data_->wall->prepareGeometry(geometryEndpoint.gasMesh,geometryEndpoint.surface.gasFace,error,wallGeometryConfig)||!data_->wall->sample(geometryEndpoint,p,endpointMatching,error)){report.recoverable=false;return false;}
+                        if(!data_->wall->prepareGeometry(geometryEndpoint.gasMesh,geometryEndpoint.surface.gasFace,error,wallGeometryConfig,p.diagnostics)||!data_->wall->sample(geometryEndpoint,p,endpointMatching,error)){report.recoverable=false;return false;}
                         endpointMatchingReady=true;
                     }
                     const auto& ending=trialElapsed==windowEnd?endpointMatching:endpointRecord->gasWallMatching;

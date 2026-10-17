@@ -35,6 +35,24 @@ template<class S,int N> UGKWP_GAS_HD inline bool publishWallPrecision(const Wall
 
 
 
+    // Inspect the values actually published, including narrowing overflow.
+    // An unavailable chemistry mismatch is the sole intentional NaN sentinel.
+    const S scalars[]={dst.traceTemperature,dst.traceDensity,dst.conductiveHeatFlux,
+        dst.ownerOmega,dst.wallKFlux};
+    for(int i=0;i<5;++i)if(!gasFinite(scalars[i]))
+        return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2810,scalars[i],0,i);
+    for(int d=0;d<3;++d){
+        if(!gasFinite(dst.traceVelocity[d]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2811,dst.traceVelocity[d],ugkp::diagnostics::Quantity::Velocity,d);
+        if(!gasFinite(dst.traction[d]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2814,dst.traction[d],0,d+3);
+    }
+    for(int j=0;j<N;++j){
+        const S values[]={dst.traceMassFraction[j],dst.wallSpeciesFlux[j],dst.matchingSpeciesFlux[j],dst.reactionIntegral[j]};
+        for(int i=0;i<4;++i)if(!gasFinite(values[i]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2812,values[i],0,i*N+j);
+        if(!gasFinite(dst.speciesBalanceResidual[j]))wallWarning(in,ugkp::diagnostics::Code::ConservationResidual,2813,dst.speciesBalanceResidual[j],std::numeric_limits<S>::max(),0,j);
+        if(dst.chemistryMismatchAvailable&&!gasFinite(dst.chemistryMismatch[j]))wallWarning(in,ugkp::diagnostics::Code::AccuracyResidual,2815,dst.chemistryMismatch[j],std::numeric_limits<S>::max(),0,j);
+    }
+    if(in.integrateOwnerKSource&&!gasFinite(dst.integratedKSource))wallWarning(in,ugkp::diagnostics::Code::AccuracyResidual,2816,dst.integratedKSource,std::numeric_limits<S>::max());
+    if(!gasFinite(dst.residual))wallWarning(in,ugkp::diagnostics::Code::AccuracyResidual,2817,dst.residual,std::numeric_limits<S>::max());
     output=dst;return true;
 }
 }}}

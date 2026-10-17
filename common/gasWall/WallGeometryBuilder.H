@@ -18,6 +18,7 @@ template<class R> struct WallGeometryMesh {
     std::uint64_t geometryVersion=0;
 };
 template<class R> struct WallGeometryOptions {
+    ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
     R relativeTolerance=R(1e-9);
     int maxRayCells=32,quadratureRefinement=1;
     bool constructQuadrature=true; // Optional direct diagnostics; production adapters disable.
@@ -167,29 +168,38 @@ template<class R> bool prepare(const WallGeometryMesh<R>&m,Context<R>&ctx,WallSt
     }
     return true;
 }
-template<class R> bool cellSeed(const WallGeometryMesh<R>&m,const Context<R>&ctx,int cell,Vec<R>&seed,R&scale){
+template<class R> bool cellSeed(const WallGeometryMesh<R>&m,const Context<R>&ctx,int cell,Vec<R>&seed,R&scale,ugkp::diagnostics::DeviceContext* diagnostics=nullptr){
     if(ctx.cellFaces[cell].size()<4)return false;
     scale=0;seed=m.cellCentres[cell];
     for(int f:ctx.cellFaces[cell])
         for(int k=m.faceOffsets[f];k<m.faceOffsets[f+1];++k)
             scale=std::max(scale,norm(sub(m.points[m.facePoints[k]],seed)));
     if(!(scale>0))return false;
-    // Prefer a well-separated kernel point to avoid numerically flat positive
-
-
-    const R margins[2]={R(.01)*scale,R(256)*std::numeric_limits<R>::epsilon()*scale};
-    for(R margin:margins){
-        seed=m.cellCentres[cell];
-        for(int pass=0;pass<256;++pass){
-            bool good=true;
-            for(int f:ctx.cellFaces[cell]){
-                const auto n=mul(ctx.faces[f].normal,m.owner[f]==cell?R(1):R(-1));
-                const R violation=dot(sub(seed,ctx.faces[f].centre),n)+margin;
-                if(violation>0){seed=sub(seed,mul(n,violation+margin));good=false;}
-            }
-            if(good)return finite(seed);
-        }
+    // One half-space projection solve with an a-priori local-scale margin.
+    // Never restart from the cell centre with a relaxed margin.
+    R separation=scale;
+    for(int f:ctx.cellFaces[cell]){
+        const R distance=std::abs(dot(sub(seed,ctx.faces[f].centre),ctx.faces[f].normal));
+        if(distance>0)separation=std::min(separation,distance);
     }
+    const R margin=std::max(R(.01)*separation,R(256)*std::numeric_limits<R>::epsilon()*scale);
+    for(int pass=0;pass<256;++pass){
+        bool good=true;
+        for(int f:ctx.cellFaces[cell]){
+            const auto n=mul(ctx.faces[f].normal,m.owner[f]==cell?R(1):R(-1));
+            const R violation=dot(sub(seed,ctx.faces[f].centre),n)+margin;
+            if(violation>0){seed=sub(seed,mul(n,violation+margin));good=false;}
+        }
+        if(good)return finite(seed);
+    }
+    R residual=0;
+    for(int f:ctx.cellFaces[cell]){
+        const auto n=mul(ctx.faces[f].normal,m.owner[f]==cell?R(1):R(-1));
+        residual=std::max(residual,dot(sub(seed,ctx.faces[f].centre),n)+margin);
+    }
+    if(finite(seed))ugkp::diagnostics::recordWarning(diagnostics,
+        ugkp::diagnostics::makeRecord(ugkp::diagnostics::Code::AccuracyResidual,2830,33,0,
+            ugkp::diagnostics::EntityKind::Cell,cell,256,residual,margin,0,ugkp::diagnostics::Quantity::Accuracy));
     return finite(seed);
 }
 template<class R> void tetraQuadrature(const std::array<Vec<R>,4>&p,R volume,int level,WallGeometryDescriptor<R>&d){
@@ -232,7 +242,8 @@ template<class R> bool tetraSection(const std::array<Vec<R>,4>&p,const std::arra
         const R w=dot(cross(a,b),d.normal)/R(2);
         area+=w;offset=add(offset,mul(add(a,b),w/R(3)));
     }
-    centroid=add(p[anchor],add(centre,mul(offset,R(1)/area)));return true;
+    if(!gasFinite(area)||area==0)return false;
+    centroid=add(p[anchor],add(centre,mul(offset,R(1)/area)));return finite(centroid);
 }
 // The section area is quadratic between projected tetrahedron vertices.
 // Cutting again at every BVP node makes area * reconstructed source cubic,
@@ -289,6 +300,7 @@ template<class R> bool profileOwnerQuadrature(const std::vector<std::array<Vec<R
                 totalArea+=area;firstAreaMoment=add(firstAreaMoment,mul(sub(point,d.origin),area));
             }
             const R weight=totalArea*dy;
+            if(!gasFinite(totalArea)||totalArea==0||!gasFinite(weight))return false;
             const Vec<R> centroid=add(d.origin,mul(firstAreaMoment,R(1)/totalArea));
             d.distance.push_back(y);d.volumeWeight.push_back(weight);d.quadraturePoints.push_back(centroid);
         }
@@ -336,18 +348,24 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
     WallGeometryDescriptor<R>d;d.wallFace=wallFace;d.ownerCell=m.owner[wallFace];d.geometryVersion=m.geometryVersion;
     if(std::size_t(d.ownerCell)>=m.volumes.size()||(!m.gasCell.empty()&&!m.gasCell[d.ownerCell]))return invalid(s,wallFace);
     d.origin=ctx.faces[wallFace].centre;d.normal=mul(ctx.faces[wallFace].normal,R(-1));
-    // A concave wall's area centroid need not lie on the actual polygon. In
-    // that case start the ray strictly inside its largest certified triangle.
-    bool onWall=false;R largest=0;Vec<R> interior{};
-    for(const auto&t:ctx.faces[wallFace].triangles){
-        const auto&a=m.points[t.a],&b=m.points[t.b],&c=m.points[t.c];
-        const auto&n=ctx.faces[wallFace].normal;
-        if(turn(a,b,d.origin,n)>=0&&turn(b,c,d.origin,n)>=0&&turn(c,a,d.origin,n)>=0)onWall=true;
-        const R area=norm(cross(sub(b,a),sub(c,a)));
-        if(area>largest){largest=area;interior=add(a,mul(add(sub(b,a),sub(c,a)),R(1)/R(3)));}
+    // Choose the construction from polygon topology before tracing a ray:
+    // convex polygons use their area centroid; concave polygons use an
+    // interior triangle. Neither an attempted ray nor a failed point test
+    // selects a second construction.
+    bool concave=false;
+    const int begin=m.faceOffsets[wallFace],end=m.faceOffsets[wallFace+1],count=end-begin;
+    for(int i=0;i<count;++i)
+        if(turn(m.points[m.facePoints[begin+i]],m.points[m.facePoints[begin+(i+1)%count]],
+            m.points[m.facePoints[begin+(i+2)%count]],ctx.faces[wallFace].normal)<0)concave=true;
+    if(concave){
+        R largest=0;
+        for(const auto&t:ctx.faces[wallFace].triangles){
+            const auto&a=m.points[t.a],&b=m.points[t.b],&c=m.points[t.c];
+            const R area=norm(cross(sub(b,a),sub(c,a)));
+            if(area>largest){largest=area;d.origin=add(a,mul(add(sub(b,a),sub(c,a)),R(1)/R(3)));}
+        }
     }
-    if(!onWall)d.origin=interior;
-    Vec<R> seed;R scale=0;if(!cellSeed(m,ctx,d.ownerCell,seed,scale))return invalid(s,wallFace);
+    Vec<R> seed;R scale=0;if(!cellSeed(m,ctx,d.ownerCell,seed,scale,opt.diagnostics))return invalid(s,wallFace);
     for(int f:ctx.cellFaces[d.ownerCell])for(int k=m.faceOffsets[f];k<m.faceOffsets[f+1];++k){
         R y=dot(sub(m.points[m.facePoints[k]],d.origin),d.normal);
         d.maximumOwnerDistance=std::max(d.maximumOwnerDistance,y);
@@ -374,6 +392,7 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
         else tetraQuadrature<R>({{seed,a,b,c}},v,opt.quadratureRefinement,d);
     }
     d.geometryVolume=volume;d.volume=m.volumes[d.ownerCell];
+    if(!gasFinite(volume)||volume==0||!gasFinite(d.volume)||!finite(moment))return invalid(s,wallFace);
     if(!opt.constructQuadrature){
 
         const Vec<R> centroid=add(m.cellCentres[d.ownerCell],mul(moment,R(1)/volume));
@@ -385,6 +404,7 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
 
 
     R quadratureVolume=0;for(R weight:d.volumeWeight)quadratureVolume+=weight;
+    if(!gasFinite(quadratureVolume)||quadratureVolume==0)return invalid(s,wallFace);
     const R factor=d.volume/quadratureVolume;
     for(std::size_t i=0;i<d.distance.size();++i){
         d.volumeWeight[i]*=factor;d.firstMoment+=d.volumeWeight[i]*d.distance[i];

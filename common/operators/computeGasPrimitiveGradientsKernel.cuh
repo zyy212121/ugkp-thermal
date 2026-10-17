@@ -92,7 +92,7 @@ __global__ void computeGasPrimitiveGradientsKernel
     }
     if (refreshSensor)
     {
-        s.gasHllcAdcSensor[c] = finiteDevice(sensor)
+        s.gasHllcAdcSensor[c] = ugkwp::gasFinite(sensor)
           ? clampRange(sensor, GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0))
           : GPU_OPERATOR_R(0.0);
     }
@@ -168,11 +168,11 @@ __device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue
         );
     }
     const GPU_OPERATOR_REAL wallUx = s.riemannBoundaryUFix[f] != 0
-      ? finiteOr(s.riemannBoundaryUx[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);
+      ? s.riemannBoundaryUx[f] : GPU_OPERATOR_R(0.0);
     const GPU_OPERATOR_REAL wallUy = s.riemannBoundaryUFix[f] != 0
-      ? finiteOr(s.riemannBoundaryUy[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);
+      ? s.riemannBoundaryUy[f] : GPU_OPERATOR_R(0.0);
     const GPU_OPERATOR_REAL wallUz = s.riemannBoundaryUFix[f] != 0
-      ? finiteOr(s.riemannBoundaryUz[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);
+      ? s.riemannBoundaryUz[f] : GPU_OPERATOR_R(0.0);
     const GPU_OPERATOR_REAL dux = s.Ux[owner] - wallUx;
     const GPU_OPERATOR_REAL duy = s.Uy[owner] - wallUy;
     const GPU_OPERATOR_REAL duz = s.Uz[owner] - wallUz;
@@ -187,7 +187,7 @@ __device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue
         s.sstCoefficients.beta1,
         s.sstWallCmu,
         s.sstWallKappa,
-        s.sstWallE
+        s.sstWallE, GPU_OPERATOR_R(0), s.diagnostics, f
     ).omega;
 }
 
@@ -288,7 +288,7 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
             if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))
             {if(allowUnprepared)return;if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
             const GPU_OPERATOR_REAL target=s.gasBoundaryLayer.sst[slot].ownerOmega;
-            if(!finiteDevice(target) || (nativeRefinement && !(target>GPU_OPERATOR_R(0))))
+            if(!ugkwp::gasFinite(target) || (nativeRefinement && !(target>GPU_OPERATOR_R(0))))
             {
                 const bool recorded=ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
                 if(nativeRefinement){if(!recorded)asm("trap;");return;}
@@ -324,7 +324,7 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
         const GPU_OPERATOR_REAL rhoSafe = clampMin(s.rho[c], s.rhoMin);
         const GPU_OPERATOR_REAL omegaTarget = clampMin
         (
-            finiteOr(omegaSum/GPU_OPERATOR_REAL(wallCount), s.sstOmegaMin),
+            omegaSum/GPU_OPERATOR_REAL(wallCount),
             s.sstOmegaMin
         );
         s.omega[c] = omegaTarget;
@@ -355,7 +355,7 @@ __global__ void initialiseSstConservativeStateKernel(GasState* sp, bool initiali
         (
             PrRatio,
             s.sstWallKappa,
-            s.sstWallE
+            s.sstWallE, s.diagnostics, c
         );
     }
     if (!initializeInventory || c >= s.nCells || s.sstConfigured == 0)
@@ -365,9 +365,9 @@ __global__ void initialiseSstConservativeStateKernel(GasState* sp, bool initiali
     const GPU_OPERATOR_REAL rhoSafe = clampMin(s.rho[c], s.rhoMin);
     if(!gasProducerScalarValid(s,c,s.rho[c],30051)||!gasProducerScalarValid(s,c,s.k[c],30114)
         ||!gasProducerScalarValid(s,c,s.omega[c],30115))return;
-    const GPU_OPERATOR_REAL kSafe = clampMin(finiteOr(s.k[c], s.sstKMin), s.sstKMin);
+    const GPU_OPERATOR_REAL kSafe = clampMin(s.k[c], s.sstKMin);
     const GPU_OPERATOR_REAL omegaSafe =
-        clampMin(finiteOr(s.omega[c], s.sstOmegaMin), s.sstOmegaMin);
+        clampMin(s.omega[c], s.sstOmegaMin);
     if(!gasProducerScalarValid(s,c,rhoSafe*kSafe,30052)||!gasProducerScalarValid(s,c,rhoSafe*omegaSafe,30116))return;
     s.k[c] = kSafe;
     s.omega[c] = omegaSafe;
@@ -392,9 +392,9 @@ __device__ void recoverSstPrimitiveCell(GasState& s, const int c, const bool nat
         ||!gasProducerScalarValid(s,c,s.rhoOmega[c],30118))return;
     const GPU_OPERATOR_REAL rhoKFloor = rhoSafe*s.sstKMin;
     const GPU_OPERATOR_REAL rhoOmegaFloor = rhoSafe*s.sstOmegaMin;
-    s.rhoK[c] = clampMin(finiteOr(s.rhoK[c], rhoKFloor), rhoKFloor);
+    s.rhoK[c] = clampMin(s.rhoK[c], rhoKFloor);
     s.rhoOmega[c] =
-        clampMin(finiteOr(s.rhoOmega[c], rhoOmegaFloor), rhoOmegaFloor);
+        clampMin(s.rhoOmega[c], rhoOmegaFloor);
     s.k[c] = s.rhoK[c]/rhoSafe;
     s.omega[c] = s.rhoOmega[c]/rhoSafe;
     if (s.sstWallTreatment == 0 || s.sstWallTreatment == 1

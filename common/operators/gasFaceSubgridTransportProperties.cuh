@@ -140,7 +140,7 @@ __device__ void gasFaceSubgridTransportProperties
                 s.gasMu/rhoSafe,
                 velocityDifference*clampMin(s.deltaCoeffs[f], GPU_OPERATOR_R(0.0)),
                 s.turbulenceModel == 3 ? s.sstWallKappa : GPU_OPERATOR_R(0.41),
-                s.turbulenceModel == 3 ? s.sstWallE : GPU_OPERATOR_R(9.8)
+                s.turbulenceModel == 3 ? s.sstWallE : GPU_OPERATOR_R(9.8), s.diagnostics, f
             );
         const GPU_OPERATOR_REAL mechanicalOutputs[]={wallState.uTau,wallState.yPlus,wallState.nut};
         for(int component=0;component<3;++component)
@@ -239,7 +239,7 @@ __device__ void gasFaceSubgridTransportProperties
                         wallPr=s.gasMu*wallCp/molecular;
                         const GPU_OPERATOR_REAL ratio=wallPr/clampMin(s.turbulentPrandtl,OfSmall);
                         wallP=ugkpwall::jayatillekeSmoothP(ratio);
-                        thermalYPlus=ugkpwall::jayatillekeThermalYPlus(ratio,s.sstWallKappa,s.sstWallE);
+                        thermalYPlus=ugkpwall::jayatillekeThermalYPlus(ratio,s.sstWallKappa,s.sstWallE,s.diagnostics,f);
                     }
                     // Both face flux and diffusion timestep add owner-mixture
                     // molecular conductivity. Return exactly their correction,

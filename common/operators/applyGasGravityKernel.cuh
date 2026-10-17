@@ -6,7 +6,7 @@ __global__ void applyGasGravityKernel(DeviceState* sp, const GPU_OPERATOR_TIME d
     if(c<sp->nCells) applyGasGravityCell<true>(*sp,c,dt);
 }
 
-// Gas-only CHT route: particle-coupled legacy sanitization stays in the kernel above.
+// Both resident and gas-only routes update gas, including zero-particle thermal coupling.
 __global__ void applyGasOnlyGravityKernel(DeviceState* sp, const GPU_OPERATOR_TIME dt)
 {
     const int c=blockIdx.x*blockDim.x+threadIdx.x;

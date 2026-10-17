@@ -88,7 +88,7 @@ inline bool validateWallModelConfig(const PhysicsConfig& p,std::string& error) {
     if(p.material.gasContactResistance!=0){error="boundaryLayer requires zero gas contact resistance";return false;}
     if(p.gasMode==ugkwp::GasMode::SingleLegacy||!(p.gasViscosity>0)||!(p.gasConductivity>0)){
         error="boundaryLayer requires shared mixture thermo and positive molecular transport";return false;}
-    if(p.wallWorkspaceSlots<0||p.wallWorkspaceSlots>4096||w.nodes<4||w.nodes>128||w.maxIterations<=0
+    if(p.wallWorkspaceSlots<0||w.nodes<4||w.nodes>128||w.maxIterations<=0
         ||!finite(w.relativeTolerance)||w.relativeTolerance<=0||!finite(w.absoluteTolerance)||w.absoluteTolerance<0
         ||!finite(w.stretch)||w.stretch<1){error="invalid boundaryLayer solver controls";return false;}
     if(w.model==BoundaryLayerModel::ConstantTransport){

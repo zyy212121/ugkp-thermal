@@ -46,9 +46,7 @@ inline bool materialCaloric(const SolidQ& q,const PhysicsConfig& p,
         c.gas[i]=t;c.pore[i]=m;mass+=m;
         c.minimumTemperature=maxValue(c.minimumTemperature,t.Tmin);c.maximumTemperature=minValue(c.maximumTemperature,t.Tmax);
     }
-    if((!(mass>0)||!finite(c.a0)||!finite(c.a1)||!finite(c.a2)
-        ||!(c.maximumTemperature>c.minimumTemperature)||!(c.capacity(c.minimumTemperature)>0)
-        ||!(c.capacity(c.maximumTemperature)>0))) {error="inadmissible material caloric state";return false;}
+    if((!(mass>0)||!finite(c.a0)||!finite(c.a1)||!finite(c.a2))) {error="inadmissible material caloric state";return false;}
     out=c;error.clear();return true;
 }
 }

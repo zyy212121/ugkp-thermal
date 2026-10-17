@@ -58,7 +58,7 @@ bool evaluateCpuSurfaceImpl(const HostState& h,const PhysicsConfig& p,
             ExchangePacket phase=surfacePacketIdentity(ExchangeKind::SolidFilm,id);
             const Real scale=input.area*dt;phase.mass=scale*physics.phaseMass;
             for(int c=0;c<Nc;++c)phase.condensed[c]=c==p.material.phaseCondensed?phase.mass:0;
-            for(int species=0;species<Ns;++species)phase.species[species]=phase.mass*p.material.phaseFilmY[species];
+            for(int species=0;species<Ns;++species)phase.species[species]=phase.mass*physicalFraction(p,p.material.phaseFilmY[species],species);
             phase.energy=scale*physics.phaseEnergy;phase.advective=scale*physics.phaseAdvective;phase.conductive=scale*physics.phaseConductive;
             phase.pressureWork=scale*physics.phasePressureWork;phase.viscousWork=scale*physics.phaseViscousWork;phase.liquidKineticAdvection=scale*physics.bottomKineticAdvection;
 

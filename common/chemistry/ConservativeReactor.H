@@ -8,25 +8,31 @@ namespace ugkwp { namespace gasChemistryDetail {
 
 
 template<class R, int N, bool Refinement=false, bool Complete=!Refinement>
-UGKWP_GAS_HD inline bool solveDense(int n, R* a, R* b,bool* evaluated=nullptr) noexcept
+UGKWP_GAS_HD inline bool solveDense(int n, R* a, R* b,bool* evaluated=nullptr,DenseLinearFailure* diagnostic=nullptr) noexcept
 {
     using gasThermoDetail::absValue;
     using gasThermoDetail::maxValue;
     if(evaluated)*evaluated=false;
+    if(diagnostic)*diagnostic=DenseLinearFailure{};
+    const auto fail=[&](DenseLinearQuantity quantity,int row,int column,R value){
+        if(diagnostic){diagnostic->quantity=quantity;diagnostic->row=row;diagnostic->column=column;diagnostic->value=double(value);}
+        return false;
+    };
     bool finite=true;
-    if (n < 0 || n > N || (n>0 && (!a || !b))) return false;
+    if (n < 0 || n > N || (n>0 && (!a || !b))) return fail(DenseLinearQuantity::Storage,-1,-1,R(n));
     for (int i = 0; i < n; ++i)
     {
         R rowScale = R(0);
         for (int j = 0; j < n; ++j)
         {
-            if (!gasFinite(a[i*N + j])) {return false;}
+            if (!gasFinite(a[i*N + j])) return fail(DenseLinearQuantity::MatrixEntry,i,j,a[i*N+j]);
             rowScale = maxValue(rowScale, absValue(a[i*N + j]));
         }
-        if (!(rowScale > R(0)) || !gasFinite(b[i])) {return false;}
+        if (!(rowScale > R(0))) return fail(DenseLinearQuantity::RowScale,i,-1,rowScale);
+        if (!gasFinite(b[i])) return fail(DenseLinearQuantity::RightHandSide,i,-1,b[i]);
         for (int j = 0; j < n; ++j) a[i*N + j] /= rowScale;
         b[i] /= rowScale;
-        if (!gasFinite(b[i])) {return false;}
+        if (!gasFinite(b[i])) return fail(DenseLinearQuantity::ScaledRightHandSide,i,-1,b[i]);
     }
 
     for (int k = 0; k < n; ++k)
@@ -37,7 +43,7 @@ UGKWP_GAS_HD inline bool solveDense(int n, R* a, R* b,bool* evaluated=nullptr) n
                 pivot = i;
         if (!gasFinite(a[pivot*N + k])
             || a[pivot*N + k]==R(0))
-            {return false;}
+            return fail(DenseLinearQuantity::Pivot,pivot,k,a[pivot*N+k]);
         if (pivot != k)
         {
             for (int j = k; j < n; ++j)
@@ -63,7 +69,7 @@ UGKWP_GAS_HD inline bool solveDense(int n, R* a, R* b,bool* evaluated=nullptr) n
         R value = b[i];
         for (int j = i + 1; j < n; ++j) value -= a[i*N + j]*b[j];
         b[i] = value/a[i*N + i];
-        if (!gasFinite(b[i])) {return false;}
+        if (!gasFinite(b[i])) return fail(DenseLinearQuantity::Solution,i,i,b[i]);
     }
     if(evaluated)*evaluated=true;
     return finite;
@@ -75,7 +81,7 @@ template<class R,int N,class TableReal=R> struct ReactorContext {
  const ChemistryControls<R>& controls;
  R leftInverse[N*N]; // [coordinate*Ns+species]
  UGKWP_GAS_HD ReactorContext(const ClosedReactorInput<R,N>& b,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& c,bool=false) noexcept:base(b),thermo(t),mechanism(m),controls(c),leftInverse{} {}
- UGKWP_GAS_HD UGKWP_CHEMISTRY_DEVICE_LEAF bool prepare(bool* evaluated=nullptr) noexcept {
+ UGKWP_GAS_HD UGKWP_CHEMISTRY_DEVICE_LEAF bool prepare(bool* evaluated=nullptr,DenseLinearFailure* diagnostic=nullptr) noexcept {
    if(evaluated)*evaluated=false;
    R q[N*N]={};bool available=false;
    bool finite=orthogonalBasis<R,N,TableReal,false>(mechanism,q,&available);
@@ -84,7 +90,7 @@ template<class R,int N,class TableReal=R> struct ReactorContext {
    for(int i=0;i<rank;++i)for(int j=0;j<rank;++j)for(int s=0;s<N;++s)upper[i*N+j]+=q[s*N+i]*mechanism.stoichiometricBasis[s*rank+j];
    for(int s=0;s<N;++s){R a[N*N],b[N]={};for(int k=0;k<N*N;++k)a[k]=upper[k];for(int i=0;i<rank;++i)b[i]=q[s*N+i];
      available=false;
-     const bool solved=solveDense<R,N,false,false>(rank,a,b,&available);
+     const bool solved=solveDense<R,N,false,false>(rank,a,b,&available,diagnostic);
      if(!available)return false;
      finite=finite && solved;for(int i=0;i<rank;++i)leftInverse[i*N+s]=b[i];}
    if(evaluated)*evaluated=true;
@@ -169,7 +175,7 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline ChemistryStatus eval
  ChemistryStatus st;
  gasChemistryDetail::ReactorContext<R,N,TableReal> context(base,t,m,controls,false);
  bool available=false;
- if(!context.prepare(&available)){st.code=ChemistryCode::InvalidModel;return st;}
+ if(!context.prepare(&available,&st.linearFailure)){st.code=ChemistryCode::InvalidModel;return st;}
  const auto evaluated=context.evaluate(z,f,temperature,jacobian);
  return st?evaluated:st;
 }

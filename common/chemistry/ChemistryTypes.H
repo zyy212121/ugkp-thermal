@@ -9,7 +9,15 @@ enum class ChemistryCode : unsigned char {
 };
 
 
+enum class DenseLinearQuantity : unsigned char { None, Storage, MatrixEntry, RowScale, RightHandSide, ScaledRightHandSide, Pivot, Solution };
+struct DenseLinearFailure {
+    DenseLinearQuantity quantity = DenseLinearQuantity::None;
+    int row = -1, column = -1;
+    double value = 0;
+};
+
 struct ChemistryStatus {
+    DenseLinearFailure linearFailure;
     ChemistryCode code = ChemistryCode::Success;
     ThermoStatus thermoCode = ThermoStatus::Success;
     int reaction = -1;

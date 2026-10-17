@@ -33,9 +33,10 @@ public:
             &&geometryOptions_.profileStretch==options.profileStretch&&geometryOptions_.firstSegmentGaussOrder==options.firstSegmentGaussOrder;
     }
     bool prepareGeometry(const HostMesh& mesh,const std::vector<int>& faces,std::string& error,
-        const ugkwp::gaswall::WallModelConfig<Real>& config=defaultWallModel()){
+        const ugkwp::gaswall::WallModelConfig<Real>& config=defaultWallModel(),
+        ugkp::diagnostics::DeviceContext* diagnostics=nullptr){
         if(matchesGeometry(mesh.geometryVersion,faces,config)){error.clear();return true;}
-        const auto options=geometryOptions(config);
+        auto options=geometryOptions(config);options.diagnostics=diagnostics;
         ugkwp::gaswall::WallGeometryMesh<Real> input;input.geometryVersion=mesh.geometryVersion;
         input.volumes=mesh.volumes;input.owner=mesh.owner;input.neighbour=mesh.neighbour;
         input.faceOffsets=mesh.faceOffsets;input.facePoints=mesh.facePoints;

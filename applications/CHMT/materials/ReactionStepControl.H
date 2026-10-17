@@ -33,7 +33,7 @@ CHMT_HD inline Real reactionMassDerivative(const Reaction& reaction,int componen
 CHMT_HD inline bool reactionStepControl(const SolidQ& state,Real volume,const PhysicsConfig& p,
     Real cfl,ReactionStepControl& output,bool* numericalFailure=nullptr) {
     if(numericalFailure)*numericalFailure=true;
-    if(!(cfl>0&&cfl<=1))return reactionControlFailure(p,finite(cfl)?ugkp::diagnostics::Code::InvalidPhysicalState:ugkp::diagnostics::Code::NonFinite,4110,cfl);
+    if(!(finite(cfl)&&cfl>0))return reactionControlFailure(p,finite(cfl)?ugkp::diagnostics::Code::InvalidPhysicalState:ugkp::diagnostics::Code::NonFinite,4110,cfl);
     if(p.nReactions<0||p.nReactions>Nr)return reactionControlFailure(p,ugkp::diagnostics::Code::InvalidIndex,4111,p.nReactions);
     MaterialPrimitive material;if(!recoverMaterial<false>(state,volume,p,material,nullptr,-1,numericalFailure))return false;
     ReactionStepControl c;c.temperature=material.temperature;

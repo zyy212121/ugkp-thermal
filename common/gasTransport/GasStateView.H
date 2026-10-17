@@ -31,7 +31,8 @@ struct GasStateView
     ugkp::diagnostics::DeviceContext* diagnostics = nullptr;
     GasGeometryState<Real> gasGeometry;
     GasBoundaryLayerState<Real> gasBoundaryLayer;
-    Real gasThermalConductivity = Real(-1); // negative: legacy mu*cp/Pr; otherwise W/(m K)
+    bool gasThermalConductivityConfigured = false;
+    Real gasThermalConductivity = Real(-1); // finite negative and not configured: legacy mu*cp/Pr; otherwise W/(m K)
 
 #define UGKWP_GAS_STATE_FIELD(Type, Name) Type Name{};
 #include "GasStateFields.inc"
@@ -97,11 +98,19 @@ template<class State,class=void> struct GasDirectConductivity : std::false_type 
 template<class State> struct GasDirectConductivity<State,
     std::void_t<decltype(std::declval<State>().gasThermalConductivity)>> : std::true_type {};
 
+template<class State,class=void> struct GasConfiguredConductivity : std::false_type {};
+template<class State> struct GasConfiguredConductivity<State,
+    std::void_t<decltype(std::declval<State>().gasThermalConductivityConfigured)>> : std::true_type {};
+
 template<class State>
 UGKWP_GAS_HD inline bool gasHasDirectConductivity(const State& state)
 {
+    if constexpr (GasConfiguredConductivity<State>::value)
+        if(state.gasThermalConductivityConfigured)return true;
     if constexpr (GasDirectConductivity<State>::value)
-        return state.gasThermalConductivity >= 0;
+        // Only a finite negative value is the legacy absent sentinel.
+        // Preserve configured NaN/Inf for the consuming physical diagnostic.
+        return !gasFinite(state.gasThermalConductivity) || state.gasThermalConductivity >= 0;
     return false;
 }
 
@@ -141,6 +150,8 @@ inline auto makeGasStateView(const State& state)
 #undef UGKWP_GAS_STATE_FIELD
     if constexpr (GasDirectConductivity<State>::value)
         view.gasThermalConductivity=state.gasThermalConductivity;
+    if constexpr (GasConfiguredConductivity<State>::value)
+        view.gasThermalConductivityConfigured=state.gasThermalConductivityConfigured;
     if constexpr (GasGeometryCapability<State>::value) view.gasGeometry=state.gasGeometry;
     if constexpr (GasBoundaryLayerCapability<State>::value) view.gasBoundaryLayer=state.gasBoundaryLayer;
     return view;

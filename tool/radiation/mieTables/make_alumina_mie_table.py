@@ -70,8 +70,8 @@ def alumina_refractive_index(lam, T):
 
 def planck_weight_lambda(lam, T):
                                                                                  
-    if T <= 0.0 or lam <= 0.0:
-        return 0.0
+    if not math.isfinite(T) or not math.isfinite(lam) or T <= 0.0 or lam <= 0.0:
+        raise ArithmeticError(f"Planck input unusable: wavelength={lam}, T={T}")
 
     y = C2/(lam*T)
     if y > 700.0:
@@ -79,9 +79,15 @@ def planck_weight_lambda(lam, T):
 
     denom = math.expm1(y)
     if denom <= 0.0 or not math.isfinite(denom):
-        return 0.0
+        raise ArithmeticError(f"Planck denominator={denom}, wavelength={lam}, T={T}, exponent={y}")
 
-    return 1.0/(lam**5 * denom)
+    denominator = lam**5 * denom
+    if denominator == 0.0 or not math.isfinite(denominator):
+        raise ArithmeticError(f"Planck spectral denominator={denominator}, wavelength={lam}, T={T}")
+    weight = 1.0/denominator
+    if not math.isfinite(weight):
+        raise ArithmeticError(f"Planck spectral weight={weight}, wavelength={lam}, T={T}")
+    return weight
 
 
 def mie_coefficients(x, m):
@@ -92,9 +98,13 @@ def mie_coefficients(x, m):
                                                                          
                                                                             
        
-    if x <= 0.0:
+    if not math.isfinite(x) or x < 0.0:
+        raise ArithmeticError(f"Mie size unusable: x={x}")
+    if x == 0.0:
         return 0.0, 0.0, 0.0, 0.0, np.zeros(2, complex), np.zeros(2, complex)
 
+    if not math.isfinite(m.real) or not math.isfinite(m.imag):
+        raise ArithmeticError(f"Mie size or refractive index unusable: x={x}, refractive_index={m}")
     mx_mag = abs(m*x)
     n_stop = max(1, int(x + 4.0*(x**(1.0/3.0)) + 2.0))
     n_max = max(n_stop, int(mx_mag)) + 15
@@ -136,6 +146,8 @@ def mie_coefficients(x, m):
         psi_nm1, psi_n = psi_n, psi_np1
         xi_nm1, xi_n = xi_n, xi_np1
 
+    if not math.isfinite(q_ext_sum) or not math.isfinite(q_sca_sum):
+        raise ArithmeticError(f"Mie coefficient sums unusable: extinction={q_ext_sum}, scattering={q_sca_sum}, x={x}, refractive_index={m}")
     q_ext = max(0.0, 2.0*q_ext_sum/(x*x))
     q_sca = max(0.0, 2.0*q_sca_sum/(x*x))
     q_abs = max(0.0, q_ext - q_sca)
@@ -158,7 +170,10 @@ def mie_coefficients(x, m):
                *(an[n]*np.conj(bn[n])).real
             )
 
-        g = clamp(4.0*g_sum/(x*x*q_sca), -0.999, 0.999)
+        raw_g = 4.0*g_sum/(x*x*q_sca)
+        if not math.isfinite(raw_g):
+            raise ArithmeticError(f"Mie asymmetry={raw_g}, x={x}, scattering={q_sca}")
+        g = clamp(raw_g, -0.999, 0.999)
 
     return q_ext, q_sca, q_abs, g, an, bn
 
@@ -208,10 +223,17 @@ def mie_phase_raw(x, q_sca, an, bn, mu_values):
 
 
 def normalize_phi(phi, mu_values):
+    invalid = np.flatnonzero(~np.isfinite(phi))
+    if invalid.size:
+        index = int(invalid[0])
+        raise ArithmeticError(f"phase value unusable: index={index}, mu={mu_values[index]}, value={phi[index]}")
     integ = trapezoid(phi, mu_values)
-    if not math.isfinite(integ) or integ <= 1.0e-300:
-        return np.ones_like(phi)
-    return phi*(2.0/integ)
+    if not math.isfinite(integ) or integ <= 0.0:
+        raise ArithmeticError(f"phase normalization unusable: integral={integ}")
+    normalized = phi*(2.0/integ)
+    if not np.all(np.isfinite(normalized)):
+        raise ArithmeticError(f"phase normalization result nonfinite: integral={integ}")
+    return normalized
 
 
 def phase_moments(phi, mu_values):
@@ -249,15 +271,26 @@ def compute_node(d, T, mu_values, lambdas):
         trap = 0.5 if (li == 0 or li == len(lambdas) - 1) else 1.0
 
                                                                 
-        W = trap*lam*dlog*planck_weight_lambda(lam, T)
+        try:
+            W = trap*lam*dlog*planck_weight_lambda(lam, T)
+        except ArithmeticError as error:
+            raise ArithmeticError(f"{error}; d={d}, wavelength_index={li}") from error
 
-        if W <= 0.0 or not math.isfinite(W):
+        if not math.isfinite(W) or W < 0.0:
+            raise ArithmeticError(f"Planck quadrature weight={W}, d={d}, T={T}, wavelength_index={li}, wavelength={lam}")
+        if W == 0.0:
             continue
 
         m = alumina_refractive_index(lam, T)
         x = PI*d/lam
 
-        qext, qsca, qabs, g, an, bn = mie_coefficients(x, m)
+        try:
+            qext, qsca, qabs, g, an, bn = mie_coefficients(x, m)
+        except (ArithmeticError, ValueError) as error:
+            raise ArithmeticError(f"Mie evaluation failed: d={d}, T={T}, wavelength_index={li}, wavelength={lam}, x={x}, m={m}: {error}") from error
+        for name, value in (("Qext", qext), ("Qsca", qsca), ("Qabs", qabs), ("g", g)):
+            if not math.isfinite(value):
+                raise ArithmeticError(f"Mie {name}={value}, d={d}, T={T}, wavelength_index={li}, wavelength={lam}")
 
         intW += W
         int_abs += W*qabs
@@ -271,14 +304,21 @@ def compute_node(d, T, mu_values, lambdas):
             phi_acc += Ws*mie_phase_raw(x, qsca, an, bn, mu_values)
 
     if intW == 0.0 or not math.isfinite(intW):
-        raise RuntimeError(f"Planck weight is zero for d={d}, T={T}")
+        raise ArithmeticError(f"Planck integrated weight={intW} for d={d}, T={T}")
+
+    for name, value in (("absorption", int_abs), ("scattering", int_sca), ("extinction", int_ext), ("phase weight", int_scaW), ("asymmetry", int_g)):
+        if not math.isfinite(value):
+            raise ArithmeticError(f"integrated {name}={value}, d={d}, T={T}")
 
     Qabs = int_abs/intW
     Qsca = int_sca/intW
     Qext = int_ext/intW
 
     if int_scaW > 1.0e-300:
-        phi = normalize_phi(phi_acc/int_scaW, mu_values)
+        try:
+            phi = normalize_phi(phi_acc/int_scaW, mu_values)
+        except ArithmeticError as error:
+            raise ArithmeticError(f"{error}; d={d}, T={T}") from error
         g = clamp(int_g/int_scaW, -0.999, 0.999)
     else:
         phi = np.ones_like(mu_values)

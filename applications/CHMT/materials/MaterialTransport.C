@@ -109,7 +109,7 @@ bool materialSweepsCompatible(const HostMesh& mesh,const SurfaceMesh& surface,co
 bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& q,const PhysicsConfig& p,
     const std::vector<Real>& swept,Real interval,Real cfl,MaterialTransportResult& output,std::string& error,bool* numericalFailure){
     if(numericalFailure)*numericalFailure=true;
-    if((!(interval>0)||!finite(interval)||!(cfl>0&&cfl<=1)||(!swept.empty()&&swept.size()!=m.owner.size()))){error="invalid material transport interval/control";return false;}
+    if((!(interval>0)||!finite(interval)||!(finite(cfl)&&cfl>0)||(!swept.empty()&&swept.size()!=m.owner.size()))){error="invalid material transport interval/control";return false;}
 
     if(q.empty()){output=MaterialTransportResult{};error.clear();return true;}
     if(!validMesh(m,q.size(),error)){
@@ -194,7 +194,7 @@ bool evaluateMaterialTransport(const HostMesh& m,const std::vector<SolidQ>& q,co
 bool advanceMaterialReactionsImpl(const SolidQ& base,Real volume,const PhysicsConfig& p,Real interval,
     Real maxStep,Real cfl,int maximum,SolidQ& out,std::uint64_t& accepted,std::string& error,bool* numericalFailure){
     if(numericalFailure)*numericalFailure=true;
-    if((!(interval>0)||!finite(interval)||maxStep<0||!finite(maxStep)||!(cfl>0&&cfl<=1)||maximum<=0)){error="invalid reaction local control";return false;}
+    if((!(interval>0)||!finite(interval)||maxStep<0||!finite(maxStep)||!(finite(cfl)&&cfl>0)||maximum<=0)){error="invalid reaction local control";return false;}
     SolidQ state=base;MaterialPrimitive material;if(!recoverMaterial<false>(state,volume,p,material,nullptr,-1,numericalFailure)){error="reaction base EOS invalid";return false;}
     if(!p.enableReactions){out=base;accepted=0;error.clear();return true;}
     Real elapsed=0;std::uint64_t count=0;

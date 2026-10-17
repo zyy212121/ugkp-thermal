@@ -1,7 +1,7 @@
 #pragma once
 #include "gasTransport/GasEnergy.H"
 #include "Diagnostics.H"
-template<bool SanitizeInputs, bool Diagnose = !SanitizeInputs>
+template<bool ApplyDensityFloor, bool Diagnose = true>
 __device__ __forceinline__ void applyGasGravityCell
 (DeviceState& s, const int c, const GPU_OPERATOR_TIME dt)
 {
@@ -25,12 +25,9 @@ __device__ __forceinline__ void applyGasGravityCell
             return;
         }
     }
-    if constexpr (SanitizeInputs)
-    {
-        rho=clampMin(finiteOr(rho,s.rhoMin),s.rhoMin);
-        mx=finiteOr(mx,GPU_OPERATOR_R(0.0)); my=finiteOr(my,GPU_OPERATOR_R(0.0)); mz=finiteOr(mz,GPU_OPERATOR_R(0.0));
-        energy=ugkwp::gasEnergyFiniteOr(energy,Energy(0));
-    }
+    // Retain the finite legacy density floor; never substitute invalid gas data.
+    if constexpr (ApplyDensityFloor)
+        rho=clampMin(rho,s.rhoMin);
     Energy updatedEnergy;
     const GPU_OPERATOR_REAL gx=s.gravityX, gy=s.gravityY, gz=s.gravityZ;
     if constexpr (std::is_same<Energy,GPU_OPERATOR_REAL>::value)

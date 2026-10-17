@@ -121,31 +121,24 @@ __global__ void enforcePeriodicGasFluxAntisymmetryKernel(GasState* sp, const boo
             {
                 const GPU_OPERATOR_REAL allowance=GPU_OPERATOR_R(.5)*(boundF+boundPair)+finalBound;
                 valid=(nativeRefinement || ugkwp::gasFinite(allowance))&&fabs(sum-rho)<=allowance;
-                int carrier=-1;GPU_OPERATOR_REAL replacement=0,best=-1;
-                const int own=s.faceOwner[f],other=s.faceOwner[pair];
-                for(int k=Ns-1;valid&&k>=0;--k)
-                {
-                    GPU_OPERATOR_REAL rest=0;
-                    for(int j=0;j<Ns;++j)if(j!=k)rest+=value[j];
-                    const GPU_OPERATOR_REAL candidate=rho-rest;
-                    const int donor=candidate>0?own:other;
-                    const bool legal=candidate==0 || (donor>=0&&donor<s.nCells
-                        &&s.gasSpecies.rho[k*s.nCells+donor]>0);
-                    if(legal&&fabs(candidate-value[k])<=allowance
-                        &&(carrier<0||fabs(value[k])>best))
-                    {carrier=k;replacement=candidate;best=fabs(value[k]);}
-                }
-                valid=valid&&carrier>=0;
+                // Fix the largest original carrier before computing a correction;
+                // do not probe alternate species when the correction is unsuitable.
+                int carrier=Ns-1;
+                for(int k=0;k<Ns;++k)if(fabs(value[k])>fabs(value[carrier]))carrier=k;
+                GPU_OPERATOR_REAL rest=0;
+                for(int k=0;k<Ns;++k)if(k!=carrier)rest+=value[k];
+                const GPU_OPERATOR_REAL replacement=rho-rest;
+                const int donor=replacement>0?s.faceOwner[f]:s.faceOwner[pair];
+                const bool legal=replacement==0 || (donor>=0&&donor<s.nCells
+                    &&s.gasSpecies.rho[carrier*s.nCells+donor]>0);
+                valid=valid&&legal&&ugkwp::gasFinite(replacement)&&fabs(replacement-value[carrier])<=allowance;
                 if(valid)value[carrier]=replacement;
             }
-            if(!ugkwp::gasFinite(sumF)||!ugkwp::gasFinite(sumPair)||!ugkwp::gasFinite(sum)
-                ||!ugkwp::gasFinite(magF)||!ugkwp::gasFinite(magPair)||!ugkwp::gasFinite(mag))
-            {
-                using namespace ugkp::diagnostics;
-                const double value=!ugkwp::gasFinite(sumF)?sumF:!ugkwp::gasFinite(sumPair)?sumPair:!ugkwp::gasFinite(sum)?sum:!ugkwp::gasFinite(magF)?magF:!ugkwp::gasFinite(magPair)?magPair:mag;
-                if(s.diagnostics)recordFatal(s.diagnostics,makeRecord(Code::NonFinite,2670,31,0,EntityKind::Face,f,-1,value));
-                return;
-            }
+            // These sums are conservation audits, not published flux fields.
+            // Overflow of an audit cannot discard independently finite fluxes.
+            valid=valid&&ugkwp::gasFinite(sumF)&&ugkwp::gasFinite(sumPair)
+                &&ugkwp::gasFinite(sum)&&ugkwp::gasFinite(magF)
+                &&ugkwp::gasFinite(magPair)&&ugkwp::gasFinite(mag);
             if(!valid)
             {
                 using namespace ugkp::diagnostics;

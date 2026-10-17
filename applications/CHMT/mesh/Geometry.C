@@ -33,25 +33,47 @@ namespace chmt {
             return cross(b-a, c-a)*.5;
         }
         Real triangleDistance(Vec3 p, Vec3 a, Vec3 b, Vec3 c) {
-            Vec3 ab = b-a, ac = c-a, ap = p-a;
-            Real d1 = dot(ab, ap), d2 = dot(ac, ap);
-            if (d1 <= 0 && d2 <= 0)return mag(ap);
-            Vec3 bp = p-b;
-            Real d3 = dot(ab, bp), d4 = dot(ac, bp);
-            if (d3 >= 0 && d4 <= d3)return mag(bp);
-            Real vc = d1*d4-d3*d2;
-            if (vc <= 0 && d1 >= 0 && d3 <= 0)return mag(p-(a+ab*(d1/(d1-d3))));
-            Vec3 cp = p-c;
-            Real d5 = dot(ab, cp), d6 = dot(ac, cp);
-            if (d6 >= 0 && d5 <= d6)return mag(cp);
-            Real vb = d5*d2-d1*d6;
-            if (vb <= 0 && d2 >= 0 && d6 <= 0)return mag(p-(a+ac*(d2/(d2-d6))));
-            Real va = d3*d6-d5*d4;
-            if (va <= 0 && (d4-d3) >= 0 && (d5-d6) >= 0)return mag(p-(b+(c-b)*((d4-d3)/(d4-d3+d5-d6))));
-            const Real den = va+vb+vc;
-            if (!(den>0))return std::min(mag(ap), std::min(mag(bp), mag(cp)));
-            return mag(p-(a+ab*(vb/den)+ac*(vc/den)));
+            if(!finite(p)||!finite(a)||!finite(b)||!finite(c))return undefinedValue();
+            using Point=std::array<long double,3>;
+            const auto difference=[](Vec3 x,Vec3 y)->Point {
+                return {{static_cast<long double>(x.x)-y.x,static_cast<long double>(x.y)-y.y,
+                    static_cast<long double>(x.z)-y.z}};
+            };
+            const auto inner=[](const Point& x,const Point& y){return x[0]*y[0]+x[1]*y[1]+x[2]*y[2];};
+            const auto outer=[](const Point& x,const Point& y)->Point {
+                return {{x[1]*y[2]-x[2]*y[1],x[2]*y[0]-x[0]*y[2],x[0]*y[1]-x[1]*y[0]}};
+            };
+            const Point ab=difference(b,a),ac=difference(c,a),ap=difference(p,a);
+            const Point normal=outer(ab,ac);
+            const long double areaSquared=inner(normal,normal);
+            if(!std::isfinite(areaSquared))return undefinedValue();
+            // The closest point is either the perpendicular projection inside
+            // the triangle or a point on its closed boundary. This half-space
+            // classification avoids cancelling huge barycentric dot products.
+            if(areaSquared>0) {
+                const long double first=inner(outer(ab,ap),normal);
+                const long double second=inner(outer(difference(c,b),difference(p,b)),normal);
+                const long double third=inner(outer(difference(a,c),difference(p,c)),normal);
+                if(!std::isfinite(first)||!std::isfinite(second)||!std::isfinite(third))return undefinedValue();
+                if(first>=0 && second>=0 && third>=0)
+                    return static_cast<Real>(std::abs(inner(ap,normal))/std::sqrt(areaSquared));
+            }
+            // A zero-area triangle is exactly the union of these segments.
+            // This is its geometry, not recovery from an invalid calculation.
+            const auto segment=[&](Vec3 x,Vec3 y) {
+                const Point edge=difference(y,x),offset=difference(p,x);
+                const long double lengthSquared=inner(edge,edge);
+                if(!std::isfinite(lengthSquared))return std::numeric_limits<long double>::quiet_NaN();
+                const long double t=lengthSquared>0?std::max(0.L,std::min(1.L,inner(offset,edge)/lengthSquared)):0;
+                Point separation{};
+                for(int d=0;d<3;++d)separation[d]=offset[d]-t*edge[d];
+                return std::sqrt(inner(separation,separation));
+            };
+            const long double abDistance=segment(a,b),bcDistance=segment(b,c),caDistance=segment(c,a);
+            if(!std::isfinite(abDistance)||!std::isfinite(bcDistance)||!std::isfinite(caDistance))return undefinedValue();
+            return static_cast<Real>(std::min(abDistance,std::min(bcDistance,caDistance)));
         }
+
         bool periodicGeometry(const HostMesh& m, std::string& error) {
             const int nf = static_cast<int>(m.owner.size());
             const Real scale = meshScale(m.points), tol = 1e-10*scale;
@@ -237,9 +259,12 @@ namespace chmt {
                 Real distance = std::numeric_limits<Real>::max();
                 for (int f:wallFaces) {
                     int begin = m.faceOffsets[f], end = m.faceOffsets[f+1];
-                    for (int j = begin+1; j+1<end; ++j)distance = std::min(distance,
-                        triangleDistance(m.cellCentres[c], m.points[m.facePoints[begin]],
-                        m.points[m.facePoints[j]], m.points[m.facePoints[j+1]]));
+                    for (int j = begin+1; j+1<end; ++j) {
+                        const Real triangle=triangleDistance(m.cellCentres[c], m.points[m.facePoints[begin]],
+                            m.points[m.facePoints[j]], m.points[m.facePoints[j+1]]);
+                        if(!finite(triangle))return errorAt(error,"nonfinite wall triangle distance",f);
+                        distance=std::min(distance,triangle);
+                    }
                 }
                 if ((!(distance>0) || !finite(distance)))return errorAt(error, "invalid wall distance", c);
                 m.wallDistance[c] = distance;
@@ -273,43 +298,45 @@ namespace chmt {
             error.clear();
             return true;
         }
-        Real polynomialValue(const Real* coefficient, Real t) {
-            return ((coefficient[3]*t+coefficient[2])*t+coefficient[1])*t+coefficient[0];
-        }
-        void polynomialBounds(const Real* coefficient, Real& minimum, Real& maximum) {
-            minimum = minValue(polynomialValue(coefficient, 0), polynomialValue(coefficient, 1));
-            maximum = maxValue(polynomialValue(coefficient, 0), polynomialValue(coefficient, 1));
-            const Real a = 3*coefficient[3], b = 2*coefficient[2], c = coefficient[1];
-            Real roots[2] = {-1, -1};
-            const Real scale = maxValue(absValue(a), maxValue(absValue(b), absValue(c)));
-            const Real cutoff = 32*std::numeric_limits<Real>::epsilon()*scale;
-            if (absValue(a) <= cutoff) {
-                if (absValue(b)>cutoff)roots[0] = -c/b;
+        // Cubic determinant in Bernstein form. Endpoints are computed from
+        // their actual coordinates, never reconstructed as cancelling powers
+        // of a displacement. De Casteljau evaluation preserves thin positive
+        // endpoint volumes while the derivative roots still locate all extrema.
+        void polynomialBounds(const Real* control, Real& minimum, Real& maximum) {
+            minimum=minValue(control[0],control[3]);
+            maximum=maxValue(control[0],control[3]);
+            const long double a=3*(-static_cast<long double>(control[0])+3*static_cast<long double>(control[1])
+                -3*static_cast<long double>(control[2])+control[3]);
+            const long double b=6*(static_cast<long double>(control[0])-2*static_cast<long double>(control[1])+control[2]);
+            const long double c=3*(static_cast<long double>(control[1])-control[0]);
+            long double roots[2]={-1,-1};
+            if(a==0) {
+                if(b!=0)roots[0]=-c/b;
             } else {
-                const Real discriminant = b*b-4*a*c;
-                if (discriminant >= 0) {
-                    // Stable quadratic roots, including a root close to zero.
-                    const Real root = ::sqrt(discriminant);
-                    const Real q = -.5*(b+(b >= 0?root:-root));
-                    if (q != 0) {
-                        roots[0] = q/a;
-                        roots[1] = c/q;
-                    } else roots[0] = -b/(2*a);
+                const long double discriminant=b*b-4*a*c;
+                if(discriminant>=0) {
+                    const long double root=std::sqrt(discriminant);
+                    const long double q=-.5L*(b+(b>=0?root:-root));
+                    if(q!=0){roots[0]=q/a;roots[1]=c/q;}
+                    else roots[0]=-b/(2*a);
                 }
             }
-            for (Real t:roots)if (t>0 && t<1) {
-                const Real value = polynomialValue(coefficient, t);
-                minimum = minValue(minimum, value);
-                maximum = maxValue(maximum, value);
+            for(long double t:roots)if(t>0 && t<1) {
+                long double value[4]={control[0],control[1],control[2],control[3]};
+                for(int degree=3;degree>0;--degree)
+                    for(int k=0;k<degree;++k)value[k]=(1-t)*value[k]+t*value[k+1];
+                minimum=minValue(minimum,static_cast<Real>(value[0]));
+                maximum=maxValue(maximum,static_cast<Real>(value[0]));
             }
         }
-        bool certifyLinearTrajectory(const HostMesh& mesh, const std::vector<Vec3>& endpoint, std::string& error) {
+        bool certifyLinearTrajectory(const HostMesh& mesh, const std::vector<Vec3>& endpoint, std::string& error,
+            ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
             bool moving = false;
             for (std::size_t p = 0; p<endpoint.size(); ++p)moving = moving || mag(endpoint[p]-mesh.points[p])>0;
             if (!moving)return true;
             // Check the full polynomial trajectory, not just sampled mesh quality.
-            // Every boundary triangle retains orientation and the fixed oriented
-            // tetrahedral fan about each cell centre stays positive throughout.
+            // The fixed oriented tetrahedral fan about each cell centre stays
+            // positive throughout, so its boundary triangles cannot collapse.
             for (int cell = 0; cell<static_cast<int>(mesh.volumes.size()); ++cell) {
                 std::set<int> vertices;
                 for (int k = mesh.cellFaceOffsets[cell]; k<mesh.cellFaceOffsets[cell+1]; ++k) {
@@ -319,9 +346,9 @@ namespace chmt {
                 // The vertex-average centre follows the same linear path.
                 // A positive oriented tetrahedral fan certifies a star-shaped
                 // cell without demanding that every polygon be exactly planar.
-                Vec3 centre{},centreDelta{};
-                for(int v:vertices){centre+=mesh.points[v];centreDelta+=endpoint[v]-mesh.points[v];}
-                centre=centre/Real(vertices.size());centreDelta=centreDelta/Real(vertices.size());
+                Vec3 centre{},endCentre{};
+                for(int v:vertices){centre+=mesh.points[v];endCentre+=endpoint[v];}
+                centre=centre/Real(vertices.size());endCentre=endCentre/Real(vertices.size());
                 long double solidAngle=0;int fanTriangles=0;
                 for (int k = mesh.cellFaceOffsets[cell]; k<mesh.cellFaceOffsets[cell+1]; ++k) {
                     int face = mesh.cellFaces[k], sign = mesh.cellFaceSigns[k];
@@ -330,20 +357,13 @@ namespace chmt {
                     for (int j = begin+1; j+1<end; ++j) {
                         int ib = mesh.facePoints[j], ic = mesh.facePoints[j+1];
                         Vec3 a = mesh.points[ia], b = mesh.points[ib], c = mesh.points[ic];
-                        Vec3 da = endpoint[ia]-a, db = endpoint[ib]-b, dc = endpoint[ic]-c;
-                        Vec3 area0 = cross(b-a, c-a);
-                        Vec3 area1 = cross(db-da, c-a)+cross(b-a, dc-da);
-                        Vec3 area2 = cross(db-da, dc-da);
-                        Real orientation[4] = {dot(area0, area0), dot(area0, area1), dot(area0, area2), 0};
-                        Real lower = 0, upper = 0;
-                        polynomialBounds(orientation, lower, upper);
-                        if (!finite(lower)
-                            || lower <= 128*std::numeric_limits<Real>::epsilon()*orientation[0]) {
-                            return errorAt(error,
-                                "moving face triangle collapses or cannot retain certified orientation", face);
-                        }
+                        // Positivity of the oriented tetrahedron below already
+                        // excludes a collapsed triangle. Its normal may rotate by
+                        // more than 90 degrees without changing cell orientation;
+                        // projection onto the old normal is not a validity test.
+                        Real lower=0,upper=0;
                         const Vec3 r=a-centre,u=b-centre,v=c-centre;
-                        const Vec3 dr=da-centreDelta,du=db-centreDelta,dv=dc-centreDelta;
+                        const Vec3 R=endpoint[ia]-endCentre,U=endpoint[ib]-endCentre,V=endpoint[ic]-endCentre;
                         // Positive tetrahedra alone could cover the same volume
                         // twice (for example a self-intersecting star bipyramid).
                         // A closed, oriented fan must cover the unit sphere once.
@@ -364,21 +384,30 @@ namespace chmt {
 
                         Real tetra[4]={
                             sign*dot(r,cross(u,v)),
-                            sign*(dot(dr,cross(u,v))+dot(r,cross(du,v))+dot(r,cross(u,dv))),
-                            sign*(dot(dr,cross(du,v))+dot(dr,cross(u,dv))+dot(r,cross(du,dv))),
-                            sign*dot(dr,cross(du,dv))
+                            sign*(dot(R,cross(u,v))+dot(r,cross(U,v))+dot(r,cross(u,V)))/3,
+                            sign*(dot(R,cross(U,v))+dot(R,cross(u,V))+dot(r,cross(U,V)))/3,
+                            sign*dot(R,cross(U,V))
                         };
+                        for(Real value:tetra)if(!finite(value))
+                            return errorAt(error,"nonfinite cell trajectory determinant",cell);
                         polynomialBounds(tetra,lower,upper);
-                        if(!finite(lower)||!(tetra[0]>0)
-                            ||lower<=128*std::numeric_limits<Real>::epsilon()*tetra[0])
+                        if(!finite(lower)||!(tetra[0]>0)||lower<=0)
                             return errorAt(error,
                                 "moving cell tetrahedral fan collapses or inverts",cell);
+                        const Real tetraMargin=128*std::numeric_limits<Real>::epsilon()*tetra[0];
+                        if(lower<=tetraMargin)geometryWarning(diagnostics,lower,tetraMargin,cell,false,ugkp::diagnostics::EntityKind::Cell);
 
                     }
                 }
                 const long double angleTolerance=1024*std::numeric_limits<Real>::epsilon()*fanTriangles;
-                if(!std::isfinite(solidAngle)||std::abs(solidAngle-4*std::acos(-1.L))>angleTolerance)
+                // The degree is an integer topological invariant. Multiple coverage is
+                // unsupported geometry; finite summation error about degree one is accuracy.
+                const long double sphere=4*std::acos(-1.L);
+                if(!std::isfinite(solidAngle)||std::round(solidAngle/sphere)!=1)
                     return errorAt(error,"cell fan is not a single star-shaped volume",cell);
+                const long double angleResidual=std::abs(solidAngle-sphere);
+                if(angleResidual>angleTolerance)geometryWarning(diagnostics,static_cast<Real>(angleResidual),
+                    static_cast<Real>(angleTolerance),cell,false,ugkp::diagnostics::EntityKind::Cell);
             }
             return true;
         }
@@ -467,7 +496,7 @@ namespace chmt {
         if (!geometryInPlace(candidate, error,nullptr,numericalFailure,tol.diagnostics))return false;
         if ((candidate.topologyHash != old.topologyHash))return errorAt(error, "topology change unsupported", -1);
         {
-        if (!certifyLinearTrajectory(old, endpoint, error))return false;
+        if (!certifyLinearTrajectory(old, endpoint, error,tol.diagnostics))return false;
         // Reject a crossed/inverted path even if endpoint orientation recovered.
         HostMesh mid = old;
         for (std::size_t p = 0; p<endpoint.size(); ++p)mid.points[p] = extrusion.axis<0?
@@ -731,9 +760,7 @@ namespace chmt {
                 || !finite(controls.relativeVolumeTolerance) || controls.relativeVolumeTolerance<0
                 || (!controls.faceVolumeTolerance.empty()&&controls.faceVolumeTolerance.size()!=faces.size())
                 || !finite(controls.rankTolerance) || controls.rankTolerance<=0 || controls.rankTolerance>=1
-                || controls.maximumIterations<1
-                || controls.maximumDegreesOfFreedom<0 || controls.maximumConstraints<0
-                || !controls.maximumWorkspaceBytes))
+                || controls.maximumIterations<1))
                 return reject(SweepConstraintStatus::InvalidInput,"invalid swept-volume constraint inputs/controls");
             if((np>static_cast<std::size_t>(std::numeric_limits<int>::max())
                 || input.owner.size()>static_cast<std::size_t>(std::numeric_limits<int>::max())
@@ -897,15 +924,6 @@ namespace chmt {
                 output=std::move(certified); actualSweeps=std::move(measured);
                 report.status=SweepConstraintStatus::Success; error.clear(); return true;
             }
-            if ((controls.maximumDegreesOfFreedom && report.degreesOfFreedom>controls.maximumDegreesOfFreedom)
-                || (controls.maximumModeEntries && np && movable.size()>controls.maximumModeEntries/np)) {
-
-                return reject(SweepConstraintStatus::SizeLimit,"swept-volume correction exceeds explicit DOF/mode limit");
-            }
-            if (controls.maximumConstraints && report.constraints>controls.maximumConstraints) {
-
-                return reject(SweepConstraintStatus::SizeLimit,"swept-volume correction exceeds explicit constraint limit");
-            }
             try {
             // Lumped reference-surface area is the distortion metric. Shared
             // vertices must carry all incident faces; otherwise minimum Euclidean
@@ -924,17 +942,10 @@ namespace chmt {
             for (int p:hasEmpty?metricMovable:movable) if (pointWeight[p]>0) { meanWeight+=pointWeight[p]; ++weighted; }
             meanWeight=weighted?meanWeight/weighted:1;
             const std::size_t columns=movable.size(),rows=residual.size();
-            const std::size_t rowBytes=sum(product(rows,sizeof(Reals)),product(product(rows,columns),sizeof(Real)));
-            const std::size_t qrBytes=sum(rowBytes,product(sum(product(2,rows),columns),sizeof(Real)));
-            const std::size_t modeBytes=product(np,sizeof(Vec3));
-            const std::size_t oneCachedMode=sum(sizeof(Points),modeBytes);
-            const bool cache=workspace.fits(qrBytes)
-                && columns<=(workspace.limit-workspace.live-qrBytes)/oneCachedMode;
-            if(!cache)workspace.check(sum(qrBytes,modeBytes));
-            report.streamedModes=!cache;
-            Vector<Points> modes{Allocator<Points>(workspace)};
-            Points streamedMode{Allocator<Vec3>(workspace)};
-            if(cache)modes.reserve(columns);else streamedMode.resize(np);
+            // One deterministic streamed construction, independent of user budgets.
+            // Each mode uses the same harmonic solve; no allocation-driven fallback.
+            report.streamedModes=true;
+            Points streamedMode(np,Vec3{},Allocator<Vec3>(workspace));
             auto generateMode=[&](int p,Points& end) {
                 std::fill(boundary.begin(),boundary.end(),Vec3{});
                 const Real weight=pointWeight[p]>0?pointWeight[p]:meanWeight;
@@ -949,11 +960,6 @@ namespace chmt {
                 if(!harmonic.solve(boundary,end,tolerances.diagnostics))return errorAt(error,"harmonic point motion did not converge",-1);
                 return true;
             };
-            if(cache)for(int p:movable) {
-                Points end{Allocator<Vec3>(workspace)};
-                if(!generateMode(p,end))return false;
-                modes.push_back(std::move(end));
-            }
             for (int iteration=0;iteration<=controls.maximumIterations;++iteration) {
                 report.iterations=iteration;
                 if (metric<=1) {
@@ -970,8 +976,8 @@ namespace chmt {
                 jacobian.reserve(rows);
                 for(std::size_t i=0;i<rows;++i)jacobian.emplace_back(columns,0,Allocator<Real>(workspace));
                 for (std::size_t j=0;j<columns;++j) {
-                    if(!cache && !generateMode(movable[j],streamedMode))return false;
-                    const auto& mode=cache?modes[j]:streamedMode;
+                    if(!generateMode(movable[j],streamedMode))return false;
+                    const auto& mode=streamedMode;
                     std::size_t row=0;
                     for (std::size_t i=0;i<faces.size();++i)
                         jacobian[row++][j]=sweepDerivative(old,points,mode.data(),faces[i])/sweepScale[i];
@@ -1004,8 +1010,8 @@ namespace chmt {
                 }
                 std::fill(correction.begin(),correction.end(),Vec3{});
                 for (std::size_t j=0;j<columns;++j) {
-                    if(!cache && !generateMode(movable[j],streamedMode))return false;
-                    const auto& mode=cache?modes[j]:streamedMode;
+                    if(!generateMode(movable[j],streamedMode))return false;
+                    const auto& mode=streamedMode;
                     for (std::size_t p=0;p<np;++p) correction[p]+=mode[p]*delta[j];
                 }
                 // One full Newton correction. No candidate-alpha acceptance or replay.
@@ -1043,7 +1049,8 @@ namespace chmt {
                     output,sweeps,report,error,controls,extraCheck,tolerances,numericalFailure);
             } catch(const sweep_detail::WorkspaceLimit&) {
                 report.status=SweepConstraintStatus::SizeLimit;
-                error="swept-volume correction workspace budget exceeded";
+                if(numericalFailure)*numericalFailure=false;
+                error="swept-volume correction allocation size overflow";
             } catch(const std::bad_alloc&) {
                 if(numericalFailure)*numericalFailure=false;
                 report.status=SweepConstraintStatus::SizeLimit;
