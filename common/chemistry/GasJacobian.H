@@ -21,13 +21,13 @@ template<class R,int N,class TableReal,bool Complete=true> UGKWP_GAS_HD UGKWP_CH
  for(int r=0;r<m.reactionCount;++r){X q;bool available=false;
    if(!gasChemistryDetail::progressRate<X,TableReal,N,Complete>(r,temperature,c?concentration:nullptr,t,m,q,&available)){
      if(status){status.code=ChemistryCode::RateFailure;status.reaction=r;}
-     if(!Complete || !available)return false;
+     return false;
    }
    const auto& a=m.reactions[r];
    for(int j=0;j<a.reactantCount;++j){const auto& v=m.reactants[a.reactantOffset+j];production[v.species]=production[v.species]-X(v.coefficient)*q;}
    for(int j=0;j<a.productCount;++j){const auto& v=m.products[a.productOffset+j];production[v.species]=production[v.species]+X(v.coefficient)*q;}
  }
- for(int s=0;s<N;++s)if(!gasChemistryDetail::rateFinite(production[s])){status.code=ChemistryCode::RateFailure;if(!Complete)return false;}
+ for(int s=0;s<N;++s)if(!gasChemistryDetail::rateFinite(production[s])){status.code=ChemistryCode::RateFailure;return false;}
  for(int s=0;s<N;++s){thermal[s]=production[s].derivative[N];for(int j=0;j<N;++j)jacobian[s*N+j]=production[s].derivative[j];}
  if(evaluated)*evaluated=true;
  return bool(status);

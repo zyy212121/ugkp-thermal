@@ -6,8 +6,8 @@
 namespace ugkwp
 {
 
-// Non-owning geometry for ONE attempted Euler stage. The caller must bind new
-// metrics after a rejected/reduced interval; full-window sweeps cannot be reused.
+// Non-owning geometry for one Euler stage. The caller binds metrics for this
+// stage interval; a different stage cannot reuse full-window swept volumes.
 // Cell volumes are geometric volumes [m^3]. Face sweeps [m^3] are positive in the
 // owner-outward direction, matching the area vector used by the flux operator.
 // Evaluation areas/centres remain in the ordinary shared gas geometry arrays.

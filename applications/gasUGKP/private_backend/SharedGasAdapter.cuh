@@ -70,8 +70,16 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
         if(!capability) throw std::runtime_error(capability.message);
         if(model.mode!=ugkwp::GasMode::SingleLegacy
             && ((request.fluxScheme!=1&&request.fluxScheme!=2)||(request.reconstruction!=0&&request.reconstruction!=1)))
-            std::fprintf(stderr,"shared mixture requested flux=%d reconstruction=%d; effective flux=%d reconstruction=%d (existing fallback)\n",
-                request.fluxScheme,request.reconstruction,request.fluxScheme==2?2:1,request.reconstruction==1?1:0);
+        {
+            using namespace ugkp::diagnostics;
+            if(state->diagnosticOwner){
+                state->diagnosticOwner->recordHostFatal(makeRecord(Code::MissingOperator,2607,26,0,
+                    EntityKind::None,-1,request.fluxScheme,request.reconstruction));
+                state->diagnosticOwner->dispatchPending();
+            }
+            setLastErrorText("selected mixture operator is not implemented; supported flux create codes are 1 (Rusanov) and 2 (Kurganov/HLL), reconstruction codes 0 (firstOrder) and 1 (MUSCL)");
+            return 1;
+        }
         ugkwp::GasMechanismConfiguration mechanism;
         if(model.mode==ugkwp::GasMode::MixtureChemistry)
         {
@@ -97,6 +105,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
 #undef ALLOC_SHARED
         // Copy only canonical immutable metadata into separate device allocations.
         candidate.thermo=hostThermo;
+        candidate.thermo.diagnostics=state->diagnostics;
         candidate.thermo.species=nullptr;candidate.thermo.coefficients=nullptr;candidate.thermo.elementComposition=nullptr;
         rc|=uploadSharedGasTable(candidate.thermo.species,model.species.data(),model.species.size());
         rc|=uploadSharedGasTable(candidate.thermo.coefficients,model.coefficients.data(),model.coefficients.size());
@@ -190,7 +199,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadSpeciesV1
     std::vector<double> staged(std::size_t(state->nCells)*ugkwp::compiledGasSpecies);
     if(copyToHost(staged.data(),state->gasSpecies.rho,staged.size(),"download accepted species density"))return 1;
     std::copy(staged.begin(),staged.end(),values);
-    return 0;
+    return state->diagnosticOwner->completeReadback(0,!staged.empty());
 }
 extern "C" int ugkwpGpuResidentStrictUploadSpeciesBoundaryV1
 (void* handle,const ugkwpGpuIpc::GasSpeciesIdentityV1* identity,const int* fixed,const double* values)

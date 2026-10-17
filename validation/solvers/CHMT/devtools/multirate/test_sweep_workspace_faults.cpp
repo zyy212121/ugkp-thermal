@@ -1,5 +1,5 @@
 // Test-only single-allocation fault injection; production has no global new hook.
-// Enumerates every allocation in successful cached and streamed transactions.
+// Enumerates every allocation in successful default and legacy-cap streamed transactions.
 #include <cstdlib>
 #include <new>
 #include <cstdio>
@@ -16,9 +16,9 @@ int main(){
  using namespace sweep_detail;
  std::size_t peak=0;sweep_detail::Budget budget(128,peak);
  { Reals x{Allocator<Real>(budget)};x.reserve(8);require(budget.live==64&&peak==64,"reserve charged");
-   try{x.reserve(16);require(false,"old+new simultaneously charged");}catch(const WorkspaceLimit&){}
-   require(budget.live==64&&x.capacity()==8,"failed resize preserves budget and capacity");
-   Reals y(std::move(x));require(budget.live==64,"move does not double charge"); }
+   x.reserve(16);require(budget.live==128&&peak==192,"old and new simultaneously counted beyond legacy cap");
+   require(x.capacity()==16,"growth proceeds beyond legacy budget");
+   Reals y(std::move(x));require(budget.live==128,"move does not double charge"); }
  require(budget.live==0,"destruction releases budget");
  for(int operation=0;operation<2;++operation){try{if(operation)sum(std::size_t(-1),1);else product(std::size_t(-1),2);require(false,"overflow rejected");}catch(const WorkspaceLimit&){}}
  {Allocator<Real> a(budget);failAfter=0;try{a.allocate(2);require(false,"allocation fault required");}catch(const std::bad_alloc&){}require(budget.live==0,"failed underlying allocate leaves accounting unchanged");}
@@ -32,7 +32,7 @@ int main(){
   long baselineCalls;{
    HostMesh output;output.geometryVersion=777;std::vector<Real>sweeps{123};SweepConstraintReport report;std::string error;
    long before=allocationCalls;bool ok=constrainFaceSweeps(mesh,faces,targets,zero,fixed,directions,1,output,sweeps,report,error,controls);baselineCalls=allocationCalls-before;
-   require(ok,error);require(report.streamedModes==bool(mode),"mode routing");if(!mode)cachedPeak=report.peakWorkspaceBytes;
+   require(ok,error);require(report.streamedModes,"deterministic streamed construction");if(!mode)cachedPeak=report.peakWorkspaceBytes;
   }
   long rejected=0,accepted=0;
   for(long at=0;at<baselineCalls;++at){long beforeLive=liveAllocations;{
@@ -41,9 +41,9 @@ int main(){
    try{ok=constrainFaceSweeps(mesh,faces,targets,zero,fixed,directions,1,output,sweeps,report,error,controls);}catch(...){failAfter=-1;std::fprintf(stderr,"escaped allocation fault mode=%d at=%ld\n",mode,at);return 9;}failAfter=-1;
    if(!ok){++rejected;require(report.status==SweepConstraintStatus::SizeLimit,"allocation fault typed SizeLimit");require(output.geometryVersion==777&&output.points.empty()&&sweeps==std::vector<Real>{123},"allocation fault outputs unchanged");}
    else ++accepted;
-   require(report.peakWorkspaceBytes<=controls.maximumWorkspaceBytes,"accounted peak within budget");
+   require(report.peakWorkspaceBytes<=cachedPeak,"failure cannot allocate beyond successful path peak");
   }if(liveAllocations!=beforeLive){std::fprintf(stderr,"live delta mode=%d at=%ld before=%ld after=%ld\n",mode,at,beforeLive,liveAllocations);return 8;}}
   std::printf("mode=%d baseline_allocations=%ld rejected=%ld accepted=%ld\n",mode,baselineCalls,rejected,accepted);
  }
- std::puts("PASS allocator preflight/overflow/capacity/move/fault cleanup and public cached/streamed allocation transaction");
+ std::puts("PASS allocator overflow/capacity/move/fault cleanup and deterministic streamed allocation transaction");
 }

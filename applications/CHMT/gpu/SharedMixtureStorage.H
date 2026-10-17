@@ -68,20 +68,7 @@ public:
         s.turbulentSchmidt=model_.turbulentSchmidt;s.soundSpeed=sound_.data();s.heatCapacity=cp_.data();s.gasConstant=gasConstant_.data();
         s.cellStatus=cellStatus_.data();s.faceStatus=faceStatus_.data();return out;
     }
-    bool publish(const std::vector<Real>& endpointVolume,const ModelConfig& material,
-        std::vector<GasQ>& accepted,std::string& error) const {
-        if(endpointVolume!=volume_){error="ALE stage-volume policy is not yet wired";return false;}
-        for(int status:cellStatus_)if(status){error="shared gas cell rejected the entire trial";return false;}
-        for(int status:faceStatus_)if(status){error="shared gas face rejected the entire trial";return false;}
-        const auto cells=volume_.size();std::vector<GasQ> candidate(cells);
-        for(std::size_t c=0;c<cells;++c){auto& q=candidate[c];const auto volume=volume_[c];
-            q.mass=bulk_[0][c]*volume;q.momentum={bulk_[1][c]*volume,bulk_[2][c]*volume,bulk_[3][c]*volume};q.energy=bulk_[4][c]*volume;
-            for(int s=0;s<Ns;++s)q.species[s]=rhoSpecies_[s*cells+c]*volume;
-            GasPrimitive primitive;if(!recoverGas(q,volume,material.physics,primitive)){
-                error="inadmissible shared mixture candidate; accepted state unchanged";return false;}
-        }
-        accepted=std::move(candidate);error.clear();return true;
-    }
+
 };
 }
 #endif

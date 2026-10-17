@@ -31,10 +31,13 @@ int main(int argc,char**argv){ck(argc==2,"scenario");State s;initialise(s);const
   s.riemannBoundaryKind[1]=0;s.riemannBoundaryPFix[1]=s.riemannBoundaryTFix[1]=1;s.riemannBoundaryP[1]=101325;s.riemannBoundaryT[1]=0;s.riemannBoundaryUFix[1]=1;s.riemannBoundaryUx[1]=2;s.riemannBoundaryUy[1]=3;s.riemannBoundaryUz[1]=inf;
   const auto out=riemannBoundaryState(s,1,gasCellPrimitive(s,0));ck(s.gasSpecies.faceStatus[1]!=0,"boundary status");ck(std::isinf(out.rho)&&out.p==101325&&out.T==0&&out.ux==2&&out.uy==3&&std::isinf(out.uz),"boundary EOS/velocity incomplete");
  }else if(!std::strcmp(test,"boundary_total")){
+  // The mixture total-inlet operator is unavailable; no approximate continuation.
   s.riemannBoundaryKind[1]=0;s.riemannBoundaryUFix[1]=3;s.riemannBoundaryP[1]=101325;s.riemannBoundaryT[1]=900;
-  const auto owner=gasCellPrimitive(s,0);Real y[2]={Real(.9),Real(.1)},R=ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo),cv=ugkwp::mixtureHeatCapacity(y,owner.T,s.gasSpecies.thermo);
-  const auto expected=ugkpboundary::totalConditionInletState(ugkpboundary::Primitive{owner.rho,owner.ux,owner.uy,owner.uz,owner.p,owner.T},Real(-1),Real(0),Real(0),Real(101325),Real(900),(cv+R)/cv,R,s.rhoMin,s.TgasMin);
-  const auto out=riemannBoundaryState(s,1,owner);field(out.rho,expected.rho,"total density");field(out.ux,expected.ux,"total velocity");field(out.p,expected.p,"total pressure");field(out.T,expected.T,"total temperature");
+  ugkp::diagnostics::DeviceContext diagnostics{};s.diagnostics=&diagnostics;
+  const auto owner=gasCellPrimitive(s,0),out=riemannBoundaryState(s,1,owner);
+  ck(diagnostics.fatalClaim&&diagnostics.firstFatal.code==ugkp::diagnostics::Code::MissingOperator
+    &&diagnostics.firstFatal.sourceSiteId==30420&&diagnostics.firstFatal.entityIndex==1,"missing mixture total-inlet operator fatal");
+  field(out.rho,owner.rho,"rejected total density");field(out.ux,owner.ux,"rejected total velocity");field(out.p,owner.p,"rejected total pressure");field(out.T,owner.T,"rejected total temperature");
  }else if(!std::strcmp(test,"legacy_flux")){
   ugkpriemann::Primitive p{0,2,3,4,5};auto result=ugkpriemann::fluxUnitArea(p,p,Real(1),Real(0),Real(0),Real(1.4),ugkpriemann::Scheme::RusanovTadmor);
   auto expected=ugkpriemann::rusanovTadmorFluxUnitNormal(p,p,Real(1),Real(0),Real(0),Real(1.4),false);for(int k=0;k<5;++k)field(result.flux[k],expected.flux[k],"legacy selected actual flux");field(result.maxSignalSpeed,expected.maxSignalSpeed,"legacy signal");

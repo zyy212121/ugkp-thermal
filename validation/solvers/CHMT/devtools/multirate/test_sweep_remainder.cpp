@@ -41,12 +41,21 @@ int main(){
     require(!moveCoupledMeshesConstrained(base,base.filmAux,{-3,-3},1,gas,solid,surface,report,error),"impossible carried trajectory rejects");
     require(base.solidSweepRemainder==accepted.solidSweepRemainder,"rejected trajectory preserves accepted carry");
     std::vector<Real> sentinel={123,456};
-    require(!updateMaterialSweepRemainder(base,{0,0},std::vector<Real>(base.solidMesh.owner.size(),1),base.solidMesh,sentinel,error),"large unaccounted sweep rejected");
-    require(sentinel==std::vector<Real>({123,456}),"failed carry update preserves output");
+    ugkp::diagnostics::DeviceContext diagnostics{};ugkp::diagnostics::reset(diagnostics,1,34);
+    require(updateMaterialSweepRemainder(base,{0,0},std::vector<Real>(base.solidMesh.owner.size(),1),base.solidMesh,sentinel,error,&diagnostics),
+        "large finite unaccounted sweep retained with warning");
+    require(!ugkp::diagnostics::takeSnapshot(diagnostics).warnings.empty(),"large remainder produces warning");
+    for(int f=0;f<2;++f)require(sentinel[f]==base.solidSweepRemainder[f]-1,"actual finite remainder preserved exactly");
     for(int invalid=0;invalid<3;++invalid){auto bad=base;
         if(invalid==0)bad.solidSweepRemainder.pop_back();
         else bad.solidSweepRemainder[0]=invalid==1?undefinedValue():1;
-        require(!validateMaterialSweepRemainder(bad,error),"invalid inherited geometric remainder rejected");
+        if(invalid<2)require(!validateMaterialSweepRemainder(bad,error),"invalid mapping/nonfinite inherited remainder rejected");
+        else {
+            ugkp::diagnostics::reset(diagnostics,1,34);
+            require(validateMaterialSweepRemainder(bad,error,&diagnostics),"finite inherited remainder retained");
+            require(bad.solidSweepRemainder[0]==1 && !ugkp::diagnostics::takeSnapshot(diagnostics).warnings.empty(),
+                "finite inherited remainder warns without repair");
+        }
     }
     {
         auto start=coupledPair();auto middle=start.solidMesh.points;
@@ -61,7 +70,15 @@ int main(){
         std::vector<Real> remainder;
         require(updateMaterialSweepRemainder(start,physical,measured,end,remainder,error),"actual segmented path remainder");
         require(remainder==std::vector<Real>({0,0}),"segment sums preserve exact supplied physical volumes");
-        require(!updateMaterialSweepRemainder(start,physical,direct,chord,remainder,error),"macro chord cannot replace path-dependent actual segment sweeps");
+        ugkp::diagnostics::reset(diagnostics,1,34);
+        require(updateMaterialSweepRemainder(start,physical,direct,chord,remainder,error,&diagnostics),"finite macro-chord discrepancy is accounted");
+        require(!ugkp::diagnostics::takeSnapshot(diagnostics).warnings.empty(),"macro-chord discrepancy warns");
+        bool nonzeroDifference=false;
+        for(std::size_t i=0;i<physical.size();++i) {
+            require(remainder[i]==physical[i]-direct[start.surface.solidFace[i]],"path-dependent discrepancy retained exactly");
+            nonzeroDifference=nonzeroDifference || remainder[i]!=0;
+        }
+        require(nonzeroDifference,"macro chord cannot silently replace the actual segmented path");
     }
     std::cout<<"PASS: 240-window physical-target/sweep remainder, signed transfers and rollback\n";
 }

@@ -536,20 +536,12 @@ int applyGasTrialSources(State* s,Time dt,bool,long)
 {return Policy::applySources(s,dt);}
 
 
-template<class Policy,class State,class=void>
-struct GasNativeTrialBoundsCapability:std::false_type{};
-template<class Policy,class State>
-struct GasNativeTrialBoundsCapability<Policy,State,std::void_t<
-    decltype(Policy::targetMaxCo(std::declval<State*>())),
-    decltype(Policy::validateTimeStep(std::declval<State*>(),GasHostPolicy::Time{}))>>:std::true_type{};
-
 // Shared source composition: chemistry always uses explicit stage volumes.
 template<class TrialPolicy,class GasHostState>
 int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
     const GasHostPolicy::Time simulationTime=GasHostPolicy::Time(0),
     const bool nativeRefinement=false)
 {
-    using GasDevice=typename std::remove_pointer<decltype(s->deviceState)>::type;
     if constexpr (ugkwp::GasStateTraits<GasHostState>::speciesCount > 0)
     {
         {
@@ -596,59 +588,7 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
                 }
             }
             if(validateGasTrialState<TrialPolicy>(s,nativeRefinement,0)!=0)return 1;
-            if constexpr(GasNativeTrialBoundsCapability<TrialPolicy,GasHostState>::value)
-            if(nativeRefinement)
-            {
-                if constexpr(ugkwp::GasStateTraits<GasDevice>::speciesCount>0)
-                    if(s->hostTurbulenceModel!=0)
-                    {
-                        if(s->hostTurbulenceModel==3 && !ugkwp::gasBoundaryLayerEnabled(*s))
-                        {
-                            recoverSstPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
-                            const auto error=cudaGetLastError();
-                            if(error!=cudaSuccess){setLastError("pre-transport SST recovery",error);return 1;}
-                        }
-                        computeGasPrimitiveGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,true,nativeRefinement);
-                        auto error=cudaGetLastError();
-                        if(error!=cudaSuccess){setLastError("pre-transport gas gradients",error);return 1;}
-                        if(s->hostTurbulenceModel==3)
-                        {
-                            computeGasGradientLimiterKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
-                            error=cudaGetLastError();
-                            if(error!=cudaSuccess){setLastError("pre-transport gas limiter",error);return 1;}
-                        }
-                        computeGasEddyViscosityKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
-                        error=cudaGetLastError();
-                        if(error!=cudaSuccess){setLastError("pre-transport eddy viscosity",error);return 1;}
-                    }
-                const int faceBlock=s->fixedFaceBlockThreads,faceGrid=(s->nFaces+faceBlock-1)/faceBlock;
-                if(faceGrid>0)
-                {
-                    computeGasCourantFieldKernel<<<faceGrid,faceBlock,0,s->gasCaptureStream>>>(s->deviceState,dt,nativeRefinement);
-                    const auto error=cudaGetLastError();
-                    if(error!=cudaSuccess){setLastError("post-chemistry wave speed",error);return 1;}
-                }
-                // SST inletOutlet gradients and compression bounds consume the
-                // fresh Riemann mass predictor, never prior-stage flux scratch.
-                if constexpr(ugkwp::GasStateTraits<GasDevice>::speciesCount>0)
-                    if(s->hostTurbulenceModel==3)
-                    {
-                        computeSstGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
-                        auto error=cudaGetLastError();
-                        if(error!=cudaSuccess){setLastError("pre-transport SST gradients",error);return 1;}
-                        computeSstStabilityNumberKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,dt,TrialPolicy::targetMaxCo(s),true,nativeRefinement);
-                        error=cudaGetLastError();
-                        if(error!=cudaSuccess){setLastError("pre-transport SST stability",error);return 1;}
-                    }
-                computeGasConvectiveCourantByCellKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,dt,nativeRefinement);
-                auto error=cudaGetLastError();
-                if(error!=cudaSuccess){setLastError("post-chemistry convective bound",error);return 1;}
-                computeGasDiffusionNumberKernel<<<grid,block,0,s->gasCaptureStream>>>
-                    (s->deviceState,dt,TrialPolicy::targetMaxCo(s),nativeRefinement);
-                error=cudaGetLastError();
-                if(error!=cudaSuccess){setLastError("post-chemistry diffusion bound",error);return 1;}
-                if(validateGasTrialState<TrialPolicy>(s,nativeRefinement,0)!=0 || TrialPolicy::validateTimeStep(s,dt)!=0)return 1;
-            }
+
 
         }
     }
@@ -695,7 +635,7 @@ int advanceGasTrial
 {
     ugkwp::invalidateGasBoundaryLayerPreparation(*s);
     if (TrialPolicy::begin(s) != 0)
-    { ugkwp::invalidateGasBoundaryLayerPreparation(*s); TrialPolicy::rollback(s); return 1; }
+    { ugkwp::invalidateGasBoundaryLayerPreparation(*s); return 1; }
     if (prepareGasTrialTransport<TrialPolicy>(s,dt,simulationTime,nativeRefinement) != 0
         || advanceGasFluxStage(s, dt, simulationTime,nativeRefinement) != 0
         || (!nativeRefinement && validateGasTrialState<TrialPolicy>(s,nativeRefinement,0) != 0)
@@ -704,21 +644,14 @@ int advanceGasTrial
         || finaliseGasBoundaryStage(s, dt, simulationTime+dt) != 0
         || validateGasTrialState<TrialPolicy>(s,nativeRefinement,0) != 0
         || TrialPolicy::commit(s) != 0)
-    { ugkwp::invalidateGasBoundaryLayerPreparation(*s); TrialPolicy::rollback(s); return 1; }
+    { ugkwp::invalidateGasBoundaryLayerPreparation(*s); return 1; }
     return 0;
 }
-
-template<class Policy,class State>
-auto gasTrialCanContinueTerminal(State* state,int)->decltype(Policy::continueTerminal(state))
-{return Policy::continueTerminal(state);}
-template<class Policy,class State>
-bool gasTrialCanContinueTerminal(State*,long){return false;}
 
 template<class Time>
 struct GasRequestedIntervalControls
 {
-    Time minimumSubstep = Time(1e-14);
-    int maximumAttempts = 10000;
+    // Compatibility token: the requested interval has no retry budget.
 };
 
 
@@ -733,46 +666,8 @@ int advanceGasRequestedInterval
     const GasRequestedIntervalControls<GasHostPolicy::Time>& controls
 )
 {
-    using Time = GasHostPolicy::Time;
-    if (TrialPolicy::beginInterval(s) != 0)
-    { TrialPolicy::rollbackInterval(s); return 1; }
-    Time elapsed=Time(0),substep=requestedDt;
-    int attempts=0;
-    bool refining=requestedDt>Time(0) && controls.minimumSubstep>Time(0)
-        && controls.maximumAttempts>0 && simulationTime+requestedDt!=simulationTime;
-    if(!refining)
-    {
-        if(advanceGasTrial<TrialPolicy>(s,requestedDt,simulationTime,false)!=0)
-        {TrialPolicy::rollbackInterval(s);return 1;}
-    }
-    else while(elapsed<requestedDt)
-    {
-        const Time remaining=requestedDt-elapsed;
-        if(substep>remaining)substep=remaining;
-        if(refining && (++attempts>controls.maximumAttempts || elapsed+substep==elapsed
-            || !(substep>Time(0))))
-        {refining=false;substep=remaining;}
-        if(advanceGasTrial<TrialPolicy>(s,substep,simulationTime+elapsed,refining)==0)
-        {
-            elapsed+=substep;
-            if(elapsed<requestedDt)substep*=Time(2);
-        }
-        else
-        {
-            if(!TrialPolicy::retryable(s))
-            {
-                if(refining && gasTrialCanContinueTerminal<TrialPolicy>(s,0))
-                {refining=false;substep=remaining;continue;}
-                TrialPolicy::rollbackInterval(s);return 1;
-            }
-            if(!refining)
-            {TrialPolicy::rollbackInterval(s);return 1;}
-            substep*=Time(.5);
-            if(substep<controls.minimumSubstep)
-            {refining=false;substep=remaining;}
-        }
-    }
-    if(TrialPolicy::commitInterval(s)!=0)
-    {TrialPolicy::rollbackInterval(s);return 1;}
-    return 0;
+    (void)controls;
+    if (TrialPolicy::beginInterval(s) != 0) return 1;
+    if (advanceGasTrial<TrialPolicy>(s,requestedDt,simulationTime,false) != 0) return 1;
+    return TrialPolicy::commitInterval(s);
 }

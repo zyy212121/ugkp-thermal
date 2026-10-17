@@ -21,7 +21,7 @@ CHMT_HD inline bool darcyNormalPressureGradient(Vec3 displacement, Vec3 normal,
 // vector-valued stencil's absolute pressure sensitivity, including p_c.
 CHMT_HD inline Real darcyGradientSensitivity(const Symmetric3& matrix, Vec3 displacement) {
     const Real squared=dot(displacement,displacement);
-    if (!(squared>0)||!finite(squared)) return std::numeric_limits<Real>::max();
+    if (!(squared>0)||!finite(squared)) return undefinedValue();
     return 2*mag(solveLeastSquares(matrix,displacement/squared));
 }
 

@@ -5,8 +5,8 @@
 namespace chmt {
 inline bool validateRuntimeState(const ModelConfig& model,HostState& h,std::string& error){
     const auto& p=model.physics;
-    if(!h.gas.empty()&&!rebuildGeometry(h.gasMesh,error)&&!detail::completeGeometry(h.gasMesh,error))return false;
-    if(!h.solid.empty()&&!rebuildGeometry(h.solidMesh,error)&&!detail::completeGeometry(h.solidMesh,error))return false;
+    if(!h.gas.empty()&&!rebuildGeometry(h.gasMesh,error,p.diagnostics))return false;
+    if(!h.solid.empty()&&!rebuildGeometry(h.solidMesh,error,p.diagnostics))return false;
     const bool normal=p.filmThermalMode==FilmThermalMode::ResolvedNormal;
     const std::size_t nf=h.surface.area.size(),ne=h.surface.edgeOwner.size();
     if(!normal&&nf){

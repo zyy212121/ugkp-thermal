@@ -1,3 +1,4 @@
+#include "../../../common/GpuDiagnosticsOwner.cuh"
 #include "ContactCapabilityValidation.h"
 #define GPU_CONTACT_SEPARATE_AGE 0
 #define GPU_THERMAL_RELAX_NATIVE_ORDER 1
@@ -110,6 +111,8 @@ struct CsrReductionTask
 
 struct DeviceState
 {
+    ugkp::diagnostics::DeviceContext* diagnostics = nullptr;
+    ugkp::diagnostics::GpuOwner* diagnosticOwner = nullptr;
 #include "GpuAutomaticCsrScheduleFields.inl"
     DeviceState* deviceState = nullptr;
 
@@ -947,7 +950,7 @@ int validateState(DeviceState* s, const char* action)
     return 0;
 }
 
-void releaseState(DeviceState* s)
+void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=nullptr)
 {
     if (s == nullptr)
     {
@@ -1281,6 +1284,14 @@ void releaseState(DeviceState* s)
     release(s->compactPRng);
     release(s->compactPOrigId);
 
+    // All preceding cudaFree calls belong to the original teardown and have
+    // completed outstanding users. Drain before freeing diagnostic evidence.
+    if(s->diagnosticOwner) {
+        s->diagnosticOwner->observeCompletedWork();
+        s->diagnosticOwner->dispatchPending();
+        if(finalDiagnostics)s->diagnosticOwner->finish(*finalDiagnostics);
+    }
+    delete s->diagnosticOwner;
     delete s;
 }
 
@@ -2646,6 +2657,13 @@ extern "C" int ugkwpGpuResidentStrictCreate
     }
 
     DeviceState* s = new DeviceState;
+    s->diagnosticOwner = new ugkp::diagnostics::GpuOwner;
+    const auto diagnosticAllocation=s->diagnosticOwner->initialise();
+    if(diagnosticAllocation!=cudaSuccess) {
+        setLastError("initialise per-instance diagnostics",diagnosticAllocation);
+        delete s->diagnosticOwner;delete s;return 1;
+    }
+    s->diagnostics=s->diagnosticOwner->device();
     s->nCells = nCells;
     s->nFaces = nFaces;
     s->nInternalFaces = nInternalFaces;
@@ -3101,6 +3119,11 @@ extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
         return 1;
     }
     err = cudaDeviceSynchronize();
+    // Reuse this pre-existing completion point; do not add a synchronization.
+    if(err==cudaSuccess) {
+        err=s->diagnosticOwner->observeCompletedWork();
+        if(s->diagnosticOwner->dispatchPending())return 1;
+    }
     if (err != cudaSuccess)
     {
         setLastError("synchronize scheduled inlet configuration", err);
@@ -3141,7 +3164,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadSourceResidualMass
     int rc = 0;
     rc |= copyToHost(sourceFace, s->sourceFace, n, "cudaMemcpy strict sourceFace restart");
     rc |= copyToHost(residualMass, s->sourceResidualMass, n, "cudaMemcpy strict source residual restart");
-    return rc == 0 ? 0 : 1;
+    return s->diagnosticOwner->completeReadback(rc == 0 ? 0 : 1, n != 0);
 }
 
 extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
@@ -3484,6 +3507,11 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     if (err == cudaSuccess)
     {
         err = cudaDeviceSynchronize();
+    // Reuse this pre-existing completion point; do not add a synchronization.
+    if(err==cudaSuccess) {
+        err=s->diagnosticOwner->observeCompletedWork();
+        if(s->diagnosticOwner->dispatchPending())return 1;
+    }
     }
     if (err != cudaSuccess)
     {
@@ -3699,6 +3727,10 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         *maxCo = fmax(*maxCo, *maxSstIt);
     }
 
+    // Courant's existing reduction has returned its host scalar.
+    const auto diagnosticReadback=s->diagnosticOwner->observeCompletedWork();
+    if(diagnosticReadback!=cudaSuccess) {setLastError("diagnostics at Courant readback",diagnosticReadback);return 1;}
+    if(s->diagnosticOwner->dispatchPending())return 1;
     return 0;
 }
 
@@ -4489,6 +4521,11 @@ extern "C" int ugkwpGpuResidentStrictDownloadFields
     rc |= copyToHost(Uz, s->Uz, n, "cudaMemcpy strict Uz result");
     rc |= copyToHost(p, s->p, n, "cudaMemcpy strict p result");
     rc |= copyToHost(Tgas, s->Tgas, n, "cudaMemcpy strict Tgas result");
+    // Tgas has just completed a pre-existing blocking field readback.
+    const auto diagnosticReadback=n?s->diagnosticOwner->observeCompletedWork():cudaSuccess;
+    if(diagnosticReadback!=cudaSuccess) {setLastError("diagnostics at field readback",diagnosticReadback);rc|=1;}
+    if(s->diagnosticOwner->dispatchPending())return 1;
+
     rc |= copyToHost(epsS, s->epsS, n, "cudaMemcpy strict epsS result");
     rc |= copyToHost(rhoUsx, s->rhoUsx, n, "cudaMemcpy strict rhoUsx result");
     rc |= copyToHost(rhoUsy, s->rhoUsy, n, "cudaMemcpy strict rhoUsy result");
@@ -4523,13 +4560,13 @@ extern "C" int ugkwpGpuResidentStrictDownloadEpsGPrev
     }
 
     const size_t n = static_cast<size_t>(s->nCells);
-    return copyToHost
+    return s->diagnosticOwner->completeReadback(copyToHost
     (
         epsGPrev,
         s->epsGPrev,
         n,
         "cudaMemcpy strict epsGPrev download"
-    );
+    ), n != 0);
 }
 
 extern "C" int ugkwpGpuResidentStrictUploadEpsGPrev
@@ -4584,7 +4621,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadGasBoundaryFields
     rc |= copyToHost(Uz, s->gasBoundaryUz, n, "cudaMemcpy strict gas boundary Uz");
     rc |= copyToHost(p, s->gasBoundaryP, n, "cudaMemcpy strict gas boundary p");
     rc |= copyToHost(Tgas, s->gasBoundaryT, n, "cudaMemcpy strict gas boundary T");
-    return rc == 0 ? 0 : 1;
+    return s->diagnosticOwner->completeReadback(rc == 0 ? 0 : 1, n != 0);
 }
 
 extern "C" int ugkwpGpuResidentStrictDownloadNut
@@ -4603,13 +4640,13 @@ extern "C" int ugkwpGpuResidentStrictDownloadNut
         setLastErrorText("null nut output array");
         return 1;
     }
-    return copyToHost
+    return s->diagnosticOwner->completeReadback(copyToHost
     (
         nut,
         s->nut,
         static_cast<size_t>(s->nCells),
         "cudaMemcpy strict nut result"
-    );
+    ), s->nCells != 0);
 }
 
 extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
@@ -5028,6 +5065,11 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
         return 1;
     }
     err = cudaDeviceSynchronize();
+    // Reuse this pre-existing completion point; do not add a synchronization.
+    if(err==cudaSuccess) {
+        err=s->diagnosticOwner->observeCompletedWork();
+        if(s->diagnosticOwner->dispatchPending())return 1;
+    }
     if (err != cudaSuccess)
     {
         setLastError("cudaDeviceSynchronize particle wall ledgers reset", err);
@@ -5064,7 +5106,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadSst
     rc |= copyToHost(k, s->k, n, "cudaMemcpy SST k result");
     rc |= copyToHost(omega, s->omega, n, "cudaMemcpy SST omega result");
     rc |= copyToHost(nut, s->nut, n, "cudaMemcpy SST nut result");
-    return rc == 0 ? 0 : 1;
+    return s->diagnosticOwner->completeReadback(rc == 0 ? 0 : 1, n != 0);
 }
 #include "../../../common/GpuParticleSavedVelocityRestart.inl"
 
@@ -5399,7 +5441,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
 
     if (maxParticles == 0)
     {
-        return 0;
+        return s->diagnosticOwner->completeReadback();
     }
     if (maxParticles < count)
     {
@@ -5408,7 +5450,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     }
     if (count == 0)
     {
-        return 0;
+        return s->diagnosticOwner->completeReadback();
     }
     if
     (
@@ -5541,7 +5583,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     }
     rc |= copyToHost(pRng, s->pRng, n, "cudaMemcpy strict restart pRng");
     rc |= copyToHost(pOrigId, s->pOrigId, n, "cudaMemcpy strict restart pOrigId");
-    return rc == 0 ? 0 : 1;
+    return s->diagnosticOwner->completeReadback(rc == 0 ? 0 : 1);
 }
 
 extern "C" void ugkwpGpuResidentStrictRelease(void* handle)
@@ -5553,4 +5595,42 @@ extern "C" void ugkwpGpuResidentStrictRelease(void* handle)
     }
 #endif
     releaseState(asState(handle));
+}
+
+extern "C" int ugkwpGpuResidentStrictCollectDiagnostics(void* handle,ugkp::diagnostics::Snapshot* snapshot)
+{
+    DeviceState* s=asState(handle);
+    if (!s || !s->diagnosticOwner || !snapshot) return 1;
+    const auto rc=s->diagnosticOwner->finish(*snapshot);
+    if(rc!=cudaSuccess) setLastError("complete diagnostic operation",rc);
+    s->diagnosticOwner->dispatchSnapshot(*snapshot);
+    return rc!=cudaSuccess || snapshot->hasFatal ? 1 : 0;
+}
+extern "C" void ugkwpGpuResidentStrictSetDiagnosticSink(void* handle,const ugkp::diagnostics::HostSink* sink)
+{
+    DeviceState* s=asState(handle);
+    if(s && s->diagnosticOwner && sink) s->diagnosticOwner->setSink(*sink);
+}
+
+extern "C" void ugkwpGpuResidentStrictReleaseDiagnostics(void* handle,ugkp::diagnostics::Snapshot* snapshot)
+{
+#ifdef UGKP_DEVELOPMENT_PROBES
+    if (developmentProbe.owner == asState(handle))
+    {
+        shutdownDevelopmentProbe();
+    }
+#endif
+    releaseState(asState(handle),snapshot);
+}
+
+extern "C" int ugkwpGpuResidentStrictSetDiagnosticOperation(void* handle,std::uint64_t sequence,std::int64_t step,double time)
+{
+    DeviceState* s=asState(handle);
+    if(!s || !s->diagnostics)return 1;
+    s->diagnosticOwner->setOperationContext(sequence,step,time);
+    // Ordered before graph replay, never captured with frozen timestep values.
+    ugkp::diagnostics::beginOperationKernel<<<1,1>>>(s->diagnostics,sequence,step,time);
+    const auto rc=cudaGetLastError();
+    if(rc!=cudaSuccess){setLastError("begin diagnostic metadata",rc);return 1;}
+    return 0;
 }

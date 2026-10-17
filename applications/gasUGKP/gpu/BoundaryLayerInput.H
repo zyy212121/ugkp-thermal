@@ -6,6 +6,8 @@
 #include "GpuBackendApi.H"
 #include "gasTransport/GasModelIO.H"
 #include "gasWall/WallGeometryBuilder.H"
+#include "DiagnosticsFoam.H"
+#include "DiagnosticsCatalogue.H"
 #include "gasTransport/GasBoundaryLayerProfileOutput.H"
 #include <fstream>
 #include <iomanip>
@@ -20,6 +22,7 @@ class BoundaryLayerInput
 {
     bool active_=false,prepared_=false;
     ugkwpGpuIpc::BoundaryLayerConfigV1 config_;
+    ugkp::diagnostics::DeviceContext geometryDiagnostics_{};
     ugkwp::gaswall::WallGeometryOptions<double> geometryOptions_;
     ugkwp::gaswall::WallGeometryCache<double> geometryCache_;
     std::vector<std::string> speciesNames_;
@@ -167,9 +170,13 @@ public:
             }
         }
         ugkwp::gaswall::WallStatus status;
+        ugkp::diagnostics::reset(geometryDiagnostics_,0,0,time.timeIndex(),time.value());
+        geometryOptions_.diagnostics=&geometryDiagnostics_;
         if(!geometryCache_.rebuild(geometryMesh,faces_,status,geometryOptions_))
             FatalErrorInFunction<<"Cannot construct boundaryLayer owner geometry or matching donor; "
                 <<"face="<<status.node<<" status="<<label(status.code)<<exit(FatalError);
+        ugkp::diagnostics::dispatch(ugkp::diagnostics::takeSnapshot(geometryDiagnostics_,
+            ugkp::diagnostics::sourceCatalogue()),ugkp::diagnostics::makeFoamSink());
         quadratureOffsets_.push_back(0);matchingOffsets_.push_back(0);
         for(const auto& descriptor:geometryCache_.descriptors)
         {

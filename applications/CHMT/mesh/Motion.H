@@ -3,7 +3,7 @@
 #include "mesh/Geometry.H"
 namespace chmt {
     bool harmonicPointMotion(const HostMesh&, const std::vector<Vec3>& boundaryDisplacement,
-        const std::vector<unsigned char>& prescribed, std::vector<Vec3>& endpoint, std::string&);
+        const std::vector<unsigned char>& prescribed, std::vector<Vec3>& endpoint, std::string&, ugkp::diagnostics::DeviceContext* diagnostics=nullptr);
     bool moveCoupledMeshes(const HostState&, const std::vector<FilmAux>&, double, HostMesh&, HostMesh&,
         SurfaceMesh&, std::string&, const Tolerances& tolerances=Tolerances{});
 }

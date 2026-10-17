@@ -58,8 +58,7 @@ inline Real sinc(Real x) { return std::abs(x)<1e-8?1-x*x/6+x*x*x*x/120:std::sin(
                     q.enthalpy = q.mass*liquidH(p, T, pressure);
                     for (int s = 0; s<Ns; ++s)q.species[s] = q.mass*Y[s];
                 }
-                require(recoverFilm(q, aux.area, pressure, p, aux)
-                    ||recoverFilm<true>(q,aux.area,pressure,p,aux,nullptr,-1), "invalid initial film inventory");
+                require(recoverFilm(q, aux.area, pressure, p, aux), "invalid initial film inventory");
             }
         }
 }}

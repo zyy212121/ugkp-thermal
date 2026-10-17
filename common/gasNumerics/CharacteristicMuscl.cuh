@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cmath>
+#include <limits>
 
 #if defined(__CUDACC__)
 #define UGKP_CHARACTERISTIC_HD __host__ __device__ __forceinline__
@@ -21,6 +22,26 @@ struct Increment
     GpuReal p;
 };
 
+// A failure is arithmetic evidence for the production caller, never a zero slope.
+struct Failure
+{
+    bool failed = false;
+    bool zeroDenominator = false;
+    int component = -1;
+    GpuReal value = GPU_R(0.0);
+};
+UGKP_CHARACTERISTIC_HD bool checkFinite(GpuReal value, int component, Failure* failure)
+{
+    if (::isfinite(value)) return true;
+    if (failure && !failure->failed) *failure = Failure{true, false, component, value};
+    return false;
+}
+UGKP_CHARACTERISTIC_HD Increment failedIncrement()
+{
+    const GpuReal value = std::numeric_limits<GpuReal>::quiet_NaN();
+    return Increment{value,value,value,value,value};
+}
+
 UGKP_CHARACTERISTIC_HD GpuReal clamp01(const GpuReal value)
 {
     return value < GPU_R(0.0) ? GPU_R(0.0) : (value > GPU_R(1.0) ? GPU_R(1.0) : value);
@@ -30,15 +51,14 @@ UGKP_CHARACTERISTIC_HD GpuReal boundedTowardAdjacent
 (
     const GpuReal raw,
     const GpuReal adjacentDifference,
-    const GpuReal faceFraction
+    const GpuReal faceFraction,
+    Failure* failure = nullptr
 )
 {
-    if
-    (
-        !::isfinite(raw)
-     || !::isfinite(adjacentDifference)
-     || raw*adjacentDifference <= GPU_R(0.0)
-    )
+    if (!checkFinite(raw, 9, failure) || !checkFinite(adjacentDifference, 10, failure)
+        || !checkFinite(faceFraction, 7, failure))
+        return std::numeric_limits<GpuReal>::quiet_NaN();
+    if (raw*adjacentDifference <= GPU_R(0.0))
     {
         return GPU_R(0.0);
     }
@@ -56,9 +76,15 @@ UGKP_CHARACTERISTIC_HD Increment limitOneSide
     const GpuReal nz,
     const GpuReal roeDensity,
     const GpuReal roeSoundSpeed,
-    const GpuReal faceFraction
+    const GpuReal faceFraction,
+    Failure* failure = nullptr
 )
 {
+    const GpuReal inputs[] = {raw.rho,raw.ux,raw.uy,raw.uz,raw.p,
+        adjacentDifference.rho,adjacentDifference.ux,adjacentDifference.uy,
+        adjacentDifference.uz,adjacentDifference.p,nx,ny,nz,faceFraction};
+    for (int i=0;i<14;++i)
+        if (!checkFinite(inputs[i], i, failure)) return failedIncrement();
     const GpuReal soundSquared = roeSoundSpeed*roeSoundSpeed;
     const GpuReal impedance = roeDensity*roeSoundSpeed;
     if
@@ -69,7 +95,10 @@ UGKP_CHARACTERISTIC_HD Increment limitOneSide
      || impedance <= GPU_R(0.0)
     )
     {
-        return Increment{GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
+        const GpuReal bad = (!::isfinite(soundSquared) || soundSquared<=GPU_R(0.0)) ? soundSquared : impedance;
+        if (failure && !failure->failed)
+            *failure = Failure{true,bad==GPU_R(0.0),14,bad};
+        return failedIncrement();
     }
 
     const GpuReal rawNormal = raw.ux*nx + raw.uy*ny + raw.uz*nz;
@@ -90,15 +119,15 @@ UGKP_CHARACTERISTIC_HD Increment limitOneSide
 
     const GpuReal limitedMinus = boundedTowardAdjacent
     (
-        rawMinus, adjacentMinus, faceFraction
+        rawMinus, adjacentMinus, faceFraction, failure
     );
     const GpuReal limitedContact = boundedTowardAdjacent
     (
-        rawContact, adjacentContact, faceFraction
+        rawContact, adjacentContact, faceFraction, failure
     );
     const GpuReal limitedPlus = boundedTowardAdjacent
     (
-        rawPlus, adjacentPlus, faceFraction
+        rawPlus, adjacentPlus, faceFraction, failure
     );
 
     const GpuReal rawTangentialX = raw.ux - rawNormal*nx;
@@ -112,21 +141,23 @@ UGKP_CHARACTERISTIC_HD Increment limitOneSide
         adjacentDifference.uz - adjacentNormal*nz;
     const GpuReal limitedTangentialX = boundedTowardAdjacent
     (
-        rawTangentialX, adjacentTangentialX, faceFraction
+        rawTangentialX, adjacentTangentialX, faceFraction, failure
     );
     const GpuReal limitedTangentialY = boundedTowardAdjacent
     (
-        rawTangentialY, adjacentTangentialY, faceFraction
+        rawTangentialY, adjacentTangentialY, faceFraction, failure
     );
     const GpuReal limitedTangentialZ = boundedTowardAdjacent
     (
-        rawTangentialZ, adjacentTangentialZ, faceFraction
+        rawTangentialZ, adjacentTangentialZ, faceFraction, failure
     );
 
     const GpuReal limitedPressure = GPU_R(0.5)*(limitedPlus + limitedMinus);
+    const GpuReal normalDenominator=GPU_R(2.0)*impedance;
+    if(!checkFinite(normalDenominator,15,failure)) return failedIncrement();
     const GpuReal limitedNormal =
-        (limitedPlus - limitedMinus)/(GPU_R(2.0)*impedance);
-    return Increment
+        (limitedPlus - limitedMinus)/normalDenominator;
+    const Increment result
     {
         limitedContact + limitedPressure/soundSquared,
         limitedTangentialX + limitedNormal*nx,
@@ -134,6 +165,9 @@ UGKP_CHARACTERISTIC_HD Increment limitOneSide
         limitedTangentialZ + limitedNormal*nz,
         limitedPressure
     };
+    const GpuReal values[] = {result.rho,result.ux,result.uy,result.uz,result.p};
+    for(int i=0;i<5;++i) if(!checkFinite(values[i],i,failure)) return failedIncrement();
+    return result;
 }
 
 UGKP_CHARACTERISTIC_HD void limitFacePair
@@ -146,9 +180,12 @@ UGKP_CHARACTERISTIC_HD void limitFacePair
     const GpuReal nz,
     const GpuReal roeDensity,
     const GpuReal roeSoundSpeed,
-    const GpuReal ownerWeight
+    const GpuReal ownerWeight,
+    Failure* failure = nullptr
 )
 {
+    if(!checkFinite(ownerWeight,13,failure))
+    {leftIncrement=failedIncrement();rightIncrement=failedIncrement();return;}
     leftIncrement = limitOneSide
     (
         leftIncrement,
@@ -158,7 +195,7 @@ UGKP_CHARACTERISTIC_HD void limitFacePair
         nz,
         roeDensity,
         roeSoundSpeed,
-        GPU_R(1.0) - clamp01(ownerWeight)
+        GPU_R(1.0) - clamp01(ownerWeight), failure
     );
     const Increment reverseDifference
     {
@@ -177,7 +214,7 @@ UGKP_CHARACTERISTIC_HD void limitFacePair
         nz,
         roeDensity,
         roeSoundSpeed,
-        clamp01(ownerWeight)
+        clamp01(ownerWeight), failure
     );
 }
 

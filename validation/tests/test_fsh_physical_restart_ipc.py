@@ -80,6 +80,7 @@ def test_fsh_actual_server_upload_download_and_count_only(tmp_path):
 #include <cassert>
 #include <sys/socket.h>
 extern "C" const char* ugkwpGpuResidentStrictLastError(){return "test backend";}
+extern "C" int ugkwpGpuResidentStrictCollectDiagnostics(void*,ugkp::diagnostics::Snapshot* out){*out={};return 0;}
 extern "C" int UPLOAD(UPLOADSIG){assert(nParticles==2);UPCHECK;return 0;}
 extern "C" int DOWNLOAD(DOWNSIG){*nParticles=2;DOWNFILL;return 0;}
 int main(){using namespace ugkwpGpuIpc;DECL
@@ -87,9 +88,9 @@ int sockets[2];assert(socketpair(AF_UNIX,SOCK_STREAM,0,sockets)==0);const int pe
 CountArgs a{2};RequestHeader request{magic,protocolMajor,protocolMinor,unsigned(Op::uploadParticleRestartMirror),0,wireBytes(a)+2*869};
 assert(writeObject(peer,a));SEND
 readingFrame=true;frameRemaining=request.payloadBytes;assert(handleUploadParticles(sockets[0],request,s));assert(frameRemaining==0);readingFrame=false;
-ResponseHeader response{};assert(readObject(peer,response));assert(response.status==0&&response.payloadBytes==0);
+ResponseHeader response{};assert(readObject(peer,response));{std::vector<unsigned char> envelope;assert(readVector(peer,envelope,response.diagnosticBytes));ugkp::diagnostics::Snapshot decoded;std::string error;assert(ugkp::diagnostics::decode(envelope.data(),envelope.size(),decoded,error));assert(!decoded.hasFatal);}assert(response.status==0&&response.payloadBytes==0);
 for(int capacity:{2,0}){a.count=capacity;request.payloadBytes=wireBytes(a);request.operation=unsigned(Op::downloadParticleRestartMirror);
 assert(writeObject(peer,a));readingFrame=true;frameRemaining=request.payloadBytes;assert(handleDownloadParticles(sockets[0],request,s));assert(frameRemaining==0);readingFrame=false;
-assert(readObject(peer,response));assert(response.status==0&&response.payloadBytes==wireBytes(int{})+(capacity?2*869:0));int count;assert(readObject(peer,count));assert(count==2);if(capacity){RECV}}
+assert(readObject(peer,response));{std::vector<unsigned char> envelope;assert(readVector(peer,envelope,response.diagnosticBytes));ugkp::diagnostics::Snapshot decoded;std::string error;assert(ugkp::diagnostics::decode(envelope.data(),envelope.size(),decoded,error));assert(!decoded.hasFatal);}assert(response.status==0&&response.payloadBytes==wireBytes(int{})+(capacity?2*869:0));int count;assert(readObject(peer,count));assert(count==2);if(capacity){RECV}}
 close(sockets[0]);close(sockets[1]);}
 '''.replace('UPLOADSIG',signature(UPLOAD)).replace('DOWNSIG',signature(DOWNLOAD)).replace('UPLOAD',UPLOAD).replace('DOWNLOAD',DOWNLOAD).replace('UPCHECK',''.join(upload)).replace('DOWNFILL',''.join(download)).replace('DECL',''.join(decl)).replace('SEND',''.join(send)).replace('RECV',''.join(recv)))

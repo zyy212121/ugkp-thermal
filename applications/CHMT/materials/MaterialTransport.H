@@ -18,18 +18,11 @@ bool materialSweepsCompatible(const HostMesh&,const SurfaceMesh&,const std::vect
 bool evaluateMaterialTransport(const HostMesh&,const std::vector<SolidQ>&,
     const PhysicsConfig&,const std::vector<Real>& sweptVolumes,Real geometryInterval,
     Real transportCfl,MaterialTransportResult&,std::string&,bool* numericalFailure=nullptr);
-// First-order conservative chemistry with an extent-Jacobian bound and a
-// full-versus-two-half-step local defect check. reactionCfl controls local
-// rate/thermal variation, not a global error guarantee. Failure leaves both
-// output and acceptedSubsteps untouched; estimator trials are not counted.
+// First-order conservative Euler chemistry with an extent-Jacobian rate bound.
+// Each physical local step is evaluated once; no full/half error comparison.
 bool advanceMaterialReactions(const SolidQ&,Real volume,const PhysicsConfig&,Real interval,
     Real maxSubstep,Real reactionCfl,int maxSubsteps,SolidQ&,
     std::uint64_t& acceptedSubsteps,std::string&,bool* numericalFailure=nullptr);
-namespace detail {
-bool completeMaterialTransport(const HostMesh&,const std::vector<SolidQ>&,const PhysicsConfig&,const std::vector<Real>&,Real,Real,MaterialTransportResult&,std::string&,bool*);
-bool completeFilmThicknessFromMass(Real,Real,Real,Real&);
-bool completeMaterialPacketBatch(const std::vector<SolidQ>&,const std::vector<ExchangePacket>&,std::vector<SolidQ>&,std::string&,bool*);
-bool completeMaterialReactions(const SolidQ&,Real,const PhysicsConfig&,Real,Real,Real,int,SolidQ&,std::uint64_t&,std::string&,bool*);
-}
+
 }
 #endif

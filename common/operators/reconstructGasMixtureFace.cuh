@@ -1,13 +1,13 @@
 #pragma once
 #include "gasTransport/MixtureThermo.H"
+#include "Diagnostics.H"
 
 // Mixture extension of the common MUSCL path. The existing Green-Gauss and
 // configured scalar limiters supply the slopes; the existing acoustic limiter
 // acts in primitive rho/U/p variables with a frozen-composition acoustic basis.
 // Formation energy is never used as a perfect-gas Roe enthalpy. Composition has
 // one shared slope factor and its final component closes the mass simplex.
-// A single face-local admissibility factor shrinks all reconstructed increments
-// together. This modifies only disposable face states, never cell inventories.
+// Evaluate the configured reconstruction once, without candidate searches.
 template<class GasState>
 __device__ bool reconstructGasMixtureFace
 (
@@ -24,30 +24,29 @@ __device__ bool reconstructGasMixtureFace
         if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
         return false;
     }
+    using namespace ugkp::diagnostics;
     const GasPrimDevice centre=gasCellPrimitive(s,c);
+    if(centre.rho==GPU_OPERATOR_R(0.0))
+    {
+        recordFatal(s.diagnostics,makeRecord(Code::ZeroDenominator,2103,21,0,EntityKind::Face,f,-1,centre.rho,0,0,Quantity::Density));
+        return false;
+    }
     GPU_OPERATOR_REAL yc[Ns],dy[Ns];
     for(int k=0;k<Ns;++k)
-    {yc[k]=s.gasSpecies.rho[k*s.nCells+c]/centre.rho;dy[k]=GPU_OPERATOR_R(0.0);}
-    int dependent=Ns-1;
-    GPU_OPERATOR_REAL independentSum=GPU_OPERATOR_R(0.0);
-    bool centreOutsideSimplex=false;
-    if(nativeRefinement){
-        for(int k=0;k<Ns;++k){
-            centreOutsideSimplex=centreOutsideSimplex || !ugkwp::gasFinite(yc[k])
-                || yc[k]<GPU_OPERATOR_R(0.0) || yc[k]>GPU_OPERATOR_R(1.0);
-            if(k+1<Ns)independentSum+=yc[k];
+    {
+        yc[k]=s.gasSpecies.rho[k*s.nCells+c]/centre.rho;
+        dy[k]=GPU_OPERATOR_R(0.0);
+        if(!ugkwp::gasFinite(yc[k]))
+        {
+            recordFatal(s.diagnostics,makeRecord(Code::NonFinite,2102,21,0,EntityKind::Face,f,k,yc[k],0,0,Quantity::MassFraction));
+            return false;
         }
-        centreOutsideSimplex=centreOutsideSimplex || independentSum>GPU_OPERATOR_R(1.0);
+        const auto original=yc[k];
+        yc[k]=clampRange(yc[k],GPU_OPERATOR_R(0.0),GPU_OPERATOR_R(1.0));
+        if(yc[k]!=original)recordWarning(s.diagnostics,makeRecord(Code::FiniteYClip,2101,21,0,EntityKind::Face,f,k,original,yc[k],yc[k],Quantity::MassFraction));
     }
-    // Retain the arithmetic of already admissible states. Only inconsistent
-    // disposable compositions need the same closure accepted by recovery.
-    if(nativeRefinement && centreOutsideSimplex){
-        GPU_OPERATOR_REAL partial[Ns];
-        for(int k=0;k<Ns;++k)partial[k]=s.gasSpecies.rho[k*s.nCells+c];
-        if(ugkwp::mixtureMassFractionsFromDensities<GPU_OPERATOR_REAL,Ns>(partial,centre.rho,
-            s.gasSpecies.densityClosureTolerance,yc))
-            for(int k=0;k<Ns;++k)if(yc[k]>yc[dependent])dependent=k;
-    }
+    (void)nativeRefinement;
+    const int dependent=Ns-1;
     if(s.gasReconstruction!=1)
     {output=centre;for(int k=0;k<Ns;++k)massFractions[k]=yc[k];if(evaluated)*evaluated=true;return true;}
     if(!gasCoupledFaceStorageAvailable(s,f))
@@ -79,12 +78,31 @@ __device__ bool reconstructGasMixtureFace
         const auto adjacent=gasCellPrimitive(s,other);
         const GPU_OPERATOR_REAL rl=sqrt(centre.rho),rr=sqrt(adjacent.rho);
         const GPU_OPERATOR_REAL sound=(rl*s.gasSpecies.soundSpeed[c]+rr*s.gasSpecies.soundSpeed[other])/(rl+rr);
+        if(s.magSf[f]==GPU_OPERATOR_R(0.0))
+        {
+            recordFatal(s.diagnostics,makeRecord(Code::ZeroDenominator,30402,21,0,EntityKind::Face,f,-1,s.magSf[f],0,0,Quantity::Denominator));
+            return false;
+        }
+        if(!::isfinite(s.faceWeight[f]))
+        {
+            recordFatal(s.diagnostics,makeRecord(Code::NonFinite,30403,21,0,EntityKind::Face,f,-1,s.faceWeight[f],0,0,Quantity::LinearSystem));
+            return false;
+        }
         const GPU_OPERATOR_REAL weight=clampRange(s.faceWeight[f],GPU_OPERATOR_R(0.0),GPU_OPERATOR_R(1.0));
+        ugkpcharacteristic::Failure characteristicFailure;
         increment=ugkpcharacteristic::limitOneSide(increment,
             ugkpcharacteristic::Increment{adjacent.rho-centre.rho,adjacent.ux-centre.ux,
                 adjacent.uy-centre.uy,adjacent.uz-centre.uz,adjacent.p-centre.p},
             s.Sfx[f]/s.magSf[f],s.Sfy[f]/s.magSf[f],s.Sfz[f]/s.magSf[f],
-            rl*rr,sound,c==s.faceOwner[f]?GPU_OPERATOR_R(1.0)-weight:weight);
+            rl*rr,sound,c==s.faceOwner[f]?GPU_OPERATOR_R(1.0)-weight:weight, &characteristicFailure);
+        if(characteristicFailure.failed)
+        {
+            const auto code=characteristicFailure.zeroDenominator?Code::ZeroDenominator:
+                (::isfinite(characteristicFailure.value)?Code::InvalidPhysicalState:Code::NonFinite);
+            recordFatal(s.diagnostics,makeRecord(code,30400,21,0,EntityKind::Face,f,
+                characteristicFailure.component,characteristicFailure.value,0,0,Quantity::LinearSystem));
+            return false;
+        }
     }
     for(int k=0;k<Ns;++k)
     {
@@ -92,70 +110,46 @@ __device__ bool reconstructGasMixtureFace
         dy[k]=s.gasSpecies.limiter[c]
             *(s.gasSpecies.gradX[i]*dx+s.gasSpecies.gradY[i]*ddy+s.gasSpecies.gradZ[i]*dz);
     }
-    GPU_OPERATOR_REAL alpha=GPU_OPERATOR_R(1.0);
-    bool haveCompleteCandidate=false;
-    for(int attempt=0;attempt<=64;++attempt)
+    GasPrimDevice candidate{centre.rho+increment.rho,centre.ux+increment.ux,
+        centre.uy+increment.uy,centre.uz+increment.uz,centre.p+increment.p,centre.T};
+    GPU_OPERATOR_REAL y[Ns],sum=GPU_OPERATOR_R(0.0);
+    for(int k=0;k<Ns;++k)
     {
-        GasPrimDevice candidate{centre.rho+alpha*increment.rho,centre.ux+alpha*increment.ux,
-            centre.uy+alpha*increment.uy,centre.uz+alpha*increment.uz,centre.p+alpha*increment.p,centre.T};
-        GPU_OPERATOR_REAL y[Ns],sum=GPU_OPERATOR_R(0.0);
-        bool complete=ugkwp::gasFinite(candidate.rho)&&ugkwp::gasFinite(candidate.p)
-            &&ugkwp::gasFinite(candidate.ux)&&ugkwp::gasFinite(candidate.uy)&&ugkwp::gasFinite(candidate.uz);
-        bool valid=complete&&candidate.rho>=s.rhoMin&&candidate.p>GPU_OPERATOR_R(0.0);
-        for(int k=0;k<Ns;++k)
+        y[k]=k==dependent?GPU_OPERATOR_R(1.0)-sum:yc[k]+dy[k];
+        if(!ugkwp::gasFinite(y[k]))
         {
-            if(k==dependent)continue;
-            y[k]=yc[k]+alpha*dy[k];
-            sum+=y[k];complete=complete&&ugkwp::gasFinite(y[k]);
-            valid=valid&&ugkwp::gasFinite(y[k])&&y[k]>=GPU_OPERATOR_R(0.0)&&y[k]<=GPU_OPERATOR_R(1.0);
+            recordFatal(s.diagnostics,makeRecord(Code::NonFinite,10048,21,0,EntityKind::Face,f,k,y[k],0,0,Quantity::MassFraction));
+            return false;
         }
-        y[dependent]=GPU_OPERATOR_R(1.0)-sum;
-        complete=complete&&ugkwp::gasFinite(y[dependent]);
-        valid=valid&&ugkwp::gasFinite(y[dependent])&&y[dependent]>=GPU_OPERATOR_R(0.0)&&y[dependent]<=GPU_OPERATOR_R(1.0);
-        if(complete && (!nativeRefinement || valid))
-        {
-            const auto R=ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo);
-            candidate.T=candidate.p/(candidate.rho*R);
-            complete=ugkwp::gasFinite(candidate.T);
-        }
-
-
-
-        if(complete && !nativeRefinement)
-        {output=candidate;for(int k=0;k<Ns;++k)massFractions[k]=y[k];haveCompleteCandidate=true;if(evaluated)*evaluated=true;}
-        if(valid)
-        {
-            valid=ugkwp::gasFinite(candidate.T)&&candidate.T>=s.TgasMin;
-            for(int k=0;k<Ns;++k)
-                valid=valid&&candidate.T>=s.gasSpecies.thermo.species[k].minTemperature
-                    &&candidate.T<=s.gasSpecies.thermo.species[k].maxTemperature;
-            GPU_OPERATOR_REAL cv;
-            if(nativeRefinement)
-            {
-                GPU_OPERATOR_REAL energy;
-                const auto caloric=ugkwp::evaluateMixtureEnergy<true>(y,candidate.T,s.gasSpecies.thermo,energy,cv);
-                valid=valid&&caloric==ugkwp::ThermoStatus::Success;
-                if(caloric!=ugkwp::ThermoStatus::Success)cv=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();
-            }
-            else cv=ugkwp::mixtureHeatCapacity(y,candidate.T,s.gasSpecies.thermo);
-            valid=valid&&ugkwp::gasFinite(cv)&&cv>GPU_OPERATOR_R(0.0);
-        }
-        if(valid)
-        {
-            if(nativeRefinement)
-            {output=candidate;for(int k=0;k<Ns;++k)massFractions[k]=y[k];}
-            if(evaluated)*evaluated=true;
-            return true;
-        }
-        if(!nativeRefinement && attempt==64 && !haveCompleteCandidate)
-        {
-            if(!s.gasSpecies.thermo.species)return false;
-            const auto R=ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo);
-            candidate.T=candidate.p/(candidate.rho*R);
-            output=candidate;for(int k=0;k<Ns;++k)massFractions[k]=y[k];
-            if(evaluated)*evaluated=true;
-        }
-        alpha=attempt==63?GPU_OPERATOR_R(0.0):GPU_OPERATOR_R(0.5)*alpha;
+        const auto original=y[k];
+        y[k]=clampRange(y[k],GPU_OPERATOR_R(0.0),GPU_OPERATOR_R(1.0));
+        if(y[k]!=original)recordWarning(s.diagnostics,makeRecord(Code::FiniteYClip,10049,21,0,EntityKind::Face,f,k,original,y[k],y[k],Quantity::MassFraction));
+        if(k!=dependent)sum+=y[k];
     }
-    return !nativeRefinement && haveCompleteCandidate;
+    const auto gasConstant=ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo);
+    const auto denominator=candidate.rho*gasConstant;
+    if(denominator==GPU_OPERATOR_R(0.0))
+    {
+        recordFatal(s.diagnostics,makeRecord(Code::ZeroDenominator,10050,21,0,EntityKind::Face,f,-1,denominator,0,0,Quantity::Denominator));
+        return false;
+    }
+    candidate.T=candidate.p/denominator;
+    const GPU_OPERATOR_REAL primitives[]={candidate.T,candidate.rho,candidate.p,candidate.ux,candidate.uy,candidate.uz};
+    for(int component=0;component<6;++component)
+    {
+        if(!ugkwp::gasFinite(primitives[component]))
+        {
+            const unsigned site=component==0?2105:(component==1?2106:(component==2?2107:2108));
+            recordFatal(s.diagnostics,makeRecord(Code::NonFinite,site,21,0,EntityKind::Face,f,component,primitives[component],0,0,component==0?Quantity::Temperature:(component==1?Quantity::Density:(component==2?Quantity::Pressure:Quantity::Velocity))));
+            return false;
+        }
+    }
+    if(candidate.T<GPU_OPERATOR_R(0.0))
+    {
+        recordFatal(s.diagnostics,makeRecord(Code::NegativeTemperature,2104,21,0,EntityKind::Face,f,-1,candidate.T,0,0,Quantity::Temperature));
+        return false;
+    }
+    output=candidate;for(int k=0;k<Ns;++k)massFractions[k]=y[k];
+    if(evaluated)*evaluated=true;
+    return true;
 }

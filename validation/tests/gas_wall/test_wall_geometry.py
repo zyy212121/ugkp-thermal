@@ -363,8 +363,10 @@ def test_mss7_tip_sections_are_translation_and_scale_stable(tmp_path):
   double area=0;V centre{};
   assert(!wallGeometryDetail::tetraSection(p,h,h[3],d,area,centre));
   for(auto&v:p)v[0]=p[3][0];
-  assert(wallGeometryDetail::tetraSection(p,h,.75*h[3],d,area,centre));assert(area==0);
-  for(double component:centre)assert(std::isnan(component));
+  assert(!wallGeometryDetail::tetraSection(p,h,.75*h[3],d,area,centre));assert(area==0);
+  // A zero-area section has no centroid: preserve output and report failure,
+  // rather than divide by zero and publish a successful NaN geometry.
+  for(double component:centre)assert(component==0);
  }
  ''')
 

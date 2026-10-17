@@ -50,16 +50,19 @@ class SharedGasModelInput
             double(pressure),double(temperature),y,thermo,rho);
 
 
-        if(densityStatus!=ugkwp::ThermoStatus::Success
-            &&densityStatus!=ugkwp::ThermoStatus::NonFiniteInput)
-            FatalErrorInFunction<<"Mixture density expression unavailable"<<exit(FatalError);
-        double internal=ugkwp::mixtureEnergy(y,double(temperature),thermo);
-        if(!std::isfinite(internal)){
-            bool evaluated=false;
-            ugkwp::evaluateMixtureInternalEnergy(y,double(temperature),thermo,internal,&evaluated);
-            if(!evaluated)FatalErrorInFunction<<"Mixture energy expression unavailable"<<exit(FatalError);
-        }
+        if(densityStatus!=ugkwp::ThermoStatus::Success)
+            FatalErrorInFunction<<"Mixture density expression unavailable; status="
+                <<static_cast<int>(densityStatus)<<exit(FatalError);
+        double internal;
+        bool evaluated=false;
+        const auto energyStatus=ugkwp::evaluateMixtureInternalEnergy(
+            y,double(temperature),thermo,internal,&evaluated);
+        if(energyStatus!=ugkwp::ThermoStatus::Success || !evaluated)
+            FatalErrorInFunction<<"Mixture energy expression unavailable; status="
+                <<static_cast<int>(energyStatus)<<exit(FatalError);
         const scalar total=rho*(internal+0.5*magSqr(velocity));
+        if(!std::isfinite(total))
+            FatalErrorInFunction<<"Nonfinite mixture total energy: "<<total<<exit(FatalError);
         density=rho;energy=total;
     }
     void initialiseIdentity(const Time& time,const fvMesh& mesh)

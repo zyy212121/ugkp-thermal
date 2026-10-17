@@ -19,7 +19,7 @@ using namespace ugkwp;
 using Real=TEST_REAL;
 struct State:GasStateView<Real,double,int>{GasSpeciesState<Real,2> gasSpecies;};
 struct Fixture {
- State state;
+ State state;ugkp::diagnostics::DeviceContext diagnostics{};
  Real rho[2]={Real(2),Real(4)},mx[2]={Real(6),Real(-4)},my[2]={Real(-2),Real(8)},mz[2]={Real(1),Real(2)};
  Real energy[2],volume[2]={Real(8),Real(16)},temperature[2]={Real(-77),Real(-88)};
  Real partial[4]={Real(1.5),Real(3),Real(.5),Real(1)};
@@ -28,7 +28,7 @@ struct Fixture {
  Real elements[2]={Real(1),Real(1)},basis[2]={Real(-1),Real(1)};
  GasReactionData<Real> reaction[1];GasStoichTerm<Real> reactants[1],products[1];
  Fixture(){
-  state.nCells=2;state.rho=rho;state.rhoUx=mx;state.rhoUy=my;state.rhoUz=mz;state.rhoE=energy;state.V=volume;state.Tgas=temperature;
+  state.diagnostics=&diagnostics;state.nCells=2;state.rho=rho;state.rhoUx=mx;state.rhoUy=my;state.rhoUz=mz;state.rhoE=energy;state.V=volume;state.Tgas=temperature;
   auto& g=state.gasSpecies;g.mode=GasMode::MixtureChemistry;g.rho=partial;g.cellStatus=cellStatus;g.chemistryStatus=chemistryStatus;
   for(int s=0;s<2;++s){species[s].coefficientOffset=3*s;species[s].molarMass=Real(.028);species[s].minTemperature=Real(200);species[s].maxTemperature=Real(4000);species[s].referencePressure=Real(101325);}
   g.thermo.species=species;g.thermo.coefficients=coefficients;g.thermo.coefficientCount=6;g.thermo.elementCount=1;g.thermo.elementComposition=elements;
@@ -57,23 +57,41 @@ int main(){
  // The second cell also publishes actual species density.
  assert(advanceGasChemistryCell(s,1,.1,Real(2)));assert(f.partial[1]<Real(3));
  // A genuinely missing consumed volume leaves species unchanged.
- Real savedSpecies[4];std::memcpy(savedSpecies,f.partial,sizeof savedSpecies);
- assert(!advanceGasChemistryCellWithVolumes(s,0,.1,static_cast<const Real*>(nullptr)));assert(std::memcmp(savedSpecies,f.partial,sizeof savedSpecies)==0);assert(!f.chemistryStatus[0]);assert(f.cellStatus[0]==int(GasTransportCode::InvalidStorage));
+ Fixture invalid;Real savedSpecies[4];std::memcpy(savedSpecies,invalid.partial,sizeof savedSpecies);
+ assert(!advanceGasChemistryCellWithVolumes(invalid.state,0,.1,static_cast<const Real*>(nullptr)));assert(std::memcmp(savedSpecies,invalid.partial,sizeof savedSpecies)==0);assert(!invalid.chemistryStatus[0]);assert(invalid.cellStatus[0]==int(GasTransportCode::InvalidStorage));
+ assert(ugkp::diagnostics::hasFatal(&invalid.diagnostics));
+ assert(!advanceGasChemistryCell(invalid.state,0,.1,Real(.5)));assert(std::memcmp(savedSpecies,invalid.partial,sizeof savedSpecies)==0);
  f.cellStatus[0]=0;assert(advanceGasChemistryCell(s,0,.1,Real(.5)));assert(f.chemistryStatus[0]&&f.cellStatus[0]==0);
  // A stale numerical diagnostic is replaced only after actual successful work.
  f.cellStatus[1]=int(GasTransportCode::NegativeInventory);assert(advanceGasChemistryCell(s,1,.1,Real(2)));assert(f.cellStatus[1]==int(GasTransportCode::NegativeInventory)&&f.chemistryStatus[1]);
  // Disabled modes are exact no-ops, even without model or diagnostic storage.
  State disabled;disabled.gasSpecies.mode=GasMode::MixtureFrozen;assert(advanceGasChemistryCell(disabled,0,std::numeric_limits<double>::quiet_NaN(),Real(0)));disabled.gasSpecies.mode=GasMode::SingleLegacy;assert(advanceGasChemistryCell(disabled,0,1.,Real(0)));
  GasStateView<Real,double,int> legacy;assert(advanceGasChemistryCell(legacy,0,1.,Real(0)));
- // A caller may discard a multi-cell candidate even after another cell passed.
- Fixture trial;Real acceptedSpecies[4];std::memcpy(acceptedSpecies,trial.partial,sizeof acceptedSpecies);assert(advanceGasChemistryCell(trial.state,0,.1,Real(.5)));trial.partial[3]=Real(-1);assert(advanceGasChemistryCell(trial.state,1,.1,Real(2)));assert(acceptedSpecies[0]==Real(1.5)&&acceptedSpecies[3]==Real(1));
- // A refinement cap continues actual work until the requested interval is paid.
+ // Finite out-of-range Y is clipped with a warning in the one physical solve.
+ Fixture trial;Real acceptedSpecies[4];std::memcpy(acceptedSpecies,trial.partial,sizeof acceptedSpecies);assert(advanceGasChemistryCell(trial.state,0,.1,Real(.5)));trial.partial[3]=Real(-1);bool clippedEvaluated=false;advanceGasChemistryCell(trial.state,1,.1,Real(2),false,&clippedEvaluated);assert(clippedEvaluated&&!ugkp::diagnostics::hasFatal(&trial.diagnostics)&&trial.diagnostics.warnings[2].count>0);assert(acceptedSpecies[0]==Real(1.5)&&acceptedSpecies[3]==Real(1));
+ // The obsolete refinement cap does not subdivide the single SDIRK step.
  Fixture exhausted;exhausted.state.gasSpecies.chemistryControls.maximumSteps=1;
  assert(advanceGasChemistryCell(exhausted.state,0,1.,Real(.5)));assert(exhausted.partial[0]<Real(1.5));assert(exhausted.chemistryStatus[0].attemptedSteps>0);
  // A wider positive interval is computed even when published time rounds to zero.
 
  // Missing mandatory typed status rejects before touching species.
  Fixture missing;missing.state.gasSpecies.chemistryStatus=nullptr;assert(advanceGasChemistryCell(missing.state,0,.1,Real(.5)));assert(missing.partial[0]!=Real(1.5));assert(missing.cellStatus[0]==0);
+ // Index validation precedes dereferencing the borrowed volume array.
+ Fixture badIndex;bool badEvaluated=true;
+ assert(!advanceGasChemistryCellWithVolumes(badIndex.state,std::numeric_limits<int>::max(),.1,badIndex.volume,false,&badEvaluated));
+ assert(!badEvaluated&&badIndex.diagnostics.firstFatal.code==ugkp::diagnostics::Code::InvalidIndex);
+ Fixture negativeIndex;assert(!advanceGasChemistryCellWithVolumes(negativeIndex.state,-1,.1,negativeIndex.volume));
+ assert(negativeIndex.diagnostics.firstFatal.code==ugkp::diagnostics::Code::InvalidIndex);
+ Fixture overflow;overflow.rho[0]=std::numeric_limits<Real>::min();overflow.partial[0]=std::numeric_limits<Real>::max();
+ assert(!advanceGasChemistryCell(overflow.state,0,.1,Real(1)));
+ assert(overflow.diagnostics.firstFatal.code==ugkp::diagnostics::Code::NonFinite&&overflow.diagnostics.warnings[2].count==0);
+ Fixture singular;Real matrix[4]={std::numeric_limits<Real>::quiet_NaN(),0,0,1},rhs[2]={1,1};
+ assert((!gasChemistryDetail::solveDense<Real,2>(2,matrix,rhs)));
+ ChemistryStatus linearFailure;linearFailure.code=ChemistryCode::SingularJacobian;linearFailure.observed=7;
+ gasChemistryAdapterDetail::recordFailure(singular.state,0,linearFailure);
+ assert(singular.diagnostics.firstFatal.code==ugkp::diagnostics::Code::InvalidPhysicalState);
+ assert(singular.diagnostics.firstFatal.quantityId==ugkp::diagnostics::Quantity::LinearSystem&&singular.diagnostics.firstFatal.observed==7);
+ assert(singular.diagnostics.firstFatal.metadata==static_cast<unsigned>(ChemistryCode::SingularJacobian));
  // Interval zero validates but must not introduce density roundoff changes.
  Fixture zero;Real zeroSnapshot[4];std::memcpy(zeroSnapshot,zero.partial,sizeof zeroSnapshot);assert(advanceGasChemistryCell(zero.state,0,0.,Real(.3)));assert(std::memcmp(zeroSnapshot,zero.partial,sizeof zeroSnapshot)==0);
 }

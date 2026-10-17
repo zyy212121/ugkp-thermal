@@ -1,6 +1,7 @@
 #ifndef CHMT_GPU_SHAREDGASDEVICESTORAGE_CUH
 #define CHMT_GPU_SHAREDGASDEVICESTORAGE_CUH
 #include "gpu/Buffer.H"
+#include "../../../common/GpuDiagnosticsOwner.cuh"
 #include "ablation/WallClosureHost.H"
 #include "../../../common/gasTransport/GasBoundaryLayerModelState.H"
 #include "../../../common/gasTransport/GasBoundaryLayerWorkspace.H"
@@ -35,6 +36,7 @@ template<class T>struct GasAllocation<T*> {
 class SharedGasDeviceStorage {
     using Time=Real;using Energy=Real;using SstCoefficients=ugkwp::SstCoefficients;
     CudaFault fault_;
+    ugkp::diagnostics::GpuOwner* diagnostics_=nullptr;
     SharedGasDeviceView view_{};
     Buffer<SharedGasDeviceView> device_;
 #define UGKWP_GAS_STATE_FIELD(Type,Name) GasAllocation<Type> owner_##Name;
@@ -269,7 +271,24 @@ public:
     SharedGasDeviceView* deviceView()const{return device_.data();}
     const std::string& error()const{return fault_.message;}
     bool wallModelFailed()const{return wallModelFailed_;}
-    bool refreshView(){return device_.uploadOne(view_,fault_);}
+    void bindDiagnostics(ugkp::diagnostics::GpuOwner& owner){
+        diagnostics_=&owner;view_.diagnostics=owner.device();
+        view_.gasSpecies.thermo.diagnostics=owner.device();
+    }
+    // Called only AFTER an existing blocking readback/synchronization, before
+    // the downloaded numerical state is used by host consumers.
+    bool observeDiagnostics(){
+        if(!diagnostics_)return true;
+        const auto status=diagnostics_->observeCompletedWork();
+        const bool fatal=diagnostics_->dispatchPending();
+        if(status!=cudaSuccess){fault_.check(status,"read completed diagnostics");return false;}
+        if(fatal){fault_.message="fatal gas diagnostic at completed operation";return false;}
+        return true;
+    }
+    bool refreshView(){
+        if(diagnostics_){view_.diagnostics=diagnostics_->device();view_.gasSpecies.thermo.diagnostics=diagnostics_->device();}
+        return device_.uploadOne(view_,fault_);
+    }
     bool bindStageGeometry(const HostStageGeometry& stage){
         if((view_.nCells&&(stage.oldVolume.empty()||stage.newVolume.empty()))||(view_.nFaces&&stage.sweptVolume.empty())){fault_.message="missing consumed stage geometry storage";return false;}
         if(!geometryOld_.upload(stage.oldVolume,fault_)||!geometryNew_.upload(stage.newVolume,fault_)||!geometrySweeps_.upload(stage.sweptVolume,fault_))return false;
@@ -294,7 +313,8 @@ public:
         if(view_.gasBoundaryLayer.enabled&&(!wallStatus_.zero(nullptr)||!wallExchange_.zero(nullptr)||!wallModelStatus_.zero(nullptr)))return false;
         return cellStatus_.zero(nullptr)&&faceStatus_.zero(nullptr);}
     bool checkStatus(std::string& error){
-        if(!fault_.check(cudaDeviceSynchronize(),"synchronize shared gas trial")){error=fault_.message;return false;}
+        if(!fault_.check(cudaDeviceSynchronize(),"synchronize shared gas trial")){if(diagnostics_)observeDiagnostics();error=fault_.message;return false;}
+        if(!observeDiagnostics()){error=fault_.message;return false;}
         std::vector<int> cells,faces;
         if(!read(cellStatus_.data(),cellStatus_.size(),cells)||!read(faceStatus_.data(),faceStatus_.size(),faces)){error=fault_.message;return false;}
         for(std::size_t c=0;c<cells.size();++c)if(cells[c]==int(ugkwp::GasTransportCode::InvalidStorage)){error="shared gas cell "+std::to_string(c)+" status "+std::to_string(cells[c]);return false;}
@@ -313,6 +333,7 @@ public:
         const bool sameMesh=retain&&geometryVersion_==state.gasMesh.geometryVersion;
         const bool sameWall=sameMesh&&wallFaces_==state.surface.gasFace;
         std::unique_ptr<SharedGasDeviceStorage> next(new SharedGasDeviceStorage);
+        if(diagnostics_)next->bindDiagnostics(*diagnostics_);
         if(retain){next->view_=view_;next->sstInitialized_=sstInitialized_;next->geometryVersion_=geometryVersion_;
             next->exchangeResident(*this,sameMesh,sameWall);
             if(importSst){next->owner_rhoK.swap(owner_rhoK);next->owner_rhoOmega.swap(owner_rhoOmega);}}
@@ -401,6 +422,8 @@ private:
         view_.rhoMin=1e-30;view_.TgasMin=1e-12;view_.gasMu=model.physics.gasViscosity;
         view_.gasPrClamped=1;
         view_.gasThermalConductivity=model.physics.gasConductivity;
+        // CHMT uses zero for disabled conduction, never a negative unset sentinel.
+        view_.gasThermalConductivityConfigured=true;
         view_.maxDiffusionNumber=.25;view_.turbulentPrandtl=model.physics.sst.turbulentPrandtl;
         view_.sstCoefficients=ugkwp::defaultSstCoefficients();
         const auto& st=model.physics.sst;auto& coeff=view_.sstCoefficients;
@@ -441,30 +464,29 @@ public:
             layer.workspaceCapacity=ugkwp::gasBoundaryLayerWorkspaceCapacity(layer.config.nodes);
             const std::size_t bytes=ugkwp::gasBoundaryLayerWorkspaceBytes<Real,Ns>(layer.config.nodes);
 #if defined(__CUDACC__) && defined(CUDART_VERSION)
-            int device=0,multiprocessors=0;std::size_t freeBytes=0,totalBytes=0;
+            int device=0,multiprocessors=0;
             if(!fault_.check(cudaGetDevice(&device),"query wall workspace device")
-                ||!fault_.check(cudaDeviceGetAttribute(&multiprocessors,cudaDevAttrMultiProcessorCount,device),"query wall workspace multiprocessors")
-                ||!fault_.check(cudaMemGetInfo(&freeBytes,&totalBytes),"query wall workspace memory")){error=fault_.message;return false;}
-            sizing=ugkwp::resolveBoundaryLayerWorkspace(view_.gasBoundaryLayer.count,physics.wallWorkspaceSlots,multiprocessors,freeBytes,bytes);
+                ||!fault_.check(cudaDeviceGetAttribute(&multiprocessors,cudaDevAttrMultiProcessorCount,device),"query wall workspace multiprocessors")){error=fault_.message;return false;}
+            sizing=ugkwp::resolveBoundaryLayerWorkspace(view_.gasBoundaryLayer.count,physics.wallWorkspaceSlots,multiprocessors,0,bytes);
 #else
             // Host CUDA shims do not represent a GPU. A serial worker gives a
             // deterministic functional test without pretending device sizing.
             sizing=ugkwp::resolveBoundaryLayerWorkspace(view_.gasBoundaryLayer.count,1,1,bytes,bytes);
 #endif
-            if(sizing.slots==0){error="boundaryLayer workspace does not fit the selected device memory budget";return false;}
+            if(sizing.slots==0){error="boundaryLayer workspace has no compiled capacity or its byte count is not representable";return false;}
         }
         if(wallWorkspace_.size()!=sizing.bytes)wallWorkspace_.swap(previousWorkspace_);
         if(!wallWorkspace_.resize(sizing.bytes,fault_)){error=fault_.message;return false;}
         layer.workspaceCount=sizing.slots;layer.workspace=wallWorkspace_.data();
-        std::fprintf(stderr,"CHMT boundaryLayer workspace requested=%d resolved=%d capacity=%d bytes=%zu budget=%zu\n",
-            physics.wallWorkspaceSlots,layer.workspaceCount,layer.workspaceCapacity,sizing.bytes,sizing.budget);
+        std::fprintf(stderr,"CHMT boundaryLayer workspace requested=%d resolved=%d capacity=%d bytes=%zu\n",
+            physics.wallWorkspaceSlots,layer.workspaceCount,layer.workspaceCapacity,sizing.bytes);
         return true;
     }
     bool prepareWallGeometry(const HostMesh& mesh){
         if(!wallGeometry_||!view_.gasBoundaryLayer.enabled)return true;
         if(wallGeometryReady_&&wallGeometryVersion_==mesh.geometryVersion
             &&wallGeometry_->matchesGeometry(mesh.geometryVersion,wallFaces_,view_.gasBoundaryLayerModel.config))return true;
-        std::string error;if(!wallGeometry_->prepareGeometry(mesh,wallFaces_,error,view_.gasBoundaryLayerModel.config)){fault_.message=error;return false;}
+        std::string error;if(!wallGeometry_->prepareGeometry(mesh,wallFaces_,error,view_.gasBoundaryLayerModel.config,geometryTolerances_.diagnostics)){fault_.message=error;return false;}
         const auto& geometry=wallGeometry_->descriptors();const int count=int(geometry.size());
         std::vector<int> faceSlot(mesh.owner.size(),-1),ownerSlot(mesh.volumes.size(),-1),offsets(1,0),cells;
         std::vector<Real> distances,weights,matchingWeights;std::vector<std::size_t> qStart;
@@ -480,6 +502,7 @@ public:
             input.matchingDistance=d.matchingDistance;input.ownerDistance=d.ownerDistance;
             for(int k=0;k<3;++k)input.normal[k]=d.normal[k];
             input.quadrature=d.quadrature();input.quadrature.distance=d.distance.empty()?nullptr:wallDistance_.data()+qStart[i];input.quadrature.volumeWeight=d.volumeWeight.empty()?nullptr:wallWeights_.data()+qStart[i];}
+        for(auto& input:wallHostInput_)input.diagnostics=view_.diagnostics;
         if(!wallInput_.upload(wallHostInput_,fault_)||!wallOutput_.resize(count,fault_)||!wallModelStatus_.resize(count,fault_)
             ||!wallExchange_.resize(count,fault_)||!wallSst_.resize(count,fault_)||!wallStatus_.resize(count,fault_)||!wallSpecies_.resize(Ns*count,fault_))return false;
         auto& wall=view_.gasBoundaryLayer;wall.faceSlot=wallFaceSlot_.data();wall.ownerSlot=wallOwnerSlot_.data();
@@ -512,7 +535,8 @@ public:
     bool downloadWallOutputs(std::vector<ugkwp::gaswall::WallOutput<Real,Ns>>& output,std::vector<GasWallMatchingSample>& matching){
         std::vector<ugkwp::gaswall::WallInput<Real,Ns>> inputs;
         std::vector<ugkwp::GasBoundaryLayerExchange<Real>> exchange;
-        if(!wallExchange_.download(exchange,nullptr))return false;
+        if(!wallExchange_.download(exchange,nullptr)){if(diagnostics_)observeDiagnostics();return false;}
+        if(!observeDiagnostics())return false;
         for(std::size_t f=0;f<exchange.size();++f)if(!exchange[f].ready){
             std::vector<int> status;if(!wallStatus_.download(status,nullptr))return false;
             wallModelFailed_=true;std::vector<ugkwp::gaswall::WallStatus> modelStatus;
@@ -598,6 +622,7 @@ public:
     bool downloadState(HostState& state,std::string& error){
         std::vector<Real> rho,px,py,pz,energy,species,k,omega;const std::size_t n=view_.nCells;
         if(!read(view_.rho,n,rho)||!read(view_.rhoUx,n,px)||!read(view_.rhoUy,n,py)||!read(view_.rhoUz,n,pz)||!read(view_.rhoE,n,energy)||!readTemperature(n)||(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&!read(view_.gasSpecies.rho,Ns*n,species))){error=fault_.message;return false;}
+        if(!observeDiagnostics()){error=fault_.message;return false;}
         auto candidate=state.gas;candidate.resize(n);
         for(std::size_t c=0;c<n;++c){auto& q=candidate[c];q.mass=rho[c]*volume_[c];q.momentum={px[c]*volume_[c],py[c]*volume_[c],pz[c]*volume_[c]};q.energy=energy[c]*volume_[c];
             for(int s=0;s<Ns;++s)q.species[s]=view_.gasSpecies.mode==ugkwp::GasMode::SingleLegacy?(s==activeSpecies_?q.mass:0):species[s*n+c]*volume_[c];
