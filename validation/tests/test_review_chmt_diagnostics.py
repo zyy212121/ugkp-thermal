@@ -17,7 +17,7 @@ def build_run(tmp_path, code, geometry=False):
 
 def test_geometry_diagnostic_ratio_overflow_preserves_finite_geometry(tmp_path):
     fixture = SOURCE_ROOT / "validation/solvers/CHMT/devtools/multirate/test_sweep_constraints.cpp"
-    build_run(tmp_path, '#define main original_main\n#include "' + str(fixture) + '"\n#undef main\n' + r''' 
+    build_run(tmp_path, '#define main original_main\n#include "' + str(fixture) + '"\n#undef main\n' + r'''
 #include "DiagnosticsHost.H"
 #include <cassert>
 int main(){
