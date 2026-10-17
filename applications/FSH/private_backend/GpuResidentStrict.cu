@@ -1,3 +1,4 @@
+#include "gasTransport/GasMeshUploadValidation.H"
 #include "../../../common/GpuDiagnosticsOwner.cuh"
 #include "ContactCapabilityValidation.h"
 #define GPU_CONTACT_SEPARATE_AGE 0
@@ -2800,6 +2801,16 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     DeviceState* s = asState(handle);
     if (validateState(s, "mesh upload") != 0)
     {
+        return 1;
+    }
+
+    ugkp::diagnostics::Record topologyFailure{};
+    if(!ugkwp::gasMeshStencilUploadValid(s->nCells,s->nCellPlanes,
+        cellPlaneStart,cellPlaneCount,topologyFailure))
+    {
+        s->diagnosticOwner->recordHostFatal(topologyFailure);
+        s->diagnosticOwner->dispatchPending();
+        setLastErrorText("cell stencil exceeds uploaded plane storage");
         return 1;
     }
 

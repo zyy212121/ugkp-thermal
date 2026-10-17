@@ -1,3 +1,4 @@
+#include "gasTransport/GasMeshUploadValidation.H"
 #include "../../../common/GpuDiagnosticsOwner.cuh"
 #include "ContactCapabilityValidation.h"
 #define GPU_CONTACT_SEPARATE_AGE 1
@@ -3385,6 +3386,16 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
         return 1;
     }
 
+    ugkp::diagnostics::Record topologyFailure{};
+    if(!ugkwp::gasMeshStencilUploadValid(s->nCells,s->nCellPlanes,
+        cellPlaneStart,cellPlaneCount,topologyFailure))
+    {
+        s->diagnosticOwner->recordHostFatal(topologyFailure);
+        s->diagnosticOwner->dispatchPending();
+        setLastErrorText("cell stencil exceeds uploaded plane storage");
+        return 1;
+    }
+
     int rc = 0;
     const size_t nc = static_cast<size_t>(s->nCells);
     const size_t nf = static_cast<size_t>(s->nFaces);
@@ -3717,7 +3728,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadSourceResidualMass
     int rc = 0;
     rc |= copyToHost(sourceFace, s->sourceFace, n, "cudaMemcpy strict sourceFace restart");
     rc |= copyToHost(residualMass, s->sourceResidualMass, n, "cudaMemcpy strict source residual restart");
-    return s->diagnosticOwner->completeReadback(rc == 0 ? 0 : 1);
+    return s->diagnosticOwner->completeReadback(rc == 0 ? 0 : 1, n != 0);
 }
 
 extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
@@ -5643,7 +5654,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadGasBoundaryFields
     rc |= copyToHost(Uz, s->gasBoundaryUz, n, "cudaMemcpy strict gas boundary Uz");
     rc |= copyToHost(p, s->gasBoundaryP, n, "cudaMemcpy strict gas boundary p");
     rc |= copyToHost(Tgas, s->gasBoundaryT, n, "cudaMemcpy strict gas boundary T");
-    return s->diagnosticOwner->completeReadback(rc == 0 ? 0 : 1);
+    return s->diagnosticOwner->completeReadback(rc == 0 ? 0 : 1, n != 0);
 }
 
 extern "C" int ugkwpGpuResidentStrictDownloadNut
@@ -6090,7 +6101,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadSst
     rc |= copyToHost(k, s->k, n, "cudaMemcpy SST k result");
     rc |= copyToHost(omega, s->omega, n, "cudaMemcpy SST omega result");
     rc |= copyToHost(nut, s->nut, n, "cudaMemcpy SST nut result");
-    return s->diagnosticOwner->completeReadback(rc == 0 ? 0 : 1);
+    return s->diagnosticOwner->completeReadback(rc == 0 ? 0 : 1, n != 0);
 }
 #include "../../../common/GpuParticleSavedVelocityRestart.inl"
 #include "../../../common/GpuParticleRestartTheta.H"

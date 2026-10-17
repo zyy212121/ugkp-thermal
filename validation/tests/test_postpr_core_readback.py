@@ -48,10 +48,11 @@ int main(){ DeviceContext ctx{};double T=400;bool evaluated=true;
 '''.replace('MODE',str(mode)))
 
 
-@pytest.mark.parametrize('application',['gasUGKP','FSH'])
+@pytest.mark.parametrize('application',['gasUGKP','FSH','CHT'])
 @pytest.mark.parametrize('name',['DownloadSourceResidualMass','DownloadGasBoundaryFields','DownloadSst'])
 def test_empty_download_has_no_completion_copy(tmp_path,application,name):
-    function=body(f'applications/{application}/private_backend/GpuResidentStrict.cu','ugkwpGpuResidentStrict'+name)
+    backend='gpu' if application=='CHT' else 'private_backend'
+    function=body(f'applications/{application}/{backend}/GpuResidentStrict.cu','ugkwpGpuResidentStrict'+name)
     args={'DownloadSourceResidualMass':'&s,&count,1,&face,&x',
           'DownloadGasBoundaryFields':'&s,&x,&x,&x,&x,&x,&x',
           'DownloadSst':'&s,&x,&x,&x'}[name]

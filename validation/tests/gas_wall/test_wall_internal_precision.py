@@ -10,7 +10,8 @@ def test_double_state_strict_coupled_wall_and_published_budget(tmp_path):
 #include <type_traits>
 #include <iomanip>
 int main(){
- Model m;m.in.temperature=500;m.in.matching.temperature=700;m.in.matching.velocity[0]=30;
+ Model m;ugkp::diagnostics::DeviceContext diagnostic{};m.in.diagnostics=&diagnostic;
+ m.in.temperature=500;m.in.matching.temperature=700;m.in.matching.velocity[0]=30;
  m.in.matching.k=.5;m.in.matching.omega=200;m.in.model.mode=GasMode::MixtureChemistry;
  m.coef[2]=100000;m.rx[0].highRate.preExponential=20;
  m.in.model.diffusivity[0]=1e-4;m.in.model.diffusivity[1]=3e-4;
@@ -36,9 +37,11 @@ int main(){
  assert(status.code==WallCode::Success&&out.residual==double(status.residual));
  c.model=BoundaryLayerModel::ConstantTransport;c.enableSst=false;c.relativeTolerance=1e-8;
  m.in.model.mode=GasMode::MixtureFrozen;m.in.massFlux[0]=m.in.massFlux[1]=0;m.in.temperature=std::numeric_limits<double>::quiet_NaN();
- assert(evaluateWallModel(m.in,c,w,out,status));assert(status.code!=WallCode::Success);
- assert(std::isnan(out.traceTemperature)&&std::isnan(out.conductiveHeatFlux));
- assert(out.wallSpeciesFlux[0]==0&&out.matchingSpeciesFlux[1]==0);
+ const auto saved=out;
+ assert(!evaluateWallModel(m.in,c,w,out,status));assert(status.code!=WallCode::Success);
+ assert(diagnostic.firstFatal.code==ugkp::diagnostics::Code::NonFinite&&std::isnan(diagnostic.firstFatal.observed));
+ assert(out.traceTemperature==saved.traceTemperature&&out.conductiveHeatFlux==saved.conductiveHeatFlux);
+ assert(out.wallSpeciesFlux[0]==saved.wallSpeciesFlux[0]&&out.matchingSpeciesFlux[1]==saved.matchingSpeciesFlux[1]);
 
 }
 '''

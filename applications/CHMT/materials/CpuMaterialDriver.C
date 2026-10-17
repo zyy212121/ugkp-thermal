@@ -105,15 +105,15 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
             inventoryScale+=absValue(target[c])+absValue(caloric[c].energy<false>(T));change=maxValue(change,absValue(T-previous[c])/maxValue(1,maxValue(absValue(T),absValue(previous[c]))));}
         const Real residual=static_cast<Real>(stableChange+boundary);const Real scale=maxValue(1,maxValue(absValue(static_cast<Real>(stableChange)),absValue(boundary)));
         const Real roundoff=static_cast<Real>(64*std::numeric_limits<Real>::epsilon()*inventoryScale);
-        if(!finite(residual)||!finite(change)){
+        if(!finite(change)){
             using namespace ugkp::diagnostics;
-            recordFatal(p.diagnostics,makeRecord(Code::NonFinite,4104,4,0,EntityKind::None,-1,-1,!finite(residual)?residual:change));
+            recordFatal(p.diagnostics,makeRecord(Code::NonFinite,4104,4,0,EntityKind::None,-1,-1,change));
             error="nonfinite implicit material residual";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;
         }
         const Real energyTolerance=controls.energyAbsoluteTolerance+controls.energyRelativeTolerance*scale+roundoff;
         if(change<=controls.nonlinearRelativeTolerance||iteration+1==controls.nonlinearMaxIterations){
             if(change>controls.nonlinearRelativeTolerance)materialWarning(next,ugkp::diagnostics::Code::AccuracyResidual,"implicit material nonlinear residual",change,controls.nonlinearRelativeTolerance);
-            if(absValue(residual)>energyTolerance)materialWarning(next,ugkp::diagnostics::Code::ConservationResidual,"implicit material energy balance",residual,energyTolerance);
+            if(!finite(residual)||absValue(residual)>energyTolerance)materialWarning(next,ugkp::diagnostics::Code::ConservationResidual,"implicit material energy balance",residual,energyTolerance);
             for(std::size_t c=0;c<n;++c){next.solid[c].energy=caloric[c].energy<false>(temperature[c]);MaterialPrimitive recovered;bool numerical=false;if(!recoverMaterial<false>(next.solid[c],next.solidMesh.volumes[c],p,recovered,nullptr,-1,&numerical)){error="implicit material endpoint EOS invalid";if(numerical)report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}next.solid[c].porosity=recovered.porosity;}
             return true;}
     }
@@ -131,13 +131,13 @@ void gasDrive(const HostState& state,const std::vector<GasPrimitive>& bulk,const
 bool baseTrace(const HostState& base,const PhysicsConfig& p,std::vector<GasPrimitive>& bulk,std::string& error,bool* numerical=nullptr){
     if(numerical)*numerical=false;
     bulk.resize(base.surface.area.size());
-
+    if(base.surface.gasFace.size()!=bulk.size()){error="wall predictor face map size mismatch";return false;}
     for(std::size_t f=0;f<bulk.size();++f){const int face=base.surface.gasFace[f];if(face<0)continue;
         if(static_cast<std::size_t>(face)>=base.gasMesh.owner.size()){if(numerical)*numerical=true;error="wall predictor face outside gas mesh";return false;}
 
         const int c=base.gasMesh.owner[face];
-        if((c<0||static_cast<std::size_t>(c)>=base.gas.size())){if(numerical)*numerical=true;error="wall predictor gas EOS failed";return false;}
-        if(!recoverGas(base.gas[c],base.gasMesh.volumes[c],p,bulk[f])){
+        if((c<0||static_cast<std::size_t>(c)>=base.gas.size()||static_cast<std::size_t>(c)>=base.gasMesh.volumes.size())){if(numerical)*numerical=true;error="wall predictor gas EOS failed";return false;}
+        if(!recoverGas(base.gas[c],base.gasMesh.volumes[c],p,bulk[f],nullptr,c)){
             {if(numerical)*numerical=true;error="wall predictor gas EOS failed";return false;}
         }
     }

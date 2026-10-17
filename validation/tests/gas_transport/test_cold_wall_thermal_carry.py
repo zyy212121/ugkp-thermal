@@ -515,12 +515,13 @@ def cold_carry_binary(tmp_path_factory):
     prefix=prefix.replace('    return result;\n}\nbool __all_sync','    return result << (threadIdx.x&24);\n}\nbool __all_sync')
     prefix=prefix.replace('[1]','[3]').replace('coldH[8]','coldH[24]').replace('coldRing[8]','coldRing[24]').replace('cold2DH[64]','cold2DH[192]').replace('cold2DAge[8]','cold2DAge[24]')
     prefix=prefix.replace('#include \"GpuColdWall1DDevice.cuh\"', '#include "GpuParticleThermalCarry.H"\n#include "GpuPairedParticleHeat.H"\n#include "GpuColdWallThermalCarry.cuh"\n#include "GpuParticleCaloricDevice.cuh"\nconstexpr GpuReal OfSmall=GPU_R(2.22044604925031308085e-16);\n#include "actual_gas_recovery.cuh"\n#define publishPairedParticleGasHeat actualPublishPairedParticleGasHeat\n#include "GpuPairedParticleHeat.cuh"\n#include "paired_heat_reference.cuh"\n#undef publishPairedParticleGasHeat\nstd::atomic<int> pairedCallbackCalls{0};\nvoid publishPairedParticleGasHeat(DeviceState& s,int i,GpuTime dt) {\n ++pairedCallbackCalls;actualPublishPairedParticleGasHeat(s,i,dt);\n}\n#include "GpuColdWall1DDevice.cuh"')
+    prefix = prefix.replace('struct DeviceState {', '#include "Diagnostics.H"\nstruct DeviceState {\n ugkp::diagnostics::DeviceContext* diagnostics=nullptr;\n')
     recovery=(ROOT/'common/operators/computeSstFaceFluxKernel.cuh').read_text()
     start=recovery.index('template<class GasState>\n__device__ void recoverGasPrimitiveCell')
     body=recovery.index('{',start);depth=1;end=body+1
     while depth:
         depth+=(recovery[end]=='{')-(recovery[end]=='}');end+=1
-    (build/'actual_gas_recovery.cuh').write_text('#include \"gasTransport/GasCapabilities.H\"\n#include \"gasTransport/MixtureThermo.H\"\n#include \"gasTransport/GasGeometryValidation.H\"\n'+recovery[start:end])
+    (build/'actual_gas_recovery.cuh').write_text('#include \"gasTransport/GasCapabilities.H\"\n#include \"gasTransport/MixtureThermo.H\"\n#include \"gasTransport/GasGeometryValidation.H\"\n'+'#include "operators/gasStencilDiagnostics.cuh"\n'+recovery[recovery.index('template<class GasState,class Scalar>'):recovery.index('template<class GasState>\n__device__ void sstInternalRhoDiffusivities')]+recovery[start:end])
     prefix=prefix.replace('void clearColdWall2DParticleState(DeviceState&,int) {}','void clearColdWall2DParticleState(DeviceState&,int);')
     two=(ROOT/'common/wall/GpuColdWall2DDevice.cuh').read_text()
 

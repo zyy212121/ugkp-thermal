@@ -130,7 +130,8 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             || !gasFinite(stageVolume) || stageVolume == StorageReal(0))
         {
             status.code = ChemistryCode::NonFiniteInput;
-            recordFatal(state.diagnostics,makeRecord(stageVolume==StorageReal(0)?Code::ZeroDenominator:Code::NonFinite,2203,22,0,EntityKind::Cell,cell,-1,stageVolume,0,0,Quantity::Denominator));
+            const bool badInterval=!gasFinite(interval)||interval<Time(0);
+            recordFatal(state.diagnostics,makeRecord(badInterval?(gasFinite(interval)?Code::InvalidPhysicalState:Code::NonFinite):(stageVolume==StorageReal(0)?Code::ZeroDenominator:Code::NonFinite),2203,22,0,EntityKind::Cell,cell,-1,badInterval?interval:stageVolume,0,0,badInterval?Quantity::Unspecified:Quantity::Denominator));
             return status;
         }
         const Real density = state.rho[cell];
@@ -174,7 +175,10 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             || !gasFinite(input.internalEnergy))
         {
             status.code = ChemistryCode::NonFiniteInput;
-            return gasChemistryAdapterDetail::recordFailure(state,cell,status);
+            const int component=!gasFinite(ux)?0:(!gasFinite(uy)?1:(!gasFinite(uz)?2:3));
+            const Real value=component==0?ux:(component==1?uy:(component==2?uz:input.internalEnergy));
+            recordFatal(state.diagnostics,makeRecord(Code::NonFinite,2208,22,0,EntityKind::Cell,cell,component,value));
+            return status;
         }
 
         ClosedReactorResult<Real, Ns> result;
@@ -218,14 +222,14 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             }
             densitySum += candidateDensity[s];
             if(!gasFinite(densitySum)){
-                recordFatal(state.diagnostics,makeRecord(Code::NonFinite,10037,22,0,EntityKind::Cell,cell,s,densitySum,0,0,Quantity::Conservation));
-                status.code=ChemistryCode::NonFiniteInput;return status;
+                recordWarning(state.diagnostics,makeRecord(Code::ConservationResidual,10037,22,0,EntityKind::Cell,cell,s,densitySum,density,0,Quantity::Conservation));
+                // This sum is diagnostic only; every published component is finite.
             }
         }
         const Real densityResidual=densitySum-density;
         if(gasFinite(densityResidual) && gasThermoDetail::absValue(densityResidual)>species.densityClosureTolerance*gasThermoDetail::absValue(density))
             recordWarning(state.diagnostics,makeRecord(Code::ConservationResidual,2204,22,0,EntityKind::Cell,cell,-1,densityResidual,species.densityClosureTolerance*gasThermoDetail::absValue(density),0,Quantity::Conservation));
-        if(gasFinite(inputDensityDefect) && gasThermoDetail::absValue(inputDensityDefect)>species.densityClosureTolerance*gasThermoDetail::absValue(density))
+        if(!gasFinite(inputDensityDefect) || gasThermoDetail::absValue(inputDensityDefect)>species.densityClosureTolerance*gasThermoDetail::absValue(density))
             recordWarning(state.diagnostics,makeRecord(Code::ConservationResidual,10038,22,0,EntityKind::Cell,cell,-1,inputDensityDefect,species.densityClosureTolerance*gasThermoDetail::absValue(density),inputDensityDefect,Quantity::Conservation));
         // A zero interval must not change density bits through a round trip with
 

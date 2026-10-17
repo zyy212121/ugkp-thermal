@@ -18,7 +18,7 @@ UGKWP_GAS_HD inline bool correctedSpeciesDiffusion
     (void)trialEligibility; // compatibility only: there is one physical evaluation.
     if(evaluated)*evaluated=false;
     if(!gasFinite(density)||!gasFinite(eddyViscosity)||!gasFinite(schmidt)||schmidt==Real(0)) {
-        gasThermoDetail::failure(thermo.diagnostics,ThermoStatus::NonFiniteInput,schmidt==Real(0)?Code::ZeroDenominator:Code::NonFinite,-1,schmidt,Quantity::Denominator);
+        gasThermoDetail::failure(thermo.diagnostics,ThermoStatus::NonFiniteInput,(!gasFinite(density)||!gasFinite(eddyViscosity)||!gasFinite(schmidt))?Code::NonFinite:Code::ZeroDenominator,-1,!gasFinite(density)?density:(!gasFinite(eddyViscosity)?eddyViscosity:schmidt),!gasFinite(density)?Quantity::Density:(!gasFinite(eddyViscosity)?Quantity::Unspecified:Quantity::Denominator));
         return false;
     }
     Real raw[Ns],corrected[Ns],Y[Ns],sumRaw=0,sumY=0;

@@ -875,6 +875,11 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/gasTransport/GasMeshUploadValidation.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "common/gasTransport/GasModel.H",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"

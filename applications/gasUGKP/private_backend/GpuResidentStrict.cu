@@ -1,3 +1,4 @@
+#include "gasTransport/GasMeshUploadValidation.H"
 #include "../../../common/GpuDiagnosticsOwner.cuh"
 #define GPU_POOL_THETA_AFTER_REJECTION 1
 #define GPU_POOL_PARTICLE_THETA(s, i) clampMin(finiteOr(s.pTheta[i], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0))
@@ -4041,6 +4042,16 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     DeviceState* s = asState(handle);
     if (validateState(s, "mesh upload") != 0)
     {
+        return 1;
+    }
+
+    ugkp::diagnostics::Record topologyFailure{};
+    if(!ugkwp::gasMeshStencilUploadValid(s->nCells,s->nCellPlanes,
+        cellPlaneStart,cellPlaneCount,topologyFailure))
+    {
+        s->diagnosticOwner->recordHostFatal(topologyFailure);
+        s->diagnosticOwner->dispatchPending();
+        setLastErrorText("cell stencil exceeds uploaded plane storage");
         return 1;
     }
 

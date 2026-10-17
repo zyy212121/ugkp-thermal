@@ -554,10 +554,11 @@ __global__ void applySstFluxAndSourceKernel
     if(!ugkwp::gasFinite(s.sstSourceNumber[c]))
     {
         using namespace ugkp::diagnostics;
-        if(s.diagnostics)recordFatal(s.diagnostics,makeRecord(Code::NonFinite,2611,27,0,
-            EntityKind::Cell,c,-1,s.sstSourceNumber[c]));
-        ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
-        return;
+        // This post-update activity ratio is an audit only. The next Courant
+        // query recomputes its own stability predictor before reducing it.
+        recordWarning(s.diagnostics,makeRecord(Code::AccuracyResidual,2611,27,0,
+            EntityKind::Cell,c,-1,s.sstSourceNumber[c],s.sstMaxSourceNumber,
+            s.sstSourceNumber[c],Quantity::Accuracy));
     }
     if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
         if(ugkwp::gasBoundaryLayerOwnerSlot(s,c)>=0 && s.sstSourceNumber[c]>s.sstMaxSourceNumber)

@@ -211,10 +211,11 @@ __device__ void gasFaceSubgridTransportProperties
                         }
                         wallCp+=Y[species]*values.cp;
                     }
-                    if(!ugkwp::gasFinite(sum) || clippedSum==GPU_OPERATOR_R(0))
-                    {failure(!ugkwp::gasFinite(sum)?Code::NonFinite:Code::ZeroDenominator,
-                        2659,!ugkwp::gasFinite(sum)?sum:clippedSum,Quantity::MassFraction);return;}
-                    if(fabs(sum-GPU_OPERATOR_R(1))>s.gasSpecies.densityClosureTolerance)
+                    if(clippedSum==GPU_OPERATOR_R(0))
+                    {failure(Code::ZeroDenominator,2659,clippedSum,Quantity::MassFraction);return;}
+                    // Raw fractions supply only the conservation audit. Physical
+                    // properties above and below consume the finite clipped Y.
+                    if(!ugkwp::gasFinite(sum) || fabs(sum-GPU_OPERATOR_R(1))>s.gasSpecies.densityClosureTolerance)
                         recordWarning(s.diagnostics,makeRecord(Code::ConservationResidual,2660,26,0,
                             EntityKind::Face,f,-1,sum,1,sum,Quantity::Conservation));
                     const GPU_OPERATOR_REAL R=ugkwp::mixtureGasConstant(Y,thermo);

@@ -872,7 +872,7 @@ namespace chmt {
                     const Real r=sweeps[faces[i]]-targets[i];
                     if (!finite(r))return errorAt(error,"nonfinite swept-volume residual",faces[i]);
                     residual.push_back(r/sweepScale[i]);
-                    metric=maxValue(metric,absValue(r)/sweepTolerance(i,sweeps[faces[i]]));
+                    metric=maxValue(metric,geometryResidualRatio(absValue(r),sweepTolerance(i,sweeps[faces[i]])));
                     report.maximumSweepResidual=maxValue(report.maximumSweepResidual,absValue(r));
                 }
                 for (const auto& p:planar) {
@@ -880,7 +880,7 @@ namespace chmt {
                     for (Real coefficient:coefficients) {
                         const Real r=coefficient/p.scale;
                         if (!finite(r))return errorAt(error,"nonfinite planarity residual",p.a);
-                        residual.push_back(r); metric=maxValue(metric,absValue(r)/p.tolerance);
+                        residual.push_back(r); metric=maxValue(metric,geometryResidualRatio(absValue(r),p.tolerance));
                         report.maximumPlanarityResidual=maxValue(report.maximumPlanarityResidual,absValue(r));
                     }
                 }

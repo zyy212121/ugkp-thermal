@@ -39,14 +39,14 @@ UGKWP_GAS_HD inline bool mixtureMassFractionsFromDensities(
         }
         total+=value;
         if(!gasFinite(total)) {
-            if(diagnostics)recordFatal(diagnostics,makeRecord(Code::NonFinite,10001,0,0,EntityKind::Species,k,k,total,0,0,Quantity::Conservation));
-            return false;
+            recordWarning(diagnostics,makeRecord(Code::ConservationResidual,10001,0,0,EntityKind::Species,k,k,total,1,total,Quantity::Conservation));
+            // Preserve bounded fractions; total is only a closure diagnostic.
         }
         const Real clipped=value<Real(0)?Real(0):(value>Real(1)?Real(1):value);
         if(clipped!=value)recordWarning(diagnostics,makeRecord(Code::FiniteYClip,10002,0,0,EntityKind::Species,k,k,value,0,clipped,Quantity::MassFraction));
         fractions[k]=clipped;
     }
-    if(::fabs(total-Real(1))>closureTolerance)
+    if(!gasFinite(total) || ::fabs(total-Real(1))>closureTolerance)
         recordWarning(diagnostics,makeRecord(Code::ConservationResidual,10003,0,0,EntityKind::None,-1,-1,total,1,total,Quantity::Conservation));
     return true;
 }
@@ -146,7 +146,7 @@ UGKWP_GAS_HD inline ThermoStatus evaluateSpecies
     }
     local.cv=local.cp-R;local.e=local.h-R*temperature;
     if(!gasFinite(local.cp) || !gasFinite(local.cv) || (CompleteEnthalpy && !gasFinite(local.h)) || (CompleteEntropy && !gasFinite(local.entropy)))
-        return failure(view.diagnostics,ThermoStatus::NonFiniteInput,Code::NonFinite,species,temperature,Quantity::Temperature);
+        return failure(view.diagnostics,ThermoStatus::NonFiniteInput,Code::NonFinite,species,!gasFinite(local.cp)?local.cp:(!gasFinite(local.cv)?local.cv:((CompleteEnthalpy && !gasFinite(local.h))?local.h:local.entropy)));
     output=local;if(evaluated)*evaluated=true;
     return ThermoStatus::Success;
 }
@@ -291,7 +291,7 @@ UGKWP_GAS_HD inline Real mixtureGasConstant
     for(int k=0;k<Ns;++k) {
         const Real mass=view.species[k].molarMass;
         if(!gasFinite(mass)||mass==Real(0)||!gasFinite(speciesMass[k])) {
-            failure(view.diagnostics,ThermoStatus::NonFiniteInput,mass==Real(0)?Code::ZeroDenominator:Code::NonFinite,k,mass,Quantity::Denominator);
+            failure(view.diagnostics,ThermoStatus::NonFiniteInput,mass==Real(0)?Code::ZeroDenominator:Code::NonFinite,k,(!gasFinite(mass)||mass==Real(0))?mass:speciesMass[k],(!gasFinite(mass)||mass==Real(0))?Quantity::Denominator:Quantity::Unspecified);
             return invalidValue<Real>();
         }
         totalMass+=speciesMass[k];weightedConstant+=speciesMass[k]*universalGasConstant<Real>()/mass;

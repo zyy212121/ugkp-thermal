@@ -8,7 +8,11 @@ from validation.tools.paths import SOURCE_ROOT
 
 ROOT = SOURCE_ROOT
 SOURCES = ROOT / 'validation' / 'diagnostics'
-ENV = Path('/workspace/shared/toolchains/env.sh')
+ENV = Path(os.environ.get('UGKP_TEST_ENV', '/workspace/shared/toolchains/env.sh'))
+CUDA_ARCH = os.environ.get('UGKWP_CUDA_ARCH', 'sm_80')
+
+def toolchain_setup():
+    return f'source {ENV} >/dev/null 2>&1' if ENV.exists() else ':'
 
 
 def run(command, **kwargs):
@@ -29,23 +33,23 @@ def test_portable_diagnostics(name, tmp_path):
 
 
 def test_real_openfoam_dispatch(tmp_path):
-    if not ENV.exists():
-        pytest.skip('configured OpenFOAM toolchain unavailable')
+    if not ENV.exists() and not os.environ.get('WM_PROJECT_DIR'):
+        pytest.skip('OpenFOAM environment unavailable')
     binary = tmp_path / 'foam'
-    command = f'''source {ENV} >/dev/null 2>&1
+    command = f'''{toolchain_setup()}
     g++ -std=c++14 -pthread -DWM_DP -DWM_LABEL_SIZE=32 -I{ROOT}/common \
       -I$WM_PROJECT_DIR/src/OpenFOAM/lnInclude -I$WM_PROJECT_DIR/src/OSspecific/POSIX/lnInclude \
       {SOURCES}/test_foam.cpp -L$FOAM_LIBBIN -L$FOAM_LIBBIN/$FOAM_MPI -lOpenFOAM -lPstream -o {binary} && {binary}
     '''
     result=run(['bash','-c',command])
     assert 'FOAM Warning' in result.stdout
-    muted=run(['bash','-c',f'source {ENV} >/dev/null 2>&1; UGKP_DIAGNOSTIC_WARNINGS=0 {binary}'])
+    muted=run(['bash','-c',f'{toolchain_setup()}; UGKP_DIAGNOSTIC_WARNINGS=0 {binary}'])
     assert 'FOAM Warning' not in muted.stdout+muted.stderr
-    result=subprocess.run(['bash','-c',f'source {ENV} >/dev/null 2>&1; {binary} exit'],capture_output=True,text=True)
+    result=subprocess.run(['bash','-c',f'{toolchain_setup()}; {binary} exit'],capture_output=True,text=True)
     assert result.returncode==1
     assert 'FOAM FATAL ERROR' in result.stdout+result.stderr
     assert 'observed=-4' in result.stdout+result.stderr
-    result=subprocess.run(['bash','-c',f'source {ENV} >/dev/null 2>&1; /workspace/shared/toolchains/debian/usr/bin/mpirun.openmpi --allow-run-as-root -np 2 {binary} mpi'],capture_output=True,text=True,timeout=20)
+    result=subprocess.run(['bash','-c',f'{toolchain_setup()}; mpirun --allow-run-as-root -np 2 {binary} mpi'],capture_output=True,text=True,timeout=20)
     assert result.returncode==1,result.stdout+result.stderr
     assert 'MPI_ABORT' in result.stdout+result.stderr
     assert '[1] --> FOAM Warning' in result.stdout+result.stderr
@@ -53,11 +57,11 @@ def test_real_openfoam_dispatch(tmp_path):
 
 
 def test_cuda_diagnostics_compile_and_device_if_available(tmp_path):
-    if not ENV.exists():
-        pytest.skip('configured CUDA toolchain unavailable')
+    if not ENV.exists() and not shutil.which('nvcc'):
+        pytest.skip('CUDA compiler unavailable')
     binary=tmp_path/'device'
-    run(['bash','-c',f'source {ENV} >/dev/null 2>&1; flock /workspace/shared/toolchains/nvcc-build.lock nvcc -std=c++17 -arch=sm_75 -I{ROOT}/common {SOURCES}/test_device.cu -o {binary}'])
-    result=subprocess.run(['bash','-c',f'source {ENV} >/dev/null 2>&1; {binary}'],capture_output=True,text=True)
+    run(['bash','-c',f'{toolchain_setup()}; nvcc -std=c++17 -arch={CUDA_ARCH} -I{ROOT}/common {SOURCES}/test_device.cu -o {binary}'])
+    result=subprocess.run(['bash','-c',f'{toolchain_setup()}; {binary}'],capture_output=True,text=True)
     if result.returncode==77:
         pytest.skip('CUDA graph test compiled; GPU unavailable for execution')
     assert result.returncode==0,result.stdout+result.stderr
@@ -193,10 +197,10 @@ def test_production_diagnostic_callsite_ids_are_unique():
 
 
 def test_cuda_fatal_read_is_load_not_atomic_rmw(tmp_path):
-    if not ENV.exists():
-        pytest.skip('configured CUDA toolchain unavailable')
+    if not ENV.exists() and not shutil.which('nvcc'):
+        pytest.skip('CUDA compiler unavailable')
     ptx=tmp_path/'diagnostic-load.ptx'
-    run(['bash','-c',f'source {ENV} >/dev/null 2>&1; flock /workspace/shared/toolchains/nvcc-build.lock nvcc -std=c++17 -arch=sm_75 -I{ROOT}/common -ptx {SOURCES}/test_atomic_load.cu -o {ptx}'])
+    run(['bash','-c',f'{toolchain_setup()}; nvcc -std=c++17 -arch={CUDA_ARCH} -I{ROOT}/common -ptx {SOURCES}/test_atomic_load.cu -o {ptx}'])
     code=ptx.read_text()
     assert 'atom.global.add' not in code
     assert 'ld.relaxed.gpu.b32' in code or 'ld.relaxed.gpu.global.u32' in code
@@ -208,7 +212,7 @@ def test_native_gas_boundary_layer_input_compiles(tmp_path):
         pytest.skip('configured OpenFOAM toolchain unavailable')
     source=tmp_path/'boundary_layer_input.cpp'
     source.write_text('#include "BoundaryLayerInput.H"\n')
-    setup=f'source {ENV} >/dev/null 2>&1' if ENV.exists() else ':'
+    setup=f'{toolchain_setup()}' if ENV.exists() else ':'
     command=f'''{setup}
     g++ -std=c++14 -fsyntax-only -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 \\
       -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 \\

@@ -126,13 +126,23 @@ CHMT_HD inline bool invertMaterialEnergy(const MaterialEnergyEvaluator& energy,R
     temperature=candidate;return true;
 }
 CHMT_HD inline bool recoverGas(const GasQ& q,Real volume,const PhysicsConfig& p,GasPrimitive& out,DeviceStatus* status,int index) {
-    if(!finite(volume)||volume<=0||!finite(q.mass)||q.mass<=0||!finite(q.momentum)||!finite(q.energy))
-        return failStatus(status,ErrorCode::InvalidInput,index,q.mass,ErrorLocation::Cell);
+    const auto physicalFailure=[&](Real value,int component,unsigned quantity) {
+        using namespace ugkp::diagnostics;
+        recordFatal(p.diagnostics,makeRecord(finite(value)?Code::InvalidPhysicalState:Code::NonFinite,
+            3858,38,0,EntityKind::Cell,index,component,value,0,0,quantity));
+        return failStatus(status,finite(value)?ErrorCode::InvalidInput:ErrorCode::Nonfinite,index,value,ErrorLocation::Cell);
+    };
+    if(!finite(volume)||volume<=0)return physicalFailure(volume,-1,ugkp::diagnostics::Quantity::Unspecified);
+    if(!finite(q.mass)||q.mass<=0)return physicalFailure(q.mass,-1,ugkp::diagnostics::Quantity::Unspecified);
+    const Real momentum[]={q.momentum.x,q.momentum.y,q.momentum.z};
+    for(int d=0;d<3;++d)if(!finite(momentum[d]))return physicalFailure(momentum[d],d,ugkp::diagnostics::Quantity::Unspecified);
+    if(!finite(q.energy))return physicalFailure(q.energy,-1,ugkp::diagnostics::Quantity::InternalEnergy);
     Real sum=0,R=0,lo=0,hi=std::numeric_limits<Real>::max();
     Real masses[Ns]{};
     for(int s=0;s<Ns;++s){
         Real Y=q.species[s]/q.mass;
-        if(!clipPhysicsMassFraction(p,Y,3810,s))return failStatus(status,ErrorCode::Nonfinite,index,Y,ErrorLocation::Cell);
+        if(!finite(Y))return physicalFailure(Y,s,ugkp::diagnostics::Quantity::MassFraction);
+        if(!clipPhysicsMassFraction(p,Y,3810,s))return physicalFailure(Y,s,ugkp::diagnostics::Quantity::MassFraction);
         const Real m=q.mass*Y;masses[s]=m;
         sum+=m;if(m==0)continue;
         if(!validSpecies(p.species[s]))return failStatus(status,ErrorCode::PropertyRange,index,s,ErrorLocation::Cell);
