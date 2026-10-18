@@ -41,3 +41,11 @@ def test_overflow_boundary_rounding(tmp_path):
 
 def test_extreme_pole_trial_does_not_trap(tmp_path):
     run(build(tmp_path,'pole_arithmetic',10))
+
+@pytest.mark.parametrize('ns',[2,10])
+def test_proven_unique_solution_avoids_polynomial_construction(tmp_path,ns):
+    run(build(tmp_path,'unique',ns))
+
+@pytest.mark.parametrize('ns',[1,2,10])
+def test_linear_uniqueness_proof_matches_all_off_diagonals(tmp_path,ns):
+    run(build(tmp_path,'unique_proof',ns))

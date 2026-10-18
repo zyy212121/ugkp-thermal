@@ -137,6 +137,7 @@ namespace composition_detail {
     struct Info {
         SolveState state=SolveState::NoCertifiedCandidate;
         Real actualResidual=0;
+        int structuredIterations=0;bool unique=false;
         int polynomialCount=0,nodeCount=0,candidates=0,legal=0,ambiguous=0,refine=0,criticalCandidates=0;
         Real maxResidual=0;
     };
@@ -691,6 +692,111 @@ namespace composition_detail {
         return true;
     }
 
+    CHMT_HD inline void boundaryCandidates(const Real* d,const Real* u,const Real* v,
+        const Real* r,const Real* bulk,const Real* Js,Real pressure,Real T,Real distance,
+        const PhysicsConfig& trial,Real tolerance,Real a,Real b,Real rmin,Real rmax,Selection& best) {
+        // Pole eigenvalues are genuine possibilities (zero/repeated diffusion), not
+        // removable singularities. Their normalized eigenspace is a convex slice.
+        for(int i=0;i<Ns;++i){
+            bool duplicate=false;
+            for(int j=0;j<i;++j)duplicate=duplicate||d[j]==d[i];
+            if(duplicate||-d[i]<a||-d[i]>b)continue;
+            Real Y[Ns]{};
+            if(recoverPole(d[i],d,u,v,r,bulk,rmin,rmax,Y))
+            certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false);
+        }
+        // The closed admissible interval can contain a pure-species boundary root.
+        for(int endpoint=0;endpoint<2;++endpoint){
+            Real Y[Ns]{};
+            if(recoverRoot(endpoint?b:a,d,u,v,r,Y)){
+                certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false);
+                Real projected[Ns]{};simplexCandidate(Y,projected);
+                certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false);
+            }
+        }
+    }
+
+    // The minimum off-diagonal in each row occurs at one r extremum:
+    // minimum for u>=0, maximum for u<0. Excluding that row preserves exactly
+    // the previous strict Metzler proof, including its arithmetic error margin.
+    CHMT_HD inline bool uniquePositiveMatrix(const Real* u,const Real* v,
+        const Real* r,const Real* bulk,Real gamma) {
+        Real lo=HUGE_VAL,secondLo=HUGE_VAL,hi=-HUGE_VAL,secondHi=-HUGE_VAL;
+        int lowIndex=-1,highIndex=-1;
+        for(int i=0;i<Ns;++i){
+            if(!(bulk[i]>0))return false;
+            if(r[i]<lo){secondLo=lo;lo=r[i];lowIndex=i;}else secondLo=minValue(secondLo,r[i]);
+            if(r[i]>hi){secondHi=hi;hi=r[i];highIndex=i;}else secondHi=maxValue(secondHi,r[i]);
+        }
+        for(int i=0;i<Ns&&Ns>1;++i){
+            const Real extreme=u[i]>=0?(i==lowIndex?secondLo:lo):(i==highIndex?secondHi:hi);
+            Real product=0,value=0,magnitude=0;
+            if(!productFinite(u[i],extreme,product)||!sumFinite(product,v[i],value)
+                ||!sumFinite(absValue(product),absValue(v[i]),magnitude)
+                ||value<=gamma*magnitude)return false;
+        }
+        return true;
+    }
+
+    CHMT_HD inline bool twoByTwo(Real a,Real b,Real e,Real c,Real d,Real f,Real& x,Real& y) {
+        // Pivoted two-row elimination. Safe operations also cover remote scalar
+        // iterates; a singular representation simply needs root isolation.
+        if(absValue(c)>absValue(a)){Real t=a;a=c;c=t;t=b;b=d;d=t;t=e;e=f;f=t;}
+        Real factor=0,term=0;
+        if(!quotientFinite(c,a,factor)||!productFinite(factor,b,term)||!sumFinite(d,-term,d)
+            ||!productFinite(factor,e,term)||!sumFinite(f,-term,f)||!quotientFinite(f,d,y)
+            ||!productFinite(b,y,term)||!sumFinite(e,-term,e)||!quotientFinite(e,a,x))return false;
+        return true;
+    }
+
+    // Newton for (z+d_i)Y_i-u_i(r.Y)-v_i=0, sum(Y)=1.
+    // Its bordered diagonal/rank-one linearization eliminates to two scalars,
+    // delta(r.Y) and delta(z), with O(Ns) work. The mixture density is variable.
+    // Only a proved unique case may return early; all other roots retain the
+    // established isolation/nearest-bulk selection policy below.
+    CHMT_HD inline bool uniqueNewton(const Real* d,const Real* u,const Real* v,
+        const Real* r,Real J,Real Db,const Real* bulk,const Real* Js,Real pressure,
+        Real T,Real distance,const PhysicsConfig& p,Real tolerance,Selection& best,Info& info) {
+        Real Y[Ns];for(int i=0;i<Ns;++i)Y[i]=bulk[i];
+        for(int iteration=0;iteration<8;++iteration){
+            Real rm=0,dy=0;int dependent=0;
+            for(int i=0;i<Ns;++i){rm+=r[i]*Y[i];dy+=d[i]*Y[i];if(Y[i]>Y[dependent])dependent=i;}
+            const Real z=J*rm+Db-dy;
+            Real U[Ns],V[Ns],H[Ns],A=0,B=0,C=-1,D=0,E=0,F=0;
+            for(int i=0;i<Ns;++i){
+                const Real denominator=z+d[i];Real term=0,residual=0;
+                if(!productFinite(denominator,Y[i],residual)||!productFinite(u[i],rm,term)
+                    ||!sumFinite(residual,-term,residual)||!sumFinite(residual,-v[i],residual)
+                    ||!quotientFinite(u[i],denominator,U[i])||!quotientFinite(Y[i],denominator,V[i])
+                    ||!quotientFinite(residual,denominator,H[i])
+                    ||!sumFinite(A,U[i],A)||!sumFinite(B,-V[i],B)||!sumFinite(E,H[i],E)
+                    ||!productFinite(r[i],U[i],term)||!sumFinite(C,term,C)
+                    ||!productFinite(r[i],-V[i],term)||!sumFinite(D,term,D)
+                    ||!productFinite(r[i],H[i],term)||!sumFinite(F,term,F))return false;
+            }
+            Real deltaR=0,deltaZ=0;
+            if(!twoByTwo(A,B,E,C,D,F,deltaR,deltaZ))return false;
+            Real next[Ns],sum=0;bool changed=false;
+            for(int i=0;i<Ns;++i)if(i!=dependent){
+                Real first=0,second=0,delta=0;
+                if(!productFinite(U[i],deltaR,first)||!productFinite(V[i],deltaZ,second)
+                    ||!sumFinite(first,-second,delta)||!sumFinite(delta,-H[i],delta)
+                    ||!sumFinite(Y[i],delta,next[i])||next[i]<0||next[i]>1)return false;
+                sum+=next[i];changed=changed||next[i]!=Y[i];
+            }
+            next[dependent]=1-sum;
+            if(next[dependent]<0||next[dependent]>1)return false;
+            changed=changed||next[dependent]!=Y[dependent];
+            ++info.structuredIterations;
+            bool solved=false;
+            certify(next,bulk,Js,pressure,T,distance,p,tolerance,best,&solved,false);
+            if(solved)return true;
+            if(!changed)return false;
+            for(int i=0;i<Ns;++i)Y[i]=next[i];
+        }
+        return false;
+    }
+
     CHMT_HD inline bool scalarSolve(const Real* Js,const Real* bulk,Real pressure,
     Real T,Real distance,const PhysicsConfig& p,Real tolerance,Real* out,
     Info* suppliedInfo=nullptr) {
@@ -743,15 +849,13 @@ namespace composition_detail {
         // nonnegative normalized eigenvector is the Perron vector. Collatz bounds
         // from the positive bulk vector narrow this SAME scalar isolation problem;
         // they are not an alternate implementation or a physical empirical switch.
-        bool positive=true;Real sumBulk=0,rBulk=0;
+        Real sumBulk=0,rBulk=0;
         const Real matrixGamma=3*epsilon/(1-3*epsilon);
-        for(int i=0;i<Ns;++i){positive=positive&&bulk[i]>0;sumBulk+=bulk[i];rBulk+=r[i]*bulk[i];
-            for(int j=0;j<Ns;++j)if(i!=j){Real product=0,value=0,magnitude=0;
-                if(!productFinite(u[i],r[j],product)||!sumFinite(product,v[i],value)
-                    ||!sumFinite(absValue(product),absValue(v[i]),magnitude)
-                    ||value<=matrixGamma*magnitude)positive=false;
-            }
-        }
+        const bool positive=uniquePositiveMatrix(u,v,r,bulk,matrixGamma);info.unique=positive;
+        for(int i=0;i<Ns;++i){sumBulk+=bulk[i];rBulk+=r[i]*bulk[i];}
+        Real scaledJ=0,scaledDb=0;for(int i=0;i<Ns;++i){scaledJ+=u[i];scaledDb+=v[i];}
+        if(positive&&uniqueNewton(d,u,v,r,scaledJ,scaledDb,bulk,Js,pressure,T,distance,p,tolerance,best,info))
+            return publishSelection(best,bulk,Js,pressure,T,distance,p,tolerance,out,info,suppliedInfo);
         if(positive){Real lower=1.7976931348623157e308,upper=-lower;bool bounded=true;
             const Real rowGamma=(4*Ns+16)*epsilon/(1-(4*Ns+16)*epsilon);
             for(int i=0;i<Ns;++i){Real one=0,two=0,three=0,numerator=0,magnitude=0,ratio=0,error=0;
@@ -793,25 +897,8 @@ namespace composition_detail {
         int uniqueCount=0;
         for(int i=0;i<cutCount;++i)if(!uniqueCount||cuts[i]!=cuts[uniqueCount-1])cuts[uniqueCount++]=cuts[i];
         cutCount=uniqueCount;
-        // Pole eigenvalues are genuine possibilities (zero/repeated diffusion), not
-        // removable singularities. Their normalized eigenspace is a convex slice.
-        for(int i=0;i<Ns;++i){
-            bool duplicate=false;
-            for(int j=0;j<i;++j)duplicate=duplicate||d[j]==d[i];
-            if(duplicate||-d[i]<a||-d[i]>b)continue;
-            Real Y[Ns]{};
-            if(recoverPole(d[i],d,u,v,r,bulk,rmin,rmax,Y))
-            certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false);
-        }
-        // The closed admissible interval can contain a pure-species boundary root.
-        for(int endpoint=0;endpoint<2;++endpoint){
-            Real Y[Ns]{};
-            if(recoverRoot(endpoint?b:a,d,u,v,r,Y)){
-                certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false);
-                Real projected[Ns]{};simplexCandidate(Y,projected);
-                certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false);
-            }
-        }
+        // Preserve pole/endpoint ordering when multiple roots can compete.
+        if(!positive)boundaryCandidates(d,u,v,r,bulk,Js,pressure,T,distance,trial,tolerance,a,b,rmin,rmax,best);
         for(int segment=1;segment<cutCount;++segment){
             Real left=cuts[segment-1],right=cuts[segment];
             Poly poly=polynomial(left,right,d,u,v,r);
@@ -845,6 +932,7 @@ namespace composition_detail {
                 if(positive&&best.converged)return publishSelection(best,bulk,Js,pressure,T,distance,p,tolerance,out,info,suppliedInfo);
             }
         }
+        if(positive)boundaryCandidates(d,u,v,r,bulk,Js,pressure,T,distance,trial,tolerance,a,b,rmin,rmax,best);
         return publishSelection(best,bulk,Js,pressure,T,distance,p,tolerance,out,info,suppliedInfo);
     }
 
