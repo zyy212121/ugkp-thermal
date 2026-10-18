@@ -262,6 +262,35 @@ UGKWP_GAS_HD inline bool allResidual(const WallInput<R,N,TableReal>& in,
         for(int j=0;j<N+4;++j)norm=max(norm,abs(f[i][j]));}
     norm=team.broadcast(norm);return true;
 }
+// Newton globalization only: trial iterates do not advance physical time or
+// modify the current profile. Discarded mathematical candidates must not publish
+// physical diagnostics. The accepted iterate is evaluated with the real context.
+template<class R,int N,int M,class TableReal,class Team=SerialWallTeam>
+UGKWP_GAS_HD inline bool applyLayerNewtonUpdate(const WallInput<R,N,TableReal>& in,
+ const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,
+ R& norm,R& acceptedAlpha,const Team& team=Team{}){
+    const R previous=norm;R alpha=1;acceptedAlpha=0;
+    auto candidateInput=in;candidateInput.diagnostics=nullptr;
+    candidateInput.model.thermo.diagnostics=nullptr;
+    // Retain the historical bounded bisection budget, without a case parameter.
+    for(int line=0;line<40;++line){
+        for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)
+            w.trial[i][j]=w.state[i][j]+alpha*w.delta[i][j];
+        team.sync();R next=0;
+        const bool valid=allResidual(candidateInput,c,ctx,w.trial,w.y,w.residual,next,team);
+        if(valid&&gasFinite(next)&&next<previous){
+            for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)
+                w.state[i][j]=w.trial[i][j];
+            team.sync();acceptedAlpha=alpha;
+            return allResidual(in,c,ctx,w.state,w.y,w.residual,norm,team);
+        }
+        alpha*=R(.5);
+    }
+    // A finite residual after exhausting a mathematical iteration budget keeps
+    // the existing accuracy-warning contract. No invalid profile is released:
+    // restore the current residual and retain normal final physical checks.
+    return allResidual(in,c,ctx,w.state,w.y,w.residual,norm,team);
+}
 template<class R,int B> UGKWP_GAS_HD inline bool eliminateBlock(R (&a)[B][B],R (&upper)[B][B],R* rhs){
     for(int col=0;col<B;++col){int pivot=col;for(int row=col+1;row<B;++row)if(abs(a[row][col])>abs(a[pivot][col]))pivot=row;
         if(!gasFinite(a[pivot][col])||abs(a[pivot][col])<std::numeric_limits<R>::min()*R(100))return false;
@@ -638,9 +667,9 @@ template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> 
             if(team.leader())wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,2421);
             return false;
         }
-        for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)w.state[i][j]+=w.delta[i][j];
-        team.sync();
-        if(!allResidual(in,c,ctx,w.state,w.y,w.residual,norm,team))return false;
+        R alpha=0;
+        if(!applyLayerNewtonUpdate(in,c,ctx,w,norm,alpha,team))return false;
+        if(alpha==0)break;
     }
     if(team.leader()&&norm>tolerance)wallWarning(in,ugkp::diagnostics::Code::AccuracyResidual,2422,norm,tolerance);
     if(team.leader()){status.iteration=iteration;status.residual=double(norm);}
