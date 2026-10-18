@@ -369,7 +369,30 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool assembleJ
             perturbed.row[col]=old;if(transfer)perturbed.row[donor]=oldDonor;
             if(!valid)return false;
             if(actualStep==0)return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,2418,actualStep,0,col);
-            for(int i=start;i<=end;++i)for(int row=0;row<B;++row){const R forward=(rows[i-start][row]-w.residual[i][row])/actualStep;
+            // A nonzero sqrt(k) can have an entirely unresolvable relative
+            // difference when neighboring fluxes dominate this column. Rebuild
+            // only a zero-signal column with a symmetric physical-scale probe;
+            // a true sqrt(k)=0 derivative remains exactly zero by symmetry.
+            bool zeroSignal=c.enableSst&&col==N+2&&old!=R(0);
+            if(zeroSignal)for(int i=start;i<=end;++i)for(int row=0;row<B;++row)
+                if(rows[i-start][row]!=w.residual[i][row])zeroSignal=false;
+            R opposite[3][B]{};R denominator=actualStep;
+            if(zeroSignal){
+                // The existing k residual normalization uses max(1,k_match).
+                // cbrt(epsilon) balances central O(h^2) truncation and the
+                // O(epsilon/h) subtraction error, without a fitted threshold.
+                h=::cbrt(std::numeric_limits<R>::epsilon())
+                    *max(abs(old),::sqrt(max(R(1),in.matching.k)));
+                perturbed.row[col]=old+h;const R plusStep=perturbed.row[col]-old;
+                cached.invalidate(j);bool resolved=true;
+                for(int i=start;i<=end;++i)if(!layerRow(derivativeInput,c,ctx,cached,w.y,i,rows[i-start])){resolved=false;break;}
+                perturbed.row[col]=old-h;denominator=plusStep-(perturbed.row[col]-old);
+                cached.invalidate(j);
+                if(resolved)for(int i=start;i<=end;++i)if(!layerRow(derivativeInput,c,ctx,cached,w.y,i,opposite[i-start])){resolved=false;break;}
+                perturbed.row[col]=old;
+                if(!resolved)return false;
+            }
+            for(int i=start;i<=end;++i)for(int row=0;row<B;++row){const R forward=(rows[i-start][row]-(zeroSignal?opposite[i-start][row]:w.residual[i][row]))/denominator;
                 R derivative=forward;
                 // Direction e_col-e_donor: recover the original-coordinate
                 // column using the donor column evaluated first above.
