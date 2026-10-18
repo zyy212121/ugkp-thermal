@@ -716,9 +716,9 @@ namespace composition_detail {
         }
     }
 
-    // The minimum off-diagonal in each row occurs at one r extremum:
-    // minimum for u>=0, maximum for u<0. Excluding that row preserves exactly
-    // the previous strict Metzler proof, including its arithmetic error margin.
+    // In scalarSolve's normalized domain all off-diagonal arithmetic is
+    // representable. Its strict margin is minimized at one excluding-self
+    // r extremum: minimum for u>=0, maximum for u<0.
     CHMT_HD inline bool uniquePositiveMatrix(const Real* u,const Real* v,
         const Real* r,const Real* bulk,Real gamma) {
         Real lo=HUGE_VAL,secondLo=HUGE_VAL,hi=-HUGE_VAL,secondHi=-HUGE_VAL;

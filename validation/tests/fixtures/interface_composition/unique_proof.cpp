@@ -1,3 +1,4 @@
+// Compare in the normalized coefficient domain consumed by scalarSolve.
 #include "ablation/InterfaceMath.H"
 #include <cassert>
 #include <random>
