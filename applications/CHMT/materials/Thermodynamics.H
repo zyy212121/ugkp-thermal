@@ -100,23 +100,34 @@ template<bool Terminal=false>
 CHMT_HD inline bool invertMaterialEnergy(const MaterialEnergyEvaluator& energy,Real target,
     Real lo,Real hi,const Tolerances& tol,Real& temperature,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
     using namespace ugkp::diagnostics;
-    // Output is output-only. Start one Newton sequence at the lower metadata
-    // temperature; only temperatures actually visited by that solve are evaluated.
-    Real candidate=lo,residual=0;
-    const Real energyTolerance=tol.absoluteEnergy+tol.relativeEnergy*absValue(target);
+    // A valid sign bracket is mathematical solver state, not a physical trial.
+    // If metadata endpoints do not bracket the target, retain extrapolating
+    // Newton and its existing range warning; metadata is not an admission gate.
+    auto bracketEnergy=energy;bracketEnergy.thermo.diagnostics=nullptr;
+    Real left=lo,right=hi,leftEnergy=0,rightEnergy=0,leftCapacity=0,rightCapacity=0;
+    const bool bracket=finite(lo)&&finite(hi)&&hi>lo
+        &&bracketEnergy(lo,leftEnergy,leftCapacity)==ugkwp::ThermoStatus::Success
+        &&bracketEnergy(hi,rightEnergy,rightCapacity)==ugkwp::ThermoStatus::Success
+        &&leftEnergy<=target&&target<=rightEnergy;
+    Real candidate=bracket?left+(right-left)*Real(.5):lo,residual=0;
+    const Real energyTolerance=auditTolerance(tol.absoluteEnergy,tol.relativeEnergy,absValue(target));
     for(int iteration=0;iteration<100;++iteration){
         Real value=0,capacity=0;const auto status=energy(candidate,value,capacity);
         if(status!=ugkwp::ThermoStatus::Success)return materialInversionFailure(diagnostics,3839,status,target,candidate);
-        residual=value-target;const Real correction=residual/capacity;
-        if(!finite(residual)||!finite(correction))return materialInversionFailure(diagnostics,3853,ugkwp::ThermoStatus::NonFiniteInput,target,correction);
-        const Real temperatureTolerance=tol.absoluteTemperature+tol.relativeTemperature*absValue(candidate);
+        residual=auditDifference(value,target);
+        const bool representableCorrection=finite(residual)&&!(capacity<1&&absValue(residual)>std::numeric_limits<Real>::max()*capacity);
+        const Real correction=representableCorrection?residual/capacity:std::numeric_limits<Real>::infinity();
+        const Real temperatureTolerance=auditTolerance(tol.absoluteTemperature,tol.relativeTemperature,absValue(candidate));
         if(absValue(residual)<=energyTolerance&&absValue(correction)<=temperatureTolerance){
-            const Real thermalScale=capacity*candidate;
-            if(finite(thermalScale)&&thermalScale!=0&&value+thermalScale==value)
+            const Real thermalScale=auditProduct(capacity,candidate);
+            if(finite(thermalScale)&&thermalScale!=0&&auditAdd(value,thermalScale)==value)
                 recordWarning(diagnostics,makeRecord(Code::AccuracyResidual,3855,38,0,EntityKind::None,-1,-1,thermalScale,value,candidate,Quantity::InternalEnergy));
             break;
         }
-        const Real next=candidate-correction;
+        if(bracket){if(value<target)left=candidate;else right=candidate;}
+        Real next=auditDifference(candidate,correction);
+        if(bracket&&(!finite(next)||next<=left||next>=right))next=left+(right-left)*Real(.5);
+        if(!finite(next))return materialInversionFailure(diagnostics,3853,ugkwp::ThermoStatus::NonFiniteInput,target,next);
         if(iteration==99||next==candidate){
             recordWarning(diagnostics,makeRecord(Code::AccuracyResidual,3849,38,0,EntityKind::None,-1,-1,residual,energyTolerance,candidate,Quantity::InternalEnergy));break;
         }

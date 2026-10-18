@@ -32,9 +32,10 @@ int main(){
 
 def test_removed_surface_retry_implementations():
     text=(ROOT/'applications/CHMT/ablation/InterfaceMath.H').read_text()
-    assert 'alpha*=' not in text
     assert 'terminalTrial' not in text
     assert 'terminalSpecies' not in text
     assert 'if(Terminal)' not in text
-    assert 'if(!valid)return false;' in text
-    assert 'if(!seedValid)return false;' in text
+    # Feasible-domain exploration is an authorized mathematical solve.
+    assert 'surfaceTemperatureTrial' in text
+    assert 'trialPhysics.diagnostics=nullptr' in text
+    assert 'trialPhysics.tolerances.diagnostics=nullptr' in text
