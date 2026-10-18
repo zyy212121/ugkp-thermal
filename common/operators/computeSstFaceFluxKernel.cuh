@@ -1488,6 +1488,8 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
             for(int k=0;k<Ns;++k)
             {
                 const Energy fraction=partialDensity[k]/density;
+                if(!ugkwp::gasFinite(fraction))
+                {gasCellPhysicalDiagnostic(s,c,30,ugkp::diagnostics::Code::NonFinite,fraction,k,ugkp::diagnostics::Quantity::MassFraction);return;}
                 const Energy clipped=fraction<Energy(0)?Energy(0):fraction>Energy(1)?Energy(1):fraction;
                 if(clipped!=fraction){
                     using namespace ugkp::diagnostics;

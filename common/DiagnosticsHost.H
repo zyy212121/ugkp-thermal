@@ -77,6 +77,7 @@ inline const char* quantityName(std::uint32_t quantity) {
         case Quantity::Conservation:return "conservation residual";
         case Quantity::Accuracy:return "accuracy residual";
         case Quantity::LinearSystem:return "linear system";
+        case Quantity::HeatCapacity:return "heat capacity";
         default:return "unspecified";
     }
 }

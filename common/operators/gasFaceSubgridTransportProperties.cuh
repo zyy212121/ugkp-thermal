@@ -193,20 +193,21 @@ __device__ void gasFaceSubgridTransportProperties
                                 wallTemperature,Quantity::Temperature));
                         ugkwp::gasThermoDetail::SpeciesValues<GPU_OPERATOR_REAL> values{};
                         bool propertyEvaluated=false;
+                        GPU_OPERATOR_REAL nonfiniteProperty=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();
                         const auto property=ugkwp::gasThermoDetail::evaluateSpecies<GPU_OPERATOR_REAL,Ns,TableReal,false>
-                            (species,wallTemperature,thermo,values,&propertyEvaluated);
+                            (species,wallTemperature,thermo,values,&propertyEvaluated,&nonfiniteProperty);
                         if(!propertyEvaluated || property!=ugkwp::ThermoStatus::Success)
                         {
                             const int segment=data.model==ugkwp::SpeciesThermoModel::NASA7 && wallTemperature>data.midTemperature?7:0;
                             GPU_OPERATOR_REAL observed=property==ugkwp::ThermoStatus::InvalidModel
                                 ?GPU_OPERATOR_REAL(thermo.coefficientCount-data.coefficientOffset-segment)
-                                :ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();
+                                :nonfiniteProperty;
                             const int count=data.model==ugkwp::SpeciesThermoModel::LinearCp?2:5;
                             for(int coefficient=0;coefficient<count && data.coefficientOffset+segment+coefficient<thermo.coefficientCount;++coefficient)
                                 if(!ugkwp::gasFinite(thermo.coefficients[data.coefficientOffset+segment+coefficient]))
                                 {observed=thermo.coefficients[data.coefficientOffset+segment+coefficient];break;}
                             failure(property==ugkwp::ThermoStatus::InvalidModel?Code::MissingOperator:Code::NonFinite,
-                                2658,observed,property==ugkwp::ThermoStatus::InvalidModel?Quantity::Index:Quantity::Unspecified,species);
+                                2658,observed,property==ugkwp::ThermoStatus::InvalidModel?Quantity::Index:Quantity::HeatCapacity,species);
                             return;
                         }
                         wallCp+=Y[species]*values.cp;

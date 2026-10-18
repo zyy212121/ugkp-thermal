@@ -101,7 +101,7 @@ template<class Real, int Ns, class TableReal, bool Complete=true, bool CompleteE
 UGKWP_GAS_HD inline ThermoStatus evaluateSpecies
 (
     int species, Real temperature, const SpeciesThermoView<TableReal,Ns>& view,
-    SpeciesValues<Real>& output,bool* evaluated=nullptr
+    SpeciesValues<Real>& output,bool* evaluated=nullptr,Real* nonfiniteValue=nullptr
 ) noexcept
 {
     using namespace ugkp::diagnostics;
@@ -145,8 +145,13 @@ UGKWP_GAS_HD inline ThermoStatus evaluateSpecies
         local.entropy=available>=7 && temperature>Real(0)?R*(c[0]*::log(temperature)+c[6]+temperature*(c[1]+temperature*(c[2]/Real(2)+temperature*(c[3]/Real(3)+temperature*c[4]/Real(4))))):invalidValue<Real>();
     }
     local.cv=local.cp-R;local.e=local.h-R*temperature;
-    if(!gasFinite(local.cp) || !gasFinite(local.cv) || (CompleteEnthalpy && !gasFinite(local.h)) || (CompleteEntropy && !gasFinite(local.entropy)))
-        return failure(view.diagnostics,ThermoStatus::NonFiniteInput,Code::NonFinite,species,!gasFinite(local.cp)?local.cp:(!gasFinite(local.cv)?local.cv:((CompleteEnthalpy && !gasFinite(local.h))?local.h:local.entropy)));
+    if(!gasFinite(local.cp) || !gasFinite(local.cv) || (CompleteEnthalpy && !gasFinite(local.h)) || (CompleteEntropy && !gasFinite(local.entropy))) {
+        const Real observed=!gasFinite(local.cp)?local.cp:(!gasFinite(local.cv)?local.cv:((CompleteEnthalpy && !gasFinite(local.h))?local.h:local.entropy));
+        // A face producer can retain the actual property fault while supplying
+        // its own entity/operator context; failed output remains unpublished.
+        if(nonfiniteValue)*nonfiniteValue=observed;
+        return failure(view.diagnostics,ThermoStatus::NonFiniteInput,Code::NonFinite,species,observed);
+    }
     output=local;if(evaluated)*evaluated=true;
     return ThermoStatus::Success;
 }

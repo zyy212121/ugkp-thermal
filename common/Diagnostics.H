@@ -23,7 +23,8 @@ enum class Code : std::uint32_t {
 namespace Quantity {
 constexpr std::uint32_t Unspecified=0, Temperature=1, MassFraction=2,
     Density=3, Pressure=4, Velocity=5, InternalEnergy=6, Index=7,
-    Denominator=8, CudaStatus=9, Conservation=10, Accuracy=11, LinearSystem=12;
+    Denominator=8, CudaStatus=9, Conservation=10, Accuracy=11, LinearSystem=12,
+    HeatCapacity=13;
 }
 enum class EntityKind : std::uint32_t { None = 0, Cell = 1, Face = 2, Particle = 3, Species = 4 };
 
