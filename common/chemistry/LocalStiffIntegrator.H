@@ -46,6 +46,16 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD UGKWP_CHEMISTRY_
    for(int i=0;i<rank;++i)z[i]+=delta[i];
 
  }
+ // The final permitted update must be measured, not reported with the
+ // residual from before that update. No extra Newton/Jacobian work is done.
+ R finalF[N]={},finalMass[N],finalResidual[N]={};
+ ChemistryStatus finalStatus=context.evaluate(z,finalF,temperature,nullptr,finalMass);
+ if(!hasUsableChemistryResult(finalStatus))return finalStatus;
+ retainDiagnostic(status,finalStatus);
+ for(int i=0;i<rank;++i)finalResidual[i]=z[i]-rhs[i]-stageProduct(interval,coefficient,finalF[i]);
+ const R finalNorm=coordinateNorm(context,finalResidual,finalMass);
+ status.observed=double(finalNorm);status.reference=double(context.controls.newtonTolerance);
+ if(finalNorm<=context.controls.newtonTolerance)return status;
  status.code=ChemistryCode::NewtonFailure;return status;
 }
 

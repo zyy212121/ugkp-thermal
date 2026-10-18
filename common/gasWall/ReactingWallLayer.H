@@ -308,6 +308,25 @@ template<class R,int N> struct PerturbedLayerState {
         for(int col=0;col<N+4;++col)row[col]=values[index][col];}
     UGKWP_GAS_HD const R* operator[](int index)const{return index==node?row:state[index];}
 };
+// Model storage is not a recoverable mathematical-domain failure. Check the
+// selected thermo segment before evaluating a speculative point without its
+// physical diagnostic context. No unused temperature segment is required.
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerTrialStorageAvailable(
+ const WallInput<R,N,TableReal>& in,R temperature){
+    if(!gasFinite(temperature)||temperature<=0)return true;
+    const auto& view=in.model.thermo;
+    for(int species=0;species<N;++species){
+        if(!gasThermoDetail::validMetadata(species,view)){
+            (void)speciesH(species,temperature,view);return false;
+        }
+        const auto& data=view.species[species];
+        const int segment=data.model==SpeciesThermoModel::NASA7&&temperature>data.midTemperature?7:0;
+        const int required=data.model==SpeciesThermoModel::LinearCp?3:6;
+        const int available=view.coefficientCount-data.coefficientOffset-segment;
+        if(available<required){(void)speciesH(species,temperature,view);return false;}
+    }
+    return true;
+}
 template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool assembleJacobianNode(
  const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
  WallWorkspace<R,N,M>& w,int j){
@@ -329,10 +348,22 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool assembleJ
             R h=rootEpsilon*max(abs(old),variableScale);
             if(species){h=min(h,donorMass/R(4));if(col==donor)h=-h;}
             bool valid=false;R rows[3][B]{};const int start=j>0?j-1:0,end=j+1<c.nodes?j+1:c.nodes-1;
-            perturbed.row[col]=old+h;
-            if(transfer)perturbed.row[donor]=oldDonor-h;
-            cached.invalidate(j);valid=true;
-            for(int i=start;i<=end;++i)if(!layerRow(in,c,ctx,cached,w.y,i,rows[i-start])){valid=false;break;}
+            auto derivativeInput=in;derivativeInput.diagnostics=nullptr;
+            derivativeInput.model.thermo.diagnostics=nullptr;
+            for(int attempt=0;attempt<2&&!valid;++attempt){
+                perturbed.row[col]=old+h;
+                if(transfer)perturbed.row[donor]=oldDonor-h;
+                if(!layerTrialStorageAvailable(in,in.temperature+perturbed.row[2]))return false;
+                cached.invalidate(j);valid=true;
+                for(int i=start;i<=end;++i)
+                    if(!layerRow(derivativeInput,c,ctx,cached,w.y,i,rows[i-start])){valid=false;break;}
+                if(!valid){
+                    perturbed.row[col]=old;if(transfer)perturbed.row[donor]=oldDonor;
+                    // The opposite direction keeps a valid interior base point;
+                    // simplex transfers instead reduce their feasible step.
+                    h=species?h/R(2):-h;
+                }
+            }
             const R actualStep=perturbed.row[col]-old;
             const R donorStep=transfer?oldDonor-perturbed.row[donor]:R(0);
             perturbed.row[col]=old;if(transfer)perturbed.row[donor]=oldDonor;
