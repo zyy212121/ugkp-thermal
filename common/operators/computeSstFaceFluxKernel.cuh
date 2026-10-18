@@ -73,14 +73,24 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
     {
         return;
     }
+    if(!gasCoupledFaceStorageAvailable(s,f))
+    {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return;}
+    if(f>=s.nInternalFaces && !isPeriodicFace(s,f))
+    {
+        const int kind=s.riemannBoundaryKind[f];
+        if(kind==1 || kind==3 || kind==4)
+        {s.sstPhiRhoK[f]=GPU_OPERATOR_R(0.0);s.sstPhiRhoOmega[f]=GPU_OPERATOR_R(0.0);return;}
+    }
+    if(!s.faceOwner)
+    {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return;}
     const int own = s.faceOwner[f];
     if (own < 0 || own >= s.nCells)
     {
         gasStencilIndexFailure(s,own,own,30023);
         return;
     }
-    const int nei = coupledFaceNeighbour(s, f);
     if(!gasStencilFaceValid(s,own,f))return;
+    const int nei = coupledFaceNeighbour(s, f);
     const int boundaryKind = nei >= 0 ? 0 : s.riemannBoundaryKind[f];
     GPU_OPERATOR_REAL sstMappedNeiCx = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL sstMappedNeiCy = GPU_OPERATOR_R(0.0);
@@ -312,7 +322,7 @@ __device__ GPU_OPERATOR_REAL sstKProductionForCell
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
-        if(!gasStencilFaceValid(s,c,f))return GPU_OPERATOR_REAL(NAN);
+        if(!gasStencilFaceIndexValid(s,c,f))return GPU_OPERATOR_REAL(NAN);
         if
         (
             f < s.nInternalFaces
@@ -767,7 +777,7 @@ __global__ void computeGasConvectiveCourantByCellKernel
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
-        if(!gasStencilFaceValid(s,c,f))return;
+        if(!gasStencilFaceIndexValid(s,c,f))return;
         if(ugkwp::gasFaceFailure(s,f)==int(ugkwp::GasTransportCode::InvalidStorage))
             ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage);
         sumAmaxSf += nativeRefinement?s.gasPhiRhoE[f]:s.gasPhiRhoE[f];
@@ -819,8 +829,13 @@ __global__ void computeGasDiffusionNumberKernel
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
-        if(!gasStencilFaceValid(s,c,f))return;
+        if(!gasStencilFaceIndexValid(s,c,f))return;
         if(f>=s.nInternalFaces && s.riemannBoundaryKind[f]==4)continue;
+        if(!gasStencilFaceCouplingValid(s,c,f))return;
+        const int boundaryKind = (f < s.nInternalFaces || isPeriodicFace(s, f))
+          ? 0 : s.riemannBoundaryKind[f];
+        if(boundaryKind==3 || (boundaryKind==1&&s.riemannBoundaryTFix[f]==0))continue;
+        if((f<s.nInternalFaces || isPeriodicFace(s,f)) && !gasStencilFaceValid(s,c,f))return;
         const int other = (f < s.nInternalFaces || isPeriodicFace(s, f))
           ? (s.faceOwner[f] == c ? s.faceNeighbour[f] : s.faceOwner[f])
           : -1;
@@ -832,14 +847,10 @@ __global__ void computeGasDiffusionNumberKernel
         GPU_OPERATOR_REAL kTurbulent = GPU_OPERATOR_R(0.0);
         GPU_OPERATOR_REAL directWallHeatFlux = GPU_OPERATOR_R(0.0);
         int directWallHeatFluxActive = 0;
-        const int boundaryKind = (f < s.nInternalFaces || isPeriodicFace(s, f))
-          ? 0 : s.riemannBoundaryKind[f];
         // Match the ordinary face-flux channels. A selected wall returns its
         // independent physical exchange before those ordinary boundary flags;
         // retain its existing coefficient bounds even for a cold profile.
         const bool wallExchange=ugkwp::gasBoundaryLayerFaceSlot(s,f)>=0;
-        if(boundaryKind==3||boundaryKind==4
-            ||(boundaryKind==1&&s.riemannBoundaryTFix[f]==0))continue;
 
         gasFaceSubgridTransportProperties
         (
@@ -941,9 +952,10 @@ __global__ void computeSstStabilityNumberKernel
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
-        if(!gasStencilFaceValid(s,c,f))return;
+        if(!gasStencilFaceIndexValid(s,c,f))return;
         if(f>=s.nInternalFaces
             && (s.riemannBoundaryKind[f]==3 || s.riemannBoundaryKind[f]==4))continue;
+        if(!gasStencilFaceValid(s,c,f))return;
         const int own=s.faceOwner[f],nei=coupledFaceNeighbour(s,f);
         if (own<0 || own>=s.nCells || nei>=s.nCells)
         {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
@@ -1205,7 +1217,7 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
         for(int i=0;i<count;++i)
         {
             const int f=s.cellFaceId[start+i];
-            if(!gasStencilFaceValid(s,c,f))return;
+            if(!gasStencilFaceIndexValid(s,c,f))return;
 
             if(ugkwp::gasFaceFailure(s,f)!=0)
             {if(!ugkwp::gasRecordCellFailure(s,c,static_cast<ugkwp::GasTransportCode>(ugkwp::gasFaceFailure(s,f))) && nativeRefinement)asm("trap;");if(nativeRefinement)return;}

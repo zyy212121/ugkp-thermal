@@ -6,7 +6,7 @@ namespace ugkp { namespace diagnostics {
 // IPC, preserving source identity across independently built frontends/helpers.
 inline std::vector<SourceDescriptor> sourceCatalogue() {
     return {
-        {1,"common/GpuDiagnosticsOwner.cuh","observeCompletedWork",17,"CUDA diagnostic transfer at an existing completion boundary"},
+        {1,"common/GpuDiagnosticsOwner.cuh","observeCompletedWork",51,"CUDA diagnostic transfer at an existing completion boundary"},
         {2101,"common/operators/reconstructGasMixtureFace.cuh","reconstructGasMixtureFace",46,"finite face mass fraction clipped to [0,1]"},
         {2102,"common/operators/reconstructGasMixtureFace.cuh","reconstructGasMixtureFace",41,"nonfinite face mass fraction"},
         {2103,"common/operators/reconstructGasMixtureFace.cuh","reconstructGasMixtureFace",31,"zero face thermodynamic denominator"},

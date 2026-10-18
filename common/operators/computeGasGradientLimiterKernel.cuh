@@ -26,7 +26,8 @@ __global__ void computeGasGradientLimiterKernel(GasState* sp, const bool nativeR
                 for(int i=0;i<count;++i)
                 {
                     const int f=s.cellFaceId[start+i];
-                    if(!gasStencilFaceValid(s,c,f))return;
+                    if(!gasStencilFaceCouplingValid(s,c,f))return;
+                    if((f<s.nInternalFaces || isPeriodicFace(s,f)) && !gasStencilFaceValid(s,c,f))return;
                     const int nei=coupledFaceNeighbour(s,f);
                     GPU_OPERATOR_REAL adjacent=yc;
                     if(nei>=0)
@@ -42,7 +43,7 @@ __global__ void computeGasGradientLimiterKernel(GasState* sp, const bool nativeR
                 for(int i=0;i<count;++i)
                 {
                     const int f=s.cellFaceId[start+i];
-                    if(!gasStencilFaceValid(s,c,f))return;
+                    if(!gasStencilFaceCouplingValid(s,c,f))return;
                     GPU_OPERATOR_REAL cx,cy,cz;periodicMappedCellCentre(s,f,c,cx,cy,cz);
                     const GPU_OPERATOR_REAL predicted=yc+s.gasSpecies.gradX[index]*(s.faceCx[f]-cx)
                         +s.gasSpecies.gradY[index]*(s.faceCy[f]-cy)+s.gasSpecies.gradZ[index]*(s.faceCz[f]-cz);
@@ -82,10 +83,11 @@ __global__ void computeGasGradientLimiterKernel(GasState* sp, const bool nativeR
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
-        if(!gasStencilFaceValid(s,c,f))return;
+        if(!gasStencilFaceCouplingValid(s,c,f))return;
         GasPrimDevice qf;
         if (f < s.nInternalFaces || isPeriodicFace(s, f))
         {
+            if(!gasStencilFaceValid(s,c,f))return;
             const int own = s.faceOwner[f];
             const int nei = s.faceNeighbour[f];
             const int other = oppositeCellAcrossFace(c, own, nei);
@@ -123,7 +125,7 @@ __global__ void computeGasGradientLimiterKernel(GasState* sp, const bool nativeR
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
-        if(!gasStencilFaceValid(s,c,f))return;
+        if(!gasStencilFaceIndexValid(s,c,f))return;
         const GPU_OPERATOR_REAL dx = s.faceCx[f] - s.Cx[c];
         const GPU_OPERATOR_REAL dy = s.faceCy[f] - s.Cy[c];
         const GPU_OPERATOR_REAL dz = s.faceCz[f] - s.Cz[c];

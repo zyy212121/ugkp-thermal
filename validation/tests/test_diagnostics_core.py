@@ -99,6 +99,7 @@ def test_catalogue_has_unique_real_source_locations():
     entries=re.findall(r'\{(\d+),"([^"]+)","([^"]+)",(\d+),"([^"]+)"\}',catalogue)
     assert entries
     seen=set()
+    actual_calls=production_diagnostic_callsites()
     for site,path,function,line,description in entries:
         assert site not in seen,site
         seen.add(site)
@@ -110,6 +111,17 @@ def test_catalogue_has_unique_real_source_locations():
         assert name not in ('if','constexpr','for','while','switch'),(site,function)
         assert re.search(r'\b'+re.escape(name)+r'\s*(?:<[^>]*>)?\s*\(',source),(site,function)
         assert description
+        if int(site) in actual_calls:
+            assert actual_calls[int(site)]==(path,int(line)), (site,actual_calls[int(site)],(path,int(line)))
+
+
+def test_cuda_transfer_catalogue_points_to_record_producer():
+    import re
+    catalogue=(ROOT/'common/DiagnosticsCatalogue.H').read_text()
+    match=re.search(r'\{1,"([^"]+)","([^"]+)",(\d+),"',catalogue)
+    assert match is not None
+    assert (match[1],int(match[3]))==production_diagnostic_callsites()[1]
+    assert match[2]=='observeCompletedWork'
 
 
 def test_chmt_reduction_does_not_read_fields_after_fatal(tmp_path):
@@ -150,7 +162,7 @@ def test_chmt_missing_selected_mixture_operator_has_no_config_fallback():
     assert 'selected mixture gas operator is unavailable' in source
 
 
-def test_production_diagnostic_callsite_ids_are_unique():
+def production_diagnostic_callsites():
     import re
     positions={'makeRecord':1,'wallFatal':2,'wallWarning':2,'reportPhysicsWarning':2,
                'clipPhysicsMassFraction':2,'gasRecordFaceFailure':3,
@@ -192,6 +204,12 @@ def test_production_diagnostic_callsite_ids_are_unique():
                     location=(str(path.relative_to(ROOT)),source[:a+value.start()].count('\n')+1)
                     assert site not in seen,(site,seen.get(site),location)
                     seen[site]=location
+    return seen
+
+
+def test_production_diagnostic_callsite_ids_are_unique():
+    import re
+    seen=production_diagnostic_callsites()
     catalogueIds={int(site) for site in re.findall(r'\{(\d+),"', (ROOT/'common/DiagnosticsCatalogue.H').read_text())}
     assert set(seen)<=catalogueIds, sorted(set(seen)-catalogueIds)
 

@@ -306,7 +306,7 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
-        if(!gasStencilFaceValid(s,c,f))return;
+        if(!gasStencilFaceIndexValid(s,c,f))return;
         if
         (
             f >= s.nInternalFaces

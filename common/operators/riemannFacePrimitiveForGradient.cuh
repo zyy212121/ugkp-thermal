@@ -14,7 +14,7 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
     const GasPrimDevice invalid={GPU_OPERATOR_REAL(NAN),GPU_OPERATOR_REAL(NAN),GPU_OPERATOR_REAL(NAN),
         GPU_OPERATOR_REAL(NAN),GPU_OPERATOR_REAL(NAN),GPU_OPERATOR_REAL(NAN)};
     if(c<0 || c>=s.nCells){gasStencilIndexFailure(s,c,c,30040);return invalid;}
-    if(!gasStencilFaceValid(s,c,f))return invalid;
+    if(!gasStencilFaceCouplingValid(s,c,f))return invalid;
     if(!gasProducerScalarValid(s,c,s.Tgas[c],30041,true))return invalid;
     if(f>=s.nInternalFaces && !isPeriodicFace(s,f))
     {
@@ -30,6 +30,7 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
     centre.T = clampMin(finiteOr(s.Tgas[c], centre.T), s.TgasMin);
     if (f < s.nInternalFaces || isPeriodicFace(s, f))
     {
+        if(!gasStencilFaceValid(s,c,f))return invalid;
         const int own = s.faceOwner[f];
         const int nei = s.faceNeighbour[f];
         const int other = oppositeCellAcrossFace(c, own, nei);

@@ -11,11 +11,28 @@ __device__ bool gasStencilIndexFailure(const GasState& s,int c,int index,unsigne
     ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage);
     return false;
 }
+// A face-array consumer (for example the unsigned spectral-radius sum) has
+// no dependency on owner/neighbour labels. Check only the array index it reads.
+template<class GasState>
+__device__ bool gasStencilFaceIndexValid(const GasState& s,int c,int f)
+{
+    return f>=0 && f<s.nFaces ? true : gasStencilIndexFailure(s,c,f,30000);
+}
+// Classification and periodic mapping need the coupling metadata, not an owner
+// cell. Keep this separate from consumers which actually dereference cells.
+template<class GasState>
+__device__ bool gasStencilFaceCouplingValid(const GasState& s,int c,int f)
+{
+    if(!gasStencilFaceIndexValid(s,c,f))return false;
+    if(!gasCoupledFaceStorageAvailable(s,f))
+    {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage);return false;}
+    return true;
+}
 template<class GasState>
 __device__ bool gasStencilFaceValid(const GasState& s,int c,int f)
 {
-    if(f<0 || f>=s.nFaces)return gasStencilIndexFailure(s,c,f,30000);
-    if(!s.faceOwner || !gasCoupledFaceStorageAvailable(s,f))
+    if(!gasStencilFaceCouplingValid(s,c,f))return false;
+    if(!s.faceOwner)
     {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage);return false;}
     const int own=s.faceOwner[f],nei=coupledFaceNeighbour(s,f);
     if(own<0 || own>=s.nCells)return gasStencilIndexFailure(s,c,own,30001);
