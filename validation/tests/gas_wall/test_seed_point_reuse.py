@@ -80,9 +80,9 @@ def test_seed_reuse_preserves_state_and_failure_writes(seed_probe,ns,nodes,sst,r
 
 @pytest.mark.parametrize('nodes',[3,24,33,65])
 @pytest.mark.parametrize('ns',[2,3])
-def test_each_immutable_seed_node_is_constructed_once_per_iteration(seed_probe,ns,nodes):
+def test_immutable_seed_thermodynamics_is_constructed_once(seed_probe,ns,nodes):
     r=observe(seed_probe,ns,nodes,1,0,0)
     assert r['ok']==1,r
-    # One initial wall point; n coefficient points and two interval endpoints per iteration.
-    assert r['calls']==1+(nodes+2)*r['iterations'],r
+    # One initial wall point, n first-sweep nodes and two first interval endpoints.
+    assert r['calls']==nodes+3,r
     assert r['calls']<r['reference_calls'],r

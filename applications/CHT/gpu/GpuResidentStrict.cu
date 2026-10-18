@@ -4274,7 +4274,7 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
     const int faceBlock = s->fixedFaceBlockThreads;
     const int cellGrid = (s->nCells + cellBlock - 1)/cellBlock;
     const int faceGrid = (s->nFaces + faceBlock - 1)/faceBlock;
-    const int allFaceGrid = faceGrid;
+    const int allFaceGrid = (s->nFaces - s->nInternalFaces + faceBlock - 1)/faceBlock;
 
     recoverGasPrimitivesKernel<<<cellGrid, cellBlock>>>(s->deviceState);
     cudaError_t err = cudaGetLastError();

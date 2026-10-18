@@ -8,8 +8,8 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
 )
 {
     GasState& s = *sp;
-    const int f = blockIdx.x*blockDim.x + threadIdx.x;
-    if (f < s.nInternalFaces || f >= s.nFaces)
+    const int f = s.nInternalFaces + blockIdx.x*blockDim.x + threadIdx.x;
+    if (f >= s.nFaces)
     {
         return;
     }
@@ -73,8 +73,8 @@ template<class GasState>
 __global__ void updateRiemannBoundaryMirrorKernel(GasState* sp)
 {
     GasState& s = *sp;
-    const int f = blockIdx.x*blockDim.x + threadIdx.x;
-    if (f < s.nInternalFaces || f >= s.nFaces)
+    const int f = s.nInternalFaces + blockIdx.x*blockDim.x + threadIdx.x;
+    if (f >= s.nFaces)
     {
         return;
     }

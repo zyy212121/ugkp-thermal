@@ -168,7 +168,7 @@ int cudaMemcpy(void*to,const void*from,size_t n,int){++copies;if(copies==failCop
 
 using SharedGasDeviceView=State;
 struct WallKnot{};template<class...T>bool sampleGasWallProgramLocal(T&&...){return true;}
-struct Backend{ugkwp::GasBoundaryLayerState<Real> gasBoundaryLayer;int program=0,courantReductionStorage=0;double elapsed=0;std::string error;struct Trial{int surface=0;}trial;int nCells=2,nFaces=3,hostTurbulenceModel=3,fixedCellBlockThreads=4,fixedFaceBlockThreads=4;double microTime=2;void*gasCaptureStream=nullptr;State*deviceState=nullptr;struct Storage{State*p=nullptr;const State&hostView(){return*p;}bool wallMassPublished(){return true;}template<class...T>bool prepareWallBoundary(T&&...){return true;}}storage;struct Model{struct Physics{Real cfl=.5;}physics;}model;};
+struct Backend{ugkwp::GasBoundaryLayerState<Real> gasBoundaryLayer;int program=0,courantReductionStorage=0;double elapsed=0;std::string error;struct Trial{int surface=0;}trial;int nCells=2,nFaces=3,nInternalFaces=1,hostTurbulenceModel=3,fixedCellBlockThreads=4,fixedFaceBlockThreads=4;double microTime=2;void*gasCaptureStream=nullptr;State*deviceState=nullptr;struct Storage{State*p=nullptr;const State&hostView(){return*p;}bool wallMassPublished(){return true;}template<class...T>bool prepareWallBoundary(T&&...){return true;}}storage;struct Model{struct Physics{Real cfl=.5;}physics;}model;};
 REDUCTIONS_SOURCE
 namespace thrust{
 template<class T>T*device_pointer_cast(T*p){return p;}namespace cuda{struct Par{template<class A>Par& operator()(A&){return *this;}int on(void*){return 0;}}par;}

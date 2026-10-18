@@ -104,7 +104,7 @@ struct Accum {double*energy;const double*flux;const int*faces;int count;double d
 struct Graph {std::vector<Accum> work;};using cudaGraph_t=Graph*;using cudaGraphExec_t=Graph*;using cudaGraphNode_t=int;
 struct cudaKernelNodeParams {void*func=nullptr;void**kernelParams=nullptr;void**extra=nullptr;};
 using cudaGraphNodeType=int;constexpr int cudaGraphNodeTypeKernel=1,cudaStreamCaptureModeThreadLocal=0;
-struct DeviceState{GpuWallEnergyState wallEnergy;DeviceState*deviceState=this;cudaGraphExec_t gasGraphExec=nullptr;cudaGraph_t gasGraph=nullptr;cudaStream_t gasCaptureStream=nullptr;double gasGraphDt=-1;int nFaces=5;std::vector<int>gasGraphTimeNodes;std::vector<cudaKernelNodeParams>gasGraphTimeParams;};
+struct DeviceState{GpuWallEnergyState wallEnergy;DeviceState*deviceState=this;cudaGraphExec_t gasGraphExec=nullptr;cudaGraph_t gasGraph=nullptr;cudaStream_t gasCaptureStream=nullptr;double gasGraphDt=-1;int nInternalFaces=0,nFaces=5;std::vector<int>gasGraphTimeNodes;std::vector<cudaKernelNodeParams>gasGraphTimeParams;};
 struct GasHostPolicy{using Time=double;};template<class T>void updateLegacyGasBoundaryMirrorKernel(T*,double){}
 Graph*capturing=nullptr;int captures=0,graphLaunches=0,destroyExecs=0,destroyGraphs=0,graphCall=0,failGraph=0;
 int graphError(){return ++graphCall==failGraph?1:0;}

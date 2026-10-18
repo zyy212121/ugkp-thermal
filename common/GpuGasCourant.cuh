@@ -7,6 +7,19 @@ struct GasCourantMaxima
 {
     double convective=0, diffusion=0, sst=0, maximum=0;
 };
+// Adapters with backend-specific status handling may retain scalar reductions.
+// The native gas backend supplies the joint overload, with one host readback.
+template<class Reduction,class Real> auto reduceGasCourantFields(Reduction reduce,
+ const Real* convective,const Real* diffusion,const Real* sst,int count,cudaStream_t stream,
+ GasCourantMaxima& result,int)->decltype(reduce(convective,diffusion,sst,count,stream,result)){
+    return reduce(convective,diffusion,sst,count,stream,result);
+}
+template<class Reduction,class Real> int reduceGasCourantFields(Reduction reduce,
+ const Real* convective,const Real* diffusion,const Real* sst,int count,cudaStream_t stream,
+ GasCourantMaxima& result,long){
+    if(reduce(convective,count,stream,result.convective)||reduce(diffusion,count,stream,result.diffusion))return 1;
+    return sst?reduce(sst,count,stream,result.sst):0;
+}
 template<class GasHostState,class Time,class Real,class MaximumReduction>
 int computeGasCurrentCourant
 (
@@ -17,7 +30,7 @@ int computeGasCurrentCourant
 {
     const int cellGrid = (s->nCells + cellBlock - 1)/cellBlock;
     const int faceGrid = (s->nFaces + faceBlock - 1)/faceBlock;
-    const int allFaceGrid = faceGrid;
+    const int allFaceGrid = (s->nFaces - s->nInternalFaces + faceBlock - 1)/faceBlock;
 
     recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, stream>>>(s->deviceState);
     cudaError_t err = cudaGetLastError();
@@ -174,10 +187,8 @@ int computeGasCurrentCourant
 
 
     GasCourantMaxima computed;
-    if(maximumReduction(s->gasFluxPositivityScale,s->nCells,stream,computed.convective)
-        || maximumReduction(s->gasDiffusionNumber,s->nCells,stream,computed.diffusion))return 1;
-    if(s->hostTurbulenceModel==3
-        && maximumReduction(s->sstSourceNumber,s->nCells,stream,computed.sst))return 1;
+    if(reduceGasCourantFields(maximumReduction,s->gasFluxPositivityScale,s->gasDiffusionNumber,
+        s->hostTurbulenceModel==3?s->sstSourceNumber:nullptr,s->nCells,stream,computed,0))return 1;
     computed.maximum=std::fmax(computed.convective,computed.diffusion);
     if(s->hostTurbulenceModel==3)computed.maximum=std::fmax(computed.maximum,computed.sst);
     result=computed;

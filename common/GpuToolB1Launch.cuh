@@ -44,12 +44,16 @@ int launchToolB1FaceBundle
     {
         return 0;
     }
-    updateLegacyGasBoundaryMirrorKernel<<<grid, block>>>
+    const int boundaryGrid = (s->nFaces - s->nInternalFaces + block - 1)/block;
+    if (boundaryGrid > 0)
+    {
+    updateLegacyGasBoundaryMirrorKernel<<<boundaryGrid, block>>>
     (
         s->deviceState,
         simulationTime
     );
-    updateRiemannBoundaryMirrorKernel<<<grid, block>>>(s->deviceState);
+    updateRiemannBoundaryMirrorKernel<<<boundaryGrid, block>>>(s->deviceState);
+    }
     if (s->hostTurbulenceModel == 0)
     {
         computeGasInternalFaceFluxKernel<false><<<grid, block>>>

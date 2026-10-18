@@ -7,8 +7,8 @@ __global__ void updateWaveTransmissivePressureBoundaryKernel
 )
 {
     GasState& s = *sp;
-    const int f = blockIdx.x*blockDim.x + threadIdx.x;
-    if (f < s.nInternalFaces || f >= s.nFaces || s.gasBoundaryPWave[f] == 0)
+    const int f = s.nInternalFaces + blockIdx.x*blockDim.x + threadIdx.x;
+    if (f >= s.nFaces || s.gasBoundaryPWave[f] == 0)
     {
         return;
     }

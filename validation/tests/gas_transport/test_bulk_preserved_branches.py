@@ -8,7 +8,7 @@ def test_schedule_knots_endpoints_and_actual_boundary_mirror(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);Time times[3]={0,1,2};Real values[3]={10,20,40};s.nPressureScheduleRows=3;s.pressureScheduleTimes=times;s.pressureScheduleValues=values;s.nScheduledInletFaces=1;s.scheduledInletTemperature=300;s.scheduledInletFaceMask[1]=1;
 const Time ts[7]={-1,0,.5,1,1.5,2,3};const Real wanted[7]={10,10,15,20,30,40,40};
-for(int i=0;i<7;++i){ck(linearScheduledValueDevice(times,values,3,ts[i])==wanted[i],"schedule interpolation changed");threadIdx.x=1;updateLegacyGasBoundaryMirrorKernel(&s,ts[i]);ck(s.gasBoundaryP[1]==wanted[i]&&s.riemannBoundaryP[1]==wanted[i]&&s.riemannBoundaryT[1]==300,"same-stage scheduled boundary missing");}
+for(int i=0;i<7;++i){ck(linearScheduledValueDevice(times,values,3,ts[i])==wanted[i],"schedule interpolation changed");threadIdx.x=1-s.nInternalFaces;updateLegacyGasBoundaryMirrorKernel(&s,ts[i]);ck(s.gasBoundaryP[1]==wanted[i]&&s.riemannBoundaryP[1]==wanted[i]&&s.riemannBoundaryT[1]==300,"same-stage scheduled boundary missing");}
 }
 ''')
 
