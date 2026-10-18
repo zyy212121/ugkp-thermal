@@ -1,0 +1,62 @@
+{
+  "utc": "2026-10-18T11:34:13.788981+00:00",
+  "source": "239a4122aab6df126f07c59b3b10993fe6cfc2c9",
+  "delivery_head": "7383bc5db5510bbd2a5a80e18a4d41535c94487d",
+  "before": {
+    "refs/heads/main": "7c696b19b5510ef94cfbbf7eb837a00c29d74f0d",
+    "refs/heads/refactor/openfoam-diagnostics": "f9125e47cb90e8b605ab611a9757606488156e75",
+    "refs/pull/19/head": "f9125e47cb90e8b605ab611a9757606488156e75"
+  },
+  "after": {
+    "refs/heads/main": "7c696b19b5510ef94cfbbf7eb837a00c29d74f0d",
+    "refs/heads/refactor/openfoam-diagnostics": "7383bc5db5510bbd2a5a80e18a4d41535c94487d",
+    "refs/pull/19/head": "7383bc5db5510bbd2a5a80e18a4d41535c94487d"
+  },
+  "api": {
+    "head": "7383bc5db5510bbd2a5a80e18a4d41535c94487d",
+    "base": "7c696b19b5510ef94cfbbf7eb837a00c29d74f0d",
+    "state": "open",
+    "merged": false,
+    "url": "https://github.com/zyy212121/ugkp-thermal/pull/19"
+  },
+  "remote_blob_readback": {
+    "工作报告.txt": {
+      "git_blob": "51e92f62a903efde2c3f2fcd5af19e414de8440d",
+      "sha256": "e62b7ab27234bc3ca48ef13639b1131cac7902a6b5af168bc0ec58dd4c9961cb",
+      "bytes": 13555
+    },
+    "源码与产物哈希.json": {
+      "git_blob": "f99140039f7fd9c323f3e1c9156a2235782db6b2",
+      "sha256": "3459c9148b7e76ebd26dc6b8edfd9ceec0c0991172d3613051a528b8d5228bec",
+      "bytes": 1086311
+    },
+    "证据清单.json": {
+      "git_blob": "00d780b7a55f9798e7388dbeaa3cfc711aea815d",
+      "sha256": "100c53135c4a39b042062ac80185c6e9a72f6d24bd10cf6ddbd38bdfdf5b5063",
+      "bytes": 91220
+    },
+    "交付文件哈希.json": {
+      "git_blob": "d828c31f98c443a82bb92fc808893feb0e7bc866",
+      "sha256": "a7d9cc7dfecc0ade88845223bd96bca7dba6a3aa48f82ee3abb6ba93fcf1eda4",
+      "bytes": 1941
+    },
+    "raw-evidence.tar.gz": {
+      "git_blob": "177e435e97812bf780608926c28b18913514b819",
+      "sha256": "47ee8f8c4021391333a5e6178e2abf84d124ae2b4e1a6689c162a727907cbc7c",
+      "bytes": 1524816
+    }
+  },
+  "merge": {
+    "main": "7c696b19b5510ef94cfbbf7eb837a00c29d74f0d",
+    "pr_head": "7383bc5db5510bbd2a5a80e18a4d41535c94487d",
+    "source": "239a4122aab6df126f07c59b3b10993fe6cfc2c9",
+    "merge_head": "68a23aa5c1c4c780dad7c6d1a41d1c5824ece3e1",
+    "merge_tree": "a3cf47b69aaf829a0b49cdca021229196ed21042",
+    "pr_tree": "a3cf47b69aaf829a0b49cdca021229196ed21042",
+    "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018",
+    "conflicts": false,
+    "full_tree_diff_exit": 0,
+    "remote_merge_performed": false
+  },
+  "note": "This receipt records the code/evidence delivery commit. Its subsequent receipt-only commit changes documentation only; final PR description records that HEAD."
+}
