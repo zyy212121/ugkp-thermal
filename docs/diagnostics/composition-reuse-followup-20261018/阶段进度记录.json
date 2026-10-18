@@ -1,0 +1,62 @@
+{
+  "stage": "全部验证完成，交付封装/推送",
+  "base": "d02a96ce86858b64e5a5dba676891798152addee",
+  "main": "7c696b19b5510ef94cfbbf7eb837a00c29d74f0d",
+  "workspace": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018",
+  "evidence": "/mnt/d/tempt/ugkp-pr19-composition-reuse-20261018",
+  "completed": [
+    "已读取最新反馈与上一轮报告",
+    "远端main/PR读取一致，已fetch",
+    "已保留当前源码只读对照副本",
+    "真实函数调用计数红绿测：最终残差重复计算1→0",
+    "仅去重复认证后普通Ns10仍60次完整扩散准备的红测已保留",
+    "共用固定气体常数、总通量与输入检查；每候选共用一次EOS，密度仍随组分变化",
+    "24项界面测试及2项目录测试通过；极值扩散路径和60000变组分候选对照",
+    "32个移动producer目录行号随源文件插入更新，修正3804实际Impl函数名",
+    "20k Ns10两组：最终重复残差20000→0、输出/残差/状态/迭代字节一致",
+    "五组CPU A/B全20k严格，Ns10普通约1.37倍，Ns2约1.13至1.32倍",
+    "正式库455主要源文件和6共享生产二进制已采集本轮构建前快照",
+    "GPU六组各4096，所有输出逐字节一致；Ns10普通增量1.98/2.43倍，宽域1.19倍",
+    "26项实际main合并树通过；最终测试增量3项在合并树通过",
+    "两FMA模式Ns2/Ns10四个夹具，运行及12次sanitizer全部退出0",
+    "独立复查无Critical/Important，EOS次数Minor已用实际除法计数与语义突变红测补齐",
+    "复查独立210000次扩散极值和10000次原基线残差/Jacobian对照通过",
+    "四目标全部完整编译0、六程序ldd通过、构建期间源码0变化",
+    "CHMT默认O2/fmad=true六组A/B完成，Ns10普通增量1.95/2.42倍、宽域1.16倍",
+    "默认便携入口26项实际通过",
+    "最终455主要源文件与6共享生产程序首尾一致"
+  ],
+  "next": [
+    "压缩新增证据并提交",
+    "推送前读取远端引用；非强制推送PR19",
+    "读回远端与证据字节SHA，不执行合并"
+  ],
+  "updated_utc": "2026-10-18T12:19:48.586592+00:00",
+  "source_head": "1f18b12d7e0442f50d36130469c1c378980f10d7",
+  "math_head": "ca421b47f9a545934c75686fd76527b9d17e6b7f",
+  "merge_source": {
+    "source": "1f18b12d7e0442f50d36130469c1c378980f10d7",
+    "math_source": "ca421b47f9a545934c75686fd76527b9d17e6b7f",
+    "main": "7c696b19b5510ef94cfbbf7eb837a00c29d74f0d",
+    "merge_head": "6fcb98832c2f6fdc3de53569043f67967da58851",
+    "merge_tree": "601ea6b38511321b76e469621e28d8c343851f29",
+    "pr_tree": "601ea6b38511321b76e469621e28d8c343851f29",
+    "full_tree_diff_exit": 0,
+    "command": [
+      "python3",
+      "-m",
+      "pytest",
+      "-q",
+      "validation/tests/test_interface_composition.py",
+      "-k",
+      "certified_result",
+      "--basetemp",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-tmp/reuse-merge-test",
+      "--junitxml",
+      "/mnt/d/tempt/ugkp-pr19-composition-reuse-20261018/merge/test-results.xml"
+    ],
+    "exit": 0,
+    "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018",
+    "remote_merge_performed": false
+  }
+}

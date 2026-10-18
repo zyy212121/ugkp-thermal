@@ -1,0 +1,363 @@
+{
+  "base_pr": "d02a96ce86858b64e5a5dba676891798152addee",
+  "final_source_commit": "1f18b12d7e0442f50d36130469c1c378980f10d7",
+  "math_commit": "ca421b47f9a545934c75686fd76527b9d17e6b7f",
+  "test_commit": "1f18b12d7e0442f50d36130469c1c378980f10d7",
+  "source_tree": "601ea6b38511321b76e469621e28d8c343851f29",
+  "source_sha256": {
+    "applications/CHMT/ablation/InterfaceComposition.H": "5cd247f7aafc7b82cb954ad2c77da93b40c25f8021f03fd71fa08105d4a17ac1",
+    "applications/CHMT/ablation/InterfaceCompositionArithmetic.H": "5843e919cebfc892446c0908d1bea45a88b1c19d6157ca75cef33aa22804f4cb",
+    "applications/CHMT/ablation/InterfaceMath.H": "26cd68b4a9f944223b6a32d2ac28e1947d1cc6069f78c00403de56dc690a8202",
+    "common/DiagnosticsCatalogue.H": "de958d23ae973f94d3ce1457faebe89f445795f1d658c52bc56b2d4ffbec67d4",
+    "common/gasWall/ReactingWallLayer.H": "40517b6fb622217fa949dd009064436cb4a51cc58c1cc0d639fe3cc9a6522b2c"
+  },
+  "build_targets": [
+    {
+      "target": "gasUGKP",
+      "command": [
+        "bash",
+        "/mnt/d/tempt/ugkp-pr19-composition-reuse-20261018/build/build-gasUGKP.sh"
+      ],
+      "body": "source /mnt/d/tempt/ugkp-pr19-composition-reuse-20261018/build/env-final.sh\nbash -x tool/gasUGKP/build_private_backend.sh\n",
+      "source_commit": "1f18b12d7e0442f50d36130469c1c378980f10d7",
+      "exit": 0,
+      "elapsed_s": 245.14887833595276
+    },
+    {
+      "target": "FSH",
+      "command": [
+        "bash",
+        "/mnt/d/tempt/ugkp-pr19-composition-reuse-20261018/build/build-FSH.sh"
+      ],
+      "body": "source /mnt/d/tempt/ugkp-pr19-composition-reuse-20261018/build/env-final.sh\nbash -x tool/FSH/build_private_backend.sh\n",
+      "source_commit": "1f18b12d7e0442f50d36130469c1c378980f10d7",
+      "exit": 0,
+      "elapsed_s": 65.57658052444458
+    },
+    {
+      "target": "CHT",
+      "command": [
+        "bash",
+        "/mnt/d/tempt/ugkp-pr19-composition-reuse-20261018/build/build-CHT.sh"
+      ],
+      "body": "source /mnt/d/tempt/ugkp-pr19-composition-reuse-20261018/build/env-final.sh\nbash -x tool/CHT/build_cuda_solver.sh\n",
+      "source_commit": "1f18b12d7e0442f50d36130469c1c378980f10d7",
+      "exit": 0,
+      "elapsed_s": 86.24520063400269
+    },
+    {
+      "target": "CHMT",
+      "command": [
+        "bash",
+        "/mnt/d/tempt/ugkp-pr19-composition-reuse-20261018/build/build-CHMT.sh"
+      ],
+      "body": "source /mnt/d/tempt/ugkp-pr19-composition-reuse-20261018/build/env-final.sh\nbash -x applications/CHMT/Allwmake\n",
+      "source_commit": "1f18b12d7e0442f50d36130469c1c378980f10d7",
+      "exit": 0,
+      "elapsed_s": 168.36120176315308
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "gasUGKP",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/gasUGKP",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/gasUGKP",
+      "bytes": 937216,
+      "sha256": "4e696acc09d1e5a88d97459124d94e96c89b93a95780d9b52c93f49f81c5fb4c",
+      "ldd_exit": 0
+    },
+    {
+      "name": "gasUGKPCudaBackend",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/gasUGKPCudaBackend",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/gasUGKPCudaBackend",
+      "bytes": 5880480,
+      "sha256": "ee4cd70c42e5b1613d77213bbb2ae265c8e41a9badd09484efd95c28f80e768d",
+      "ldd_exit": 0
+    },
+    {
+      "name": "FSH",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/FSH",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/FSH",
+      "bytes": 758144,
+      "sha256": "88ef3dd39a5bf84eb9760e1d100ebae92cae6a3af7bb95d929e8446195252320",
+      "ldd_exit": 0
+    },
+    {
+      "name": "FSHCudaBackend",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/FSHCudaBackend",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/FSHCudaBackend",
+      "bytes": 7826888,
+      "sha256": "805757e35bb3d323c9627a575bbcbca89c376c174423e05846bd57766efd03e1",
+      "ldd_exit": 0
+    },
+    {
+      "name": "CHT",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/CHT",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/CHT",
+      "bytes": 6634848,
+      "sha256": "6a262a2488f6e7180ce2e7f16463f89c4bd6e9478577daa6b6b8bd45ab00038f",
+      "ldd_exit": 0
+    },
+    {
+      "name": "CHMT",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/CHMT",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/CHMT",
+      "bytes": 5950144,
+      "sha256": "d8c72519e08c6ec47db7f5a2ad32cbbf758a86a0f7dfdd596f66b9cd8bb2eef8",
+      "ldd_exit": 0
+    }
+  ],
+  "full_source_inventory": "raw-evidence/build/build-manifest.json tracked_source_files",
+  "source_changed_during_build": [],
+  "math_source_diff_between_reviewed_and_built": 0,
+  "objects_and_libraries": [
+    {
+      "path": "applications/gasUGKP/private_backend/libugkwp_cuda_backend.a",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/gasUGKP/private_backend/libugkwp_cuda_backend.a",
+      "bytes": 6311502,
+      "sha256": "32429cf1706daf140ae70f036966ea5243cb003f2aa28d2ffa6ba7f62fec03e6"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/build/linux64GccDPInt32Opt/GpuResidentStrict.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/gasUGKP/private_backend/build/linux64GccDPInt32Opt/GpuResidentStrict.o",
+      "bytes": 6261168,
+      "sha256": "8d717fdbfecb94f7806b08eac890463fa790a939cc07639210e5a8f6d1e6b980"
+    },
+    {
+      "path": "applications/gasUGKP/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/gasUGKP/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o",
+      "bytes": 1495024,
+      "sha256": "bb6dfca35a158466b3ce4f8bbdb32ce812921e1e825ac2e001400077d003eca3"
+    },
+    {
+      "path": "applications/gasUGKP/Make/linux64GccDPInt32Opt/gpu/GpuBackendClient.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/gasUGKP/Make/linux64GccDPInt32Opt/gpu/GpuBackendClient.o",
+      "bytes": 115648,
+      "sha256": "68598abfef171ced865f66623c2ab29376c010c34be243d73fce6e1a5e2bdfa7"
+    },
+    {
+      "path": "applications/FSH/private_backend/libugkwp_cuda_backend.a",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/FSH/private_backend/libugkwp_cuda_backend.a",
+      "bytes": 8181630,
+      "sha256": "3921ab9697fd4e17728f9dfb650dd7be9292a1dc293c2b47fb1c88f9991fbac4"
+    },
+    {
+      "path": "applications/FSH/private_backend/build/linux64GccDPInt32Opt/GpuResidentStrict.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/FSH/private_backend/build/linux64GccDPInt32Opt/GpuResidentStrict.o",
+      "bytes": 8135512,
+      "sha256": "bd89a72ef65b7608f87a976aec5fcd0cc37b3479ff24f0c2adc3d7e556f09eeb"
+    },
+    {
+      "path": "applications/FSH/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/FSH/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o",
+      "bytes": 1192072,
+      "sha256": "f88d60c04723984252e427b7af4e57c5e5df60c63f07a6205cbf3eaedc10ae55"
+    },
+    {
+      "path": "applications/FSH/Make/linux64GccDPInt32Opt/gpu/GpuBackendClient.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/FSH/Make/linux64GccDPInt32Opt/gpu/GpuBackendClient.o",
+      "bytes": 105056,
+      "sha256": "176b5bd81d20479c8928fb90501eebcaf1abe9abfe7ad10ca682420d78c48cc5"
+    },
+    {
+      "path": "applications/CHMT/.build/native/Backend.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/CHMT/.build/native/Backend.o",
+      "bytes": 5021120,
+      "sha256": "f17e10e7fbb554a523bcb53b1d4d76182ef5d6719816d8c9b8549507752ef5b1"
+    },
+    {
+      "path": "applications/CHT/gpu/libugkpcht_cuda_internal.a",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/CHT/gpu/libugkpcht_cuda_internal.a",
+      "bytes": 5861442,
+      "sha256": "7dee55283792b46c2a3a3d48bf1550f9ab173a917c14889c8a8c26f3ec800478"
+    },
+    {
+      "path": "applications/CHT/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/CHT/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o",
+      "bytes": 1116352,
+      "sha256": "37a9ed365fdebfd8a869702e04e6c389ed000918c11d7c5d5d68cae35c53dc10"
+    },
+    {
+      "path": "applications/CHT/Make/linux64GccDPInt32Opt/thermal/MieTable.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/CHT/Make/linux64GccDPInt32Opt/thermal/MieTable.o",
+      "bytes": 65968,
+      "sha256": "2c9f280a6e3525c3f1bc9d9b7b241f7c7e7e6fd772a34ce3b09710fd7d198780"
+    },
+    {
+      "path": "applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalProperties.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalProperties.o",
+      "bytes": 62472,
+      "sha256": "67a0e717d17ea6de7bc8100b761bb16689dc979200685d3d1b7e6cffc65ca49b"
+    },
+    {
+      "path": "applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuThermalExchangeState.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuThermalExchangeState.o",
+      "bytes": 573672,
+      "sha256": "d42d32db285e33b8686f683fb484a7f59513b1044924eee89d2b7246a6c1aee9"
+    },
+    {
+      "path": "applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalCoupler.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalCoupler.o",
+      "bytes": 1075512,
+      "sha256": "bcebf3c2e2ec3f54089c093187b12c279032a1aa67afedf0f91f2ba712946773"
+    },
+    {
+      "path": "applications/CHT/Make/linux64GccDPInt32Opt/thermal/MieDoRadiationSolver.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/CHT/Make/linux64GccDPInt32Opt/thermal/MieDoRadiationSolver.o",
+      "bytes": 140672,
+      "sha256": "dad73f2f47999350a33f7471e5abb9b44d78f36dcca6e83a8c548ad35ac389d5"
+    },
+    {
+      "path": "applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuSolidPatchMapper.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuSolidPatchMapper.o",
+      "bytes": 51456,
+      "sha256": "265416a57773033cd08e2c5504af02fde5ad86540a5c8428a5b8c7ebcbf6f54c"
+    },
+    {
+      "path": "applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuParticleRadiationCoupler.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuParticleRadiationCoupler.o",
+      "bytes": 51240,
+      "sha256": "7adeb03952f18989007cb83d310c540d5e9d7b67496735f0918274e026d40a95"
+    },
+    {
+      "path": "applications/CHT/Make/linux64GccDPInt32Opt/gpu/GpuResidentStrict.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/CHT/Make/linux64GccDPInt32Opt/gpu/GpuResidentStrict.o",
+      "bytes": 5774320,
+      "sha256": "4ae2c7cb27a00d7e6085a97998183a3f71cb8244b71b092f7cce0e947da41311"
+    },
+    {
+      "path": "applications/CHT/Make/linux64GccDPInt32Opt/gpu/GpuWallEnergy64.o",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/applications/CHT/Make/linux64GccDPInt32Opt/gpu/GpuWallEnergy64.o",
+      "bytes": 36096,
+      "sha256": "2ab625c437990d916058d0038170cea7a30459b86b321496a31a312bf858beec"
+    }
+  ],
+  "test_executables": [
+    {
+      "path": "division-mutant-probe",
+      "bytes": 71640,
+      "sha256": "1502fc043230be3cd59a742488c2baf4d24e0ae384865b0ef6257ed19d67ab63",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "cpu-performance/after10",
+      "bytes": 171592,
+      "sha256": "3789e928d21e3c4cf76f7287c777ceb37cf029037a3caed250e633ad8913f993",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "cpu-performance/after2",
+      "bytes": 117872,
+      "sha256": "f9c0673610fe2bd7efcdba760306a0692d884d4e7d574167db98d24fd07991dd",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "cpu-performance/before10",
+      "bytes": 175600,
+      "sha256": "3ae88957b27af06f15cbecf6c712339bf423f03ce7de7b5db7ef7c842feb4c94",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "cpu-performance/before2",
+      "bytes": 117824,
+      "sha256": "b7c3fb186eba3a0a6aed789f8a0df7e47989d334676d039396836fda1fa5d771",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "cpu-performance/counts-after",
+      "bytes": 90280,
+      "sha256": "f8e7c9e39e5e7288fd4d4f5042625774382b6aa394fb16fb7d944c4dc211f222",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "cpu-performance/counts-before",
+      "bytes": 89704,
+      "sha256": "2e807cf16cc2ced3514e73c68dfb33b651684b0608d3eed37bdf7c19a240598f",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "gpu-performance/after10",
+      "bytes": 10022808,
+      "sha256": "fadf436fbbe3f68d0f28a2839704c17b5dfa9ca38393fc8d684e537c7801990e",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "gpu-performance/after2",
+      "bytes": 5812000,
+      "sha256": "66b6793012d424d54c6f5bad947229046e02c81fd52ce23d425c610f25be5e4d",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "gpu-performance/before10",
+      "bytes": 10776472,
+      "sha256": "01df64da9cf9ebcf9226425fca14a3c5222c21ec130a02f30ae1cffc256987bc",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "gpu-performance/before2",
+      "bytes": 6418208,
+      "sha256": "40fa851b894ce97af0dbdde3fc8846e5f1ea49b9f513ccf4ea3491fc71f57e42",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "gpu-performance-native/after10",
+      "bytes": 9916912,
+      "sha256": "f936660b8a98a305f4e245766eaa6222191420811e67227bdd74ee65a3e52ecf",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "gpu-performance-native/after2",
+      "bytes": 5759352,
+      "sha256": "2d5b97168300ce63ebffe4df6038786ccc9342fd000f6b462bd9c33e4a5d5de8",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "gpu-performance-native/before10",
+      "bytes": 10662384,
+      "sha256": "407386b4ebfec6e34c34267f4ee8802d90d7c29859486b004295910920120460",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "gpu-performance-native/before2",
+      "bytes": 6361464,
+      "sha256": "8d16bd8ee6146e4ddda73b22a743c82f5e92d7adca601551f82a13a2e7edd0f1",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "gpu-validation/controlled10",
+      "bytes": 10022048,
+      "sha256": "6e4405c4ff63c9c9e2c630c3e8d42d7973e26d502f1e714693848f7db607926a",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "gpu-validation/controlled2",
+      "bytes": 5811360,
+      "sha256": "9dc5a42f92bb79a1c9d6d9c71e5104c38c44c0ae03b01cc4340fb174dffd04c4",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "gpu-validation/native10",
+      "bytes": 9911904,
+      "sha256": "0691e7030ea84104736b2fc295541fe13ff786e4af8ba3bee3a35a033459656c",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "gpu-validation/native2",
+      "bytes": 5754464,
+      "sha256": "2961b822aebc93419addf64567f228451da59a9ce127cf4231069b8c89b249c0",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "independent-review/diffusion_probe",
+      "bytes": 20880,
+      "sha256": "52ad0214597de5feb744f464485a9720b6880271656baf3ed4794efb72bb5c5b",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    },
+    {
+      "path": "independent-review/residual_probe",
+      "bytes": 45872,
+      "sha256": "25416de189c3e65e40945bc3c515541c85d2f6322c0afebc801e16a82c83e591",
+      "validation": "see adjacent command records; failed mutant is intentionally nonzero"
+    }
+  ]
+}
