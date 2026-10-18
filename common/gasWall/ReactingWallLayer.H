@@ -17,6 +17,7 @@ namespace ugkwp { namespace gaswall { namespace detail {
 template<class R,int N> struct LayerContext {
     R tangent[2][3]{},wallU[2]{},edgeU[2]{},mass=0,wallNormal=0,energyReference=0,wallEnthalpy[N]{},enthalpyJump[N]{},scale[N+4]{};
     int dependent=0,independent[N]{};
+    bool trialStorageComplete=false;
 };
 template<class R,int N> struct LayerPoint {
     R T=0,theta=0,normalCoefficient=0,Y[N]{},rho=0,cp=0,h[N]{},u[2]{},normalVelocity=0,k=0,z=0,omega=0;
@@ -385,13 +386,13 @@ template<class R,int N> UGKWP_GAS_HD inline bool feasibleLayerComposition(R* sta
 }
 // Newton globalization only: trial iterates do not advance physical time or
 // modify the current profile. Discarded mathematical candidates must not publish
-// physical diagnostics. The accepted iterate is evaluated with the real context.
+// physical diagnostics. An accepted feasible iterate keeps its certified residual.
 template<class R,int N,int M,class TableReal,class Team=SerialWallTeam>
-UGKWP_GAS_HD inline bool applyLayerNewtonUpdate(const WallInput<R,N,TableReal>& in,
+UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool applyLayerNewtonUpdate(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,
  R& norm,R& acceptedAlpha,const Team& team=Team{}){
     const R previous=norm;R alpha=1;acceptedAlpha=0;
-    const bool checkStorage=!layerAllTrialStorageComplete(in);
+    const bool checkStorage=!ctx.trialStorageComplete;
     auto candidateInput=in;candidateInput.diagnostics=nullptr;
     candidateInput.model.thermo.diagnostics=nullptr;
     // Retain the historical bounded bisection budget, without a case parameter.
@@ -409,7 +410,14 @@ UGKWP_GAS_HD inline bool applyLayerNewtonUpdate(const WallInput<R,N,TableReal>& 
             for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)
                 w.state[i][j]=w.trial[i][j];
             team.sync();acceptedAlpha=alpha;
-            return allResidual(in,c,ctx,w.state,w.y,w.residual,norm,team);
+            // The certified residual belongs to this exact projected state.
+            // Its only warning producers are composition clipping and mass-sum
+            // checks: the simplex projection leaves every nodal component in
+            // [0,1], and endpoint averaging preserves unity within the existing
+            // 64*N*epsilon diffusion tolerance. Thus an accepted trial has no
+            // suppressed warning to replay. Property/storage errors cannot pass
+            // the complete residual above. Initial/final diagnostics stay live.
+            norm=next;return true;
         }
         alpha*=R(.5);
     }
@@ -435,7 +443,7 @@ template<class R,int N> struct PerturbedLayerState {
         for(int col=0;col<N+4;++col)row[col]=values[index][col];}
     UGKWP_GAS_HD const R* operator[](int index)const{return index==node?row:state[index];}
 };
-template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool assembleJacobianNode(
+template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool assembleJacobianNode(
  const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
  WallWorkspace<R,N,M>& w,int j){
     constexpr int B=N+4;PerturbedLayerState<R,N> perturbed(w.state,j);
@@ -461,7 +469,8 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool assembleJ
             for(int attempt=0;attempt<2&&!valid;++attempt){
                 perturbed.row[col]=old+h;
                 if(transfer)perturbed.row[donor]=oldDonor-h;
-                if(!layerTrialStorageAvailable(in,in.temperature+perturbed.row[2],j))return false;
+                if(!ctx.trialStorageComplete
+                    &&!layerTrialStorageAvailable(in,in.temperature+perturbed.row[2],j))return false;
                 cached.invalidate(j);valid=true;
                 for(int i=start;i<=end;++i)
                     if(!layerRow(derivativeInput,c,ctx,cached,w.y,i,rows[i-start])){valid=false;break;}
@@ -563,6 +572,7 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool makeContext(con
     ctx.scale[2]=max(R(1e-12),(ctx.mass*cp+lambda/L)*max(R(1),max(in.temperature,in.matching.temperature)));
     for(int j=0;j<N-1;++j)ctx.scale[3+j]=max(R(1e-12),ctx.mass+rho*maxD/L);
     ctx.scale[N+2]=max(R(1e-12),(ctx.mass+in.model.viscosity/L)*max(R(1),in.matching.k));ctx.scale[N+3]=rho;
+    ctx.trialStorageComplete=layerAllTrialStorageComplete(in);
     (void)c;return true;
 }
 template<class R,int N,int M> UGKWP_GAS_HD inline bool seedScalarUsingScratch(
@@ -628,7 +638,7 @@ template<class R,int N,int M,class Team> UGKWP_GAS_HD inline bool solveSeedSyste
 // Failure is reported; no alternate original-profile solve is attempted.
 
 
-template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GAS_HD inline bool seedSstLayer(const WallInput<R,N,TableReal>& in,
+template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool seedSstLayer(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,const Team& team=Team{}){
     if(!c.enableSst)return true;
     const int K=N+2,Z=N+3;const auto& coefficients=in.model.sstCoefficients;
@@ -674,8 +684,13 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
         }
         if(!team.broadcast(boundaryValid))return false;
         firstOmega=team.broadcast(firstOmega);
-        if(!solveSeedSystemsWithTeam(c,w,ctx.mass,ctx.edgeU[0],ctx.edgeU[1],
-            in.matching.k,firstOmega,in.matching.omega,team))return false;
+        // Keep the scalar recurrence callsites and their FMA arithmetic.
+        // Node thermochemistry/SST work is parallel; the four short recurrences
+        // retain the previously certified scalar ordering and scratch row.
+        bool systems=false;
+        if(team.leader())systems=solveSeedSystemsWithTeam(c,w,ctx.mass,ctx.edgeU[0],ctx.edgeU[1],
+            in.matching.k,firstOmega,in.matching.omega,SerialWallTeam{});
+        if(!team.broadcast(systems))return false;
         R change=0;bool updated=true;
         if(team.leader()){
         for(int i=1;i<c.nodes-1;++i){for(int d=0;d<2;++d){change=max(change,abs(w.delta[i][d]-w.state[i][d])/max(R(1),abs(ctx.edgeU[d])));w.state[i][d]=(w.state[i][d]+w.delta[i][d])/R(2);}
@@ -695,7 +710,7 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
     return true;
 }
 
-template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool publishLayer(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
+template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool publishLayer(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
  const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,int iterations,R norm,WallOutput<R,N>& output,const bool terminalProfile=false){
     WallOutput<R,N> out;LayerPoint<R,N> wall;if(!pointState(in,c,ctx,w.state[0],wall,terminalProfile))return false;
     if(!trace(in,wall.Y,out,terminalProfile))return false;
@@ -798,8 +813,14 @@ template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> 
 
 
     team.sync();
+    // Seed composition is constant until Newton. Preserve the scalar warning
+    // multiplicity for a non-simplex supplied composition; ordinary feasible
+    // composition can share the node coefficient work without extra warnings.
+    R seedIndependentSum=0;
+    for(int j=0;j<N-1;++j)seedIndependentSum+=in.matching.massFraction[ctx.independent[j]];
     bool seeded=false;
-    if(team.leader())seeded=seedSstLayer(in,c,ctx,w,SerialWallTeam{});
+    if(seedIndependentSum<=R(1))seeded=seedSstLayer(in,c,ctx,w,team);
+    else if(team.leader())seeded=seedSstLayer(in,c,ctx,w,SerialWallTeam{});
     if(team.leader()&&c.enableSst&&seeded){
         // Initialize the auxiliary nonlinear profile at a shear-based scale.
         // This changes neither matching/owner k nor any physical equation.

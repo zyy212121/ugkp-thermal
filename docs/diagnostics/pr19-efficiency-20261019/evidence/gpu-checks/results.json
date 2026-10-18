@@ -1,0 +1,254 @@
+[
+  {
+    "name": "pool",
+    "build": [
+      "/usr/local/cuda-13.1/bin/nvcc",
+      "-std=c++17",
+      "-O3",
+      "-lineinfo",
+      "--fmad=true",
+      "-arch=sm_89",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-efficiency-20261019",
+      "/mnt/c/Users/25094/Documents/Codex/2026-10-19/ugkp-thermal-pr19-pr-https-github/work/pool_gpu.cu",
+      "-o",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/pool"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "pool",
+    "tool": "run",
+    "command": [
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/pool"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "pool",
+    "tool": "memcheck",
+    "command": [
+      "/usr/local/cuda-13.1/bin/compute-sanitizer",
+      "--tool",
+      "memcheck",
+      "--error-exitcode",
+      "99",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/pool"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "pool",
+    "tool": "racecheck",
+    "command": [
+      "/usr/local/cuda-13.1/bin/compute-sanitizer",
+      "--tool",
+      "racecheck",
+      "--error-exitcode",
+      "99",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/pool"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "pool",
+    "tool": "synccheck",
+    "command": [
+      "/usr/local/cuda-13.1/bin/compute-sanitizer",
+      "--tool",
+      "synccheck",
+      "--error-exitcode",
+      "99",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/pool"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "sst_globalization",
+    "build": [
+      "/usr/local/cuda-13.1/bin/nvcc",
+      "-std=c++17",
+      "-O3",
+      "-lineinfo",
+      "--fmad=true",
+      "-arch=sm_89",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-efficiency-20261019",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-efficiency-20261019/validation/tests/gas_wall/fixtures/sst_globalization_gpu.cu",
+      "-o",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/sst_globalization"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "sst_globalization",
+    "tool": "run",
+    "command": [
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/sst_globalization"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "sst_globalization",
+    "tool": "memcheck",
+    "command": [
+      "/usr/local/cuda-13.1/bin/compute-sanitizer",
+      "--tool",
+      "memcheck",
+      "--error-exitcode",
+      "99",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/sst_globalization"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "sst_globalization",
+    "tool": "racecheck",
+    "command": [
+      "/usr/local/cuda-13.1/bin/compute-sanitizer",
+      "--tool",
+      "racecheck",
+      "--error-exitcode",
+      "99",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/sst_globalization"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "sst_globalization",
+    "tool": "synccheck",
+    "command": [
+      "/usr/local/cuda-13.1/bin/compute-sanitizer",
+      "--tool",
+      "synccheck",
+      "--error-exitcode",
+      "99",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/sst_globalization"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "wall_trial_storage",
+    "build": [
+      "/usr/local/cuda-13.1/bin/nvcc",
+      "-std=c++17",
+      "-O3",
+      "-lineinfo",
+      "--fmad=true",
+      "-arch=sm_89",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-efficiency-20261019",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-efficiency-20261019/validation/tests/gas_wall/fixtures/wall_trial_storage_gpu.cu",
+      "-o",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/wall_trial_storage"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "wall_trial_storage",
+    "tool": "run",
+    "command": [
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/wall_trial_storage"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "wall_trial_storage",
+    "tool": "memcheck",
+    "command": [
+      "/usr/local/cuda-13.1/bin/compute-sanitizer",
+      "--tool",
+      "memcheck",
+      "--error-exitcode",
+      "99",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/wall_trial_storage"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "wall_trial_storage",
+    "tool": "racecheck",
+    "command": [
+      "/usr/local/cuda-13.1/bin/compute-sanitizer",
+      "--tool",
+      "racecheck",
+      "--error-exitcode",
+      "99",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/wall_trial_storage"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "wall_trial_storage",
+    "tool": "synccheck",
+    "command": [
+      "/usr/local/cuda-13.1/bin/compute-sanitizer",
+      "--tool",
+      "synccheck",
+      "--error-exitcode",
+      "99",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/wall_trial_storage"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "wall_composition",
+    "build": [
+      "/usr/local/cuda-13.1/bin/nvcc",
+      "-std=c++17",
+      "-O3",
+      "-lineinfo",
+      "--fmad=true",
+      "-arch=sm_89",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-efficiency-20261019",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-efficiency-20261019/validation/tests/gas_wall/fixtures/wall_composition_gpu.cu",
+      "-o",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/wall_composition"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "wall_composition",
+    "tool": "run",
+    "command": [
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/wall_composition"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "wall_composition",
+    "tool": "memcheck",
+    "command": [
+      "/usr/local/cuda-13.1/bin/compute-sanitizer",
+      "--tool",
+      "memcheck",
+      "--error-exitcode",
+      "99",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/wall_composition"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "wall_composition",
+    "tool": "racecheck",
+    "command": [
+      "/usr/local/cuda-13.1/bin/compute-sanitizer",
+      "--tool",
+      "racecheck",
+      "--error-exitcode",
+      "99",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/wall_composition"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "wall_composition",
+    "tool": "synccheck",
+    "command": [
+      "/usr/local/cuda-13.1/bin/compute-sanitizer",
+      "--tool",
+      "synccheck",
+      "--error-exitcode",
+      "99",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/gpu-checks/wall_composition"
+    ],
+    "exit": 0
+  }
+]

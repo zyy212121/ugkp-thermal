@@ -23,6 +23,18 @@ struct Snapshot {
     std::vector<SourceDescriptor> sources;
     std::string catalogueId;
 };
+// Attach only descriptors referenced by the complete pending snapshot.
+inline void selectSnapshotSources(Snapshot& result,const std::vector<SourceDescriptor>& sources) {
+    result.sources.clear();
+    if(!result.hasFatal&&result.warnings.empty())return;
+    // Send descriptors only for sampled sites in this bounded snapshot, not
+    // the full application catalogue on every successful IPC reply.
+    for(const auto& source:sources) {
+        bool used=result.hasFatal && result.fatal.sourceSiteId==source.siteId;
+        for(const auto& warning:result.warnings)used=used||warning.sample.sourceSiteId==source.siteId;
+        if(used)result.sources.push_back(source);
+    }
+}
 // Read only after all producers complete (join/event + ordered device copy).
 inline Snapshot takeSnapshot(const DeviceContext& context,
     const std::vector<SourceDescriptor>& sources = {}, const std::string& catalogueId = {}) {
@@ -34,13 +46,7 @@ inline Snapshot takeSnapshot(const DeviceContext& context,
         const WarningSlot& slot = context.warnings[i];
         if (slot.count) result.warnings.push_back({slot.sample, slot.count, slot.overflow != 0});
     }
-    // Send descriptors only for sampled sites in this bounded snapshot, not
-    // the full application catalogue on every successful IPC reply.
-    for(const auto& source:sources) {
-        bool used=result.hasFatal && result.fatal.sourceSiteId==source.siteId;
-        for(const auto& warning:result.warnings)used=used||warning.sample.sourceSiteId==source.siteId;
-        if(used)result.sources.push_back(source);
-    }
+    selectSnapshotSources(result,sources);
     result.catalogueId = catalogueId;
     return result;
 }

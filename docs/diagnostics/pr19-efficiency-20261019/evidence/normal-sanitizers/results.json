@@ -1,0 +1,47 @@
+[
+  {
+    "tool": "memcheck",
+    "command": [
+      "bash",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/normal-sanitizers/memcheck/run.sh"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 17.46505256099772,
+    "summaries": [
+      {
+        "file": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/normal-sanitizers/memcheck/sanitizer-86178.log",
+        "summary": "========= ERROR SUMMARY: 0 errors"
+      }
+    ]
+  },
+  {
+    "tool": "racecheck",
+    "command": [
+      "bash",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/normal-sanitizers/racecheck/run.sh"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 12.870213136004168,
+    "summaries": [
+      {
+        "file": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/normal-sanitizers/racecheck/sanitizer-86697.log",
+        "summary": "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+      }
+    ]
+  },
+  {
+    "tool": "synccheck",
+    "command": [
+      "bash",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/normal-sanitizers/synccheck/run.sh"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 6.389701416999742,
+    "summaries": [
+      {
+        "file": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/normal-sanitizers/synccheck/sanitizer-87240.log",
+        "summary": "========= ERROR SUMMARY: 0 errors"
+      }
+    ]
+  }
+]

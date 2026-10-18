@@ -27,7 +27,7 @@ def instrumented_header():
         start = source.index(' '+name+'(')
         body = source.index('{', start) + 1
         source = source[:body] + f'++::{counter};' + source[body:]
-    marker = 'template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool publishLayer('
+    marker = 'template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool publishLayer('
     reference = definition(source, marker).replace('bool publishLayer(', 'bool legacyPublishLayer(', 1)
     start = reference.index('for(int i=0;i<c.nodes;++i){LayerPoint<R,N> p;')
     end = reference.index('if(in.integrateOwnerKSource)w.seed', start)

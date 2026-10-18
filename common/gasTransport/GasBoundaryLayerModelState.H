@@ -198,7 +198,7 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
     return true;
 }
 
-template<bool Capture=false,class State,class Team>
+template<bool Capture=false,int Capacity=0,class State,class Team>
 UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int workspaceSlot,const Team& team)
 {
     using Real=typename std::remove_pointer<decltype(state.rho)>::type;
@@ -220,6 +220,13 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int 
     {
         if(team.leader())evaluated=gaswall::evaluateConstantTransportWall(in,model.config,model.output[slot],model.status[slot]);
         evaluated=team.broadcast(evaluated);
+    }
+    else if constexpr(Capacity>0)
+    {
+        evaluated=evaluateGasBoundaryLayerWorkspace<Capture>(in,model.config,
+            static_cast<gaswall::WallWorkspace<Real,Ns,Capacity>*>(model.workspace)[workspaceSlot],
+            model.output[slot],model.status[slot],
+            Capture?model.profile+std::size_t(slot)*model.config.nodes*(7+Ns):nullptr,team);
     }
     else
     {
