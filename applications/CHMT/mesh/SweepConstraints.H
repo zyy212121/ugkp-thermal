@@ -11,7 +11,7 @@ struct SweepConstraintControls {
     std::vector<Real> faceVolumeTolerance{};
     Real rankTolerance=1e-11;
     int maximumIterations=24;
-    int maximumLineSearch=24; // Compatibility field; no line search is performed.
+    int maximumLineSearch=24; // Bounded mathematical damping at fixed target/interval.
     // Compatibility-only fields. Allocation is limited by actual representable
     // sizes and allocator availability, never by a configured policy cap.
     int maximumDegreesOfFreedom=0, maximumConstraints=0;

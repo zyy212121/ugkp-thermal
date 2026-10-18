@@ -10,6 +10,7 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include <cfenv>
 namespace chmt {
     namespace {
         bool errorAt(std::string& e, const char* what, int index) {
@@ -652,7 +653,20 @@ namespace chmt {
         return harmonicPointMotionRepresentedImpl(mesh,prescribedDisplacement,prescribed,output,error,nullptr,nullptr,diagnostics);
     }
     namespace {
-        using TrajectoryCheck = std::function<bool(const HostMesh&, std::string&)>;
+        // Host Newton probes run in a private IEEE environment. A rejected
+        // mathematical iterate must not trap before its domain is classified,
+        // or leave flags behind in the caller's OpenFOAM environment.
+        class GeometryTrialEnvironment {
+            std::fenv_t saved_;bool active_;
+        public:
+            GeometryTrialEnvironment():active_(std::feholdexcept(&saved_)==0){}
+            ~GeometryTrialEnvironment(){if(active_)std::fesetenv(&saved_);}
+            bool active()const{return active_;}
+            bool invalid()const{return std::fetestexcept(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW)!=0;}
+            GeometryTrialEnvironment(const GeometryTrialEnvironment&)=delete;
+            GeometryTrialEnvironment&operator=(const GeometryTrialEnvironment&)=delete;
+        };
+        using TrajectoryCheck = std::function<bool(const HostMesh&, std::string&,ugkp::diagnostics::DeviceContext*,bool&)>;
         struct PlanarTriangleConstraint { int a,b,c,d; Real scale,tolerance; };
         Real triple(Vec3 a, Vec3 b, Vec3 c) { return dot(a,cross(b,c)); }
         Real tripleDerivative(Vec3 a, Vec3 b, Vec3 c, Vec3 da, Vec3 db, Vec3 dc) {
@@ -760,7 +774,9 @@ namespace chmt {
                 || !finite(controls.relativeVolumeTolerance) || controls.relativeVolumeTolerance<0
                 || (!controls.faceVolumeTolerance.empty()&&controls.faceVolumeTolerance.size()!=faces.size())
                 || !finite(controls.rankTolerance) || controls.rankTolerance<=0 || controls.rankTolerance>=1
-                || controls.maximumIterations<1))
+                || controls.maximumIterations<1
+                || !finite(tolerances.absoluteGeometry) || tolerances.absoluteGeometry<0
+                || !finite(tolerances.relativeGeometry) || tolerances.relativeGeometry<0))
                 return reject(SweepConstraintStatus::InvalidInput,"invalid swept-volume constraint inputs/controls");
             if((np>static_cast<std::size_t>(std::numeric_limits<int>::max())
                 || input.owner.size()>static_cast<std::size_t>(std::numeric_limits<int>::max())
@@ -887,15 +903,17 @@ namespace chmt {
                 return finite(metric);
             };
             auto certify=[&](const std::vector<Vec3>& localPoints,HostMesh& certified,
-                std::vector<Real>& measured,std::string& failure,bool enforceTargets) {
+                std::vector<Real>& measured,std::string& failure,bool enforceTargets,
+                ugkp::diagnostics::DeviceContext* diagnostics,bool& recoverable) {
+                recoverable=true;Tolerances evaluationTolerances=tolerances;evaluationTolerances.diagnostics=diagnostics;
                 std::vector<Vec3> worldPoints=worldOld.points;
                 for (std::size_t p=0;p<np;++p) {
                     const Vec3 displacement=localPoints[p]-old.points[p];
                     if (displacement.x!=0 || displacement.y!=0 || displacement.z!=0)
                         worldPoints[p]+=displacement;
                 }
-                if (!makeStageGeometry(worldOld,worldPoints,interval,certified,measured,failure,tolerances)
-                    || (extraCheck && !extraCheck(certified,failure))) return false;
+                if (!makeStageGeometry(worldOld,worldPoints,interval,certified,measured,failure,evaluationTolerances)
+                    || (extraCheck && !extraCheck(certified,failure,diagnostics,recoverable))) return false;
                 if (enforceTargets) {
                     report.maximumSweepResidual=0;
                     for (std::size_t i=0;i<faces.size();++i) {
@@ -917,7 +935,8 @@ namespace chmt {
 
             if (metric<=1) {
                 HostMesh certified; std::vector<Real> measured;
-                if (!certify(points,certified,measured,error,true)) {
+                bool recoverable=true;
+                if (!certify(points,certified,measured,error,true,tolerances.diagnostics,recoverable)) {
 
                     report.status=SweepConstraintStatus::InvalidTrajectory; return false;
                 }
@@ -964,7 +983,8 @@ namespace chmt {
                 report.iterations=iteration;
                 if (metric<=1) {
                     HostMesh certified; std::vector<Real> measured;
-                    if (!certify(points,certified,measured,error,true)) {
+                    bool recoverable=true;
+                    if (!certify(points,certified,measured,error,true,tolerances.diagnostics,recoverable)) {
 
                         report.status=SweepConstraintStatus::InvalidTrajectory; return false;
                     }
@@ -1014,19 +1034,64 @@ namespace chmt {
                     const auto& mode=streamedMode;
                     for (std::size_t p=0;p<np;++p) correction[p]+=mode[p]*delta[j];
                 }
-                // One full Newton correction. No candidate-alpha acceptance or replay.
-                for (std::size_t p=0;p<np;++p) points[p]+=correction[p];
-                if (!evaluate(points,residual,sweeps,metric))
-                    return reject(SweepConstraintStatus::InvalidInput,"nonfinite swept-volume Newton residual");
-                HostMesh certified; std::vector<Real> measured;
-                if (!certify(points,certified,measured,error,false)) {
-                    report.status=SweepConstraintStatus::InvalidTrajectory; return false;
+                // Globalize this fixed-target Newton correction. Physical time,
+                // target sweeps, modes, Jacobian and delta remain unchanged.
+                bool accepted=false;
+                for(int backtrack=0;backtrack<std::max(1,controls.maximumLineSearch);++backtrack){
+                    const Real alpha=std::ldexp(Real(1),-backtrack);if(alpha==0)break;
+                    std::vector<Vec3> trial=points;bool changed=false,representable=true;
+                    for(std::size_t p=0;p<np;++p){
+                        Real* next[3]={&trial[p].x,&trial[p].y,&trial[p].z};
+                        const Real origin[3]={points[p].x,points[p].y,points[p].z};
+                        const Real update[3]={correction[p].x,correction[p].y,correction[p].z};
+                        for(int d=0;d<3;++d){
+                            const long double value=static_cast<long double>(origin[d])+static_cast<long double>(alpha)*update[d];
+                            if(!std::isfinite(value)||std::abs(value)>std::numeric_limits<Real>::max()){representable=false;break;}
+                            *next[d]=origin[d]+alpha*update[d];changed=changed||*next[d]!=origin[d];
+                        }
+                        if(!representable)break;
+                    }
+                    if(!representable)continue;
+                    if(!changed)break; // No smaller represented update can advance this state.
+                    ++report.lineSearchTrials;
+                    GeometryTrialEnvironment environment;
+                    if(!environment.active())return reject(SweepConstraintStatus::InvalidInput,"floating-point trial environment unavailable");
+                    std::vector<Real> trialResidual,trialSweeps;Real trialMetric=0;
+                    if(!evaluate(trial,trialResidual,trialSweeps,trialMetric)||environment.invalid())continue;
+                    if(!(trialMetric<=1||trialMetric<metric*(1-1e-4*alpha)))continue;
+                    HostMesh certified;std::vector<Real> measured;std::string failure;bool recoverable=true;
+                    // Trial records stay local. Missing operators, indices and
+                    // execution failures are not mathematical domain failures.
+                    using namespace ugkp::diagnostics;
+                    DeviceContext trialDiagnostics{};
+                    if(tolerances.diagnostics){
+                        trialDiagnostics.operationSequence=tolerances.diagnostics->operationSequence;
+                        trialDiagnostics.instanceId=tolerances.diagnostics->instanceId;
+                        trialDiagnostics.step=tolerances.diagnostics->step;
+                        trialDiagnostics.simulationTime=tolerances.diagnostics->simulationTime;
+                    }
+                    const bool certifiedTrial=certify(trial,certified,measured,failure,false,&trialDiagnostics,recoverable);
+                    if(trialDiagnostics.fatalClaim){
+                        const Code code=trialDiagnostics.firstFatal.code;
+                        recoverable=recoverable&&code!=Code::MissingOperator&&code!=Code::InvalidIndex&&code!=Code::CudaRuntime;
+                    }
+                    if(!recoverable){
+                        if(trialDiagnostics.fatalClaim)recordFatal(tolerances.diagnostics,trialDiagnostics.firstFatal);
+                        error=failure;report.status=SweepConstraintStatus::InvalidTrajectory;return false;
+                    }
+                    if(!certifiedTrial||trialDiagnostics.fatalClaim||environment.invalid())continue;
+                    points.swap(trial);residual.swap(trialResidual);sweeps.swap(trialSweeps);
+                    metric=trialMetric;accepted=true;error.clear();break;
                 }
+                if(!accepted)break;
+
 
             }
 
-            HostMesh certified; std::vector<Real> measured;
-            if (!certify(points,certified,measured,error,true)) {
+            if(!evaluate(points,residual,sweeps,metric))
+                return reject(SweepConstraintStatus::InvalidInput,"nonfinite retained swept-volume residual");
+            HostMesh certified; std::vector<Real> measured;bool recoverable=true;
+            if (!certify(points,certified,measured,error,true,tolerances.diagnostics,recoverable)) {
                 report.status=SweepConstraintStatus::InvalidTrajectory; return false;
             }
             geometryWarning(tolerances.diagnostics,metric,1,-1,false);
@@ -1572,9 +1637,10 @@ namespace chmt {
         for (auto& direction:directions) direction=normalized(direction);
         HostMesh gas,solid;
         std::vector<Real> gasSweeps,solidSweeps;
-        auto buildGas=[&](const HostMesh& trialSolid,std::string& failure) {
+        auto buildGas=[&](const HostMesh& trialSolid,std::string& failure,ugkp::diagnostics::DeviceContext* diagnostics,bool& recoverable) {
+            Tolerances evaluationTolerances=tolerances;evaluationTolerances.diagnostics=diagnostics;
             auto stage=[&](const std::vector<Vec3>& points) {
-                return makeStageGeometry(oldGas,points,dt,gas,gasSweeps,failure,tolerances);
+                return makeStageGeometry(oldGas,points,dt,gas,gasSweeps,failure,evaluationTolerances);
             };
             // An unchanged accepted offset is already authoritative. Recomputing
             // X_s+n*delta here can manufacture a one-ULP gas motion after a
@@ -1597,7 +1663,7 @@ namespace chmt {
                 fixedGas[gv]=1;
             }
             std::vector<Vec3> gasPoints;
-            const bool harmonicOk=harmonicPointMotion(oldGas,gasDisplacement,fixedGas,gasPoints,failure,tolerances.diagnostics);
+            const bool harmonicOk=harmonicPointMotion(oldGas,gasDisplacement,fixedGas,gasPoints,failure,diagnostics);
             if(!harmonicOk || !stage(gasPoints))return false;
             // Keep the existing reduced-film boundary: moving curved offset
             // interfaces with unequal areas/normals are not a liquid-volume model.
@@ -1615,8 +1681,8 @@ namespace chmt {
                     return absValue(ga-sa)>1e-10*maxValue(ga,sa)
                         || mag(normalized(gm.areaVectors[g])+normalized(sm.areaVectors[f]))>1e-10;
                 };
-                if (moving && (offset(oldGas,oldSolid) || offset(gas,trialSolid)))
-                    return errorAt(failure,"moving curved wet-offset geometry unsupported",i);
+                if (moving && (offset(oldGas,oldSolid) || offset(gas,trialSolid))){
+                    recoverable=false;return errorAt(failure,"moving curved wet-offset geometry unsupported",i);}
             }
             return true;
         };
