@@ -316,17 +316,18 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam>
 UGKWP_GAS_HD inline bool allResidual(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const R (&x)[M][N+4],const R* y,
  R (&f)[M][N+4],R& norm,const Team& team=Team{},
- const WallInput<R,N,TableReal>* storageOwner=nullptr,bool* storageAvailable=nullptr){
+ const WallInput<R,N,TableReal>* storageOwner=nullptr,bool* storageAvailable=nullptr,bool initialValid=true){
     if(storageAvailable)*storageAvailable=true;
     if(std::is_same<Team,SerialWallTeam>::value){
+        if(!initialValid)return false;
         norm=0;for(int i=0;i<c.nodes;++i){
             if(storageOwner&&!layerTrialRowStorageAvailable(*storageOwner,c,x,i)){if(storageAvailable)*storageAvailable=false;return false;}
             if(!layerRow(in,c,ctx,x,y,i,f[i]))return false;
             for(int j=0;j<N+4;++j)norm=max(norm,abs(f[i][j]));}
         return true;
     }
-    bool valid=true,storageValid=true;
-    for(int i=team.rank();i<c.nodes;i+=team.size()){
+    bool valid=initialValid,storageValid=true;
+    for(int i=team.rank();valid&&i<c.nodes;i+=team.size()){
         if(storageOwner&&!layerTrialRowStorageAvailable(*storageOwner,c,x,i)){storageValid=false;valid=false;break;}
         if(!layerRow(in,c,ctx,x,y,i,f[i])){valid=false;break;}
     }
@@ -341,6 +342,47 @@ UGKWP_GAS_HD inline bool allResidual(const WallInput<R,N,TableReal>& in,
         for(int j=0;j<N+4;++j)norm=max(norm,abs(f[i][j]));}
     norm=team.broadcast(norm);return true;
 }
+// Map a mathematical candidate to the mass-one composition simplex before
+// evaluating it. Residual evaluation, acceptance and the next Jacobian then read
+// the same state. Physical input diagnostics remain in wallFraction.
+template<class R,int N> UGKWP_GAS_HD inline bool feasibleLayerComposition(R* state){
+    if(N==1)return true;
+    R largest=1,sum=0;bool feasible=true;
+    for(int j=0;j<N-1;++j){
+        const R v=state[3+j];if(!gasFinite(v))return false;
+        largest=max(largest,abs(v));feasible=feasible&&v>=0&&v<=1;
+    }
+    if(feasible){for(int j=0;j<N-1;++j)sum+=state[3+j];if(sum<=1)return true;}
+    if(N==2){state[3]=min(R(1),max(R(0),state[3]));return true;}
+    // Scaling is only needed near the arithmetic range. Otherwise retain the
+    // direct independent/dependent representation and its usual rounding.
+    constexpr R maximum=std::numeric_limits<R>::max();
+    const R scale=largest>maximum/R(4*N)?largest:R(1);
+    R values[N],top=-maximum;sum=0;
+    for(int j=0;j<N-1;++j){values[j]=state[3+j]/scale;sum+=values[j];top=max(top,values[j]);}
+    values[N-1]=R(1)/scale-sum;top=max(top,values[N-1]);
+    // In a unit simplex, a component more than one below the maximum cannot
+    // be active. Centering and discarding it also avoid large-value overflow.
+    R levels[N],ordered[N];
+    for(int j=0;j<N;++j){
+        const R gap=values[j]<top-R(1)/scale?R(-1):(values[j]-top)*scale;
+        levels[j]=ordered[j]=gap;
+    }
+    for(int j=1;j<N;++j){const R v=ordered[j];int k=j;while(k>0&&ordered[k-1]<v){ordered[k]=ordered[k-1];--k;}ordered[k]=v;}
+    R prefix=0,threshold=-1;
+    for(int j=0;j<N;++j){prefix+=ordered[j];const R candidate=(prefix-R(1))/R(j+1);if(ordered[j]>candidate)threshold=candidate;}
+    int largestIndependent=0;sum=0;
+    for(int j=0;j<N-1;++j){state[3+j]=max(R(0),levels[j]-threshold);sum+=state[3+j];if(state[3+j]>state[3+largestIndependent])largestIndependent=j;}
+    // The dependent species is represented by 1-sum(Y_independent). Ensure
+    // that this very arithmetic remains nonnegative after projection rounding.
+    while(sum>1){
+        const R old=state[3+largestIndependent];R adjusted=max(R(0),old-(sum-R(1)));
+        if(adjusted==old)adjusted=std::is_same<R,float>::value?R(::nextafterf(float(old),0.f)):R(::nextafter(double(old),0.));
+        state[3+largestIndependent]=adjusted;sum=0;
+        for(int j=0;j<N-1;++j)sum+=state[3+j];
+    }
+    return true;
+}
 // Newton globalization only: trial iterates do not advance physical time or
 // modify the current profile. Discarded mathematical candidates must not publish
 // physical diagnostics. The accepted iterate is evaluated with the real context.
@@ -354,11 +396,14 @@ UGKWP_GAS_HD inline bool applyLayerNewtonUpdate(const WallInput<R,N,TableReal>& 
     candidateInput.model.thermo.diagnostics=nullptr;
     // Retain the historical bounded bisection budget, without a case parameter.
     for(int line=0;line<40;++line){
-        for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)
-            w.trial[i][j]=w.state[i][j]+alpha*w.delta[i][j];
+        bool feasible=true;
+        for(int i=team.rank();i<c.nodes;i+=team.size()){
+            for(int j=0;j<N+4;++j)w.trial[i][j]=w.state[i][j]+alpha*w.delta[i][j];
+            feasible=feasibleLayerComposition<R,N>(w.trial[i])&&feasible;
+        }
         team.sync();R next=0;
         bool storageAvailable=true;
-        const bool valid=allResidual(candidateInput,c,ctx,w.trial,w.y,w.residual,next,team,checkStorage?&in:nullptr,&storageAvailable);
+        const bool valid=allResidual(candidateInput,c,ctx,w.trial,w.y,w.residual,next,team,checkStorage?&in:nullptr,&storageAvailable,feasible);
         if(!storageAvailable)return false;
         if(valid&&gasFinite(next)&&next<previous){
             for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)
