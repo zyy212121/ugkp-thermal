@@ -1,0 +1,54 @@
+{
+  "source_head": "239a4122aab6df126f07c59b3b10993fe6cfc2c9",
+  "note": "Hashes exclude this inventory itself and any subsequent remote receipt; no computed-source changes after source_head.",
+  "files": {
+    "fixtures/interface_benchmark.cpp": {
+      "sha256": "f12d19a49b696eb658ce53ed07d9bc98b05dfdde852dd7cbdea10c42f4247623",
+      "bytes": 2422
+    },
+    "fixtures/interface_benchmark.cu": {
+      "sha256": "c5c0cce05449558f1d5481f2c478255b75b88535d822dbc46fa8d76da3d1cdd9",
+      "bytes": 2867
+    },
+    "fixtures/wall_scan.cpp": {
+      "sha256": "42abacf59bb1b0ec1de982b32ea3591ffe5586bb23de126c48368466fce02789",
+      "bytes": 6443
+    },
+    "raw-evidence.tar.gz": {
+      "sha256": "47ee8f8c4021391333a5e6178e2abf84d124ae2b4e1a6689c162a727907cbc7c",
+      "bytes": 1524816
+    },
+    "reproduce.py": {
+      "sha256": "d9ebbc47f89b015e2e1b09cfd880ce599e92454f285a79992f76d9a8d6a15f30",
+      "bytes": 5553
+    },
+    "sst-experiment/inputs.json": {
+      "sha256": "2ff8687d98bef062883e29fddf3b4af91495cf5cf48558112aacc9217a6f116e",
+      "bytes": 1842
+    },
+    "sst-experiment/oracle.cpp": {
+      "sha256": "c0b587865d50a34bbabac03f05d35a05016134cf3f021181fffe29728bf37023",
+      "bytes": 1657
+    },
+    "sst-experiment/run.py": {
+      "sha256": "649f3d3024541ac6db0c09250d9ac1442404a52a0d4677e825e2fea39e24cfa9",
+      "bytes": 4236
+    },
+    "工作报告.txt": {
+      "sha256": "e62b7ab27234bc3ca48ef13639b1131cac7902a6b5af168bc0ec58dd4c9961cb",
+      "bytes": 13555
+    },
+    "源码与产物哈希.json": {
+      "sha256": "3459c9148b7e76ebd26dc6b8edfd9ceec0c0991172d3613051a528b8d5228bec",
+      "bytes": 1086311
+    },
+    "证据清单.json": {
+      "sha256": "100c53135c4a39b042062ac80185c6e9a72f6d24bd10cf6ddbd38bdfdf5b5063",
+      "bytes": 91220
+    },
+    "阶段进度记录.json": {
+      "sha256": "7c78d57c4b3934f81de7e7c32b140d95b84170e2d3f311513e2078dfcb148a05",
+      "bytes": 4444
+    }
+  }
+}
