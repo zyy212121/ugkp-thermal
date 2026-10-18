@@ -244,19 +244,98 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVIC
     for(int j=0;j<N+4;++j)if(!gasFinite(row[j]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2425,row[j],0,j);
     return true;
 }
+// Static storage errors remain errors inside a mathematical trial. Only the
+// property channels actually consumed by this wall at this temperature count.
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerTrialStorageAvailable(
+ const WallInput<R,N,TableReal>& in,R temperature,int node=-1){
+    if(!gasFinite(temperature)||temperature<=0)return true;
+    const auto& view=in.model.thermo;
+    const auto report=[&](ugkp::diagnostics::Code code,int species,double value){
+        auto* diagnostics=in.diagnostics?in.diagnostics:view.diagnostics;
+        ugkp::diagnostics::recordFatal(diagnostics,ugkp::diagnostics::makeRecord(code,2302,23,
+            node>=0?static_cast<unsigned>(node):in.diagnosticNode,
+            ugkp::diagnostics::EntityKind::Face,in.diagnosticEntity,species,value,0,0,
+            ugkp::diagnostics::Quantity::Index));
+        return false;
+    };
+    for(int species=0;species<N;++species){
+        if(!gasThermoDetail::validMetadata(species,view))
+            return report(ugkp::diagnostics::Code::MissingOperator,species,0);
+        const auto& data=view.species[species];
+        const int segment=data.model==SpeciesThermoModel::NASA7&&temperature>data.midTemperature?7:0;
+        const int required=data.model==SpeciesThermoModel::LinearCp?3:6;
+        const int available=view.coefficientCount-data.coefficientOffset-segment;
+        if(available<required)return report(ugkp::diagnostics::Code::InvalidIndex,species,available);
+        // H and Cp do not consume the seventh NASA coefficient. Gibbs-derived
+        // reverse rates do; unused entropy storage must remain optional.
+        const bool missingEntropy=data.model==SpeciesThermoModel::NASA7?available<7:!data.hasEntropyReference;
+        if(missingEntropy&&in.model.mode==GasMode::MixtureChemistry){
+            const auto& mechanism=in.model.mechanism;
+            // The immutable mechanism was checked by the real base residual.
+            for(int reaction=0;reaction<mechanism.reactionCount;++reaction){
+                const auto& channel=mechanism.reactions[reaction];if(!channel.reversible)continue;
+                for(int side=0;side<2;++side){const auto* terms=side?mechanism.products:mechanism.reactants;
+                    const int offset=side?channel.productOffset:channel.reactantOffset,count=side?channel.productCount:channel.reactantCount;
+                    for(int term=0;term<count;++term)if(terms[offset+term].species==species)
+                        return report(data.model==SpeciesThermoModel::NASA7?ugkp::diagnostics::Code::InvalidIndex:ugkp::diagnostics::Code::MissingOperator,species,data.model==SpeciesThermoModel::NASA7?available:0);
+                }
+            }
+        }
+    }
+    return true;
+}
+// Complete immutable tables need no per-node trial storage checks. An absent
+// unused branch only disables this fast path; it never rejects the model.
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerAllTrialStorageComplete(
+ const WallInput<R,N,TableReal>& in){
+    bool reversible=false;
+    if(in.model.mode==GasMode::MixtureChemistry){
+        const auto& mechanism=in.model.mechanism;
+        if(mechanism.reactionCount>0&&!mechanism.reactions)return false;
+        for(int i=0;i<mechanism.reactionCount;++i)reversible=reversible||mechanism.reactions[i].reversible;
+    }
+    const auto& view=in.model.thermo;
+    for(int species=0;species<N;++species){
+        if(!gasThermoDetail::validMetadata(species,view))return false;
+        const auto& data=view.species[species];
+        const int required=data.model==SpeciesThermoModel::NASA7?14:3;
+        if(view.coefficientCount-data.coefficientOffset<required)return false;
+        if(reversible&&data.model==SpeciesThermoModel::LinearCp&&!data.hasEntropyReference)return false;
+    }
+    return true;
+}
+template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD inline bool layerTrialRowStorageAvailable(
+ const WallInput<R,N,TableReal>& owner,const WallModelConfig<R>& c,const Rows& rows,int row){
+    if(row==c.nodes-1)return true; // Matching residual reads prescribed values only.
+    const int first=row?row-1:0,last=row+1;
+    for(int node=first;node<=last;++node)
+        if(!layerTrialStorageAvailable(owner,owner.temperature+rows[node][2],node))return false;
+    return true;
+}
 template<class R,int N,int M,class TableReal,class Team=SerialWallTeam>
 UGKWP_GAS_HD inline bool allResidual(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const R (&x)[M][N+4],const R* y,
- R (&f)[M][N+4],R& norm,const Team& team=Team{}){
+ R (&f)[M][N+4],R& norm,const Team& team=Team{},
+ const WallInput<R,N,TableReal>* storageOwner=nullptr,bool* storageAvailable=nullptr){
+    if(storageAvailable)*storageAvailable=true;
     if(std::is_same<Team,SerialWallTeam>::value){
-        norm=0;for(int i=0;i<c.nodes;++i){if(!layerRow(in,c,ctx,x,y,i,f[i]))return false;
+        norm=0;for(int i=0;i<c.nodes;++i){
+            if(storageOwner&&!layerTrialRowStorageAvailable(*storageOwner,c,x,i)){if(storageAvailable)*storageAvailable=false;return false;}
+            if(!layerRow(in,c,ctx,x,y,i,f[i]))return false;
             for(int j=0;j<N+4;++j)norm=max(norm,abs(f[i][j]));}
         return true;
     }
-    bool valid=true;
-    for(int i=team.rank();i<c.nodes;i+=team.size())
+    bool valid=true,storageValid=true;
+    for(int i=team.rank();i<c.nodes;i+=team.size()){
+        if(storageOwner&&!layerTrialRowStorageAvailable(*storageOwner,c,x,i)){storageValid=false;valid=false;break;}
         if(!layerRow(in,c,ctx,x,y,i,f[i])){valid=false;break;}
-    if(!team.all(valid))return false;
+    }
+    if(!team.all(valid)){
+        // Reuse the failed-residual communication point. Only rejected trials
+        // need this extra team reduction; no new device or normal-path barrier.
+        if(storageAvailable&&storageOwner)*storageAvailable=team.all(storageValid);
+        return false;
+    }
     // Retain the original node/component order, including max/NaN semantics.
     if(team.leader()){norm=0;for(int i=0;i<c.nodes;++i)
         for(int j=0;j<N+4;++j)norm=max(norm,abs(f[i][j]));}
@@ -270,6 +349,7 @@ UGKWP_GAS_HD inline bool applyLayerNewtonUpdate(const WallInput<R,N,TableReal>& 
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,
  R& norm,R& acceptedAlpha,const Team& team=Team{}){
     const R previous=norm;R alpha=1;acceptedAlpha=0;
+    const bool checkStorage=!layerAllTrialStorageComplete(in);
     auto candidateInput=in;candidateInput.diagnostics=nullptr;
     candidateInput.model.thermo.diagnostics=nullptr;
     // Retain the historical bounded bisection budget, without a case parameter.
@@ -277,7 +357,9 @@ UGKWP_GAS_HD inline bool applyLayerNewtonUpdate(const WallInput<R,N,TableReal>& 
         for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)
             w.trial[i][j]=w.state[i][j]+alpha*w.delta[i][j];
         team.sync();R next=0;
-        const bool valid=allResidual(candidateInput,c,ctx,w.trial,w.y,w.residual,next,team);
+        bool storageAvailable=true;
+        const bool valid=allResidual(candidateInput,c,ctx,w.trial,w.y,w.residual,next,team,checkStorage?&in:nullptr,&storageAvailable);
+        if(!storageAvailable)return false;
         if(valid&&gasFinite(next)&&next<previous){
             for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)
                 w.state[i][j]=w.trial[i][j];
@@ -308,25 +390,6 @@ template<class R,int N> struct PerturbedLayerState {
         for(int col=0;col<N+4;++col)row[col]=values[index][col];}
     UGKWP_GAS_HD const R* operator[](int index)const{return index==node?row:state[index];}
 };
-// Model storage is not a recoverable mathematical-domain failure. Check the
-// selected thermo segment before evaluating a speculative point without its
-// physical diagnostic context. No unused temperature segment is required.
-template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerTrialStorageAvailable(
- const WallInput<R,N,TableReal>& in,R temperature){
-    if(!gasFinite(temperature)||temperature<=0)return true;
-    const auto& view=in.model.thermo;
-    for(int species=0;species<N;++species){
-        if(!gasThermoDetail::validMetadata(species,view)){
-            (void)speciesH(species,temperature,view);return false;
-        }
-        const auto& data=view.species[species];
-        const int segment=data.model==SpeciesThermoModel::NASA7&&temperature>data.midTemperature?7:0;
-        const int required=data.model==SpeciesThermoModel::LinearCp?3:6;
-        const int available=view.coefficientCount-data.coefficientOffset-segment;
-        if(available<required){(void)speciesH(species,temperature,view);return false;}
-    }
-    return true;
-}
 template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool assembleJacobianNode(
  const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
  WallWorkspace<R,N,M>& w,int j){
@@ -353,7 +416,7 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool assembleJ
             for(int attempt=0;attempt<2&&!valid;++attempt){
                 perturbed.row[col]=old+h;
                 if(transfer)perturbed.row[donor]=oldDonor-h;
-                if(!layerTrialStorageAvailable(in,in.temperature+perturbed.row[2]))return false;
+                if(!layerTrialStorageAvailable(in,in.temperature+perturbed.row[2],j))return false;
                 cached.invalidate(j);valid=true;
                 for(int i=start;i<=end;++i)
                     if(!layerRow(derivativeInput,c,ctx,cached,w.y,i,rows[i-start])){valid=false;break;}
