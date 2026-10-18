@@ -576,7 +576,10 @@ namespace composition_detail {
         bool inside[Ns]{};
         for(int j=0;j<count;++j)inside[index[j]]=true;
         for(int i=0;i<Ns;++i){
-            if(!inside[i])Y[i]=outsideA[i]*rm+outsideB[i];
+            if(!inside[i]){
+                Real outside=0;
+                if(!productFinite(outsideA[i],rm,outside)||!sumFinite(outside,outsideB[i],Y[i]))return false;
+            }
             if(!finite(Y[i])||Y[i]<0||Y[i]>1)return false;
             Real d=Y[i]-bulk[i];
             objective+=d*d;
@@ -615,8 +618,17 @@ namespace composition_detail {
             gmin=minValue(gmin,r[index[j]]);
             gmax=maxValue(gmax,r[index[j]]);
         }
+        // A common positive scale preserves each affine constraint, including its
+        // solution ratio. In a pole eigenspace individual coefficients can approach
+        // MAX even though the feasible R interval is small and representable.
+        Real coefficientScale=maxValue(Real(1),maxValue(absValue(A),maxValue(absValue(B),maxValue(absValue(AR),absValue(BR)))));
+        Real scaledA=A/coefficientScale,scaledB=B/coefficientScale;
+        Real scaledAR=AR/coefficientScale,scaledBR=BR/coefficientScale,one=1/coefficientScale;
+        Real massBound=one-scaledB;
+        Real minCoefficient=(one-scaledAR)+gmin*scaledA,minRhs=scaledBR+gmin*massBound;
+        Real maxCoefficient=(one-scaledAR)+gmax*scaledA,maxRhs=scaledBR+gmax*massBound;
         if(!fixed && gmin==gmax){
-            Real coefficient=(1-AR)+gmin*A,rhs=BR+gmin*(1-B);
+            Real coefficient=minCoefficient,rhs=minRhs;
             if(coefficient!=0){
                 if(!quotientFinite(rhs,coefficient,fixedR))return false;
                 fixed=true;
@@ -626,9 +638,9 @@ namespace composition_detail {
             Real objective=0;
             return poleProfile(fixedR,index,count,r,bulk,a,b,A,B,AR,BR,Y,objective);
         }
-        if(!boundLinear(A,1-B,lo,hi)
-        || !boundLinear((AR-1)-gmin*A,-BR-gmin*(1-B),lo,hi)
-        || !boundLinear((1-AR)+gmax*A,BR+gmax*(1-B),lo,hi))return false;
+        if(!boundLinear(scaledA,massBound,lo,hi)
+        || !boundLinear(-minCoefficient,-minRhs,lo,hi)
+        || !boundLinear(maxCoefficient,maxRhs,lo,hi))return false;
         // With no nonzero group flux R remains free.  The feasible interval above is
         // convex, and squared distance to its affine simplex slice is convex in R.
         // Golden-section minimization selects the same nearest-bulk policy as simple
@@ -664,17 +676,18 @@ namespace composition_detail {
     CHMT_HD inline bool publishSelection(const Selection& best,const Real* bulk,const Real* Js,
         Real pressure,Real T,Real distance,const PhysicsConfig& p,Real tolerance,
         Real* out,Info& info,Info* suppliedInfo) {
-        if(best.certified){
-            info.state=best.converged?SolveState::Converged:SolveState::AdmissibleApproximation;
-            info.actualResidual=best.residual;
-        }
         if(suppliedInfo)*suppliedInfo=info;
         if(!best.certified)return false;
         Real finalF[Ns]{};
         if(!compositionResidual(best.value,bulk,Js,pressure,T,distance,p,finalF,nullptr))return false;
+        Real finalResidual=0;
+        for(int i=0;i<Ns;++i)finalResidual=maxValue(finalResidual,absValue(finalF[i]));
+        info.state=finalResidual<=tolerance?SolveState::Converged:SolveState::AdmissibleApproximation;
+        info.actualResidual=finalResidual;
+        if(suppliedInfo)*suppliedInfo=info;
         for(int i=0;i<Ns;++i)out[i]=best.value[i];
-        if(!best.converged || info.ambiguous)reportPhysicsWarning(p,
-        ugkp::diagnostics::Code::AccuracyResidual,3802,best.residual,tolerance);
+        if(info.state!=SolveState::Converged || info.ambiguous)reportPhysicsWarning(p,
+        ugkp::diagnostics::Code::AccuracyResidual,3802,finalResidual,tolerance);
         return true;
     }
 
@@ -860,12 +873,14 @@ namespace composition_detail {
         if(!certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,selected))return false;
         Real finalF[Ns]{};
         if(!compositionResidual(selected.value,bulk,Js,pressure,T,distance,p,finalF,nullptr))return false;
+        Real finalResidual=0;
+        for(int i=0;i<Ns;++i)finalResidual=maxValue(finalResidual,absValue(finalF[i]));
         if(suppliedInfo){
-            suppliedInfo->state=selected.converged?SolveState::Converged:SolveState::AdmissibleApproximation;
-            suppliedInfo->actualResidual=selected.residual;
+            suppliedInfo->state=finalResidual<=tolerance?SolveState::Converged:SolveState::AdmissibleApproximation;
+            suppliedInfo->actualResidual=finalResidual;
         }
         for(int i=0;i<Ns;++i)out[i]=selected.value[i];
-        if(!selected.converged)reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3807,selected.residual,tolerance);
+        if(finalResidual>tolerance)reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3807,finalResidual,tolerance);
         return true;
     }
 }

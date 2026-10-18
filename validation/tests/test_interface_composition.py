@@ -38,3 +38,6 @@ def test_exact_zero_and_pure_species(tmp_path,ns):
 
 def test_overflow_boundary_rounding(tmp_path):
     run(build(tmp_path,'arithmetic',2),10000)
+
+def test_extreme_pole_trial_does_not_trap(tmp_path):
+    run(build(tmp_path,'pole_arithmetic',10))
