@@ -1,5 +1,5 @@
 {
-  "stage": "全部验证完成，交付封装/推送",
+  "stage": "代码与证据已推送并读回；本次仅追加交付回执",
   "base": "d02a96ce86858b64e5a5dba676891798152addee",
   "main": "7c696b19b5510ef94cfbbf7eb837a00c29d74f0d",
   "workspace": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018",
@@ -24,39 +24,27 @@
     "四目标全部完整编译0、六程序ldd通过、构建期间源码0变化",
     "CHMT默认O2/fmad=true六组A/B完成，Ns10普通增量1.95/2.42倍、宽域1.16倍",
     "默认便携入口26项实际通过",
-    "最终455主要源文件与6共享生产程序首尾一致"
+    "最终455主要源文件与6共享生产程序首尾一致",
+    "PR19远端主分支与拉取引用均已读回38a60bfd；main仍7c696b19、PR未合并",
+    "报告/源码产物清单/索引/交付哈希/9.23MB原始证据归档五文件API读回逐字节一致"
   ],
-  "next": [
-    "压缩新增证据并提交",
-    "推送前读取远端引用；非强制推送PR19",
-    "读回远端与证据字节SHA，不执行合并"
-  ],
-  "updated_utc": "2026-10-18T12:19:48.586592+00:00",
+  "next": [],
+  "updated_utc": "2026-10-18T12:24:05.214947+00:00",
   "source_head": "1f18b12d7e0442f50d36130469c1c378980f10d7",
   "math_head": "ca421b47f9a545934c75686fd76527b9d17e6b7f",
   "merge_source": {
-    "source": "1f18b12d7e0442f50d36130469c1c378980f10d7",
-    "math_source": "ca421b47f9a545934c75686fd76527b9d17e6b7f",
     "main": "7c696b19b5510ef94cfbbf7eb837a00c29d74f0d",
-    "merge_head": "6fcb98832c2f6fdc3de53569043f67967da58851",
-    "merge_tree": "601ea6b38511321b76e469621e28d8c343851f29",
-    "pr_tree": "601ea6b38511321b76e469621e28d8c343851f29",
-    "full_tree_diff_exit": 0,
-    "command": [
-      "python3",
-      "-m",
-      "pytest",
-      "-q",
-      "validation/tests/test_interface_composition.py",
-      "-k",
-      "certified_result",
-      "--basetemp",
-      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-tmp/reuse-merge-test",
-      "--junitxml",
-      "/mnt/d/tempt/ugkp-pr19-composition-reuse-20261018/merge/test-results.xml"
-    ],
-    "exit": 0,
+    "pr_head": "38a60bfd1cd6949907c52b09b85d62c4572cb2cf",
+    "source": "1f18b12d7e0442f50d36130469c1c378980f10d7",
+    "merge_head": "d39646ee7a4e4c243284034b202ea68801dd8503",
+    "merge_tree": "6987c6e132b95d5b41048babaa1f1a086d92e9a9",
+    "pr_tree": "6987c6e132b95d5b41048babaa1f1a086d92e9a9",
     "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018",
+    "conflicts": false,
+    "full_tree_diff_exit": 0,
     "remote_merge_performed": false
-  }
+  },
+  "current_head": "38a60bfd1cd6949907c52b09b85d62c4572cb2cf",
+  "delivery_head": "38a60bfd1cd6949907c52b09b85d62c4572cb2cf",
+  "final_source_commit": "1f18b12d7e0442f50d36130469c1c378980f10d7"
 }

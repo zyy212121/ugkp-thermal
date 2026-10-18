@@ -55,3 +55,5 @@ Ns=10，模式2：1.372159958→0.567296028 ms，2.419倍
 fixtures/cpu_benchmark.cpp、counts.cpp、gpu_benchmark.cu是本轮实际输入生成器/计数/性能夹具；seed=74921固定，原始编译、运行、退出码完整保存于各commands.json。基线由git archive d02a96ce86858b64e5a5dba676891798152addee applications/CHMT common提取到独立目录，编译时-I指向该副本；当前版-I指向test，无需动正式库。原始历史执行脚本在execution-records，仅作证据，不能对最终源码再次应用编辑脚本。
 raw-evidence.tar.gz含本轮新增日志、JSON/XML、最小生成输入和必要脚本；不重复上传已在Git中的旧源码副本、旧交付归档或可再生程序。证据清单记录逐文件SHA与去重映射，源码与产物清单记录最终6程序及对象/库的哈希。
 合并判断：可以合并，针对上述源码以及仅追加交付材料的最终PR HEAD；实际合并等待用户确认。
+
+远端交付：代码与证据提交38a60bfd1cd6949907c52b09b85d62c4572cb2cf已推送，主分支仍7c696b19，PR保持open且未合并；五个报告/清单/归档经GitHub API逐字节读回。远端交付回执.json记录该提交、完整main合并树及SHA256。后续回执提交仅改本交付目录，最终远端HEAD和其读回结果登记在PR正文。
