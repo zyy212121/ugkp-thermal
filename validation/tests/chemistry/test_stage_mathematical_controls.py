@@ -49,3 +49,38 @@ int main(){using namespace ugkwp::gasChemistryDetail;
     subprocess.run(['g++','-std=c++17','-O2','-I',str(SOURCE_ROOT),str(source),'-o',str(executable)],check=True,capture_output=True,text=True)
     result=subprocess.run([str(executable)],capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr
+
+def test_newton_matrix_fault_reaches_real_adapter_with_fpe_enabled(tmp_path):
+    source=tmp_path/'fpe.cpp'
+    source.write_text(r'''#define _GNU_SOURCE
+#include "common/chemistry/NewtonFactor.H"
+#include "common/operators/advanceGasChemistryKernel.cuh"
+#include <cassert>
+#include <cfenv>
+#include <limits>
+int main(){using namespace ugkwp;using namespace ugkwp::gasChemistryDetail;
+    feenableexcept(FE_OVERFLOW|FE_DIVBYZERO|FE_INVALID);
+    double a[4]={1e-300,0,0,1},scale[2],rhs[2]={1e300,1};int pivot[2];DenseLinearFailure failure;
+    assert((factorNewton<double,2>(2,a,pivot,scale,&failure)));
+    assert((!solveNewton<double,2>(2,a,pivot,scale,rhs,&failure)));
+    assert(failure.quantity==DenseLinearQuantity::ScaledRightHandSide&&failure.row==0&&std::isinf(failure.value));
+    struct State:GasStateView<double,double,int>{GasSpeciesState<double,2> gasSpecies;}state;
+    ugkp::diagnostics::DeviceContext diagnostic{};state.diagnostics=&diagnostic;state.nCells=1;
+    ChemistryStatus status;status.code=ChemistryCode::SingularJacobian;status.linearFailure=failure;
+    gasChemistryAdapterDetail::recordFailure(state,0,status);
+    assert(diagnostic.fatalClaim&&diagnostic.firstFatal.sourceSiteId==2207);
+    assert(std::isinf(diagnostic.firstFatal.observed)&&diagnostic.firstFatal.component==0);
+    const double largest=std::numeric_limits<double>::max();double value=0;
+    assert(newtonQuotient(largest,1.,value)&&value==largest);
+    assert(!newtonQuotient(largest,std::nextafter(1.,0.),value)&&std::isinf(value));
+    assert(newtonQuotient(std::nextafter(largest,0.),std::nextafter(1.,0.),value)&&std::isfinite(value));
+    assert(newtonDifferenceProduct(largest,2.,largest,value)&&value==-largest);
+    assert(newtonDifferenceProduct(largest,-largest,std::numeric_limits<double>::epsilon()/4,value)&&value==largest);
+    double b[4]={1,1,1,1+4*std::numeric_limits<double>::epsilon()},r[2]={1e308,-1e308};
+    assert((factorNewton<double,2>(2,b,pivot,scale,&failure)));
+    assert((!solveNewton<double,2>(2,b,pivot,scale,r,&failure)));assert(std::isinf(failure.value));
+}''')
+    executable=tmp_path/'fpe'
+    subprocess.run(['g++','-std=c++17','-O2','-I',str(SOURCE_ROOT),str(source),'-o',str(executable)],check=True,capture_output=True,text=True)
+    result=subprocess.run([str(executable)],capture_output=True,text=True)
+    assert result.returncode==0,result.stdout+result.stderr

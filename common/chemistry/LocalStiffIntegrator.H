@@ -37,14 +37,16 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD UGKWP_CHEMISTRY_
  for(int i=0;i<N*N;++i)trialContext.leftInverse[i]=context.leftInverse[i];
  R f[N]={},masses[N],residual[N]={};
  ChemistryStatus local=context.evaluate(z,f,temperature,nullptr,masses);
- if(!hasUsableChemistryResult(local))return local;retainDiagnostic(status,local);
+ if(!hasUsableChemistryResult(local))return local;
+ retainDiagnostic(status,local);
  const int iterations=context.controls.maximumNewtonIterations>0?context.controls.maximumNewtonIterations:1;
  for(int iteration=0;iteration<=iterations;++iteration){
    for(int i=0;i<rank;++i)residual[i]=z[i]-rhs[i]-stageProduct(interval,coefficient,f[i]);
    const R norm=coordinateNorm(context,residual,masses);
    status.observed=double(norm);status.reference=double(context.controls.newtonTolerance);status.nonlinearIteration=iteration;
    if((norm<=context.controls.newtonTolerance&&(iteration>0||norm==R(0)))||iteration==iterations){
-      ChemistryStatus final=context.evaluate(z,f,temperature,nullptr,masses);if(!hasUsableChemistryResult(final))return final;retainDiagnostic(status,final);
+      ChemistryStatus final=context.evaluate(z,f,temperature,nullptr,masses);if(!hasUsableChemistryResult(final))return final;
+      retainDiagnostic(status,final);
       for(int i=0;i<rank;++i)residual[i]=z[i]-rhs[i]-stageProduct(interval,coefficient,f[i]);
       const R finalNorm=coordinateNorm(context,residual,masses);
       status.observed=double(finalNorm);status.reference=double(context.controls.newtonTolerance);
