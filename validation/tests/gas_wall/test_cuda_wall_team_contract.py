@@ -60,7 +60,7 @@ def test_actual_warp_team_contract_with_cpu_intrinsic_adapter(tmp_path):
 def test_adapter_rejects_missing_workspace_ordering(tmp_path,primitive):
     # Fault injection is confined to a private header copy; production is read-only.
     root=tmp_path/'mutant'
-    for name in ['common/gasWall/WallCudaTeam.cuh','common/gasWall/WallExecution.H','common/gasTransport/GasModel.H']:
+    for name in ['common/gasWall/WallCudaTeam.cuh','common/gasWall/WallExecution.H','common/gasTransport/GasModel.H','common/Diagnostics.H']:
         target=root/name;target.parent.mkdir(parents=True,exist_ok=True)
         target.write_bytes((SOURCE_ROOT/name).read_bytes())
     header=root/'common/gasWall/WallCudaTeam.cuh';text=header.read_text()
