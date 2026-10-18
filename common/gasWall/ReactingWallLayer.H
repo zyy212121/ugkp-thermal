@@ -357,7 +357,7 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool solveLayerNewtonSystem(
     for(int i=c.nodes-2;i>=0;--i)for(int row=0;row<B;++row){R sum=0;for(int col=0;col<B;++col)sum+=w.upper[i][row][col]*w.delta[i+1][col];w.delta[i][row]-=sum;}
     // A zero-species active constraint can acquire a negative step solely from
     // block elimination roundoff. Remove only O(epsilon) outward motion; the
-    // full Newton update remains single pass; finite Y is separately clipped.
+    // Newton globalization preserves the physical domain; finite Y is separately clipped.
     for(int i=0;i<c.nodes;++i){R scale=1;for(int j=3;j<N+2;++j)scale=max(scale,abs(w.delta[i][j]));
         const R roundoff=R(16*N)*std::numeric_limits<R>::epsilon()*scale;
         for(int j=3;j<N+2;++j)if(w.state[i][j]==0&&w.delta[i][j]<0&&-w.delta[i][j]<=roundoff)w.delta[i][j]=0;}

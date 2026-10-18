@@ -70,3 +70,20 @@ def test_exhausted_mathematical_search_restores_current_residual(tmp_path):
     assert(alpha==0&&norm==initial&&!diagnostics.fatalClaim);
     for(int i=0;i<model.config.nodes;++i)for(int j=0;j<6;++j){assert(workspace.state[i][j]==before.state[i][j]);assert(workspace.residual[i][j]==before.residual[i][j]);}
     ''')
+
+
+def test_finite_iteration_budget_warns_and_keeps_normal_publication(tmp_path):
+    run_cpp(tmp_path,r'''
+    CapturedSstWall model;ugkp::diagnostics::DeviceContext diagnostics{};
+    model.input.diagnostics=&diagnostics;model.config.maxIterations=0;
+    ugkwp::gaswall::WallWorkspace<double,2,24> workspace{};
+    ugkwp::gaswall::WallOutput<double,2> output{};ugkwp::gaswall::WallStatus status{};
+    assert(ugkwp::gaswall::evaluateReactingWallLayer(model.input,model.config,workspace,output,status));
+    assert(!diagnostics.fatalClaim&&diagnostics.warnings[1].count>0);
+    assert(diagnostics.warnings[1].sample.code==ugkp::diagnostics::Code::AccuracyResidual);
+    assert(diagnostics.warnings[1].sample.sourceSiteId==2422);
+    assert(output.residual>model.config.absoluteTolerance+model.config.relativeTolerance);
+    assert(std::isfinite(output.conductiveHeatFlux));
+    assert(workspace.state[0][5]==0);
+    for(int i=1;i<model.config.nodes;++i)assert(workspace.state[i][5]>0);
+    ''')
