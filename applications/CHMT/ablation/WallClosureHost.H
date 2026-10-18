@@ -78,7 +78,7 @@ public:
     bool sample(const HostState& state,const PhysicsConfig& p,std::vector<GasWallMatchingSample>& output,std::string& error)const{
         return sampleWith([&](int c,GasPrimitive& w,SstPrimitive& t){
             if(state.gas.empty()||state.gasMesh.volumes.empty())return false;
-            if(!recoverGas(state.gas[c],state.gasMesh.volumes[c],p,w))return false;
+            if(!recoverGas(state.gas[c],state.gasMesh.volumes[c],p,w,nullptr,c))return false;
             if(p.enableSst){if(state.sst.empty())return false;
                 t.k=state.sst[c].rhoK/state.gas[c].mass;t.omega=state.sst[c].rhoOmega/state.gas[c].mass;}
             return true;},p.enableSst,output,error);

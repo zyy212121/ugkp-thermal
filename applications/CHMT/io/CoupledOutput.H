@@ -21,7 +21,7 @@ inline bool writeAcceptedCoupledSummary(std::ostream& stream,const HostState& st
 inline bool writeAcceptedGasFields(std::ostream& stream,const HostState& state,
     const ModelConfig& model,std::string& error){
     std::vector<GasPrimitive> primitive(state.gas.size());
-    for(std::size_t c=0;c<state.gas.size();++c)if(!recoverGas(state.gas[c],state.gasMesh.volumes[c],model.physics,primitive[c])){
+    for(std::size_t c=0;c<state.gas.size();++c)if(!recoverGas(state.gas[c],state.gasMesh.volumes[c],model.physics,primitive[c],nullptr,static_cast<int>(c))){
         error="invalid accepted gas output";return false;}
     stream<<std::setprecision(17)<<"cell,volume,mass,momentum_x,momentum_y,momentum_z,total_energy,temperature,pressure";
     for(const auto& name:model.speciesNames){stream<<','<<std::quoted("mass_"+name);}

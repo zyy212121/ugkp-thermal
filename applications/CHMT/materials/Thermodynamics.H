@@ -1,6 +1,7 @@
 #ifndef CHMT_MATERIALS_THERMODYNAMICS_H
 #define CHMT_MATERIALS_THERMODYNAMICS_H
 #include "core/Configuration.H"
+#include "core/AuditArithmetic.H"
 #include "materials/GasThermoAdapter.H"
 #include <string>
 namespace chmt {
@@ -29,7 +30,7 @@ CHMT_HD inline bool validCondensed(const CondensedThermo& s) {
 }
 CHMT_HD inline bool closeEnough(Real a,Real b,Real absolute,Real relative) {
     if(!finite(a)||!finite(b)||!finite(absolute)||!finite(relative)||absolute<0||relative<0)return false;
-    const Real residual=a-b,tolerance=absolute+relative*maxValue(absValue(a),absValue(b));
+    const Real residual=auditDifference(a,b),tolerance=auditTolerance(absolute,relative,maxValue(absValue(a),absValue(b)));
     return finite(residual)&&finite(tolerance)&&absValue(residual)<=tolerance;
 }
 CHMT_HD inline Real caloricIntegral(Real a0,Real a1,Real a2,Real T) { return a0+T*(a1+0.5*a2*T); }
@@ -134,6 +135,9 @@ CHMT_HD inline bool recoverGas(const GasQ& q,Real volume,const PhysicsConfig& p,
     };
     if(!finite(volume)||volume<=0)return physicalFailure(volume,-1,ugkp::diagnostics::Quantity::Unspecified);
     if(!finite(q.mass)||q.mass<=0)return physicalFailure(q.mass,-1,ugkp::diagnostics::Quantity::Unspecified);
+    // Diagnose a true density overflow before executing the trapping division.
+    if(volume<1&&q.mass>std::numeric_limits<Real>::max()*volume)
+        return physicalFailure(std::numeric_limits<Real>::infinity(),-1,ugkp::diagnostics::Quantity::Density);
     const Real momentum[]={q.momentum.x,q.momentum.y,q.momentum.z};
     for(int d=0;d<3;++d)if(!finite(momentum[d]))return physicalFailure(momentum[d],d,ugkp::diagnostics::Quantity::Unspecified);
     if(!finite(q.energy))return physicalFailure(q.energy,-1,ugkp::diagnostics::Quantity::InternalEnergy);
@@ -144,14 +148,13 @@ CHMT_HD inline bool recoverGas(const GasQ& q,Real volume,const PhysicsConfig& p,
         if(!finite(Y))return physicalFailure(Y,s,ugkp::diagnostics::Quantity::MassFraction);
         if(!clipPhysicsMassFraction(p,Y,3810,s))return physicalFailure(Y,s,ugkp::diagnostics::Quantity::MassFraction);
         const Real m=q.mass*Y;masses[s]=m;
-        sum+=m;if(m==0)continue;
+        sum=auditAdd(sum,m);if(m==0)continue;
         if(!validSpecies(p.species[s]))return failStatus(status,ErrorCode::PropertyRange,index,s,ErrorLocation::Cell);
         const auto& t=p.species[s];R+=m*t.R;
         lo=maxValue(lo,t.Tmin);hi=minValue(hi,t.Tmax);
     }
-    if(!finite(sum))return failStatus(status,ErrorCode::Nonfinite,index,sum,ErrorLocation::Cell);
     if(!closeEnough(sum,q.mass,p.tolerances.absoluteMass,p.tolerances.relativeMass))
-        reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,3811,sum-q.mass,0);
+        reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,3811,auditDifference(sum,q.mass),0);
     const Vec3 velocity=q.momentum/q.mass;const Real kinetic=0.5*q.mass*dot(velocity,velocity);
     const GasThermoAdapter<Ns> thermo(p.species);
     const MaterialEnergyEvaluator energy{thermo.view(p.diagnostics),masses,0,0,0,p.species};
@@ -162,8 +165,9 @@ CHMT_HD inline bool recoverGas(const GasQ& q,Real volume,const PhysicsConfig& p,
     const Real Rmix=R/q.mass,cv=capacity/q.mass;
     candidate.pressure=candidate.rho*Rmix*T;candidate.soundSpeed=::sqrt((1+Rmix/cv)*Rmix*T);
     for(int s=0;s<Ns;++s)candidate.Y[s]=masses[s]/q.mass;
-    if(!finite(candidate.rho)||!finite(candidate.pressure)||!finite(candidate.soundSpeed))
-        return failStatus(status,ErrorCode::Nonfinite,index,T,ErrorLocation::Cell);
+    if(!finite(candidate.rho))return physicalFailure(candidate.rho,-1,ugkp::diagnostics::Quantity::Density);
+    if(!finite(candidate.pressure))return physicalFailure(candidate.pressure,-1,ugkp::diagnostics::Quantity::Pressure);
+    if(!finite(candidate.soundSpeed))return physicalFailure(candidate.soundSpeed,-1,ugkp::diagnostics::Quantity::Velocity);
     out=candidate;return true;
 }
 CHMT_HD inline bool recoverGas(const GasQ& q,Real volume,const PhysicsConfig& p,GasPrimitive& out) { return recoverGas(q,volume,p,out,nullptr,-1); }
@@ -229,12 +233,11 @@ CHMT_HD inline bool recoverFilm(const FilmQ& q,Real area,Real pressure,const Phy
         if(!finite(q.species[s]))return failStatus(status,ErrorCode::Nonfinite,index,q.species[s],ErrorLocation::Face);
         if(q.mass>0){Real fraction=q.species[s]/q.mass;
             if(!clipPhysicsMassFraction(p,fraction,3816,s))return failStatus(status,ErrorCode::Nonfinite,index,fraction,ErrorLocation::Face);
-            sum+=q.mass*fraction;
-        }else sum+=q.species[s];
+            sum=auditAdd(sum,q.mass*fraction);
+        }else sum=auditAdd(sum,q.species[s]);
     }
-    if(!finite(sum))return failStatus(status,ErrorCode::Nonfinite,index,sum,ErrorLocation::Face);
     if(!closeEnough(sum,q.mass,p.tolerances.absoluteMass,p.tolerances.relativeMass))
-        reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,3812,sum-q.mass,0);
+        reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,3812,auditDifference(sum,q.mass),0);
     FilmAux candidate=out;candidate.area=area;candidate.pressure=pressure;
     if(q.mass==0){
         if((q.enthalpy!=0||sum!=0))return failStatus(status,ErrorCode::Inventory,index,q.enthalpy,ErrorLocation::Face);

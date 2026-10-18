@@ -1,6 +1,7 @@
 #ifndef CHMT_COUPLING_EXCHANGELEDGER_IMPLEMENTATION
 #define CHMT_COUPLING_EXCHANGELEDGER_IMPLEMENTATION
 #include "ExchangeLedger.H"
+#include "core/AuditArithmetic.H"
 namespace chmt {
 CHMT_HD inline bool packetFailure(DeviceStatus* status,const ExchangePacket& p,ErrorCode code,Real value,ugkp::diagnostics::DeviceContext* diagnostics=nullptr,ugkp::diagnostics::Code detail=ugkp::diagnostics::Code::InvalidPhysicalState) {
     // A persistent face is uint64; index carries local film/gas/solid location,
@@ -16,8 +17,8 @@ CHMT_HD inline bool packetFailure(DeviceStatus* status,const ExchangePacket& p,E
 }
 CHMT_HD inline bool packetClose(Real value,Real target,Real absolute,Real relative,Real scale) {
     if(!finite(value)||!finite(target)||!finite(absolute)||!finite(relative)||!finite(scale)||absolute<0||relative<0||scale<0)return false;
-    const Real residual=value-target;
-    const Real tolerance=absolute+relative*maxValue(scale,maxValue(absValue(value),absValue(target)));
+    const Real residual=auditDifference(value,target);
+    const Real tolerance=auditTolerance(absolute,relative,maxValue(scale,maxValue(absValue(value),absValue(target))));
     return finite(residual)&&finite(tolerance)&&absValue(residual)<=tolerance;
 }
 CHMT_HD inline void packetResidual(ugkp::diagnostics::DeviceContext* diagnostics,Real observed,Real reference,int index=-1,int stage=0) {
@@ -40,9 +41,9 @@ CHMT_HD inline bool validatePacketMath(const ExchangePacket& p,const Tolerances&
     for(int s=0;s<Ns;++s){
         if(!finite(p.species[s])||!finite(p.pore[s])||!finite(p.poreSweep[s]))return packetFailure(status,p,ErrorCode::Nonfinite,!finite(p.species[s])?p.species[s]:!finite(p.pore[s])?p.pore[s]:p.poreSweep[s],tol.diagnostics);
         if(p.kind!=ExchangeKind::PoreGas&&p.poreSweep[s]!=0)return packetFailure(status,p,ErrorCode::Packet,p.poreSweep[s],tol.diagnostics);
-        sum+=p.species[s];scale+=absValue(p.species[s]);donor+=p.pore[s];donorScale+=absValue(p.pore[s]);
+        sum=auditAdd(sum,p.species[s]);scale=auditAdd(scale,absValue(p.species[s]));donor=auditAdd(donor,p.pore[s]);donorScale=auditAdd(donorScale,absValue(p.pore[s]));
     }
-    for(int c=0;c<Nc;++c){if(!finite(p.condensed[c]))return packetFailure(status,p,ErrorCode::Nonfinite,p.condensed[c],tol.diagnostics);donor+=p.condensed[c];donorScale+=absValue(p.condensed[c]);}
+    for(int c=0;c<Nc;++c){if(!finite(p.condensed[c]))return packetFailure(status,p,ErrorCode::Nonfinite,p.condensed[c],tol.diagnostics);donor=auditAdd(donor,p.condensed[c]);donorScale=auditAdd(donorScale,absValue(p.condensed[c]));}
     // Nonfinite audit reductions are reported below; physical components were checked above.
     // Deposition has no gas receiver and therefore no fictitious gas-species
     // equivalent. Its actual condensed/pore receiver still closes below.
@@ -58,8 +59,8 @@ CHMT_HD inline bool validatePacketMath(const ExchangePacket& p,const Tolerances&
             packetResidual(tol.diagnostics,p.pore[s],p.species[s],p.solidCell,p.stage);
     }
     if(!(required&ConsumeFilm)&&p.liquidKineticAdvection!=0)return packetFailure(status,p,ErrorCode::Packet,p.liquidKineticAdvection,tol.diagnostics);
-    const Real parts=p.conductive+p.advective+p.pressureWork+p.viscousWork+p.radiation;
-    const Real partScale=absValue(p.conductive)+absValue(p.advective)+absValue(p.pressureWork)+absValue(p.viscousWork)+absValue(p.radiation);
+    const Real parts=auditAdd(auditAdd(auditAdd(auditAdd(p.conductive,p.advective),p.pressureWork),p.viscousWork),p.radiation);
+    const Real partScale=auditAdd(auditAdd(auditAdd(auditAdd(absValue(p.conductive),absValue(p.advective)),absValue(p.pressureWork)),absValue(p.viscousWork)),absValue(p.radiation));
     // Overflow of the audit sum or absolute scale cannot invalidate finite packet fields.
     if(!packetClose(parts,p.energy,tol.absoluteEnergy,tol.relativeEnergy,partScale))packetResidual(tol.diagnostics,parts,p.energy,p.filmFace,p.stage);
     return true;
@@ -76,15 +77,15 @@ CHMT_HD inline bool validGasInventory(const GasQ& q,ugkp::diagnostics::DeviceCon
     if(!finite(q.mass)||q.mass<=0)return inventoryFailure(diagnostics,q.mass);
     if(!finite(q.momentum))return inventoryFailure(diagnostics,std::numeric_limits<Real>::quiet_NaN());
     if(!finite(q.energy))return inventoryFailure(diagnostics,q.energy);
-    Real sum=0;for(int s=0;s<Ns;++s){if(!finite(q.species[s])||q.species[s]<0)return inventoryFailure(diagnostics,q.species[s]);sum+=q.species[s];}
+    Real sum=0;for(int s=0;s<Ns;++s){if(!finite(q.species[s])||q.species[s]<0)return inventoryFailure(diagnostics,q.species[s]);sum=auditAdd(sum,q.species[s]);}
     if(!packetClose(sum,q.mass,1e-14,1e-10,sum))packetResidual(diagnostics,sum,q.mass);
     return true;
 }
 CHMT_HD inline bool validSolidInventory(const SolidQ& q,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
     if(!finite(q.energy))return inventoryFailure(diagnostics,q.energy);
     if(!finite(q.porosity)||q.porosity<0||q.porosity>=1)return inventoryFailure(diagnostics,q.porosity);
-    Real mass=0;for(int c=0;c<Nc;++c){if(!finite(q.condensed[c])||q.condensed[c]<0)return inventoryFailure(diagnostics,q.condensed[c]);mass+=q.condensed[c];}
-    for(int s=0;s<Ns;++s){if(!finite(q.pore[s])||q.pore[s]<0)return inventoryFailure(diagnostics,q.pore[s]);mass+=q.pore[s];}
+    Real mass=0;for(int c=0;c<Nc;++c){if(!finite(q.condensed[c])||q.condensed[c]<0)return inventoryFailure(diagnostics,q.condensed[c]);mass=auditAdd(mass,q.condensed[c]);}
+    for(int s=0;s<Ns;++s){if(!finite(q.pore[s])||q.pore[s]<0)return inventoryFailure(diagnostics,q.pore[s]);mass=auditAdd(mass,q.pore[s]);}
     for(int r=0;r<Nr;++r)if(!finite(q.progress[r])||q.progress[r]<0)return inventoryFailure(diagnostics,q.progress[r]);
     if(!finite(mass))packetResidual(diagnostics,mass,0);
     if(mass==0&&q.energy!=0)packetResidual(diagnostics,q.energy,0);
@@ -93,7 +94,7 @@ CHMT_HD inline bool validSolidInventory(const SolidQ& q,ugkp::diagnostics::Devic
 CHMT_HD inline bool validFilmInventory(const FilmQ& q,bool pendingStorage=false,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
     if(!finite(q.mass)||q.mass<0)return inventoryFailure(diagnostics,q.mass);
     if(!finite(q.enthalpy))return inventoryFailure(diagnostics,q.enthalpy);
-    Real sum=0;for(int s=0;s<Ns;++s){if(!finite(q.species[s])||q.species[s]<0)return inventoryFailure(diagnostics,q.species[s]);sum+=q.species[s];}
+    Real sum=0;for(int s=0;s<Ns;++s){if(!finite(q.species[s])||q.species[s]<0)return inventoryFailure(diagnostics,q.species[s]);sum=auditAdd(sum,q.species[s]);}
     if(!packetClose(sum,q.mass,1e-14,1e-10,sum))packetResidual(diagnostics,sum,q.mass);
     if(!pendingStorage&&q.mass==0&&q.enthalpy!=0)packetResidual(diagnostics,q.enthalpy,0);
     return true;
