@@ -49,3 +49,15 @@ def test_proven_unique_solution_avoids_polynomial_construction(tmp_path,ns):
 @pytest.mark.parametrize('ns',[1,2,10])
 def test_linear_uniqueness_proof_matches_all_off_diagonals(tmp_path,ns):
     run(build(tmp_path,'unique_proof',ns))
+
+@pytest.mark.parametrize('ns',[1,2,10])
+def test_certified_result_publishes_without_repeating_physical_evaluation(tmp_path,ns):
+    exe=tmp_path/('publication'+str(ns))
+    command=['g++','-std=c++14','-O1','-fno-inline','-finstrument-functions','-ffp-contract=off','-DUGKWP_GAS_SPECIES='+str(ns),'-I'+str(SOURCE_ROOT/'applications/CHMT'),'-I'+str(SOURCE_ROOT/'common'),str(FIXTURE/'publication.cpp'),'-o',str(exe)]
+    done=subprocess.run(command,capture_output=True,text=True)
+    assert done.returncode==0,done.stdout+done.stderr
+    run(exe)
+
+@pytest.mark.parametrize('ns',[1,2,10])
+def test_prepared_inputs_preserve_variable_density_residual_and_jacobian(tmp_path,ns):
+    run(build(tmp_path,'prepared',ns))

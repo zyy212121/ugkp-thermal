@@ -35,29 +35,54 @@ CHMT_HD inline bool compositionConfigurationFailure(const PhysicsConfig& p,Real 
     ugkp::diagnostics::Code code=ugkp::diagnostics::Code::InvalidPhysicalState) {
     return interfaceFailure(p,3842,value,component,code);
 }
+// Invocation-local fixed data. No candidate state, density or residual is cached
+// here. The owner keeps bulk, fluxes and PhysicsConfig immutable during the solve.
+struct CompositionResidualInputs {
+    Real gasR[Ns]{},totalFlux=0;
+};
 template<bool Report>
-CHMT_HD inline bool compositionResidualPolicy(const Real* Y,const Real* bulk,const Real* Js,
-    Real pressure,Real T,Real distance,const PhysicsConfig& p,Real* residual,Real* jacobian) {
-    using namespace composition_detail;
-    Real gasR[Ns]{},R=0,J=0,S=0,a[Ns]{},difference[Ns]{};
+CHMT_HD inline bool prepareCompositionResidual(const Real* bulk,const Real* Js,
+    const PhysicsConfig& p,CompositionResidualInputs& input) {
     for(int i=0;i<Ns;++i){
-        gasR[i]=p.species[i].R;
-        if(!finite(Y[i]))return compositionInputFailure<Report>(p,Y[i],i);
+        input.gasR[i]=p.species[i].R;
         if(!finite(bulk[i]))return compositionInputFailure<Report>(p,bulk[i],i);
         if(!finite(Js[i]))return compositionInputFailure<Report>(p,Js[i],i);
-        if(!finite(gasR[i])||gasR[i]<=0)return compositionInputFailure<Report>(p,gasR[i],i);
+        if(!finite(input.gasR[i])||input.gasR[i]<=0)return compositionInputFailure<Report>(p,input.gasR[i],i);
         if(!finite(p.gasDiffusivity[i])||p.gasDiffusivity[i]<0)
             return compositionInputFailure<Report>(p,p.gasDiffusivity[i],i);
     }
-    if(!scaledSum(gasR,Y,R)||!scaledSum(Js,nullptr,J))
+    if(!composition_detail::scaledSum(Js,nullptr,input.totalFlux))
+        return compositionArithmeticFailure<Report>(p,HUGE_VAL,-1);
+    return true;
+}
+template<bool Report>
+CHMT_HD inline bool compositionResidualPolicy(const Real* Y,const Real* bulk,const Real* Js,
+    Real pressure,Real T,Real distance,const PhysicsConfig& p,Real* residual,Real* jacobian,
+    const CompositionResidualInputs* prepared=nullptr) {
+    using namespace composition_detail;
+    Real localGasR[Ns]{},R=0,J=prepared?prepared->totalFlux:0,S=0,a[Ns]{},difference[Ns]{};
+    const Real* gasR=prepared?prepared->gasR:localGasR;
+    for(int i=0;i<Ns;++i){
+        if(!finite(Y[i]))return compositionInputFailure<Report>(p,Y[i],i);
+        if(!prepared){
+            localGasR[i]=p.species[i].R;
+            if(!finite(bulk[i]))return compositionInputFailure<Report>(p,bulk[i],i);
+            if(!finite(Js[i]))return compositionInputFailure<Report>(p,Js[i],i);
+            if(!finite(gasR[i])||gasR[i]<=0)return compositionInputFailure<Report>(p,gasR[i],i);
+            if(!finite(p.gasDiffusivity[i])||p.gasDiffusivity[i]<0)
+                return compositionInputFailure<Report>(p,p.gasDiffusivity[i],i);
+        }
+    }
+    if(!scaledSum(gasR,Y,R)||(!prepared&&!scaledSum(Js,nullptr,J)))
         return compositionArithmeticFailure<Report>(p,HUGE_VAL,-1);
     const Real denominators[]={R,pressure,T,distance};
     for(int component=0;component<4;++component)
         if(!finite(denominators[component])||!(denominators[component]>0))
             return compositionInputFailure<Report>(p,denominators[component],component);
+    DiffusionState diffusionState(pressure,T,distance,R);
     for(int i=0;i<Ns;++i){
         // Evaluate rho*D/distance without an overflowing intermediate product.
-        if(!diffusionScale(pressure,p.gasDiffusivity[i],T,distance,R,a[i])
+        if(!diffusionState.scale(p.gasDiffusivity[i],a[i])
             ||!sumFinite(Y[i],-bulk[i],difference[i]))
             return compositionArithmeticFailure<Report>(p,HUGE_VAL,i);
         Real term=0;
@@ -92,10 +117,12 @@ CHMT_HD inline bool interfaceComposition(const Real* Js,const Real* suppliedBulk
     Real pressure,Real T,Real distance,const PhysicsConfig& p,
     Real absoluteFluxTolerance,Real* out) {
  Real bulk[Ns]{},J=0,scale=0,sum=0,maxD=0;
+ CompositionResidualInputs inputs;
  const Real denominators[]={pressure,T,distance};
  for(int c=0;c<3;++c)if(!finite(denominators[c])||!(denominators[c]>0))
   return compositionInputFailure<true>(p,denominators[c],c+1);
  for(int i=0;i<Ns;++i){
+  inputs.gasR[i]=p.species[i].R;
   bulk[i]=suppliedBulk[i];if(!clipPhysicsMassFraction(p,bulk[i],3805,i))return false;
   if(!finite(Js[i]))return compositionConfigurationFailure(p,Js[i],i);
   if(!finite(p.gasDiffusivity[i])||p.gasDiffusivity[i]<0)
@@ -117,8 +144,9 @@ CHMT_HD inline bool interfaceComposition(const Real* Js,const Real* suppliedBulk
  if(!composition_detail::productFinite(p.tolerances.relativeMass,relativeScale,relative)
      ||!composition_detail::productFinite(relative,scale,relative)
      ||!composition_detail::sumFinite(absoluteFluxTolerance,relative,tolerance))tolerance=HUGE_VAL;
- if(maxD==0)return composition_detail::linearComposition(Js,bulk,J,pressure,T,distance,p,tolerance,out);
- return composition_detail::scalarSolve(Js,bulk,pressure,T,distance,p,tolerance,out);
+ inputs.totalFlux=J;
+ if(maxD==0)return composition_detail::linearComposition(Js,bulk,J,pressure,T,distance,p,tolerance,out,nullptr,&inputs);
+ return composition_detail::scalarSolve(Js,bulk,pressure,T,distance,p,tolerance,out,nullptr,&inputs);
 }
 // Both the primitive builder and the temperature preflight consume this same
 // selected species model; retain one source producer for its diagnostic site.

@@ -359,7 +359,8 @@ namespace composition_detail {
     };
 
     CHMT_HD inline bool certify(Real* Y,const Real* bulk,const Real* Js,Real pressure,
-    Real T,Real distance,const PhysicsConfig& supplied,Real tolerance,Selection& best, bool* solved=nullptr,bool allowApproximation=true) {
+    Real T,Real distance,const PhysicsConfig& supplied,Real tolerance,Selection& best, bool* solved=nullptr,bool allowApproximation=true,
+    const CompositionResidualInputs* prepared=nullptr) {
         if(solved)*solved=false;
         Real sum=0;
         for(int i=0;i<Ns;++i){
@@ -372,7 +373,7 @@ namespace composition_detail {
         if(absValue(sum-1)>roundoff*2)return false;
         const PhysicsConfig& p=supplied;
         Real f[Ns]{};
-        if(!compositionResidualPolicy<false>(Y,bulk,Js,pressure,T,distance,p,f,nullptr))return false;
+        if(!compositionResidualPolicy<false>(Y,bulk,Js,pressure,T,distance,p,f,nullptr,prepared))return false;
         Real norm=0,metric=0;
         for(int i=0;i<Ns;++i){
             norm=maxValue(norm,absValue(f[i]));
@@ -394,11 +395,11 @@ namespace composition_detail {
     }
 
     CHMT_HD inline void refine(Real* Y,const Real* bulk,const Real* Js,Real pressure,
-    Real T,Real distance,const PhysicsConfig& supplied,Info& info) {
+    Real T,Real distance,const PhysicsConfig& supplied,Info& info,const CompositionResidualInputs* prepared=nullptr) {
         const PhysicsConfig& p=supplied;
         for(int it=0;it<8;++it){
             Real f[Ns]{},jac[Ns*Ns]{};
-            if(!compositionResidualPolicy<false>(Y,bulk,Js,pressure,T,distance,p,f,jac))return;
+            if(!compositionResidualPolicy<false>(Y,bulk,Js,pressure,T,distance,p,f,jac,prepared))return;
             ++info.refine;
             Real m[Ns][Ns+1]{},sum=0;
             for(int i=0;i<Ns;++i)sum+=Y[i];
@@ -674,15 +675,14 @@ namespace composition_detail {
         return true;
     }
 
-    CHMT_HD inline bool publishSelection(const Selection& best,const Real* bulk,const Real* Js,
-        Real pressure,Real T,Real distance,const PhysicsConfig& p,Real tolerance,
+    CHMT_HD inline bool publishSelection(const Selection& best,const PhysicsConfig& p,Real tolerance,
         Real* out,Info& info,Info* suppliedInfo) {
         if(suppliedInfo)*suppliedInfo=info;
         if(!best.certified)return false;
-        Real finalF[Ns]{};
-        if(!compositionResidual(best.value,bulk,Js,pressure,T,distance,p,finalF,nullptr))return false;
-        Real finalResidual=0;
-        for(int i=0;i<Ns;++i)finalResidual=maxValue(finalResidual,absValue(finalF[i]));
+        // Selection owns the exact state and original-equation residual certified
+        // together in this invocation. Publishing changes neither state nor inputs;
+        // private certification suppresses only failures, with no success side effect.
+        const Real finalResidual=best.residual;
         info.state=finalResidual<=tolerance?SolveState::Converged:SolveState::AdmissibleApproximation;
         info.actualResidual=finalResidual;
         if(suppliedInfo)*suppliedInfo=info;
@@ -694,7 +694,8 @@ namespace composition_detail {
 
     CHMT_HD inline void boundaryCandidates(const Real* d,const Real* u,const Real* v,
         const Real* r,const Real* bulk,const Real* Js,Real pressure,Real T,Real distance,
-        const PhysicsConfig& trial,Real tolerance,Real a,Real b,Real rmin,Real rmax,Selection& best) {
+        const PhysicsConfig& trial,Real tolerance,Real a,Real b,Real rmin,Real rmax,Selection& best,
+        const CompositionResidualInputs* prepared) {
         // Pole eigenvalues are genuine possibilities (zero/repeated diffusion), not
         // removable singularities. Their normalized eigenspace is a convex slice.
         for(int i=0;i<Ns;++i){
@@ -703,15 +704,15 @@ namespace composition_detail {
             if(duplicate||-d[i]<a||-d[i]>b)continue;
             Real Y[Ns]{};
             if(recoverPole(d[i],d,u,v,r,bulk,rmin,rmax,Y))
-            certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false);
+            certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false,prepared);
         }
         // The closed admissible interval can contain a pure-species boundary root.
         for(int endpoint=0;endpoint<2;++endpoint){
             Real Y[Ns]{};
             if(recoverRoot(endpoint?b:a,d,u,v,r,Y)){
-                certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false);
+                certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false,prepared);
                 Real projected[Ns]{};simplexCandidate(Y,projected);
-                certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false);
+                certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false,prepared);
             }
         }
     }
@@ -755,7 +756,8 @@ namespace composition_detail {
     // avoids underflow of b*c. The original physical equations still certify it.
     CHMT_HD inline bool uniqueTwoSpecies(const Real* d,const Real* u,const Real* v,
         const Real* r,const Real* bulk,const Real* Js,Real pressure,Real T,
-        Real distance,const PhysicsConfig& p,Real tolerance,Selection& best) {
+        Real distance,const PhysicsConfig& p,Real tolerance,Selection& best,
+        const CompositionResidualInputs* prepared) {
         const Real a=u[0]*r[0]+v[0]-d[0],b=u[0]*r[1]+v[0];
         const Real c=u[1]*r[0]+v[1],e=u[1]*r[1]+v[1]-d[1];
         const Real half=(a-e)/2,root=::hypot(half,::sqrt(b)*::sqrt(c));
@@ -763,7 +765,7 @@ namespace composition_detail {
         if(half>=0){one=root+half;two=c;}else{one=b;two=root-half;}
         const Real sum=one+two;
         if(!quotientFinite(one,sum,Y[0])||!quotientFinite(two,sum,Y[1]))return false;
-        bool solved=false;certify(Y,bulk,Js,pressure,T,distance,p,tolerance,best,&solved,false);
+        bool solved=false;certify(Y,bulk,Js,pressure,T,distance,p,tolerance,best,&solved,false,prepared);
         return solved;
     }
 
@@ -774,7 +776,8 @@ namespace composition_detail {
     // established isolation/nearest-bulk selection policy below.
     CHMT_HD inline bool uniqueNewton(const Real* d,const Real* u,const Real* v,
         const Real* r,Real J,Real Db,const Real* bulk,const Real* Js,Real pressure,
-        Real T,Real distance,const PhysicsConfig& p,Real tolerance,Selection& best,Info& info) {
+        Real T,Real distance,const PhysicsConfig& p,Real tolerance,Selection& best,Info& info,
+        const CompositionResidualInputs* prepared) {
         Real Y[Ns];for(int i=0;i<Ns;++i)Y[i]=bulk[i];
         for(int iteration=0;iteration<8;++iteration){
             Real rm=0,dy=0;int dependent=0;
@@ -807,7 +810,7 @@ namespace composition_detail {
             changed=changed||next[dependent]!=Y[dependent];
             ++info.structuredIterations;
             bool solved=false;
-            certify(next,bulk,Js,pressure,T,distance,p,tolerance,best,&solved,false);
+            certify(next,bulk,Js,pressure,T,distance,p,tolerance,best,&solved,false,prepared);
             if(solved)return true;
             if(!changed)return false;
             for(int i=0;i<Ns;++i)Y[i]=next[i];
@@ -817,22 +820,26 @@ namespace composition_detail {
 
     CHMT_HD inline bool scalarSolve(const Real* Js,const Real* bulk,Real pressure,
     Real T,Real distance,const PhysicsConfig& p,Real tolerance,Real* out,
-    Info* suppliedInfo=nullptr) {
+    Info* suppliedInfo=nullptr,const CompositionResidualInputs* suppliedInputs=nullptr) {
         Info info;if(suppliedInfo)*suppliedInfo=info;
+        CompositionResidualInputs localInputs;
+        if(!suppliedInputs&&!prepareCompositionResidual<false>(bulk,Js,p,localInputs))return false;
+        const auto* prepared=suppliedInputs?suppliedInputs:&localInputs;
         Selection best;
         const PhysicsConfig& trial=p;
         Real initialY[Ns]{};
         for(int i=0;i<Ns;++i)initialY[i]=bulk[i];
-        if(certify(initialY,bulk,Js,pressure,T,distance,trial,tolerance,best)&&best.converged){
-            return publishSelection(best,bulk,Js,pressure,T,distance,p,tolerance,out,info,suppliedInfo);
+        if(certify(initialY,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,true,prepared)&&best.converged){
+            return publishSelection(best,p,tolerance,out,info,suppliedInfo);
         }
         best={};
         Real d[Ns]{},u[Ns]{},v[Ns]{},r[Ns]{},J=0,Db=0;
         Real Rref=0,scale=0,rmin=1,rmax=0,dmin=1.7976931348623157e308,dmax=0;
-        for(int i=0;i<Ns;++i)Rref=maxValue(Rref,p.species[i].R);
+        for(int i=0;i<Ns;++i)Rref=maxValue(Rref,prepared->gasR[i]);
+        DiffusionState referenceDiffusion(pressure,T,distance,Rref);
         for(int i=0;i<Ns;++i){
-            r[i]=p.species[i].R/Rref;
-            if(!diffusionScale(pressure,p.gasDiffusivity[i],T,distance,Rref,d[i]))return false;
+            r[i]=prepared->gasR[i]/Rref;
+            if(!referenceDiffusion.scale(p.gasDiffusivity[i],d[i]))return false;
             scale=maxValue(scale,maxValue(absValue(Js[i]),d[i]));
         }
         if(!(scale>0)||!finite(scale))return false;
@@ -874,9 +881,9 @@ namespace composition_detail {
         Real scaledJ=0,scaledDb=0;for(int i=0;i<Ns;++i){scaledJ+=u[i];scaledDb+=v[i];}
         if(positive){
             const bool solved=Ns==2
-                ?uniqueTwoSpecies(d,u,v,r,bulk,Js,pressure,T,distance,p,tolerance,best)
-                :uniqueNewton(d,u,v,r,scaledJ,scaledDb,bulk,Js,pressure,T,distance,p,tolerance,best,info);
-            if(solved)return publishSelection(best,bulk,Js,pressure,T,distance,p,tolerance,out,info,suppliedInfo);
+                ?uniqueTwoSpecies(d,u,v,r,bulk,Js,pressure,T,distance,p,tolerance,best,prepared)
+                :uniqueNewton(d,u,v,r,scaledJ,scaledDb,bulk,Js,pressure,T,distance,p,tolerance,best,info,prepared);
+            if(solved)return publishSelection(best,p,tolerance,out,info,suppliedInfo);
         }
         if(positive){Real lower=1.7976931348623157e308,upper=-lower;bool bounded=true;
             const Real rowGamma=(4*Ns+16)*epsilon/(1-(4*Ns+16)*epsilon);
@@ -920,7 +927,7 @@ namespace composition_detail {
         for(int i=0;i<cutCount;++i)if(!uniqueCount||cuts[i]!=cuts[uniqueCount-1])cuts[uniqueCount++]=cuts[i];
         cutCount=uniqueCount;
         // Preserve pole/endpoint ordering when multiple roots can compete.
-        if(!positive)boundaryCandidates(d,u,v,r,bulk,Js,pressure,T,distance,trial,tolerance,a,b,rmin,rmax,best);
+        if(!positive)boundaryCandidates(d,u,v,r,bulk,Js,pressure,T,distance,trial,tolerance,a,b,rmin,rmax,best,prepared);
         for(int segment=1;segment<cutCount;++segment){
             Real left=cuts[segment-1],right=cuts[segment];
             Poly poly=polynomial(left,right,d,u,v,r);
@@ -932,35 +939,35 @@ namespace composition_detail {
                 Real z=left+(right-left)*isolated[root],Y[Ns]{};
                 if(!recoverRoot(z,d,u,v,r,Y))continue;
                 bool solved=false;
-                bool rawPhysical=certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,best,&solved,genuine[root]);
-                if(positive&&best.converged)return publishSelection(best,bulk,Js,pressure,T,distance,p,tolerance,out,info,suppliedInfo);
+                bool rawPhysical=certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,best,&solved,genuine[root],prepared);
+                if(positive&&best.converged)return publishSelection(best,p,tolerance,out,info,suppliedInfo);
                 bool projectedSolved=false;
                 if(!solved){
                 Real projected[Ns]{};simplexCandidate(Y,projected);Selection projectedResult;
-                certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,projectedResult,&projectedSolved);
+                certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,projectedResult,&projectedSolved,true,prepared);
                 // Projection is only a mathematical candidate. A remote
                 // nonphysical eigenvector may not become a published finite
                 // approximation merely by projecting it into the simplex.
-                if(projectedSolved)certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false);
+                if(projectedSolved)certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false,prepared);
                 if(!solved&&!projectedSolved){
-                    refine(Y,bulk,Js,pressure,T,distance,trial,info);
-                    certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,best,&solved,genuine[root]&&rawPhysical);
+                    refine(Y,bulk,Js,pressure,T,distance,trial,info,prepared);
+                    certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,best,&solved,genuine[root]&&rawPhysical,prepared);
                     simplexCandidate(Y,projected);projectedResult={};
-                    certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,projectedResult,&projectedSolved);
-                    if(projectedSolved)certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false);
+                    certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,projectedResult,&projectedSolved,true,prepared);
+                    if(projectedSolved)certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false,prepared);
                 }
                 }
                 if(solved||projectedSolved)++info.legal;
-                if(positive&&best.converged)return publishSelection(best,bulk,Js,pressure,T,distance,p,tolerance,out,info,suppliedInfo);
+                if(positive&&best.converged)return publishSelection(best,p,tolerance,out,info,suppliedInfo);
             }
         }
-        if(positive)boundaryCandidates(d,u,v,r,bulk,Js,pressure,T,distance,trial,tolerance,a,b,rmin,rmax,best);
-        return publishSelection(best,bulk,Js,pressure,T,distance,p,tolerance,out,info,suppliedInfo);
+        if(positive)boundaryCandidates(d,u,v,r,bulk,Js,pressure,T,distance,trial,tolerance,a,b,rmin,rmax,best,prepared);
+        return publishSelection(best,p,tolerance,out,info,suppliedInfo);
     }
 
     CHMT_HD inline bool linearComposition(const Real* Js,const Real* bulk,Real J,
     Real pressure,Real T,Real distance,const PhysicsConfig& p,Real tolerance,Real* out,
-    Info* suppliedInfo=nullptr) {
+    Info* suppliedInfo=nullptr,const CompositionResidualInputs* suppliedInputs=nullptr) {
         if(suppliedInfo)*suppliedInfo=Info{};
         Real centered[Ns]{},Y[Ns]{},zero[Ns]{};
         int index[Ns]{};
@@ -979,12 +986,12 @@ namespace composition_detail {
         for(int i=0;i<Ns;++i)index[i]=i;
         projectMass(centered,zero,index,Ns,1,0,Y);
         const PhysicsConfig& trial=p;
+        CompositionResidualInputs localInputs;
+        if(!suppliedInputs&&!prepareCompositionResidual<false>(bulk,Js,p,localInputs))return false;
+        const auto* prepared=suppliedInputs?suppliedInputs:&localInputs;
         Selection selected;
-        if(!certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,selected))return false;
-        Real finalF[Ns]{};
-        if(!compositionResidual(selected.value,bulk,Js,pressure,T,distance,p,finalF,nullptr))return false;
-        Real finalResidual=0;
-        for(int i=0;i<Ns;++i)finalResidual=maxValue(finalResidual,absValue(finalF[i]));
+        if(!certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,selected,nullptr,true,prepared))return false;
+        const Real finalResidual=selected.residual;
         if(suppliedInfo){
             suppliedInfo->state=finalResidual<=tolerance?SolveState::Converged:SolveState::AdmissibleApproximation;
             suppliedInfo->actualResidual=finalResidual;
