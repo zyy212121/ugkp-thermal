@@ -167,7 +167,7 @@ def production_diagnostic_callsites():
     positions={'makeRecord':1,'wallFatal':2,'wallWarning':2,'reportPhysicsWarning':2,
                'clipPhysicsMassFraction':2,'gasRecordFaceFailure':3,
                'gasRecordEvaluatedFaceFailure':3,'gasRecordTransportDiagnostic':4,'failure':1,
-               'gasEddyFinite':3,'gasProducerScalarValid':3,'gasStencilIndexFailure':3,'interfaceFailure':1,'materialInversionFailure':1}
+               'gasEddyFinite':3,'gasProducerScalarValid':3,'gasStencilIndexFailure':3,'interfaceFailure':1,'materialInversionFailure':1,'reactionControlFailure':2}
     seen={}
     resolved_sources=set()
     for folder in ('common','applications'):

@@ -120,6 +120,13 @@ CHMT_HD inline bool interfaceComposition(const Real* Js,const Real* suppliedBulk
  if(maxD==0)return composition_detail::linearComposition(Js,bulk,J,pressure,T,distance,p,tolerance,out);
  return composition_detail::scalarSolve(Js,bulk,pressure,T,distance,p,tolerance,out);
 }
+// Both the primitive builder and the temperature preflight consume this same
+// selected species model; retain one source producer for its diagnostic site.
+CHMT_HD inline bool interfaceSpeciesModelFailure(const PhysicsConfig& p,Real value,
+    int component,Real reference=0) {
+    return interfaceFailure(p,3843,value,component,
+        ugkp::diagnostics::Code::MissingOperator,reference);
+}
 CHMT_HD inline bool makeInterfacePrimitive(const Real* suppliedY, Real T, Real pressure,
     Vec3 tangentialVelocity, Vec3 normal, Real normalSpeed, Real J,
     const PhysicsConfig& p, GasPrimitive& out,bool* numericalFailure=nullptr) {
@@ -131,9 +138,8 @@ CHMT_HD inline bool makeInterfacePrimitive(const Real* suppliedY, Real T, Real p
     const GasThermoAdapter<Ns> thermo(p.species);
     const auto thermoView=thermo.view(p.diagnostics);
     for (int s=0; s<Ns; ++s) {
-        if(!validSpecies(p.species[s]))return interfaceFailure(p,3843,
-            !finite(p.species[s].R)?p.species[s].R:static_cast<Real>(p.species[s].model),s,
-            ugkp::diagnostics::Code::MissingOperator,p.species[s].R);
+        if(!validSpecies(p.species[s]))return interfaceSpeciesModelFailure(p,
+            !finite(p.species[s].R)?p.species[s].R:static_cast<Real>(p.species[s].model),s,p.species[s].R);
         if(!finite(Y[s])||Y[s]<0)return interfaceFailure(p,3856,Y[s],s);
         if(!finite(T)||T<=0)return interfaceFailure(p,3857,T,-1);
         R+=Y[s]*p.species[s].R;
@@ -647,7 +653,7 @@ struct SurfaceRootTrace {
 };
 CHMT_HD inline bool surfaceTemperatureConfiguration(const SurfacePhysicsInput& in,const PhysicsConfig& p) {
     for(int species=0;species<Ns;++species)if(!validSpecies(p.species[species]))
-        return interfaceFailure(p,3843,static_cast<Real>(p.species[species].model),species,ugkp::diagnostics::Code::MissingOperator);
+        return interfaceSpeciesModelFailure(p,static_cast<Real>(p.species[species].model),species);
     if(p.wallModel.family!=ugkwp::gaswall::WallFamily::LowRe&&p.wallModel.family!=ugkwp::gaswall::WallFamily::BoundaryLayer)
         return interfaceFailure(p,3862,static_cast<Real>(p.wallModel.family),-1,ugkp::diagnostics::Code::MissingOperator);
     if(p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){
