@@ -1,5 +1,6 @@
 #include "GpuSolidThermalCoupler.H"
 #include "ThermalCouplingSchedule.H"
+#include "ThermalHostDiagnostics.H"
 
 #include "fixedGradientFvPatchFields.H"
 #include "directFvPatchFieldMapper.H"
@@ -335,6 +336,7 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
         std::numeric_limits<scalar>::quiet_NaN();
     scalar finalSurfaceResidual = std::numeric_limits<scalar>::quiet_NaN();
     scalar finalSurfaceFluxResidual = std::numeric_limits<scalar>::quiet_NaN();
+    scalar finalEnergyLimit = scalar(0);
 
     // Each gas surface needs one initial snapshot. The convergence pass below
     // updates it in place for the next iteration; owner-only patches need none.
@@ -470,7 +472,32 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
                 << linearPerformance.initialResidual()
                 << "; finalResidual=" << linearPerformance.finalResidual()
                 << "; singular=" << linearPerformance.singular();
-            solidFailure(reason.str());
+            FatalErrorInFunction
+                << reason.str().c_str() << "; time=" << mesh_.time().timeName()
+                << exit(FatalError);
+        }
+        if (!linearPerformance.converged() && hostDiagnosticWarningsEnabled())
+        {
+            const dictionary& linearControls = mesh_.solution().solverDict
+            (
+                candidate->select
+                (
+                    !mesh_.schemes().steady()
+                 && mesh_.data::lookupOrDefault<bool>("finalIteration", false)
+                )
+            );
+            const scalar absoluteLimit = linearControls.lookupOrDefault<scalar>("tolerance", 1e-6);
+            const scalar relativeLimit = linearControls.lookupOrDefault<scalar>("relTol", 0)
+                *linearPerformance.initialResidual();
+            WarningInFunction
+                << "solid linear solve did not converge; region=" << mesh_.name()
+                << "; time=" << mesh_.time().timeName()
+                << "; nonlinearIteration=" << iteration
+                << "; iterations=" << linearPerformance.nIterations()
+                << "; residual=" << linearPerformance.finalResidual()
+                << "; absoluteLimit=" << absoluteLimit
+                << "; relativeLimit=" << relativeLimit
+                << "; retaining computed candidate" << endl;
         }
         if (controls_.nonlinearAitken)
         {
@@ -584,10 +611,9 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
             relativeTemperatureChange(previous, candidate->primitiveField());
         const bool temperatureConverged =
             finalTemperatureResidual <= controls_.nonlinearRelativeTolerance;
-        const bool energyConverged =
-            mag(finalResidual)
-         <= controls_.energyAbsoluteTolerance
+        finalEnergyLimit = controls_.energyAbsoluteTolerance
           + controls_.energyRelativeTolerance*energyScale;
+        const bool energyConverged = mag(finalResidual) <= finalEnergyLimit;
         const bool surfaceConverged =
             max(finalSurfaceResidual, finalSurfaceFluxResidual)
          <= controls_.nonlinearRelativeTolerance;
@@ -596,6 +622,21 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
             return GpuSolidThermalCandidate(candidate, finalResidual, iteration);
         }
         previous = candidate->primitiveField();
+    }
+
+    if (hostDiagnosticWarningsEnabled())
+    {
+        WarningInFunction
+            << "solid nonlinear iteration budget exhausted; region=" << mesh_.name()
+            << "; time=" << mesh_.time().timeName()
+            << "; iterations=" << max(label(1), controls_.nonlinearMaxIterations)
+            << "; temperatureResidual=" << finalTemperatureResidual
+            << "; surfaceTemperatureResidual=" << finalSurfaceResidual
+            << "; surfaceFluxResidual=" << finalSurfaceFluxResidual
+            << "; relativeLimit=" << controls_.nonlinearRelativeTolerance
+            << "; energyResidualJ=" << finalResidual
+            << "; energyLimitJ=" << finalEnergyLimit
+            << "; retaining computed candidate" << endl;
     }
 
     return GpuSolidThermalCandidate
@@ -2056,6 +2097,23 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
                 {
                     break;
                 }
+                if
+                (
+                    interfaceIteration + 1
+                 == max(label(1), data_->solidInterfaceMaxIterations)
+                 && hostDiagnosticWarningsEnabled()
+                )
+                {
+                    WarningInFunction
+                        << "solid interface iteration budget exhausted; time="
+                        << data_->fluidMesh.time().timeName()
+                        << "; iterations=" << interfaceIteration + 1
+                        << "; temperatureResidual=" << temperatureResidual
+                        << "; temperatureLimit=" << data_->solidInterfaceTemperatureTolerance
+                        << "; energyResidual=" << energyDifference/energyScale
+                        << "; energyLimit=" << data_->solidInterfaceEnergyTolerance
+                        << "; retaining computed candidates" << endl;
+                }
             }
 
         }
@@ -2280,7 +2338,9 @@ label GpuSolidThermalCoupler::persistAtWriteTime
       : runTime.write();
     if (!fieldWriteSucceeded)
     {
-        solidFailure("ordinary OpenFOAM field write failed during thermal persistence");
+        FatalIOErrorInFunction(runTime.controlDict())
+            << "ordinary OpenFOAM field write failed during thermal persistence; time="
+            << runTime.timeName() << exit(FatalIOError);
     }
     ThermalRestartPreflight::commitManifestAtomically
     (

@@ -78,12 +78,16 @@ template<class S,class T>void advanceGasChemistryKernel(S*s,T dt,const Real*v){i
             # Host CUDA shims execute the real scalar math once per CTA owner;
             # cooperative math/barriers have separate threaded oracle tests.
             api+=r'''
-template<bool Capture,class GasState> void evaluateGasBoundaryLayerTeamKernel(GasState* state){
+template<bool Capture,int Capacity=0,class GasState> void evaluateGasBoundaryLayerTeamKernel(GasState* state){
  if(threadIdx.x)return;
  const int worker=blockIdx.x,workers=state->gasBoundaryLayerModel.workspaceCount;
  if(worker>=workers || !ugkwp::gasBoundaryLayerEnabled(*state))return;
- for(int slot=worker;slot<state->gasBoundaryLayer.count;slot+=workers)
-  ugkwp::evaluateGasBoundaryLayerSlot<Capture>(*state,slot,worker);
+ for(int slot=worker;slot<state->gasBoundaryLayer.count;slot+=workers){
+  if constexpr(Capacity>0)
+   ugkwp::evaluateGasBoundaryLayerSlot<Capture,Capacity>(*state,slot,worker,ugkwp::gaswall::detail::SerialWallTeam{});
+  else
+   ugkwp::evaluateGasBoundaryLayerSlot<Capture>(*state,slot,worker,ugkwp::gaswall::detail::SerialWallTeam{});
+ }
 }
 '''
         api+=launches(function(native,'template<bool Capture> int launchBoundaryLayer(DeviceState* s)'))

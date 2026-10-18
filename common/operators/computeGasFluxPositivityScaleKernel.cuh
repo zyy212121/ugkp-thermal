@@ -64,7 +64,7 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
         {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
         inventoryVolume=volumes[c];
         if(!ugkwp::gasFinite(inventoryVolume))
-            ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry);
+        {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);return;}
         inventoryVolumeComputed=true;
         const GPU_OPERATOR_REAL availableMass =
             clampMin(s.rho[c] - s.rhoMin, GPU_OPERATOR_R(0.0))*inventoryVolume;
@@ -92,11 +92,17 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
                     const int f=s.cellFaceId[start+i];
                     if (f<0 || f>=s.nFaces) continue;
                     const GPU_OPERATOR_REAL flux=s.gasSpecies.flux[k*s.nFaces+f];
-                    if (!ugkwp::gasFinite(flux))
-                    { ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState); }
+                if(!ugkwp::gasFinite(flux))
+                {
+                    using namespace ugkp::diagnostics;
+                    if(s.diagnostics)recordFatal(s.diagnostics,makeRecord(Code::NonFinite,2673,32,0,EntityKind::Face,f,k,flux));
+                    ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);return;
+                }
                     if (s.faceOwner[f]==c && flux>GPU_OPERATOR_R(0.0)) outflow+=flux;
                     else if (s.faceNeighbour[f]==c && flux<GPU_OPERATOR_R(0.0)) outflow-=flux;
                 }
+                if(!ugkwp::gasFinite(outflow))
+                {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);return;}
                 GPU_OPERATOR_REAL factor=GPU_OPERATOR_R(1.0);
                 if (dt>GPU_OPERATOR_R(0.0) && outflow>GPU_OPERATOR_R(0.0))
                 {
@@ -110,7 +116,7 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
                         {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
                         inventoryVolume=volumes[c];
                         if(!ugkwp::gasFinite(inventoryVolume))
-                        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");}
+                        {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);return;}
                         inventoryVolumeComputed=true;
                     }
                     const GPU_OPERATOR_REAL available=s.gasSpecies.rho[k*s.nCells+c]*inventoryVolume;
@@ -159,6 +165,12 @@ __global__ void applyGasFluxPositivityScaleKernel(GasState* sp, const bool nativ
             for (int k=0; k<ugkwp::GasStateTraits<GasState>::speciesCount; ++k)
             {
                 const GPU_OPERATOR_REAL flux=s.gasSpecies.flux[k*s.nFaces+f];
+                if(!ugkwp::gasFinite(flux))
+                {
+                    using namespace ugkp::diagnostics;
+                    if(s.diagnostics)recordFatal(s.diagnostics,makeRecord(Code::NonFinite,2674,32,0,EntityKind::Face,f,k,flux));
+                    ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);return;
+                }
                 const int donor=flux>GPU_OPERATOR_R(0.0)?s.faceOwner[f]:coupledFaceNeighbour(s,f);
                 if (flux!=GPU_OPERATOR_R(0.0) && donor>=0 && donor<s.nCells)
                     scale=fmin(scale,s.gasSpecies.positivityScale[k*s.nCells+donor]);
@@ -168,8 +180,12 @@ __global__ void applyGasFluxPositivityScaleKernel(GasState* sp, const bool nativ
             // Net-zero counterflow still checks each gas-side species donor.
             if(ugkwp::gasBoundaryLayerFaceSlot(s,f)>=0)
             {
-                if(nativeRefinement && scale<GPU_OPERATOR_R(1.0))
-                {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NegativeInventory);return;}
+                if(scale<GPU_OPERATOR_R(1.0))
+                {
+                    using namespace ugkp::diagnostics;
+                    recordWarning(s.diagnostics,makeRecord(Code::AccuracyResidual,2672,32,0,
+                        EntityKind::Face,f,-1,scale,1,scale,Quantity::Accuracy));
+                }
                 scale=GPU_OPERATOR_R(1.0);
             }
             for (int k=0; k<ugkwp::GasStateTraits<GasState>::speciesCount; ++k)

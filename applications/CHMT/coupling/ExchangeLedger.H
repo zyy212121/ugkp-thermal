@@ -42,12 +42,12 @@ CHMT_HD bool validatePacketMath(const ExchangePacket&,const Tolerances&,DeviceSt
 // Raw staged delta helper: caller MUST mark the successful consumer bit on the
 // uniquely owned packet before another invocation. It is not a stand-alone
 // consumer. Prefer applyPacketTransaction or consumePacket wrappers.
-CHMT_HD bool applyPacketDelta(const ExchangePacket&,unsigned consumerBit,GasQ* gas,SolidQ* solid,FilmQ* film,DeviceStatus* status=nullptr,bool pendingFilmStorage=false);
+CHMT_HD bool applyPacketDelta(const ExchangePacket&,unsigned consumerBit,GasQ* gas,SolidQ* solid,FilmQ* film,DeviceStatus* status=nullptr,bool pendingFilmStorage=false,ugkp::diagnostics::DeviceContext* diagnostics=nullptr);
 bool validatePacket(const ExchangePacket&,const PhysicsConfig&,std::string& error);
-bool consumePacket(ExchangePacket&,unsigned consumerBit,GasQ* gas,SolidQ* solid,FilmQ* film,std::string& error);
+bool consumePacket(ExchangePacket&,unsigned consumerBit,GasQ* gas,SolidQ* solid,FilmQ* film,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics=nullptr);
 CHMT_HD bool applyPacketTransaction(ExchangePacket&,GasQ*,SolidQ*,FilmQ*,FilmPressureVolumeUpdate*,const Tolerances&,DeviceStatus* status=nullptr);
-bool consumePacketTransaction(ExchangePacket&,GasQ*,SolidQ*,FilmQ*,FilmPressureVolumeUpdate*,std::string& error);
-bool consumeFilmPressureVolume(FilmPressureVolumeUpdate&,FilmQ&,std::string& error);
+bool consumePacketTransaction(ExchangePacket&,GasQ*,SolidQ*,FilmQ*,FilmPressureVolumeUpdate*,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics=nullptr);
+bool consumeFilmPressureVolume(FilmPressureVolumeUpdate&,FilmQ&,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics=nullptr);
 // Generic particle transfer uses the same packetDelta, but ParticleQ's mass,
 // velocity and thermal-energy convention requires its owner to atomically
 // consume both particle and receiver. The host API above rejects ConsumeParticle.

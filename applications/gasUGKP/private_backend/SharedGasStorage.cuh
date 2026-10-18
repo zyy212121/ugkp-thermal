@@ -6,8 +6,6 @@
 #include <utility>
 template<class State,class=void>struct SharedGasGraphStorage:std::false_type{};
 template<class State>struct SharedGasGraphStorage<State,std::void_t<decltype(std::declval<State>().gasGraphDt)>>:std::true_type{};
-template<class State,class=void>struct SharedGasSnapshotStorage:std::false_type{};
-template<class State>struct SharedGasSnapshotStorage<State,std::void_t<decltype(std::declval<State>().gasTrial.trial.valid),decltype(std::declval<State>().gasTrial.interval.valid)>>:std::true_type{};
 template<class State>void invalidateSharedGasConfiguration(State* state,bool recapture=true)
 {
 
@@ -15,8 +13,6 @@ template<class State>void invalidateSharedGasConfiguration(State* state,bool rec
 
     if constexpr(SharedGasGraphStorage<State>::value)
         if(recapture)state->gasGraphDt=std::numeric_limits<double>::quiet_NaN();
-    if constexpr(SharedGasSnapshotStorage<State>::value)
-        state->gasTrial.trial.valid=state->gasTrial.interval.valid=false;
     if constexpr(ugkwp::GasBoundaryLayerCapability<State>::value)
         state->gasBoundaryLayer.preparedFirstStage=false;
 }

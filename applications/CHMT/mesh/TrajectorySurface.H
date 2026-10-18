@@ -13,9 +13,5 @@ bool rebuildTrajectorySurface(const HostMesh& oldGas, const HostMesh& oldSolid,
     Real interval, SurfaceMesh& output, std::string& error, const Tolerances& tolerances=Tolerances{},bool* numericalFailure=nullptr);
 bool rebuildTrajectorySurface(const HostState& base, const HostMesh& gasEndpoint,
     const HostMesh& solidEndpoint, Real interval, SurfaceMesh& output, std::string& error, const Tolerances& tolerances=Tolerances{},bool* numericalFailure=nullptr);
-namespace detail {
-bool completeTrajectorySurface(const HostMesh&,const HostMesh&,const SurfaceMesh&,const HostMesh&,const HostMesh&,
-    Real,SurfaceMesh&,std::string&,const Tolerances& =Tolerances{},bool* numericalFailure=nullptr);
-}
 }
 #endif

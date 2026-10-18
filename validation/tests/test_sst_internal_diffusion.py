@@ -39,6 +39,7 @@ def test_sst_internal_diffusion_and_stability(tmp_path):
     using R=GpuReal;
     R clampMin(R a,R b){return std::max(a,b);} R clampRange(R a,R b,R c){return std::max(b,std::min(a,c));} R finiteOr(R a,R b){return std::isfinite(a)?a:b;}
     struct DeviceState {
+ ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
      int faceOwner[1]={0},faceNeighbour[1]={1},riemannBoundaryKind[1]={0},riemannBoundaryUFix[1]={1};
      int nInternalFaces=1,sstWallTreatment=0; bool periodic=false;
      R rho[2]={2,8},sstF1[2]={1,0},nut[2]={3,1},faceWeight[1]={.25},gasMu=.2,rhoMin=1e-6;

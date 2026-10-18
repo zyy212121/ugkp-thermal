@@ -7,6 +7,7 @@ namespace ugkwp { namespace gaswall {
 // Workspace temperature is compensated relative to the prescribed wall value.
 template<class R,int N,int M> UGKWP_GAS_HD inline R reactingWallProfileTemperature(
  const WallInput<R,N>& input,const WallWorkspace<R,N,M>& workspace,int node){
+    if(node<0||node>=M){detail::wallFatal(input,ugkp::diagnostics::Code::InvalidIndex,10023,node,ugkp::diagnostics::Quantity::Index);return std::numeric_limits<R>::quiet_NaN();}
     return input.temperature+workspace.state[node][2];
 }
 // Values decoded directly from the solved workspace, in mechanism species order.
@@ -17,6 +18,7 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool reactingWallProfileNode(
  const WallInput<R,N>& input,const WallModelConfig<R>& config,
  const WallWorkspace<R,N,M>& workspace,int node,const detail::LayerContext<R,N>& context,
  WallProfileNode<R,N>& result){
+    if(node<0||node>=config.nodes||node>=M)return detail::wallFatal(input,ugkp::diagnostics::Code::InvalidIndex,10024,node,ugkp::diagnostics::Quantity::Index);
     detail::LayerPoint<R,N> point;
     if(!detail::pointState(input,config,context,workspace.state[node],point,true))return false;
     result.y=workspace.y[node];result.temperature=point.T;
@@ -41,6 +43,7 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool evaluateWallModel(
  WallOutput<R,N>& output,WallStatus& status){
     if(config.model==BoundaryLayerModel::ConstantTransport)return evaluateConstantTransportWall(input,config,output,status);
     if(config.model==BoundaryLayerModel::ReactingSst)return evaluateReactingWallLayer(input,config,workspace,output,status);
-    return detail::fail(status,WallCode::Unsupported);
+    detail::fail(status,WallCode::Unsupported);
+    return detail::wallFatal(input,ugkp::diagnostics::Code::MissingOperator,10025);
 }
 }}

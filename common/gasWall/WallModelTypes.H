@@ -1,5 +1,6 @@
 #pragma once
 #include "../GpuPrecisionTypes.H"
+#include "../Diagnostics.H"
 #include <type_traits>
 #include "../gasTransport/MixtureThermo.H"
 #include "../chemistry/GasRates.H"
@@ -38,6 +39,9 @@ template<class R> struct WallOwnerQuadrature {
     R volume=0,firstMoment=0; // m^3 and integral y dV, from actual owner geometry.
 };
 template<class R,int N,class TableReal=R> struct WallInput {
+    ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
+    std::int64_t diagnosticEntity=-1;
+    std::uint32_t diagnosticNode=0;
     R pressure=0,temperature=0,massFlux[N]{},velocity[3]{},normal[3]{};
     R matchingDistance=0,ownerDistance=0;
     WallMatchingState<R,N> matching;
@@ -82,38 +86,61 @@ template<class R> UGKWP_GAS_HD inline R dot(const R* a,const R* b){return a[0]*b
 template<class R> UGKWP_GAS_HD inline R expRatio(R x){return abs(x)<R(1e-5)?R(1)-x/R(2)+x*x/R(12)-x*x*x*x/R(720):x/::expm1(x);}
 
 
+template<class R,int N,class T> UGKWP_GAS_HD inline bool wallFatal(const WallInput<R,N,T>& in,
+ ugkp::diagnostics::Code code,unsigned site,double value=0,unsigned quantity=0,int component=-1){
+    if(in.diagnostics)ugkp::diagnostics::recordFatal(in.diagnostics,ugkp::diagnostics::makeRecord(code,site,23,in.diagnosticNode,
+        ugkp::diagnostics::EntityKind::Face,in.diagnosticEntity,component,value,0,0,quantity));
+    return false;
+}
+template<class R,int N,class T> UGKWP_GAS_HD inline void wallWarning(const WallInput<R,N,T>& in,
+ ugkp::diagnostics::Code code,unsigned site,double value,double bound,double corrected=0,int component=-1){
+    ugkp::diagnostics::recordWarning(in.diagnostics,ugkp::diagnostics::makeRecord(code,site,23,in.diagnosticNode,
+        ugkp::diagnostics::EntityKind::Face,in.diagnosticEntity,component,value,bound,corrected,
+        code==ugkp::diagnostics::Code::FiniteYClip?ugkp::diagnostics::Quantity::MassFraction:(code==ugkp::diagnostics::Code::ConservationResidual?ugkp::diagnostics::Quantity::Conservation:ugkp::diagnostics::Quantity::Accuracy)));
+}
+template<class R,int N,class T> UGKWP_GAS_HD inline bool wallFraction(const WallInput<R,N,T>& in,R value,R& clipped,int species){
+    if(!gasFinite(value))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2401,value,ugkp::diagnostics::Quantity::MassFraction,species);
+    clipped=min(R(1),max(R(0),value));
+    if(clipped!=value)wallWarning(in,ugkp::diagnostics::Code::FiniteYClip,2402,value,value<0?0:1,clipped,species);
+    return true;
+}
 template<bool Enthalpy,class R,int N,class TableReal> UGKWP_GAS_HD inline R wallProperty(
  int species,R temperature,const SpeciesThermoView<TableReal,N>& thermo,bool* evaluated=nullptr){
-    const R original=Enthalpy?speciesH(species,temperature,thermo):speciesCp(species,temperature,thermo);
-    if(gasFinite(original)){if(evaluated)*evaluated=true;return original;}
-    gasThermoDetail::SpeciesValues<R> values;bool available=false;
-    gasThermoDetail::evaluateSpecies<R,N,TableReal,true,Enthalpy>(species,temperature,thermo,values,&available);
-    if(evaluated)*evaluated=available;
-    return available?(Enthalpy?values.h:values.cp):gasThermoDetail::invalidValue<R>();
+    const R value=Enthalpy?speciesH(species,temperature,thermo):speciesCp(species,temperature,thermo);
+    if(evaluated)*evaluated=gasFinite(value);
+    return value;
 }
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool validateInput(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,WallStatus& s){
     s=WallStatus{};
+    if(ugkp::diagnostics::hasFatal(in.diagnostics))return false;
 
-    if(!in.model.thermo.species||!in.model.thermo.coefficients)return fail(s,WallCode::InvalidThermodynamics);
-    if(!gasFinite(in.pressure)||!gasFinite(in.temperature)||!gasFinite(in.matching.temperature)
-        ||!gasFinite(in.matchingDistance)||!gasFinite(in.ownerDistance)
-        ||!gasFinite(in.model.molecularPrandtl)||!gasFinite(in.model.viscosity)
-        ||!gasFinite(in.model.conductivity))s.code=WallCode::InvalidInput;
-    for(int d=0;d<3;++d)if(!gasFinite(in.normal[d])||!gasFinite(in.velocity[d])
-        ||!gasFinite(in.matching.velocity[d]))s.code=WallCode::InvalidInput;
-    for(int j=0;j<N;++j){if(!gasFinite(in.massFlux[j])||!gasFinite(in.matching.massFraction[j])
-        ||!gasFinite(in.model.diffusivity[j]))s.code=WallCode::InvalidInput;}
-    if(!gasFinite(c.relativeTolerance)||!gasFinite(c.absoluteTolerance)||!gasFinite(c.stretch)
-        ||!gasFinite(c.turbulentPrandtl)||!gasFinite(c.turbulentSchmidt))s.code=WallCode::InvalidInput;
+    if(!in.model.thermo.species||!in.model.thermo.coefficients){fail(s,WallCode::InvalidThermodynamics);return wallFatal(in,ugkp::diagnostics::Code::MissingOperator,10026);}
+    const R scalarValues[]={in.pressure,in.temperature,in.matching.temperature,in.matchingDistance,in.ownerDistance,
+        in.model.molecularPrandtl,in.model.viscosity,in.model.conductivity,c.relativeTolerance,c.absoluteTolerance,c.stretch,c.turbulentPrandtl,c.turbulentSchmidt};
+    for(int i=0;i<13;++i)if(!gasFinite(scalarValues[i])){
+        fail(s,WallCode::InvalidInput);
+        return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2403,scalarValues[i],i==0?ugkp::diagnostics::Quantity::Pressure:(i<3?ugkp::diagnostics::Quantity::Temperature:0),i);
+    }
+    for(int d=0;d<3;++d){const R values[]={in.normal[d],in.velocity[d],in.matching.velocity[d]};
+        for(int j=0;j<3;++j)if(!gasFinite(values[j])){fail(s,WallCode::InvalidInput);return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10027,values[j],ugkp::diagnostics::Quantity::Velocity,3*j+d);}}
+    for(int j=0;j<N;++j){const R values[]={in.massFlux[j],in.matching.massFraction[j],in.model.diffusivity[j]};
+        for(int k=0;k<3;++k)if(!gasFinite(values[k])){fail(s,WallCode::InvalidInput);return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10028,values[k],k==1?ugkp::diagnostics::Quantity::MassFraction:0,j);}}
+    for(int j=0;j<N;++j){const R molarMass=in.model.thermo.species[j].molarMass;
+        if(!gasFinite(molarMass)||molarMass==0){fail(s,WallCode::InvalidThermodynamics);return wallFatal(in,gasFinite(molarMass)?ugkp::diagnostics::Code::ZeroDenominator:ugkp::diagnostics::Code::NonFinite,2405,molarMass,ugkp::diagnostics::Quantity::Denominator,j);}}
+    if(in.temperature<=0||in.matching.temperature<=0){fail(s,WallCode::InvalidInput);return wallFatal(in,ugkp::diagnostics::Code::NegativeTemperature,2404,in.temperature<=0?in.temperature:in.matching.temperature,ugkp::diagnostics::Quantity::Temperature);}
+    if(in.matchingDistance==0||in.pressure==0){fail(s,WallCode::InvalidInput);return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10029,in.matchingDistance==0?in.matchingDistance:in.pressure);}
     return true;
 }
+// The legacy terminalProfile argument remains source-compatible, but never
+// bypasses physical validity or selects an alternate thermodynamic profile.
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool trace(const WallInput<R,N,TableReal>& in,const R* Y,WallOutput<R,N>& out,const bool terminalProfile=false){
     if(!in.model.thermo.species)return false;
     R gasR=0,m=0;for(int j=0;j<N;++j){gasR+=Y[j]*universalGasConstant<R>()/in.model.thermo.species[j].molarMass;m+=in.massFlux[j];out.traceMassFraction[j]=Y[j];out.wallSpeciesFlux[j]=in.massFlux[j];}
     out.traceTemperature=in.temperature;out.traceDensity=in.pressure/(gasR*in.temperature);
     for(int d=0;d<3;++d)out.traceVelocity[d]=in.velocity[d]+in.normal[d]*m/out.traceDensity;
-    if(!terminalProfile&&!gasFinite(out.traceDensity))return false;
-    for(int d=0;d<3;++d)if(!terminalProfile&&!gasFinite(out.traceVelocity[d]))return false;
+    if(!gasFinite(out.traceDensity))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2406,out.traceDensity,ugkp::diagnostics::Quantity::Density);
+    for(int d=0;d<3;++d)if(!gasFinite(out.traceVelocity[d]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10030,out.traceVelocity[d],ugkp::diagnostics::Quantity::Velocity,d);
+    (void)terminalProfile;
     return true;
 }
 } // detail

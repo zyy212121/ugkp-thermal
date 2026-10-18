@@ -1,4 +1,5 @@
 #pragma once
+#include "gasStencilDiagnostics.cuh"
 #include "gasTransport/SpeciesDiffusion.H"
 #include "gasTransport/GasGeometryValidation.H"
 #ifndef GPU_GAS_WALL_EXPOSURE
@@ -26,6 +27,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
 
     if (f < 0 || f >= s.nFaces)
     {
+        ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage,2602,26,ugkp::diagnostics::Quantity::Index);
         return false;
     }
     if (!s.faceOwner || !gasCoupledFaceStorageAvailable(s,f))
@@ -36,6 +38,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
     const int own = s.faceOwner[f];
     if (own < 0 || own >= s.nCells)
     {
+        using namespace ugkp::diagnostics;
+        if(s.diagnostics)recordFatal(s.diagnostics,makeRecord(Code::InvalidIndex,10040,26,0,EntityKind::Face,f,-1,own,0,0,Quantity::Index));
         if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
         return false;
     }
@@ -43,10 +47,14 @@ __device__ bool computeRiemannGasFaceFluxDevice
     const int nei = coupledFaceNeighbour(s, f);
     if(nei>=s.nCells || (nei<0 && !s.riemannBoundaryKind))
     {
+        using namespace ugkp::diagnostics;
+        if(nei>=s.nCells && s.diagnostics)recordFatal(s.diagnostics,makeRecord(Code::InvalidIndex,10041,26,0,EntityKind::Face,f,-1,nei,0,0,Quantity::Index));
         if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
         return false;
     }
     const int boundaryKind = nei >= 0 ? 0 : s.riemannBoundaryKind[f];
+    if(nei<0 && (boundaryKind==1 || boundaryKind==2) && s.riemannBoundaryTFix[f]
+        && !gasProducerScalarValid(s,own,s.riemannBoundaryT[f],30030,true))return false;
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
     {
         if (ugkwp::mixtureGasActive(s))
@@ -58,7 +66,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 return false;
             }
             if (s.gasSpecies.cellStatus[own]!=0 || (nei>=0 && s.gasSpecies.cellStatus[nei]!=0))
-            { ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);numericalSuccess=false;if(nativeRefinement)return false; }
+            { gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);return false; }
 
         }
     }
@@ -98,11 +106,11 @@ __device__ bool computeRiemannGasFaceFluxDevice
             if(!ready)
             {if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return false;}
             if(nativeRefinement && boundaryKind!=2)
-            {if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return false;}
+            {if(!gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return false;}
             const auto& exchange=wall.exchange[slot];
             bool wallNumerical=true;
             if(!finiteDevice(exchange.mass))
-            {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);wallNumerical=false;if(nativeRefinement)return false;}
+            {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);return false;}
             massFluxArea=exchange.mass;
             if constexpr(!MassOnly)
             {
@@ -120,8 +128,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 if(!finiteDevice(exchange.matchingPressure)
                     || !finiteDevice(local.p)
                     || ugkwp::gasFaceFailure(s,f)!=0)
-                {const bool recorded=ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);
-                    wallNumerical=false;if(nativeRefinement){if(!recorded)asm("trap;");return false;}}
+                {const bool recorded=gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);
+                    if(!recorded)asm("trap;");return false;}
                 if(!gasBoundaryMeshNormalSpeed(s,f,meshNormal,nativeRefinement))return false;
                 const GPU_OPERATOR_REAL pressureCorrection=local.p-exchange.matchingPressure;
                 momFluxXArea+=pressureCorrection*s.Sfx[f];
@@ -131,7 +139,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 if(!finiteDevice(momFluxXArea) || !finiteDevice(momFluxYArea)
                     || !finiteDevice(momFluxZArea) || !finiteDevice(energyFluxArea))
                 {const bool recorded=ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);
-                    wallNumerical=false;if(nativeRefinement){if(!recorded)asm("trap;");return false;}}
+                    if(!recorded)asm("trap;");return false;}
                 if constexpr(ugkwp::GasStateTraits<GasState>::speciesCount>0)
                     if(ugkwp::mixtureGasActive(s))
                     {
@@ -167,31 +175,32 @@ __device__ bool computeRiemannGasFaceFluxDevice
             if(!ugkwp::gasGeometryFaceFrame(s,f,s.gasGeometry.interval,meshFrame,&frameEvaluated))
             {
                 numericalSuccess=false;
-                if(!ugkwp::gasRecordFaceFailure(s,f,frameEvaluated?ugkwp::GasTransportCode::InvalidGeometry:ugkwp::GasTransportCode::InvalidStorage)
+                if(!gasRecordEvaluatedFaceFailure(s,f,frameEvaluated?ugkwp::GasTransportCode::InvalidGeometry:ugkwp::GasTransportCode::InvalidStorage)
                     && (nativeRefinement || !frameEvaluated))asm("trap;");
-                if(nativeRefinement || !frameEvaluated)return false;
+                return false;
             }
             if(ugkwp::gasFaceFailure(s,f)!=0 || ugkwp::gasCellFailure(s,own)!=0
                 || (nei>=0 && ugkwp::gasCellFailure(s,nei)!=0))
             {
                 numericalSuccess=false;
                 if((nativeRefinement || ugkwp::gasFaceFailure(s,f)==0)
-                    && !ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics)
+                    && !gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics)
                     && nativeRefinement)asm("trap;");
-                if(nativeRefinement)return false;
+                return false;
             }
 
         }
     if(boundaryKind==3 || boundaryKind==4)
     {
         if(moving && meshFrame.meshVolumeRate!=GPU_OPERATOR_R(0.0))
-            if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
+            if(!gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
         return false;
     }
     // Preserve ALE validation above before the mass-only impermeable shortcut.
     if constexpr (MassOnly)
         if (boundaryKind == 1 || boundaryKind == 2) return true;
     GasPrimDevice left = reconstructGasCellToFace(s,own,f,nativeRefinement);
+    if(ugkp::diagnostics::hasFatal(s.diagnostics))return false;
     GasPrimDevice right = left;
 
     GPU_OPERATOR_REAL massFlux = GPU_OPERATOR_R(0.0);
@@ -234,6 +243,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
           ? reconstructGasCellToFace(s,nei,f,nativeRefinement)
           : (ugkwp::mixtureGasActive(s) && s.gasReconstruction==1)
             ? left : riemannExteriorStateForFace(s, f, left,nativeRefinement);
+        if(ugkp::diagnostics::hasFatal(s.diagnostics))return false;
         if (s.gasReconstruction == 1 && nei >= 0 && !ugkwp::mixtureGasActive(s))
         {
             const ugkpriemann::Primitive ownerCentre
@@ -280,6 +290,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     neighbourCentre.uz - ownerCentre.uz,
                     neighbourCentre.p - ownerCentre.p
                 };
+                ugkpcharacteristic::Failure characteristicFailure;
                 ugkpcharacteristic::limitFacePair
                 (
                     leftIncrement,
@@ -290,8 +301,17 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     nz,
                     roe.density,
                     roe.soundSpeed,
-                    s.faceWeight[f]
+                    s.faceWeight[f], &characteristicFailure
                 );
+                if(characteristicFailure.failed)
+                {
+                    using namespace ugkp::diagnostics;
+                    const auto code=characteristicFailure.zeroDenominator?Code::ZeroDenominator:
+                        (::isfinite(characteristicFailure.value)?Code::InvalidPhysicalState:Code::NonFinite);
+                    recordFatal(s.diagnostics,makeRecord(code,30401,26,0,EntityKind::Face,f,
+                        characteristicFailure.component,characteristicFailure.value,0,0,Quantity::LinearSystem));
+                    return false;
+                }
                 left = makeGasPrimDevice
                 (
                     ownerCentre.rho + leftIncrement.rho,
@@ -327,9 +347,11 @@ __device__ bool computeRiemannGasFaceFluxDevice
         ugkpriemann::Scheme scheme;
         if (!ugkpriemann::schemeFromCreateCode(s.gasFluxScheme, scheme))
         {
-            numericalSuccess=false;
+            using namespace ugkp::diagnostics;
+            recordFatal(s.diagnostics,makeRecord(Code::MissingOperator,2606,26,0,
+                EntityKind::Face,f,-1,s.gasFluxScheme));
             ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::UnsupportedConfiguration);
-
+            return false;
         }
         GPU_OPERATOR_REAL hllcAdcOmega = GPU_OPERATOR_R(1.0);
         if (scheme == ugkpriemann::Scheme::HLLC_ADC && !ugkwp::mixtureGasActive(s))
@@ -360,6 +382,15 @@ __device__ bool computeRiemannGasFaceFluxDevice
         {
             if (ugkwp::mixtureGasActive(s))
             {
+                if((s.gasFluxScheme!=1 && s.gasFluxScheme!=2)
+                    || (s.gasReconstruction!=0 && s.gasReconstruction!=1))
+                {
+                    using namespace ugkp::diagnostics;
+                    recordFatal(s.diagnostics,makeRecord(Code::MissingOperator,10042,26,0,
+                        EntityKind::Face,f,s.gasFluxScheme,s.gasReconstruction));
+                    ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::UnsupportedConfiguration);
+                    return false;
+                }
                 // A composition contact carries formation energy through the
                 // very same Rusanov dissipation applied to partial densities.
                 // Derived Real flux input only: never feeds back into rhoE storage.
@@ -379,18 +410,19 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 }
                 else
                 {
-                    if(s.gasSpecies.faceStatus[f]!=0){numericalSuccess=false;if(nativeRefinement)return false;}
+                    if(s.gasSpecies.faceStatus[f]!=0){return false;}
                     GPU_OPERATOR_REAL boundaryY[Ns];
                     if(s.gasReconstruction==1)
                     {
                         bool reconstructionEvaluated=false;
                         if(!reconstructGasMixtureFace(s,own,f,left,boundaryY,nativeRefinement,&reconstructionEvaluated))
-                        {ugkwp::gasRecordFaceFailure(s,f,!nativeRefinement&&!reconstructionEvaluated?ugkwp::GasTransportCode::InvalidStorage:ugkwp::GasTransportCode::InvalidThermodynamics);numericalSuccess=false;if(nativeRefinement || !reconstructionEvaluated)return false;}
+                        {ugkwp::gasRecordFaceFailure(s,f,!nativeRefinement&&!reconstructionEvaluated?ugkwp::GasTransportCode::InvalidStorage:ugkwp::GasTransportCode::InvalidThermodynamics);return false;}
                         right=riemannBoundaryState(s,f,left,boundaryY,nativeRefinement);
+                        if(ugkp::diagnostics::hasFatal(s.diagnostics))return false;
                         rightRiemann={right.rho,right.ux,right.uy,right.uz,right.p};
                     }
                     else for(int k=0;k<Ns;++k)boundaryY[k]=s.gasSpecies.rho[k*s.nCells+own]/s.rho[own];
-                    if(s.gasSpecies.faceStatus[f]!=0){numericalSuccess=false;if(nativeRefinement)return false;}
+                    if(s.gasSpecies.faceStatus[f]!=0){return false;}
                     for(int k=0;k<Ns;++k)rightSpecies[k]=right.rho*
                         (s.gasSpecies.compositionBoundaryFixed[f]!=0?s.gasSpecies.boundaryMassFraction[k*s.nFaces+f]
                             :boundaryY[k]);
@@ -401,7 +433,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     else
                     {
                         const auto caloric=ugkwp::evaluateMixtureEnergy<false,GPU_OPERATOR_REAL,Ns,TableReal,true,true>(rightSpecies,right.T,s.gasSpecies.thermo,mixtureEnergy,capacity,&thermoEvaluated);
-                        if(caloric!=ugkwp::ThermoStatus::Success){ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);numericalSuccess=false;}
+                        if(caloric!=ugkwp::ThermoStatus::Success){gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);return false;}
                     }
                     if(!thermoEvaluated){ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return false;}
                     const GPU_OPERATOR_REAL cv=capacity/right.rho;
@@ -415,7 +447,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     GPU_OPERATOR_REAL y[Ns];
                     bool reconstructionEvaluated=false;
                     if(!reconstructGasMixtureFace(s,own,f,left,y,nativeRefinement,&reconstructionEvaluated))
-                    {ugkwp::gasRecordFaceFailure(s,f,!nativeRefinement&&!reconstructionEvaluated?ugkwp::GasTransportCode::InvalidStorage:ugkwp::GasTransportCode::InvalidThermodynamics);numericalSuccess=false;if(nativeRefinement || !reconstructionEvaluated)return false;}
+                    {ugkwp::gasRecordFaceFailure(s,f,!nativeRefinement&&!reconstructionEvaluated?ugkwp::GasTransportCode::InvalidStorage:ugkwp::GasTransportCode::InvalidThermodynamics);return false;}
                     for(int k=0;k<Ns;++k)leftSpecies[k]=left.rho*y[k];
                     GPU_OPERATOR_REAL leftEnergy;bool leftThermoEvaluated=false;
                     if(nativeRefinement)
@@ -423,7 +455,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     else
                     {
                         const auto caloric=ugkwp::evaluateMixtureInternalEnergy(leftSpecies,left.T,s.gasSpecies.thermo,leftEnergy,&leftThermoEvaluated);
-                        if(caloric!=ugkwp::ThermoStatus::Success){ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);numericalSuccess=false;}
+                        if(caloric!=ugkwp::ThermoStatus::Success){gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);return false;}
                     }
                     if(!leftThermoEvaluated){ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return false;}
                     leftConserved=ugkpriemann::Conservative{{left.rho,left.rho*left.ux,left.rho*left.uy,left.rho*left.uz,
@@ -436,7 +468,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     {
                         bool evaluated=false;
                         const auto caloric=ugkwp::evaluateMixtureHeatCapacity(y,left.T,s.gasSpecies.thermo,cv,&evaluated);
-                        if(caloric!=ugkwp::ThermoStatus::Success){ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);numericalSuccess=false;}
+                        if(caloric!=ugkwp::ThermoStatus::Success){gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);return false;}
                         if(!evaluated){ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return false;}
                     }
                     leftSound=sqrt((cv+R)/cv*R*left.T);
@@ -444,7 +476,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     {
                         bool reconstructionEvaluated=false;
                         if(!reconstructGasMixtureFace(s,nei,f,right,y,nativeRefinement,&reconstructionEvaluated))
-                        {ugkwp::gasRecordFaceFailure(s,f,!nativeRefinement&&!reconstructionEvaluated?ugkwp::GasTransportCode::InvalidStorage:ugkwp::GasTransportCode::InvalidThermodynamics);numericalSuccess=false;if(nativeRefinement || !reconstructionEvaluated)return false;}
+                        {ugkwp::gasRecordFaceFailure(s,f,!nativeRefinement&&!reconstructionEvaluated?ugkwp::GasTransportCode::InvalidStorage:ugkwp::GasTransportCode::InvalidThermodynamics);return false;}
                         for(int k=0;k<Ns;++k)rightSpecies[k]=right.rho*y[k];
                         GPU_OPERATOR_REAL rightEnergy;bool rightThermoEvaluated=false;
                         if(nativeRefinement)
@@ -452,7 +484,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                         else
                         {
                             const auto caloric=ugkwp::evaluateMixtureInternalEnergy(rightSpecies,right.T,s.gasSpecies.thermo,rightEnergy,&rightThermoEvaluated);
-                            if(caloric!=ugkwp::ThermoStatus::Success){ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);numericalSuccess=false;}
+                            if(caloric!=ugkwp::ThermoStatus::Success){gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);return false;}
                         }
                         if(!rightThermoEvaluated){ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return false;}
                         rightConserved=ugkpriemann::Conservative{{right.rho,right.rho*right.ux,right.rho*right.uy,right.rho*right.uz,
@@ -465,7 +497,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                         {
                             bool evaluated=false;
                             const auto caloric=ugkwp::evaluateMixtureHeatCapacity(y,right.T,s.gasSpecies.thermo,cvright,&evaluated);
-                            if(caloric!=ugkwp::ThermoStatus::Success){ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);numericalSuccess=false;}
+                            if(caloric!=ugkwp::ThermoStatus::Success){gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);return false;}
                             if(!evaluated){ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return false;}
                         }
                         rightSound=sqrt((cvright+Rright)/cvright*Rright*right.T);
@@ -479,18 +511,23 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     const bool rightShift=(!nativeRefinement || leftShift)
                         &&ugkwp::shiftGasStateToFaceFrame(rightRiemann,rightConserved,meshFrame,rightRiemann,rightConserved);
                     if(!leftShift || !rightShift)
-                    {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry);numericalSuccess=false;if(nativeRefinement)return false;}
+                    {gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry);return false;}
                 }
-                result = ugkpriemann::rusanovTadmorFluxUnitNormal
-                (
-                    leftRiemann,leftConserved,leftSound,
-                    rightRiemann,rightConserved,rightSound,
-                    nx,ny,nz,false
-                );
                 if(s.gasFluxScheme==2)
                     result=ugkpriemann::hllKurganovFluxUnitNormal
                     (leftRiemann,leftConserved,leftSound,rightRiemann,rightConserved,rightSound,nx,ny,nz,false);
-                else if(s.gasFluxScheme!=1)result.usedFallback=true;
+                else
+                    result=ugkpriemann::rusanovTadmorFluxUnitNormal
+                    (leftRiemann,leftConserved,leftSound,rightRiemann,rightConserved,rightSound,nx,ny,nz,false);
+                if(!result.valid)
+                {
+                    using namespace ugkp::diagnostics;
+                    int component=-1;double value=result.maxSignalSpeed;
+                    for(int k=0;k<5;++k)if(!finiteDevice(result.flux[k])){component=k;value=result.flux[k];break;}
+                    if(s.diagnostics)recordFatal(s.diagnostics,makeRecord(Code::NonFinite,2601,26,0,EntityKind::Face,f,component,value));
+                    ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);
+                    return false;
+                }
                 const GPU_OPERATOR_REAL unLeft=leftRiemann.ux*nx+leftRiemann.uy*ny+leftRiemann.uz*nz;
                 const GPU_OPERATOR_REAL unRight=rightRiemann.ux*nx+rightRiemann.uy*ny+rightRiemann.uz*nz;
                 for(int k=0;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)
@@ -502,7 +539,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                         :ugkpriemann::rusanovConservativeComponentFlux(unLeft*l,unRight*r,l,r,result.maxSignalSpeed));
                 }
                 if(moving && !ugkwp::restoreGasFluxFromFaceFrame(result,meshFrame,result))
-                {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry);numericalSuccess=false;if(nativeRefinement)return false;}
+                {gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry);return false;}
                 int massCarrier=Ns-1;
                 // Redirect closure only when the last species is absent on
                 // both sides. One-sided inventory can carry physical inflow.
@@ -525,8 +562,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
             if(!leftShift || !rightShift)
             {
                 numericalSuccess=false;
-                if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry) && nativeRefinement)asm("trap;");
-                if(nativeRefinement)return false;
+                if(!gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry) && nativeRefinement)asm("trap;");
+                return false;
             }
         }
         if (mixtureEvaluated) {}
@@ -575,19 +612,19 @@ __device__ bool computeRiemannGasFaceFluxDevice
         }
         if (!result.valid)
         {
-            numericalSuccess=false;
-            if(ugkwp::mixtureGasActive(s)||moving)
-            {
-                if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState) && nativeRefinement)asm("trap;");
-                if(nativeRefinement)return false;
-            }
-            else if(nativeRefinement){asm("trap;");return false;}
+            using namespace ugkp::diagnostics;
+            int component=-1;double value=result.maxSignalSpeed;
+            for(int k=0;k<5;++k)if(!finiteDevice(result.flux[k])){component=k;value=result.flux[k];break;}
+            if(s.diagnostics)recordFatal(s.diagnostics,makeRecord(Code::NonFinite,
+                10043,26,0,EntityKind::Face,f,component,value));
+            ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);
+            return false;
         }
         if(moving && !mixtureEvaluated && !ugkwp::restoreGasFluxFromFaceFrame(result,meshFrame,result))
         {
             numericalSuccess=false;
-            if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry) && nativeRefinement)asm("trap;");
-            if(nativeRefinement)return false;
+            if(!gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry) && nativeRefinement)asm("trap;");
+            return false;
         }
         massFlux = result.flux[0];
         if constexpr (MassOnly)
@@ -963,7 +1000,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
             );
             if(!subgridEvaluated)return false;
             if(ugkwp::mixtureGasActive(s) && ugkwp::gasFaceFailure(s,f)!=0)
-            {numericalSuccess=false;if(nativeRefinement)return false;}
+            {return false;}
         }
         const GPU_OPERATOR_REAL muEffective = boundaryKind == 1
           ? GPU_OPERATOR_R(0.0) : s.gasMu + muTurbulent;
@@ -1090,10 +1127,20 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 s.gasSpecies.turbulentSchmidt,
                 nei>=0?w*left.T+(GPU_OPERATOR_R(1.0)-w)*right.T:right.T,s.gasSpecies.thermo,diffusion,enthalpyFlux,nativeRefinement,&diffusionEvaluated
             ))
-            {ugkwp::gasRecordFaceFailure(s,f,!nativeRefinement&&!diffusionEvaluated?ugkwp::GasTransportCode::InvalidStorage:ugkwp::GasTransportCode::InvalidThermodynamics);numericalSuccess=false;if(nativeRefinement || !diffusionEvaluated)return false;}
+            {ugkwp::gasRecordFaceFailure(s,f,!nativeRefinement&&!diffusionEvaluated?ugkwp::GasTransportCode::InvalidStorage:ugkwp::GasTransportCode::InvalidThermodynamics);return false;}
             for(int k=0;k<Ns;++k)s.gasSpecies.flux[k*s.nFaces+f]+=diffusion[k];
             energyFlux+=enthalpyFlux/area;
         }
+    }
+    const GPU_OPERATOR_REAL completeFlux[5]={massFlux*area,momentumFluxX*area,
+        momentumFluxY*area,momentumFluxZ*area,energyFlux*area};
+    for(int k=0;k<5;++k)if(!finiteDevice(completeFlux[k]))
+    {
+        using namespace ugkp::diagnostics;
+        if(s.diagnostics)recordFatal(s.diagnostics,makeRecord(Code::NonFinite,10044,26,0,
+            EntityKind::Face,f,k,completeFlux[k]));
+        ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);
+        return false;
     }
     massFluxArea = massFlux*area;
     momFluxXArea = momentumFluxX*area;

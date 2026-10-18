@@ -14,57 +14,53 @@ using GasChemistryStateReal = typename std::remove_pointer
 
 namespace gasChemistryAdapterDetail
 {
-// Only this cell's disposable trial diagnostics are changed on failure. A prior
-// transport failure is never replaced, and accepted diagnostics live elsewhere.
-template<class SpeciesState>
+// Preserve the first fatal and keep warning-only numerical residuals usable.
+template<class State>
 UGKWP_GAS_HD inline ChemistryStatus recordFailure
 (
-    SpeciesState& species,
+    State& state,
     const int cell,
     const ChemistryStatus status,
     const bool unavailable=true
 ) noexcept
 {
-    if (species.chemistryStatus)
-        species.chemistryStatus[cell] = status;
-    if (species.cellStatus && species.cellStatus[cell]!=int(GasTransportCode::InvalidStorage)
-        && (unavailable || species.cellStatus[cell]==0))
-        species.cellStatus[cell] = int(unavailable?GasTransportCode::InvalidStorage:GasTransportCode::ChemistryFailure);
+    auto& species=state.gasSpecies;
+    using namespace ugkp::diagnostics;
+    const bool warning=gasChemistryDetail::hasUsableChemistryResult(status);
+    const Code code=warning
+        ?(status.code==ChemistryCode::ConservationFailure?Code::ConservationResidual:Code::AccuracyResidual)
+        :(status.code==ChemistryCode::InvalidModel?Code::MissingOperator:
+          (status.code==ChemistryCode::NonFiniteInput || status.thermoCode==ThermoStatus::NonFiniteInput?Code::NonFinite:Code::InvalidPhysicalState));
+    auto record=makeRecord(code,2201,22,0,EntityKind::Cell,cell,status.reaction,
+        status.observed,status.reference,status.observed,
+        warning?(status.code==ChemistryCode::ConservationFailure?Quantity::Conservation:Quantity::Accuracy):
+        (status.code==ChemistryCode::SingularJacobian?Quantity::LinearSystem:
+         status.code==ChemistryCode::TemperatureFailure?Quantity::Temperature:
+         status.code==ChemistryCode::InvalidComposition?Quantity::MassFraction:Quantity::Unspecified));
+    record.metadata=static_cast<std::uint32_t>(status.code)&detailCodeMask;
+    const auto& linear=status.linearFailure;
+    if(linear.quantity!=DenseLinearQuantity::None)
+    {
+        const bool zero=linear.quantity==DenseLinearQuantity::Pivot || linear.quantity==DenseLinearQuantity::RowScale;
+        const Code linearCode=!gasFinite(linear.value)?Code::NonFinite:
+            (zero?Code::ZeroDenominator:Code::InvalidPhysicalState);
+        // Row is component; column is reference; metadata names the failing
+        // quantity. The exact consumed scalar is observed (never the norm).
+        record=makeRecord(linearCode,2207,22,0,EntityKind::Cell,cell,linear.row,
+            linear.value,linear.column,linear.value,Quantity::LinearSystem);
+        record.metadata=static_cast<std::uint32_t>(linear.quantity);
+    }
+    if(warning)recordWarning(state.diagnostics,record);
+    else recordFatal(state.diagnostics,record);
+    if (cell>=0 && cell<state.nCells)
+    {
+        if(species.chemistryStatus)species.chemistryStatus[cell]=status;
+        if(!warning && species.cellStatus)
+            species.cellStatus[cell]=int(unavailable?GasTransportCode::InvalidStorage:GasTransportCode::ChemistryFailure);
+    }
     return status;
 }
 
-
-
-
-template<class TableReal,int Ns>
-UGKWP_GAS_HD inline bool unavailableTrialModel
-(
-    const SpeciesThermoView<TableReal,Ns>& thermo,
-    const GasMechanismView<TableReal,Ns>& mechanism,
-    const ChemistryStatus& status
-) noexcept
-{
-    if (status.thermoCode == ThermoStatus::InvalidModel)
-    {
-        if (!thermo.species || !thermo.coefficients) return true;
-        for (int s = 0; s < Ns; ++s)
-            if (thermo.species[s].model != SpeciesThermoModel::LinearCp
-                && thermo.species[s].model != SpeciesThermoModel::NASA7) return true;
-
-
-        return false;
-    }
-    if (status.code == ChemistryCode::InvalidModel
-        && mechanism.independentRank > 0 && !mechanism.stoichiometricBasis) return true;
-    if (status.attemptedSteps > 0)
-    {
-        if (mechanism.reactionCount > 0 && !mechanism.reactions) return true;
-        if (status.reaction >= 0 && mechanism.reactions)
-            return !gasChemistryDetail::reactionInputAvailable<TableReal,Ns,true>
-                (mechanism,status.reaction);
-    }
-    return false;
-}
 } // namespace gasChemistryAdapterDetail
 
 // The single density-storage-to-closed-reactor adapter. Both application
@@ -104,6 +100,7 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
         using Real = GasEnergyScalar<GasState>;
         constexpr int Ns = GasStateTraits<GasState>::speciesCount;
         auto& species = state.gasSpecies;
+        auto thermo=species.thermo;thermo.diagnostics=state.diagnostics;
         if (species.mode == GasMode::SingleLegacy
             || species.mode == GasMode::MixtureFrozen)
         {
@@ -111,21 +108,20 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             return status;
         }
 
-        if(nativeRefinement && species.cellStatus && species.cellStatus[cell]!=0)
+        (void)nativeRefinement;
+        using namespace ugkp::diagnostics;
+        if(hasFatal(state.diagnostics)){status.code=ChemistryCode::NonFiniteInput;return status;}
+        if(cell<0 || cell>=state.nCells)
         {
-            if(species.chemistryStatus && !species.chemistryStatus[cell])return species.chemistryStatus[cell];
-            status.code=ChemistryCode::InvalidComposition;
-            return status;
+            recordFatal(state.diagnostics,makeRecord(Code::InvalidIndex,2202,22,0,EntityKind::Cell,cell,-1,cell,state.nCells,0,Quantity::Index));
+            status.code=ChemistryCode::InvalidComposition;return status;
         }
-
-
-
         if (!species.rho || !species.cellStatus
             || !state.rho || !state.rhoUx || !state.rhoUy || !state.rhoUz
             || !state.rhoE)
         {
             status.code = ChemistryCode::InvalidModel;
-            return gasChemistryAdapterDetail::recordFailure(species, cell, status);
+            return gasChemistryAdapterDetail::recordFailure(state, cell, status);
         }
 
 
@@ -134,9 +130,17 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             || !gasFinite(stageVolume) || stageVolume == StorageReal(0))
         {
             status.code = ChemistryCode::NonFiniteInput;
+            const bool badInterval=!gasFinite(interval)||interval<Time(0);
+            recordFatal(state.diagnostics,makeRecord(badInterval?(gasFinite(interval)?Code::InvalidPhysicalState:Code::NonFinite):(stageVolume==StorageReal(0)?Code::ZeroDenominator:Code::NonFinite),2203,22,0,EntityKind::Cell,cell,-1,badInterval?interval:stageVolume,0,0,badInterval?Quantity::Unspecified:Quantity::Denominator));
+            return status;
         }
         const Real density = state.rho[cell];
 
+        if(!gasFinite(density) || density==Real(0))
+        {
+            recordFatal(state.diagnostics,makeRecord(density==Real(0)?Code::ZeroDenominator:Code::NonFinite,10031,22,0,EntityKind::Cell,cell,-1,density,0,0,Quantity::Density));
+            status.code=ChemistryCode::NonFiniteInput;return status;
+        }
         ClosedReactorInput<Real, Ns> input;
         input.totalMass = density*stageVolume;
         input.volume = stageVolume;
@@ -146,10 +150,18 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             const Real partialDensity = species.rho[s*state.nCells + cell];
             if (!gasFinite(partialDensity))
             {
-                status.code = ChemistryCode::InvalidComposition;
+                recordFatal(state.diagnostics,makeRecord(Code::NonFinite,2205,22,0,EntityKind::Cell,cell,s,partialDensity,0,0,Quantity::MassFraction));
+                status.code = ChemistryCode::InvalidComposition;return status;
             }
+            const Real y=partialDensity/density;
+            if(!gasFinite(y)){
+                recordFatal(state.diagnostics,makeRecord(Code::NonFinite,10032,22,0,EntityKind::Cell,cell,s,y,0,0,Quantity::MassFraction));
+                status.code=ChemistryCode::NonFiniteInput;return status;
+            }
+            const Real clipped=gasThermoDetail::maxValue(Real(0),gasThermoDetail::minValue(Real(1),y));
+            if(y!=clipped)recordWarning(state.diagnostics,makeRecord(Code::FiniteYClip,10033,22,0,EntityKind::Cell,cell,s,y,0,clipped,Quantity::MassFraction));
             densitySum += partialDensity;
-            input.speciesMass[s] = partialDensity*stageVolume;
+            input.speciesMass[s] = (clipped!=y?clipped*density:partialDensity)*stageVolume;
         }
         const Real inputDensityDefect = densitySum - density;
         const Real ux = Real(state.rhoUx[cell])/density;
@@ -163,29 +175,24 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             || !gasFinite(input.internalEnergy))
         {
             status.code = ChemistryCode::NonFiniteInput;
+            const int component=!gasFinite(ux)?0:(!gasFinite(uy)?1:(!gasFinite(uz)?2:3));
+            const Real value=component==0?ux:(component==1?uy:(component==2?uz:input.internalEnergy));
+            recordFatal(state.diagnostics,makeRecord(Code::NonFinite,2208,22,0,EntityKind::Cell,cell,component,value));
+            return status;
         }
 
         ClosedReactorResult<Real, Ns> result;
         const ChemistryStatus inputDiagnostic=status;
         bool reactorAvailable=false;
-        if (nativeRefinement)
-            status = advanceClosedReactorTrial
-            (
-                input, interval, species.thermo, species.mechanism,
-                castChemistryControls<Real>(species.chemistryControls), result, &reactorAvailable
-            );
-        else
-            status = advanceClosedReactor
-            (
-                input, interval, species.thermo, species.mechanism,
-                castChemistryControls<Real>(species.chemistryControls), result, &reactorAvailable
-            );
+        status = advanceClosedReactor
+        (
+            input, interval, thermo, species.mechanism,
+            castChemistryControls<Real>(species.chemistryControls), result, &reactorAvailable
+        );
         if (!reactorAvailable)
             return gasChemistryAdapterDetail::recordFailure
             (
-                species, cell, status,
-                !nativeRefinement || gasChemistryAdapterDetail::unavailableTrialModel
-                    (species.thermo,species.mechanism,status)
+                state, cell, status
             );
         gasChemistryDetail::retainDiagnostic(status,inputDiagnostic);
 
@@ -200,41 +207,30 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
                 : result.speciesMass[s]/stageVolume;
             if (!gasFinite(candidateDensity[s]))
             {
-                status.code = ChemistryCode::NonFiniteInput;
+                recordFatal(state.diagnostics,makeRecord(Code::NonFinite,2206,22,0,EntityKind::Cell,cell,s,candidateDensity[s],0,0,Quantity::MassFraction));
+                status.code=ChemistryCode::NonFiniteInput;return status;
+            }
+            const Real y=Real(candidateDensity[s])/density;
+            if(!gasFinite(y)){
+                recordFatal(state.diagnostics,makeRecord(Code::NonFinite,10035,22,0,EntityKind::Cell,cell,s,y,0,0,Quantity::MassFraction));
+                status.code=ChemistryCode::NonFiniteInput;return status;
+            }
+            const Real clipped=gasThermoDetail::maxValue(Real(0),gasThermoDetail::minValue(Real(1),y));
+            if(y!=clipped){
+                recordWarning(state.diagnostics,makeRecord(Code::FiniteYClip,10036,22,0,EntityKind::Cell,cell,s,y,0,clipped,Quantity::MassFraction));
+                candidateDensity[s]=StorageReal(clipped*density);
             }
             densitySum += candidateDensity[s];
-        }
-        // Recover one populated dependent coordinate only when conversion
-        // roundoff pushes an admissible input beyond the unchanged closure gate.
-        // Do not normalize/clamp species or hide a larger integration defect.
-        if (interval != Time(0) && gasFinite(densitySum)
-            && gasThermoDetail::absValue(inputDensityDefect)<=species.densityClosureTolerance*density
-            && gasThermoDetail::absValue(densitySum - density)
-                > species.densityClosureTolerance*density
-            && gasThermoDetail::absValue(densitySum - density)
-                <= gasThermoDetail::absValue(inputDensityDefect)
-                    + Real(8*Ns)*std::numeric_limits<StorageReal>::epsilon()*density)
-        {
-            int dependent = 0;
-            for (int s = 1; s < Ns; ++s)
-                if (candidateDensity[s] > candidateDensity[dependent])
-                    dependent = s;
-            Real independent = Real(0);
-            for (int s = 0; s < Ns; ++s)
-                if (s != dependent) independent += candidateDensity[s];
-            const StorageReal original = candidateDensity[dependent];
-            const Real originalSum = densitySum;
-            candidateDensity[dependent] = density - independent;
-            densitySum = Real(0);
-            for (int s = 0; s < Ns; ++s) densitySum += candidateDensity[s];
-            if (!gasFinite(candidateDensity[dependent]) || candidateDensity[dependent] < StorageReal(0)
-                || !gasFinite(densitySum)
-                || gasThermoDetail::absValue(densitySum-density)>species.densityClosureTolerance*density)
-            {
-                candidateDensity[dependent] = original;
-                densitySum = originalSum;
+            if(!gasFinite(densitySum)){
+                recordWarning(state.diagnostics,makeRecord(Code::ConservationResidual,10037,22,0,EntityKind::Cell,cell,s,densitySum,density,0,Quantity::Conservation));
+                // This sum is diagnostic only; every published component is finite.
             }
         }
+        const Real densityResidual=densitySum-density;
+        if(gasFinite(densityResidual) && gasThermoDetail::absValue(densityResidual)>species.densityClosureTolerance*gasThermoDetail::absValue(density))
+            recordWarning(state.diagnostics,makeRecord(Code::ConservationResidual,2204,22,0,EntityKind::Cell,cell,-1,densityResidual,species.densityClosureTolerance*gasThermoDetail::absValue(density),0,Quantity::Conservation));
+        if(!gasFinite(inputDensityDefect) || gasThermoDetail::absValue(inputDensityDefect)>species.densityClosureTolerance*gasThermoDetail::absValue(density))
+            recordWarning(state.diagnostics,makeRecord(Code::ConservationResidual,10038,22,0,EntityKind::Cell,cell,-1,inputDensityDefect,species.densityClosureTolerance*gasThermoDetail::absValue(density),inputDensityDefect,Quantity::Conservation));
         // A zero interval must not change density bits through a round trip with
 
         if (interval != Time(0))
@@ -244,7 +240,7 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
         }
         if(species.chemistryStatus)species.chemistryStatus[cell] = status;
         if(evaluated)*evaluated=true;
-        if(!status)return gasChemistryAdapterDetail::recordFailure(species,cell,status,false);
+        if(!status)return gasChemistryAdapterDetail::recordFailure(state,cell,status,false);
         return status;
     }
 }
@@ -262,8 +258,13 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCellWithVolumes
         auto& species=state.gasSpecies;
         if(species.mode==GasMode::SingleLegacy || species.mode==GasMode::MixtureFrozen)
         {if(evaluated)*evaluated=true;return ChemistryStatus{};}
+        if(cell<0 || cell>=state.nCells){
+            using namespace ugkp::diagnostics;
+            recordFatal(state.diagnostics,makeRecord(Code::InvalidIndex,10039,22,0,EntityKind::Cell,cell,-1,cell,state.nCells,0,Quantity::Index));
+            ChemistryStatus status;status.code=ChemistryCode::InvalidComposition;return status;
+        }
         if(!volumes){ChemistryStatus status;status.code=ChemistryCode::InvalidModel;
-            return gasChemistryAdapterDetail::recordFailure(species,cell,status);}
+            return gasChemistryAdapterDetail::recordFailure(state,cell,status);}
         return advanceGasChemistryCell(state,cell,interval,volumes[cell],nativeRefinement,evaluated);
     }
 }
@@ -283,6 +284,7 @@ __global__ void advanceGasChemistryKernel
 )
 {
     if (!state) return;
+    if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
     const int cell = blockIdx.x*blockDim.x + threadIdx.x;
     if (cell >= state->nCells) return;
     ugkwp::advanceGasChemistryCellWithVolumes(*state, cell, chemicalInterval, stageVolumes, nativeRefinement);

@@ -1,6 +1,7 @@
 #ifndef CHMT_CORE_CONFIGURATION_H
 #define CHMT_CORE_CONFIGURATION_H
 #include "Types.H"
+#include "../../../common/Diagnostics.H"
 #include "../../../common/gasTransport/GasModel.H"
 #include "../../../common/chemistry/ChemistryTypes.H"
 #include "../../../common/gasWall/WallModelTypes.H"
@@ -45,6 +46,7 @@ inline ugkwp::gaswall::WallModelConfig<Real> defaultWallModel() {
     ugkwp::gaswall::WallModelConfig<Real> value;value.family=ugkwp::gaswall::WallFamily::LowRe;return value;
 }
 struct PhysicsConfig {
+    ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
     ugkwp::gaswall::WallModelConfig<Real> wallModel=defaultWallModel();
     int wallWorkspaceSlots=0; // zero resolves a bounded pool from the actual device
     bool enableGas=true;
@@ -66,6 +68,19 @@ struct PhysicsConfig {
     SstConfig sst{};Tolerances tolerances{};
     Real minDt=0,maxDt=0,cfl=0;int spatialOrder=2;
 };
+CHMT_HD inline void reportPhysicsWarning(const PhysicsConfig& p,ugkp::diagnostics::Code code,
+    unsigned site,Real observed,Real reference=0,Real corrected=0,int component=-1) {
+    using namespace ugkp::diagnostics;
+    recordWarning(p.diagnostics,makeRecord(code,site,38,0,EntityKind::None,-1,component,
+        observed,reference,corrected,code==Code::FiniteYClip?Quantity::MassFraction:
+        code==Code::ConservationResidual?Quantity::Conservation:Quantity::Accuracy));
+}
+CHMT_HD inline bool clipPhysicsMassFraction(const PhysicsConfig& p,Real& value,unsigned site,int component) {
+    if(!finite(value))return false;
+    const Real bounded=maxValue(Real(0),minValue(Real(1),value));
+    if(bounded!=value)reportPhysicsWarning(p,ugkp::diagnostics::Code::FiniteYClip,site,value,0,bounded,component);
+    value=bounded;return true;
+}
 inline bool validateWallModelConfig(const PhysicsConfig& p,std::string& error) {
     const auto& w=p.wallModel;using namespace ugkwp::gaswall;
     if(w.family==WallFamily::LowRe){error.clear();return true;}
@@ -73,7 +88,7 @@ inline bool validateWallModelConfig(const PhysicsConfig& p,std::string& error) {
     if(p.material.gasContactResistance!=0){error="boundaryLayer requires zero gas contact resistance";return false;}
     if(p.gasMode==ugkwp::GasMode::SingleLegacy||!(p.gasViscosity>0)||!(p.gasConductivity>0)){
         error="boundaryLayer requires shared mixture thermo and positive molecular transport";return false;}
-    if(p.wallWorkspaceSlots<0||p.wallWorkspaceSlots>4096||w.nodes<4||w.nodes>128||w.maxIterations<=0
+    if(p.wallWorkspaceSlots<0||w.nodes<4||w.nodes>128||w.maxIterations<=0
         ||!finite(w.relativeTolerance)||w.relativeTolerance<=0||!finite(w.absoluteTolerance)||w.absoluteTolerance<0
         ||!finite(w.stretch)||w.stretch<1){error="invalid boundaryLayer solver controls";return false;}
     if(w.model==BoundaryLayerModel::ConstantTransport){

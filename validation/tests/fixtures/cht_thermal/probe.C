@@ -17,7 +17,7 @@ using namespace Foam::gpuThermal;
 void require(bool ok,const char* message){if(!ok)throw std::runtime_error(message);}
 void near(scalar actual,scalar expected,scalar tolerance=1e-11){require(std::isfinite(actual)&&std::abs(actual-expected)<=tolerance*std::max(scalar(1),std::abs(expected)),"numeric mismatch");}
 dictionary parse(const std::string& text){IStringStream stream(text);return dictionary(stream);}
-std::string property(const char* mode="error") {return std::string("rho {type table; outOfBounds ")+mode+"; values ((0 2)(1 3));} Cp {type table; outOfBounds "+mode+"; values ((0 4)(1 6));} kappa {type constant; value 6;} emissivity {type constant; value 0.8;}";}
+std::string property(const char* mode="error") {return std::string("rho {type table; outOfBounds ")+mode+"; values ((100 2)(101 3));} Cp {type table; outOfBounds "+mode+"; values ((100 4)(101 6));} kappa {type constant; value 6;} emissivity {type constant; value 0.8;}";}
 std::string stateText(){return "formatVersion 99; initialState false; exchangeSequence \"7\"; completedTimeIndex 5; completedSimulationTimeS 3; completedRadiationSimulationTimeS 2; previousExchangeSimulationTimeS 1; fluidMeshTopologySha1 \"changed\"; solidMeshTopologySha1 \"changed\"; auxiliarySolidMeshTopologySha1 \"\"; couplingConfigurationSha1 \"changed\"; wallTemperatureSha1UsedForCompletedInterval \"changed\"; newlyUploadedWallTemperatureSha1 \"changed\"; gasWallLedgerConsumed false; particleWallLedgerConsumed false; particleRadiationApplied false; solidStateUpdated false; wallTemperatureUploaded false; particleMomentsRebuilt false; particleContactEnergyJ -9;";}
 void writeText(const fileName& p,const std::string& text){std::ofstream os(p.c_str());os<<text;os.close();require(bool(os),"fixture write");}
 int main(int argc,char**argv){
@@ -30,15 +30,15 @@ int main(int argc,char**argv){
  try {
  if(mode=="properties"||mode=="clamp"||mode=="nonoverlap"||mode=="signed"||mode=="absorbed"){
   std::string text=property(mode=="clamp"?"clamp":"error");
-  if(mode=="nonoverlap")text="rho {type table; outOfBounds error; values ((0 2)(1 3));} Cp {type table; outOfBounds error; values ((2 8)(3 10));} kappa {type table; outOfBounds error; values ((10 6)(11 6));} emissivity {type constant; value 1.2;}";
+  if(mode=="nonoverlap")text="rho {type table; outOfBounds error; values ((100 2)(101 3));} Cp {type table; outOfBounds error; values ((102 8)(103 10));} kappa {type table; outOfBounds error; values ((110 6)(111 6));} emissivity {type constant; value 1.2;}";
   if(mode=="signed")text="rho {type constant; value -2;} Cp {type constant; value 4;} kappa {type constant; value -6;} emissivity {type constant; value 1.2;}";
   if(mode=="absorbed")text="rho {type table; outOfBounds error; values ((0 1e17)(1 1)(2 1));} Cp {type constant; value 1;} kappa {type constant; value 6;} emissivity {type constant; value 0.8;}";
   GpuSolidThermalProperties p(parse(text));
-  if(mode=="clamp")near(p.deltaHv(2,-1),116.0/3);
-  else if(mode=="signed"){near(p.deltaHv(2,-1),-24);near(p.Csec(2,-1),-8);near(p.emissivity(3),1.2);}
+  if(mode=="clamp")near(p.deltaHv(102,99),116.0/3);
+  else if(mode=="signed"){near(p.deltaHv(102,99),-24);near(p.Csec(102,99),-8);near(p.emissivity(3),1.2);}
   else if(mode=="absorbed"){near(p.deltaHv(2,0),p.deltaHv(1,0)+1,0);}
-  else {near(p.rho(-1),1);near(p.Cp(-1),2);near(p.rho(2),4);near(p.Cp(2),8);near(p.deltaHv(2,-1),42);near(p.deltaHv(-1,2),-42);near(p.Csec(2,-1),14);near(p.Csec(2,2),32);}
-  if(mode=="properties") {GpuSolidThermalProperties q(parse("rho {type table; outOfBounds error; values ((0 2)(1 3)(2 5));} Cp {type constant; value 4;} kappa {type constant; value 6;} emissivity {type constant; value 0.8;}"));near(q.deltaHv(3,-1),56);}
+  else {near(p.rho(99),1);near(p.Cp(99),2);near(p.rho(102),4);near(p.Cp(102),8);near(p.deltaHv(102,99),42);near(p.deltaHv(99,102),-42);near(p.Csec(102,99),14);near(p.Csec(102,102),32);}
+  if(mode=="properties") {GpuSolidThermalProperties q(parse("rho {type table; outOfBounds error; values ((100 2)(101 3)(102 5));} Cp {type constant; value 4;} kappa {type constant; value 6;} emissivity {type constant; value 0.8;}"));near(q.deltaHv(103,99),56);}
  }
  else if(mode=="unordered"||mode=="reversed_axis"||mode=="duplicate_endpoint"){
   std::string nodes=mode=="unordered"?"((0 2)(2 10)(1 30)(3 50))":mode=="reversed_axis"?"((2 10)(0 2))":"((0 2)(0 3))";
@@ -47,7 +47,7 @@ int main(int argc,char**argv){
  }
  else if(mode=="ordinary"||mode=="linear_one"){
   GpuSolidThermalProperties p(parse(mode=="ordinary"?property():"rho {type constant; value 1000;} Cp {type constant; value 1;} kappa {type constant; value 6;} emissivity {type constant; value 0.8;}"));
-  if(mode=="ordinary") {for(scalar v:{scalar(0),scalar(.25),scalar(.5),scalar(1)}) {near(p.rho(v),2+v);near(p.Cp(v),4+2*v);std::cout<<"PARITY property "<<std::hexfloat<<p.rho(v)<<' '<<p.Cp(v)<<' '<<p.Hv(v)<<' '<<p.Csec(v,.3)<<'\n';}}
+  if(mode=="ordinary") {for(scalar v:{scalar(0),scalar(.25),scalar(.5),scalar(1)}) {near(p.rho(v+100),2+v);near(p.Cp(v+100),4+2*v);std::cout<<"PARITY property "<<std::hexfloat<<p.rho(v+100)<<' '<<p.Cp(v+100)<<' '<<p.Hv(v+100)<<' '<<p.Csec(v+100,100.3)<<'\n';}}
   GpuSolidThermalProperties material(parse("rho {type constant; value 1000;} Cp {type constant; value 1;} kappa {type constant; value 6;} emissivity {type constant; value 0.8;}"));
   volScalarField T(IOobject("T",runTime.timeName(),mesh,IOobject::MUST_READ,IOobject::NO_WRITE,false),mesh);
   label left=mesh.boundaryMesh().findPatchID("left");labelList ids(1,left);List<scalarField> e(1);e[0].setSize(mesh.boundary()[left].size());forAll(e[0],i)e[0][i]=mode=="linear_one"?100*(i+1):100;
@@ -92,8 +92,13 @@ int main(int argc,char**argv){
   scalar expectedSurface=result.temperature()[0]+(100.0/(0.1*6))/mesh.boundary()[left].deltaCoeffs()[0];
   near(result.temperature().boundaryField()[left][0],expectedSurface);
   solver.publishSolidCandidate(result,T);near(T[0],result.temperature()[0]);
+  std::cout<<"PARITY candidate "<<std::hexfloat<<T[0]<<' '<<result.integratedEnergyResidualJ<<' '<<result.nonlinearIterations<<'\n';
   forAll(T.boundaryField(),pI)forAll(T.boundaryField()[pI],f)near(T.boundaryField()[pI][f],result.temperature().boundaryField()[pI][f]);
   near(refCast<const fixedGradientFvPatchScalarField>(T.boundaryField()[left]).gradient()[0],100.0/(0.1*6));
+ }
+ else if(mode=="negative_temperature"||mode=="nan_temperature"||mode=="zero_property"){
+  GpuSolidThermalProperties p(parse(mode=="zero_property"?"rho {type constant; value 1;} Cp {type constant; value 1;} kappa {type constant; value 0;} emissivity {type constant; value 0.8;}":"rho {type constant; value 1;} Cp {type constant; value 1;} kappa {type constant; value 6;} emissivity {type constant; value 0.8;}"));
+  p.kappa(mode=="negative_temperature"?-1:mode=="nan_temperature"?std::numeric_limits<scalar>::quiet_NaN():300);
  }
  else if(mode=="property_overflow"){
   GpuSolidThermalProperties product(parse("rho {type constant; value 1e308;} Cp {type constant; value 2;} kappa {type constant; value 6;} emissivity {type constant; value 0.8;}"));
@@ -152,5 +157,5 @@ int main(int argc,char**argv){
  }
  else throw std::runtime_error("unknown fixture mode");
  Info<<"PASS "<<mode<<nl;return 0;
- } catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 2;}
+ } catch(const Foam::error& e){std::cerr<<e.message()<<'\n';return 2;} catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 2;}
 }

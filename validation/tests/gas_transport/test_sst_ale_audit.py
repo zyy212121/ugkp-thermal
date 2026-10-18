@@ -147,7 +147,7 @@ def test_test_side_inventory_oracle_detects_changed_physical_source(tmp_path):
 int main(){State s;initialise(s);s.sstConfigured=1;audit(s);threadIdx.x=0;applySstFluxAndSourceKernel(&s,.001);}
 '''
     source=tmp_path/'mutated.cpp';source.write_text(prefix+body);exe=tmp_path/'mutated'
-    build=subprocess.run(['g++','-std=c++17','-O0','-I'+str(here),'-I'+str(root/'common'),'-I'+str(root/'common/gasNumerics'),str(source),'-o',str(exe)],capture_output=True,text=True)
+    build=subprocess.run(['g++','-std=c++17','-O0','-I'+str(here),'-I'+str(root/'common'),'-I'+str(root/'common/operators'),'-I'+str(root/'common/gasNumerics'),str(source),'-o',str(exe)],capture_output=True,text=True)
     assert build.returncode==0,build.stderr
     result=subprocess.run([str(exe)],capture_output=True,text=True)
     assert result.returncode!=0

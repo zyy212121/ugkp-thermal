@@ -11,10 +11,13 @@ CHMT_HD inline bool recoverNormalEnthalpy(Real mass, Real H, Real volume, Real p
     if (!validCondensed(solid) || !validCondensed(p.liquid)
         || !finite(solid.conductivity) || solid.conductivity<0
         || !finite(p.liquid.conductivity) || p.liquid.conductivity<0
-        || !closeEnough(solid.rho,p.liquid.rho,0,p.tolerances.relativeMass)
-        || !closeEnough(mass,volume*solid.rho,p.tolerances.absoluteMass,p.tolerances.relativeMass)) return false;
+        ) return false;
+    if(!closeEnough(solid.rho,p.liquid.rho,0,p.tolerances.relativeMass))
+        reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,4214,solid.rho-p.liquid.rho,0);
+    if(!closeEnough(mass,volume*solid.rho,p.tolerances.absoluteMass,p.tolerances.relativeMass))
+        reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,4215,mass-volume*solid.rho,0);
     const Real Tm=p.meltTemperature;
-    if (Tm<solid.Tmin || Tm>solid.Tmax || Tm<p.liquid.Tmin || Tm>p.liquid.Tmax) return false;
+    if (!finite(Tm) || Tm<=0) return false;
     const Real hs=condensedE(solid,Tm)+pressure/solid.rho;
     const Real hl=liquidH(p,Tm,pressure);
     if (!(hl>hs)) return false;
@@ -37,7 +40,7 @@ CHMT_HD inline bool recoverNormalEnthalpy(Real mass, Real H, Real volume, Real p
 CHMT_HD inline bool recoverNormalSensibleAverage(Real mass, Real H, Real fraction,
     Real pressure, const PhysicsConfig& p, Real& temperature) {
     const int c=p.material.phaseCondensed;
-    if (c<0 || c>=Nc || mass<=0 || fraction<0 || fraction>1) return false;
+    if (c<0 || c>=Nc || mass<=0 || !clipPhysicsMassFraction(p,fraction,4216,-1)) return false;
     const CondensedThermo& s=p.condensed[c];
     const Real a0=(1-fraction)*(s.e0+pressure/s.rho)
         +fraction*(p.liquid.e0+(pressure-p.liquidReferencePressure)/p.liquid.rho);

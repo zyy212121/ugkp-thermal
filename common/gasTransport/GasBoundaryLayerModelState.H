@@ -137,6 +137,7 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
              || !state.riemannBoundaryUy || !state.riemannBoundaryUz)))))
         return fail(GasTransportCode::InvalidStorage);
     auto& in=model.input[slot];
+    in.diagnostics=state.diagnostics;in.diagnosticEntity=face;
     // Coarse SST audit does not consume the auxiliary profile integral.
     // Direct BVP research calls can opt in, but production never requests it.
     in.integrateOwnerKSource=false;
@@ -169,6 +170,7 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
             in.matching.massFraction[species]+=weight*state.gasSpecies.rho[species*state.nCells+cell]/state.rho[cell];
     }
     in.model.thermo=state.gasSpecies.thermo;
+    in.model.thermo.diagnostics=state.diagnostics;
     in.model.mechanism=state.gasSpecies.mechanism;
     in.model.mode=state.gasSpecies.mode;
     in.model.viscosity=state.gasMu;
@@ -196,7 +198,7 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
     return true;
 }
 
-template<bool Capture=false,class State,class Team>
+template<bool Capture=false,int Capacity=0,class State,class Team>
 UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int workspaceSlot,const Team& team)
 {
     using Real=typename std::remove_pointer<decltype(state.rho)>::type;
@@ -218,6 +220,13 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int 
     {
         if(team.leader())evaluated=gaswall::evaluateConstantTransportWall(in,model.config,model.output[slot],model.status[slot]);
         evaluated=team.broadcast(evaluated);
+    }
+    else if constexpr(Capacity>0)
+    {
+        evaluated=evaluateGasBoundaryLayerWorkspace<Capture>(in,model.config,
+            static_cast<gaswall::WallWorkspace<Real,Ns,Capacity>*>(model.workspace)[workspaceSlot],
+            model.output[slot],model.status[slot],
+            Capture?model.profile+std::size_t(slot)*model.config.nodes*(7+Ns):nullptr,team);
     }
     else
     {

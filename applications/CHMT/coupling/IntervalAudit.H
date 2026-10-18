@@ -5,8 +5,13 @@
 namespace chmt {
 inline Real intervalNormalizedError(Real a,Real b,Real absolute,Real relative){
     const Real difference=absValue(a-b),tolerance=absolute+relative*maxValue(absValue(a),absValue(b));
-    if(!finite(a)||!finite(b)||!finite(tolerance)||absolute<0||relative<0)return std::numeric_limits<Real>::infinity();
-    return tolerance>0?difference/tolerance:(difference==0?0:std::numeric_limits<Real>::infinity());
+    if(!finite(a)||!finite(b)||!finite(difference)||!finite(absolute)||!finite(relative)||!finite(tolerance)||absolute<0||relative<0)return undefinedValue();
+    // This dimensionless diagnostic can exceed representable range even when
+    // both physical values and their difference are finite. Saturate only the
+    // diagnostic ratio; an infinite physical input/difference fails above.
+    if(tolerance==0)return difference==0?0:std::numeric_limits<Real>::max();
+    if(tolerance<1&&difference>std::numeric_limits<Real>::max()*tolerance)return std::numeric_limits<Real>::max();
+    return difference/tolerance;
 }
 
 // Existing CPU-owned SolidFilm records are retained; prior macro records are
@@ -48,7 +53,9 @@ inline bool wallPointLengthTolerance(const WallProgram& first,const WallProgram&
     Real result=std::numeric_limits<Real>::infinity();
     const std::vector<Real>* areas[]={&first.surface.area,&second.surface.area};
     for(const auto* faceAreas:areas)for(Real area:*faceAreas){
+        if(!finite(area)||area<=0)return intervalFailure(error,"invalid wall geometry comparison area");
         const Real threshold=tol.absoluteGeometry/area+tol.relativeGeometry*::sqrt(area);
+        if(!finite(threshold))return intervalFailure(error,"nonfinite wall geometry comparison scale");
         result=minValue(result,threshold);
     }
     if(first.surface.area.empty()&&second.surface.area.empty()){
@@ -68,6 +75,7 @@ inline bool wallPointLengthTolerance(const WallProgram& first,const WallProgram&
         }
         result=length>0?tol.absoluteGeometry/(length*length)+tol.relativeGeometry*length:0;
     }
+    if(!finite(result)||result<0)return intervalFailure(error,"nonfinite wall point comparison tolerance");
     lengthTolerance=result;error.clear();return true;
 }
 inline bool compareWallPrograms(const WallProgram& first,const WallProgram& second,const Tolerances& tol,
@@ -75,24 +83,26 @@ inline bool compareWallPrograms(const WallProgram& first,const WallProgram& seco
     std::set<WindowTime> times;for(const auto& k:first.knots)times.insert(knotOffset(first.interval,k));for(const auto& k:second.knots)times.insert(knotOffset(second.interval,k));
     if(times.empty())return intervalFailure(error,"wall program does not cover interval");
     WallProgramComparison comparison;
+    bool valid=true;
+    auto accumulate=[&](Real old,Real value){if(!finite(value))valid=false;return maxValue(old,value);};
     for(WindowTime time:times){WallKnot a,b;if(!intervalSampleWallLocal(first,time,a,error)||!intervalSampleWallLocal(second,time,b,error))return false;
         for(std::size_t i=0;i<a.faces.size();++i){const auto& x=a.faces[i];const auto& y=b.faces[i];comparison.regimeMatches=comparison.regimeMatches&&x.primaryKind==y.primaryKind;
-            comparison.thermalError=maxValue(comparison.thermalError,intervalNormalizedError(x.temperature,y.temperature,tol.absoluteTemperature,tol.relativeTemperature));
+            comparison.thermalError=accumulate(comparison.thermalError,intervalNormalizedError(x.temperature,y.temperature,tol.absoluteTemperature,tol.relativeTemperature));
             const Real scale=(first.interval.end-first.interval.begin)*maxValue(first.surface.area[i],second.surface.area[i]);
-            for(int s=0;s<Ns;++s){comparison.massPredictionError=maxValue(comparison.massPredictionError,intervalNormalizedError(x.speciesRate[s]*scale,y.speciesRate[s]*scale,tol.absoluteMass,tol.relativeMass));
-                comparison.massPredictionError=maxValue(comparison.massPredictionError,intervalNormalizedError(x.poreRate[s]*scale,y.poreRate[s]*scale,tol.absoluteMass,tol.relativeMass));
-                comparison.massPredictionError=maxValue(comparison.massPredictionError,intervalNormalizedError(x.poreSweepRate[s]*scale,y.poreSweepRate[s]*scale,tol.absoluteMass,tol.relativeMass));}
-            for(int c=0;c<Nc;++c)comparison.massPredictionError=maxValue(comparison.massPredictionError,intervalNormalizedError(x.condensedRate[c]*scale,y.condensedRate[c]*scale,tol.absoluteMass,tol.relativeMass));
+            for(int s=0;s<Ns;++s){comparison.massPredictionError=accumulate(comparison.massPredictionError,intervalNormalizedError(x.speciesRate[s]*scale,y.speciesRate[s]*scale,tol.absoluteMass,tol.relativeMass));
+                comparison.massPredictionError=accumulate(comparison.massPredictionError,intervalNormalizedError(x.poreRate[s]*scale,y.poreRate[s]*scale,tol.absoluteMass,tol.relativeMass));
+                comparison.massPredictionError=accumulate(comparison.massPredictionError,intervalNormalizedError(x.poreSweepRate[s]*scale,y.poreSweepRate[s]*scale,tol.absoluteMass,tol.relativeMass));}
+            for(int c=0;c<Nc;++c)comparison.massPredictionError=accumulate(comparison.massPredictionError,intervalNormalizedError(x.condensedRate[c]*scale,y.condensedRate[c]*scale,tol.absoluteMass,tol.relativeMass));
         }
         Real pointTolerance=0;
         if(!wallPointLengthTolerance(first,second,a,b,tol,pointTolerance,error))return false;
         auto points=[&](const std::vector<Vec3>& x,const std::vector<Vec3>& y){for(std::size_t i=0;i<x.size();++i){
             const Real distance=mag(x[i]-y[i]);
-            const Real normalized=finite(distance)?(pointTolerance>0?distance/pointTolerance
-                :(distance==0?0:std::numeric_limits<Real>::infinity())):std::numeric_limits<Real>::infinity();
-            comparison.geometryError=maxValue(comparison.geometryError,normalized);}};
+            const Real normalized=intervalNormalizedError(distance,0,pointTolerance,0);
+            comparison.geometryError=accumulate(comparison.geometryError,normalized);}};
         points(a.gasPoints,b.gasPoints);points(a.solidPoints,b.solidPoints);
     }
+    if(!valid)return intervalFailure(error,"nonfinite wall waveform comparison");
     result=comparison;error.clear();return true;
 }
 } // namespace chmt

@@ -2,6 +2,7 @@
 #define GpuResidentStrict_H
 
 #include "fvCFD.H"
+#include "../../../common/DiagnosticsFoam.H"
 #include "GpuSchedulingConfiguration.H"
 #include "GpuFshParticleRestart.H"
 #include "GpuGasBoundarySpec.H"
@@ -400,6 +401,8 @@ class GpuResidentStrictBase
 {
 protected:
     void* handle_;
+    const Time* diagnosticTime_=nullptr;
+    mutable std::uint64_t diagnosticSequence_=0;
     label hostMirrorCells_;
     label hostMirrorFaces_;
     const fvMesh* residentMesh_;
@@ -707,6 +710,10 @@ protected:
 
         check(createRc, "create GPU resident strict state");
         handle_ = raw;
+        diagnosticTime_=&mesh.time();
+        const auto diagnosticSink=ugkp::diagnostics::makeFoamSink();
+        ugkwpGpuResidentStrictSetDiagnosticSink(handle_,&diagnosticSink);
+        updateDiagnosticOperation(mesh.time().value());
 
         uploadMesh(mesh, nCellPlanes, particleWallProps);
         if (enableParticleModule)
@@ -953,6 +960,10 @@ protected:
 
         check(createRc, "create GPU resident pure-gas state");
         handle_ = raw;
+        diagnosticTime_=&mesh.time();
+        const auto diagnosticSink=ugkp::diagnostics::makeFoamSink();
+        ugkwpGpuResidentStrictSetDiagnosticSink(handle_,&diagnosticSink);
+        updateDiagnosticOperation(mesh.time().value());
 
         uploadMesh(mesh, nCellPlanes, nullptr);
         uploadGasBoundaryFields
@@ -1139,6 +1150,7 @@ public:
         const scalar scheduleTime
     ) const
     {
+        updateDiagnosticOperation(scheduleTime);
         requireInitialised("computeGasCourant");
 
         double maxCo = 0.0;
@@ -1209,6 +1221,7 @@ public:
 
     void advanceOneStep(const scalar dt, const scalar simulationTime)
     {
+        updateDiagnosticOperation(simulationTime);
         requireInitialised("advanceOneStep");
         check
         (
@@ -1601,6 +1614,13 @@ protected:
     }
 
 
+
+    void updateDiagnosticOperation(const scalar simulationTime) const
+    {
+        requireInitialised("set diagnostic operation context");
+        check(ugkwpGpuResidentStrictSetDiagnosticOperation(handle_,++diagnosticSequence_,
+            diagnosticTime_->timeIndex(),simulationTime),"set diagnostic operation context");
+    }
 
     void requireInitialised(const char* action) const
     {
@@ -3634,6 +3654,7 @@ public:
         const scalar simulationTime
     )
     {
+        updateDiagnosticOperation(simulationTime);
         if (handle_ == nullptr)
         {
             FatalErrorInFunction

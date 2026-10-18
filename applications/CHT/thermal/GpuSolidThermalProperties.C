@@ -1,8 +1,10 @@
 #include "GpuSolidThermalProperties.H"
+#include "ThermalHostDiagnostics.H"
 
 #include "List.H"
 #include "Tuple2.H"
 #include "entry.H"
+#include "error.H"
 
 #include <algorithm>
 #include <cmath>
@@ -42,7 +44,13 @@ scalar checkedProduct
 )
 {
     const scalar product = first*second;
-
+    if (!finiteScalar(product) || product <= scalar(0))
+    {
+        FatalErrorInFunction
+            << "invalid consumed solid rhoCp; context=" << context
+            << "; first=" << first << "; second=" << second
+            << "; rhoCp=" << product << exit(FatalError);
+    }
     return product;
 }
 
@@ -193,9 +201,30 @@ scalar GpuSolidThermalProperties::evaluate
     const scalar temperature
 )
 {
+    if (!finiteScalar(temperature) || temperature < scalar(0))
+    {
+        FatalErrorInFunction
+            << "invalid consumed solid temperature=" << temperature
+            << "; property=" << property.name << exit(FatalError);
+    }
+    const auto consumedValue = [&](const scalar value)->scalar
+    {
+        if
+        (
+            !finiteScalar(value)
+         || (property.name != "emissivity" && value <= scalar(0))
+        )
+        {
+            FatalErrorInFunction
+                << "invalid consumed solid property; property=" << property.name
+                << "; temperature=" << temperature << "; value=" << value
+                << exit(FatalError);
+        }
+        return value;
+    };
     if (property.constant)
     {
-        return property.constantValue;
+        return consumedValue(property.constantValue);
     }
 
     if
@@ -206,15 +235,26 @@ scalar GpuSolidThermalProperties::evaluate
     {
         if (property.clampOutOfBounds)
         {
-            return temperature < property.temperatures.first()
-              ? property.values.first()
-              : property.values.last();
+            return consumedValue
+            (
+                temperature < property.temperatures.first()
+              ? property.values.first() : property.values.last()
+            );
+        }
+        if (hostDiagnosticWarningsEnabled())
+        {
+            WarningInFunction
+                << "finite solid table extrapolation; legacy outOfBounds=error"
+                << "; property=" << property.name
+                << "; temperature=" << temperature
+                << "; tableMinimum=" << property.temperatures.first()
+                << "; tableMaximum=" << property.temperatures.last() << '\n';
         }
     }
 
     if (temperature == property.temperatures.last())
     {
-        return property.values.last();
+        return consumedValue(property.values.last());
     }
 
 
@@ -244,11 +284,11 @@ scalar GpuSolidThermalProperties::evaluate
     const scalar x1 = property.temperatures[lowerI + 1];
     if (temperature == x0)
     {
-        return property.values[lowerI];
+        return consumedValue(property.values[lowerI]);
     }
     if (temperature == x1)
     {
-        return property.values[lowerI + 1];
+        return consumedValue(property.values[lowerI + 1]);
     }
 
     const scalar directWidth = x1 - x0;
@@ -273,7 +313,7 @@ scalar GpuSolidThermalProperties::evaluate
       ? lowerValue + fraction*(upperValue - lowerValue)
       : upperValue + (scalar(1) - fraction)*(lowerValue - upperValue);
 
-    return result;
+    return consumedValue(result);
 }
 
 scalarField GpuSolidThermalProperties::buildRhoCpKnotUnion
@@ -480,6 +520,13 @@ scalar GpuSolidThermalProperties::Csec
     const scalar secant =
         deltaHv(trialTemperature, oldTemperature)/deltaTemperature;
 
+    if (!finiteScalar(secant) || secant <= scalar(0))
+    {
+        FatalErrorInFunction
+            << "invalid consumed solid Csec=" << secant
+            << "; trialTemperature=" << trialTemperature
+            << "; oldTemperature=" << oldTemperature << exit(FatalError);
+    }
     return secant;
 }
 

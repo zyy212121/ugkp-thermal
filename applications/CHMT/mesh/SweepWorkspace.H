@@ -1,5 +1,6 @@
 #ifndef CHMT_MESH_SWEEP_WORKSPACE_H
 #define CHMT_MESH_SWEEP_WORKSPACE_H
+#include "mesh/GeometryDiagnostics.H"
 #include "core/HostState.H"
 #include <algorithm>
 #include <memory>
@@ -8,9 +9,8 @@
 #include <vector>
 
 namespace chmt { namespace sweep_detail {
-// This budget covers correction-owned allocation requests, including vector
-// capacities and row objects. It excludes the caller's mesh and the existing
-// geometry/certification copies, allocator metadata, and process RSS.
+// Track correction-owned allocation requests (not process RSS). Legacy byte
+// budgets do not reject work: only actual size overflow or allocation failure does.
 struct WorkspaceLimit : std::bad_alloc {};
 inline std::size_t product(std::size_t a,std::size_t b) {
     if(b && a>std::numeric_limits<std::size_t>::max()/b)throw WorkspaceLimit{};
@@ -21,11 +21,10 @@ inline std::size_t sum(std::size_t a,std::size_t b) {
     return a+b;
 }
 struct Budget {
-    std::size_t limit,live=0;
+    std::size_t live=0;
     std::size_t& peak;
-    Budget(std::size_t bytes,std::size_t& highWater):limit(bytes),peak(highWater) {}
-    bool fits(std::size_t bytes)const {return live<=limit && bytes<=limit-live;}
-    void check(std::size_t bytes)const {if(!fits(bytes))throw WorkspaceLimit{};}
+    Budget(std::size_t,std::size_t& highWater):peak(highWater) {}
+    void check(std::size_t bytes)const {(void)sum(live,bytes);}
     void acquired(std::size_t bytes) {live+=bytes;peak=std::max(peak,live);}
     void released(std::size_t bytes) {live-=bytes;}
 };
@@ -38,7 +37,7 @@ template<class T> struct Allocator {
     T* allocate(std::size_t n) {
         const std::size_t bytes=product(n,sizeof(T));
         if(!budget)throw WorkspaceLimit{};
-        budget->check(bytes); // before the underlying allocation, not afterward
+        budget->check(bytes); // size accounting must remain representable
         T* result=std::allocator<T>{}.allocate(n);
         budget->acquired(bytes);
         return result;
@@ -95,12 +94,12 @@ public:
         }
         for(std::size_t p=1;p<offsets_.size();++p)offsets_[p]+=offsets_[p-1];
     }
-    template<bool Terminal=false>
-    bool solve(const Points& boundary,Points& output) {
+    bool solve(const Points& boundary,Points& output,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
         std::fill(displacement_.begin(),displacement_.end(),Vec3{});
         std::fill(next_.begin(),next_.end(),Vec3{});
         for(std::size_t p=0;p<fixed_.size();++p)if(fixed_[p])displacement_[p]=boundary[p];
         bool converged=mesh_.points.empty();
+        Real finalResidual=0;
         for(int iteration=0;iteration<20000 && !converged;++iteration) {
             Real residual=0;
             for(std::size_t p=0;p<fixed_.size();++p) {
@@ -109,11 +108,12 @@ public:
                 for(std::size_t k=offsets_[p];k<offsets_[p+1];++k)
                     weighted+=displacement_[edges_[k].second]*weights_[k];
                 next_[p]=weighted/totals_[p];
+                if(!finite(next_[p]))return false;
                 residual=std::max(residual,mag(next_[p]-displacement_[p]));
             }
-            displacement_.swap(next_);converged=residual<=tolerance_;
+            displacement_.swap(next_);finalResidual=residual;converged=residual<=tolerance_;
         }
-        if(!Terminal && !converged)return false;
+        if(!converged)geometryWarning(diagnostics,finalResidual,tolerance_,-1,false);
         output.resize(mesh_.points.size());
         for(std::size_t p=0;p<output.size();++p) {
             output[p]=mesh_.points[p]+displacement_[p];

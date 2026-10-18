@@ -36,11 +36,16 @@ def compile_run(tmp_path, body):
 @pytest.mark.parametrize('iterations',[0,1])
 def test_large_double_residual_publishes_every_physical_field(tmp_path,iterations):
     compile_run(tmp_path,r'''
- Model m;m.in.integrateOwnerKSource=false;m.in.model.viscosity=1e20;m.in.model.conductivity=-.04;
+ Model m;ugkp::diagnostics::DeviceContext diagnostic{};m.in.diagnostics=&diagnostic;
+ m.in.integrateOwnerKSource=false;m.in.model.viscosity=1e20;m.in.model.conductivity=-.04;
  m.in.matching.velocity[0]=1e5;
  WallModelConfig<double> c;c.nodes=3;c.maxIterations=LIMIT;
  WallWorkspace<double,2,3> w;WallOutput<double,2> out;WallStatus status,exactStatus;
  auto in=detail::wallComputationInput(m.in);auto controls=detail::wallComputationConfig(c);WallOutput<double,2> exact;
+ if(LIMIT==1){exact.traceTemperature=123;
+  assert(!evaluateReactingWallLayerImpl(in,controls,w,exact,exactStatus));
+  assert(diagnostic.firstFatal.code==ugkp::diagnostics::Code::ZeroDenominator&&diagnostic.firstFatal.sourceSiteId==2421&&diagnostic.firstFatal.observed==0);
+  assert(exact.traceTemperature==123);return 0;}
  assert(evaluateReactingWallLayerImpl(in,controls,w,exact,exactStatus));
  assert(std::isfinite(exact.residual)&&exact.residual>1e38);
  std::memset(static_cast<void*>(&out),0xA5,sizeof(out));assert(evaluateWallModel(m.in,c,w,out,status));
@@ -54,15 +59,18 @@ def test_large_double_species_balance_preserves_public_value_audit(tmp_path):
     compile_run(tmp_path,r'''
  Model m;m.in.integrateOwnerKSource=false;m.in.temperature=m.in.matching.temperature=500;m.in.matching.velocity[0]=0;
  m.in.matchingDistance=1;m.in.ownerDistance=.5;m.in.massFlux[0]=3e38;m.in.massFlux[1]=-3e38;
- m.in.model.diffusivity[0]=m.in.model.diffusivity[1]=2e38;for(int j=0;j<6;++j)m.coef[j]=0;
+ m.in.model.diffusivity[0]=m.in.model.diffusivity[1]=2e38;
+ ugkp::diagnostics::DeviceContext diagnostic{};m.in.diagnostics=&diagnostic;
+ // Positive heat capacity keeps this a diagnostic-residual test.
+ for(int j=0;j<6;++j)m.coef[j]=j%3==0?1000:0;
  WallModelConfig<double> c;c.nodes=3;c.maxIterations=0;WallWorkspace<double,2,3> w;WallOutput<double,2> out;WallStatus status;
  auto in=detail::wallComputationInput(m.in);auto controls=detail::wallComputationConfig(c);WallOutput<double,2> exact;
  assert(evaluateReactingWallLayerImpl(in,controls,w,exact,status));
  detail::LayerContext<double,2> ctx;detail::makeContext(in,controls,ctx);
  for(int i=0;i<3;++i)w.state[i][3]=1.8-1.5*w.y[i];
- double norm;assert(!detail::allResidual(in,controls,ctx,w.state,w.y,w.residual,norm));
- // This deliberately signed profile is ineligible for Newton, but terminal
- // publication still preserves the actual overflowing diagnostic arithmetic.
+ double norm;assert(detail::allResidual(in,controls,ctx,w.state,w.y,w.residual,norm));
+ assert(!ugkp::diagnostics::hasFatal(&diagnostic)&&diagnostic.warnings[2].count>0);
+ // Finite fractions clip; the resulting physical fluxes retain their audit.
  assert(detail::publishLayer(in,controls,ctx,w,0,norm,exact,true));
  std::memset(static_cast<void*>(&out),0xA5,sizeof(out));assert(detail::publishWallPrecision(m.in,exact,out));physicalCast(out,exact);
  const double audit=double(out.matchingSpeciesFlux[0])-double(out.wallSpeciesFlux[0])-double(out.reactionIntegral[0]);

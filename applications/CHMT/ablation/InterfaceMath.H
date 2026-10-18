@@ -4,162 +4,189 @@
 #include "gpu/CommonGasTraction.H"
 #include "../../../common/gasWall/WallModel.H"
 namespace chmt {
-template<bool Terminal=false>
+CHMT_HD inline bool interfaceFailure(const PhysicsConfig& p,unsigned site,Real value,int component=-1,
+    ugkp::diagnostics::Code code=ugkp::diagnostics::Code::InvalidPhysicalState,Real reference=0) {
+    using namespace ugkp::diagnostics;
+    if(p.diagnostics)recordFatal(p.diagnostics,makeRecord(finite(value)?code:Code::NonFinite,site,38,0,
+        EntityKind::Face,-1,component,value,reference,0,Quantity::Accuracy));
+    return false;
+}
+
 CHMT_HD inline Real interfacePartialPressure(Real pressure, const Real* Y,
     const PhysicsConfig& p, int species) {
     Real R=0;
     for (int s=0; s<Ns; ++s) R+=Y[s]*p.species[s].R;
-    return Terminal||R>0 ? pressure*Y[species]*p.species[species].R/R : undefinedValue();
+    return R>0 ? pressure*Y[species]*p.species[species].R/R : undefinedValue();
 }
-template<bool Terminal=false>
-CHMT_HD inline bool compositionResidual(const Real* Y, const Real* bulk, const Real* Js,
-    Real pressure, Real T, Real distance, const PhysicsConfig& p, Real* residual, Real* jacobian) {
-    Real R=0, J=0, S=0, a[Ns]{};
-    for (int s=0; s<Ns; ++s) { R+=Y[s]*p.species[s].R; J+=Js[s]; }
-    if (!Terminal&&(!(R>0 && pressure>0 && T>0 && distance>0))) return false;
-    const Real rho=pressure/(R*T);
-    for (int s=0; s<Ns; ++s) {
-        a[s]=rho*p.gasDiffusivity[s]/distance;
-        S+=a[s]*(Y[s]-bulk[s]);
+#include "InterfaceCompositionArithmetic.H"
+// One producer per diagnostic site keeps component/value provenance while the
+// template policy suppresses only private mathematical trial diagnostics.
+template<bool Report>
+CHMT_HD inline bool compositionInputFailure(const PhysicsConfig& p,Real value,int component=-1) {
+    if(Report)return interfaceFailure(p,3840,value,component);
+    return false;
+}
+template<bool Report>
+CHMT_HD inline bool compositionArithmeticFailure(const PhysicsConfig& p,Real value,int component=-1) {
+    if(Report)return interfaceFailure(p,3841,value,component,ugkp::diagnostics::Code::NonFinite);
+    return false;
+}
+CHMT_HD inline bool compositionConfigurationFailure(const PhysicsConfig& p,Real value,int component=-1,
+    ugkp::diagnostics::Code code=ugkp::diagnostics::Code::InvalidPhysicalState) {
+    return interfaceFailure(p,3842,value,component,code);
+}
+// Invocation-local fixed data. No candidate state, density or residual is cached
+// here. The owner keeps bulk, fluxes and PhysicsConfig immutable during the solve.
+struct CompositionResidualInputs {
+    Real gasR[Ns]{},totalFlux=0;
+};
+template<bool Report>
+CHMT_HD inline bool prepareCompositionResidual(const Real* bulk,const Real* Js,
+    const PhysicsConfig& p,CompositionResidualInputs& input) {
+    for(int i=0;i<Ns;++i){
+        input.gasR[i]=p.species[i].R;
+        if(!finite(bulk[i]))return compositionInputFailure<Report>(p,bulk[i],i);
+        if(!finite(Js[i]))return compositionInputFailure<Report>(p,Js[i],i);
+        if(!finite(input.gasR[i])||input.gasR[i]<=0)return compositionInputFailure<Report>(p,input.gasR[i],i);
+        if(!finite(p.gasDiffusivity[i])||p.gasDiffusivity[i]<0)
+            return compositionInputFailure<Report>(p,p.gasDiffusivity[i],i);
     }
-    for (int s=0; s<Ns; ++s) {
-        const Real diffusion=a[s]*(Y[s]-bulk[s])-Y[s]*S;
-        residual[s]=J*Y[s]+diffusion-Js[s];
-        if (!Terminal&&(!finite(residual[s]))) return false;
-        if (jacobian) {
-            for (int t=0; t<Ns; ++t) {
-                jacobian[s*Ns+t]=(s==t ? J+a[s]-S : 0)-Y[s]*a[t]
-                    -diffusion*p.species[t].R/R;
-            }
+    if(!composition_detail::scaledSum(Js,nullptr,input.totalFlux))
+        return compositionArithmeticFailure<Report>(p,HUGE_VAL,-1);
+    return true;
+}
+template<bool Report>
+CHMT_HD inline bool compositionResidualPolicy(const Real* Y,const Real* bulk,const Real* Js,
+    Real pressure,Real T,Real distance,const PhysicsConfig& p,Real* residual,Real* jacobian,
+    const CompositionResidualInputs* prepared=nullptr) {
+    using namespace composition_detail;
+    Real localGasR[Ns]{},R=0,J=prepared?prepared->totalFlux:0,S=0,a[Ns]{},difference[Ns]{};
+    const Real* gasR=prepared?prepared->gasR:localGasR;
+    for(int i=0;i<Ns;++i){
+        if(!finite(Y[i]))return compositionInputFailure<Report>(p,Y[i],i);
+        if(!prepared){
+            localGasR[i]=p.species[i].R;
+            if(!finite(bulk[i]))return compositionInputFailure<Report>(p,bulk[i],i);
+            if(!finite(Js[i]))return compositionInputFailure<Report>(p,Js[i],i);
+            if(!finite(gasR[i])||gasR[i]<=0)return compositionInputFailure<Report>(p,gasR[i],i);
+            if(!finite(p.gasDiffusivity[i])||p.gasDiffusivity[i]<0)
+                return compositionInputFailure<Report>(p,p.gasDiffusivity[i],i);
+        }
+    }
+    if(!scaledSum(gasR,Y,R)||(!prepared&&!scaledSum(Js,nullptr,J)))
+        return compositionArithmeticFailure<Report>(p,HUGE_VAL,-1);
+    const Real denominators[]={R,pressure,T,distance};
+    for(int component=0;component<4;++component)
+        if(!finite(denominators[component])||!(denominators[component]>0))
+            return compositionInputFailure<Report>(p,denominators[component],component);
+    DiffusionState diffusionState(pressure,T,distance,R);
+    for(int i=0;i<Ns;++i){
+        // Evaluate rho*D/distance without an overflowing intermediate product.
+        if(!diffusionState.scale(p.gasDiffusivity[i],a[i])
+            ||!sumFinite(Y[i],-bulk[i],difference[i]))
+            return compositionArithmeticFailure<Report>(p,HUGE_VAL,i);
+        Real term=0;
+        if(!productFinite(a[i],difference[i],term)||!sumFinite(S,term,S))
+            return compositionArithmeticFailure<Report>(p,HUGE_VAL,i);
+    }
+    for(int i=0;i<Ns;++i){
+        Real first=0,second=0,diffusion=0,advective=0,value=0;
+        if(!productFinite(a[i],difference[i],first)||!productFinite(Y[i],S,second)
+            ||!sumFinite(first,-second,diffusion)||!productFinite(J,Y[i],advective)
+            ||!sumFinite(advective,diffusion,value)||!sumFinite(value,-Js[i],residual[i]))
+            return compositionArithmeticFailure<Report>(p,HUGE_VAL,i);
+        if(jacobian)for(int j=0;j<Ns;++j){
+            Real diagonal=0,off=0,ratio=0,thermo=0;
+            if(i==j && (!sumFinite(J,a[i],diagonal)||!sumFinite(diagonal,-S,diagonal)))
+                return compositionArithmeticFailure<Report>(p,HUGE_VAL,i);
+            bool thermoFinite=productFinite(diffusion,gasR[j],thermo)&&quotientFinite(thermo,R,thermo);
+            if(!thermoFinite)thermoFinite=quotientFinite(gasR[j],R,ratio)&&productFinite(diffusion,ratio,thermo);
+            if(!productFinite(Y[i],a[j],off)||!thermoFinite||!sumFinite(diagonal,-off,value)
+                ||!sumFinite(value,-thermo,jacobian[i*Ns+j]))
+                return compositionArithmeticFailure<Report>(p,HUGE_VAL,i);
         }
     }
     return true;
 }
-template<bool Terminal=false>
-CHMT_HD inline bool interfaceComposition(const Real* Js, const Real* bulk, Real pressure,
-    Real T, Real distance, const PhysicsConfig& p, Real absoluteFluxTolerance, Real* out) {
-    Real J=0, scale=0, sum=0, maxD=0;
-    for (int s=0; s<Ns; ++s) {
-        if (!Terminal&&(!finite(Js[s]) || !finite(bulk[s]) || bulk[s]<0
-            || !finite(p.gasDiffusivity[s]) || p.gasDiffusivity[s]<0)) return false;
-        J+=Js[s]; scale+=absValue(Js[s]); sum+=bulk[s];
-        maxD=maxValue(maxD,p.gasDiffusivity[s]);
-    }
-    if (!Terminal&&(!closeEnough(sum,1,1e-13,p.tolerances.relativeMass)
-        || !finite(absoluteFluxTolerance) || absoluteFluxTolerance<0)) return false;
-    const Real tolerance=absoluteFluxTolerance+p.tolerances.relativeMass*scale;
-    Real Y[Ns]{};
-    if (maxD==0) {
-        for (int s=0; s<Ns; ++s) {
-            if (J>0) Y[s]=Js[s]/J;
-            else {
-                Y[s]=bulk[s];
-                if (!Terminal&&(absValue(Js[s]-J*Y[s])>tolerance)) return false;
-            }
-            if (!Terminal&&(!finite(Y[s]) || Y[s]<0 || Y[s]>1)) return false;
-        }
-        for (int s=0; s<Ns; ++s) out[s]=Y[s];
-        return true;
-    }
-    for (int s=0; s<Ns; ++s) Y[s]=bulk[s];
-    for (int iteration=0; iteration<60; ++iteration) {
-        Real F[Ns]{}, jac[Ns*Ns]{};
-        if (!compositionResidual<Terminal>(Y,bulk,Js,pressure,T,distance,p,F,jac)) return false;
-        Real norm=0;
-        for (int s=0; s<Ns; ++s) norm=maxValue(norm,absValue(F[s]));
-        if (norm<=tolerance) {
-            for (int s=0; s<Ns; ++s) out[s]=Y[s];
-            return true;
-        }
-        Real matrix[Ns][Ns+1]{};
-        int normalizationRow=-1;
-        Real normalization=0;
-        for (int species=0; species<Ns; ++species) {
-            normalization+=Y[species];
-            if (bulk[species]>0 || Js[species]!=0 || p.gasDiffusivity[species]>0) {
-                normalizationRow=species;
-            }
-        }
-        if (normalizationRow<0) {if(Terminal){for(int s=0;s<Ns;++s)out[s]=Y[s];return true;}return false;}
-        for (int species=0; species<Ns; ++species) {
-            const bool absent=bulk[species]==0 && Js[species]==0 && p.gasDiffusivity[species]==0;
-            if (species==normalizationRow) {
-                for (int t=0; t<Ns; ++t) matrix[species][t]=1;
-                matrix[species][Ns]=1-normalization;
-            } else if (absent) {
-                matrix[species][species]=1;
-                matrix[species][Ns]=-Y[species];
-            } else {
-                for (int t=0; t<Ns; ++t) matrix[species][t]=jac[species*Ns+t];
-                matrix[species][Ns]=-F[species];
-            }
-        }
-        for (int col=0; col<Ns; ++col) {
-            int pivot=col;
-            for (int row=col+1; row<Ns; ++row) {
-                if (absValue(matrix[row][col])>absValue(matrix[pivot][col])) pivot=row;
-            }
-            if (!finite(matrix[pivot][col]) || absValue(matrix[pivot][col])<1e-30) {if(Terminal){for(int s=0;s<Ns;++s)out[s]=Y[s];return true;}return false;}
-            for (int t=col; t<=Ns; ++t) {
-                const Real tmp=matrix[col][t]; matrix[col][t]=matrix[pivot][t]; matrix[pivot][t]=tmp;
-            }
-            const Real diagonal=matrix[col][col];
-            for (int t=col; t<=Ns; ++t) matrix[col][t]/=diagonal;
-            for (int row=0; row<Ns; ++row) if (row!=col) {
-                const Real factor=matrix[row][col];
-                for (int t=col; t<=Ns; ++t) matrix[row][t]-=factor*matrix[col][t];
-            }
-        }
-        Real alpha=1;
-        bool found=false,terminalTrialAvailable=false;Real terminalTrial[Ns]{};
-        for (int line=0; line<50; ++line) {
-            Real trial[Ns]{}, residual[Ns]{};
-            bool admissible=true;
-            for (int s=0; s<Ns; ++s) {
-                trial[s]=Y[s]+alpha*matrix[s][Ns];
-                admissible=admissible && finite(trial[s]) && trial[s]>=0 && trial[s]<=1;
-            }
-            if (admissible && compositionResidual<Terminal>(trial,bulk,Js,pressure,T,distance,p,residual,nullptr)) {
-                if(Terminal){for(int s=0;s<Ns;++s)terminalTrial[s]=trial[s];terminalTrialAvailable=true;}
-                Real nextNorm=0;
-                for (int s=0; s<Ns; ++s) nextNorm=maxValue(nextNorm,absValue(residual[s]));
-                if (nextNorm<norm || nextNorm<=tolerance) {
-                    for (int s=0; s<Ns; ++s) Y[s]=trial[s];
-                    found=true; break;
-                }
-            }
-            alpha*=0.5;
-        }
-        if (!found) {if(Terminal){for(int s=0;s<Ns;++s)out[s]=terminalTrialAvailable?terminalTrial[s]:Y[s];return true;}return false;}
-    }
-    if(Terminal){for(int s=0;s<Ns;++s)out[s]=Y[s];return true;}
-    return false;
+CHMT_HD inline bool compositionResidual(const Real* Y,const Real* bulk,const Real* Js,
+    Real pressure,Real T,Real distance,const PhysicsConfig& p,Real* residual,Real* jacobian) {
+    return compositionResidualPolicy<true>(Y,bulk,Js,pressure,T,distance,p,residual,jacobian);
 }
-template<bool Terminal=false>
-CHMT_HD inline bool makeInterfacePrimitive(const Real* Y, Real T, Real pressure,
+#include "InterfaceComposition.H"
+CHMT_HD inline bool interfaceComposition(const Real* Js,const Real* suppliedBulk,
+    Real pressure,Real T,Real distance,const PhysicsConfig& p,
+    Real absoluteFluxTolerance,Real* out) {
+ Real bulk[Ns]{},J=0,scale=0,sum=0,maxD=0;
+ CompositionResidualInputs inputs;
+ const Real denominators[]={pressure,T,distance};
+ for(int c=0;c<3;++c)if(!finite(denominators[c])||!(denominators[c]>0))
+  return compositionInputFailure<true>(p,denominators[c],c+1);
+ for(int i=0;i<Ns;++i){
+  inputs.gasR[i]=p.species[i].R;
+  bulk[i]=suppliedBulk[i];if(!clipPhysicsMassFraction(p,bulk[i],3805,i))return false;
+  if(!finite(Js[i]))return compositionConfigurationFailure(p,Js[i],i);
+  if(!finite(p.gasDiffusivity[i])||p.gasDiffusivity[i]<0)
+   return compositionConfigurationFailure(p,p.gasDiffusivity[i],i);
+  if(!finite(p.species[i].R)||!(p.species[i].R>0))return compositionConfigurationFailure(p,p.species[i].R,i);
+  scale=maxValue(scale,absValue(Js[i]));sum+=bulk[i];maxD=maxValue(maxD,p.gasDiffusivity[i]);
+ }
+ if(!composition_detail::scaledSum(Js,nullptr,J))
+  return compositionConfigurationFailure(p,J,-1,ugkp::diagnostics::Code::NonFinite);
+ if(!finite(absoluteFluxTolerance)||absoluteFluxTolerance<0)
+  return compositionConfigurationFailure(p,absoluteFluxTolerance);
+ if(!finite(p.tolerances.relativeMass)||p.tolerances.relativeMass<0)
+  return compositionConfigurationFailure(p,p.tolerances.relativeMass);
+ if(!(sum>0))return compositionConfigurationFailure(p,sum);
+ if(!closeEnough(sum,1,1e-13,p.tolerances.relativeMass))
+  reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,3806,sum-1,0);
+ Real relativeScale=0;for(int i=0;i<Ns;++i)if(scale>0)relativeScale+=absValue(Js[i]/scale);
+ Real tolerance=0,relative=0;
+ if(!composition_detail::productFinite(p.tolerances.relativeMass,relativeScale,relative)
+     ||!composition_detail::productFinite(relative,scale,relative)
+     ||!composition_detail::sumFinite(absoluteFluxTolerance,relative,tolerance))tolerance=HUGE_VAL;
+ inputs.totalFlux=J;
+ if(maxD==0)return composition_detail::linearComposition(Js,bulk,J,pressure,T,distance,p,tolerance,out,nullptr,&inputs);
+ return composition_detail::scalarSolve(Js,bulk,pressure,T,distance,p,tolerance,out,nullptr,&inputs);
+}
+// Both the primitive builder and the temperature preflight consume this same
+// selected species model; retain one source producer for its diagnostic site.
+CHMT_HD inline bool interfaceSpeciesModelFailure(const PhysicsConfig& p,Real value,
+    int component,Real reference=0) {
+    return interfaceFailure(p,3843,value,component,
+        ugkp::diagnostics::Code::MissingOperator,reference);
+}
+CHMT_HD inline bool makeInterfacePrimitive(const Real* suppliedY, Real T, Real pressure,
     Vec3 tangentialVelocity, Vec3 normal, Real normalSpeed, Real J,
     const PhysicsConfig& p, GasPrimitive& out,bool* numericalFailure=nullptr) {
+    (void)numericalFailure;
+    Real Y[Ns]{};
+    for(int species=0;species<Ns;++species){Y[species]=suppliedY[species];
+        if(!clipPhysicsMassFraction(p,Y[species],3809,species))return false;}
     Real R=0, cv=0, sum=0;
+    const GasThermoAdapter<Ns> thermo(p.species);
+    const auto thermoView=thermo.view(p.diagnostics);
     for (int s=0; s<Ns; ++s) {
-        if (!Terminal&&(!validSpecies(p.species[s]) || !finite(Y[s]) || Y[s]<0
-            || T<p.species[s].Tmin || T>p.species[s].Tmax)) return false;
+        if(!finite(p.species[s].R)||!(p.species[s].R>0)||!validSpecies(p.species[s]))return interfaceSpeciesModelFailure(p,
+            (!finite(p.species[s].R)||p.species[s].R<=0)?p.species[s].R:static_cast<Real>(p.species[s].model),s,p.species[s].R);
+        if(!finite(Y[s])||Y[s]<0)return interfaceFailure(p,3856,Y[s],s);
+        if(!finite(T)||T<=0)return interfaceFailure(p,3857,T,-1);
         R+=Y[s]*p.species[s].R;
-        if(Terminal){const GasThermoAdapter<1> thermo(&p.species[s]);
-            Real energy,capacity;
-            if(terminalSpeciesCaloric(0,T,thermo.view(),energy,capacity,&p.species[s])
-                !=ugkwp::ThermoStatus::Success){if(numericalFailure)*numericalFailure=false;return false;}
-            cv+=Y[s]*capacity;
-        }else cv+=Y[s]*speciesCv(p.species[s],T);
+        cv+=Y[s]*ugkwp::speciesCv(s,T,thermoView);
         sum+=Y[s];
     }
-    if (!Terminal&&(!closeEnough(sum,1,1e-13,p.tolerances.relativeMass) || pressure<=0 || R<=0 || cv<=0)) return false;
+    if(!finite(cv)||cv<=0){using namespace ugkp::diagnostics;
+        if(p.diagnostics)recordFatal(p.diagnostics,makeRecord(finite(cv)?Code::InvalidPhysicalState:Code::NonFinite,
+            3861,38,0,EntityKind::Face,-1,-1,cv,T,0,Quantity::HeatCapacity));return false;}
+    if(!finite(sum)||!finite(pressure)||!finite(R)||pressure<=0||R<=0)return false;
+    if(!closeEnough(sum,1,1e-13,p.tolerances.relativeMass))
+        reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,3817,sum-1,0);
     GasPrimitive state;
     state.temperature=T; state.pressure=pressure; state.rho=pressure/(R*T);
     state.velocity=tangentialVelocity-normal*dot(tangentialVelocity,normal)
         +normal*(normalSpeed+J/state.rho);
     state.soundSpeed=::sqrt((1+R/cv)*R*T);
     for (int s=0; s<Ns; ++s) state.Y[s]=Y[s];
-    if (!Terminal&&(!finite(state.velocity) || !finite(state.rho) || state.rho<=0)) return false;
+    if ((!finite(state.velocity) || !finite(state.rho) || state.rho<=0)) return false;
     out=state; return true;
 }
 // Borrowed stage data. The matching state and geometric quadrature are rebuilt
@@ -178,20 +205,20 @@ struct InterfaceGasClosure {
     GasPrimitive trace{};Vec3 traction{};Real conductiveHeatFlux=0;
     ugkwp::gaswall::WallOutput<Real,Ns> layer{};
 };
-template<bool Terminal=false>
 CHMT_HD inline bool evaluateInterfaceGasClosure(const GasPrimitive& bulk,const GasGradient& inputGradient,
     Real temperature,Real distance,Vec3 velocity,Vec3 normal,Real normalSpeed,
     const Real* species,Real fluxTolerance,const PhysicsConfig& p,
     const GasWallClosureContext& context,InterfaceGasClosure& output,bool* numericalFailure=nullptr) {
     InterfaceGasClosure result;
     if(p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){
-        if(!Terminal&&(p.material.gasContactResistance!=0))return false;
-        const GasThermoAdapter<Ns> thermo(p.species,Terminal);
+        if((p.material.gasContactResistance!=0))return false;
+        const GasThermoAdapter<Ns> thermo(p.species);
         ugkwp::gaswall::WallInput<Real,Ns> input;
         input.pressure=context.matchingPressure;input.temperature=temperature;
         input.matchingDistance=context.matchingDistance;input.ownerDistance=context.ownerDistance;
         input.matching=context.matching;input.quadrature=context.quadrature;
         input.model.thermo=thermo.view();
+        input.diagnostics=p.diagnostics;input.model.thermo.diagnostics=p.diagnostics;
         Real elements[Ns*Ne]{};input.model.thermo.elementCount=p.nElements;input.model.thermo.elementComposition=elements;
         for(int s=0;s<Ns;++s)for(int e=0;e<p.nElements;++e)elements[s*p.nElements+e]=p.species[s].element[e]*thermo.data[s].molarMass;
         input.model.mechanism=context.mechanism;input.model.mode=p.gasMode;
@@ -217,17 +244,17 @@ CHMT_HD inline bool evaluateInterfaceGasClosure(const GasPrimitive& bulk,const G
         }
         if(!accepted){if(numericalFailure)*numericalFailure=false;if(context.failureStatus)*context.failureStatus=status;return false;}
         Real mass=0;for(int s=0;s<Ns;++s)mass+=species[s];
-        if(!makeInterfacePrimitive<Terminal>(result.layer.traceMassFraction,temperature,input.pressure,velocity,normal,
+        if(!makeInterfacePrimitive(result.layer.traceMassFraction,temperature,input.pressure,velocity,normal,
             normalSpeed,mass,p,result.trace,numericalFailure))return false;
         result.traction={result.layer.traction[0],result.layer.traction[1],result.layer.traction[2]};
         result.conductiveHeatFlux=result.layer.conductiveHeatFlux;
     }else{
         // The previous low-Re path stays bitwise unchanged. Ordinary wall
         // functions have no CHMT mass-transfer extension.
-        if(!Terminal&&(p.wallModel.family!=ugkwp::gaswall::WallFamily::LowRe))return false;
+        if((p.wallModel.family!=ugkwp::gaswall::WallFamily::LowRe))return false;
         Real Y[Ns]{},mass=0;for(int s=0;s<Ns;++s)mass+=species[s];
-        if(!interfaceComposition<Terminal>(species,bulk.Y,bulk.pressure,temperature,distance,p,fluxTolerance,Y)
-            ||!makeInterfacePrimitive<Terminal>(Y,temperature,bulk.pressure,velocity,normal,normalSpeed,mass,p,result.trace,numericalFailure))return false;
+        if(!interfaceComposition(species,bulk.Y,bulk.pressure,temperature,distance,p,fluxTolerance,Y)
+            ||!makeInterfacePrimitive(Y,temperature,bulk.pressure,velocity,normal,normalSpeed,mass,p,result.trace,numericalFailure))return false;
         GasGradient gradient=inputGradient;const Vec3 difference=bulk.velocity-result.trace.velocity;
         gradient.velocity[0]+=normal*(difference.x/distance-dot(gradient.velocity[0],normal));
         gradient.velocity[1]+=normal*(difference.y/distance-dot(gradient.velocity[1],normal));
@@ -238,21 +265,20 @@ CHMT_HD inline bool evaluateInterfaceGasClosure(const GasPrimitive& bulk,const G
     }
     output=result;return true;
 }
-template<bool Terminal=false>
 CHMT_HD inline bool hertzKnudsenFlux(const FilmQ& film, const Real* gasY, Real pressure,
     Real T, const PhysicsConfig& p, Real* flux) {
-    if (!Terminal&&(film.mass<=0 || T<=0 || !finite(T))) return false;
+    if ((film.mass<=0 || T<=0 || !finite(T))) return false;
     Real molecularSum=0;
     for (int s=0; s<Ns; ++s) molecularSum+=film.species[s]*p.species[s].R;
-    if (!Terminal&&(!(molecularSum>0))) return false;
+    if ((!(molecularSum>0))) return false;
     for (int s=0; s<Ns; ++s) {
-        const Real alpha=p.material.evaporationAccommodation[s];
+        const Real alpha=physicalFraction(p,p.material.evaporationAccommodation[s],s);
         const Real activity=film.species[s]*p.species[s].R/molecularSum;
         const Real saturation=p.material.saturationPressureScale[s]
             *::exp(-p.material.saturationTemperature[s]/T);
-        flux[s]=alpha*(activity*saturation-interfacePartialPressure<Terminal>(pressure,gasY,p,s))
+        flux[s]=alpha*(activity*saturation-interfacePartialPressure(pressure,gasY,p,s))
             /::sqrt(2*3.14159265358979323846*p.species[s].R*T);
-        if (!Terminal&&(!finite(flux[s]))) return false;
+        if ((!finite(flux[s]))) return false;
     }
     return true;
 }
@@ -291,9 +317,8 @@ struct SurfacePhysicsResult {
     Vec3 shear{}, gasShear{}, traction{};
     bool wet=false;
 };
-template<bool Terminal=false>
 CHMT_HD inline Real phaseRateFromHeat(Real power, Real latent, Real densityJump) {
-    if (!Terminal&&(!(latent>0) || !finite(power))) return undefinedValue();
+    if ((!(latent>0) || !finite(power))) return undefinedValue();
     Real low=0, high=absValue(power)/latent;
     for (int iteration=0; iteration<80; ++iteration) {
         const Real rate=0.5*(low+high);
@@ -302,26 +327,52 @@ CHMT_HD inline Real phaseRateFromHeat(Real power, Real latent, Real densityJump)
     }
     return (power>=0 ? 1 : -1)*0.5*(low+high);
 }
+// Evaluate the product in logarithmic scale so individually overflowing powers
+// cannot poison a finite rate or trigger OpenFOAM's enabled overflow trap.
+CHMT_HD inline Real surfaceDonorFraction(Real available,Real scale,Real loss) {
+    const Real withdrawal=auditProduct(scale,loss);
+    if(withdrawal<=available)return 1;
+    return scale>=1?(available/scale)/loss:(available/loss)/scale;
+}
 CHMT_HD inline Real surfaceArrheniusRate(const Reaction& r, const Real* gasOrder,
     const SurfacePhysicsInput& in, const GasPrimitive& gas, Real T) {
-    Real rate=r.A*::pow(T,r.temperaturePower)*::exp(-r.activationEnergy/(universalGasConstant*T));
-    for (int c=0; c<Nc; ++c) if (r.order[c]>0) {
-        rate*=::pow(in.solid.condensed[c]/in.solidVolume,r.order[c]);
+    if(!finite(T)||T<=0||!finite(r.A)||r.A<0||!finite(r.temperaturePower)
+        ||!finite(r.activationEnergy)||r.activationEnergy<0)return undefinedValue();
+    bool zero=r.A==0;Real concentrationLog=0;
+    for(int c=0;c<Nc;++c){const Real order=r.order[c];
+        if(!finite(order)||order<0)return undefinedValue();
+        if(order==0)continue;
+        const Real mass=in.solid.condensed[c];
+        if(!finite(mass)||mass<0||!finite(in.solidVolume)||in.solidVolume<=0)return undefinedValue();
+        if(mass==0)zero=true;
+        else concentrationLog=auditAdd(concentrationLog,auditProduct(order,::log(mass)-::log(in.solidVolume)));
     }
-    for (int s=0; s<Ns; ++s) if (gasOrder[s]>0) {
-        rate*=::pow(gas.rho*gas.Y[s],gasOrder[s]);
+    for(int species=0;species<Ns;++species){const Real order=gasOrder[species];
+        if(!finite(order)||order<0)return undefinedValue();
+        if(order==0)continue;
+        if(!finite(gas.rho)||gas.rho<0||!finite(gas.Y[species])||gas.Y[species]<0)return undefinedValue();
+        if(gas.rho==0||gas.Y[species]==0)zero=true;
+        else concentrationLog=auditAdd(concentrationLog,auditProduct(order,::log(gas.rho)+::log(gas.Y[species])));
     }
-    return rate;
+    if(zero)return 0;
+    const Real activation=(T<1&&r.activationEnergy>std::numeric_limits<Real>::max()*T)
+        ?std::numeric_limits<Real>::infinity():(r.activationEnergy/T)/universalGasConstant;
+    Real logarithm=auditAdd(::log(r.A),auditProduct(r.temperaturePower,::log(T)));
+    logarithm=auditAdd(auditDifference(logarithm,activation),concentrationLog);
+    if(logarithm!=logarithm)return undefinedValue();
+    const Real maximumLog=::log(std::numeric_limits<Real>::max());
+    if(logarithm>maximumLog)return std::numeric_limits<Real>::infinity();
+    if(logarithm<::log(std::numeric_limits<Real>::denorm_min())-::log(Real(2)))return 0;
+    return ::exp(logarithm);
 }
-template<bool Terminal=false>
 CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     const PhysicsConfig& p, const MaterialPrimitive& material, Real filmT, Real topT,
     bool birth, SurfacePhysicsResult& out,bool* numericalFailure=nullptr) {
     if(numericalFailure)*numericalFailure=true;
-    if(!Terminal&&(p.wallModel.family!=ugkwp::gaswall::WallFamily::LowRe&&p.wallModel.family!=ugkwp::gaswall::WallFamily::BoundaryLayer))return false;
+    if((p.wallModel.family!=ugkwp::gaswall::WallFamily::LowRe&&p.wallModel.family!=ugkwp::gaswall::WallFamily::BoundaryLayer))return false;
     const Real mechanicalPressure=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
         ?in.wallContext.mechanicalPressure:in.bulk.pressure;
-    if(!Terminal&&(!finite(mechanicalPressure)||mechanicalPressure<=0))return false;
+    if((!finite(mechanicalPressure)||mechanicalPressure<=0))return interfaceFailure(p,3844,mechanicalPressure);
     SurfacePhysicsResult result;
     const int phase=p.material.phaseCondensed;
     const Real gasRatio=in.gasArea/in.area;
@@ -342,14 +393,14 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     Real phaseRate=0;
     if (result.wet && in.hasSolid) {
         if (p.material.enableMelting) {
-            if (!Terminal&&(phase<0 || phase>=Nc)) return false;
+            if ((phase<0 || phase>=Nc)) return false;
             bottomT=p.meltTemperature;
             const Real latent=liquidH(p,bottomT,in.bulk.pressure)
                 -condensedE(p.condensed[phase],bottomT)-in.bulk.pressure/p.condensed[phase].rho;
             Real gasIncomingHeat=gasRatio*gasConductance*(in.bulk.temperature-bottomT);
             if(birth&&p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){
                 Real zeroFlux[Ns]{};InterfaceGasClosure birthClosure;
-                if(!evaluateInterfaceGasClosure<Terminal>(in.bulk,in.gradient,bottomT,in.gasDistance,in.baseVelocity,
+                if(!evaluateInterfaceGasClosure(in.bulk,in.gradient,bottomT,in.gasDistance,in.baseVelocity,
                     in.gasNormal,0,zeroFlux,p.tolerances.absoluteMass,p,in.wallContext,birthClosure,numericalFailure))return false;
                 gasIncomingHeat=-gasRatio*birthClosure.conductiveHeatFlux;
             }
@@ -358,9 +409,9 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
                     +(gasIncomingHeat+result.radiationFlux)/solidRatio
                 : solidConductance*(material.temperature-bottomT)
                     +solidProjection*liquidConductance*(filmT-bottomT);
-            phaseRate=solidRatio*phaseRateFromHeat<Terminal>(heat,latent,1/p.liquid.rho-1/p.condensed[phase].rho);
-            if (!Terminal&&(!finite(phaseRate))) return false;
-            if (!Terminal&&(birth && phaseRate<0)) return false;
+            phaseRate=solidRatio*phaseRateFromHeat(heat,latent,1/p.liquid.rho-1/p.condensed[phase].rho);
+            if ((!finite(phaseRate))) return interfaceFailure(p,3846,phaseRate,phase,ugkp::diagnostics::Code::NonFinite);
+            if ((birth && phaseRate<0)) return false;
         } else if (solidConductance+solidProjection*liquidConductance>0) {
             bottomT=(solidConductance*material.temperature+solidProjection*liquidConductance*filmT)
                 /(solidConductance+solidProjection*liquidConductance);
@@ -370,7 +421,7 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     result.bottomTemperature=bottomT;
     Real Y[Ns]{};
     for (int s=0; s<Ns; ++s) Y[s]=in.bulk.Y[s];
-    bool compositionConverged=false;
+    bool compositionConverged=false;Real compositionChange=0;
     InterfaceGasClosure wallClosure;
     // This cache lives only inside this fixed-temperature evaluation. The bulk,
     // model, geometry and matching state cannot change during this loop.
@@ -382,7 +433,7 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
         trial.wet=result.wet;
         trial.phaseMass=phaseRate;
         GasPrimitive provisional;
-        if (!makeInterfacePrimitive<Terminal>(Y,topT,in.bulk.pressure,{},in.gasNormal,0,0,p,provisional,numericalFailure)) return false;
+        if (!makeInterfacePrimitive(Y,topT,in.bulk.pressure,{},in.gasNormal,0,0,p,provisional,numericalFailure)) return false;
         if (in.useAcceptedFlux) {
             for (int s=0; s<Ns; ++s) {
                 trial.gasSpecies[s]=in.acceptedGasSpecies[s];
@@ -393,7 +444,7 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
             for (int c=0; c<Nc; ++c) trial.condensed[c]=in.acceptedCondensed[c];
         } else {
             if (result.wet && p.material.evaporation==EvaporationLaw::HertzKnudsen && !birth) {
-                if (!hertzKnudsenFlux<Terminal>(in.film,Y,in.bulk.pressure,topT,p,trial.gasSpecies)) return false;
+                if (!hertzKnudsenFlux(in.film,Y,in.bulk.pressure,topT,p,trial.gasSpecies)) return false;
                 for (int species=0; species<Ns; ++species) trial.gasSpecies[species]*=gasRatio;
             }
             if (!result.wet && p.material.enableSurfaceReactions) {
@@ -402,7 +453,7 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
                     const Reaction& reaction=p.material.surfaceReactions[r];
                     const Real rate=solidRatio*surfaceArrheniusRate(
                         reaction,p.material.surfaceGasOrder[r],in,provisional,topT);
-                    if (!Terminal&&(!finite(rate) || rate<0)) return false;
+                    if ((!finite(rate) || rate<0)) return interfaceFailure(p,3845,rate,r);
                     for (int c=0; c<Nc; ++c) trial.condensed[c]-=rate*reaction.condensedNu[c];
                     for (int s=0; s<Ns; ++s) trial.gasSpecies[s]+=rate*reaction.gasNu[s];
                 }
@@ -411,12 +462,12 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
         Real consumedVolume=0;
         for (int c=0; c<Nc; ++c) if (trial.condensed[c]!=0) {
             if (!in.hasSolid) {if(numericalFailure)*numericalFailure=false;return false;}
-            if(!Terminal&&!validCondensed(p.condensed[c]))return false;
+            if(!validCondensed(p.condensed[c]))return false;
             consumedVolume+=trial.condensed[c]/p.condensed[c].rho;
         }
         if (trial.phaseMass!=0) {
             if (!in.hasSolid) {if(numericalFailure)*numericalFailure=false;return false;}
-            if(!Terminal&&(phase<0 || phase>=Nc || !validCondensed(p.condensed[phase])))return false;
+            if((phase<0 || phase>=Nc || !validCondensed(p.condensed[phase])))return false;
             consumedVolume+=trial.phaseMass/p.condensed[phase].rho;
         }
         const Real packing=in.hasSolid ? 1-material.porosity : 1;
@@ -432,7 +483,6 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
             }
             // Recession exposes the pore volume even if permeability is zero.
             const Real poreSweep=-material.porosity*trial.solidWallSpeed;
-            if (!Terminal&&(result.wet && (superficial!=0 || poreSweep!=0))) return false;
             for (int s=0; s<Ns; ++s) {
                 const Real poreDensity=material.porosity>0
                     ? in.solid.pore[s]/(material.porosity*in.solidVolume) : 0;
@@ -441,6 +491,14 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
                 trial.poreSweep[s]=solidRatio*(poreSweep>=0 ? poreSweep*poreDensity
                     : poreSweep*provisional.rho*Y[s]);
                 trial.poreSpecies[s]=trial.poreDarcy[s]+trial.poreSweep[s];
+                // The wet model needs a pore/film transfer operator only when
+                // actual species mass crosses this interface. A geometric pore
+                // sweep over an empty donor carries exactly zero mass/energy.
+                // Check the separate paths: counterflow can cancel net mass
+                // while still transporting donor-dependent energy.
+                if(result.wet&&(trial.poreDarcy[s]!=0||trial.poreSweep[s]!=0))
+                    return interfaceFailure(p,3870,trial.poreDarcy[s]!=0?trial.poreDarcy[s]:trial.poreSweep[s],s,
+                        ugkp::diagnostics::Code::MissingOperator,trial.poreDarcy[s]!=0?trial.poreSweep[s]:trial.poreDarcy[s]);
             }
         }
         Real factor=1;
@@ -450,31 +508,31 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
                 const Real loss=trial.condensed[c]+(c==phase ? trial.phaseMass : 0);
                 if (loss>0) {
                     const Real available=in.solidBase.condensed[c]+in.dt*in.solidLocalRate.condensed[c];
-                    factor=minValue(factor,available/(scale*loss));
+                    factor=minValue(factor,surfaceDonorFraction(available,scale,loss));
                 }
             }
             for (int s=0; s<Ns; ++s) {
                 if (trial.poreSpecies[s]>0) {
                     const Real available=in.solidBase.pore[s]+in.dt*in.solidLocalRate.pore[s];
-                    factor=minValue(factor,available/(scale*trial.poreSpecies[s]));
+                    factor=minValue(factor,surfaceDonorFraction(available,scale,trial.poreSpecies[s]));
                 }
                 const Real gasLoss=-trial.gasSpecies[s]-trial.poreSpecies[s];
-                if (gasLoss>0) factor=minValue(factor,in.gasInventory.species[s]/(scale*gasLoss));
+                if (gasLoss>0) factor=minValue(factor,surfaceDonorFraction(in.gasInventory.species[s],scale,gasLoss));
                 if (result.wet) {
-                    const Real filmLoss=trial.gasSpecies[s]-trial.phaseMass*p.material.phaseFilmY[s];
+                    const Real filmLoss=trial.gasSpecies[s]-trial.phaseMass*physicalFraction(p,p.material.phaseFilmY[s],s);
                     if (filmLoss>0) {
                         const Real available=in.filmBase.species[s]+in.dt*in.filmLocalRate.species[s];
-                        factor=minValue(factor,available/(scale*filmLoss));
+                        factor=minValue(factor,surfaceDonorFraction(available,scale,filmLoss));
                     }
                 }
             }
-            if (!Terminal&&(!finite(factor) || factor<0)) return false;
+            if ((!finite(factor) || factor<0)) return false;
         }
         // Actual geometric sweep is immutable during this evaluation. If a
         // donor limit would rescale it, the entire geometry/source trial must be
         // recomputed instead of silently changing only its diagnostic mass.
         if (in.useSweptGeometry && factor<1) {
-            for (int species=0; species<Ns; ++species) if (!Terminal&&(trial.poreSweep[species]!=0)) return false;
+            for (int species=0; species<Ns; ++species) if ((trial.poreSweep[species]!=0)) return false;
         }
         trial.phaseMass*=factor;
         trial.solidSpeed*=factor;
@@ -515,13 +573,13 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
                 && velocity.z==wallClosureVelocity.z;
             for(int s=0;s<Ns;++s) sameClosure=sameClosure && allSpecies[s]==wallClosureSpecies[s];
             if(!sameClosure){
-                if(!evaluateInterfaceGasClosure<Terminal>(in.bulk,in.gradient,topT,in.gasDistance,velocity,in.gasNormal,
+                if(!evaluateInterfaceGasClosure(in.bulk,in.gradient,topT,in.gasDistance,velocity,in.gasNormal,
                     trial.gasWallSpeed,allSpecies,fluxTolerance,p,in.wallContext,wallClosure,numericalFailure))return false;
                 wallClosureReady=true;wallClosureSpeed=trial.gasWallSpeed;wallClosureVelocity=velocity;
                 for(int s=0;s<Ns;++s)wallClosureSpecies[s]=allSpecies[s];
             }
             for(int s=0;s<Ns;++s)nextY[s]=wallClosure.trace.Y[s];
-        }else if (!interfaceComposition<Terminal>(allSpecies,in.bulk.Y,in.bulk.pressure,topT,in.gasDistance,
+        }else if (!interfaceComposition(allSpecies,in.bulk.Y,in.bulk.pressure,topT,in.gasDistance,
             p,fluxTolerance,nextY)) return false;
         Real change=0;
         for (int s=0; s<Ns; ++s) change=maxValue(change,absValue(nextY[s]-Y[s]));
@@ -544,11 +602,12 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
                 -dot(tangent,in.gasNormal))/gasProjection;
             liquidTrace=tangent+in.normal*result.liquidTopNormal;
         }
-        if (!makeInterfacePrimitive<Terminal>(nextY,topT,in.bulk.pressure,liquidTrace,in.gasNormal,
+        if (!makeInterfacePrimitive(nextY,topT,in.bulk.pressure,liquidTrace,in.gasNormal,
             trial.gasWallSpeed,J/gasRatio,p,result.gasState,numericalFailure)) return false;
+        compositionChange=change;
         if (change<=p.tolerances.relativeMass+1e-12) { compositionConverged=true; break; }
     }
-    if (!Terminal&&!compositionConverged) return false;
+    if (!compositionConverged) reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3803,compositionChange,p.tolerances.relativeMass+1e-12);
     Vec3 liquidTop{};
     if (result.wet) {
         liquidTop=in.aux.topVelocity-in.normal*dot(in.aux.topVelocity,in.normal)
@@ -567,12 +626,12 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     Real primaryJ=0, poreJ=0, poreDonorEnergy=0, solidDonorEnergy=0;
     for (int s=0; s<Ns; ++s) {
         primaryJ+=result.gasSpecies[s]; poreJ+=result.poreSpecies[s];
-        result.gasAdvective+=result.gasSpecies[s]*(Terminal?terminalSpeciesE(p.species[s],topT)+p.species[s].R*topT:speciesH(p.species[s],topT));
-        result.poreEnergy+=result.poreSpecies[s]*(Terminal?terminalSpeciesE(p.species[s],topT)+p.species[s].R*topT:speciesH(p.species[s],topT));
+        result.gasAdvective+=result.gasSpecies[s]*speciesH(p.species[s],topT);
+        result.poreEnergy+=result.poreSpecies[s]*speciesH(p.species[s],topT);
         const Real darcyT=result.poreDarcy[s]>=0 ? material.temperature : topT;
         const Real sweepT=result.poreSweep[s]>=0 ? material.temperature : topT;
-        poreDonorEnergy+=result.poreDarcy[s]*(Terminal?terminalSpeciesE(p.species[s],darcyT)+p.species[s].R*darcyT:speciesH(p.species[s],darcyT))
-            +result.poreSweep[s]*(Terminal?terminalSpeciesE(p.species[s],sweepT):speciesE(p.species[s],sweepT));
+        poreDonorEnergy+=result.poreDarcy[s]*speciesH(p.species[s],darcyT)
+            +result.poreSweep[s]*speciesE(p.species[s],sweepT);
     }
     const Real gasKE=0.5*dot(result.gasState.velocity,result.gasState.velocity);
     result.gasAdvective+=primaryJ*gasKE;
@@ -585,7 +644,7 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     const Real solidHeat=solidRatio*solidConductance*(material.temperature-bottomT);
     if (result.wet && in.hasSolid) {
         if (result.phaseMass!=0) {
-            if (!Terminal&&(phase<0 || phase>=Nc || !validCondensed(p.condensed[phase]))) return false;
+            if ((phase<0 || phase>=Nc || !validCondensed(p.condensed[phase]))) return false;
             result.phaseAdvective=result.phaseMass*(condensedE(p.condensed[phase],bottomT)
                 +in.bulk.pressure/p.condensed[phase].rho);
         }
@@ -613,19 +672,52 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
         result.thermalResidual=result.gasEnergy+result.poreEnergy-solidDonorEnergy-poreDonorEnergy
             -solidRatio*solidConductance*(material.temperature-topT)-result.radiationFlux;
     }
-    if (!Terminal&&(!finite(result.thermalResidual) || !finite(result.phaseEnergy))) return false;
+    if ((!finite(result.thermalResidual) || !finite(result.phaseEnergy))) return interfaceFailure(p,3847,result.thermalResidual,-1,ugkp::diagnostics::Code::NonFinite,result.phaseEnergy);
     out=result; return true;
 }
 struct SurfaceRootTrace {
     Real attempted=0;bool hasAttempt=false,hasCompleted=false;
     SurfacePhysicsResult completedState{};
 };
-// Never accept a root by interpolating through an inadmissible composition or
-// kinetic state. A failed midpoint abandons this bracket; bounded domain search
-// below may find a separate connected feasible interval.
+CHMT_HD inline bool surfaceTemperatureConfiguration(const SurfacePhysicsInput& in,const PhysicsConfig& p) {
+    for(int species=0;species<Ns;++species)if(!finite(p.species[species].R)||!(p.species[species].R>0)||!validSpecies(p.species[species]))
+        return interfaceSpeciesModelFailure(p,(!finite(p.species[species].R)||p.species[species].R<=0)?p.species[species].R:static_cast<Real>(p.species[species].model),species,(!finite(p.species[species].R)||p.species[species].R<=0)?p.species[species].R:Real(0));
+    if(p.wallModel.family!=ugkwp::gaswall::WallFamily::LowRe&&p.wallModel.family!=ugkwp::gaswall::WallFamily::BoundaryLayer)
+        return interfaceFailure(p,3862,static_cast<Real>(p.wallModel.family),-1,ugkp::diagnostics::Code::MissingOperator);
+    if(p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){
+        const auto& config=p.wallModel;const auto& context=in.wallContext;
+        if(p.material.gasContactResistance!=0)
+            return interfaceFailure(p,3868,p.material.gasContactResistance,-1,ugkp::diagnostics::Code::MissingOperator);
+        if(config.model!=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport
+            &&p.gasMode!=ugkwp::GasMode::SingleLegacy&&p.gasMode!=ugkwp::GasMode::MixtureFrozen
+            &&p.gasMode!=ugkwp::GasMode::MixtureChemistry)
+            return interfaceFailure(p,3869,static_cast<Real>(p.gasMode),-1,ugkp::diagnostics::Code::MissingOperator);
+        if(config.model!=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport
+            &&config.model!=ugkwp::gaswall::BoundaryLayerModel::ReactingSst)
+            return interfaceFailure(p,3863,static_cast<Real>(config.model),-1,ugkp::diagnostics::Code::MissingOperator);
+        if(config.model!=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport
+            &&(!context.workspace||(context.workspaceCapacity!=24&&context.workspaceCapacity!=48&&context.workspaceCapacity!=128)))
+            return interfaceFailure(p,3864,context.workspaceCapacity,-1,ugkp::diagnostics::Code::MissingOperator);
+        if(config.model!=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport
+            &&(config.nodes<2||config.nodes>context.workspaceCapacity))
+            return interfaceFailure(p,3865,config.nodes,-1,ugkp::diagnostics::Code::InvalidIndex,context.workspaceCapacity);
+        if(config.model!=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport
+            &&p.gasMode==ugkwp::GasMode::MixtureChemistry){
+            const GasThermoAdapter<Ns> thermo(p.species);
+            const auto mechanism=ugkwp::validateGasMechanismView(thermo.view(),context.mechanism);
+            if(mechanism.code!=ugkwp::ChemistryCode::Success)
+                return interfaceFailure(p,3866,mechanism.reaction,-1,ugkp::diagnostics::Code::MissingOperator);
+        }
+    }
+    if(p.material.enableSurfaceReactions&&(p.material.nSurfaceReactions<0||p.material.nSurfaceReactions>Nr))
+        return interfaceFailure(p,3867,p.material.nSurfaceReactions,-1,ugkp::diagnostics::Code::InvalidIndex,Nr);
+    return true;
+}
+// The owner copies immutable physics once per root solve. CUDA device atomics
+// must never target an automatic/thread-local DeviceContext.
 template<bool Track=false>
-CHMT_HD inline bool bisectFeasibleSurface(const SurfacePhysicsInput& in, const PhysicsConfig& p,
-    const MaterialPrimitive& material, Real filmT, Real lo, Real hi,
+CHMT_HD inline bool bisectFeasibleSurfaceImpl(const SurfacePhysicsInput& in, const PhysicsConfig& p,
+    const PhysicsConfig& trialPhysics,const MaterialPrimitive& material, Real filmT, Real lo, Real hi,
     SurfacePhysicsResult left, SurfacePhysicsResult right, SurfacePhysicsResult& out,SurfaceRootTrace* trace=nullptr,bool* numericalFailure=nullptr) {
     if ((left.thermalResidual>0)==(right.thermalResidual>0)
         && left.thermalResidual!=0 && right.thermalResidual!=0) return false;
@@ -635,42 +727,59 @@ CHMT_HD inline bool bisectFeasibleSurface(const SurfacePhysicsInput& in, const P
         const Real T=0.5*(lo+hi);
         SurfacePhysicsResult candidate;
         if(Track){trace->attempted=T;trace->hasAttempt=true;}
-        if (!evaluateSurfaceTemperature(in,p,material,filmT,T,false,candidate,numericalFailure)) return false;
+        if(!evaluateSurfaceTemperature(in,trialPhysics,material,filmT,T,false,candidate,numericalFailure))return false;
         if(Track){trace->completedState=candidate;trace->hasCompleted=true;}
-        const Real scale=absValue(candidate.gasEnergy)+absValue(candidate.poreEnergy)
-            +absValue(candidate.phaseEnergy)+absValue(candidate.radiationFlux);
-        const Real fluxTolerance=p.tolerances.absoluteEnergy/(in.area*(in.dt>0 ? in.dt : 1))
-            +p.tolerances.relativeEnergy*scale;
-        const Real temperatureTolerance=p.tolerances.absoluteTemperature+p.tolerances.relativeTemperature*T;
+        const Real scale=auditAdd(auditAdd(absValue(candidate.gasEnergy),absValue(candidate.poreEnergy)),
+            auditAdd(absValue(candidate.phaseEnergy),absValue(candidate.radiationFlux)));
+        const Real relativeFluxTolerance=p.tolerances.relativeEnergy==0?Real(0):
+            (scale==std::numeric_limits<Real>::infinity()?scale:auditProduct(p.tolerances.relativeEnergy,scale));
+        const Real fluxTolerance=auditAdd(auditQuotientProduct(p.tolerances.absoluteEnergy,
+            in.area,(in.dt>0?in.dt:Real(1))),relativeFluxTolerance);
+        const Real temperatureTolerance=auditTolerance(p.tolerances.absoluteTemperature,p.tolerances.relativeTemperature,T);
         if (absValue(candidate.thermalResidual)<=fluxTolerance
             && (hi-lo<=temperatureTolerance || candidate.thermalResidual==0)) {
             out=candidate; return true;
         }
-        if (T==lo || T==hi) return false;
+        if (T==lo || T==hi || iteration==99) {
+            reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3804,
+                candidate.thermalResidual,fluxTolerance);
+            out=candidate;return true;
+        }
         if ((candidate.thermalResidual>0)==(left.thermalResidual>0)) { lo=T; left=candidate; }
         else { hi=T; right=candidate; }
     }
     return false;
 }
-template<bool Terminal=false,bool Track=false>
+template<bool Track=false>
+CHMT_HD inline bool bisectFeasibleSurface(const SurfacePhysicsInput& in,const PhysicsConfig& p,
+    const MaterialPrimitive& material,Real filmT,Real lo,Real hi,
+    SurfacePhysicsResult left,SurfacePhysicsResult right,SurfacePhysicsResult& out,
+    SurfaceRootTrace* trace=nullptr,bool* numericalFailure=nullptr) {
+    if(!surfaceTemperatureConfiguration(in,p))return false;
+    auto trialPhysics=p;
+    trialPhysics.diagnostics=nullptr;trialPhysics.tolerances.diagnostics=nullptr;
+    auto trialInput=in;trialInput.wallContext.failureStatus=nullptr;
+    SurfacePhysicsResult candidate;
+    if(!bisectFeasibleSurfaceImpl<Track>(trialInput,p,trialPhysics,material,filmT,lo,hi,left,right,candidate,trace,numericalFailure))return false;
+    return evaluateSurfaceTemperature(in,p,material,filmT,candidate.topTemperature,false,out,numericalFailure);
+}
+template<bool Track=false>
 CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const PhysicsConfig& p,
     const MaterialPrimitive& material, Real filmT, Real lo, Real hi, SurfacePhysicsResult& out,SurfaceRootTrace* trace=nullptr,bool* numericalFailure=nullptr) {
-    if(Terminal){
-        SurfaceRootTrace evaluated;
-        if(findFeasibleSurfaceRoot<false,true>(in,p,material,filmT,lo,hi,out,&evaluated,numericalFailure))return true;
-        if(evaluated.hasCompleted){out=evaluated.completedState;return true;}
-        const Real T=evaluated.hasAttempt?evaluated.attempted:maxValue(lo,minValue(hi,in.hasFilm&&in.film.mass>0?filmT:material.temperature));
-        return evaluateSurfaceTemperature<true>(in,p,material,filmT,T,false,out,numericalFailure);
-    }
     if (!(hi>lo)) return false;
     const Real preferred=maxValue(lo,minValue(hi,in.hasFilm && in.film.mass>0 ? filmT : material.temperature));
+    if(!surfaceTemperatureConfiguration(in,p))return false;
+    auto trialPhysics=p;
+    trialPhysics.diagnostics=nullptr;trialPhysics.tolerances.diagnostics=nullptr;
+    auto trialInput=in;trialInput.wallContext.failureStatus=nullptr;
     SurfacePhysicsResult seed;
     if(Track){trace->attempted=preferred;trace->hasAttempt=true;}
-    const bool seedValid=evaluateSurfaceTemperature(in,p,material,filmT,preferred,false,seed,numericalFailure);
+    const bool seedValid=evaluateSurfaceTemperature(trialInput,trialPhysics,material,filmT,preferred,false,seed,numericalFailure);
     if(Track&&seedValid){trace->completedState=seed;trace->hasCompleted=true;}
-    if (seedValid && seed.thermalResidual==0) { out=seed; return true; }
-    // Refine only if coarser feasible components contain no solvable bracket.
-    // Infeasible nodes reset continuation; no state or packet is published here.
+    if (seedValid&&seed.thermalResidual==0) { out=seed; return true; }
+    SurfacePhysicsResult last=seed;bool hasValid=seedValid;
+    // Invalid samples split feasible components; never bridge an observed hole.
+    // Refine bracket discovery without changing the physical time interval.
     for (int subdivisions=32; subdivisions<=512; subdivisions*=4) {
         SurfacePhysicsResult previous;
         Real previousT=lo;
@@ -682,47 +791,63 @@ CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const
                 const Real T=insert && part==0 ? preferred : gridT;
                 SurfacePhysicsResult current;
                 if(Track){trace->attempted=T;trace->hasAttempt=true;}
-                const bool valid=evaluateSurfaceTemperature(in,p,material,filmT,T,false,current,numericalFailure);
-                if(Track&&valid){trace->completedState=current;trace->hasCompleted=true;}
-                if (valid && current.thermalResidual==0) { out=current; return true; }
+                const bool valid=evaluateSurfaceTemperature(trialInput,trialPhysics,material,filmT,T,false,current,numericalFailure);
+                            if(!valid){previousValid=false;continue;}
+                last=current;hasValid=true;
+                if(Track){trace->completedState=current;trace->hasCompleted=true;}
+                if (current.thermalResidual==0) { out=current; return true; }
                 if (valid && previousValid
                     && (current.thermalResidual>0)!=(previous.thermalResidual>0)) {
                     SurfacePhysicsResult root;
-                    if (bisectFeasibleSurface<Track>(in,p,material,filmT,previousT,T,previous,current,root,trace,numericalFailure)) {
-                        out=root; return true;
-                    }
+                    if(!bisectFeasibleSurfaceImpl<Track>(trialInput,p,trialPhysics,material,filmT,previousT,T,previous,current,root,trace,numericalFailure)){
+                        if(ugkp::diagnostics::hasFatal(p.diagnostics))return false;
+                        previousValid=false;continue;}
+                    out=root;return true;
                 }
                 previousValid=valid;
                 if (valid) { previous=current; previousT=T; }
             }
         }
     }
-    return false;
+    if(!hasValid){
+        // Retain a real failure record when no mathematical state is evaluable.
+        SurfacePhysicsResult failed;
+        if(!evaluateSurfaceTemperature(in,p,material,filmT,preferred,false,failed,numericalFailure)){
+            if(!ugkp::diagnostics::hasFatal(p.diagnostics))interfaceFailure(p,3860,preferred);
+            return false;
+        }
+        return false;
+    }
+    // No bracket among feasible states is a finite residual budget,
+    // so retain the final mathematical iterate, without selecting an earlier state.
+    reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3831,last.thermalResidual,0);
+    out=last;return true;
 }
-template<bool Terminal=false>
 CHMT_HD inline bool solveSurfaceInterface(const SurfacePhysicsInput& in,
     const PhysicsConfig& p, SurfacePhysicsResult& out, DeviceStatus* status=nullptr,bool* numericalFailure=nullptr) {
     if(numericalFailure)*numericalFailure=true;
-    if(Terminal&&solveSurfaceInterface<false>(in,p,out,status,numericalFailure))return true;
-    if (!Terminal&&(!(in.area>0 && in.gasArea>0 && in.gasDistance>0) || !finite(in.normal) || !finite(in.gasNormal)
-        || !closeEnough(mag(in.normal),1,1e-12,1e-12)
-        || !closeEnough(mag(in.gasNormal),1,1e-12,1e-12) || dot(in.normal,in.gasNormal)<=1e-8
+    if ((!(in.area>0 && in.gasArea>0 && in.gasDistance>0) || !finite(in.normal) || !finite(in.gasNormal)
+        || mag(in.normal)==0
+        || mag(in.gasNormal)==0 || dot(in.normal,in.gasNormal)<=0
         || (in.hasSolid && (mag(in.baseVelocity)!=0 || in.solidDistance<=0 || in.solidArea<=0
-            || !finite(in.solidNormal) || !closeEnough(mag(in.solidNormal),1,1e-12,1e-12)
-            || dot(in.normal,in.solidNormal)<=1e-8))
-        || (in.useSweptGeometry && (!finite(in.gasSweptRate) || !finite(in.solidSweptRate))))) return false;
+            || !finite(in.solidNormal) || mag(in.solidNormal)==0
+            || dot(in.normal,in.solidNormal)<=0))
+        || (in.useSweptGeometry && (!finite(in.gasSweptRate) || !finite(in.solidSweptRate))))) return interfaceFailure(p,3826,in.area,-1,ugkp::diagnostics::Code::InvalidPhysicalState,in.gasDistance);
+    const Real normalResidual=maxValue(absValue(mag(in.normal)-1),maxValue(absValue(mag(in.gasNormal)-1),in.hasSolid?absValue(mag(in.solidNormal)-1):0));
+    if(normalResidual>1e-12)reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3827,normalResidual,1e-12);
     MaterialPrimitive material;
-    if (in.hasSolid && !recoverMaterial<Terminal>(in.solid,in.solidVolume,p,material,nullptr,-1,numericalFailure)) return false;
+    if (in.hasSolid && !recoverMaterial(in.solid,in.solidVolume,p,material,nullptr,-1,numericalFailure)) return false;
     FilmAux filmAux=in.aux;
     const bool wet=in.hasFilm && in.film.mass>0;
-    if (wet && !recoverFilm<Terminal>(in.film,in.area,in.aux.pressure,p,filmAux,nullptr,-1)) return false;
+    if (wet && !recoverFilm(in.film,in.area,in.aux.pressure,p,filmAux,nullptr,-1)) return false;
     if (!wet && !in.hasSolid) {if(numericalFailure)*numericalFailure=false;return false;}
-    if (!Terminal&&!wet && (!closeEnough(in.gasArea,in.solidArea,p.tolerances.absoluteGeometry,
-        p.tolerances.relativeGeometry) || mag(in.gasNormal-in.solidNormal)>1e-10)) return false;
-    if (!Terminal&&wet && p.material.enableSurfaceReactions) return false;
+    if (!wet && (!closeEnough(in.gasArea,in.solidArea,p.tolerances.absoluteGeometry,
+        p.tolerances.relativeGeometry) || mag(in.gasNormal-in.solidNormal)>1e-10))
+        reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,3828,in.gasArea-in.solidArea,mag(in.gasNormal-in.solidNormal));
+    if (wet && p.material.enableSurfaceReactions) return interfaceFailure(p,3829,in.film.mass,-1,ugkp::diagnostics::Code::MissingOperator);
     // Pore collapse/bubbling into a film needs an additional mechanical model.
     // The first Stefan phase interface is a dense material phase boundary.
-    if (!Terminal&&in.hasSolid && p.material.enableMelting && material.porosity>p.tolerances.relativeGeometry) return false;
+    if (in.hasSolid && p.material.enableMelting && material.porosity>p.tolerances.relativeGeometry) return interfaceFailure(p,3830,material.porosity,-1,ugkp::diagnostics::Code::MissingOperator);
     Real lo=0, hi=std::numeric_limits<Real>::max();
     for (int s=0; s<Ns; ++s) { lo=maxValue(lo,p.species[s].Tmin); hi=minValue(hi,p.species[s].Tmax); }
     if (wet) { lo=maxValue(lo,p.liquid.Tmin); hi=minValue(hi,p.liquid.Tmax); }
@@ -731,17 +856,21 @@ CHMT_HD inline bool solveSurfaceInterface(const SurfacePhysicsInput& in,
     }
     const Real filmT=wet ? filmAux.temperature : p.meltTemperature;
     SurfacePhysicsResult candidate;
-    if (!findFeasibleSurfaceRoot<Terminal>(in,p,material,filmT,lo,hi,candidate,nullptr,numericalFailure)) return false;
+    if (!findFeasibleSurfaceRoot(in,p,material,filmT,lo,hi,candidate,nullptr,numericalFailure)) return false;
+    // Only this final mathematical state publishes diagnostics to the owner.
+    SurfacePhysicsResult accepted;
+    if(!evaluateSurfaceTemperature(in,p,material,filmT,candidate.topTemperature,false,accepted,numericalFailure))return false;
+    candidate=accepted;
     if (!wet && in.hasFilm && p.material.enableMelting && !in.useAcceptedFlux
         && candidate.topTemperature>p.meltTemperature) {
-        if (!evaluateSurfaceTemperature<Terminal>(in,p,material,p.meltTemperature,p.meltTemperature,true,candidate,numericalFailure)) return false;
+        if (!evaluateSurfaceTemperature(in,p,material,p.meltTemperature,p.meltTemperature,true,candidate,numericalFailure)) return false;
     }
     const bool offsetGeometry=!closeEnough(in.gasArea,in.area,0,p.tolerances.relativeGeometry)
         || mag(in.gasNormal-in.normal)>1e-10
         || (in.hasSolid && (!closeEnough(in.solidArea,in.area,0,p.tolerances.relativeGeometry)
             || mag(in.solidNormal-in.normal)>1e-10));
     const Real rateTolerance=p.tolerances.absoluteGeometry/(in.dt>0 ? in.dt : 1);
-    if (!Terminal&&offsetGeometry && (absValue(candidate.topSpeed)*in.gasArea>rateTolerance
+    if (offsetGeometry && (absValue(candidate.topSpeed)*in.gasArea>rateTolerance
         || absValue(candidate.solidSpeed)*in.solidArea>rateTolerance
         || (in.useSweptGeometry && (absValue(in.gasSweptRate)>rateTolerance
             || absValue(in.solidSweptRate)>rateTolerance)))) {
@@ -802,7 +931,7 @@ CHMT_HD inline bool assembleSurfacePackets(const SurfacePhysicsInput& input,
         phase=surfacePacketIdentity(ExchangeKind::SolidFilm,identity);
         phase.mass=scale*result.phaseMass;
         if (phase.mass!=0) phase.condensed[p.material.phaseCondensed]=phase.mass;
-        for (int s=0; s<Ns; ++s) phase.species[s]=phase.mass*p.material.phaseFilmY[s];
+        for (int s=0; s<Ns; ++s) phase.species[s]=phase.mass*physicalFraction(p,p.material.phaseFilmY[s],s);
         phase.advective=scale*result.phaseAdvective;
         phase.conductive=scale*result.phaseConductive;
         phase.pressureWork=scale*result.phasePressureWork;
@@ -822,9 +951,16 @@ CHMT_HD inline bool assembleSurfacePackets(const SurfacePhysicsInput& input,
             +scale*result.radiationFlux;
         if (phase.mass<0 && -phase.mass>=available.mass && available.mass>=0) {
             for (int s=0; s<Ns; ++s) {
-                if (!closeEnough(available.species[s],available.mass*p.material.phaseFilmY[s],
+                const Real expected=available.mass*physicalFraction(p,p.material.phaseFilmY[s],s);
+                const Real residual=available.species[s]-expected;
+                const Real tolerance=p.tolerances.absoluteMass+p.tolerances.relativeMass
+                    *maxValue(absValue(available.species[s]),absValue(expected));
+                if(!finite(available.species[s])||!finite(expected)||!finite(residual)||!finite(tolerance))
+                    return failStatus(status,ErrorCode::Nonfinite,face,residual,ErrorLocation::Face);
+                if (!closeEnough(available.species[s],expected,
                     p.tolerances.absoluteMass,p.tolerances.relativeMass)) {
-                    failStatus(status,ErrorCode::Composition,face,available.species[s],ErrorLocation::Face);
+                    reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,30901,
+                        residual,tolerance,residual,s);
                 }
             }
             phase.mass=-available.mass;
@@ -840,23 +976,10 @@ CHMT_HD inline bool assembleSurfacePackets(const SurfacePhysicsInput& input,
     DeviceStatus local;
     if (!validatePacketMath(primary,p.tolerances,&local)
         || !validatePacketMath(pore,p.tolerances,&local) || !validatePacketMath(phase,p.tolerances,&local)) {
-        failStatus(status,ErrorCode::Packet,face,local.value,ErrorLocation::Face);
+        return failStatus(status,ErrorCode::Packet,face,local.value,ErrorLocation::Face);
     }
     output[0]=primary; output[1]=pore; output[2]=phase;
     return true;
-}
-CHMT_HD inline bool surfaceDonorCandidate(const SolidQ& base, const SolidQ& localRate,
-    Real dt, const ExchangePacket* packets, int count, int cell, SolidQ& out) {
-    if (!finite(dt) || dt<=0 || count<0 || (count>0 && !packets)) return false;
-    SolidQ candidate=addSolid(base,localRate,dt);
-    for (int index=0; index<count; ++index) {
-        const ExchangePacket& packet=packets[index];
-        if ((requiredConsumers(packet.kind)&ConsumeSolid) && packet.solidCell==cell) {
-            candidate=addSolid(candidate,packetDelta(packet).solid);
-        }
-    }
-    if (!validSolidInventory(candidate)) return false;
-    out=candidate; return true;
 }
 } // namespace chmt
 #endif

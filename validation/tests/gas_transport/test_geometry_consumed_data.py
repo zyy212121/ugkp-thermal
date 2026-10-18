@@ -196,7 +196,7 @@ ck(s.gasSpecies.cellStatus[0]==0&&s.rho[0]==Real(.5)&&s.rhoUx[0]==0&&s.rhoUy[0]=
 ck(helperIds==0&&helperSweeps==0&&liveIds==4,"live divergence has a new proof pass or omitted its consuming loop");}
 '''.replace('MOVING',MOVING)
     source=tmp_path/'probe.cpp';source.write_text(pre+fixture()+body);exe=tmp_path/'probe'
-    c=subprocess.run(['g++','-std=c++17','-O0','-I'+str(overlay),'-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasTransport'),'-I'+str(ROOT/'common/gasNumerics'),str(source),'-o',str(exe)],capture_output=True,text=True)
+    c=subprocess.run(['g++','-std=c++17','-O0','-I'+str(overlay),'-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/operators'),'-I'+str(ROOT/'common/gasTransport'),'-I'+str(ROOT/'common/gasNumerics'),str(source),'-o',str(exe)],capture_output=True,text=True)
     assert c.returncode==0,c.stdout+c.stderr
     run=subprocess.run([str(exe)],capture_output=True,text=True)
     assert run.returncode==0,run.stdout+run.stderr

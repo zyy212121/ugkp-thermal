@@ -28,7 +28,6 @@ inline int releaseBoundaryLayerStorage(DeviceState& s)
     if(!resident)
     {
         s.gasBoundaryLayerLaunch=&launchBoundaryLayer<false>;
-        s.gasBoundaryLayerSnapshot=&sharedGasTrialDetail::snapshotWallRecords<false,DeviceState>;
     }
     return releaseBoundaryLayerStorage(s.gasTrial.rejectedWall)|resident;
 }

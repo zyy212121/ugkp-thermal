@@ -1,5 +1,6 @@
 #pragma once
 #include <type_traits>
+#include "../Diagnostics.H"
 #include <limits>
 #include <utility>
 #include "GasModel.H"
@@ -27,9 +28,11 @@ struct GasStateView
     using TimeType = Time;
     using SstCoefficientsType = SstCoefficients;
     static constexpr int speciesCount = 0;
+    ugkp::diagnostics::DeviceContext* diagnostics = nullptr;
     GasGeometryState<Real> gasGeometry;
     GasBoundaryLayerState<Real> gasBoundaryLayer;
-    Real gasThermalConductivity = Real(-1); // negative: legacy mu*cp/Pr; otherwise W/(m K)
+    bool gasThermalConductivityConfigured = false;
+    Real gasThermalConductivity = Real(-1); // finite negative and not configured: legacy mu*cp/Pr; otherwise W/(m K)
 
 #define UGKWP_GAS_STATE_FIELD(Type, Name) Type Name{};
 #include "GasStateFields.inc"
@@ -95,11 +98,19 @@ template<class State,class=void> struct GasDirectConductivity : std::false_type 
 template<class State> struct GasDirectConductivity<State,
     std::void_t<decltype(std::declval<State>().gasThermalConductivity)>> : std::true_type {};
 
+template<class State,class=void> struct GasConfiguredConductivity : std::false_type {};
+template<class State> struct GasConfiguredConductivity<State,
+    std::void_t<decltype(std::declval<State>().gasThermalConductivityConfigured)>> : std::true_type {};
+
 template<class State>
 UGKWP_GAS_HD inline bool gasHasDirectConductivity(const State& state)
 {
+    if constexpr (GasConfiguredConductivity<State>::value)
+        if(state.gasThermalConductivityConfigured)return true;
     if constexpr (GasDirectConductivity<State>::value)
-        return state.gasThermalConductivity >= 0;
+        // Only a finite negative value is the legacy absent sentinel.
+        // Preserve configured NaN/Inf for the consuming physical diagnostic.
+        return !gasFinite(state.gasThermalConductivity) || state.gasThermalConductivity >= 0;
     return false;
 }
 
@@ -133,11 +144,14 @@ inline auto makeGasStateView(const State& state)
     static_assert(std::is_same<decltype(state.rhoE), decltype(state.rhoENext)>::value,
         "live and RK gas energy must have identical storage types");
     GasStateView<Real, Time, SstCoefficients, Energy> view{};
+    view.diagnostics = state.diagnostics;
 #define UGKWP_GAS_STATE_FIELD(Type, Name) view.Name = state.Name;
 #include "GasStateFields.inc"
 #undef UGKWP_GAS_STATE_FIELD
     if constexpr (GasDirectConductivity<State>::value)
         view.gasThermalConductivity=state.gasThermalConductivity;
+    if constexpr (GasConfiguredConductivity<State>::value)
+        view.gasThermalConductivityConfigured=state.gasThermalConductivityConfigured;
     if constexpr (GasGeometryCapability<State>::value) view.gasGeometry=state.gasGeometry;
     if constexpr (GasBoundaryLayerCapability<State>::value) view.gasBoundaryLayer=state.gasBoundaryLayer;
     return view;

@@ -18,6 +18,7 @@ template<class R> struct WallGeometryMesh {
     std::uint64_t geometryVersion=0;
 };
 template<class R> struct WallGeometryOptions {
+    ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
     R relativeTolerance=R(1e-9);
     int maxRayCells=32,quadratureRefinement=1;
     bool constructQuadrature=true; // Optional direct diagnostics; production adapters disable.
@@ -57,7 +58,7 @@ template<class R> inline Vec<R> sub(const Vec<R>&a,const Vec<R>&b){return {{a[0]
 template<class R> inline Vec<R> mul(const Vec<R>&a,R b){return {{a[0]*b,a[1]*b,a[2]*b}};}
 template<class R> inline R dot(const Vec<R>&a,const Vec<R>&b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
 template<class R> inline Vec<R> cross(const Vec<R>&a,const Vec<R>&b){return {{a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]}};}
-template<class R> inline R norm(const Vec<R>&a){return std::sqrt(dot(a,a));}
+template<class R> inline R norm(const Vec<R>&a){return std::hypot(std::hypot(a[0],a[1]),a[2]);}
 template<class R> inline bool finite(const Vec<R>&a){return gasFinite(a[0])&&gasFinite(a[1])&&gasFinite(a[2]);}
 template<class R> struct Triangle {int a,b,c;};
 template<class R> struct Face {std::vector<Triangle<R>> triangles;Vec<R> normal{},centre{};R scale=0;};
@@ -78,10 +79,10 @@ template<class R> bool triangulate(const WallGeometryMesh<R>&m,int f,Face<R>&out
         const Vec<R> a=sub(m.points[ring[i]],anchor),b=sub(m.points[ring[(i+1)%ring.size()]],anchor);
         area=add(area,cross(a,b));out.scale=std::max(out.scale,norm(a));
     }
-    const R amag=norm(area),eps=R(128)*std::numeric_limits<R>::epsilon();
-    if(!(out.scale>0)||!(amag>eps*out.scale*out.scale))return false;
+    const R amag=norm(area);
+    if(!(out.scale>0)||!(amag>0))return false;
     out.normal=mul(area,R(1)/amag);
-    const R atol=eps*out.scale*out.scale;
+    const R atol=0; // Geometric orientation uses the represented sign, without an area floor.
     // A repeated vertex, crossing edge or self-touching boundary is not a face.
     for(std::size_t i=0;i<ring.size();++i)for(std::size_t j=i+1;j<ring.size();++j){
         if(ring[i]==ring[j])return false;
@@ -167,31 +168,104 @@ template<class R> bool prepare(const WallGeometryMesh<R>&m,Context<R>&ctx,WallSt
     }
     return true;
 }
-template<class R> bool cellSeed(const WallGeometryMesh<R>&m,const Context<R>&ctx,int cell,Vec<R>&seed,R&scale){
+template<class R> bool cellSeed(const WallGeometryMesh<R>&m,const Context<R>&ctx,int cell,Vec<R>&seed,R&scale,ugkp::diagnostics::DeviceContext* diagnostics=nullptr){
+    (void)diagnostics;
     if(ctx.cellFaces[cell].size()<4)return false;
     scale=0;seed=m.cellCentres[cell];
-    for(int f:ctx.cellFaces[cell])
-        for(int k=m.faceOffsets[f];k<m.faceOffsets[f+1];++k)
-            scale=std::max(scale,norm(sub(m.points[m.facePoints[k]],seed)));
-    if(!(scale>0))return false;
-    // Prefer a well-separated kernel point to avoid numerically flat positive
-
-
-    const R margins[2]={R(.01)*scale,R(256)*std::numeric_limits<R>::epsilon()*scale};
-    for(R margin:margins){
-        seed=m.cellCentres[cell];
-        for(int pass=0;pass<256;++pass){
-            bool good=true;
-            for(int f:ctx.cellFaces[cell]){
-                const auto n=mul(ctx.faces[f].normal,m.owner[f]==cell?R(1):R(-1));
-                const R violation=dot(sub(seed,ctx.faces[f].centre),n)+margin;
-                if(violation>0){seed=sub(seed,mul(n,violation+margin));good=false;}
-            }
-            if(good)return finite(seed);
-        }
+    // Intersect the closed inward half-spaces, rather than imposing a guessed
+    // positive margin on a possibly very narrow star kernel. Local anisotropic
+    // coordinates retain represented thin dimensions independently of cell size.
+    // Convex-polyhedron clipping has a finite number of face operations; it is
+    // not a projection iteration whose limit might publish an infeasible point.
+    using P=std::array<long double,3>;using Polygon=std::vector<P>;
+    P low{{0,0,0}},high{{0,0,0}};bool first=true;
+    for(int f:ctx.cellFaces[cell])for(int k=m.faceOffsets[f];k<m.faceOffsets[f+1];++k){
+        const auto&v=m.points[m.facePoints[k]];
+        scale=std::max(scale,norm(sub(v,seed)));
+        for(int d=0;d<3;++d){const long double x=v[d];
+            if(first)low[d]=high[d]=x;else{low[d]=std::min(low[d],x);high[d]=std::max(high[d],x);}}
+        first=false;
     }
+    if(!(scale>0))return false;
+    P width;for(int d=0;d<3;++d){width[d]=high[d]-low[d];if(!(width[d]>0))return false;}
+    const auto coordinate=[&](const Vec<R>&x){P u;for(int d=0;d<3;++d)u[d]=(static_cast<long double>(x[d])-low[d])/width[d];return u;};
+    struct Plane{P normal;long double bound;};std::vector<Plane> planes;
+    // Use the actual boundary triangles, including a warped polygon's pieces:
+    // these are precisely the oriented tetrahedra consumed by the quadrature.
+    for(int f:ctx.cellFaces[cell])for(const auto&t:ctx.faces[f].triangles){
+        const P a=coordinate(m.points[t.a]),b=coordinate(m.points[t.b]),c=coordinate(m.points[t.c]);
+        P u,v;for(int d=0;d<3;++d){u[d]=b[d]-a[d];v[d]=c[d]-a[d];}
+        const long double sign=m.owner[f]==cell?1.L:-1.L;
+        P n{{sign*(u[1]*v[2]-u[2]*v[1]),sign*(u[2]*v[0]-u[0]*v[2]),sign*(u[0]*v[1]-u[1]*v[0])}};
+        const long double normalScale=std::max(std::abs(n[0]),std::max(std::abs(n[1]),std::abs(n[2])));
+        if(normalScale==0)continue; // A zero-area piece adds the identity 0 <= 0.
+        if(!std::isfinite(normalScale))return false;
+        long double bound=0;for(int d=0;d<3;++d){n[d]/=normalScale;bound+=n[d]*a[d];}
+        planes.push_back({n,bound});
+    }
+    if(planes.empty())return false;
+    const auto value=[](const Plane&plane,const P&x){return plane.normal[0]*x[0]+plane.normal[1]*x[1]+plane.normal[2]*x[2]-plane.bound;};
+    const P supplied=coordinate(seed);bool interior=true;
+    for(const auto&plane:planes)if(value(plane,supplied)>=0)interior=false;
+    if(interior)return finite(seed);
+    std::vector<Polygon> kernel={
+        {{{0,0,0}},{{0,0,1}},{{0,1,1}},{{0,1,0}}},
+        {{{1,0,0}},{{1,1,0}},{{1,1,1}},{{1,0,1}}},
+        {{{0,0,0}},{{1,0,0}},{{1,0,1}},{{0,0,1}}},
+        {{{0,1,0}},{{0,1,1}},{{1,1,1}},{{1,1,0}}},
+        {{{0,0,0}},{{0,1,0}},{{1,1,0}},{{1,0,0}}},
+        {{{0,0,1}},{{1,0,1}},{{1,1,1}},{{0,1,1}}}};
+    for(const auto&constraint:planes){
+        const P&plane=constraint.normal;
+        const auto signedDistance=[&](const P&x){return value(constraint,x);};
+        std::vector<Polygon> clipped;Polygon cap;
+        for(const auto&polygon:kernel){
+            Polygon next;
+            for(std::size_t i=0;i<polygon.size();++i){
+                P x=polygon[i],y=polygon[(i+1)%polygon.size()];
+                long double vx=signedDistance(x),vy=signedDistance(y);
+                if(vx<=0)next.push_back(x);
+                if(vx==0)cap.push_back(x);
+                if((vx<0&&vy>0)||(vx>0&&vy<0)){
+                    // Shared edges use the same endpoint order and arithmetic,
+                    // so their intersection is represented identically.
+                    if(y<x){std::swap(x,y);std::swap(vx,vy);}
+                    const long double t=vx/(vx-vy);P cut;
+                    for(int d=0;d<3;++d)cut[d]=x[d]+t*(y[d]-x[d]);
+                    next.push_back(cut);cap.push_back(cut);
+                }
+            }
+            next.erase(std::unique(next.begin(),next.end()),next.end());
+            if(next.size()>1&&next.front()==next.back())next.pop_back();
+            if(!next.empty())clipped.push_back(std::move(next));
+        }
+        if(clipped.empty())return false;
+        std::sort(cap.begin(),cap.end());cap.erase(std::unique(cap.begin(),cap.end()),cap.end());
+        if(!cap.empty()){
+            P centre{{0,0,0}};for(const auto&x:cap)for(int d=0;d<3;++d)centre[d]+=x[d]/cap.size();
+            int axis=0;for(int d=1;d<3;++d)if(std::abs(plane[d])>std::abs(plane[axis]))axis=d;
+            const int u=(axis+1)%3,v=(axis+2)%3;
+            std::sort(cap.begin(),cap.end(),[&](const P&x,const P&y){
+                const long double ax=std::atan2(x[v]-centre[v],x[u]-centre[u]),ay=std::atan2(y[v]-centre[v],y[u]-centre[u]);
+                return ax<ay||(ax==ay&&x<y);
+            });
+            clipped.push_back(std::move(cap));
+        }
+        kernel.swap(clipped);
+    }
+    Polygon vertices;for(const auto&polygon:kernel)vertices.insert(vertices.end(),polygon.begin(),polygon.end());
+    std::sort(vertices.begin(),vertices.end());vertices.erase(std::unique(vertices.begin(),vertices.end()),vertices.end());
+    if(vertices.empty())return false;
+    P centre{{0,0,0}};for(const auto&x:vertices)for(int d=0;d<3;++d)centre[d]+=x[d]/vertices.size();
+    for(int d=0;d<3;++d)seed[d]=static_cast<R>(low[d]+centre[d]*width[d]);
+    // A positive average of all kernel vertices is inside every kernel plane
+    // (strictly inside when its kernel has interior). Certify the stored point,
+    // not merely an extended-precision intermediate or a finite iterate.
+    const P stored=coordinate(seed);
+    for(const auto&plane:planes)if(value(plane,stored)>0)return false;
     return finite(seed);
 }
+
 template<class R> void tetraQuadrature(const std::array<Vec<R>,4>&p,R volume,int level,WallGeometryDescriptor<R>&d){
     if(level>0){
         const Vec<R> centre=mul(add(add(p[0],p[1]),add(p[2],p[3])),R(.25));
@@ -232,7 +306,8 @@ template<class R> bool tetraSection(const std::array<Vec<R>,4>&p,const std::arra
         const R w=dot(cross(a,b),d.normal)/R(2);
         area+=w;offset=add(offset,mul(add(a,b),w/R(3)));
     }
-    centroid=add(p[anchor],add(centre,mul(offset,R(1)/area)));return true;
+    if(!gasFinite(area)||area==0)return false;
+    centroid=add(p[anchor],add(centre,mul(offset,R(1)/area)));return finite(centroid);
 }
 // The section area is quadratic between projected tetrahedron vertices.
 // Cutting again at every BVP node makes area * reconstructed source cubic,
@@ -289,6 +364,7 @@ template<class R> bool profileOwnerQuadrature(const std::vector<std::array<Vec<R
                 totalArea+=area;firstAreaMoment=add(firstAreaMoment,mul(sub(point,d.origin),area));
             }
             const R weight=totalArea*dy;
+            if(!gasFinite(totalArea)||totalArea==0||!gasFinite(weight))return false;
             const Vec<R> centroid=add(d.origin,mul(firstAreaMoment,R(1)/totalArea));
             d.distance.push_back(y);d.volumeWeight.push_back(weight);d.quadraturePoints.push_back(centroid);
         }
@@ -298,14 +374,15 @@ template<class R> bool profileOwnerQuadrature(const std::vector<std::array<Vec<R
 template<class R> bool rayTriangle(const Vec<R>&o,const Vec<R>&n,const Vec<R>&a,const Vec<R>&b,const Vec<R>&c,R&time){
     const Vec<R> e1=sub(b,a),e2=sub(c,a),p=cross(n,e2);const R det=dot(e1,p);
     const R eps=R(256)*std::numeric_limits<R>::epsilon();
-    if(std::abs(det)<=eps*norm(e1)*norm(e2))return false;
+    // A finite shallow crossing still intersects the represented triangle.
+    if(det==R(0))return false;
     const Vec<R> delta=sub(o,a),q=cross(delta,e1);
     const R u=dot(delta,p)/det,v=dot(n,q)/det;
     if(u<-eps||v<-eps||u+v>R(1)+eps)return false;
     time=dot(e2,q)/det;return gasFinite(time);
 }
 template<class R> bool matching(const WallGeometryMesh<R>&m,const Context<R>&ctx,WallGeometryDescriptor<R>&d,WallStatus&s,const WallGeometryOptions<R>&,R scale){
-    const R tol=R(1024)*std::numeric_limits<R>::epsilon()*scale;
+    (void)scale; // Distinct represented ray positions are not merged by mesh size.
     R entry=0;int cell=d.ownerCell;
 
 
@@ -314,14 +391,20 @@ template<class R> bool matching(const WallGeometryMesh<R>&m,const Context<R>&ctx
         if(cell<0||(!m.gasCell.empty()&&!m.gasCell[cell]))return invalid(s,d.wallFace);
         R exit=std::numeric_limits<R>::max();int exitFace=-1;bool ambiguous=false;
         for(int f:ctx.cellFaces[cell])for(const auto&t:ctx.faces[f].triangles){
-            R hit=0;if(!rayTriangle(d.origin,d.normal,m.points[t.a],m.points[t.b],m.points[t.c],hit)||hit<=entry+tol)continue;
-            if(hit<exit-tol){exit=hit;exitFace=f;ambiguous=false;}
-            else if(std::abs(hit-exit)<=tol&&f!=exitFace){ambiguous=true;}
+            // Exit crossings follow the current cell's outward triangle winding.
+            // Ingress triangles (including the starting wall) cannot be exits,
+            // even when their computed ray position rounds just above entry.
+            const auto triangleNormal=cross(sub(m.points[t.b],m.points[t.a]),sub(m.points[t.c],m.points[t.a]));
+            const R crossing=dot(d.normal,triangleNormal)*(m.owner[f]==cell?R(1):R(-1));
+            if(crossing<=0)continue;
+            R hit=0;if(!rayTriangle(d.origin,d.normal,m.points[t.a],m.points[t.b],m.points[t.c],hit)||hit<=entry)continue;
+            if(hit<exit){exit=hit;exitFace=f;ambiguous=false;}
+            else if(hit==exit&&f!=exitFace){ambiguous=true;}
         }
         if(exitFace<0||ambiguous)return invalid(s,d.wallFace);
         const R lower=std::max(entry,d.maximumOwnerDistance);
-        if(cell!=d.ownerCell&&!ctx.constrained[cell]&&exit>lower+R(4)*tol){
-            d.matchingDistance=(lower+exit)/R(2);d.matchingPoint=add(d.origin,mul(d.normal,d.matchingDistance));
+        if(cell!=d.ownerCell&&!ctx.constrained[cell]&&exit>lower){
+            d.matchingDistance=lower+(exit-lower)/R(2);d.matchingPoint=add(d.origin,mul(d.normal,d.matchingDistance));
             d.matchingDonorDistance=norm(sub(m.cellCentres[cell],d.matchingPoint));
             d.matchingCells.push_back(cell);d.matchingWeights.push_back(R(1));return true;
         }
@@ -336,18 +419,27 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
     WallGeometryDescriptor<R>d;d.wallFace=wallFace;d.ownerCell=m.owner[wallFace];d.geometryVersion=m.geometryVersion;
     if(std::size_t(d.ownerCell)>=m.volumes.size()||(!m.gasCell.empty()&&!m.gasCell[d.ownerCell]))return invalid(s,wallFace);
     d.origin=ctx.faces[wallFace].centre;d.normal=mul(ctx.faces[wallFace].normal,R(-1));
-    // A concave wall's area centroid need not lie on the actual polygon. In
-    // that case start the ray strictly inside its largest certified triangle.
-    bool onWall=false;R largest=0;Vec<R> interior{};
-    for(const auto&t:ctx.faces[wallFace].triangles){
-        const auto&a=m.points[t.a],&b=m.points[t.b],&c=m.points[t.c];
-        const auto&n=ctx.faces[wallFace].normal;
-        if(turn(a,b,d.origin,n)>=0&&turn(b,c,d.origin,n)>=0&&turn(c,a,d.origin,n)>=0)onWall=true;
-        const R area=norm(cross(sub(b,a),sub(c,a)));
-        if(area>largest){largest=area;interior=add(a,mul(add(sub(b,a),sub(c,a)),R(1)/R(3)));}
+    // Choose the construction from polygon topology before tracing a ray:
+    // convex polygons use their area centroid; concave polygons use an
+    // interior triangle. Neither an attempted ray nor a failed point test
+    // selects a second construction.
+    bool concave=false;
+    const int begin=m.faceOffsets[wallFace],end=m.faceOffsets[wallFace+1],count=end-begin;
+    for(int i=0;i<count;++i)
+        if(turn(m.points[m.facePoints[begin+i]],m.points[m.facePoints[begin+(i+1)%count]],
+            m.points[m.facePoints[begin+(i+2)%count]],ctx.faces[wallFace].normal)<0)concave=true;
+    if(concave){
+        R largest=0;
+        for(const auto&t:ctx.faces[wallFace].triangles){
+            const auto&a=m.points[t.a],&b=m.points[t.b],&c=m.points[t.c];
+            const R area=norm(cross(sub(b,a),sub(c,a)));
+            if(area>largest){largest=area;d.origin=add(a,mul(add(sub(b,a),sub(c,a)),R(1)/R(3)));}
+        }
     }
-    if(!onWall)d.origin=interior;
-    Vec<R> seed;R scale=0;if(!cellSeed(m,ctx,d.ownerCell,seed,scale))return invalid(s,wallFace);
+    // Signed volume/first-moment identities need only a local reference point.
+    // A star-kernel point is required solely by the optional positive quadrature.
+    Vec<R> seed=m.cellCentres[d.ownerCell];R scale=0;
+    if(opt.constructQuadrature&&!cellSeed(m,ctx,d.ownerCell,seed,scale,opt.diagnostics))return invalid(s,wallFace);
     for(int f:ctx.cellFaces[d.ownerCell])for(int k=m.faceOffsets[f];k<m.faceOffsets[f+1];++k){
         R y=dot(sub(m.points[m.facePoints[k]],d.origin),d.normal);
         d.maximumOwnerDistance=std::max(d.maximumOwnerDistance,y);
@@ -374,6 +466,7 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
         else tetraQuadrature<R>({{seed,a,b,c}},v,opt.quadratureRefinement,d);
     }
     d.geometryVolume=volume;d.volume=m.volumes[d.ownerCell];
+    if(!gasFinite(volume)||volume==0||!gasFinite(d.volume)||!finite(moment))return invalid(s,wallFace);
     if(!opt.constructQuadrature){
 
         const Vec<R> centroid=add(m.cellCentres[d.ownerCell],mul(moment,R(1)/volume));
@@ -385,6 +478,7 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
 
 
     R quadratureVolume=0;for(R weight:d.volumeWeight)quadratureVolume+=weight;
+    if(!gasFinite(quadratureVolume)||quadratureVolume==0)return invalid(s,wallFace);
     const R factor=d.volume/quadratureVolume;
     for(std::size_t i=0;i<d.distance.size();++i){
         d.volumeWeight[i]*=factor;d.firstMoment+=d.volumeWeight[i]*d.distance[i];

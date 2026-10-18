@@ -20,6 +20,6 @@ const Real old=s.gasDiffusionNumber[0];D[1]=.06;computeGasDiffusionNumberKernel(
 ck(diffusionReads==(ACTIVE?4:0),"local reuse persisted across calls");if(ACTIVE)ck(s.gasDiffusionNumber[0]>old,"fresh call reused stale diffusivity");}
 '''.replace('ACTIVE','1' if active else '0')
     source=tmp_path/'probe.cpp';source.write_text(pre+fixture()+body)
-    exe=tmp_path/'probe';r=subprocess.run(['g++','-std=c++17','-O0','-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(source),'-o',str(exe)],capture_output=True,text=True)
+    exe=tmp_path/'probe';r=subprocess.run(['g++','-std=c++17','-O0','-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/operators'),'-I'+str(ROOT/'common/gasNumerics'),str(source),'-o',str(exe)],capture_output=True,text=True)
     assert r.returncode==0,r.stdout+r.stderr
     r=subprocess.run([str(exe)],capture_output=True,text=True);assert r.returncode==0,r.stdout+r.stderr

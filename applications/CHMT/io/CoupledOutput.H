@@ -21,8 +21,7 @@ inline bool writeAcceptedCoupledSummary(std::ostream& stream,const HostState& st
 inline bool writeAcceptedGasFields(std::ostream& stream,const HostState& state,
     const ModelConfig& model,std::string& error){
     std::vector<GasPrimitive> primitive(state.gas.size());
-    for(std::size_t c=0;c<state.gas.size();++c)if(!recoverGas(state.gas[c],state.gasMesh.volumes[c],model.physics,primitive[c])
-        &&!completePredictorGas(state.gas[c],state.gasMesh.volumes[c],model.physics,primitive[c])){
+    for(std::size_t c=0;c<state.gas.size();++c)if(!recoverGas(state.gas[c],state.gasMesh.volumes[c],model.physics,primitive[c],nullptr,static_cast<int>(c))){
         error="invalid accepted gas output";return false;}
     stream<<std::setprecision(17)<<"cell,volume,mass,momentum_x,momentum_y,momentum_z,total_energy,temperature,pressure";
     for(const auto& name:model.speciesNames){stream<<','<<std::quoted("mass_"+name);}
@@ -37,8 +36,7 @@ inline bool writeAcceptedGasFields(std::ostream& stream,const HostState& state,
 inline bool writeAcceptedMaterialFields(std::ostream& stream,const HostState& state,
     const ModelConfig& model,std::string& error){
     std::vector<Real> temperature(state.solid.size());
-    for(std::size_t c=0;c<state.solid.size();++c)if(!recoverSolid(state.solid[c],model.physics,temperature[c])
-        &&!recoverSolid<true>(state.solid[c],model.physics,temperature[c],nullptr,-1)){error="invalid accepted material output";return false;}
+    for(std::size_t c=0;c<state.solid.size();++c)if(!recoverSolid(state.solid[c],model.physics,temperature[c])){error="invalid accepted material output";return false;}
     stream<<std::setprecision(17)<<"cell,volume,total_energy,temperature,porosity";
     for(const auto& name:model.condensedNames)stream<<','<<std::quoted("mass_"+name);
     for(const auto& name:model.speciesNames)stream<<','<<std::quoted("mass_pore_"+name);

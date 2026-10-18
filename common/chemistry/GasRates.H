@@ -62,14 +62,7 @@ template<class X,class R,int N,bool Complete=true,bool SchemaChecked=false> UGKW
      for(int j=0;j<count;++j){if(!t.species)return false;const auto& term=terms[offset+j];const C sign=side?term.coefficient:-term.coefficient;const C Tvalue=rateValue(T);const C W=t.species[term.species].molarMass;
        C g=speciesGibbsStandard(term.species,Tvalue,t)*W;
        C dg=-speciesEntropyStandard(term.species,Tvalue,t)*W;
-       if(Complete && (!gasFinite(g) || (GibbsNumber<X,C>::thermal && !gasFinite(dg)))){
-         gasThermoDetail::SpeciesValues<C> values;bool available=false;
-         gasThermoDetail::evaluateSpecies<C,N,R,true,true,true>(term.species,Tvalue,t,values,&available);
-         if(!available)return false;
-
-
-         g=(values.h-Tvalue*values.entropy)*W;dg=-values.entropy*W;
-       }
+       if(!gasFinite(g) || (GibbsNumber<X,C>::thermal && !gasFinite(dg)))return false;
        deltaG=deltaG+X(sign)*GibbsNumber<X,C>::make(g,dg);deltaNu+=sign;}
    }
    const X logKc=X(-1)*deltaG/(X(universalGasConstant<C>())*T)+X(deltaNu)*rateLog(X(C(m.referencePressure)/universalGasConstant<C>())/T);
@@ -107,13 +100,13 @@ template<class R,int N,class TableReal,bool Complete=true> UGKWP_GAS_HD inline b
  for(int r=0;r<m.reactionCount;++r){R q;bool available=false;
    if(!gasChemistryDetail::progressRate<R,TableReal,N,Complete>(r,T,c,t,m,q,&available)){
      if(status){status.code=ChemistryCode::RateFailure;status.reaction=r;}
-     if(!Complete || !available)return false;
+     return false;
    }
    const auto& a=m.reactions[r];
    for(int j=0;j<a.reactantCount;++j){const auto& v=m.reactants[a.reactantOffset+j];local[v.species]-=v.coefficient*q;}
    for(int j=0;j<a.productCount;++j){const auto& v=m.products[a.productOffset+j];local[v.species]+=v.coefficient*q;}
  }
- for(int s=0;s<N;++s)if(!gasFinite(local[s])){status.code=ChemistryCode::RateFailure;if(!Complete)return false;}
+ for(int s=0;s<N;++s)if(!gasFinite(local[s])){status.code=ChemistryCode::RateFailure;return false;}
  if(progress)for(int r=0;r<m.reactionCount;++r)gasChemistryDetail::progressRate<R,TableReal,N,Complete>(r,T,c,t,m,progress[r]);
  for(int s=0;s<N;++s)production[s]=local[s];
  if(evaluated)*evaluated=true;
