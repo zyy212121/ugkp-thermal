@@ -664,6 +664,12 @@ CHMT_HD inline bool surfaceTemperatureConfiguration(const SurfacePhysicsInput& i
         return interfaceFailure(p,3862,static_cast<Real>(p.wallModel.family),-1,ugkp::diagnostics::Code::MissingOperator);
     if(p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){
         const auto& config=p.wallModel;const auto& context=in.wallContext;
+        if(p.material.gasContactResistance!=0)
+            return interfaceFailure(p,3868,p.material.gasContactResistance,-1,ugkp::diagnostics::Code::MissingOperator);
+        if(config.model!=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport
+            &&p.gasMode!=ugkwp::GasMode::SingleLegacy&&p.gasMode!=ugkwp::GasMode::MixtureFrozen
+            &&p.gasMode!=ugkwp::GasMode::MixtureChemistry)
+            return interfaceFailure(p,3869,static_cast<Real>(p.gasMode),-1,ugkp::diagnostics::Code::MissingOperator);
         if(config.model!=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport
             &&config.model!=ugkwp::gaswall::BoundaryLayerModel::ReactingSst)
             return interfaceFailure(p,3863,static_cast<Real>(config.model),-1,ugkp::diagnostics::Code::MissingOperator);
@@ -728,8 +734,9 @@ CHMT_HD inline bool bisectFeasibleSurface(const SurfacePhysicsInput& in,const Ph
     if(!surfaceTemperatureConfiguration(in,p))return false;
     auto trialPhysics=p;
     trialPhysics.diagnostics=nullptr;trialPhysics.tolerances.diagnostics=nullptr;
+    auto trialInput=in;trialInput.wallContext.failureStatus=nullptr;
     SurfacePhysicsResult candidate;
-    if(!bisectFeasibleSurfaceImpl<Track>(in,p,trialPhysics,material,filmT,lo,hi,left,right,candidate,trace,numericalFailure))return false;
+    if(!bisectFeasibleSurfaceImpl<Track>(trialInput,p,trialPhysics,material,filmT,lo,hi,left,right,candidate,trace,numericalFailure))return false;
     return evaluateSurfaceTemperature(in,p,material,filmT,candidate.topTemperature,false,out,numericalFailure);
 }
 template<bool Track=false>
@@ -740,9 +747,10 @@ CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const
     if(!surfaceTemperatureConfiguration(in,p))return false;
     auto trialPhysics=p;
     trialPhysics.diagnostics=nullptr;trialPhysics.tolerances.diagnostics=nullptr;
+    auto trialInput=in;trialInput.wallContext.failureStatus=nullptr;
     SurfacePhysicsResult seed;
     if(Track){trace->attempted=preferred;trace->hasAttempt=true;}
-    const bool seedValid=evaluateSurfaceTemperature(in,trialPhysics,material,filmT,preferred,false,seed,numericalFailure);
+    const bool seedValid=evaluateSurfaceTemperature(trialInput,trialPhysics,material,filmT,preferred,false,seed,numericalFailure);
     if(Track&&seedValid){trace->completedState=seed;trace->hasCompleted=true;}
     if (seedValid&&seed.thermalResidual==0) { out=seed; return true; }
     SurfacePhysicsResult last=seed;bool hasValid=seedValid;
@@ -759,7 +767,7 @@ CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const
                 const Real T=insert && part==0 ? preferred : gridT;
                 SurfacePhysicsResult current;
                 if(Track){trace->attempted=T;trace->hasAttempt=true;}
-                const bool valid=evaluateSurfaceTemperature(in,trialPhysics,material,filmT,T,false,current,numericalFailure);
+                const bool valid=evaluateSurfaceTemperature(trialInput,trialPhysics,material,filmT,T,false,current,numericalFailure);
                             if(!valid){previousValid=false;continue;}
                 last=current;hasValid=true;
                 if(Track){trace->completedState=current;trace->hasCompleted=true;}
@@ -767,7 +775,7 @@ CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const
                 if (valid && previousValid
                     && (current.thermalResidual>0)!=(previous.thermalResidual>0)) {
                     SurfacePhysicsResult root;
-                    if(!bisectFeasibleSurfaceImpl<Track>(in,p,trialPhysics,material,filmT,previousT,T,previous,current,root,trace,numericalFailure)){
+                    if(!bisectFeasibleSurfaceImpl<Track>(trialInput,p,trialPhysics,material,filmT,previousT,T,previous,current,root,trace,numericalFailure)){
                         if(ugkp::diagnostics::hasFatal(p.diagnostics))return false;
                         previousValid=false;continue;}
                     out=root;return true;
