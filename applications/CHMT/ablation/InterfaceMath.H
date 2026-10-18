@@ -468,7 +468,6 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
             }
             // Recession exposes the pore volume even if permeability is zero.
             const Real poreSweep=-material.porosity*trial.solidWallSpeed;
-            if ((result.wet && (superficial!=0 || poreSweep!=0))) return false;
             for (int s=0; s<Ns; ++s) {
                 const Real poreDensity=material.porosity>0
                     ? in.solid.pore[s]/(material.porosity*in.solidVolume) : 0;
@@ -477,6 +476,14 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
                 trial.poreSweep[s]=solidRatio*(poreSweep>=0 ? poreSweep*poreDensity
                     : poreSweep*provisional.rho*Y[s]);
                 trial.poreSpecies[s]=trial.poreDarcy[s]+trial.poreSweep[s];
+                // The wet model needs a pore/film transfer operator only when
+                // actual species mass crosses this interface. A geometric pore
+                // sweep over an empty donor carries exactly zero mass/energy.
+                // Check the separate paths: counterflow can cancel net mass
+                // while still transporting donor-dependent energy.
+                if(result.wet&&(trial.poreDarcy[s]!=0||trial.poreSweep[s]!=0))
+                    return interfaceFailure(p,3870,trial.poreDarcy[s]!=0?trial.poreDarcy[s]:trial.poreSweep[s],s,
+                        ugkp::diagnostics::Code::MissingOperator,trial.poreDarcy[s]!=0?trial.poreSweep[s]:trial.poreDarcy[s]);
             }
         }
         Real factor=1;
