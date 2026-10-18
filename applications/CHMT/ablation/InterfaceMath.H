@@ -18,126 +18,96 @@ CHMT_HD inline Real interfacePartialPressure(Real pressure, const Real* Y,
     for (int s=0; s<Ns; ++s) R+=Y[s]*p.species[s].R;
     return R>0 ? pressure*Y[species]*p.species[species].R/R : undefinedValue();
 }
-CHMT_HD inline bool compositionResidual(const Real* Y, const Real* bulk, const Real* Js,
-    Real pressure, Real T, Real distance, const PhysicsConfig& p, Real* residual, Real* jacobian) {
-    Real R=0, J=0, S=0, a[Ns]{};
-    for (int s=0; s<Ns; ++s) { R+=Y[s]*p.species[s].R; J+=Js[s]; }
+#include "InterfaceCompositionArithmetic.H"
+template<bool Report>
+CHMT_HD inline bool compositionResidualFailure(const PhysicsConfig& p,unsigned site,Real value,int component=-1,
+    ugkp::diagnostics::Code code=ugkp::diagnostics::Code::InvalidPhysicalState,Real reference=0) {
+    if(Report)return interfaceFailure(p,site,value,component,code,reference);
+    return false;
+}
+template<bool Report>
+CHMT_HD inline bool compositionResidualPolicy(const Real* Y,const Real* bulk,const Real* Js,
+    Real pressure,Real T,Real distance,const PhysicsConfig& p,Real* residual,Real* jacobian) {
+    using namespace composition_detail;
+    Real gasR[Ns]{},R=0,J=0,S=0,a[Ns]{},difference[Ns]{};
+    for(int i=0;i<Ns;++i){
+        gasR[i]=p.species[i].R;
+        if(!finite(Y[i]))return compositionResidualFailure<Report>(p,3840,Y[i],i);
+        if(!finite(bulk[i]))return compositionResidualFailure<Report>(p,3840,bulk[i],i);
+        if(!finite(Js[i]))return compositionResidualFailure<Report>(p,3840,Js[i],i);
+        if(!finite(gasR[i])||gasR[i]<=0)return compositionResidualFailure<Report>(p,3840,gasR[i],i);
+        if(!finite(p.gasDiffusivity[i])||p.gasDiffusivity[i]<0)
+            return compositionResidualFailure<Report>(p,3840,p.gasDiffusivity[i],i);
+    }
+    if(!scaledSum(gasR,Y,R)||!scaledSum(Js,nullptr,J))
+        return compositionResidualFailure<Report>(p,3841,HUGE_VAL,-1,ugkp::diagnostics::Code::NonFinite);
     const Real denominators[]={R,pressure,T,distance};
     for(int component=0;component<4;++component)
-        if(!(denominators[component]>0))return interfaceFailure(p,3840,denominators[component],component);
-    const Real rho=pressure/(R*T);
-    for (int s=0; s<Ns; ++s) {
-        a[s]=rho*p.gasDiffusivity[s]/distance;
-        S+=a[s]*(Y[s]-bulk[s]);
+        if(!finite(denominators[component])||!(denominators[component]>0))
+            return compositionResidualFailure<Report>(p,3840,denominators[component],component);
+    for(int i=0;i<Ns;++i){
+        // Evaluate rho*D/distance without an overflowing intermediate product.
+        if(!diffusionScale(pressure,p.gasDiffusivity[i],T,distance,R,a[i])
+            ||!sumFinite(Y[i],-bulk[i],difference[i]))
+            return compositionResidualFailure<Report>(p,3841,HUGE_VAL,i,ugkp::diagnostics::Code::NonFinite);
+        Real term=0;
+        if(!productFinite(a[i],difference[i],term)||!sumFinite(S,term,S))
+            return compositionResidualFailure<Report>(p,3841,HUGE_VAL,i,ugkp::diagnostics::Code::NonFinite);
     }
-    for (int s=0; s<Ns; ++s) {
-        const Real diffusion=a[s]*(Y[s]-bulk[s])-Y[s]*S;
-        residual[s]=J*Y[s]+diffusion-Js[s];
-        if ((!finite(residual[s]))) return interfaceFailure(p,3841,residual[s],s,ugkp::diagnostics::Code::NonFinite);
-        if (jacobian) {
-            for (int t=0; t<Ns; ++t) {
-                jacobian[s*Ns+t]=(s==t ? J+a[s]-S : 0)-Y[s]*a[t]
-                    -diffusion*p.species[t].R/R;
-            }
+    for(int i=0;i<Ns;++i){
+        Real first=0,second=0,diffusion=0,advective=0,value=0;
+        if(!productFinite(a[i],difference[i],first)||!productFinite(Y[i],S,second)
+            ||!sumFinite(first,-second,diffusion)||!productFinite(J,Y[i],advective)
+            ||!sumFinite(advective,diffusion,value)||!sumFinite(value,-Js[i],residual[i]))
+            return compositionResidualFailure<Report>(p,3841,HUGE_VAL,i,ugkp::diagnostics::Code::NonFinite);
+        if(jacobian)for(int j=0;j<Ns;++j){
+            Real diagonal=0,off=0,ratio=0,thermo=0;
+            if(i==j && (!sumFinite(J,a[i],diagonal)||!sumFinite(diagonal,-S,diagonal)))
+                return compositionResidualFailure<Report>(p,3841,HUGE_VAL,i,ugkp::diagnostics::Code::NonFinite);
+            bool thermoFinite=productFinite(diffusion,gasR[j],thermo)&&quotientFinite(thermo,R,thermo);
+            if(!thermoFinite)thermoFinite=quotientFinite(gasR[j],R,ratio)&&productFinite(diffusion,ratio,thermo);
+            if(!productFinite(Y[i],a[j],off)||!thermoFinite||!sumFinite(diagonal,-off,value)
+                ||!sumFinite(value,-thermo,jacobian[i*Ns+j]))
+                return compositionResidualFailure<Report>(p,3841,HUGE_VAL,i,ugkp::diagnostics::Code::NonFinite);
         }
     }
     return true;
 }
-CHMT_HD inline bool interfaceComposition(const Real* Js, const Real* suppliedBulk, Real pressure,
-    Real T, Real distance, const PhysicsConfig& p, Real absoluteFluxTolerance, Real* out) {
-    Real boundedBulk[Ns]{};
-    for(int species=0;species<Ns;++species){boundedBulk[species]=suppliedBulk[species];
-        if(!clipPhysicsMassFraction(p,boundedBulk[species],3805,species))return false;}
-    const Real* bulk=boundedBulk;
-    Real J=0, scale=0, sum=0, maxD=0;
-    for (int s=0; s<Ns; ++s) {
-        if ((!finite(Js[s]) || !finite(bulk[s]) || bulk[s]<0
-            || !finite(p.gasDiffusivity[s]) || p.gasDiffusivity[s]<0)) return interfaceFailure(p,3842,Js[s],s,ugkp::diagnostics::Code::InvalidPhysicalState,p.gasDiffusivity[s]);
-        J+=Js[s]; scale+=absValue(Js[s]); sum+=bulk[s];
-        maxD=maxValue(maxD,p.gasDiffusivity[s]);
-    }
-    if(!finite(J)||!finite(scale)||!finite(sum)||!finite(absoluteFluxTolerance)||absoluteFluxTolerance<0)return false;
-    if(!closeEnough(sum,1,1e-13,p.tolerances.relativeMass))
-        reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,3806,sum-1,0);
-    const Real tolerance=absoluteFluxTolerance+p.tolerances.relativeMass*scale;
-    Real Y[Ns]{};
-    if (maxD==0) {
-        for (int s=0; s<Ns; ++s) {
-            if (J>0) Y[s]=Js[s]/J;
-            else {
-                Y[s]=bulk[s];
-                if(absValue(Js[s]-J*Y[s])>tolerance)
-                    reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,3807,Js[s]-J*Y[s],tolerance);
-            }
-            if(!clipPhysicsMassFraction(p,Y[s],3808,s))return false;
-        }
-        for (int s=0; s<Ns; ++s) out[s]=Y[s];
-        return true;
-    }
-    for (int s=0; s<Ns; ++s) Y[s]=bulk[s];
-    for (int iteration=0; iteration<60; ++iteration) {
-        Real F[Ns]{}, jac[Ns*Ns]{};
-        if (!compositionResidual(Y,bulk,Js,pressure,T,distance,p,F,jac)) return false;
-        Real norm=0;
-        for (int s=0; s<Ns; ++s) norm=maxValue(norm,absValue(F[s]));
-        if (norm<=tolerance) {
-            for (int s=0; s<Ns; ++s) out[s]=Y[s];
-            return true;
-        }
-        Real matrix[Ns][Ns+1]{};
-        int normalizationRow=-1;
-        Real normalization=0;
-        for (int species=0; species<Ns; ++species) {
-            normalization+=Y[species];
-            if (bulk[species]>0 || Js[species]!=0 || p.gasDiffusivity[species]>0) {
-                normalizationRow=species;
-            }
-        }
-        if (normalizationRow<0) return false;
-        for (int species=0; species<Ns; ++species) {
-            const bool absent=bulk[species]==0 && Js[species]==0 && p.gasDiffusivity[species]==0;
-            if (species==normalizationRow) {
-                for (int t=0; t<Ns; ++t) matrix[species][t]=1;
-                matrix[species][Ns]=1-normalization;
-            } else if (absent) {
-                matrix[species][species]=1;
-                matrix[species][Ns]=-Y[species];
-            } else {
-                for (int t=0; t<Ns; ++t) matrix[species][t]=jac[species*Ns+t];
-                matrix[species][Ns]=-F[species];
-            }
-        }
-        for (int col=0; col<Ns; ++col) {
-            int pivot=col;
-            for (int row=col+1; row<Ns; ++row) {
-                if (absValue(matrix[row][col])>absValue(matrix[pivot][col])) pivot=row;
-            }
-            if (!finite(matrix[pivot][col]) || matrix[pivot][col]==0) return interfaceFailure(p,3825,matrix[pivot][col],pivot,finite(matrix[pivot][col])?ugkp::diagnostics::Code::ZeroDenominator:ugkp::diagnostics::Code::NonFinite,col);
-            for (int t=col; t<=Ns; ++t) {
-                const Real tmp=matrix[col][t]; matrix[col][t]=matrix[pivot][t]; matrix[pivot][t]=tmp;
-            }
-            const Real diagonal=matrix[col][col];
-            for (int t=col; t<=Ns; ++t) matrix[col][t]/=diagonal;
-            for (int row=0; row<Ns; ++row) if (row!=col) {
-                const Real factor=matrix[row][col];
-                for (int t=col; t<=Ns; ++t) matrix[row][t]-=factor*matrix[col][t];
-            }
-        }
-        // Apply one full Newton correction. Bounds are an explicit composition
-        // limiter, never a residual-driven search for another correction.
-        for (int species=0; species<Ns; ++species) {
-            Y[species]+=matrix[species][Ns];
-            if(!clipPhysicsMassFraction(p,Y[species],3801,species))return false;
-        }
-    }
-    Real finalResidual[Ns]{};
-    if(!compositionResidual(Y,bulk,Js,pressure,T,distance,p,finalResidual,nullptr))return false;
-    Real finalNorm=0;
-    for(int species=0;species<Ns;++species){
-        finalNorm=maxValue(finalNorm,absValue(finalResidual[species]));out[species]=Y[species];
-    }
-    reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3802,finalNorm,tolerance);
-    return true;
+CHMT_HD inline bool compositionResidual(const Real* Y,const Real* bulk,const Real* Js,
+    Real pressure,Real T,Real distance,const PhysicsConfig& p,Real* residual,Real* jacobian) {
+    return compositionResidualPolicy<true>(Y,bulk,Js,pressure,T,distance,p,residual,jacobian);
+}
+#include "InterfaceComposition.H"
+CHMT_HD inline bool interfaceComposition(const Real* Js,const Real* suppliedBulk,
+    Real pressure,Real T,Real distance,const PhysicsConfig& p,
+    Real absoluteFluxTolerance,Real* out) {
+ Real bulk[Ns]{},J=0,scale=0,sum=0,maxD=0;
+ const Real denominators[]={pressure,T,distance};
+ for(int c=0;c<3;++c)if(!finite(denominators[c])||!(denominators[c]>0))
+  return interfaceFailure(p,3840,denominators[c],c+1);
+ for(int i=0;i<Ns;++i){
+  bulk[i]=suppliedBulk[i];if(!clipPhysicsMassFraction(p,bulk[i],3805,i))return false;
+  if(!finite(Js[i]))return interfaceFailure(p,3842,Js[i],i);
+  if(!finite(p.gasDiffusivity[i])||p.gasDiffusivity[i]<0)
+   return interfaceFailure(p,3842,p.gasDiffusivity[i],i);
+  if(!finite(p.species[i].R)||!(p.species[i].R>0))return interfaceFailure(p,3842,p.species[i].R,i);
+  scale=maxValue(scale,absValue(Js[i]));sum+=bulk[i];maxD=maxValue(maxD,p.gasDiffusivity[i]);
+ }
+ if(!composition_detail::scaledSum(Js,nullptr,J))
+  return interfaceFailure(p,3842,J,-1,ugkp::diagnostics::Code::NonFinite);
+ if(!finite(absoluteFluxTolerance)||absoluteFluxTolerance<0
+     ||!finite(p.tolerances.relativeMass)||p.tolerances.relativeMass<0)
+  return interfaceFailure(p,3842,absoluteFluxTolerance);
+ if(!(sum>0))return interfaceFailure(p,3806,sum);
+ if(!closeEnough(sum,1,1e-13,p.tolerances.relativeMass))
+  reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,3806,sum-1,0);
+ Real relativeScale=0;for(int i=0;i<Ns;++i)if(scale>0)relativeScale+=absValue(Js[i]/scale);
+ Real tolerance=0,relative=0;
+ if(!composition_detail::productFinite(p.tolerances.relativeMass,relativeScale,relative)
+     ||!composition_detail::productFinite(relative,scale,relative)
+     ||!composition_detail::sumFinite(absoluteFluxTolerance,relative,tolerance))tolerance=HUGE_VAL;
+ if(maxD==0)return composition_detail::linearComposition(Js,bulk,J,pressure,T,distance,p,tolerance,out);
+ return composition_detail::scalarSolve(Js,bulk,pressure,T,distance,p,tolerance,out);
 }
 CHMT_HD inline bool makeInterfacePrimitive(const Real* suppliedY, Real T, Real pressure,
     Vec3 tangentialVelocity, Vec3 normal, Real normalSpeed, Real J,
