@@ -42,7 +42,7 @@ __global__ void evaluate(Fixture* fixture,WallWorkspace<double,2,4>* workspace,
     detail::CudaWallTeam team;
     __shared__ detail::LayerContext<double,2> context;
     __shared__ double before[4][6];
-    if(team.leader())fixture->bind(diagnostic);
+    if(team.leader()){fixture->bind(diagnostic);context=detail::LayerContext<double,2>{};}
     team.sync();
     bool prepared=false;
     if(team.leader())prepared=detail::makeContext(fixture->input,fixture->config,context);
