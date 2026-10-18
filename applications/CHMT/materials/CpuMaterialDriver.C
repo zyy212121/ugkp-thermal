@@ -92,9 +92,36 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
         forAll(mesh.boundary(),patch)if(mesh.boundary()[patch].coupled()){const Foam::scalarField neighbourK(conductivity.boundaryField()[patch].patchNeighbourField());const Foam::scalarField ownK(conductivity.boundaryField()[patch].patchInternalField());
             forAll(neighbourK,f){const Real a=ownK[f],b=neighbourK[f],w=mesh.weights().boundaryField()[patch][f];faceK.boundaryFieldRef()[patch][f]=a>0&&b>0?1/((1-w)/a+w/b):0;}}
         Foam::fvScalarMatrix equation(Foam::fvm::Sp(capacity/deltaT,temperature)-Foam::fvm::laplacian(faceK,temperature)==source);
+        // The FV residual is an integral power, whereas PCG normalises by
+        // a matrix-dependent normFactor. Use a relative residual ratio: the
+        // same normFactor cancels, so this is an energy budget in physical
+        // units without copying OpenFOAM's boundary/parallel normalisation.
+        const Foam::tmp<Foam::scalarField> powerResidual=equation.residual();
+        Real powerScale=0;
+        for(const Real value:powerResidual())powerScale=maxValue(powerScale,absValue(value));
+        Foam::reduce(powerScale,Foam::maxOp<Real>(),Foam::Pstream::msgType(),mesh.comm());
+        Real scaledPower=0;
+        if(powerScale>0)for(const Real value:powerResidual())scaledPower+=absValue(value)/powerScale;
+        Foam::reduce(scaledPower,Foam::sumOp<Real>(),Foam::Pstream::msgType(),mesh.comm());
+        Real inventoryRoundoff=0;
+        const Real epsilonScale=64*std::numeric_limits<Real>::epsilon();
+        for(std::size_t c=0;c<n;++c)inventoryRoundoff+=epsilonScale*absValue(target[c])
+            +epsilonScale*absValue(caloric[c].energy<false>(temperature[c]));
+        Foam::reduce(inventoryRoundoff,Foam::sumOp<Real>(),Foam::Pstream::msgType(),mesh.comm());
+        // Keep the audit product wider than Real: finite cell residuals may
+        // have an L1 sum, or dt product, that cannot be represented in Real.
+        const long double initialEnergy=static_cast<long double>(dt)*powerScale*scaledPower;
+        const long double linearEnergyTolerance=controls.energyAbsoluteTolerance
+            +controls.energyRelativeTolerance*std::max(1.L,initialEnergy)+inventoryRoundoff;
+        // Split the existing error budget between the linear equation and
+        // nonlinear caloric closure. This is not a new user/case tolerance.
+        const Real relativeLinearTarget=initialEnergy>0
+            ?static_cast<Real>(std::min(1.L,(linearEnergyTolerance/initialEnergy)/2)):1;
+        solver.set("tolerance",std::numeric_limits<Foam::scalar>::min());
+        solver.set("relTol",minValue(1,relativeLinearTarget));
         const Foam::solverPerformance linear=equation.solve(solver);
         if(!finite(linear.finalResidual())){error="nonfinite OpenFOAM implicit material sparse residual";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
-        if(!linear.converged()||linear.singular())materialWarning(next,ugkp::diagnostics::Code::AccuracyResidual,"implicit material sparse residual",linear.finalResidual(),1e-12);
+        if(!linear.converged()||linear.singular())materialWarning(next,ugkp::diagnostics::Code::AccuracyResidual,"implicit material sparse residual",linear.finalResidual(),linear.initialResidual()*minValue(1,relativeLinearTarget));
         temperature.correctBoundaryConditions();const Foam::tmp<Foam::surfaceScalarField> flux=equation.flux();Real boundary=0,change=0;long double stableChange=0,inventoryScale=0;
         forAll(flux().boundaryField(),patch)if(!mesh.boundary()[patch].coupled())forAll(flux().boundaryField()[patch],f)boundary+=dt*flux().boundaryField()[patch][f];
         for(std::size_t c=0;c<n;++c){const Real T=temperature[c];if(!finite(T)||T<=0){
@@ -102,16 +129,27 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
                 recordFatal(p.diagnostics,makeRecord(!finite(T)?Code::NonFinite:Code::NegativeTemperature,4103,4,0,EntityKind::Cell,c,-1,T,0,0,Quantity::Temperature));
                 error="nonfinite or nonpositive implicit material temperature";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
             stableChange+=static_cast<long double>(caloric[c].secant<false>(T,anchor[c]))*(T-anchor[c])-(target[c]-caloric[c].energy<false>(anchor[c]));
-            inventoryScale+=absValue(target[c])+absValue(caloric[c].energy<false>(T));change=maxValue(change,absValue(T-previous[c])/maxValue(1,maxValue(absValue(T),absValue(previous[c]))));}
-        const Real residual=static_cast<Real>(stableChange+boundary);const Real scale=maxValue(1,maxValue(absValue(static_cast<Real>(stableChange)),absValue(boundary)));
+            inventoryScale+=static_cast<long double>(absValue(target[c]))+absValue(caloric[c].energy<false>(T));change=maxValue(change,absValue(T-previous[c])/maxValue(1,maxValue(absValue(T),absValue(previous[c]))));}
+        // All ranks must make the same nonlinear stopping decision.
+        Real globalChangeEnergy=static_cast<Real>(stableChange);
+        Foam::reduce(globalChangeEnergy,Foam::sumOp<Real>(),Foam::Pstream::msgType(),mesh.comm());
+        Foam::reduce(boundary,Foam::sumOp<Real>(),Foam::Pstream::msgType(),mesh.comm());
+        Foam::reduce(change,Foam::maxOp<Real>(),Foam::Pstream::msgType(),mesh.comm());
+        const Real residual=globalChangeEnergy+boundary;const Real scale=maxValue(1,maxValue(absValue(globalChangeEnergy),absValue(boundary)));
         const Real roundoff=static_cast<Real>(64*std::numeric_limits<Real>::epsilon()*inventoryScale);
+        Real globalRoundoff=roundoff;Foam::reduce(globalRoundoff,Foam::sumOp<Real>(),Foam::Pstream::msgType(),mesh.comm());
         if(!finite(change)){
             using namespace ugkp::diagnostics;
             recordFatal(p.diagnostics,makeRecord(Code::NonFinite,4104,4,0,EntityKind::None,-1,-1,change));
             error="nonfinite implicit material residual";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;
         }
-        const Real energyTolerance=controls.energyAbsoluteTolerance+controls.energyRelativeTolerance*scale+roundoff;
-        if(change<=controls.nonlinearRelativeTolerance||iteration+1==controls.nonlinearMaxIterations){
+        const Real energyTolerance=controls.energyAbsoluteTolerance+controls.energyRelativeTolerance*scale+globalRoundoff;
+        const bool energyConverged=finite(residual)&&absValue(residual)<=energyTolerance;
+        const bool stalled=change==0&&linear.nIterations()==0;
+        if((change<=controls.nonlinearRelativeTolerance&&energyConverged)
+            ||stalled||iteration+1==controls.nonlinearMaxIterations){
+            if(stalled&&!energyConverged)materialWarning(next,ugkp::diagnostics::Code::AccuracyResidual,
+                "implicit material iteration stagnated above energy goal",residual,energyTolerance);
             if(change>controls.nonlinearRelativeTolerance)materialWarning(next,ugkp::diagnostics::Code::AccuracyResidual,"implicit material nonlinear residual",change,controls.nonlinearRelativeTolerance);
             if(!finite(residual)||absValue(residual)>energyTolerance)materialWarning(next,ugkp::diagnostics::Code::ConservationResidual,"implicit material energy balance",residual,energyTolerance);
             for(std::size_t c=0;c<n;++c){next.solid[c].energy=caloric[c].energy<false>(temperature[c]);MaterialPrimitive recovered;bool numerical=false;if(!recoverMaterial<false>(next.solid[c],next.solidMesh.volumes[c],p,recovered,nullptr,-1,&numerical)){error="implicit material endpoint EOS invalid";if(numerical)report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}next.solid[c].porosity=recovered.porosity;}
