@@ -33,8 +33,7 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD UGKWP_CHEMISTRY_
  // All intermediate mathematical iterates use a view without global atomics;
  // CUDA thread-local storage must never be used as an atomic DeviceContext.
  auto trialThermo=context.thermo;trialThermo.diagnostics=nullptr;
- ReactorContext<R,N,TableReal> trialContext(context.base,trialThermo,context.mechanism,context.controls);
- for(int i=0;i<N*N;++i)trialContext.leftInverse[i]=context.leftInverse[i];
+ ReactorEvaluation<R,N,TableReal> trialContext(context.base,trialThermo,context.mechanism,context.controls,context.leftInverse);
  R f[N]={},masses[N],residual[N]={};
  ChemistryStatus local=context.evaluate(z,f,temperature,nullptr,masses);
  if(!hasUsableChemistryResult(local))return local;

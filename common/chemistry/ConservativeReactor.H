@@ -74,28 +74,17 @@ UGKWP_GAS_HD inline bool solveDense(int n, R* a, R* b,bool* evaluated=nullptr,De
     if(evaluated)*evaluated=true;
     return finite;
 }
-template<class R,int N,class TableReal=R> struct ReactorContext {
+// A read-only evaluation view shares the already prepared stoichiometric map.
+// Mathematical trials may change their thermo diagnostic destination without
+// copying an additional N*N inverse into each CUDA thread's local scratch.
+template<class R,int N,class TableReal=R> struct ReactorEvaluation {
  const ClosedReactorInput<R,N>& base;
  const SpeciesThermoView<TableReal,N>& thermo;
  const GasMechanismView<TableReal,N>& mechanism;
  const ChemistryControls<R>& controls;
- R leftInverse[N*N]; // [coordinate*Ns+species]
- UGKWP_GAS_HD ReactorContext(const ClosedReactorInput<R,N>& b,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& c,bool=false) noexcept:base(b),thermo(t),mechanism(m),controls(c),leftInverse{} {}
- UGKWP_GAS_HD UGKWP_CHEMISTRY_DEVICE_LEAF bool prepare(bool* evaluated=nullptr,DenseLinearFailure* diagnostic=nullptr) noexcept {
-   if(evaluated)*evaluated=false;
-   R q[N*N]={};bool available=false;
-   bool finite=orthogonalBasis<R,N,TableReal,false>(mechanism,q,&available);
-   if(!available)return false;
-   int rank=mechanism.independentRank;R upper[N*N]={};
-   for(int i=0;i<rank;++i)for(int j=0;j<rank;++j)for(int s=0;s<N;++s)upper[i*N+j]+=q[s*N+i]*mechanism.stoichiometricBasis[s*rank+j];
-   for(int s=0;s<N;++s){R a[N*N],b[N]={};for(int k=0;k<N*N;++k)a[k]=upper[k];for(int i=0;i<rank;++i)b[i]=q[s*N+i];
-     available=false;
-     const bool solved=solveDense<R,N,false,false>(rank,a,b,&available,diagnostic);
-     if(!available)return false;
-     finite=finite && solved;for(int i=0;i<rank;++i)leftInverse[i*N+s]=b[i];}
-   if(evaluated)*evaluated=true;
-   return finite;
- }
+ const R* leftInverse;
+ UGKWP_GAS_HD ReactorEvaluation(const ClosedReactorInput<R,N>& b,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& c,const R* inverse) noexcept
+ :base(b),thermo(t),mechanism(m),controls(c),leftInverse(inverse){}
  UGKWP_GAS_HD bool state(const R* z,R* mass,R& temperature,ThermoStatus* diagnostic=nullptr) const noexcept {
    int rank=mechanism.independentRank;
    if(!thermo.species || !z || !mass || (rank>0 && !mechanism.stoichiometricBasis)
@@ -165,6 +154,34 @@ template<class R,int N,class TableReal=R> struct ReactorContext {
    if(evaluated)*evaluated=true;
    return st;
  }
+};
+template<class R,int N,class TableReal=R> struct ReactorContext : ReactorEvaluation<R,N,TableReal> {
+ using Evaluation=ReactorEvaluation<R,N,TableReal>;
+ using Evaluation::base;using Evaluation::thermo;using Evaluation::mechanism;using Evaluation::controls;
+ // Preserve the caller-visible owned array and its former extent.
+ R leftInverse[N*N];
+ UGKWP_GAS_HD ReactorContext(const ClosedReactorInput<R,N>& b,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& c,bool=false) noexcept
+ :Evaluation(b,t,m,c,leftInverse),leftInverse{}{}
+ UGKWP_GAS_HD ReactorContext(const ReactorContext& other) noexcept
+ :Evaluation(other.base,other.thermo,other.mechanism,other.controls,leftInverse),leftInverse{}{
+   for(int i=0;i<N*N;++i)leftInverse[i]=other.leftInverse[i];
+ }
+ UGKWP_GAS_HD UGKWP_CHEMISTRY_DEVICE_LEAF bool prepare(bool* evaluated=nullptr,DenseLinearFailure* diagnostic=nullptr) noexcept {
+   if(evaluated)*evaluated=false;
+   R q[N*N]={};bool available=false;
+   bool finite=orthogonalBasis<R,N,TableReal,false>(mechanism,q,&available);
+   if(!available)return false;
+   int rank=mechanism.independentRank;R upper[N*N]={};
+   for(int i=0;i<rank;++i)for(int j=0;j<rank;++j)for(int s=0;s<N;++s)upper[i*N+j]+=q[s*N+i]*mechanism.stoichiometricBasis[s*rank+j];
+   for(int s=0;s<N;++s){R a[N*N],b[N]={};for(int k=0;k<N*N;++k)a[k]=upper[k];for(int i=0;i<rank;++i)b[i]=q[s*N+i];
+     available=false;
+     const bool solved=solveDense<R,N,false,false>(rank,a,b,&available,diagnostic);
+     if(!available)return false;
+     finite=finite && solved;for(int i=0;i<rank;++i)leftInverse[i*N+s]=b[i];}
+   if(evaluated)*evaluated=true;
+   return finite;
+ }
+
 };
 }}
 namespace ugkwp {
