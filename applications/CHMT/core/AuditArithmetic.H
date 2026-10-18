@@ -10,16 +10,35 @@ CHMT_HD inline Real auditAdd(Real a,Real b) {
         if(a!=a||b!=b||(!finite(a)&&!finite(b)&&((a<0)!=(b<0))))return undefinedValue();
         return !finite(a)?a:b;
     }
-    if(b>0&&a>bound-b)return std::numeric_limits<Real>::infinity();
-    if(b<0&&a<-bound-b)return -std::numeric_limits<Real>::infinity();
+    if(((a>0&&b>0)||(a<0&&b<0))
+        &&(absValue(a)>bound*Real(.5)||absValue(b)>bound*Real(.5))) {
+        // max-b may round upward at the last ULP. Binary scaling performs
+        // the same rounded addition without ever forming an overflowing sum.
+        const Real half=a*Real(.5)+b*Real(.5);
+        if(absValue(half)>bound*Real(.5))return a<0
+            ?-std::numeric_limits<Real>::infinity():std::numeric_limits<Real>::infinity();
+        return half*Real(2);
+    }
     return a+b;
 }
 CHMT_HD inline Real auditDifference(Real a,Real b) { return auditAdd(a,-b); }
 CHMT_HD inline Real auditProduct(Real a,Real b) {
     if(!finite(a)||!finite(b))return undefinedValue();
     const Real aa=absValue(a),bb=absValue(b);
-    if(bb>1&&aa>std::numeric_limits<Real>::max()/bb)
+    if(aa<=1||bb<=1)return a*b;
+    int ea=0,eb=0,em=0;
+    const Real ma=::frexp(aa,&ea),mb=::frexp(bb,&eb);
+    const Real mantissa=ma*mb; // [1/4,1), so this multiplication cannot overflow.
+    (void)::frexp(mantissa,&em);
+    const int exponent=ea+eb+em;
+    if(exponent>std::numeric_limits<Real>::max_exponent)
         return ((a<0)!=(b<0))?-std::numeric_limits<Real>::infinity():std::numeric_limits<Real>::infinity();
+    if(exponent==std::numeric_limits<Real>::max_exponent) {
+        // max/b may round upward. Scale the already rounded mantissa here;
+        // a result rounding to finite MAX must remain finite, not a warning.
+        const Real result=::ldexp(mantissa,ea+eb);
+        return ((a<0)!=(b<0))?-result:result;
+    }
     return a*b;
 }
 CHMT_HD inline Real auditTolerance(Real absolute,Real relative,Real scale) {

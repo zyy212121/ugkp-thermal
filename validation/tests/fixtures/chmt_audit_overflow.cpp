@@ -43,6 +43,16 @@ int main(int argc,char** argv){assert(argc==2);const std::string mode=argv[1];
   reset(d,8,99,4,.25);GasQ gasInventory;gasInventory.mass=1e308;gasInventory.energy=1;gasInventory.species[0]=gasInventory.species[1]=1e308;assert(validGasInventory(gasInventory,&d));assert(!d.fatalClaim&&d.warnings[0].count==1);
   reset(d,8,99,4,.25);FilmQ filmInventory;filmInventory.mass=1e308;filmInventory.enthalpy=1;filmInventory.species[0]=filmInventory.species[1]=1e308;assert(validFilmInventory(filmInventory,false,&d));assert(!d.fatalClaim&&d.warnings[0].count==1);
   reset(d,8,99,4,.25);SolidQ solidInventory;solidInventory.energy=1;solidInventory.condensed[0]=solidInventory.condensed[1]=1e308;assert(validSolidInventory(solidInventory,&d));assert(!d.fatalClaim&&d.warnings[0].count==1);
+  // Rounded max/b and max-b bounds are insufficient at the last ULP.
+  reset(d,8,99,4,.25);q=ExchangePacket{};q.gasCell=q.solidCell=0;q.energy=q.conductive=0x1.76c2887c5d2bp+0;auto boundary=p.tolerances;boundary.absoluteEnergy=0;boundary.relativeEnergy=0x1.5dbfd0344dbaep+1023;
+  assert(validatePacketMath(q,boundary,&status));assert(!d.fatalClaim&&d.warnings[0].count==1);
+  const Real largest=std::numeric_limits<Real>::max();assert(auditProduct(largest/2,2)==largest);assert(auditProduct(1,largest)==largest);assert(auditProduct(largest,1)==largest);
+  reset(d,8,99,4,.25);q.energy=largest;q.conductive=0x1.ea667e2e0c0d1p+1020;q.advective=0x1.c2b3303a3e7e5p+1023;
+  assert(validatePacketMath(q,p.tolerances,&status));assert(!d.fatalClaim&&d.warnings[0].count==0);
+  reset(d,8,99,4,.25);q.energy=0;q.conductive=std::nextafter(largest,0.);q.advective=std::ldexp(1.5,971);
+  assert(validatePacketMath(q,p.tolerances,&status));assert(!d.fatalClaim&&d.warnings[0].count==1);
+  assert(auditAdd(-0x1.ea667e2e0c0d1p+1020,-0x1.c2b3303a3e7e5p+1023)==-largest);
+  assert(auditDifference(0x1.ea667e2e0c0d1p+1020,-0x1.c2b3303a3e7e5p+1023)==largest);
   q.species[0]=std::numeric_limits<Real>::infinity();assert(!validatePacketMath(q,p.tolerances,&status));assert(d.firstFatal.code==Code::NonFinite);
  }else if(mode=="gas"){
   // Both component inventories and physical caloric/density results stay finite;
