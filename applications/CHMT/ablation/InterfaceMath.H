@@ -657,54 +657,7 @@ struct SurfaceRootTrace {
     Real attempted=0;bool hasAttempt=false,hasCompleted=false;
     SurfacePhysicsResult completedState{};
 };
-// Configuration and indexed storage are checked with the real context before
-// mathematical sampling. Trial evaluation has no shared diagnostic sink: CUDA
-// device atomics must never target an automatic/thread-local DeviceContext.
-CHMT_HD inline bool surfaceTemperatureTrial(const SurfacePhysicsInput& in,const PhysicsConfig& p,
-    const MaterialPrimitive& material,Real filmT,Real T,SurfacePhysicsResult& out,
-    bool* numericalFailure) {
-    auto trialPhysics=p;
-    trialPhysics.diagnostics=nullptr;trialPhysics.tolerances.diagnostics=nullptr;
-    return evaluateSurfaceTemperature(in,trialPhysics,material,filmT,T,false,out,numericalFailure);
-}
-template<bool Track=false>
-CHMT_HD inline bool bisectFeasibleSurface(const SurfacePhysicsInput& in, const PhysicsConfig& p,
-    const MaterialPrimitive& material, Real filmT, Real lo, Real hi,
-    SurfacePhysicsResult left, SurfacePhysicsResult right, SurfacePhysicsResult& out,SurfaceRootTrace* trace=nullptr,bool* numericalFailure=nullptr) {
-    if ((left.thermalResidual>0)==(right.thermalResidual>0)
-        && left.thermalResidual!=0 && right.thermalResidual!=0) return false;
-    if (left.thermalResidual==0) { out=left; return true; }
-    if (right.thermalResidual==0) { out=right; return true; }
-    for (int iteration=0; iteration<100; ++iteration) {
-        const Real T=0.5*(lo+hi);
-        SurfacePhysicsResult candidate;
-        if(Track){trace->attempted=T;trace->hasAttempt=true;}
-        if(!surfaceTemperatureTrial(in,p,material,filmT,T,candidate,numericalFailure))return false;
-        if(Track){trace->completedState=candidate;trace->hasCompleted=true;}
-        const Real scale=absValue(candidate.gasEnergy)+absValue(candidate.poreEnergy)
-            +absValue(candidate.phaseEnergy)+absValue(candidate.radiationFlux);
-        const Real fluxTolerance=p.tolerances.absoluteEnergy/(in.area*(in.dt>0 ? in.dt : 1))
-            +p.tolerances.relativeEnergy*scale;
-        const Real temperatureTolerance=p.tolerances.absoluteTemperature+p.tolerances.relativeTemperature*T;
-        if (absValue(candidate.thermalResidual)<=fluxTolerance
-            && (hi-lo<=temperatureTolerance || candidate.thermalResidual==0)) {
-            out=candidate; return true;
-        }
-        if (T==lo || T==hi || iteration==99) {
-            reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3804,
-                candidate.thermalResidual,fluxTolerance);
-            out=candidate;return true;
-        }
-        if ((candidate.thermalResidual>0)==(left.thermalResidual>0)) { lo=T; left=candidate; }
-        else { hi=T; right=candidate; }
-    }
-    return false;
-}
-template<bool Track=false>
-CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const PhysicsConfig& p,
-    const MaterialPrimitive& material, Real filmT, Real lo, Real hi, SurfacePhysicsResult& out,SurfaceRootTrace* trace=nullptr,bool* numericalFailure=nullptr) {
-    if (!(hi>lo)) return false;
-    const Real preferred=maxValue(lo,minValue(hi,in.hasFilm && in.film.mass>0 ? filmT : material.temperature));
+CHMT_HD inline bool surfaceTemperatureConfiguration(const SurfacePhysicsInput& in,const PhysicsConfig& p) {
     for(int species=0;species<Ns;++species)if(!validSpecies(p.species[species]))
         return interfaceFailure(p,3843,static_cast<Real>(p.species[species].model),species,ugkp::diagnostics::Code::MissingOperator);
     if(p.wallModel.family!=ugkwp::gaswall::WallFamily::LowRe&&p.wallModel.family!=ugkwp::gaswall::WallFamily::BoundaryLayer)
@@ -730,9 +683,66 @@ CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const
     }
     if(p.material.enableSurfaceReactions&&(p.material.nSurfaceReactions<0||p.material.nSurfaceReactions>Nr))
         return interfaceFailure(p,3867,p.material.nSurfaceReactions,-1,ugkp::diagnostics::Code::InvalidIndex,Nr);
+    return true;
+}
+// The owner copies immutable physics once per root solve. CUDA device atomics
+// must never target an automatic/thread-local DeviceContext.
+template<bool Track=false>
+CHMT_HD inline bool bisectFeasibleSurfaceImpl(const SurfacePhysicsInput& in, const PhysicsConfig& p,
+    const PhysicsConfig& trialPhysics,const MaterialPrimitive& material, Real filmT, Real lo, Real hi,
+    SurfacePhysicsResult left, SurfacePhysicsResult right, SurfacePhysicsResult& out,SurfaceRootTrace* trace=nullptr,bool* numericalFailure=nullptr) {
+    if ((left.thermalResidual>0)==(right.thermalResidual>0)
+        && left.thermalResidual!=0 && right.thermalResidual!=0) return false;
+    if (left.thermalResidual==0) { out=left; return true; }
+    if (right.thermalResidual==0) { out=right; return true; }
+    for (int iteration=0; iteration<100; ++iteration) {
+        const Real T=0.5*(lo+hi);
+        SurfacePhysicsResult candidate;
+        if(Track){trace->attempted=T;trace->hasAttempt=true;}
+        if(!evaluateSurfaceTemperature(in,trialPhysics,material,filmT,T,false,candidate,numericalFailure))return false;
+        if(Track){trace->completedState=candidate;trace->hasCompleted=true;}
+        const Real scale=absValue(candidate.gasEnergy)+absValue(candidate.poreEnergy)
+            +absValue(candidate.phaseEnergy)+absValue(candidate.radiationFlux);
+        const Real fluxTolerance=p.tolerances.absoluteEnergy/(in.area*(in.dt>0 ? in.dt : 1))
+            +p.tolerances.relativeEnergy*scale;
+        const Real temperatureTolerance=p.tolerances.absoluteTemperature+p.tolerances.relativeTemperature*T;
+        if (absValue(candidate.thermalResidual)<=fluxTolerance
+            && (hi-lo<=temperatureTolerance || candidate.thermalResidual==0)) {
+            out=candidate; return true;
+        }
+        if (T==lo || T==hi || iteration==99) {
+            reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3804,
+                candidate.thermalResidual,fluxTolerance);
+            out=candidate;return true;
+        }
+        if ((candidate.thermalResidual>0)==(left.thermalResidual>0)) { lo=T; left=candidate; }
+        else { hi=T; right=candidate; }
+    }
+    return false;
+}
+template<bool Track=false>
+CHMT_HD inline bool bisectFeasibleSurface(const SurfacePhysicsInput& in,const PhysicsConfig& p,
+    const MaterialPrimitive& material,Real filmT,Real lo,Real hi,
+    SurfacePhysicsResult left,SurfacePhysicsResult right,SurfacePhysicsResult& out,
+    SurfaceRootTrace* trace=nullptr,bool* numericalFailure=nullptr) {
+    if(!surfaceTemperatureConfiguration(in,p))return false;
+    auto trialPhysics=p;
+    trialPhysics.diagnostics=nullptr;trialPhysics.tolerances.diagnostics=nullptr;
+    SurfacePhysicsResult candidate;
+    if(!bisectFeasibleSurfaceImpl<Track>(in,p,trialPhysics,material,filmT,lo,hi,left,right,candidate,trace,numericalFailure))return false;
+    return evaluateSurfaceTemperature(in,p,material,filmT,candidate.topTemperature,false,out,numericalFailure);
+}
+template<bool Track=false>
+CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const PhysicsConfig& p,
+    const MaterialPrimitive& material, Real filmT, Real lo, Real hi, SurfacePhysicsResult& out,SurfaceRootTrace* trace=nullptr,bool* numericalFailure=nullptr) {
+    if (!(hi>lo)) return false;
+    const Real preferred=maxValue(lo,minValue(hi,in.hasFilm && in.film.mass>0 ? filmT : material.temperature));
+    if(!surfaceTemperatureConfiguration(in,p))return false;
+    auto trialPhysics=p;
+    trialPhysics.diagnostics=nullptr;trialPhysics.tolerances.diagnostics=nullptr;
     SurfacePhysicsResult seed;
     if(Track){trace->attempted=preferred;trace->hasAttempt=true;}
-    const bool seedValid=surfaceTemperatureTrial(in,p,material,filmT,preferred,seed,numericalFailure);
+    const bool seedValid=evaluateSurfaceTemperature(in,trialPhysics,material,filmT,preferred,false,seed,numericalFailure);
     if(Track&&seedValid){trace->completedState=seed;trace->hasCompleted=true;}
     if (seedValid&&seed.thermalResidual==0) { out=seed; return true; }
     SurfacePhysicsResult last=seed;bool hasValid=seedValid;
@@ -749,7 +759,7 @@ CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const
                 const Real T=insert && part==0 ? preferred : gridT;
                 SurfacePhysicsResult current;
                 if(Track){trace->attempted=T;trace->hasAttempt=true;}
-                const bool valid=surfaceTemperatureTrial(in,p,material,filmT,T,current,numericalFailure);
+                const bool valid=evaluateSurfaceTemperature(in,trialPhysics,material,filmT,T,false,current,numericalFailure);
                             if(!valid){previousValid=false;continue;}
                 last=current;hasValid=true;
                 if(Track){trace->completedState=current;trace->hasCompleted=true;}
@@ -757,7 +767,7 @@ CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const
                 if (valid && previousValid
                     && (current.thermalResidual>0)!=(previous.thermalResidual>0)) {
                     SurfacePhysicsResult root;
-                    if(!bisectFeasibleSurface<Track>(in,p,material,filmT,previousT,T,previous,current,root,trace,numericalFailure)){
+                    if(!bisectFeasibleSurfaceImpl<Track>(in,p,trialPhysics,material,filmT,previousT,T,previous,current,root,trace,numericalFailure)){
                         if(ugkp::diagnostics::hasFatal(p.diagnostics))return false;
                         previousValid=false;continue;}
                     out=root;return true;
