@@ -84,8 +84,9 @@ CHMT_HD inline bool invertCaloric(Real a0,Real a1,Real a2,Real target,Real lo,Re
     Real value=0,capacity=0;
     const auto status=CondensedEnergyEvaluator{a0,a1,a2}(result,value,capacity);
     if(status!=ugkwp::ThermoStatus::Success)return materialInversionFailure(tol.diagnostics,3852,status,target,result);
-    const Real tolerance=tol.absoluteEnergy+tol.relativeEnergy*maxValue(absValue(target),absValue(value));
-    if(absValue(value-target)>tolerance)recordWarning(tol.diagnostics,makeRecord(Code::AccuracyResidual,3854,38,0,EntityKind::None,-1,-1,value-target,tolerance,result,Quantity::InternalEnergy));
+    const Real residual=auditDifference(value,target);
+    const Real tolerance=auditTolerance(tol.absoluteEnergy,tol.relativeEnergy,maxValue(absValue(target),absValue(value)));
+    if(absValue(residual)>tolerance)recordWarning(tol.diagnostics,makeRecord(Code::AccuracyResidual,3854,38,0,EntityKind::None,-1,-1,residual,tolerance,result,Quantity::InternalEnergy));
     if(result<lo||result>hi)
         recordWarning(tol.diagnostics,makeRecord(Code::AccuracyResidual,3820,38,0,EntityKind::None,-1,-1,result,result<lo?lo:hi,0,Quantity::Temperature));
     temperature=result;return true;
