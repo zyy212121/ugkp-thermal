@@ -252,7 +252,7 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerTrialStora
     const auto& view=in.model.thermo;
     const auto report=[&](ugkp::diagnostics::Code code,int species,double value){
         auto* diagnostics=in.diagnostics?in.diagnostics:view.diagnostics;
-        ugkp::diagnostics::recordFatal(diagnostics,ugkp::diagnostics::makeRecord(code,2302,23,
+        ugkp::diagnostics::recordFatal(diagnostics,ugkp::diagnostics::makeRecord(code,2432,23,
             node>=0?static_cast<unsigned>(node):in.diagnosticNode,
             ugkp::diagnostics::EntityKind::Face,in.diagnosticEntity,species,value,0,0,
             ugkp::diagnostics::Quantity::Index));

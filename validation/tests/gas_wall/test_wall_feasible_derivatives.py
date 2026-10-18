@@ -44,7 +44,7 @@ int main(){Model m;m.in.temperature=m.in.matching.temperature=600;m.in.integrate
 
 def test_newton_trial_cannot_hide_selected_missing_thermo_segment(tmp_path):
     source=tmp_path/'missing_candidate.cpp'
-    source.write_text(BASE+r'''
+    source.write_text(BASE+'\n#include \"common/DiagnosticsCatalogue.H\"\n'+r'''
 int main(){Model m;m.in.temperature=m.in.matching.temperature=600;m.in.integrateOwnerKSource=false;
     double coefficient[12]{};coefficient[0]=coefficient[6]=1000./(universalGasConstant<double>()/.028);
     m.in.model.thermo.coefficients=coefficient;m.in.model.thermo.coefficientCount=12;
@@ -57,12 +57,20 @@ int main(){Model m;m.in.temperature=m.in.matching.temperature=600;m.in.integrate
     assert(!detail::applyLayerNewtonUpdate(m.in,c,ctx,w,norm,alpha));
     assert(diagnostic.fatalClaim&&diagnostic.firstFatal.code==ugkp::diagnostics::Code::InvalidIndex);
     assert(diagnostic.firstFatal.entityIndex==77&&diagnostic.firstFatal.stageId==1);
+    assert(diagnostic.firstFatal.sourceSiteId==2432);
+    bool found=false;for(const auto& descriptor:ugkp::diagnostics::sourceCatalogue())if(descriptor.siteId==diagnostic.firstFatal.sourceSiteId){
+        assert(descriptor.file=="common/gasWall/ReactingWallLayer.H");assert(descriptor.function=="layerTrialStorageAvailable");
+        assert(descriptor.description.find("storage")!=std::string::npos);std::cout<<descriptor.line<<'\n';found=true;
+    }assert(found);
     for(int i=0;i<4;++i)for(int j=0;j<6;++j)assert(w.state[i][j]==before.state[i][j]);
 }''')
     executable=tmp_path/'missing_candidate'
     subprocess.run(['g++','-std=c++17','-O2','-I',str(SOURCE_ROOT),str(source),'-o',str(executable)],check=True,capture_output=True,text=True)
     result=subprocess.run([str(executable)],capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr
+    anchor=int(result.stdout.strip())
+    producer=(SOURCE_ROOT/'common/gasWall/ReactingWallLayer.H').read_text().splitlines()[anchor-1]
+    assert 'makeRecord(code,2432,23' in producer
 
 
 @pytest.mark.parametrize('reversible',[False,True],ids=['unused-entropy','consumed-entropy'])

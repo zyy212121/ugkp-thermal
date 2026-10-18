@@ -56,6 +56,7 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {
         {2429,"common/gasWall/ReactingWallLayer.H","publishLayer",597,"nonfinite diagnostic-only integrated k source; physical wall output retained"},
         {2430,"common/gasWall/ConstantTransportWall.H","evaluateConstantTransportWallImpl",17,"zero constant wall transport denominator"},
         {2431,"common/gasWall/ConstantTransportWall.H","evaluateConstantTransportWallImpl",37,"nonfinite constant wall heat flux"},
+        {2432,"common/gasWall/ReactingWallLayer.H","layerTrialStorageAvailable",255,"missing consumed wall trial thermo storage; stage is node, component is species, observed is available coefficient count"},
         {2501,"common/gasTransport/GasBoundaryLayerEvaluation.H","publishGasBoundaryLayerOutput",41,"boundary geometry"},
         {2502,"common/gasTransport/GasBoundaryLayerEvaluation.H","publishGasBoundaryLayerOutput",43,"boundary scalar"},
         {2503,"common/gasTransport/GasBoundaryLayerEvaluation.H","publishGasBoundaryLayerOutput",52,"boundary vector"},
