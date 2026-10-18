@@ -1,0 +1,76 @@
+{
+  "baseline": {
+    "binary_sha256": "e7f999a02b3878191b0d35ee7c0ec80756986e19968f1e88492e8819d8ca103c",
+    "functions": [
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<true, 0, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:255 STACK:5584 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      },
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<true, 128, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:96 STACK:6320 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      },
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<true, 48, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:96 STACK:6320 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      },
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<true, 24, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:96 STACK:6320 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      },
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<false, 0, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:255 STACK:5376 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      },
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<false, 128, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:96 STACK:6128 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      },
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<false, 48, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:96 STACK:6128 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      },
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<false, 24, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:96 STACK:6128 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      }
+    ]
+  },
+  "candidate": {
+    "binary_sha256": "e3501d86a0a276da98c754c8b75f0280ecf86cc751e4b623c2a0ef61a7a16574",
+    "functions": [
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<true, 0, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:255 STACK:5616 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      },
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<true, 128, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:96 STACK:6336 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      },
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<true, 48, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:96 STACK:6336 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      },
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<true, 24, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:96 STACK:6336 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      },
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<false, 0, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:255 STACK:5408 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      },
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<false, 128, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:96 STACK:6144 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      },
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<false, 48, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:96 STACK:6144 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      },
+      {
+        "function": "void (anonymous namespace)::evaluateGasBoundaryLayerTeamKernel<false, 24, (anonymous namespace)::DeviceState>((anonymous namespace)::DeviceState*)",
+        "resource": "REG:96 STACK:6144 SHARED:0 LOCAL:0 CONSTANT[2]:656 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      }
+    ]
+  }
+}
