@@ -1,8 +1,8 @@
 {
-  "updated_utc": "2026-10-18T11:31:51.863586+00:00",
+  "updated_utc": "2026-10-18T11:34:47.421902+00:00",
   "root": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018",
   "base_head": "f9125e47cb90e8b605ab611a9757606488156e75",
-  "stage": "验证完成，封装最终新增证据；即将提交/推送",
+  "stage": "代码与证据已推送并读回；本次仅追加交付回执",
   "completed": [
     "case11/25真实算子红测与接受越界轨迹确认",
     "同一映射态用于trial残差、接受、下一轮Jacobian",
@@ -31,7 +31,9 @@
     "239a原生FMA五GPU夹具及15次sanitizer全部0；false模式另5夹具全部0",
     "最终便携脚本19项实际通过、目录producer定位红绿证明",
     "最终正式455主要源码/6生产二进制再次首尾核对一致",
-    "独立复查Ns2解析增量已结束，无Critical/Important；实际main合并后的18项增量复测通过"
+    "独立复查Ns2解析增量已结束，无Critical/Important；实际main合并后的18项增量复测通过",
+    "PR19远端主分支与拉取引用均已读回7383bc5d；main仍7c696b19、PR未合并",
+    "报告/源码产物清单/索引/交付哈希/1.52MB原始证据归档五文件API读回逐字节一致"
   ],
   "evidence": [
     "wall/before-trace/11.log",
@@ -47,35 +49,25 @@
     "sst-active/long/results.json",
     "sst-active/active-details.json"
   ],
-  "next": [
-    "压缩新增原始证据，提交本轮交付",
-    "推送前fetch衔接，非强制推送PR19",
-    "读回远端与报告/证据字节SHA；实际合并留待确认"
-  ],
-  "current_head": "239a4122aab6df126f07c59b3b10993fe6cfc2c9",
+  "next": [],
+  "current_head": "7383bc5db5510bbd2a5a80e18a4d41535c94487d",
   "calculation_commit": "239a4122aab6df126f07c59b3b10993fe6cfc2c9",
   "test_commit": "239a4122aab6df126f07c59b3b10993fe6cfc2c9",
   "merge_source": {
     "main": "7c696b19b5510ef94cfbbf7eb837a00c29d74f0d",
-    "pr_source_head": "239a4122aab6df126f07c59b3b10993fe6cfc2c9",
-    "math_commit": "1d10e4d16411857c139d0fdde91e2a1839c38ca7",
-    "merge_head": "23a9d1c41e3540dd22974e330f197ffc14a67e2f",
-    "merge_tree": "fc51a9b0c7a66877dba5da2ba213a2e94e39eb68",
-    "conflicts": false,
+    "pr_head": "7383bc5db5510bbd2a5a80e18a4d41535c94487d",
+    "source": "239a4122aab6df126f07c59b3b10993fe6cfc2c9",
+    "merge_head": "68a23aa5c1c4c780dad7c6d1a41d1c5824ece3e1",
+    "merge_tree": "a3cf47b69aaf829a0b49cdca021229196ed21042",
+    "pr_tree": "a3cf47b69aaf829a0b49cdca021229196ed21042",
     "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018",
-    "command": [
-      "python3",
-      "-m",
-      "pytest",
-      "-q",
-      "validation/tests/test_interface_catalogue_provenance.py",
-      "--junitxml",
-      "/mnt/d/tempt/ugkp-pr19-state-unique-fixes-20261018/merge/catalogue-final.xml"
-    ],
-    "exit": 0
+    "conflicts": false,
+    "full_tree_diff_exit": 0,
+    "remote_merge_performed": false
   },
   "merge_assessment": "可以合并；不实际合并；历史SST局限明确保留",
   "math_commit": "1d10e4d16411857c139d0fdde91e2a1839c38ca7",
   "final_source_commit": "239a4122aab6df126f07c59b3b10993fe6cfc2c9",
-  "final_core_unique_cases": 91
+  "final_core_unique_cases": 91,
+  "delivery_head": "7383bc5db5510bbd2a5a80e18a4d41535c94487d"
 }

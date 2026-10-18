@@ -1,6 +1,6 @@
 {
   "source_head": "239a4122aab6df126f07c59b3b10993fe6cfc2c9",
-  "note": "Hashes exclude this inventory itself and any subsequent remote receipt; no computed-source changes after source_head.",
+  "note": "Hashes exclude this inventory itself. The receipt describes the previous code/evidence delivery; its own commit only changes this documentation directory. Final PR description records final HEAD.",
   "files": {
     "fixtures/interface_benchmark.cpp": {
       "sha256": "f12d19a49b696eb658ce53ed07d9bc98b05dfdde852dd7cbdea10c42f4247623",
@@ -35,8 +35,8 @@
       "bytes": 4236
     },
     "工作报告.txt": {
-      "sha256": "e62b7ab27234bc3ca48ef13639b1131cac7902a6b5af168bc0ec58dd4c9961cb",
-      "bytes": 13555
+      "sha256": "4453e67432b4bb948b699bc17724f13349017abd43ab771bff4e6e0e728844da",
+      "bytes": 13920
     },
     "源码与产物哈希.json": {
       "sha256": "3459c9148b7e76ebd26dc6b8edfd9ceec0c0991172d3613051a528b8d5228bec",
@@ -46,9 +46,13 @@
       "sha256": "100c53135c4a39b042062ac80185c6e9a72f6d24bd10cf6ddbd38bdfdf5b5063",
       "bytes": 91220
     },
+    "远端交付回执.json": {
+      "sha256": "d7d179314582290e13d5ca9cb3f843cad5732e2bd2d4e6591476ed7b0cb60b9b",
+      "bytes": 2688
+    },
     "阶段进度记录.json": {
-      "sha256": "7c78d57c4b3934f81de7e7c32b140d95b84170e2d3f311513e2078dfcb148a05",
-      "bytes": 4444
+      "sha256": "efd152aaf9f82e207f2705ff18d36351c02da89e23bff6639b0c94118a405763",
+      "bytes": 4385
     }
   }
 }
