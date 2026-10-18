@@ -1,0 +1,183 @@
+{
+  "calculation_commit": "f6e7e9a6e98c7a2ff0fe919087e979061876091c",
+  "calculation_tree": "93d0328cd8d4026a496e4193a76dbed0b013c0d5",
+  "artifacts": [
+    {
+      "name": "gasUGKP",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-followup-20261018/.review-install/bin/gasUGKP",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-followup-20261018/.review-install/bin/gasUGKP",
+      "bytes": 913680,
+      "sha256": "71b9f679ac02a2a4727b9ff4e0735e8b75be35ffc6919c2504005c44cbf134c4",
+      "ldd_exit": 0
+    },
+    {
+      "name": "gasUGKPCudaBackend",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-followup-20261018/.review-install/bin/gasUGKPCudaBackend",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-followup-20261018/.review-install/bin/gasUGKPCudaBackend",
+      "bytes": 5704352,
+      "sha256": "afebd2d7dcec91904021c7a883eec68c18c1f49e9cc8ccb61cc3d578fbf049db",
+      "ldd_exit": 0
+    },
+    {
+      "name": "FSH",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-followup-20261018/.review-install/bin/FSH",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-followup-20261018/.review-install/bin/FSH",
+      "bytes": 758144,
+      "sha256": "88ef3dd39a5bf84eb9760e1d100ebae92cae6a3af7bb95d929e8446195252320",
+      "ldd_exit": 0
+    },
+    {
+      "name": "FSHCudaBackend",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-followup-20261018/.review-install/bin/FSHCudaBackend",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-followup-20261018/.review-install/bin/FSHCudaBackend",
+      "bytes": 7826888,
+      "sha256": "9a5f5913cdf0f67dc29206a5cb05324a538f0d2770b5d8f7c0ac235f5f9e0b05",
+      "ldd_exit": 0
+    },
+    {
+      "name": "CHT",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-followup-20261018/.review-install/bin/CHT",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-followup-20261018/.review-install/bin/CHT",
+      "bytes": 6630752,
+      "sha256": "9ea9cc572a4cc0670cd672b0c7d30cb17dcdfc85ba992bf210a54e2acde418fa",
+      "ldd_exit": 0
+    },
+    {
+      "name": "CHMT",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-followup-20261018/.review-install/bin/CHMT",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-followup-20261018/.review-install/bin/CHMT",
+      "bytes": 13992288,
+      "sha256": "94461f1173408dd44cb75e666748c4112329950616332cbe8d04b904542161c6",
+      "ldd_exit": 0
+    }
+  ],
+  "build_exits": [
+    {
+      "target": "gasUGKP",
+      "command": [
+        "bash",
+        "/mnt/d/tempt/ugkp-pr19-followup-20261018/build/build-gasUGKP.sh"
+      ],
+      "body": "source /mnt/d/tempt/ugkp-pr19-followup-20261018/env-final.sh\nbash -x tool/gasUGKP/build_private_backend.sh\n",
+      "source_commit": "f6e7e9a6e98c7a2ff0fe919087e979061876091c",
+      "exit": 0,
+      "elapsed_s": 255.5639147758484
+    },
+    {
+      "target": "FSH",
+      "command": [
+        "bash",
+        "/mnt/d/tempt/ugkp-pr19-followup-20261018/build/build-FSH.sh"
+      ],
+      "body": "source /mnt/d/tempt/ugkp-pr19-followup-20261018/env-final.sh\nbash -x tool/FSH/build_private_backend.sh\n",
+      "source_commit": "f6e7e9a6e98c7a2ff0fe919087e979061876091c",
+      "exit": 0,
+      "elapsed_s": 73.79216241836548
+    },
+    {
+      "target": "CHT",
+      "command": [
+        "bash",
+        "/mnt/d/tempt/ugkp-pr19-followup-20261018/build/build-CHT.sh"
+      ],
+      "body": "source /mnt/d/tempt/ugkp-pr19-followup-20261018/env-final.sh\nbash -x tool/CHT/build_cuda_solver.sh\n",
+      "source_commit": "f6e7e9a6e98c7a2ff0fe919087e979061876091c",
+      "exit": 0,
+      "elapsed_s": 98.63048100471497
+    },
+    {
+      "target": "CHMT",
+      "command": [
+        "bash",
+        "/mnt/d/tempt/ugkp-pr19-followup-20261018/build/build-CHMT.sh"
+      ],
+      "body": "source /mnt/d/tempt/ugkp-pr19-followup-20261018/env-final.sh\nbash -x applications/CHMT/Allwmake\n",
+      "source_commit": "f6e7e9a6e98c7a2ff0fe919087e979061876091c",
+      "exit": 0,
+      "elapsed_s": 162.35817217826843
+    }
+  ],
+  "tracked_source_count": 2414,
+  "source_changes_during_build": [],
+  "calculation_merge": {
+    "main": "7c696b19b5510ef94cfbbf7eb837a00c29d74f0d",
+    "pr_calculation_commit": "f6e7e9a6e98c7a2ff0fe919087e979061876091c",
+    "merge_commit": "0de6baad95f63aea66750660ff833643e0f1fa22",
+    "merge_tree": "93d0328cd8d4026a496e4193a76dbed0b013c0d5",
+    "pr_tree": "93d0328cd8d4026a496e4193a76dbed0b013c0d5",
+    "workspace": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-followup-merged-20261018"
+  },
+  "test_summary": {
+    "integrated_affected": {
+      "passed": 129,
+      "skipped": 0,
+      "timing": "before audit boundary followup"
+    },
+    "final_affected_chmt": {
+      "passed": 15,
+      "timing": "frozen calculation commit"
+    },
+    "counts_overlap": true,
+    "wall_gpu": {
+      "faces_per_mode": 32,
+      "modes": 3,
+      "iterations": 7,
+      "residual": 1.5027988949520883e-12,
+      "memcheck_errors": 0,
+      "race_hazards": 0,
+      "sync_errors": 0
+    },
+    "topology_gpu": {
+      "scenarios": 18,
+      "memcheck_errors": 0
+    },
+    "production_short_restart": {
+      "accepted_steps": 4,
+      "exit": 0,
+      "last_time": 0.004000964381143812
+    },
+    "delivery_reproduction_script": {
+      "passed": 44,
+      "exit": 0,
+      "source_commit": "f6e7e9a6e98c7a2ff0fe919087e979061876091c",
+      "counts_overlap_other_runs": true
+    }
+  },
+  "changed_source_files_sha256": {
+    "applications/CHMT/ablation/WallClosureHost.H": "abc265e4b16cede00bc35900d335045bd55d47cdeed947447c3e4ba9c5fddd7f",
+    "applications/CHMT/core/AuditArithmetic.H": "e1c3f3e4609ac7b39344fa2a52c36034449b6ec06df7eea7649eb7990f20a6dc",
+    "applications/CHMT/coupling/ExchangeLedger.C": "fc9608bbf13c3bb9c68dc9b48611fe5e0c406ef41a18de5cd96b3a3fb624bafc",
+    "applications/CHMT/gpu/SharedMixtureStorage.H": "467fba7c857b5a760ad24ca607c143978fb85037b3e2c5afdba1fc48725f1d9d",
+    "applications/CHMT/io/CoupledOutput.H": "5d1cf9ebdd968db17818f714d36f945866d6f43a511d08bf5cd4420fd924b36e",
+    "applications/CHMT/materials/Thermodynamics.H": "8ed08de6239c1256a57803187f4bbb373ad04f5ce54884541da3b68c30b77a32",
+    "common/Diagnostics.H": "0146397537936129000395144114683c3daae13c6896464337ff521e0e13153e",
+    "common/DiagnosticsCatalogue.H": "21571fdd4645fe43c622a471de1b73e0065c5f57f5ae141677ba860ad59e40c0",
+    "common/DiagnosticsHost.H": "551fe0c4d883f0029de883a63eb417284a4beae87013daf53da264220c2491d7",
+    "common/gasTransport/MixtureThermo.H": "ddf7ea622a027506f69724df4a19bddc90ab76467bd8dec12b5c19677791e09f",
+    "common/gasWall/ReactingWallLayer.H": "6709719d863f25b05674311b5f88250eb2300c896d6182643b5c96422ef3e03d",
+    "common/operators/computeGasGradientLimiterKernel.cuh": "17277534319f16f4b56ba4e6eefbc0fcc4ed89a898ce9d38c045df570910c748",
+    "common/operators/computeGasPrimitiveGradientsKernel.cuh": "34c86ef7839dc8cea80a1fd9fbb9055b990308def1da55e0d05d4e3844d2b2dc",
+    "common/operators/computeSstFaceFluxKernel.cuh": "52e5808c305632e02f3df28db49a75646a7127e11f198718734dd170cce1130d",
+    "common/operators/gasFaceSubgridTransportProperties.cuh": "bc15b838c130bd2021f4d4b24840adc89cf8aa81ec876852a13f85bc5e0d72ad",
+    "common/operators/gasStencilDiagnostics.cuh": "4c12b1ed704282247d6a74c0fd50867d88835912b0b16b7ac4e3c90b22f9f169",
+    "common/operators/riemannFacePrimitiveForGradient.cuh": "d4f93c0abd75732bed439d5cc4ed2efde65571f29395ab1082ce5561c2e08d98",
+    "validation/tests/fixtures/chmt_audit_overflow.cpp": "51e39b06d60ded9586fdb8524e11541e0562fa544e95372644ea9a4a2da950fd",
+    "validation/tests/gas_transport/test_followup_fraction_and_cp.py": "1b8e7602055ae078bebc3362d2443b2bb3d97b9a905ed5a395285ba4ec227eee",
+    "validation/tests/gas_wall/fixtures/sst_globalization_gpu.cu": "f0a9d527a0f22432e3c4754c81d0c4b43f564783a75c6a39a8f280caefbe81d3",
+    "validation/tests/gas_wall/fixtures/sst_restart004_capture.H": "493120ed11154579623bc64c64df4c64bf6f345d82bceef481a45389c8e38970",
+    "validation/tests/gas_wall/fixtures/sst_restart004_capture.json": "49bd91e9c7605b134d46a560927946cb71a0512f174916a892260dc4a231c296",
+    "validation/tests/gas_wall/test_wall_newton_globalization.py": "ff17e53946c5905d034716c8210e4d726a13c73e59345520732f4fa30ac68971",
+    "validation/tests/test_chmt_audit_overflow_followup.py": "b9a3fb08f3446324ff3a83ba319e3c94c10d771ef2d9b6832b101d9c4b510937",
+    "validation/tests/test_diagnostics_core.py": "99cb012f33bd7ae49876d8c4b1de590f4c0b187289dd641324acaa33ed5bada0",
+    "validation/tests/test_stencil_consumer_contracts.py": "8dbca411b2c022ea00ef6837ded4180edb3377b455773d2b21afed58d50abc3e"
+  },
+  "followup_commits": [
+    "f6e7e9a6e98c7a2ff0fe919087e979061876091c Make diagnostic overflow checks exact at binary64 boundaries",
+    "3f4163ba0a994417a660722f84d0cededec3fb5a Refresh diagnostic producer locations after integrated fixes",
+    "f82518307e7e812f4b8f74bd9d49beaadc23a71b Fix stencil diagnostics to follow actual consumer dependencies",
+    "5b7339b9f877a943609e5e405b3c4b141ecf9335 Verify wall globalization budgets and CUDA cooperative diagnostics",
+    "fdef20a023d2c4d15cb54435548dfd4224115335 Fix CHMT diagnostic overflow and gas density error provenance",
+    "3f3f9ed71307e988c011c393162a19e483fdb206 Preserve nonfinite gas fraction and wall heat-capacity diagnostics",
+    "1d1c935f40048fe860a68767f9255768923b5c56 Restore authorized Newton mathematical line search for wall SST"
+  ]
+}
