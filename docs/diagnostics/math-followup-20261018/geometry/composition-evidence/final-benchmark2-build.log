@@ -1,0 +1,2 @@
+['g++', '-std=c++14', '-O2', '-ffp-contract=off', '-DUGKWP_GAS_SPECIES=2', '-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fix-geometry-20261018/applications/CHMT', '-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fix-geometry-20261018/common', '/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/geometry/composition-analysis/benchmark.cpp', '-o', '/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/geometry/composition-analysis/final-benchmark2']
+EXIT 0

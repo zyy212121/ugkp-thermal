@@ -1,0 +1,4 @@
+command=['g++', '-std=c++14', '-O2', '-ffp-contract=off', '-DUGKWP_GAS_SPECIES=10', '-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fix-geometry-20261018/applications/CHMT', '-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fix-geometry-20261018/common', '/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/interface/composition-review/pole-arithmetic.cpp', '-o', '/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/geometry/composition-analysis/pole-arithmetic-red']
+build=0
+run=-8
+public finite inputs
