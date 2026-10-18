@@ -1,0 +1,14 @@
+事项,证据,范围/结果
+最终受影响套件,root-evidence/reproduction-final,cd0e真实交付reproduce入口122通过，0跳过；不是全库
+完整编译,root-evidence/build,3a6四目标/六程序全部0；source逐文件不变
+最终CHMT补编,root-evidence/build-final-preflight,cd0e只有CHMT头变更，只重编CHMT并校验其它五产物未变
+真实GPU壁层,root-evidence/wallchem,捕获/缺表/警告/真实error及三个sanitizer；不是原9788现场
+真实GPU组分,root-evidence/geometry/gpu-final,Ns2/Ns10各258输入、run和3sanitizer全0；算子函数自3a6未变
+正常短算AB,root-evidence/normal-short,main重新构建，同输入16cells至5e-5；无SST/CHMT/性能外推
+壁层/化学反例,wallchem-evidence.tar.gz,1004/114、完整矩阵、实际红绿、拒绝实验与局限
+热量/温度/审计算术,interface-evidence.tar.gz,真实OF10/物性/纯audit与静态错误红绿
+组分独审,composition-independent-evidence.tar.gz,独立7绿、极点FPE红、CPU7–8倍成本、NoCert限制
+最终R现场,preflight-evidence.tar.gz,真实入口RInf红-8→真实error；D阴性/空surface/BoundaryLayer对照
+几何/组分数学,geometry/composition-math.md,方法、精确生产tol40k、旧反例与性能原始日志
+正式保护,root-evidence/production-protection-comparison.json,455source与main0差异，6共享bin内容/mtime不变
+历史证据,../followup-20261018/及固定历史独审路径,沿用未变路径；旧可以合并结论被本报告撤回
