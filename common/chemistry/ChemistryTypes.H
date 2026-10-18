@@ -39,7 +39,7 @@ template<class Real> struct ChemistryControls {
     int maximumSteps = 10000;
     int maximumRejectedSteps = 100;
     int maximumNewtonIterations = 16;
-    int maximumLineSearchIterations = 24; // Legacy wire/checkpoint slot, no line search.
+    int maximumLineSearchIterations = 24; // Mathematical search within one fixed implicit stage.
     Real absoluteMassTolerance = Real(1e-14); // kg
     Real relativeConservationTolerance = Real(1e-10);
     Real absoluteElementTolerance = Real(1e-12); // mol atoms, NOT kg

@@ -1,6 +1,7 @@
 #ifndef UGKWP_LOCAL_STIFF_INTEGRATOR_H
 #define UGKWP_LOCAL_STIFF_INTEGRATOR_H
 #include "ConservativeReactor.H"
+#include "NewtonFactor.H"
 namespace ugkwp { namespace gasChemistryDetail {
 UGKWP_GAS_HD inline bool hasUsableChemistryResult(const ChemistryStatus& status) noexcept {
  return status.code==ChemistryCode::Success || status.code==ChemistryCode::NewtonFailure
@@ -25,37 +26,68 @@ template<class R,class Time> UGKWP_GAS_HD inline R stageProduct(Time h,R coeffic
 }
 template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD UGKWP_CHEMISTRY_DEVICE_LEAF ChemistryStatus implicitStage
 (const ReactorContext<R,N,TableReal>& context,const R* rhs,Time interval,R coefficient,R* z,R& temperature) noexcept {
- ChemistryStatus status;int rank=context.mechanism.independentRank;
- for(int iteration=0;iteration<(context.controls.maximumNewtonIterations>0?context.controls.maximumNewtonIterations:1);++iteration){
-   R f[N]={},jac[N*N]={},residual[N]={},masses[N];
-
-
-   ChemistryStatus local=context.evaluate(z,f,temperature,jac,masses);
-   if(!hasUsableChemistryResult(local)){return local;}
-   retainDiagnostic(status,local);
+ ChemistryStatus status;const int rank=context.mechanism.independentRank;
+ if(rank<0||rank>N){status.code=ChemistryCode::InvalidModel;return status;}
+ status=validateGasMechanismView(context.thermo,context.mechanism);if(!status)return status;
+ // The physical base and static model are evaluated through their real context.
+ // All intermediate mathematical iterates use a view without global atomics;
+ // CUDA thread-local storage must never be used as an atomic DeviceContext.
+ auto trialThermo=context.thermo;trialThermo.diagnostics=nullptr;
+ ReactorContext<R,N,TableReal> trialContext(context.base,trialThermo,context.mechanism,context.controls);
+ for(int i=0;i<N*N;++i)trialContext.leftInverse[i]=context.leftInverse[i];
+ R f[N]={},masses[N],residual[N]={};
+ ChemistryStatus local=context.evaluate(z,f,temperature,nullptr,masses);
+ if(!hasUsableChemistryResult(local))return local;retainDiagnostic(status,local);
+ const int iterations=context.controls.maximumNewtonIterations>0?context.controls.maximumNewtonIterations:1;
+ for(int iteration=0;iteration<=iterations;++iteration){
    for(int i=0;i<rank;++i)residual[i]=z[i]-rhs[i]-stageProduct(interval,coefficient,f[i]);
-   R norm=coordinateNorm(context,residual,masses);
+   const R norm=coordinateNorm(context,residual,masses);
    status.observed=double(norm);status.reference=double(context.controls.newtonTolerance);status.nonlinearIteration=iteration;
-   // Do not freeze trace donors by accepting an unchanged initial guess.
-   // One actual Newton update retains stiff relaxation below the error floor.
-   if(norm<=context.controls.newtonTolerance && (iteration>0 || norm==R(0)))return status;
-   R delta[N]={};for(int i=0;i<rank;++i){delta[i]=-residual[i];for(int j=0;j<rank;++j)jac[i*N+j]=(i==j?R(1):R(0))-stageProduct(interval,coefficient,jac[i*N+j]);}
-   if(!solveDense<R,N,true>(rank,jac,delta,nullptr,&status.linearFailure)){status.code=ChemistryCode::SingularJacobian;return status;}
-   // A Newton update is part of the single implicit solve. Never retry a
-   // failed state evaluator with a smaller candidate or another algorithm.
-   for(int i=0;i<rank;++i)z[i]+=delta[i];
-
+   if((norm<=context.controls.newtonTolerance&&(iteration>0||norm==R(0)))||iteration==iterations){
+      ChemistryStatus final=context.evaluate(z,f,temperature,nullptr,masses);if(!hasUsableChemistryResult(final))return final;retainDiagnostic(status,final);
+      for(int i=0;i<rank;++i)residual[i]=z[i]-rhs[i]-stageProduct(interval,coefficient,f[i]);
+      const R finalNorm=coordinateNorm(context,residual,masses);
+      status.observed=double(finalNorm);status.reference=double(context.controls.newtonTolerance);
+      if(finalNorm>context.controls.newtonTolerance)status.code=ChemistryCode::NewtonFailure;
+      return status;
+   }
+   R jac[N*N]={};local=trialContext.evaluateJacobian(masses,temperature,jac);
+   if(!hasUsableChemistryResult(local))return local;
+   R delta[N]={},rowScale[N];int pivot[N];
+   for(int i=0;i<rank;++i){delta[i]=-residual[i];for(int j=0;j<rank;++j)jac[i*N+j]=(i==j?R(1):R(0))-stageProduct(interval,coefficient,jac[i*N+j]);}
+   if(!factorNewton<R,N>(rank,jac,pivot,rowScale,&status.linearFailure)||!solveNewton<R,N>(rank,jac,pivot,rowScale,delta,&status.linearFailure)){status.code=ChemistryCode::SingularJacobian;return status;}
+   // Natural merit measures the simplified Newton correction in the existing
+   // mass-error norm. It avoids raw residual scaling by stiff reaction modes.
+   const R oldNatural=coordinateNorm(context,delta,masses);R alpha=1;bool accepted=false;
+   for(int search=0;search<(context.controls.maximumLineSearchIterations>0?context.controls.maximumLineSearchIterations:1);++search){
+      R trial[N]={},trialMass[N],trialF[N]={},trialT=temperature,correction[N]={};
+      for(int i=0;i<rank;++i)trial[i]=z[i]+alpha*delta[i];
+      bool feasible=true;for(int species=0;species<N;++species){R amount=0;for(int j=0;j<rank;++j)amount+=context.mechanism.stoichiometricBasis[species*rank+j]*trial[j];R mass=context.base.speciesMass[species]+context.thermo.species[species].molarMass*context.base.volume*amount;feasible=feasible&&gasFinite(mass)&&mass>=0;}
+      if(feasible){ChemistryStatus candidate=trialContext.evaluate(trial,trialF,trialT,nullptr,trialMass);
+       if(hasUsableChemistryResult(candidate)){
+        for(int i=0;i<rank;++i)correction[i]=trial[i]-rhs[i]-stageProduct(interval,coefficient,trialF[i]);
+        const R trialNorm=coordinateNorm(context,correction,trialMass);
+        if(solveNewton<R,N>(rank,jac,pivot,rowScale,correction)){
+         const R natural=coordinateNorm(context,correction,masses);
+         // Below the requested correction-error budget, comparing still
+         // smaller corrections is dominated by stiff cancellation. Retain the
+         // evaluable full Newton update; only the FINAL residual can establish
+         // convergence. This does not release an unconverged state as Success.
+         if((search==0&&oldNatural<=context.controls.newtonTolerance)||trialNorm<=context.controls.newtonTolerance||natural<oldNatural){
+          for(int i=0;i<rank;++i){z[i]=trial[i];f[i]=trialF[i];}for(int i=0;i<N;++i)masses[i]=trialMass[i];temperature=trialT;accepted=true;break;
+         }
+        }
+       }else if(candidate.code==ChemistryCode::InvalidModel||candidate.code==ChemistryCode::InvalidControls||candidate.thermoCode==ThermoStatus::InvalidModel){
+         // Storage/schema errors are not candidate-domain failures. Re-evaluate
+         // through the real view to preserve the actual property error record.
+         auto reported=context.evaluate(trial,trialF,trialT,nullptr,trialMass);
+         return reported;
+        }
+      }
+      alpha*=R(.5);
+   }
+   if(!accepted){status.code=ChemistryCode::NewtonFailure;return status;}
  }
- // The final permitted update must be measured, not reported with the
- // residual from before that update. No extra Newton/Jacobian work is done.
- R finalF[N]={},finalMass[N],finalResidual[N]={};
- ChemistryStatus finalStatus=context.evaluate(z,finalF,temperature,nullptr,finalMass);
- if(!hasUsableChemistryResult(finalStatus))return finalStatus;
- retainDiagnostic(status,finalStatus);
- for(int i=0;i<rank;++i)finalResidual[i]=z[i]-rhs[i]-stageProduct(interval,coefficient,finalF[i]);
- const R finalNorm=coordinateNorm(context,finalResidual,finalMass);
- status.observed=double(finalNorm);status.reference=double(context.controls.newtonTolerance);
- if(finalNorm<=context.controls.newtonTolerance)return status;
  status.code=ChemistryCode::NewtonFailure;return status;
 }
 

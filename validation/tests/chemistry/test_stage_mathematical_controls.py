@@ -4,7 +4,7 @@ import pytest
 from validation.tools.paths import SOURCE_ROOT
 from validation.tests.chemistry.test_gas_rates import SOURCE
 
-@pytest.mark.parametrize('mode',[1,2])
+@pytest.mark.parametrize('mode',[0,1,2])
 def test_stage_controls(tmp_path,mode):
     prefix=SOURCE.split('int main(){')[0]
     source=tmp_path/'stage.cpp'
@@ -30,4 +30,22 @@ int main(int argc,char**argv){const int mode=std::atoi(argv[1]);Model model;
     executable=tmp_path/'stage'
     subprocess.run(['g++','-std=c++17','-O2','-I',str(SOURCE_ROOT),str(source),'-o',str(executable)],check=True,capture_output=True,text=True)
     result=subprocess.run([str(executable),str(mode)],capture_output=True,text=True)
+    assert result.returncode==0,result.stdout+result.stderr
+
+def test_retained_factorization_solves_multiple_rhs_with_row_scaling_and_pivots(tmp_path):
+    source=tmp_path/'factor.cpp'
+    source.write_text(r'''#include "common/chemistry/NewtonFactor.H"
+#include <cassert>
+#include <cmath>
+int main(){using namespace ugkwp::gasChemistryDetail;
+    constexpr int N=4;double a[N*N]={0,2e20,1e20,0, 1e-20,-2e-20,-3e-20,0, 4,5,6,0, 0,0,0,0};
+    double original[N*N];for(int i=0;i<N*N;++i)original[i]=a[i];int pivot[N];double scale[N];
+    assert((factorNewton<double,N>(3,a,pivot,scale)));
+    for(int k=0;k<2;++k){double exact[3]={1.+k,-2.+k,3.+k},rhs[N]{};for(int i=0;i<3;++i)for(int j=0;j<3;++j)rhs[i]+=original[i*N+j]*exact[j];
+      assert((solveNewton<double,N>(3,a,pivot,scale,rhs)));for(int i=0;i<3;++i)assert(std::abs(rhs[i]-exact[i])<1e-12);
+    }
+}''')
+    executable=tmp_path/'factor'
+    subprocess.run(['g++','-std=c++17','-O2','-I',str(SOURCE_ROOT),str(source),'-o',str(executable)],check=True,capture_output=True,text=True)
+    result=subprocess.run([str(executable)],capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr
