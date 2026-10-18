@@ -2169,7 +2169,17 @@ template<bool Capture> int launchBoundaryLayer(DeviceState* s)
         if(analytic)
             evaluateGasBoundaryLayerKernel<Capture><<<(workers+block-1)/block,block,0,s->gasCaptureStream>>>(s->deviceState);
         else
-            evaluateGasBoundaryLayerTeamKernel<Capture><<<workers,ugkwp::gaswall::detail::wallWarpWidth,0,s->gasCaptureStream>>>(s->deviceState);
+        {
+#define LAUNCH_WALL_CAPACITY(N) case N: evaluateGasBoundaryLayerTeamKernel<Capture,N><<<workers,ugkwp::gaswall::detail::wallWarpWidth,0,s->gasCaptureStream>>>(s->deviceState);break
+            switch(s->gasBoundaryLayerModel.workspaceCapacity)
+            {
+                LAUNCH_WALL_CAPACITY(24);
+                LAUNCH_WALL_CAPACITY(48);
+                LAUNCH_WALL_CAPACITY(128);
+                default:evaluateGasBoundaryLayerTeamKernel<Capture><<<workers,ugkwp::gaswall::detail::wallWarpWidth,0,s->gasCaptureStream>>>(s->deviceState);
+            }
+#undef LAUNCH_WALL_CAPACITY
+        }
         const auto error=cudaGetLastError();
         if(error!=cudaSuccess){setLastError("prepare sparse boundaryLayer profiles",error);return 1;}
         return 0;
@@ -4902,7 +4912,14 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
     };
     if(computeGasCurrentCourant(s,dt,targetMaxCo,scheduleTime,
         s->fixedCellBlockThreads,s->fixedFaceBlockThreads,nullptr,result,maximum))return 1;
-    if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy && SharedGasTrialPolicy::validate(s))return 1;
+    if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)
+    {
+        // validate already observes and dispatches diagnostics at this same
+        // completed Courant reduction; no physical work intervenes.
+        if(SharedGasTrialPolicy::validate(s))return 1;
+        *maxCo=result.maximum;
+        return 0;
+    }
     *maxCo=result.maximum;
     // Courant's existing reduction has returned its host scalar.
     const auto diagnosticReadback=s->diagnosticOwner->observeCompletedWork();

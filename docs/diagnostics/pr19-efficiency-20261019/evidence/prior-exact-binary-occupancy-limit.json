@@ -1,0 +1,34 @@
+{
+  "device_attributes": {
+    "MAX_REGISTERS_PER_MULTIPROCESSOR": 65536,
+    "MAX_THREADS_PER_MULTIPROCESSOR": 1536,
+    "MULTIPROCESSOR_COUNT": 24,
+    "WARP_SIZE": 32
+  },
+  "kernels": {
+    "old": [
+      {
+        "function": "_ZN53_GLOBAL__N__b1f08f19_20_GpuResidentStrict_cu_c309ccbe34evaluateGasBoundaryLayerTeamKernelILb1ENS_11DeviceStateEEEvPT0_",
+        "maximum_active_blocks_per_sm_at_launch32": 12,
+        "theoretical_warp_occupancy": 0.25
+      },
+      {
+        "function": "_ZN53_GLOBAL__N__b1f08f19_20_GpuResidentStrict_cu_c309ccbe34evaluateGasBoundaryLayerTeamKernelILb0ENS_11DeviceStateEEEvPT0_",
+        "maximum_active_blocks_per_sm_at_launch32": 12,
+        "theoretical_warp_occupancy": 0.25
+      }
+    ],
+    "current": [
+      {
+        "function": "_ZN53_GLOBAL__N__5a4e0a09_20_GpuResidentStrict_cu_c309ccbe34evaluateGasBoundaryLayerTeamKernelILb1ENS_11DeviceStateEEEvPT0_",
+        "maximum_active_blocks_per_sm_at_launch32": 8,
+        "theoretical_warp_occupancy": 0.16666666666666666
+      },
+      {
+        "function": "_ZN53_GLOBAL__N__5a4e0a09_20_GpuResidentStrict_cu_c309ccbe34evaluateGasBoundaryLayerTeamKernelILb0ENS_11DeviceStateEEEvPT0_",
+        "maximum_active_blocks_per_sm_at_launch32": 8,
+        "theoretical_warp_occupancy": 0.16666666666666666
+      }
+    ]
+  }
+}

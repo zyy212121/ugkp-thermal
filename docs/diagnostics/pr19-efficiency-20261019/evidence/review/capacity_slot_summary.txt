@@ -1,0 +1,3 @@
+capacity 24 nodes 24: 5 modes, 2 workspaces, 3 reuse sweeps, capture/diagnostics exact, ASan+UBSan clean
+capacity 48 nodes 40: 5 modes, 2 workspaces, 3 reuse sweeps, capture/diagnostics exact, ASan+UBSan clean
+capacity 128 nodes 65: 5 modes, 2 workspaces, 3 reuse sweeps, capture/diagnostics exact, ASan+UBSan clean

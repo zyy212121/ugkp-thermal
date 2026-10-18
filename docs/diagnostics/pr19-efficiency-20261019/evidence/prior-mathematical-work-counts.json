@@ -1,0 +1,40 @@
+[
+  {
+    "kind": "main",
+    "compile": [
+      "g++",
+      "-std=c++17",
+      "-O3",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-regression-20261019/count-main",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-regression-20261019",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-regression-20261019/count-main/count.cpp",
+      "-o",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-regression-20261019/count-main/count"
+    ],
+    "compile_exit": 0,
+    "run": [
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-regression-20261019/count-main/count"
+    ],
+    "run_exit": 0,
+    "result": "ok=1 iterations=7 residual=1.5552744232739067e-12 heat=653.76765672560316 pointState=5431 layerRow=3156 seedIterations=90 newtonIterations=7 zeroSignalColumns=0\n"
+  },
+  {
+    "kind": "current",
+    "compile": [
+      "g++",
+      "-std=c++17",
+      "-O3",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-regression-20261019/count-current",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-regression-20261019",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-regression-20261019/count-current/count.cpp",
+      "-o",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-regression-20261019/count-current/count"
+    ],
+    "compile_exit": 0,
+    "run": [
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-regression-20261019/count-current/count"
+    ],
+    "run_exit": 0,
+    "result": "ok=1 iterations=7 residual=1.5552744232739067e-12 heat=653.76765672560316 pointState=6537 layerRow=3324 seedIterations=90 newtonIterations=7 zeroSignalColumns=0\n"
+  }
+]

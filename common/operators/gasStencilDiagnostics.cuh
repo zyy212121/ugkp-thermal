@@ -29,9 +29,9 @@ __device__ bool gasStencilFaceCouplingValid(const GasState& s,int c,int f)
     return true;
 }
 template<class GasState>
-__device__ bool gasStencilFaceValid(const GasState& s,int c,int f)
+// Consume a face whose index/coupling was already checked in this invocation.
+__device__ bool gasStencilFaceCellsValid(const GasState& s,int c,int f)
 {
-    if(!gasStencilFaceCouplingValid(s,c,f))return false;
     if(!s.faceOwner)
     {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage);return false;}
     const int own=s.faceOwner[f],nei=coupledFaceNeighbour(s,f);
@@ -40,6 +40,11 @@ __device__ bool gasStencilFaceValid(const GasState& s,int c,int f)
         return gasStencilIndexFailure(s,c,nei,30002);
     if(c!=own && c!=nei)return gasStencilIndexFailure(s,c,f,30003);
     return true;
+}
+template<class GasState>
+__device__ bool gasStencilFaceValid(const GasState& s,int c,int f)
+{
+    return gasStencilFaceCouplingValid(s,c,f)&&gasStencilFaceCellsValid(s,c,f);
 }
 template<class GasState,class Scalar>
 __device__ bool gasProducerScalarValid(const GasState& s,int c,Scalar x,unsigned site,bool temperature=false)

@@ -1,0 +1,33 @@
+PR19 efficiency final diff — general applicability review
+Review UTC: 2026-10-18T21:17:33.731525+00:00
+Repository: /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-efficiency-20261019
+Base: acf49416bfbc5efa4343903527208af2892b19a9
+Production diff SHA256: 18ebb707afd1aad0cf607413f6dd25cd915beb484a0d882c8a615ab17cd4b19c
+Scope: current production changes under common/ and applications/ relative to the stated base; read-only inspection, no performance or regression test run in this pass.
+
+Verdict: No violation found of the new requirement against case-specific, non-general optimization or newly introduced empirical parameters.
+
+1. No case name, path, restart/time identifier, captured mesh/face count, pressure/temperature/velocity value, species identity or benchmark-specific input is used to select a production path.
+2. No new Ns==2 / N==2 / speciesCount==2 branch or two-species-only implementation is added. N remains a template dimension throughout the changed numerical entrypoints. The pre-existing N==2 simplex clamp is unchanged, not introduced by this optimization.
+3. The 24/48/128 kernel selections use the original allocated workspace buckets already present in GasBoundaryLayerWorkspace.H at the base revision. They specialize storage capacity for every matching allocation, not a case or species count. Capacity=0 preserves dynamic dispatch and invalid-capacity diagnostics at the production fallback.
+4. seedIndependentSum<=1 is the mass-one simplex feasibility condition for the dependent fraction 1-sum. It selects cooperative coefficient construction only where doing so cannot multiply clipping warnings. It adds no fitted tolerance and applies for arbitrary N.
+5. ctx.trialStorageComplete caches the existing immutable table-completeness predicate only within one solve. The existing metadata/thermo-model requirements determine the predicate; there is no case-dependent threshold or cache reuse across different layer calls.
+6. Accepted-candidate residual reuse uses the complete residual of the same projected state already required by the existing finite/decreasing acceptance test. No surrogate, approximated residual, acceptance relaxation, shortened Newton/Picard budget, or altered termination tolerance is added. Existing line-search, seed convergence and physical coefficients are unchanged. The added comment refers to the existing 64*N*epsilon diffusion tolerance; it does not introduce that tolerance.
+7. Device noinline phase separation, parallel per-node seed coefficient construction with the original serial recurrence ordering, immutable host source catalogue, sampled-descriptor copying, elimination of a second immediate Courant diagnostic observation, and same-invocation topology-check reuse are general execution/data-lifetime changes.
+8. DiagnosticsCatalogue descriptors have identical IDs, files, functions and descriptions to the base; only line locations and catalogue allocation/lifetime implementation change. No case-specific diagnostic suppression is present.
+9. No new user tuning option, environment switch, empirical coefficient or convergence-control field is introduced in the production diff.
+
+Template-adapter follow-up: confirmed the current native_gas_integration_fixture.py uses Slot<Capture> for Capacity=0 and Slot<Capture,Capacity> only for Capacity>0; the previously noted old-revision shim compatibility issue is resolved in source.
+
+Explicit scope boundaries: this pass does not claim the entire pre-existing solver has no empirical constants; pre-existing physical model coefficients and iteration controls were checked for changes, not redesigned. CHMT material/ablation algorithms remain outside scope. No new test or long GPU job was run in this pass.
+
+Production files inspected:
+applications/gasUGKP/private_backend/GpuResidentStrict.cu
+common/DiagnosticsCatalogue.H
+common/DiagnosticsHost.H
+common/GpuDiagnosticsOwner.cuh
+common/gasTransport/GasBoundaryLayerModelState.H
+common/gasWall/ReactingWallLayer.H
+common/operators/computeGasGradientLimiterKernel.cuh
+common/operators/evaluateGasBoundaryLayerKernel.cuh
+common/operators/gasStencilDiagnostics.cuh

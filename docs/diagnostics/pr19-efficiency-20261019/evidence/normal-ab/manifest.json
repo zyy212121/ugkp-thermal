@@ -1,0 +1,134 @@
+{
+  "main": {
+    "source_case": "/home/lss/ARC3696-runs/manual/M0p55/pr19-merged-20261018T212224/baseline-mhx4dmqp",
+    "command": [
+      "bash",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/normal-ab/main/run.sh"
+    ],
+    "inputs": {
+      "system/blockMeshDict": "30374c2000858d7e50565f56d5b93f70136c90f77652f8077440f7b5c3be0d6c",
+      "system/controlDict": "8bddc7590937dbe639cfcca268ddb36b8bb4114a080a674800b12a66974987c7",
+      "system/fvSolution": "e9cc3b2c85539efb8c1f6e24824c82c9cd7655fd59fc66582cc98ff63b26f7d4",
+      "system/fvSchemes": "484eceecc5f2eb4682ce78d33c2a532be9317176958e7949304f37c3d7d720c5",
+      "constant/schedulingProperties": "dcb7021c777c659d92600e09a5262d836d0bbab6c02b9c8261561d11e7196ffc",
+      "constant/gasModelProperties": "67d09d8b8d3b7784b82c347c6bb78741329e41ba2c26ddb82be061916ce189b7",
+      "constant/fluidProperties": "a331a7598b0df80e5f308041a53b2d4595158b6f71b66e3a86df0f43fbdeb865",
+      "constant/particleProperties": "cee97e9ada97977327e872d4ba65a388506e8c802da38e63caf15893760aa7d2",
+      "constant/gasWallProperties": "f545f08877fc380f6661f0fb121bc8694bfc0498a5da9b3a4bd3cd9ab463bc65",
+      "constant/polyMesh/points": "0c8be9a3b6b28319d7b09beed42f1060c82a80e3bb3b788ad6f81889ee75ea05",
+      "constant/polyMesh/boundary": "e6435746178713c4276c7f53057061f20f1cd4128c5b82990b01c322b14da6a0",
+      "constant/polyMesh/faces": "5841fb9a6538a55cc7d0ede8ae5287c4b8f01997389463c911d8ee63122efa6d",
+      "constant/polyMesh/neighbour": "42e8bcc18d9e38c0912a010a427d82464469b90d999f87c40a9582ea6d819b3b",
+      "constant/polyMesh/owner": "ef2dd51c7ac525159a391157636878b7172c87c3103cb559245c80dda6c471b2",
+      "0/Y_Air": "a6040dbec1cca622059647d94459f2d91651670bc974d645eb80fcba1ebe1463",
+      "0/Y_CO2": "e72e94b36612b0cc61b927777a617c5ad2055e97cdadca0133f9184cd43d5cbe",
+      "0/epsilonS": "380ddd6aa58e4be8ca96bf6481ee5b766cd5a2b0ed20b58f5cf196c57712dd2d",
+      "0/k": "fd141c05a320ff93986b11312057567565fbffa5d71d260e7216129237b29e6c",
+      "0/omega": "09ad6fa0054351e223130efdc1a89b79e4607c8c5a9afa1ade2be2d493390d0d",
+      "0/rho": "2d5f91cd67d09324f70e9989c6dcd6b78284c38f78e91936fcbb3988788f8502",
+      "0/theta": "14126729b46edb21ea33b22a09aaf928cd3a4cbed0165667cf0244c95a210cf1",
+      "0/T": "aa21784e6e88dd8fa7db73c8a40b6cd8190008ea39826072f4b7a571d6ceffb2",
+      "0/V": "f1c032e8feb1bfedd9f4f985ed5bf4d9eaad80497cbd00938271cb03c854465c",
+      "0/Cx": "4bbe3a5ca48b2e28837b6814603232a9f995a3fb8faef6d85fbd1a1e8e9a7f1c",
+      "0/rhoE": "6891edcfcaa783a4d5a5236150b253c9985d636b2e20c853febdcd13ec0804a2",
+      "0/Cy": "86fbb6d864783af00ee68e0979dbf2aede2ef84075fd9930ac66ae4a7852c51e",
+      "0/Us": "acfbbeb55bd340de685fa780e7e9bf17114a4c77cc8f6210772f077228b76803",
+      "0/U": "5b86ff6e574e8a954e97ade4a089123545c9eedd6977b7a482e1d3fdf701fcd6",
+      "0/C": "b6c8bd08d2a0667490079f45af68f62981d4182a044446b12dc45305a4556f72",
+      "0/Cz": "dba5f360634fd7e17f6d8db666d2ed8a94571af69555905b5158340f68600963",
+      "0/p": "6f35ce0a8eed72549a57c5255497bb3a0bd73da4e1483e7599de7b06f412f463"
+    },
+    "binaries": {
+      "gasUGKP": "81a62f10b53784baeec74170000b83a5714616f061c00d562748411b1db9470a",
+      "gasUGKPCudaBackend": "62c3b4adc7b48f9b9cf19207db11a653672953e09436c80b32485918a44d105d"
+    }
+  },
+  "current": {
+    "source_case": "/home/lss/ARC3696-runs/manual/M0p55/pr19-merged-20261018T212224/baseline-mhx4dmqp",
+    "command": [
+      "bash",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/normal-ab/current/run.sh"
+    ],
+    "inputs": {
+      "system/blockMeshDict": "30374c2000858d7e50565f56d5b93f70136c90f77652f8077440f7b5c3be0d6c",
+      "system/controlDict": "8bddc7590937dbe639cfcca268ddb36b8bb4114a080a674800b12a66974987c7",
+      "system/fvSolution": "e9cc3b2c85539efb8c1f6e24824c82c9cd7655fd59fc66582cc98ff63b26f7d4",
+      "system/fvSchemes": "484eceecc5f2eb4682ce78d33c2a532be9317176958e7949304f37c3d7d720c5",
+      "constant/schedulingProperties": "dcb7021c777c659d92600e09a5262d836d0bbab6c02b9c8261561d11e7196ffc",
+      "constant/gasModelProperties": "67d09d8b8d3b7784b82c347c6bb78741329e41ba2c26ddb82be061916ce189b7",
+      "constant/fluidProperties": "a331a7598b0df80e5f308041a53b2d4595158b6f71b66e3a86df0f43fbdeb865",
+      "constant/particleProperties": "cee97e9ada97977327e872d4ba65a388506e8c802da38e63caf15893760aa7d2",
+      "constant/gasWallProperties": "f545f08877fc380f6661f0fb121bc8694bfc0498a5da9b3a4bd3cd9ab463bc65",
+      "constant/polyMesh/points": "0c8be9a3b6b28319d7b09beed42f1060c82a80e3bb3b788ad6f81889ee75ea05",
+      "constant/polyMesh/boundary": "e6435746178713c4276c7f53057061f20f1cd4128c5b82990b01c322b14da6a0",
+      "constant/polyMesh/faces": "5841fb9a6538a55cc7d0ede8ae5287c4b8f01997389463c911d8ee63122efa6d",
+      "constant/polyMesh/neighbour": "42e8bcc18d9e38c0912a010a427d82464469b90d999f87c40a9582ea6d819b3b",
+      "constant/polyMesh/owner": "ef2dd51c7ac525159a391157636878b7172c87c3103cb559245c80dda6c471b2",
+      "0/Y_Air": "a6040dbec1cca622059647d94459f2d91651670bc974d645eb80fcba1ebe1463",
+      "0/Y_CO2": "e72e94b36612b0cc61b927777a617c5ad2055e97cdadca0133f9184cd43d5cbe",
+      "0/epsilonS": "380ddd6aa58e4be8ca96bf6481ee5b766cd5a2b0ed20b58f5cf196c57712dd2d",
+      "0/k": "fd141c05a320ff93986b11312057567565fbffa5d71d260e7216129237b29e6c",
+      "0/omega": "09ad6fa0054351e223130efdc1a89b79e4607c8c5a9afa1ade2be2d493390d0d",
+      "0/rho": "2d5f91cd67d09324f70e9989c6dcd6b78284c38f78e91936fcbb3988788f8502",
+      "0/theta": "14126729b46edb21ea33b22a09aaf928cd3a4cbed0165667cf0244c95a210cf1",
+      "0/T": "aa21784e6e88dd8fa7db73c8a40b6cd8190008ea39826072f4b7a571d6ceffb2",
+      "0/V": "f1c032e8feb1bfedd9f4f985ed5bf4d9eaad80497cbd00938271cb03c854465c",
+      "0/Cx": "4bbe3a5ca48b2e28837b6814603232a9f995a3fb8faef6d85fbd1a1e8e9a7f1c",
+      "0/rhoE": "6891edcfcaa783a4d5a5236150b253c9985d636b2e20c853febdcd13ec0804a2",
+      "0/Cy": "86fbb6d864783af00ee68e0979dbf2aede2ef84075fd9930ac66ae4a7852c51e",
+      "0/Us": "acfbbeb55bd340de685fa780e7e9bf17114a4c77cc8f6210772f077228b76803",
+      "0/U": "5b86ff6e574e8a954e97ade4a089123545c9eedd6977b7a482e1d3fdf701fcd6",
+      "0/C": "b6c8bd08d2a0667490079f45af68f62981d4182a044446b12dc45305a4556f72",
+      "0/Cz": "dba5f360634fd7e17f6d8db666d2ed8a94571af69555905b5158340f68600963",
+      "0/p": "6f35ce0a8eed72549a57c5255497bb3a0bd73da4e1483e7599de7b06f412f463"
+    },
+    "binaries": {
+      "gasUGKP": "4e696acc09d1e5a88d97459124d94e96c89b93a95780d9b52c93f49f81c5fb4c",
+      "gasUGKPCudaBackend": "ee4cd70c42e5b1613d77213bbb2ae265c8e41a9badd09484efd95c28f80e768d"
+    }
+  },
+  "candidate": {
+    "source_case": "/home/lss/ARC3696-runs/manual/M0p55/pr19-merged-20261018T212224/baseline-mhx4dmqp",
+    "command": [
+      "bash",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/perf-efficiency-20261019/normal-ab/candidate/run.sh"
+    ],
+    "inputs": {
+      "system/blockMeshDict": "30374c2000858d7e50565f56d5b93f70136c90f77652f8077440f7b5c3be0d6c",
+      "system/controlDict": "8bddc7590937dbe639cfcca268ddb36b8bb4114a080a674800b12a66974987c7",
+      "system/fvSolution": "e9cc3b2c85539efb8c1f6e24824c82c9cd7655fd59fc66582cc98ff63b26f7d4",
+      "system/fvSchemes": "484eceecc5f2eb4682ce78d33c2a532be9317176958e7949304f37c3d7d720c5",
+      "constant/schedulingProperties": "dcb7021c777c659d92600e09a5262d836d0bbab6c02b9c8261561d11e7196ffc",
+      "constant/gasModelProperties": "67d09d8b8d3b7784b82c347c6bb78741329e41ba2c26ddb82be061916ce189b7",
+      "constant/fluidProperties": "a331a7598b0df80e5f308041a53b2d4595158b6f71b66e3a86df0f43fbdeb865",
+      "constant/particleProperties": "cee97e9ada97977327e872d4ba65a388506e8c802da38e63caf15893760aa7d2",
+      "constant/gasWallProperties": "f545f08877fc380f6661f0fb121bc8694bfc0498a5da9b3a4bd3cd9ab463bc65",
+      "constant/polyMesh/points": "0c8be9a3b6b28319d7b09beed42f1060c82a80e3bb3b788ad6f81889ee75ea05",
+      "constant/polyMesh/boundary": "e6435746178713c4276c7f53057061f20f1cd4128c5b82990b01c322b14da6a0",
+      "constant/polyMesh/faces": "5841fb9a6538a55cc7d0ede8ae5287c4b8f01997389463c911d8ee63122efa6d",
+      "constant/polyMesh/neighbour": "42e8bcc18d9e38c0912a010a427d82464469b90d999f87c40a9582ea6d819b3b",
+      "constant/polyMesh/owner": "ef2dd51c7ac525159a391157636878b7172c87c3103cb559245c80dda6c471b2",
+      "0/Y_Air": "a6040dbec1cca622059647d94459f2d91651670bc974d645eb80fcba1ebe1463",
+      "0/Y_CO2": "e72e94b36612b0cc61b927777a617c5ad2055e97cdadca0133f9184cd43d5cbe",
+      "0/epsilonS": "380ddd6aa58e4be8ca96bf6481ee5b766cd5a2b0ed20b58f5cf196c57712dd2d",
+      "0/k": "fd141c05a320ff93986b11312057567565fbffa5d71d260e7216129237b29e6c",
+      "0/omega": "09ad6fa0054351e223130efdc1a89b79e4607c8c5a9afa1ade2be2d493390d0d",
+      "0/rho": "2d5f91cd67d09324f70e9989c6dcd6b78284c38f78e91936fcbb3988788f8502",
+      "0/theta": "14126729b46edb21ea33b22a09aaf928cd3a4cbed0165667cf0244c95a210cf1",
+      "0/T": "aa21784e6e88dd8fa7db73c8a40b6cd8190008ea39826072f4b7a571d6ceffb2",
+      "0/V": "f1c032e8feb1bfedd9f4f985ed5bf4d9eaad80497cbd00938271cb03c854465c",
+      "0/Cx": "4bbe3a5ca48b2e28837b6814603232a9f995a3fb8faef6d85fbd1a1e8e9a7f1c",
+      "0/rhoE": "6891edcfcaa783a4d5a5236150b253c9985d636b2e20c853febdcd13ec0804a2",
+      "0/Cy": "86fbb6d864783af00ee68e0979dbf2aede2ef84075fd9930ac66ae4a7852c51e",
+      "0/Us": "acfbbeb55bd340de685fa780e7e9bf17114a4c77cc8f6210772f077228b76803",
+      "0/U": "5b86ff6e574e8a954e97ade4a089123545c9eedd6977b7a482e1d3fdf701fcd6",
+      "0/C": "b6c8bd08d2a0667490079f45af68f62981d4182a044446b12dc45305a4556f72",
+      "0/Cz": "dba5f360634fd7e17f6d8db666d2ed8a94571af69555905b5158340f68600963",
+      "0/p": "6f35ce0a8eed72549a57c5255497bb3a0bd73da4e1483e7599de7b06f412f463"
+    },
+    "binaries": {
+      "gasUGKP": "b624cb64076ec597f9c12051b01aa912111550a29fed38ce499ce818f73a6eac",
+      "gasUGKPCudaBackend": "e7f999a02b3878191b0d35ee7c0ec80756986e19968f1e88492e8819d8ca103c"
+    }
+  }
+}

@@ -33,6 +33,29 @@ int main(){
  recordFatal(b.device(),makeRecord(Code::NonFinite,2102));b.observeCompletedWork();b.finish(snapshot);assert(snapshot.hasFatal);
 }
 ''')
+            code=source.read_text()
+            code=code.replace('#include "common/GpuDiagnosticsOwner.cuh"','''#include <cstdlib>
+#include <new>
+static unsigned allocations=0;
+void* operator new(std::size_t n){++allocations;if(void* p=std::malloc(n))return p;throw std::bad_alloc();}
+void operator delete(void* p) noexcept {std::free(p);}
+void operator delete(void* p,std::size_t) noexcept {std::free(p);}
+#include "common/GpuDiagnosticsOwner.cuh"''')
+            code=code.replace(' GpuOwner a,b;',''' GpuOwner quiet;assert(quiet.initialise()==0);
+ quiet.observeCompletedWork();Snapshot empty;quiet.finish(empty);
+ const unsigned before=allocations;
+ for(int i=0;i<20;++i){quiet.observeCompletedWork();quiet.finish(empty);assert(empty.sources.empty());}
+ assert(allocations-before<=40); // No rebuilding/copying hundreds of unused descriptors.
+ hostReads=0;
+ GpuOwner a,b;''')
+            code=code.replace(' a.observeCompletedWork();a.finish(snapshot);assert(snapshot.warnings.empty());',''' a.observeCompletedWork();a.finish(snapshot);assert(snapshot.warnings.empty());
+ recordWarning(a.device(),makeRecord(Code::FiniteYClip,2304));a.observeCompletedWork();
+ recordWarning(a.device(),makeRecord(Code::ConservationResidual,2427));a.observeCompletedWork();
+ a.finish(snapshot);assert(snapshot.warnings.size()==2);
+ assert(findSource(snapshot,2304)&&findSource(snapshot,2427));
+ assert(snapshot.sources.size()==2);
+ a.finish(snapshot);assert(snapshot.warnings.empty()&&snapshot.sources.empty());''')
+            source.write_text(code)
             binary=folder/'test'
             subprocess.run(['g++','-std=c++17','-I'+tmp,'-I'+str(ROOT),str(source),'-o',str(binary)],check=True)
             subprocess.run([str(binary)],check=True)

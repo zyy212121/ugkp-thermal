@@ -50,7 +50,7 @@ public:
         if(rc!=cudaSuccess) {
             recordFatal(&staging_,withOperation(makeRecord(Code::CudaRuntime,1,0,0,EntityKind::None,-1,-1,static_cast<double>(rc)),sequence_,step_,time_));
         }
-        auto next=takeSnapshot(staging_,sourceCatalogue(),"ugkp-diagnostics-v1");
+        auto next=takeSnapshot(staging_,{},"ugkp-diagnostics-v1");
         for(auto& warning:next.warnings) {
             const auto index=static_cast<std::uint32_t>(warning.sample.code)-101u;
             const auto total=warning.count;warning.count=total-seen_[index];seen_[index]=total;
@@ -65,7 +65,7 @@ public:
             next.operationSequence=snapshot_.operationSequence;
             next.instanceId=snapshot_.instanceId;
         }
-        next.sources=sourceCatalogue();
+        selectSnapshotSources(next,sourceCatalogue());
         snapshot_=std::move(next);
         return rc;
     }
@@ -77,7 +77,7 @@ public:
         snapshot_.hasFatal=true;snapshot_.fatal=record;
         snapshot_.operationSequence=record.operationSequence;
         snapshot_.instanceId=instance_;
-        snapshot_.sources=sourceCatalogue();snapshot_.catalogueId="ugkp-diagnostics-v1";
+        selectSnapshotSources(snapshot_,sourceCatalogue());snapshot_.catalogueId="ugkp-diagnostics-v1";
     }
     cudaError_t finish(Snapshot& result) {
         result=snapshot_;

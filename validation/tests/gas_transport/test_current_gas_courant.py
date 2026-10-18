@@ -11,7 +11,7 @@ from test_legacy_ale_transport import fixture
 ROOT=SOURCE_ROOT
 
 def launches(source):
-    pattern=r'([\w:]+(?:<[^;{}]*?>)?)\s*<<<([\s\S]*?)>>>\s*\(([^;]*?)\);'
+    pattern=r'((?:\w+::)*\w+(?:<[^;{}]*?>)?)\s*<<<([\s\S]*?)>>>\s*\(([^;]*?)\);'
     def convert(m):
         grid,block,*_=m[2].split(',')
         return 'emulateLaunch([&](){'+m[1]+'('+m[3]+');},'+grid+','+block+');'
