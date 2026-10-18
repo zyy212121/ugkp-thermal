@@ -1,0 +1,198 @@
+{
+  "calculation_commit": "cd0e61d6eb9821c630f4b3067754aab43d1a670d",
+  "full_build_commit": "3a6b4dc4f4f3bbb9b62b73ee767fbd8a832abd3a",
+  "original_pr": "ea0c64d96fd041826ffa13b7bc2aa0acff4ca689",
+  "main": "7c696b19b5510ef94cfbbf7eb837a00c29d74f0d",
+  "changed_source_sha256": {
+    "applications/CHMT/ablation/InterfaceComposition.H": "0703da195f9741f538e8a4acd46eab7da998074c5ac1e70637683c3dc287f40a",
+    "applications/CHMT/ablation/InterfaceCompositionArithmetic.H": "d1d61aa1c5994cbf9292cc75a82a487a9c31f895399accb8fc9f88c9ce98b04f",
+    "applications/CHMT/ablation/InterfaceMath.H": "ae69392ff2c2644aa3dcd311c9528400d94619b1fcba82d826547b9b9ee864f5",
+    "applications/CHMT/core/AuditArithmetic.H": "837760d33bdf7757892880bc6d340db71b394819d236f26b38a95992cb59261d",
+    "applications/CHMT/core/HostAuditReduction.H": "723f29ae8cc51f988976121fe968a7b84ae78c69798f104c694226df136e8204",
+    "applications/CHMT/materials/CpuMaterialDriver.C": "a0b9ebccf6f65b9a68e1195c4ef7d0f3501bf33b6a574a9a5bca1250cc4aa63d",
+    "applications/CHMT/materials/Thermodynamics.H": "f443110356667f745e18941a31979b30899b32401334f083d926bf844ac8af7a",
+    "applications/CHMT/mesh/Geometry.C": "ab92165c138f379455b8756c3f5fd0cb58ffcaa1408cde4eea6a0e4379263378",
+    "applications/CHMT/mesh/SweepConstraints.H": "69f7b984aa51b1d2ea6c744c889ee4a3cb878d325b524f6a8a3130491d35788d",
+    "common/DiagnosticsCatalogue.H": "719e4f73dbc37f9d90da33f0891b3e192c35bf08eb3d95c5e6fccf34a4b6ed92",
+    "common/chemistry/ChemistryTypes.H": "c8f07c11d56f913775df71d62140f2a2d05d834380f3de13d086cb279466b171",
+    "common/chemistry/ConservativeReactor.H": "f47c16771c59f0187f368425d8ad9dc29669d083d9baf048e03b54a3650b1305",
+    "common/chemistry/LocalStiffIntegrator.H": "581b9e285dde1fde60cc7abed964150747f1f2f552e4b0491a2c5e0a73fa638f",
+    "common/chemistry/NewtonFactor.H": "ae8dd816c2010de5a12419d510dee0c7c6aab092e5c0d544ee8310b4cb9c1328",
+    "common/gasWall/ReactingWallLayer.H": "1ff7efd6b7ef1d092800c755bcfd787e1c0b8dccb6ac8ccaef073b900cc28a47",
+    "common/gasWall/WallGeometryBuilder.H": "f2304dcbfa99dff0b51c98521ea195be26d8ab4a7c04bdf513759bc129cdfe99"
+  },
+  "artifacts": [
+    {
+      "name": "gasUGKP",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/gasUGKP",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/gasUGKP",
+      "bytes": 937216,
+      "sha256": "22b856143ef7464a8c2107b6e627a646717ad01a0d633aaea064d64ce428c6c4",
+      "ldd_exit": 0,
+      "build_source_commit": "3a6b4dc4f4f3bbb9b62b73ee767fbd8a832abd3a"
+    },
+    {
+      "name": "gasUGKPCudaBackend",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/gasUGKPCudaBackend",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/gasUGKPCudaBackend",
+      "bytes": 5872288,
+      "sha256": "03155e88e5f7eded30d0a8bd3541ae11428b5c5b2ded00184c77b9c5901bbcc6",
+      "ldd_exit": 0,
+      "build_source_commit": "3a6b4dc4f4f3bbb9b62b73ee767fbd8a832abd3a"
+    },
+    {
+      "name": "FSH",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/FSH",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/FSH",
+      "bytes": 758144,
+      "sha256": "88ef3dd39a5bf84eb9760e1d100ebae92cae6a3af7bb95d929e8446195252320",
+      "ldd_exit": 0,
+      "build_source_commit": "3a6b4dc4f4f3bbb9b62b73ee767fbd8a832abd3a"
+    },
+    {
+      "name": "FSHCudaBackend",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/FSHCudaBackend",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/FSHCudaBackend",
+      "bytes": 7826888,
+      "sha256": "69099b35323ffb658d302e3c27f999a776a4991c6f9a1f340d72b9402f0d6bef",
+      "ldd_exit": 0,
+      "build_source_commit": "3a6b4dc4f4f3bbb9b62b73ee767fbd8a832abd3a"
+    },
+    {
+      "name": "CHT",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/CHT",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/CHT",
+      "bytes": 6634848,
+      "sha256": "c52a44305fa14c5775dd13b57e84f3f1c856f2120580dc9f419730e9dd9e2b83",
+      "ldd_exit": 0,
+      "build_source_commit": "3a6b4dc4f4f3bbb9b62b73ee767fbd8a832abd3a"
+    },
+    {
+      "name": "CHMT",
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/CHMT",
+      "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/CHMT",
+      "bytes": 5929360,
+      "sha256": "2fa8390c506b1ad7434d9775845ec7f13f8e31dcc6dd19a37c58ae9ed8a3ec6d",
+      "ldd_exit": 0,
+      "build_source_commit": "cd0e61d6eb9821c630f4b3067754aab43d1a670d"
+    }
+  ],
+  "full_build_commands": [
+    {
+      "target": "gasUGKP",
+      "command": [
+        "bash",
+        "/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/build/build-gasUGKP.sh"
+      ],
+      "body": "source /mnt/d/tempt/ugkp-pr19-math-fixes-20261018/env-final.sh\nbash -x tool/gasUGKP/build_private_backend.sh\n",
+      "source_commit": "3a6b4dc4f4f3bbb9b62b73ee767fbd8a832abd3a",
+      "exit": 0,
+      "elapsed_s": 236.00166010856628
+    },
+    {
+      "target": "FSH",
+      "command": [
+        "bash",
+        "/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/build/build-FSH.sh"
+      ],
+      "body": "source /mnt/d/tempt/ugkp-pr19-math-fixes-20261018/env-final.sh\nbash -x tool/FSH/build_private_backend.sh\n",
+      "source_commit": "3a6b4dc4f4f3bbb9b62b73ee767fbd8a832abd3a",
+      "exit": 0,
+      "elapsed_s": 62.3088059425354
+    },
+    {
+      "target": "CHT",
+      "command": [
+        "bash",
+        "/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/build/build-CHT.sh"
+      ],
+      "body": "source /mnt/d/tempt/ugkp-pr19-math-fixes-20261018/env-final.sh\nbash -x tool/CHT/build_cuda_solver.sh\n",
+      "source_commit": "3a6b4dc4f4f3bbb9b62b73ee767fbd8a832abd3a",
+      "exit": 0,
+      "elapsed_s": 81.39829754829407
+    },
+    {
+      "target": "CHMT",
+      "command": [
+        "bash",
+        "/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/build/build-CHMT.sh"
+      ],
+      "body": "source /mnt/d/tempt/ugkp-pr19-math-fixes-20261018/env-final.sh\nbash -x applications/CHMT/Allwmake\n",
+      "source_commit": "3a6b4dc4f4f3bbb9b62b73ee767fbd8a832abd3a",
+      "exit": 0,
+      "elapsed_s": 170.4611473083496
+    }
+  ],
+  "final_affected_build": {
+    "source_commit": "cd0e61d6eb9821c630f4b3067754aab43d1a670d",
+    "command": [
+      "bash",
+      "/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/build-final-preflight/run.sh"
+    ],
+    "body": "source /mnt/d/tempt/ugkp-pr19-math-fixes-20261018/env-final.sh\nbash -x applications/CHMT/Allwmake\n",
+    "exit": 0,
+    "seconds": 153.7507462501526,
+    "changed_production_since_full_build": [
+      "applications/CHMT/ablation/InterfaceMath.H"
+    ],
+    "artifacts": [
+      {
+        "name": "gasUGKP",
+        "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/gasUGKP",
+        "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/gasUGKP",
+        "bytes": 937216,
+        "sha256": "22b856143ef7464a8c2107b6e627a646717ad01a0d633aaea064d64ce428c6c4",
+        "ldd_exit": 0,
+        "build_source_commit": "3a6b4dc4f4f3bbb9b62b73ee767fbd8a832abd3a"
+      },
+      {
+        "name": "gasUGKPCudaBackend",
+        "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/gasUGKPCudaBackend",
+        "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/gasUGKPCudaBackend",
+        "bytes": 5872288,
+        "sha256": "03155e88e5f7eded30d0a8bd3541ae11428b5c5b2ded00184c77b9c5901bbcc6",
+        "ldd_exit": 0,
+        "build_source_commit": "3a6b4dc4f4f3bbb9b62b73ee767fbd8a832abd3a"
+      },
+      {
+        "name": "FSH",
+        "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/FSH",
+        "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/FSH",
+        "bytes": 758144,
+        "sha256": "88ef3dd39a5bf84eb9760e1d100ebae92cae6a3af7bb95d929e8446195252320",
+        "ldd_exit": 0,
+        "build_source_commit": "3a6b4dc4f4f3bbb9b62b73ee767fbd8a832abd3a"
+      },
+      {
+        "name": "FSHCudaBackend",
+        "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/FSHCudaBackend",
+        "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/FSHCudaBackend",
+        "bytes": 7826888,
+        "sha256": "69099b35323ffb658d302e3c27f999a776a4991c6f9a1f340d72b9402f0d6bef",
+        "ldd_exit": 0,
+        "build_source_commit": "3a6b4dc4f4f3bbb9b62b73ee767fbd8a832abd3a"
+      },
+      {
+        "name": "CHT",
+        "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/CHT",
+        "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/CHT",
+        "bytes": 6634848,
+        "sha256": "c52a44305fa14c5775dd13b57e84f3f1c856f2120580dc9f419730e9dd9e2b83",
+        "ldd_exit": 0,
+        "build_source_commit": "3a6b4dc4f4f3bbb9b62b73ee767fbd8a832abd3a"
+      },
+      {
+        "name": "CHMT",
+        "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/CHMT",
+        "realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.review-install/bin/CHMT",
+        "bytes": 5929360,
+        "sha256": "2fa8390c506b1ad7434d9775845ec7f13f8e31dcc6dd19a37c58ae9ed8a3ec6d",
+        "ldd_exit": 0,
+        "build_source_commit": "cd0e61d6eb9821c630f4b3067754aab43d1a670d"
+      }
+    ],
+    "finished_utc": "2026-10-18T09:14:53.097952+00:00",
+    "source_changes_during_build": []
+  },
+  "source_note": "Full source manifests and raw expanded commands are in root-evidence.tar.gz; five unaffected binaries are from3a6, CHMT rebuilt atcd0e. No source changed during either build."
+}

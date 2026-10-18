@@ -22,7 +22,10 @@ int main(){
  assert(host.sample(gas,sst,true,samples,error));assert(samples.size()==1);assert(samples[0].state.temperature==800);assert(samples[0].state.k==.4);assert(samples[0].pressure==90000);assert(samples[0].mechanicalPressure==120000);
  std::vector<chmt::GasWallClosureContext> contexts;
  p.wallModel.model=BoundaryLayerModel::ConstantTransport;assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(!contexts[0].workspace);
- p.wallModel.model=BoundaryLayerModel::ReactingSst;p.wallModel.nodes=96;
+ p.wallModel.model=BoundaryLayerModel::ReactingSst;
+ for(int nodes:{2,3}){p.wallModel.nodes=nodes;assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(contexts[0].workspaceCapacity==24);}
+ for(int nodes:{0,1,129}){p.wallModel.nodes=nodes;assert(!host.contexts(samples,{},p.wallModel,contexts,error));}
+ p.wallModel.nodes=96;
  assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(contexts[0].workspace);assert(contexts[0].workspaceCapacity==128);assert(contexts[0].matchingDistance>1);
  assert(contexts[0].quadrature.volume==1&&contexts[0].quadrature.count==0);assert(contexts[0].matching.temperature==800);assert(contexts[0].matchingPressure==90000);assert(contexts[0].mechanicalPressure==120000);
  auto* workspace=contexts[0].workspace;gas[1].temperature=850;gas[0].pressure=130000;

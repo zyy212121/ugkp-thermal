@@ -24,23 +24,23 @@ template<class R,int N> struct LayerPoint {
 };
 template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool pointState(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const R* state,LayerPoint<R,N>& p,const bool terminalProfile=false){
-    if(!in.model.thermo.species||!in.model.thermo.coefficients)return false;
+    if(!in.model.thermo.species||!in.model.thermo.coefficients)return wallFatal(in,ugkp::diagnostics::Code::MissingOperator,2400);
     p.theta=state[2];p.T=in.temperature+p.theta;p.u[0]=state[0];p.u[1]=state[1];p.k=state[N+2]*state[N+2];p.z=state[N+3];
-    if(!terminalProfile&&(!gasFinite(p.T)||p.T<=0||!gasFinite(p.k)||p.k<0||!gasFinite(p.z)||p.z<0))return false;
-    R sum=0,gasR=universalGasConstant<R>()/in.model.thermo.species[ctx.dependent].molarMass;for(int j=0;j<N-1;++j){const R y=state[3+j];if(!terminalProfile&&(!gasFinite(y)||y<0||y>1))return false;p.Y[ctx.independent[j]]=y;sum+=y;}
-    p.Y[ctx.dependent]=R(1)-sum;
-    if(!terminalProfile&&(p.Y[ctx.dependent]<0||p.Y[ctx.dependent]>1))return false;
+    (void)terminalProfile;
+    if(!gasFinite(p.T)||p.T<=0)return wallFatal(in,gasFinite(p.T)?ugkp::diagnostics::Code::NegativeTemperature:ugkp::diagnostics::Code::NonFinite,2410,p.T,ugkp::diagnostics::Quantity::Temperature);
+    if(!gasFinite(p.k)||!gasFinite(p.z)||p.z<0)return wallFatal(in,(gasFinite(p.k)&&gasFinite(p.z)?ugkp::diagnostics::Code::InvalidPhysicalState:ugkp::diagnostics::Code::NonFinite),2411,p.z);
+    R sum=0,gasR=0;
+    for(int j=0;j<N-1;++j){if(!wallFraction(in,state[3+j],p.Y[ctx.independent[j]],ctx.independent[j]))return false;sum+=p.Y[ctx.independent[j]];}
+    if(!wallFraction(in,R(1)-sum,p.Y[ctx.dependent],ctx.dependent))return false;
     for(int j=0;j<N;++j){
-        if(!terminalProfile&&(p.T<in.model.thermo.species[j].minTemperature||p.T>in.model.thermo.species[j].maxTemperature))return false;
-        bool hAvailable=true,cpAvailable=true;
-        p.h[j]=terminalProfile?wallProperty<true>(j,p.T,in.model.thermo,&hAvailable):speciesH(j,p.T,in.model.thermo);
-        const R cp=terminalProfile?wallProperty<false>(j,p.T,in.model.thermo,&cpAvailable):speciesCp(j,p.T,in.model.thermo);
-        if(!hAvailable||!cpAvailable)return false;
-        if(!terminalProfile&&(!gasFinite(p.h[j])||!gasFinite(cp)||cp<=0))return false;
-        p.cp+=p.Y[j]*cp;gasR+=p.Y[j]*(universalGasConstant<R>()/in.model.thermo.species[j].molarMass-universalGasConstant<R>()/in.model.thermo.species[ctx.dependent].molarMass);}
+        p.h[j]=speciesH(j,p.T,in.model.thermo);const R cp=speciesCp(j,p.T,in.model.thermo);
+        if(!gasFinite(p.h[j])||!gasFinite(cp)||cp<=0)return wallFatal(in,(gasFinite(cp)&&gasFinite(p.h[j])?ugkp::diagnostics::Code::InvalidPhysicalState:ugkp::diagnostics::Code::NonFinite),10006,cp,0,j);
+        if(in.model.thermo.species[j].molarMass==0)return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,2413,0,0,j);
+        p.cp+=p.Y[j]*cp;gasR+=p.Y[j]*universalGasConstant<R>()/in.model.thermo.species[j].molarMass;}
+    if(gasR==0||in.pressure==0)return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10007,gasR);
     p.rho=in.pressure/(gasR*p.T);p.normalCoefficient=ctx.mass*gasR/in.pressure;p.normalVelocity=ctx.wallNormal+p.normalCoefficient*p.T;
-    if(!terminalProfile&&(!gasFinite(p.rho)||p.rho<=0||!gasFinite(p.normalVelocity)))return false;
-    if(c.enableSst&&(terminalProfile?p.z!=0:p.z>0))p.omega=R(1)/(p.z*p.z);
+    if(!gasFinite(p.rho)||p.rho<=0||!gasFinite(p.normalVelocity))return wallFatal(in,(gasFinite(p.rho)&&gasFinite(p.normalVelocity)?ugkp::diagnostics::Code::InvalidPhysicalState:ugkp::diagnostics::Code::NonFinite),2414,p.rho,ugkp::diagnostics::Quantity::Density);
+    if(c.enableSst&&p.z>0)p.omega=R(1)/(p.z*p.z);
     return true;
 }
 
@@ -72,7 +72,7 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool loadBasePoint(
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool loadBasePoint(
  const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
  const CachedLayerRow<R,N>& row,LayerPoint<R,N>& point,const bool terminalProfile=false){
-    if(terminalProfile)return pointState(in,c,ctx,row.values,point,true);
+    (void)terminalProfile;
     auto& cache=*row.cache;const int slot=row.node-cache.first;
     if(!cache.status[slot]){
         // pointState accumulates Cp, so every refill starts from a zero object.
@@ -98,7 +98,7 @@ template<class R,int N,class Rows> struct SeedLayerRows {
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool loadBasePoint(
  const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
  const SeedLayerRow<R,N>& row,LayerPoint<R,N>& point,const bool terminalProfile=false){
-    if(terminalProfile)return pointState(in,c,ctx,row.values,point,true);
+    (void)terminalProfile;
     const int slot=row.node%3;
     if(row.nodes[slot]!=row.node){
         row.nodes[slot]=row.node;row.points[slot]=LayerPoint<R,N>{};
@@ -111,19 +111,18 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool loadBasePoint(
 
 template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool pointReaction(const WallInput<R,N,TableReal>& in,LayerPoint<R,N>& p,const bool terminalProfile=false){
     if(in.model.mode!=GasMode::MixtureChemistry)return true;
-    if(!in.model.thermo.species)return false;
+    if(!in.model.thermo.species)return wallFatal(in,ugkp::diagnostics::Code::MissingOperator,10008);
     R concentration[N];for(int j=0;j<N;++j)concentration[j]=p.rho*p.Y[j]/in.model.thermo.species[j].molarMass;
     const auto& mech=in.model.mechanism;
-    if(mech.reactionCount>0&&!mech.reactions)return false;
-    for(int r=0;r<mech.reactionCount;++r){R progress;bool available=false;
-        const bool valid=terminalProfile
-            ?gasChemistryDetail::progressRate<R,TableReal,N,true>(r,p.T,concentration,in.model.thermo,mech,progress,&available)
-            :gasChemistryDetail::progressRate<R,TableReal,N,false,true>(r,p.T,concentration,in.model.thermo,mech,progress,&available);
-        if(!available||(!terminalProfile&&!valid))return false;
+    if(mech.reactionCount>0&&!mech.reactions)return wallFatal(in,ugkp::diagnostics::Code::MissingOperator,10009);
+    for(int r=0;r<mech.reactionCount;++r){R progress=std::numeric_limits<R>::quiet_NaN();bool available=false;
+        const bool valid=gasChemistryDetail::progressRate<R,TableReal,N,false,true>(r,p.T,concentration,in.model.thermo,mech,progress,&available);
+        if(!available||!valid)return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2415,progress);
         const auto& rx=mech.reactions[r];
         for(int j=0;j<rx.reactantCount;++j){const auto& v=mech.reactants[rx.reactantOffset+j];p.source[v.species]-=v.coefficient*progress*in.model.thermo.species[v.species].molarMass;}
         for(int j=0;j<rx.productCount;++j){const auto& v=mech.products[rx.productOffset+j];p.source[v.species]+=v.coefficient*progress*in.model.thermo.species[v.species].molarMass;}}
-    for(int j=0;j<N;++j)if(!terminalProfile&&!gasFinite(p.source[j]))return false;
+    for(int j=0;j<N;++j)if(!gasFinite(p.source[j]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10010,p.source[j],0,j);
+    (void)terminalProfile;
     return true;
 }
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline void applySstGradients(const WallInput<R,N,TableReal>& in,
@@ -164,12 +163,13 @@ template<class R,int N> UGKWP_GAS_HD inline R physicalLayerEnergyFlux(const Laye
 }
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerFlux(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
  const LayerContext<R,N>& ctx,const LayerPoint<R,N>& a,const LayerPoint<R,N>& b,R length,LayerFlux<R,N>& f,R ya=0,R yb=0,const bool terminalProfile=false){
+    if(length==0)return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10011,length);
     const R rho=(a.rho+b.rho)/R(2),nut=(a.nut+b.nut)/R(2),T=(a.T+b.T)/R(2);
     R Y[N],grad[N],diff[N],diffEnthalpy=0;
     for(int j=0;j<N;++j){Y[j]=(a.Y[j]+b.Y[j])/R(2);grad[j]=(b.Y[j]-a.Y[j])/length;}
     bool diffusionAvailable=false;
-    const bool diffusionValid=correctedSpeciesDiffusion(Y,grad,rho,in.model.diffusivity,nut,c.turbulentSchmidt,T,in.model.thermo,diff,diffEnthalpy,!terminalProfile,&diffusionAvailable);
-    if(!diffusionAvailable||(!terminalProfile&&!diffusionValid))return false;
+    const bool diffusionValid=correctedSpeciesDiffusion(Y,grad,rho,in.model.diffusivity,nut,c.turbulentSchmidt,T,in.model.thermo,diff,diffEnthalpy,true,&diffusionAvailable);
+    if(!diffusionAvailable||!diffusionValid)return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2416,diffEnthalpy);
     const R mu=in.model.viscosity+rho*nut,lambda=(in.model.molecularPrandtl>0?in.model.viscosity*(a.cp+b.cp)/(R(2)*in.model.molecularPrandtl):in.model.conductivity)+rho*nut*(a.cp+b.cp)/(R(2)*c.turbulentPrandtl);
     R kinetic=R(.5)*((a.normalVelocity+b.normalVelocity)/R(2))*((a.normalVelocity+b.normalVelocity)/R(2));
     for(int j=0;j<N;++j){f.species[j]=ctx.mass*Y[j]+diff[j];f.energy+=f.species[j]*((ctx.wallEnthalpy[j]-ctx.energyReference)+speciesEnthalpyIncrement(j,in.temperature,(a.theta+b.theta)/R(2),in.model.thermo,ctx.enthalpyJump[j]));}
@@ -184,7 +184,9 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerFlux(const
         f.omega=ctx.mass*(a.omega+b.omega)/R(2)-dw*omegaGradientFit(ya,yb)*(b.omega-a.omega)/length;}
 
 
-    return terminalProfile||(gasFinite(f.energy)&&gasFinite(f.k));
+    (void)terminalProfile;
+    if(!gasFinite(f.energy)||!gasFinite(f.k))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2417,f.energy);
+    return true;
 }
 template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD inline bool evaluatePoint(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const Rows& x,const R* y,int index,LayerPoint<R,N>& p,const bool terminalProfile=false){
@@ -204,8 +206,9 @@ template<class R,int N,class TableReal,class RowA,class RowB> UGKWP_GAS_HD UGKWP
     pointSst(in,c,ya,originalA,originalB,yb-ya,a);pointSst(in,c,yb,originalA,originalB,yb-ya,b);
     return layerFlux(in,c,ctx,a,b,yb-ya,f,ya,yb,terminalProfile);
 }
-template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool layerRow(const WallInput<R,N,TableReal>& in,
+template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool layerRow(const WallInput<R,N,TableReal>& originalInput,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const Rows& x,const R* y,int i,R* row){
+    auto in=originalInput;in.diagnosticNode=static_cast<std::uint32_t>(i);
     constexpr int K=N+2,Z=N+3;
     for(int j=0;j<N+4;++j)row[j]=0;
     if(i==c.nodes-1){row[0]=x[i][0]-ctx.edgeU[0];row[1]=x[i][1]-ctx.edgeU[1];row[2]=x[i][2]-(in.matching.temperature-in.temperature);
@@ -219,7 +222,7 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVIC
         row[K]=x[0][K];R wallZ=0;
         if(c.enableSst&&ctx.mass>0){R tau2=0;for(int d=0;d<2;++d){const R tau=-right.momentum[d];tau2+=tau*tau;}
             const R uTau=::sqrt(::sqrt(tau2)/p.rho),v=ctx.mass/p.rho;
-            if(!(uTau>0))return false;
+            if(!(uTau>0))return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10012,uTau);
             const R vp=v/uTau;
             wallZ=::sqrt((in.model.viscosity/p.rho)/(uTau*uTau)*vp*(R(1)+R(5)*vp)/R(25));}
         row[Z]=x[0][Z]-(c.enableSst?wallZ:R(1));
@@ -238,33 +241,182 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVIC
       const R destruction=p.rho*sstBeta(p.f1,in.model.sstCoefficients)*p.omega*p.omega;
       const R source=p.sourceOmega+destruction*(R(1)-fit);
       row[Z]=-(right.omega-left.omega-volume*source)*p.z*p.z*p.z*p.z/(R(2)*volume*ctx.scale[Z]);}
-    for(int j=0;j<N+4;++j)if(!gasFinite(row[j]))return false;
+    for(int j=0;j<N+4;++j)if(!gasFinite(row[j]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2425,row[j],0,j);
+    return true;
+}
+// Static storage errors remain errors inside a mathematical trial. Only the
+// property channels actually consumed by this wall at this temperature count.
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerTrialStorageAvailable(
+ const WallInput<R,N,TableReal>& in,R temperature,int node=-1){
+    if(!gasFinite(temperature)||temperature<=0)return true;
+    const auto& view=in.model.thermo;
+    const auto report=[&](ugkp::diagnostics::Code code,int species,double value){
+        auto* diagnostics=in.diagnostics?in.diagnostics:view.diagnostics;
+        ugkp::diagnostics::recordFatal(diagnostics,ugkp::diagnostics::makeRecord(code,2432,23,
+            node>=0?static_cast<unsigned>(node):in.diagnosticNode,
+            ugkp::diagnostics::EntityKind::Face,in.diagnosticEntity,species,value,0,0,
+            ugkp::diagnostics::Quantity::Index));
+        return false;
+    };
+    for(int species=0;species<N;++species){
+        if(!gasThermoDetail::validMetadata(species,view))
+            return report(ugkp::diagnostics::Code::MissingOperator,species,0);
+        const auto& data=view.species[species];
+        const int segment=data.model==SpeciesThermoModel::NASA7&&temperature>data.midTemperature?7:0;
+        const int required=data.model==SpeciesThermoModel::LinearCp?3:6;
+        const int available=view.coefficientCount-data.coefficientOffset-segment;
+        if(available<required)return report(ugkp::diagnostics::Code::InvalidIndex,species,available);
+        // H and Cp do not consume the seventh NASA coefficient. Gibbs-derived
+        // reverse rates do; unused entropy storage must remain optional.
+        const bool missingEntropy=data.model==SpeciesThermoModel::NASA7?available<7:!data.hasEntropyReference;
+        if(missingEntropy&&in.model.mode==GasMode::MixtureChemistry){
+            const auto& mechanism=in.model.mechanism;
+            // The immutable mechanism was checked by the real base residual.
+            for(int reaction=0;reaction<mechanism.reactionCount;++reaction){
+                const auto& channel=mechanism.reactions[reaction];if(!channel.reversible)continue;
+                for(int side=0;side<2;++side){const auto* terms=side?mechanism.products:mechanism.reactants;
+                    const int offset=side?channel.productOffset:channel.reactantOffset,count=side?channel.productCount:channel.reactantCount;
+                    for(int term=0;term<count;++term)if(terms[offset+term].species==species)
+                        return report(data.model==SpeciesThermoModel::NASA7?ugkp::diagnostics::Code::InvalidIndex:ugkp::diagnostics::Code::MissingOperator,species,data.model==SpeciesThermoModel::NASA7?available:0);
+                }
+            }
+        }
+    }
+    return true;
+}
+// Complete immutable tables need no per-node trial storage checks. An absent
+// unused branch only disables this fast path; it never rejects the model.
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerAllTrialStorageComplete(
+ const WallInput<R,N,TableReal>& in){
+    bool reversible=false;
+    if(in.model.mode==GasMode::MixtureChemistry){
+        const auto& mechanism=in.model.mechanism;
+        if(mechanism.reactionCount>0&&!mechanism.reactions)return false;
+        for(int i=0;i<mechanism.reactionCount;++i)reversible=reversible||mechanism.reactions[i].reversible;
+    }
+    const auto& view=in.model.thermo;
+    for(int species=0;species<N;++species){
+        if(!gasThermoDetail::validMetadata(species,view))return false;
+        const auto& data=view.species[species];
+        const int required=data.model==SpeciesThermoModel::NASA7?14:3;
+        if(view.coefficientCount-data.coefficientOffset<required)return false;
+        if(reversible&&data.model==SpeciesThermoModel::LinearCp&&!data.hasEntropyReference)return false;
+    }
+    return true;
+}
+template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD inline bool layerTrialRowStorageAvailable(
+ const WallInput<R,N,TableReal>& owner,const WallModelConfig<R>& c,const Rows& rows,int row){
+    if(row==c.nodes-1)return true; // Matching residual reads prescribed values only.
+    const int first=row?row-1:0,last=row+1;
+    for(int node=first;node<=last;++node)
+        if(!layerTrialStorageAvailable(owner,owner.temperature+rows[node][2],node))return false;
     return true;
 }
 template<class R,int N,int M,class TableReal,class Team=SerialWallTeam>
 UGKWP_GAS_HD inline bool allResidual(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const R (&x)[M][N+4],const R* y,
- R (&f)[M][N+4],R& norm,const Team& team=Team{}){
+ R (&f)[M][N+4],R& norm,const Team& team=Team{},
+ const WallInput<R,N,TableReal>* storageOwner=nullptr,bool* storageAvailable=nullptr,bool initialValid=true){
+    if(storageAvailable)*storageAvailable=true;
     if(std::is_same<Team,SerialWallTeam>::value){
-        norm=0;for(int i=0;i<c.nodes;++i){if(!layerRow(in,c,ctx,x,y,i,f[i]))return false;
+        if(!initialValid)return false;
+        norm=0;for(int i=0;i<c.nodes;++i){
+            if(storageOwner&&!layerTrialRowStorageAvailable(*storageOwner,c,x,i)){if(storageAvailable)*storageAvailable=false;return false;}
+            if(!layerRow(in,c,ctx,x,y,i,f[i]))return false;
             for(int j=0;j<N+4;++j)norm=max(norm,abs(f[i][j]));}
         return true;
     }
-    bool valid=true;
-    for(int i=team.rank();i<c.nodes;i+=team.size())
+    bool valid=initialValid,storageValid=true;
+    for(int i=team.rank();valid&&i<c.nodes;i+=team.size()){
+        if(storageOwner&&!layerTrialRowStorageAvailable(*storageOwner,c,x,i)){storageValid=false;valid=false;break;}
         if(!layerRow(in,c,ctx,x,y,i,f[i])){valid=false;break;}
+    }
     if(!team.all(valid)){
-        // Preserve the original partial norm on a rejected trial as well.
-        // Only the failure path repeats a serial scan; successful rows stay parallel.
-        if(team.leader()){norm=0;for(int i=0;i<c.nodes;++i){
-            if(!layerRow(in,c,ctx,x,y,i,f[i]))break;
-            for(int j=0;j<N+4;++j)norm=max(norm,abs(f[i][j]));}}
-        norm=team.broadcast(norm);return false;
+        // Reuse the failed-residual communication point. Only rejected trials
+        // need this extra team reduction; no new device or normal-path barrier.
+        if(storageAvailable&&storageOwner)*storageAvailable=team.all(storageValid);
+        return false;
     }
     // Retain the original node/component order, including max/NaN semantics.
     if(team.leader()){norm=0;for(int i=0;i<c.nodes;++i)
         for(int j=0;j<N+4;++j)norm=max(norm,abs(f[i][j]));}
     norm=team.broadcast(norm);return true;
+}
+// Map a mathematical candidate to the mass-one composition simplex before
+// evaluating it. Residual evaluation, acceptance and the next Jacobian then read
+// the same state. Physical input diagnostics remain in wallFraction.
+template<class R,int N> UGKWP_GAS_HD inline bool feasibleLayerComposition(R* state){
+    if(N==1)return true;
+    R largest=1,sum=0;bool feasible=true;
+    for(int j=0;j<N-1;++j){
+        const R v=state[3+j];if(!gasFinite(v))return false;
+        largest=max(largest,abs(v));feasible=feasible&&v>=0&&v<=1;
+    }
+    if(feasible){for(int j=0;j<N-1;++j)sum+=state[3+j];if(sum<=1)return true;}
+    if(N==2){state[3]=min(R(1),max(R(0),state[3]));return true;}
+    // Scaling is only needed near the arithmetic range. Otherwise retain the
+    // direct independent/dependent representation and its usual rounding.
+    constexpr R maximum=std::numeric_limits<R>::max();
+    const R scale=largest>maximum/R(4*N)?largest:R(1);
+    R values[N],top=-maximum;sum=0;
+    for(int j=0;j<N-1;++j){values[j]=state[3+j]/scale;sum+=values[j];top=max(top,values[j]);}
+    values[N-1]=R(1)/scale-sum;top=max(top,values[N-1]);
+    // In a unit simplex, a component more than one below the maximum cannot
+    // be active. Centering and discarding it also avoid large-value overflow.
+    R levels[N],ordered[N];
+    for(int j=0;j<N;++j){
+        const R gap=values[j]<top-R(1)/scale?R(-1):(values[j]-top)*scale;
+        levels[j]=ordered[j]=gap;
+    }
+    for(int j=1;j<N;++j){const R v=ordered[j];int k=j;while(k>0&&ordered[k-1]<v){ordered[k]=ordered[k-1];--k;}ordered[k]=v;}
+    R prefix=0,threshold=-1;
+    for(int j=0;j<N;++j){prefix+=ordered[j];const R candidate=(prefix-R(1))/R(j+1);if(ordered[j]>candidate)threshold=candidate;}
+    int largestIndependent=0;sum=0;
+    for(int j=0;j<N-1;++j){state[3+j]=max(R(0),levels[j]-threshold);sum+=state[3+j];if(state[3+j]>state[3+largestIndependent])largestIndependent=j;}
+    // The dependent species is represented by 1-sum(Y_independent). Ensure
+    // that this very arithmetic remains nonnegative after projection rounding.
+    while(sum>1){
+        const R old=state[3+largestIndependent];R adjusted=max(R(0),old-(sum-R(1)));
+        if(adjusted==old)adjusted=std::is_same<R,float>::value?R(::nextafterf(float(old),0.f)):R(::nextafter(double(old),0.));
+        state[3+largestIndependent]=adjusted;sum=0;
+        for(int j=0;j<N-1;++j)sum+=state[3+j];
+    }
+    return true;
+}
+// Newton globalization only: trial iterates do not advance physical time or
+// modify the current profile. Discarded mathematical candidates must not publish
+// physical diagnostics. The accepted iterate is evaluated with the real context.
+template<class R,int N,int M,class TableReal,class Team=SerialWallTeam>
+UGKWP_GAS_HD inline bool applyLayerNewtonUpdate(const WallInput<R,N,TableReal>& in,
+ const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,
+ R& norm,R& acceptedAlpha,const Team& team=Team{}){
+    const R previous=norm;R alpha=1;acceptedAlpha=0;
+    const bool checkStorage=!layerAllTrialStorageComplete(in);
+    auto candidateInput=in;candidateInput.diagnostics=nullptr;
+    candidateInput.model.thermo.diagnostics=nullptr;
+    // Retain the historical bounded bisection budget, without a case parameter.
+    for(int line=0;line<40;++line){
+        bool feasible=true;
+        for(int i=team.rank();i<c.nodes;i+=team.size()){
+            for(int j=0;j<N+4;++j)w.trial[i][j]=w.state[i][j]+alpha*w.delta[i][j];
+            feasible=feasibleLayerComposition<R,N>(w.trial[i])&&feasible;
+        }
+        team.sync();R next=0;
+        bool storageAvailable=true;
+        const bool valid=allResidual(candidateInput,c,ctx,w.trial,w.y,w.residual,next,team,checkStorage?&in:nullptr,&storageAvailable,feasible);
+        if(!storageAvailable)return false;
+        if(valid&&gasFinite(next)&&next<previous){
+            for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)
+                w.state[i][j]=w.trial[i][j];
+            team.sync();acceptedAlpha=alpha;
+            return allResidual(in,c,ctx,w.state,w.y,w.residual,norm,team);
+        }
+        alpha*=R(.5);
+    }
+    // A finite residual after exhausting a mathematical iteration budget keeps
+    // the existing accuracy-warning contract. No invalid profile is released:
+    // restore the current residual and retain normal final physical checks.
+    return allResidual(in,c,ctx,w.state,w.y,w.residual,norm,team);
 }
 template<class R,int B> UGKWP_GAS_HD inline bool eliminateBlock(R (&a)[B][B],R (&upper)[B][B],R* rhs){
     for(int col=0;col<B;++col){int pivot=col;for(int row=col+1;row<B;++row)if(abs(a[row][col])>abs(a[pivot][col]))pivot=row;
@@ -304,17 +456,51 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool assembleJ
             R h=rootEpsilon*max(abs(old),variableScale);
             if(species){h=min(h,donorMass/R(4));if(col==donor)h=-h;}
             bool valid=false;R rows[3][B]{};const int start=j>0?j-1:0,end=j+1<c.nodes?j+1:c.nodes-1;
-            for(int attempt=0;attempt<2&&!valid;++attempt){perturbed.row[col]=old+h;
+            auto derivativeInput=in;derivativeInput.diagnostics=nullptr;
+            derivativeInput.model.thermo.diagnostics=nullptr;
+            for(int attempt=0;attempt<2&&!valid;++attempt){
+                perturbed.row[col]=old+h;
                 if(transfer)perturbed.row[donor]=oldDonor-h;
-                cached.invalidate(j);
-                valid=true;
-                for(int i=start;i<=end;++i)if(!layerRow(in,c,ctx,cached,w.y,i,rows[i-start])){valid=false;break;}
-                if(!valid){perturbed.row[col]=old;if(transfer)perturbed.row[donor]=oldDonor;h=species?h/R(2):-h;}}
+                if(!layerTrialStorageAvailable(in,in.temperature+perturbed.row[2],j))return false;
+                cached.invalidate(j);valid=true;
+                for(int i=start;i<=end;++i)
+                    if(!layerRow(derivativeInput,c,ctx,cached,w.y,i,rows[i-start])){valid=false;break;}
+                if(!valid){
+                    perturbed.row[col]=old;if(transfer)perturbed.row[donor]=oldDonor;
+                    // The opposite direction keeps a valid interior base point;
+                    // simplex transfers instead reduce their feasible step.
+                    h=species?h/R(2):-h;
+                }
+            }
             const R actualStep=perturbed.row[col]-old;
             const R donorStep=transfer?oldDonor-perturbed.row[donor]:R(0);
             perturbed.row[col]=old;if(transfer)perturbed.row[donor]=oldDonor;
-            if(!valid||actualStep==0)return false;
-            for(int i=start;i<=end;++i)for(int row=0;row<B;++row){const R forward=(rows[i-start][row]-w.residual[i][row])/actualStep;
+            if(!valid)return false;
+            if(actualStep==0)return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,2418,actualStep,0,col);
+            // A nonzero sqrt(k) can have an entirely unresolvable relative
+            // difference when neighboring fluxes dominate this column. Rebuild
+            // only a zero-signal column with a symmetric physical-scale probe;
+            // a true sqrt(k)=0 derivative remains exactly zero by symmetry.
+            bool zeroSignal=c.enableSst&&col==N+2&&old!=R(0);
+            if(zeroSignal)for(int i=start;i<=end;++i)for(int row=0;row<B;++row)
+                if(rows[i-start][row]!=w.residual[i][row])zeroSignal=false;
+            R opposite[3][B]{};R denominator=actualStep;
+            if(zeroSignal){
+                // The existing k residual normalization uses max(1,k_match).
+                // cbrt(epsilon) balances central O(h^2) truncation and the
+                // O(epsilon/h) subtraction error, without a fitted threshold.
+                h=::cbrt(std::numeric_limits<R>::epsilon())
+                    *max(abs(old),::sqrt(max(R(1),in.matching.k)));
+                perturbed.row[col]=old+h;const R plusStep=perturbed.row[col]-old;
+                cached.invalidate(j);bool resolved=true;
+                for(int i=start;i<=end;++i)if(!layerRow(derivativeInput,c,ctx,cached,w.y,i,rows[i-start])){resolved=false;break;}
+                perturbed.row[col]=old-h;denominator=plusStep-(perturbed.row[col]-old);
+                cached.invalidate(j);
+                if(resolved)for(int i=start;i<=end;++i)if(!layerRow(derivativeInput,c,ctx,cached,w.y,i,opposite[i-start])){resolved=false;break;}
+                perturbed.row[col]=old;
+                if(!resolved)return false;
+            }
+            for(int i=start;i<=end;++i)for(int row=0;row<B;++row){const R forward=(rows[i-start][row]-(zeroSignal?opposite[i-start][row]:w.residual[i][row]))/denominator;
                 R derivative=forward;
                 // Direction e_col-e_donor: recover the original-coordinate
                 // column using the donor column evaluated first above.
@@ -333,7 +519,7 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool solveLayerNewtonSystem(
     for(int i=c.nodes-2;i>=0;--i)for(int row=0;row<B;++row){R sum=0;for(int col=0;col<B;++col)sum+=w.upper[i][row][col]*w.delta[i+1][col];w.delta[i][row]-=sum;}
     // A zero-species active constraint can acquire a negative step solely from
     // block elimination roundoff. Remove only O(epsilon) outward motion; the
-    // full physical residual still decides acceptance, never a clipped state.
+    // Newton globalization preserves the physical domain; finite Y is separately clipped.
     for(int i=0;i<c.nodes;++i){R scale=1;for(int j=3;j<N+2;++j)scale=max(scale,abs(w.delta[i][j]));
         const R roundoff=R(16*N)*std::numeric_limits<R>::epsilon()*scale;
         for(int j=3;j<N+2;++j)if(w.state[i][j]==0&&w.delta[i][j]<0&&-w.delta[i][j]<=roundoff)w.delta[i][j]=0;}
@@ -358,6 +544,7 @@ UGKWP_GAS_HD inline bool newtonStep(const WallInput<R,N,TableReal>& in,
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool makeContext(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,LayerContext<R,N>& ctx){
     int axis=0;if(abs(in.normal[1])<abs(in.normal[axis]))axis=1;if(abs(in.normal[2])<abs(in.normal[axis]))axis=2;
     R tangentNorm=0;for(int d=0;d<3;++d){ctx.tangent[0][d]=(d==axis?R(1):R(0))-in.normal[axis]*in.normal[d];tangentNorm+=ctx.tangent[0][d]*ctx.tangent[0][d];}
+    if(!gasFinite(tangentNorm)||tangentNorm==0)return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10013,tangentNorm);
     for(int d=0;d<3;++d)ctx.tangent[0][d]/=::sqrt(tangentNorm);
     ctx.tangent[1][0]=in.normal[1]*ctx.tangent[0][2]-in.normal[2]*ctx.tangent[0][1];
     ctx.tangent[1][1]=in.normal[2]*ctx.tangent[0][0]-in.normal[0]*ctx.tangent[0][2];
@@ -367,8 +554,9 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool makeContext(con
     ctx.wallNormal=dot(in.velocity,in.normal);
     for(int j=0;j<N;++j){ctx.mass+=in.massFlux[j];if(in.matching.massFraction[j]>in.matching.massFraction[ctx.dependent])ctx.dependent=j;}
     for(int j=0,k=0;j<N;++j)if(j!=ctx.dependent)ctx.independent[k++]=j;
-    for(int j=0;j<N;++j){ctx.enthalpyJump[j]=speciesEnthalpyBranchJumpAs<R>(j,in.model.thermo);bool available=false;ctx.wallEnthalpy[j]=wallProperty<true>(j,in.temperature,in.model.thermo,&available);if(!available)return false;ctx.energyReference+=in.matching.massFraction[j]*ctx.wallEnthalpy[j];}
-    R gasR=0,cp=0,maxD=0;for(int j=0;j<N;++j){gasR+=in.matching.massFraction[j]*universalGasConstant<R>()/in.model.thermo.species[j].molarMass;bool available=false;const R value=wallProperty<false>(j,in.matching.temperature,in.model.thermo,&available);if(!available)return false;cp+=in.matching.massFraction[j]*value;maxD=max(maxD,in.model.diffusivity[j]);}
+    for(int j=0;j<N;++j){ctx.enthalpyJump[j]=speciesEnthalpyBranchJumpAs<R>(j,in.model.thermo);bool available=false;ctx.wallEnthalpy[j]=wallProperty<true>(j,in.temperature,in.model.thermo,&available);if(!available)return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10014);ctx.energyReference+=in.matching.massFraction[j]*ctx.wallEnthalpy[j];}
+    R gasR=0,cp=0,maxD=0;for(int j=0;j<N;++j){gasR+=in.matching.massFraction[j]*universalGasConstant<R>()/in.model.thermo.species[j].molarMass;bool available=false;const R value=wallProperty<false>(j,in.matching.temperature,in.model.thermo,&available);if(!available)return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10015);cp+=in.matching.massFraction[j]*value;maxD=max(maxD,in.model.diffusivity[j]);}
+    if(gasR==0)return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10016,gasR);
     const R rho=in.pressure/(gasR*in.matching.temperature),L=in.matchingDistance;
     for(int d=0;d<2;++d)ctx.scale[d]=max(R(1e-12),(ctx.mass+in.model.viscosity/L)*max(R(1),abs(ctx.edgeU[d])));
     const R lambda=in.model.molecularPrandtl>0?in.model.viscosity*cp/in.model.molecularPrandtl:in.model.conductivity;
@@ -436,8 +624,8 @@ template<class R,int N,int M,class Team> UGKWP_GAS_HD inline bool solveSeedSyste
     return solveSeedSystemsWithTeam(c,w,mass,edgeU0,edgeU1,edgeK,firstOmega,edgeOmega,team,
         typename std::is_same<Team,SerialWallTeam>::type{});
 }
-// Positive transport/destruction Picard iteration is only a Newton initializer.
-// Its upwind convection and first-node asymptotic profile never authorize a
+// Positive transport/destruction Picard iteration is the Newton initializer.
+// Failure is reported; no alternate original-profile solve is attempted.
 
 
 template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GAS_HD inline bool seedSstLayer(const WallInput<R,N,TableReal>& in,
@@ -502,6 +690,7 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
         if(!team.broadcast(updated))return false;
         change=team.broadcast(change);
         if(change<R(1e-5))break;
+        if(iteration==199&&team.leader())wallWarning(in,ugkp::diagnostics::Code::AccuracyResidual,2428,change,1e-5);
     }
     return true;
 }
@@ -539,9 +728,9 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool publishLa
         const R advection=ctx.mass/(R(2)*in.model.viscosity),firstK=w.state[1][N+2]*w.state[1][N+2];
         out.wallKFlux=-in.model.viscosity*firstK*nearWallKDerivativeAtWall(w.y[1],ell,power,advection);
         if(in.integrateOwnerKSource){
-        if(q.count>0&&(!q.distance||!q.volumeWeight))return false;
+        if(q.count>0&&(!q.distance||!q.volumeWeight))return wallFatal(in,ugkp::diagnostics::Code::MissingOperator,10017);
         for(int qi=0;qi<q.count;++qi){const R y=q.distance[qi],weight=q.volumeWeight[qi];
-            if(!terminalProfile&&(!gasFinite(y)||!gasFinite(weight)))return false;
+            if(!gasFinite(y)||!gasFinite(weight))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2419,y);
             int l=0;while(l+1<c.nodes-1&&w.y[l+1]<y)++l;
             const R fraction=(y-w.y[l])/(w.y[l+1]-w.y[l]);
             // Reconstruct the already-discretized full source with positive
@@ -562,19 +751,41 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool publishLa
         out.ownerOmega=R(1)/(z*z);}
 
 
+    if(!gasFinite(out.conductiveHeatFlux))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2426,out.conductiveHeatFlux);
+    if(!gasFinite(out.wallKFlux))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,31300,out.wallKFlux);
+    if(!gasFinite(out.ownerOmega))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,31301,out.ownerOmega);
+    // The owner integral is auxiliary output, never a physical SST source.
+    if(in.integrateOwnerKSource&&!gasFinite(out.integratedKSource))
+        wallWarning(in,ugkp::diagnostics::Code::AccuracyResidual,2429,out.integratedKSource,std::numeric_limits<R>::max());
+    for(int d=0;d<3;++d)if(!gasFinite(out.traction[d]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10018,out.traction[d],0,d);
+    for(int j=0;j<N;++j){
+        // Guard the physical fluxes, not overflow in their diagnostic difference.
+        if(!gasFinite(out.wallSpeciesFlux[j]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10019,out.wallSpeciesFlux[j],0,j);
+        if(!gasFinite(out.matchingSpeciesFlux[j]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,31302,out.matchingSpeciesFlux[j],0,j);
+        if(!gasFinite(out.reactionIntegral[j]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,31303,out.reactionIntegral[j],0,j);
+        if(!gasFinite(out.speciesBalanceResidual[j])||abs(out.speciesBalanceResidual[j])>c.absoluteTolerance+c.relativeTolerance)
+            wallWarning(in,ugkp::diagnostics::Code::ConservationResidual,2427,out.speciesBalanceResidual[j],c.absoluteTolerance+c.relativeTolerance,0,j);
+    }
     out.iterations=iterations;out.residual=norm;output=out;return true;
 }
 } // detail
 
 template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> UGKWP_GAS_HD inline bool evaluateReactingWallLayerImpl(
- const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,WallOutput<R,N>& output,WallStatus& status,const Team& team=Team{}){
+ const WallInput<R,N,TableReal>& originalInput,const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,WallOutput<R,N>& output,WallStatus& status,const Team& team=Team{}){
     using namespace detail;
+    auto in=originalInput;in.model.thermo.diagnostics=in.diagnostics;
+    bool fractionsValid=true;
+    for(int j=0;j<N;++j)if(!wallFraction(in,in.matching.massFraction[j],in.matching.massFraction[j],j))fractionsValid=false;
+    if(!fractionsValid)return false;
     bool inputValid=false;if(team.leader())inputValid=validateInput(in,c,status);
     if(!team.broadcast(inputValid))return false;
-    if(in.model.mode!=GasMode::MixtureFrozen&&in.model.mode!=GasMode::MixtureChemistry&&in.model.mode!=GasMode::SingleLegacy){if(team.leader())fail(status,WallCode::Unsupported);return false;}
-    if(team.leader()&&c.enableSst&&(!gasFinite(in.matching.k)||!gasFinite(in.matching.omega)))status.code=WallCode::InvalidInput;
+    if(c.nodes<2||c.nodes>M){if(team.leader()){fail(status,WallCode::InvalidInput);wallFatal(in,ugkp::diagnostics::Code::InvalidIndex,2423,c.nodes,ugkp::diagnostics::Quantity::Index);}return false;}
+    if(in.model.mode!=GasMode::MixtureFrozen&&in.model.mode!=GasMode::MixtureChemistry&&in.model.mode!=GasMode::SingleLegacy){if(team.leader()){fail(status,WallCode::Unsupported);wallFatal(in,ugkp::diagnostics::Code::MissingOperator,10020);}return false;}
+    if(c.enableSst&&(!gasFinite(in.matching.k)||!gasFinite(in.matching.omega)||in.matching.k<0||in.matching.omega<=0)){
+        if(team.leader()){fail(status,WallCode::InvalidInput);wallFatal(in,(gasFinite(in.matching.k)&&gasFinite(in.matching.omega)?ugkp::diagnostics::Code::InvalidPhysicalState:ugkp::diagnostics::Code::NonFinite),2424,in.matching.omega);}return false;}
     const bool strictMechanism=in.model.mode!=GasMode::MixtureChemistry
         ||bool(validateGasMechanismView(in.model.thermo,in.model.mechanism));
+    if(!strictMechanism){if(team.leader())wallFatal(in,ugkp::diagnostics::Code::MissingOperator,10021);return false;}
     LayerContext<R,N> ctx;if(!team.all(makeContext(in,c,ctx))){if(team.leader())fail(status,WallCode::InvalidThermodynamics);return false;}
     for(int i=team.rank();i<c.nodes;i+=team.size()){const R eta=R(i)/R(c.nodes-1),f=::pow(eta,c.stretch);w.y[i]=in.matchingDistance*f;
         w.state[i][0]=f*ctx.edgeU[0];w.state[i][1]=f*ctx.edgeU[1];
@@ -583,12 +794,12 @@ template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> 
         w.state[i][N+2]=c.enableSst?::sqrt(in.matching.k)*f:R(0);w.state[i][N+3]=c.enableSst?f/::sqrt(in.matching.omega):R(1);
 
 
-        if(c.enableSst)for(int j=0;j<N+4;++j)w.trial[i][j]=w.state[i][j];}
+}
 
 
     team.sync();
     bool seeded=false;
-    if(team.leader())seeded=strictMechanism&&seedSstLayer(in,c,ctx,w,SerialWallTeam{});
+    if(team.leader())seeded=seedSstLayer(in,c,ctx,w,SerialWallTeam{});
     if(team.leader()&&c.enableSst&&seeded){
         // Initialize the auxiliary nonlinear profile at a shear-based scale.
         // This changes neither matching/owner k nor any physical equation.
@@ -596,44 +807,40 @@ template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> 
         // and stagnate on alternating signed roots before reaching the BVP root.
         LayerPoint<R,N> edge;
         seeded=pointState(in,c,ctx,w.state[c.nodes-1],edge);
-        const R speed=::sqrt(ctx.edgeU[0]*ctx.edgeU[0]+ctx.edgeU[1]*ctx.edgeU[1]);
-        const R kScale=in.model.viscosity*speed/(in.matchingDistance*edge.rho*::sqrt(in.model.sstCoefficients.betaStar));
+        // The edge was already evaluated during the seed sweep.
 
-        for(int i=1;i<c.nodes-1;++i){const R eta=w.y[i]/in.matchingDistance;
+        const R speed=::sqrt(ctx.edgeU[0]*ctx.edgeU[0]+ctx.edgeU[1]*ctx.edgeU[1]);
+        const R kScale=seeded?in.model.viscosity*speed/(in.matchingDistance*edge.rho*::sqrt(in.model.sstCoefficients.betaStar)):R(0);
+
+        for(int i=1;seeded&&i<c.nodes-1;++i){const R eta=w.y[i]/in.matchingDistance;
             w.state[i][N+2]=::sqrt(w.state[i][N+2]*w.state[i][N+2]+R(4)*eta*(R(1)-eta)*kScale);
             seeded=seeded&&gasFinite(w.state[i][N+2]);}
     }
     seeded=team.broadcast(seeded);
-    if(c.enableSst&&!seeded)for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)w.state[i][j]=w.trial[i][j];
+    if(!seeded){if(team.leader()){fail(status,WallCode::InadmissibleState);wallFatal(in,ugkp::diagnostics::Code::NonFinite,2420);}return false;}
     team.sync();
     R norm=0;
-    const bool measured=strictMechanism&&allResidual(in,c,ctx,w.state,w.y,w.residual,norm,team);
-    if(!measured)norm=std::numeric_limits<R>::quiet_NaN();
+    const bool measured=allResidual(in,c,ctx,w.state,w.y,w.residual,norm,team);
+    if(!measured){if(team.leader())fail(status,WallCode::InadmissibleState);return false;}
     const R tolerance=c.absoluteTolerance+c.relativeTolerance;
     int iteration=0;
-    if(measured)for(;;){
-        if(norm<=tolerance||iteration>=c.maxIterations)break;
-        if(!newtonStep(in,c,ctx,w,team))break;
-        R alpha=1;bool accepted=false;
-        for(int line=0;line<40;++line){for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)w.trial[i][j]=w.state[i][j]+alpha*w.delta[i][j];
-            team.sync();
-            R next=0;if(allResidual(in,c,ctx,w.trial,w.y,w.residual,next,team)&&next<norm){for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)w.state[i][j]=w.trial[i][j];team.sync();norm=next;accepted=true;break;}
-            alpha*=R(.5);}
-        if(!accepted){
-
-
-            if(!allResidual(in,c,ctx,w.state,w.y,w.residual,norm,team))norm=std::numeric_limits<R>::quiet_NaN();
-            break;
+    for(;norm>tolerance&&iteration<c.maxIterations;++iteration){
+        if(!newtonStep(in,c,ctx,w,team)){
+            if(team.leader())wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,2421);
+            return false;
         }
-        ++iteration;
+        R alpha=0;
+        if(!applyLayerNewtonUpdate(in,c,ctx,w,norm,alpha,team))return false;
+        if(alpha==0)break;
     }
+    if(team.leader()&&norm>tolerance)wallWarning(in,ugkp::diagnostics::Code::AccuracyResidual,2422,norm,tolerance);
     if(team.leader()){status.iteration=iteration;status.residual=double(norm);}
 
 
-    const bool terminalProfile=true;
+    const bool terminalProfile=false;
     bool published=false;
     if(team.leader()){published=publishLayer(in,c,ctx,w,iteration,norm,output,terminalProfile);
-        if(!published)fail(status,WallCode::InadmissibleState);}
+        if(!published){fail(status,WallCode::InadmissibleState);wallFatal(in,ugkp::diagnostics::Code::NonFinite,10022);}}
     return team.broadcast(published);
 }
 // Keep the original <R,N,M> entry-point spelling while deducing borrowed tables.

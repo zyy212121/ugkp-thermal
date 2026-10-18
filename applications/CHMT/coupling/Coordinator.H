@@ -56,22 +56,9 @@ CHMT_HD inline FilmQ assembleFilmCandidate(const FilmQ& base,const FilmQ& rhs,Re
 CHMT_HD inline bool accountAssembledPacket(ExchangePacket& packet,
     const Tolerances& tol,DeviceStatus* status=nullptr) {
     if(!validatePacketMath(packet,tol,status))return false;
-    if(packet.consumerMask)return packetFailure(status,packet,ErrorCode::Duplicate,packet.consumerMask);
+    if(packet.consumerMask)return packetFailure(status,packet,ErrorCode::Duplicate,packet.consumerMask,tol.diagnostics);
     packet.consumerMask=requiredConsumers(packet.kind);return true;
 }
-inline bool publishAcceptedCandidate(HostState& accepted,HostState candidate,int stage,
-    Real dt,bool synchronized,std::string& error) {
-    if(stage!=1||!synchronized||!finite(dt)||dt<=0){error="only a synchronized final stage may commit";return false;}
-    for(const auto& q:candidate.gas)if(!validGasInventory(q)){error="invalid candidate gas inventory";return false;}
-    for(const auto& q:candidate.solid)if(!validSolidInventory(q)){error="invalid candidate material inventory";return false;}
-    for(const auto& q:candidate.film)if(!validFilmInventory(q)){error="invalid candidate film inventory";return false;}
-    for(const auto& p:candidate.ledger)if(p.consumerMask!=requiredConsumers(p.kind)){error="unconsumed candidate packet";return false;}
-    for(const auto& s:candidate.filmStorage)if(!s.consumed){error="unconsumed candidate film storage";return false;}
-    if(accepted.acceptedSteps==std::numeric_limits<std::uint64_t>::max()||accepted.commitSequence==std::numeric_limits<std::uint64_t>::max()){error="accepted counter overflow";return false;}
-    candidate.time=accepted.time+dt;candidate.acceptedSteps=accepted.acceptedSteps+1;
-    candidate.commitSequence=accepted.commitSequence+1;candidate.lastAcceptedDt=dt;
-    if(!finite(candidate.time)||candidate.time<=accepted.time){error="nonfinite/nonincreasing candidate time";return false;}
-    accepted=std::move(candidate);error.clear();return true;
-}
+
 } // namespace chmt
 #endif

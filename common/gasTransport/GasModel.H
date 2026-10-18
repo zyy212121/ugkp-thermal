@@ -2,6 +2,7 @@
 #define UGKWP_GAS_MODEL_H
 
 #include <cstdint>
+#include "../Diagnostics.H"
 
 #if defined(__CUDACC__)
 #define UGKWP_GAS_HD __host__ __device__
@@ -63,6 +64,7 @@ struct SpeciesThermoView
     const Real* elementComposition = nullptr;
     std::uint64_t speciesOrderHash = 0;
     std::uint64_t thermoHash = 0;
+    ugkp::diagnostics::DeviceContext* diagnostics = nullptr;
 };
 
 enum class GasReactionType : unsigned char

@@ -1,0 +1,153 @@
+{
+  "calculation_source": "cd0e61d6eb9821c630f4b3067754aab43d1a670d",
+  "files": {
+    "最终源码位置.json": {
+      "sha256": "6c4ae449c82eb9e7eb81ffc02fdd2c479776c6a9adb7dacc49b77884345e7f2b",
+      "bytes": 1084
+    },
+    "composition-independent-evidence.tar.gz": {
+      "sha256": "055bdcd296624503d4756dad01d4e8aab702ee5ec3d3dfba35c406e50851698f",
+      "bytes": 90990
+    },
+    "preflight-evidence.tar.gz": {
+      "sha256": "28ecaa171e17a946eee174713828b82db0901aada9e14c82267797f56171d0ef",
+      "bytes": 33895
+    },
+    "affected-tests.json": {
+      "sha256": "2d061dd974bc20cc6bb3277f1512c379daa2fbf5decc5b516e3843c0e0b5f36a",
+      "bytes": 1108
+    },
+    "wallchem-evidence.tar.gz": {
+      "sha256": "acb88a457c8e28bc235c577287d63314595fcb5f2a5d0744dc8f1582fe81968a",
+      "bytes": 6850045
+    },
+    "最终生产文件覆盖.csv": {
+      "sha256": "ba41f978dca314a1fae8138af054b2737905a8e2adc6012b042da2af23dbe540",
+      "bytes": 31967
+    },
+    "最终源码与产物.json": {
+      "sha256": "1ec376ed00188500c3b4c6189625caeffea6947522524f930279d87cbdfbb2b7",
+      "bytes": 10886
+    },
+    "压缩包哈希.json": {
+      "sha256": "eccb44041282dbeb07fc8889229ad8842e16118bf26756f6b95b1b47f03038f4",
+      "bytes": 708
+    },
+    "证据索引.csv": {
+      "sha256": "ee90eb9b441dc702716fd9d4a7889b76c4165e2f2e465d88bfec83bb4f40dab6",
+      "bytes": 1496
+    },
+    "reproduce.py": {
+      "sha256": "01647a4367e669ea363517ac0ffffb3050b92445b48bcff98a70fa990f4ee3a5",
+      "bytes": 3593
+    },
+    "interface-evidence.tar.gz": {
+      "sha256": "b198944bd032c55d2d28646319f55cd86a3a73858fbf4fb26345090e1698e497",
+      "bytes": 42246
+    },
+    "逐项处置.csv": {
+      "sha256": "9fa3ff275fbddecb7f9205f77b0aa97fb0d9e8682de8821465c75491da33831d",
+      "bytes": 1180
+    },
+    "工作报告.txt": {
+      "sha256": "935fa9f1af5bb18b3f45761a82555ed0ec479d8c02abe2cf9e5ccb978eb537d2",
+      "bytes": 20232
+    },
+    "阶段进度记录.json": {
+      "sha256": "05f67eab280c6e49d16663cd1a54374094360337bd29eebfad2608133a76ab42",
+      "bytes": 5598
+    },
+    "合并验证.json": {
+      "sha256": "2ef5bd1be955b5fbdf2f1c7028149c7751f9acdc550f6a6912fb1b72335098f9",
+      "bytes": 610
+    },
+    "root-evidence.tar.gz": {
+      "sha256": "f10ba95b283a8079ef8491494fcbcef66248e36094357d83bf7bb8e05e51919a",
+      "bytes": 870825
+    },
+    "geometry/reproduce-composition.py": {
+      "sha256": "805e7794ba2ef2741a50ba8ac6c6e5d55bd433ceeb1b875c431a2936ad1ec118",
+      "bytes": 3766
+    },
+    "geometry/composition-math.md": {
+      "sha256": "dc0360ba80d710c5019ba28dd6fc7888da7b504b45e95de5f7d650b9d0004f2e",
+      "bytes": 8687
+    },
+    "geometry/composition-evidence/baseline-benchmark2-build.log": {
+      "sha256": "d46825a287b5273d48165ae1781ee67a75a547c39ea43c92531a9320fcab52c8",
+      "bytes": 473
+    },
+    "geometry/composition-evidence/tested-source-and-products.json": {
+      "sha256": "acb664ca5a3eb6819ceeac9dc7f67801d4e8ba28d660706028bdeb9d1b27ffa9",
+      "bytes": 4964
+    },
+    "geometry/composition-evidence/production-red-baseline.json": {
+      "sha256": "d85ce4a3fa6e75a78e60f840a8d7dbf645d752bfddabc55bf972c84bad506b41",
+      "bytes": 137
+    },
+    "geometry/composition-evidence/pole-arithmetic-original.cpp": {
+      "sha256": "6bc765d7430b101c6cd9c2755767a264a9e2e8c8bdd41fa83482a3a3c1698b9d",
+      "bytes": 806
+    },
+    "geometry/composition-evidence/composition-diagnostics-sites.log": {
+      "sha256": "fec3c14fd4b14ce6322837033e533d3fb48c079716af71d54d570041aaed2a2a",
+      "bytes": 98
+    },
+    "geometry/composition-evidence/regression-pole-final.log": {
+      "sha256": "11c7ada40dfa0ec48232d9dddf305eaf6e169f10df98283795a26a721afe1259",
+      "bytes": 100
+    },
+    "geometry/composition-evidence/pole-arithmetic-red-source.json": {
+      "sha256": "d6be082d1e3237dfba6dcde33c4c4073b70ff5772f6d6f7523f6c378c385651c",
+      "bytes": 374
+    },
+    "geometry/composition-evidence/manufactured-final20000.cpp": {
+      "sha256": "674889c90d3fd957a0d244cc18c117476d9953ae1af792ae2245ae7b2112f41c",
+      "bytes": 1601
+    },
+    "geometry/composition-evidence/pole-arithmetic-red.log": {
+      "sha256": "732f4187c8f97212bb8982a3c2f9f28c338be8a5c04913ca51b15c5f00ff408d",
+      "bytes": 546
+    },
+    "geometry/composition-evidence/device-build10.log": {
+      "sha256": "aa30f6d8d46a10de62608e652ee5085c1ff1c94e9e4949ee3201444fe5564ac7",
+      "bytes": 2631
+    },
+    "geometry/composition-evidence/device-build2.log": {
+      "sha256": "67e41178d57a79582f0f5268773db8595784b7aac56c36ea5ac690cf5b5e91c6",
+      "bytes": 2207
+    },
+    "geometry/composition-evidence/device-build-summary.json": {
+      "sha256": "fb27cb1c957b3380a5d3f42905d54732675281a05de4173596d1d8ebb1060a2f",
+      "bytes": 3795
+    },
+    "geometry/composition-evidence/final-header-hashes.json": {
+      "sha256": "a09a2eabd07d8bb73eedc160037514837980b6f0e6b4ff4a0d69ff2f7596dff4",
+      "bytes": 374
+    },
+    "geometry/composition-evidence/baseline-benchmark10-build.log": {
+      "sha256": "f7e0067a4c726f90b9e7c3c7ad62569861e6eeb764eab15dc2491d634ea37d7c",
+      "bytes": 475
+    },
+    "geometry/composition-evidence/final-benchmark2-build.log": {
+      "sha256": "29e73bfd28c4cc081360d7561417a003d2ee006927a5ba776d19917abf66d9a0",
+      "bytes": 500
+    },
+    "geometry/composition-evidence/final-benchmark10-build.log": {
+      "sha256": "f16d87740711d2970b7dd13eea9fe61e2db138346cb9741c3b0ba15f6a4efebe",
+      "bytes": 502
+    },
+    "geometry/composition-evidence/baseline-provenance.json": {
+      "sha256": "821188fe409cad09b791c882f456e608aed96cecd6f684c9cf1c09e11e9a2801",
+      "bytes": 292
+    },
+    "geometry/composition-evidence/benchmark-summary.json": {
+      "sha256": "edc782ec335409f2acbac3fa6a25e5a570ce17bd27540932f37765edf1182735",
+      "bytes": 3129
+    },
+    "geometry/composition-evidence/exact-goal-summary.json": {
+      "sha256": "9eb1d6807f1e779f6a4c861e9e9e2652b57ca4fa8ddac25f53ff79b64cb53b67",
+      "bytes": 1399
+    }
+  }
+}

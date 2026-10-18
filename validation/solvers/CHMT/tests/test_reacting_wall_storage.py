@@ -68,12 +68,16 @@ def test_completed_numeric_wall_download_and_real_copy_failures(tmp_path):
  assert(v.gasBoundaryLayerModel.input[0].massFlux[0]==0);
  h.surface.area[0]=1;assert(storage.prepareWallBoundary(knot,h.surface,error));
  v.Tgas[1]=std::numeric_limits<chmt::Real>::infinity();
- assert(ugkwp::evaluateGasBoundaryLayerSlot(v,0,0));
- assert(v.gasBoundaryLayer.exchange[0].ready&&v.gasBoundaryLayer.status[0]!=0);
+ assert(!ugkwp::evaluateGasBoundaryLayerSlot(v,0,0));
+ assert(!v.gasBoundaryLayer.exchange[0].ready&&v.gasBoundaryLayer.status[0]!=0);
  std::vector<ugkwp::gaswall::WallOutput<chmt::Real,chmt::Ns>> outputs;std::vector<chmt::GasWallMatchingSample> matching;
+ assert(!storage.downloadWallOutputs(outputs,matching));assert(storage.wallModelFailed());
+ // An independent valid evaluation supplies the download/copy-failure fixture.
+ assert(storage.clearTrialStatus());v.Tgas[1]=900;
+ assert(ugkwp::evaluateGasBoundaryLayerSlot(v,0,0));
  reads=0;assert(storage.downloadWallOutputs(outputs,matching));assert(reads==3);
- assert(std::isinf(outputs[0].conductiveHeatFlux)&&outputs[0].traceTemperature==600);
- assert(std::isinf(matching[0].state.temperature)&&matching[0].pressure==100000&&matching[0].mechanicalPressure==0);
+ assert(std::isfinite(outputs[0].conductiveHeatFlux)&&outputs[0].traceTemperature==600);
+ assert(matching[0].state.temperature==900&&matching[0].pressure==100000&&matching[0].mechanicalPressure==0);
  for(int failed=0;failed<3;++failed){failRead=failed;assert(!storage.downloadWallOutputs(outputs,matching));}
  failRead=-1;v.gasBoundaryLayerModel.input[0].model.thermo.coefficients=nullptr;
  // evaluateSlot samples the actual current tables again; remove the true source.

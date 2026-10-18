@@ -137,6 +137,7 @@ DeviceState*asState(void*p){return static_cast<DeviceState*>(p);}int validateSta
 int stages=0,finals=0,error=0;int tuneFixedWorkBlockThreads(DeviceState*,double,double){return error==1;}
 int advanceGasFluxStage(DeviceState*s,double dt,double time){++stages;if(error==2)return 1;for(auto&x:s->rhoU)x+=dt+time;return 0;}
 void applyGasGravityKernel(DeviceState*s,double dt){++launches;for(auto&x:s->rhoU)x+=2*dt;}
+void applyGasOnlyGravityKernel(DeviceState*s,double dt){applyGasGravityKernel(s,dt);}
 void recoverGasPrimitivesKernel(DeviceState*){++launches;}
 int finaliseGasBoundaryStage(DeviceState*s,double dt,double time){++finals;if(error==3)return 1;for(auto&x:s->rhoU)x+=dt-time;return 0;}
 '''+code+r'''

@@ -1,0 +1,48 @@
+{
+  "calculation_commit": "9382937c7d1eb040de92f001d02fb311b2470baa",
+  "baseline_commit": "ea0c64d96fd041826ffa13b7bc2aa0acff4ca689",
+  "sources": {
+    "applications/CHMT/ablation/InterfaceMath.H": "b4ff41384a8d09032d2476cd6845851d0e9c4f66ee8626ae06900d95f8ae417c",
+    "applications/CHMT/ablation/InterfaceComposition.H": "0703da195f9741f538e8a4acd46eab7da998074c5ac1e70637683c3dc287f40a",
+    "applications/CHMT/ablation/InterfaceCompositionArithmetic.H": "d1d61aa1c5994cbf9292cc75a82a487a9c31f895399accb8fc9f88c9ce98b04f",
+    "validation/tests/fixtures/interface_composition/arithmetic.cpp": "f47ad4510f809c4a76d4927cfa291dc3c945c68c61410c44ccd708642f4d7231",
+    "validation/tests/fixtures/interface_composition/benchmark.cpp": "e8dd8bf348695e3a6dbdaddae8276726503051e67fe255bdb506eea7d1d18097",
+    "validation/tests/fixtures/interface_composition/boundary.cpp": "2e47c3ce9453c616fcbbc016b806a2fa45cb3b2d8b37966dabf7c3c7fd166c59",
+    "validation/tests/fixtures/interface_composition/contracts.cpp": "bc7334e2dd58120adba4d4159545ec3b4eb1701735d3f2bce162241d16bdff1e",
+    "validation/tests/fixtures/interface_composition/device.cu": "ffbf6bbbfdaad92ee7497dc185d0490c8b1b8c940a4f85326feaecd062e9d855",
+    "validation/tests/fixtures/interface_composition/edges.cpp": "2f6fc2fb8a951fa7d3b80d06f76428f718cc540b13b9239740e8fcc072524210",
+    "validation/tests/fixtures/interface_composition/manufactured.cpp": "c5a8daa1d2de05d435c62a4167cdfdc1e62f73a8ba8cb19d1a6d28a4cc5ab8f9",
+    "validation/tests/fixtures/interface_composition/multiple.cpp": "ab4269a6b10857b09ca1e454cfc6ea1a5fcf4c1575c5ea48cd0455d2ae1faec4",
+    "validation/tests/fixtures/interface_composition/pole_arithmetic.cpp": "4fac4c6543cc583b0a701da34bd86e32f9521ce6e9fbe5ab05d366f00c161900"
+  },
+  "products": {
+    "/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/geometry/composition-analysis/device2": "7a24096216e2053dbb4f06b7e93614b0125583ae3a935947e3d2399a09c1a84f",
+    "/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/geometry/composition-analysis/device10": "b50ba3d1a1e113bc8cc5f3ee356f12207d0fe031e6ce098fdb76e442a51586a5",
+    "/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/geometry/composition-analysis/manufactured-final20000-2": "dda51c707e78d0fd7e7c17a896d2b22da445b38364a6a33523399f88783a4066",
+    "/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/geometry/composition-analysis/manufactured-final20000-10": "849d3f5637e86aad47137e519dc3ed78162d472af3b42db8e63e3a6a4eb49677",
+    "/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/geometry/composition-analysis/baseline-benchmark2": "4b537d7d5eba931b5d17ab893cc5bc22ffd8512e5226512578902fc42ea633a9",
+    "/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/geometry/composition-analysis/baseline-benchmark10": "aebed1d107711ca06781a503feab6fb9ef0aa69c71d14d83fc697e83aa0d3ee2",
+    "/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/geometry/composition-analysis/final-benchmark2": "e80f740054aa69e1495b0554db7334841aaf2465211bebce262ad9b1eb288b89",
+    "/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/geometry/composition-analysis/final-benchmark10": "b3fcacbc7e3e74d090b9c772116744c4e2b488867b7c1301abe26d4cf3e0c49b"
+  },
+  "evidence": {
+    "baseline-benchmark10-build.log": "f7e0067a4c726f90b9e7c3c7ad62569861e6eeb764eab15dc2491d634ea37d7c",
+    "baseline-benchmark2-build.log": "d46825a287b5273d48165ae1781ee67a75a547c39ea43c92531a9320fcab52c8",
+    "baseline-provenance.json": "821188fe409cad09b791c882f456e608aed96cecd6f684c9cf1c09e11e9a2801",
+    "benchmark-summary.json": "edc782ec335409f2acbac3fa6a25e5a570ce17bd27540932f37765edf1182735",
+    "composition-diagnostics-sites.log": "fec3c14fd4b14ce6322837033e533d3fb48c079716af71d54d570041aaed2a2a",
+    "device-build-summary.json": "fb27cb1c957b3380a5d3f42905d54732675281a05de4173596d1d8ebb1060a2f",
+    "device-build10.log": "aa30f6d8d46a10de62608e652ee5085c1ff1c94e9e4949ee3201444fe5564ac7",
+    "device-build2.log": "67e41178d57a79582f0f5268773db8595784b7aac56c36ea5ac690cf5b5e91c6",
+    "exact-goal-summary.json": "9eb1d6807f1e779f6a4c861e9e9e2652b57ca4fa8ddac25f53ff79b64cb53b67",
+    "final-benchmark10-build.log": "f16d87740711d2970b7dd13eea9fe61e2db138346cb9741c3b0ba15f6a4efebe",
+    "final-benchmark2-build.log": "29e73bfd28c4cc081360d7561417a003d2ee006927a5ba776d19917abf66d9a0",
+    "final-header-hashes.json": "a09a2eabd07d8bb73eedc160037514837980b6f0e6b4ff4a0d69ff2f7596dff4",
+    "manufactured-final20000.cpp": "674889c90d3fd957a0d244cc18c117476d9953ae1af792ae2245ae7b2112f41c",
+    "pole-arithmetic-original.cpp": "6bc765d7430b101c6cd9c2755767a264a9e2e8c8bdd41fa83482a3a3c1698b9d",
+    "pole-arithmetic-red-source.json": "d6be082d1e3237dfba6dcde33c4c4073b70ff5772f6d6f7523f6c378c385651c",
+    "pole-arithmetic-red.log": "732f4187c8f97212bb8982a3c2f9f28c338be8a5c04913ca51b15c5f00ff408d",
+    "production-red-baseline.json": "d85ce4a3fa6e75a78e60f840a8d7dbf645d752bfddabc55bf972c84bad506b41",
+    "regression-pole-final.log": "11c7ada40dfa0ec48232d9dddf305eaf6e169f10df98283795a26a721afe1259"
+  }
+}

@@ -13,7 +13,7 @@ namespace ugkwpGpuIpc
 {
 
 static constexpr std::uint32_t magic = 0x47554750U;          
-static constexpr std::uint16_t protocolMajor = 7;
+static constexpr std::uint16_t protocolMajor = 8;
 static constexpr std::uint16_t protocolMinor = 0;
 static constexpr std::uint64_t maxPayloadBytes = 32ULL*1024ULL*1024ULL*1024ULL;
 
@@ -101,6 +101,9 @@ struct RequestHeader
     std::uint32_t operation;
     std::uint32_t reserved;
     std::uint64_t payloadBytes;
+    std::uint64_t diagnosticSequence = 0;
+    std::int64_t diagnosticStep = -1;
+    double diagnosticTime = 0;
 };
 
 struct ResponseHeader
@@ -111,6 +114,7 @@ struct ResponseHeader
     std::int32_t status;
     std::uint32_t errorBytes;
     std::uint64_t payloadBytes;
+    std::uint64_t diagnosticBytes;
 };
 
 struct CreateArgs
@@ -301,14 +305,17 @@ template<class T> struct WireCodec
 };
 template<> struct WireCodec<RequestHeader>
 {
-    static constexpr std::size_t size=24;
+    static constexpr std::size_t size=48;
     static constexpr bool nativeLayout=sizeof(RequestHeader)==size
         && offsetof(RequestHeader,magicValue)==0
         && offsetof(RequestHeader,major)==4
         && offsetof(RequestHeader,minor)==6
         && offsetof(RequestHeader,operation)==8
         && offsetof(RequestHeader,reserved)==12
-        && offsetof(RequestHeader,payloadBytes)==16;
+        && offsetof(RequestHeader,payloadBytes)==16
+        && offsetof(RequestHeader,diagnosticSequence)==24
+        && offsetof(RequestHeader,diagnosticStep)==32
+        && offsetof(RequestHeader,diagnosticTime)==40;
     static void encode(unsigned char* b,const RequestHeader& v)
     {
         std::fill(b,b+size,0);
@@ -318,6 +325,9 @@ template<> struct WireCodec<RequestHeader>
         encodeWireScalar(b+8,v.operation);
         encodeWireScalar(b+12,v.reserved);
         encodeWireScalar(b+16,v.payloadBytes);
+        encodeWireScalar(b+24,v.diagnosticSequence);
+        encodeWireScalar(b+32,v.diagnosticStep);
+        encodeWireScalar(b+40,v.diagnosticTime);
     }
     static void decode(const unsigned char* b,RequestHeader& v)
     {
@@ -327,18 +337,22 @@ template<> struct WireCodec<RequestHeader>
         decodeWireScalar(b+8,v.operation);
         decodeWireScalar(b+12,v.reserved);
         decodeWireScalar(b+16,v.payloadBytes);
+        decodeWireScalar(b+24,v.diagnosticSequence);
+        decodeWireScalar(b+32,v.diagnosticStep);
+        decodeWireScalar(b+40,v.diagnosticTime);
     }
 };
 template<> struct WireCodec<ResponseHeader>
 {
-    static constexpr std::size_t size=24;
+    static constexpr std::size_t size=32;
     static constexpr bool nativeLayout=sizeof(ResponseHeader)==size
         && offsetof(ResponseHeader,magicValue)==0
         && offsetof(ResponseHeader,major)==4
         && offsetof(ResponseHeader,minor)==6
         && offsetof(ResponseHeader,status)==8
         && offsetof(ResponseHeader,errorBytes)==12
-        && offsetof(ResponseHeader,payloadBytes)==16;
+        && offsetof(ResponseHeader,payloadBytes)==16
+        && offsetof(ResponseHeader,diagnosticBytes)==24;
     static void encode(unsigned char* b,const ResponseHeader& v)
     {
         std::fill(b,b+size,0);
@@ -348,6 +362,7 @@ template<> struct WireCodec<ResponseHeader>
         encodeWireScalar(b+8,v.status);
         encodeWireScalar(b+12,v.errorBytes);
         encodeWireScalar(b+16,v.payloadBytes);
+        encodeWireScalar(b+24,v.diagnosticBytes);
     }
     static void decode(const unsigned char* b,ResponseHeader& v)
     {
@@ -357,6 +372,7 @@ template<> struct WireCodec<ResponseHeader>
         decodeWireScalar(b+8,v.status);
         decodeWireScalar(b+12,v.errorBytes);
         decodeWireScalar(b+16,v.payloadBytes);
+        decodeWireScalar(b+24,v.diagnosticBytes);
     }
 };
 template<> struct WireCodec<CreateArgs>

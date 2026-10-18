@@ -284,4 +284,10 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleSavedVelocity
 extern "C" void ugkwpGpuResidentStrictRelease(void* handle);
 extern "C" const char* ugkwpGpuResidentStrictLastError();
 
+#include "../../../common/DiagnosticsHost.H"
+extern "C" int ugkwpGpuResidentStrictSetDiagnosticOperation(void*,std::uint64_t,std::int64_t,double);
+extern "C" void ugkwpGpuResidentStrictReleaseDiagnostics(void*,ugkp::diagnostics::Snapshot*);
+extern "C" int ugkwpGpuResidentStrictCollectDiagnostics(void*,ugkp::diagnostics::Snapshot*);
+extern "C" void ugkwpGpuResidentStrictSetDiagnosticSink(void*,const ugkp::diagnostics::HostSink*);
+
 #endif

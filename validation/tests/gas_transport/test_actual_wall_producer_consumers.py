@@ -39,7 +39,12 @@ struct ActualWall {
 def test_actual_wall_selected_face_and_sst_inventory(tmp_path,terminal):
     compile_probe(tmp_path,fixture()+AUDIT+SETUP+r'''
 int main(){State s;initialise(s);ActualWall wall(s);
-if(TERMINAL)wall.input.matching.temperature=std::numeric_limits<Real>::infinity();
+ugkp::diagnostics::DeviceContext diagnostic{};s.diagnostics=&diagnostic;wall.input.diagnostics=&diagnostic;
+if(TERMINAL){wall.input.matching.temperature=std::numeric_limits<Real>::infinity();
+ ugkwp::gaswall::WallStatus status;wall.output.traceTemperature=123;
+ ck(!ugkwp::gaswall::evaluateWallModel(wall.input,wall.config,wall.workspace,wall.output,status),"nonfinite wall temperature accepted");
+ ck(diagnostic.firstFatal.code==ugkp::diagnostics::Code::NonFinite&&std::isinf(diagnostic.firstFatal.observed),"temperature evidence lost");
+ ck(diagnostic.firstFatal.sourceSiteId==2403&&diagnostic.firstFatal.component==2&&wall.output.traceTemperature==123,"invalid wall published output");return 0;}
 wall.produce(s);auto&ex=s.gasBoundaryLayer.exchange[0];auto&closure=s.gasBoundaryLayer.sst[0];
 ck(ex.ready&&ex.k==0,"profile completion or high-Re k failed");
 ck(wall.output.traceTemperature==500&&wall.output.wallSpeciesFlux[0]==.007,"actual profile fields lost");
@@ -77,6 +82,7 @@ def test_actual_wall_positivity_energy_sink_and_outer_estimate(tmp_path):
     compile_probe(tmp_path,fixture()+SETUP+r'''
 struct EnergyState:State{struct{double*gasWallEnergy;double*gasWallFlux;int*gasWallEnergyMask;}wallEnergy;};
 int main(){EnergyState s;initialise(s);ActualWall wall(s);
+ugkp::diagnostics::DeviceContext diagnostic{};s.diagnostics=&diagnostic;wall.input.diagnostics=&diagnostic;
 wall.input.massFlux[0]=-.007;wall.input.massFlux[1]=.003;wall.produce(s);
 double energy[3]{},sink[3]={901,902,903};int mask[3]={0,1,0};s.wallEnergy={energy,sink,mask};
 s.gasBoundaryKind[1]=2;s.gasSpecies.positivityScale=new Real[4]{.2,.3,.4,.5};s.gasFluxPositivityScale[0]=.1;
@@ -87,7 +93,8 @@ const Real actual[7]={s.gasPhiRho[1],s.gasPhiRhoUx[1],s.gasPhiRhoUy[1],s.gasPhiR
 for(int j=0;j<7;++j)ck(actual[j]==fields[j]||(std::isnan(actual[j])&&std::isnan(fields[j])),"physical exchange partially limited");
 ck(sink[1]==s.gasPhiRhoE[1],"limited wall energy sink differs from actual gas energy");
 sink[1]=902;s.gasSpecies.faceStatus[1]=0;applyGasFluxPositivityScaleKernel(&s,true);
-ck(s.gasSpecies.faceStatus[1]==int(ugkwp::GasTransportCode::NegativeInventory)&&sink[1]==902,"strict native limiter certificate changed");
+ck(!ugkp::diagnostics::hasFatal(&diagnostic)&&s.gasSpecies.faceStatus[1]==0&&sink[1]==s.gasPhiRhoE[1],"finite limiter audit rejected physical exchange");
+ck(diagnostic.warnings[1].count>0,"limiter warning missing");
 s.gasSpecies.faceStatus[1]=0;s.gasSpecies.cellStatus[0]=0;
 // Outer estimation can use the accepted physical closure without solving a
 // fresh BVP. A real requested trial still requires its actual profile.

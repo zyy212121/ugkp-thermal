@@ -1,0 +1,21 @@
+[
+  "validation/tests/chemistry/test_stage_mathematical_controls.py",
+  "validation/tests/gas_wall/test_wall_feasible_derivatives.py",
+  "validation/tests/gas_wall/test_wall_jacobian_scale.py",
+  "validation/tests/test_chmt_math_globalization.py",
+  "validation/tests/test_chmt_ablation_diagnostics.py",
+  "validation/tests/test_chmt_conduction_energy_goal.py",
+  "validation/tests/test_host_audit_reduction.py",
+  "validation/tests/test_chmt_film_single_pass.py",
+  "validation/tests/test_chmt_phase_composition_diagnostic.py",
+  "validation/tests/test_geometry_globalization.py",
+  "validation/tests/test_geometry_single_pass_diagnostics.py",
+  "validation/tests/test_chmt_film_geometry_coupling.py",
+  "validation/tests/test_chmt_material_domain_diagnostics.py",
+  "validation/tests/test_chmt_audit_overflow_followup.py",
+  "validation/tests/test_chmt_surface_diagnostic_catalogue.py",
+  "validation/tests/test_interface_composition.py",
+  "validation/tests/test_composition_independent_review.py",
+  "validation/tests/test_diagnostics_core.py",
+  "validation/tests/test_surface_preflight_provenance.py"
+]

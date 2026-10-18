@@ -17,9 +17,7 @@ bool evaluateCpuSurface(const HostState&,const PhysicsConfig&,
     Real dt,std::uint64_t sequence,CpuSurfaceResult&,std::string&,
     const std::vector<Real>* sideMeshVolumeRate=nullptr,
     const std::vector<GasWallClosureContext>* wallContexts=nullptr,bool* numericalFailure=nullptr);
-namespace detail {
-bool completeCpuSurface(const HostState&,const PhysicsConfig&,const std::vector<GasPrimitive>&,const std::vector<GasGradient>&,const std::vector<SolidQ>&,const std::vector<FilmQ>&,Real,std::uint64_t,CpuSurfaceResult&,std::string&,const std::vector<Real>*,const std::vector<GasWallClosureContext>*,bool*);
-}
+
 
 }
 #endif

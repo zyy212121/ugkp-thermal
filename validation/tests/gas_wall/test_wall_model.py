@@ -37,7 +37,8 @@ def compile_run(tmp_path, body):
 
 def test_constant_limits_and_failure_atomicity(tmp_path):
     compile_run(tmp_path,r'''
- Model m;WallModelConfig<double> c;c.model=BoundaryLayerModel::ConstantTransport;
+ Model m;ugkp::diagnostics::DeviceContext diagnostic{};m.in.diagnostics=&diagnostic;
+ WallModelConfig<double> c;c.model=BoundaryLayerModel::ConstantTransport;
  WallWorkspace<double,2,32> w;WallOutput<double,2> o;WallStatus s;
  assert(evaluateWallModel(m.in,c,w,o,s));
  assert(near(o.traction[0],.02));assert(near(o.traction[1],0));
@@ -49,13 +50,17 @@ def test_constant_limits_and_failure_atomicity(tmp_path):
  const double pe=.001*1000*.01/.04;
  assert(near(o.conductiveHeatFlux,-.001*1000*200/std::expm1(pe)));
  m.in.temperature=-1;
- assert(evaluateWallModel(m.in,c,w,o,s));assert(o.traceTemperature==-1);
+ const auto saved=o;
+ assert(!evaluateWallModel(m.in,c,w,o,s));assert(diagnostic.firstFatal.code==ugkp::diagnostics::Code::NegativeTemperature&&diagnostic.firstFatal.observed==-1);
+ assert(o.traceTemperature==saved.traceTemperature&&o.conductiveHeatFlux==saved.conductiveHeatFlux);diagnostic={};
  m.in.temperature=300;m.in.massFlux[0]=-.1;
  assert(evaluateWallModel(m.in,c,w,o,s));assert(o.wallSpeciesFlux[0]==-.1);
  m.in.massFlux[0]=.0007;m.in.normal[1]=2;
  assert(evaluateWallModel(m.in,c,w,o,s));assert(std::isfinite(o.conductiveHeatFlux));
  m.in.temperature=std::numeric_limits<double>::quiet_NaN();
- assert(evaluateWallModel(m.in,c,w,o,s));assert(std::isnan(o.traceTemperature)&&std::isnan(o.conductiveHeatFlux));
+ const auto finite=o;
+ assert(!evaluateWallModel(m.in,c,w,o,s));assert(diagnostic.firstFatal.code==ugkp::diagnostics::Code::NonFinite&&std::isnan(diagnostic.firstFatal.observed));
+ assert(o.traceTemperature==finite.traceTemperature&&o.conductiveHeatFlux==finite.conductiveHeatFlux);
  assert(o.wallSpeciesFlux[0]==.0007&&o.matchingSpeciesFlux[1]==.0003);
  ''')
 

@@ -1,0 +1,86 @@
+"""Fixed physical interval: domain-safe stage Newton and final residual status."""
+import subprocess
+import pytest
+from validation.tools.paths import SOURCE_ROOT
+from validation.tests.chemistry.test_gas_rates import SOURCE
+
+@pytest.mark.parametrize('mode',[0,1,2])
+def test_stage_controls(tmp_path,mode):
+    prefix=SOURCE.split('int main(){')[0]
+    source=tmp_path/'stage.cpp'
+    source.write_text(prefix+r'''
+#include "common/chemistry/LocalStiffIntegrator.H"
+#include <iostream>
+int main(int argc,char**argv){const int mode=std::atoi(argv[1]);Model model;
+    model.re[0].coefficient=model.pr[0].coefficient=mode==0?.5:2.;model.rx[0].highRate.preExponential=1000.;
+    ugkp::diagnostics::DeviceContext diagnostics{};model.t.diagnostics=&diagnostics;
+    ClosedReactorInput<double,2> base;base.speciesMass[0]=.028;base.totalMass=.028;base.volume=.001;
+    base.internalEnergy=mixtureEnergy(base.speciesMass,700.,model.t);
+    ChemistryControls<double> controls;controls.relativeTolerance=1e-7;controls.absoluteMassFractionTolerance=1e-13;controls.maximumNewtonIterations=16;controls.maximumLineSearchIterations=24;
+    gasChemistryDetail::ReactorContext<double,2> ctx(base,model.t,model.m,controls);assert(ctx.prepare());
+    const double h=mode==0?1.:(mode==1?10.:100.);double rhs[2]{},z[2]{},T=700,f[2],mass[2],residual[2];
+    auto status=gasChemistryDetail::implicitStage(ctx,rhs,h,1.,z,T);assert(!diagnostics.fatalClaim);
+    auto checked=ctx.evaluate(z,f,T,nullptr,mass);assert(checked);for(int i=0;i<model.m.independentRank;++i)residual[i]=z[i]-h*f[i];
+    const double norm=gasChemistryDetail::coordinateNorm(ctx,residual,mass);
+    std::cerr<<"mode="<<mode<<" code="<<int(status.code)<<" norm="<<norm<<" observed="<<status.observed<<"\n";
+    assert(mass[0]>=0&&mass[1]>=0);
+    if(mode!=2){assert(status.code==ChemistryCode::Success);assert(norm<=controls.newtonTolerance);}
+    else{assert(status.code==ChemistryCode::NewtonFailure);assert(norm>controls.newtonTolerance);assert(std::abs(status.observed-norm)<=1e-10*std::max(1.,norm));}
+}''')
+    executable=tmp_path/'stage'
+    subprocess.run(['g++','-std=c++17','-O2','-I',str(SOURCE_ROOT),str(source),'-o',str(executable)],check=True,capture_output=True,text=True)
+    result=subprocess.run([str(executable),str(mode)],capture_output=True,text=True)
+    assert result.returncode==0,result.stdout+result.stderr
+
+def test_retained_factorization_solves_multiple_rhs_with_row_scaling_and_pivots(tmp_path):
+    source=tmp_path/'factor.cpp'
+    source.write_text(r'''#include "common/chemistry/NewtonFactor.H"
+#include <cassert>
+#include <cmath>
+int main(){using namespace ugkwp::gasChemistryDetail;
+    constexpr int N=4;double a[N*N]={0,2e20,1e20,0, 1e-20,-2e-20,-3e-20,0, 4,5,6,0, 0,0,0,0};
+    double original[N*N];for(int i=0;i<N*N;++i)original[i]=a[i];int pivot[N];double scale[N];
+    assert((factorNewton<double,N>(3,a,pivot,scale)));
+    for(int k=0;k<2;++k){double exact[3]={1.+k,-2.+k,3.+k},rhs[N]{};for(int i=0;i<3;++i)for(int j=0;j<3;++j)rhs[i]+=original[i*N+j]*exact[j];
+      assert((solveNewton<double,N>(3,a,pivot,scale,rhs)));for(int i=0;i<3;++i)assert(std::abs(rhs[i]-exact[i])<1e-12);
+    }
+}''')
+    executable=tmp_path/'factor'
+    subprocess.run(['g++','-std=c++17','-O2','-I',str(SOURCE_ROOT),str(source),'-o',str(executable)],check=True,capture_output=True,text=True)
+    result=subprocess.run([str(executable)],capture_output=True,text=True)
+    assert result.returncode==0,result.stdout+result.stderr
+
+def test_newton_matrix_fault_reaches_real_adapter_with_fpe_enabled(tmp_path):
+    source=tmp_path/'fpe.cpp'
+    source.write_text(r'''#define _GNU_SOURCE
+#include "common/chemistry/NewtonFactor.H"
+#include "common/operators/advanceGasChemistryKernel.cuh"
+#include <cassert>
+#include <cfenv>
+#include <limits>
+int main(){using namespace ugkwp;using namespace ugkwp::gasChemistryDetail;
+    feenableexcept(FE_OVERFLOW|FE_DIVBYZERO|FE_INVALID);
+    double a[4]={1e-300,0,0,1},scale[2],rhs[2]={1e300,1};int pivot[2];DenseLinearFailure failure;
+    assert((factorNewton<double,2>(2,a,pivot,scale,&failure)));
+    assert((!solveNewton<double,2>(2,a,pivot,scale,rhs,&failure)));
+    assert(failure.quantity==DenseLinearQuantity::ScaledRightHandSide&&failure.row==0&&std::isinf(failure.value));
+    struct State:GasStateView<double,double,int>{GasSpeciesState<double,2> gasSpecies;}state;
+    ugkp::diagnostics::DeviceContext diagnostic{};state.diagnostics=&diagnostic;state.nCells=1;
+    ChemistryStatus status;status.code=ChemistryCode::SingularJacobian;status.linearFailure=failure;
+    gasChemistryAdapterDetail::recordFailure(state,0,status);
+    assert(diagnostic.fatalClaim&&diagnostic.firstFatal.sourceSiteId==2207);
+    assert(std::isinf(diagnostic.firstFatal.observed)&&diagnostic.firstFatal.component==0);
+    const double largest=std::numeric_limits<double>::max();double value=0;
+    assert(newtonQuotient(largest,1.,value)&&value==largest);
+    assert(!newtonQuotient(largest,std::nextafter(1.,0.),value)&&std::isinf(value));
+    assert(newtonQuotient(std::nextafter(largest,0.),std::nextafter(1.,0.),value)&&std::isfinite(value));
+    assert(newtonDifferenceProduct(largest,2.,largest,value)&&value==-largest);
+    assert(newtonDifferenceProduct(largest,-largest,std::numeric_limits<double>::epsilon()/4,value)&&value==largest);
+    double b[4]={1,1,1,1+4*std::numeric_limits<double>::epsilon()},r[2]={1e308,-1e308};
+    assert((factorNewton<double,2>(2,b,pivot,scale,&failure)));
+    assert((!solveNewton<double,2>(2,b,pivot,scale,r,&failure)));assert(std::isinf(failure.value));
+}''')
+    executable=tmp_path/'fpe'
+    subprocess.run(['g++','-std=c++17','-O2','-I',str(SOURCE_ROOT),str(source),'-o',str(executable)],check=True,capture_output=True,text=True)
+    result=subprocess.run([str(executable)],capture_output=True,text=True)
+    assert result.returncode==0,result.stdout+result.stderr

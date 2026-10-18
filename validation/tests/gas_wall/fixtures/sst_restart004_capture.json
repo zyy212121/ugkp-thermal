@@ -1,0 +1,123 @@
+{
+  "origin": "real CUDA diagnostic capture",
+  "source_pr": "d08392460df665af60c8b32897a450a7fb8b1fa6",
+  "source_calculation": "563826725cf3e5930e4bb6ee7b742aaa763685d6",
+  "time": 0.004,
+  "face": 53683,
+  "step": 8889,
+  "original_failure_exactly_reproduced": false,
+  "physical_input": {
+    "wallInput": {
+      "pressure": 120497.45682037952,
+      "temperature": 290.5321641847456,
+      "matchingDistance": 0.00038621604072598334,
+      "ownerDistance": 0.000127388555559755,
+      "integrateOwnerKSource": 0,
+      "massFlux": [
+        0,
+        0
+      ],
+      "wallVelocity": [
+        0,
+        0,
+        0
+      ],
+      "normal": [
+        0,
+        1,
+        0
+      ],
+      "matching": {
+        "temperature": 283.5516101018127,
+        "k": 8.946693975448385,
+        "omega": 123066.88751570872,
+        "velocity": [
+          112.41422500408262,
+          0.0240691134792676,
+          -1.0739281260962084e-11
+        ],
+        "massFraction": [
+          1,
+          0
+        ]
+      }
+    },
+    "config": {
+      "family": 2,
+      "model": 1,
+      "nodes": 24,
+      "maxIterations": 60,
+      "relativeTolerance": 1e-08,
+      "absoluteTolerance": 1e-10,
+      "stretch": 2,
+      "turbulentPrandtl": 0.9,
+      "turbulentSchmidt": 0.7,
+      "enableSst": 1
+    },
+    "gasModel": {
+      "mode": 1,
+      "viscosity": 1.72444215376571e-05,
+      "conductivity": 0.024062554456035615,
+      "molecularPrandtl": 0.72,
+      "diffusivity": [
+        1.349008926094228e-05,
+        1.349008926094228e-05
+      ],
+      "sstCoefficients": {
+        "alphaK1": 0.85,
+        "alphaK2": 1,
+        "alphaOmega1": 0.5,
+        "alphaOmega2": 0.856,
+        "beta1": 0.075,
+        "beta2": 0.0828,
+        "betaStar": 0.09,
+        "gamma1": 0.5555555555555556,
+        "gamma2": 0.44,
+        "a1": 0.31,
+        "b1": 1,
+        "c1": 10
+      }
+    },
+    "thermo": {
+      "coefficientCount": 6,
+      "elementCount": 0,
+      "speciesOrderHash": 15058184710006340429,
+      "thermoHash": 12035137559849645810,
+      "species": [
+        {
+          "model": 0,
+          "coefficientOffset": 0,
+          "molarMass": 0.028965206821645145,
+          "minTemperature": 40,
+          "midTemperature": 0,
+          "maxTemperature": 2000,
+          "referencePressure": 101325,
+          "referenceTemperature": 0,
+          "referenceEntropy": 0,
+          "hasEntropyReference": 0
+        },
+        {
+          "model": 0,
+          "coefficientOffset": 3,
+          "molarMass": 0.0440095,
+          "minTemperature": 40,
+          "midTemperature": 0,
+          "maxTemperature": 2000,
+          "referencePressure": 101325,
+          "referenceTemperature": 0,
+          "referenceEntropy": 0,
+          "hasEntropyReference": 0
+        }
+      ],
+      "coefficients": [
+        1004.675,
+        0,
+        0,
+        843.6806256656001,
+        0,
+        0
+      ],
+      "elements": []
+    }
+  }
+}

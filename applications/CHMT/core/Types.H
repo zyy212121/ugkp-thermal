@@ -149,6 +149,7 @@ struct FilmPressureVolumeUpdate {
     // Storage conversion [J], once per face/stage AFTER all physical packets.
 };
 struct Tolerances {
+    ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
     Real absoluteMass=1e-14,relativeMass=1e-10,absoluteEnergy=1e-10,relativeEnergy=1e-10;
     Real absoluteTemperature=1e-10,relativeTemperature=1e-12,absoluteGeometry=1e-14,relativeGeometry=1e-10;
     int maxCouplingIterations=30,maxRetries=12;

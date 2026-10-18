@@ -150,17 +150,16 @@ assert(buildWallGeometry(m,0,d,s));checkMoments(d,{.5,.5,.5},1);
     assert 'runtime error' not in run.stderr
 
 
-def test_nonfinite_stage_volume_completes_actual_geometry_fields(tmp_path):
+def test_nonfinite_stage_volume_does_not_publish_invalid_geometry(tmp_path):
     compile_run(tmp_path, r'''
-for(bool quadrature:{false,true}){
- auto m=cubes();m.volumes[0]=std::numeric_limits<double>::infinity();
+for(bool quadrature:{false,true})for(double volume:{std::numeric_limits<double>::infinity(),
+    -std::numeric_limits<double>::infinity(),std::numeric_limits<double>::quiet_NaN()}){
+ auto m=cubes();m.volumes[0]=volume;
  WallGeometryOptions<double> o;o.constructQuadrature=quadrature;WallGeometryDescriptor<double>d;WallStatus s;
- d.firstMoment=917;d.matchingDistance=918;assert(buildWallGeometry(m,0,d,s,o));
- assert(d.matchingCells==std::vector<int>{1}&&d.matchingWeights==std::vector<double>{1});
- assert(d.matchingDistance==1.5&&d.ownerDistance==.5&&d.geometryVolume==1);
- assert(std::isinf(d.volume)&&std::isinf(d.firstMoment)&&std::isinf(d.firstMomentVector[0]));
- if(quadrature){assert(!d.volumeWeight.empty());for(double weight:d.volumeWeight)assert(std::isinf(weight));}
- else assert(d.distance.empty()&&d.volumeWeight.empty());
+ d.firstMoment=917;d.matchingDistance=918;d.matchingCells={-99};d.distance={-98};
+ assert(!buildWallGeometry(m,0,d,s,o));assert(s.code==WallCode::InvalidGeometry);
+ assert(d.firstMoment==917&&d.matchingDistance==918);
+ assert(d.matchingCells==std::vector<int>{-99}&&d.distance==std::vector<double>{-98});
 }
 ''')
 

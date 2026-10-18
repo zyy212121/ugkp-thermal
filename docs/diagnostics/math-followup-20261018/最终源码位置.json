@@ -1,0 +1,17 @@
+{
+  "common/gasWall/ReactingWallLayer.H::pointState": 25,
+  "common/gasWall/ReactingWallLayer.H::applyLayerNewtonUpdate": 348,
+  "common/gasWall/ReactingWallLayer.H::assembleJacobianNode": 393,
+  "common/chemistry/LocalStiffIntegrator.H::implicitStage": 97,
+  "applications/CHMT/ablation/InterfaceComposition.H::scalarSolve": 694,
+  "applications/CHMT/ablation/InterfaceComposition.H::recoverPole": 590,
+  "applications/CHMT/ablation/InterfaceComposition.H::publishSelection": 676,
+  "applications/CHMT/ablation/InterfaceMath.H::compositionResidualPolicy": 39,
+  "applications/CHMT/ablation/InterfaceMath.H::interfaceSpeciesModelFailure": 125,
+  "applications/CHMT/ablation/InterfaceMath.H::surfaceTemperatureConfiguration": 654,
+  "applications/CHMT/ablation/InterfaceMath.H::findFeasibleSurfaceRoot": 739,
+  "applications/CHMT/materials/Thermodynamics.H::invertMaterialEnergy": 101,
+  "applications/CHMT/materials/CpuMaterialDriver.C::nativeConduction": 40,
+  "common/gasWall/WallGeometryBuilder.H::cellSeed": 171,
+  "applications/CHMT/mesh/Geometry.C::constrainedMotionImpl": 757
+}

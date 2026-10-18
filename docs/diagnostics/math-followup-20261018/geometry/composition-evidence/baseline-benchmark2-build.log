@@ -1,0 +1,2 @@
+['g++', '-std=c++14', '-O2', '-ffp-contract=off', '-DUGKWP_GAS_SPECIES=2', '-I/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/geometry/composition-analysis/baseline/applications/CHMT', '-I/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/geometry/composition-analysis/baseline/common', '/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/geometry/composition-analysis/benchmark.cpp', '-o', '/mnt/d/tempt/ugkp-pr19-math-fixes-20261018/geometry/composition-analysis/baseline-benchmark2']
+EXIT 0

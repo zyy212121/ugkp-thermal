@@ -10,11 +10,11 @@ int main(){using namespace ugkwp;
 const std::size_t GiB=std::size_t(1)<<30;
 const std::size_t bytes=sizeof(gaswall::WallWorkspace<double,10,48>);
 auto r=resolveBoundaryLayerWorkspace(100000,0,80,8*GiB,bytes);
-assert(r.slots==2560&&r.bytes==2560*std::size_t(bytes)&&r.budget==GiB);
-r=resolveBoundaryLayerWorkspace(100000,0,200,8*GiB,bytes);assert(r.slots==4096);
+assert(r.slots==2560&&r.bytes==2560*std::size_t(bytes)&&r.budget==0);
+r=resolveBoundaryLayerWorkspace(100000,0,200,8*GiB,bytes);assert(r.slots==6400);
 r=resolveBoundaryLayerWorkspace(17,0,80,8*GiB,bytes);assert(r.slots==17);
-r=resolveBoundaryLayerWorkspace(1000,0,80,8*bytes,bytes);assert(r.slots==1);
-assert(resolveBoundaryLayerWorkspace(1000,0,80,8*bytes-1,bytes).slots==1);
+r=resolveBoundaryLayerWorkspace(1000,0,80,8*bytes,bytes);assert(r.slots==1000);
+assert(resolveBoundaryLayerWorkspace(1000,0,80,8*bytes-1,bytes).slots==1000);
 assert(resolveBoundaryLayerWorkspace(1000,0,0,8*GiB,bytes).slots==32);
 assert(resolveBoundaryLayerWorkspace(1000,4097,80,8*GiB,bytes).slots==1000);
 r=resolveBoundaryLayerWorkspace(1000,32,0,32*bytes,bytes);assert(r.slots==32);
@@ -34,7 +34,7 @@ def test_advisory_memory_cannot_refuse_an_actual_workspace(tmp_path):
 #include <cassert>
 int main(){using namespace ugkwp;
 const std::size_t bytes=gasBoundaryLayerWorkspaceBytes<double,2>(24);
-auto r=resolveBoundaryLayerWorkspace(12,0,80,0,bytes);assert(r.slots==1&&r.bytes==bytes);
+auto r=resolveBoundaryLayerWorkspace(12,0,80,0,bytes);assert(r.slots==12&&r.bytes==12*bytes);
 r=resolveBoundaryLayerWorkspace(12,5000,80,0,bytes);assert(r.slots==12&&r.bytes==12*bytes);
 r=resolveBoundaryLayerWorkspace(10000,5000,80,0,bytes);assert(r.slots==5000&&r.bytes==5000*bytes);
 r=resolveBoundaryLayerWorkspace(12,0,0,0,bytes);assert(r.slots>=1&&r.bytes==std::size_t(r.slots)*bytes);

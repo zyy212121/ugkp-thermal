@@ -45,7 +45,7 @@ int main(){
 
 def test_energy_flux_accumulator_is_independent_from_real(tmp_path):
     compile_probe(tmp_path,energy_fixture()+r'''
-int main(){State s;initialise(s);s.nCells=1;s.cellPlaneCount[0]=3;s.cellFaceId[2]=2;s.faceOwner[2]=0;
+int main(){State s;initialise(s);s.cellPlaneCount[0]=3;s.cellFaceId[2]=2;s.faceOwner[2]=0;
 s.rhoE[0]=1e9;s.gasPhiRhoE[0]=Real(1e8);s.gasPhiRhoE[1]=Real(.03);s.gasPhiRhoE[2]=Real(-1e8);
 applyGasFluxDivergenceByCellKernel(&s,1.);closeEnergy(s.rhoE[0],1e9L-(long double)Real(.03),"signed face sum lost small flux");}
 ''')

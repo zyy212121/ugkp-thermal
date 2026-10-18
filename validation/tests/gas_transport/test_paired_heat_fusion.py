@@ -326,9 +326,12 @@ def fusion_binary( tmp_path_factory):
         'if constexpr(std::is_same_v<T,double>){for(int c=0;c<3;++c)if((traceA&&target==traceA+c)||(traceQ&&target==traceQ+c)||(traceC&&target==traceC+c))++traceCalls;}\n'
         'T old=*target;*target+=value;return old;}')
     helpers = fixture[fixture.index('void require('):fixture.index('template<class F> int launch8')]
+    prefix = prefix.replace('struct DeviceState {', '#include "Diagnostics.H"\nstruct DeviceState {\n ugkp::diagnostics::DeviceContext* diagnostics=nullptr;\n')
     recovery = (ROOT/'common/operators/computeSstFaceFluxKernel.cuh').read_text()
     (build/'actual_gas_recovery.cuh').write_text(
         '#include "gasTransport/GasCapabilities.H"\n#include "gasTransport/MixtureThermo.H"\n#include "gasTransport/GasGeometryValidation.H"\n'
+        + '#include "operators/gasStencilDiagnostics.cuh"\n'
+        + recovery[recovery.index('template<class GasState,class Scalar>'):recovery.index('template<class GasState>\n__device__ void sstInternalRhoDiffusivities')]
         + function(recovery, 'template<class GasState>\n__device__ void recoverGasPrimitiveCell'))
     conductivity = (ROOT/'common/operators/updateLegacyGasBoundaryMirrorKernel.cuh').read_text()
     (build/'route_conductivity.cuh').write_text('#include "gasTransport/GasStateView.H"\n'

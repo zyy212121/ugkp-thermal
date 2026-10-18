@@ -17,29 +17,37 @@ UGKWP_GAS_HD inline bool gasFinite(const Real x) noexcept
         && x >= -(std::numeric_limits<Real>::max)();
 }
 
-// Recovery already admits independently transported densities within its
-// configured closure tolerance. Construct a disposable composition on the
-// simplex from that same accepted inventory, without modifying any inventory.
-// Close on the largest component so roundoff cannot create an absent species.
-// Invalid inventories are left to the existing caller validation unchanged.
+// Fractions preserve independently transported species inventories. A closure
+// residual is diagnostic only; finite component clipping never renormalizes Y.
 template<class Real,int Ns>
 UGKWP_GAS_HD inline bool mixtureMassFractionsFromDensities(
-    const Real* partial,Real density,Real closureTolerance,Real* fractions) noexcept
+    const Real* partial,Real density,Real closureTolerance,Real* fractions,
+    ugkp::diagnostics::DeviceContext* diagnostics=nullptr) noexcept
 {
-    if(!partial||!fractions||!gasFinite(density)||!(density>Real(0))
-        ||!gasFinite(closureTolerance)||closureTolerance<Real(0))return false;
-    Real total=0;int dependent=0;
-    for(int k=0;k<Ns;++k){
-        if(!gasFinite(partial[k])||partial[k]<Real(0))return false;
-        total+=partial[k];if(partial[k]>partial[dependent])dependent=k;
+    using namespace ugkp::diagnostics;
+    if(!partial || !fractions) return false;
+    if(!gasFinite(density) || density==Real(0)) {
+        if(diagnostics)recordFatal(diagnostics,makeRecord(!gasFinite(density)?Code::NonFinite:Code::ZeroDenominator,2301,0,0,EntityKind::None,-1,-1,density,0,0,Quantity::Density));
+        return false;
     }
-    if(!gasFinite(total)||!(total>Real(0))
-        ||::fabs(total-density)>closureTolerance*density)return false;
-    Real local[Ns],sum=0;
-    for(int k=0;k<Ns;++k)if(k!=dependent){local[k]=partial[k]/total;sum+=local[k];}
-    local[dependent]=Real(1)-sum;
-    if(!gasFinite(local[dependent])||local[dependent]<Real(0)||local[dependent]>Real(1))return false;
-    for(int k=0;k<Ns;++k)fractions[k]=local[k];
+    Real total=0;
+    for(int k=0;k<Ns;++k){
+        const Real value=partial[k]/density;
+        if(!gasFinite(value)) {
+            if(diagnostics)recordFatal(diagnostics,makeRecord(Code::NonFinite,10000,0,0,EntityKind::Species,k,k,value,0,0,Quantity::MassFraction));
+            return false;
+        }
+        total+=value;
+        if(!gasFinite(total)) {
+            recordWarning(diagnostics,makeRecord(Code::ConservationResidual,10001,0,0,EntityKind::Species,k,k,total,1,total,Quantity::Conservation));
+            // Preserve bounded fractions; total is only a closure diagnostic.
+        }
+        const Real clipped=value<Real(0)?Real(0):(value>Real(1)?Real(1):value);
+        if(clipped!=value)recordWarning(diagnostics,makeRecord(Code::FiniteYClip,10002,0,0,EntityKind::Species,k,k,value,0,clipped,Quantity::MassFraction));
+        fractions[k]=clipped;
+    }
+    if(!gasFinite(total) || ::fabs(total-Real(1))>closureTolerance)
+        recordWarning(diagnostics,makeRecord(Code::ConservationResidual,10003,0,0,EntityKind::None,-1,-1,total,1,total,Quantity::Conservation));
     return true;
 }
 
@@ -78,73 +86,74 @@ struct SpeciesValues
     Real cp, cv, h, e, entropy;
 };
 
+// POD failures propagate to the owning host/device operation. Optional context
+// records the same failure immediately; no alternate property evaluation occurs.
+UGKWP_GAS_HD inline ThermoStatus failure(ugkp::diagnostics::DeviceContext* ctx,
+    ThermoStatus status,ugkp::diagnostics::Code code,int species,double value,
+    unsigned quantity=ugkp::diagnostics::Quantity::Unspecified) noexcept
+{
+    if(ctx)ugkp::diagnostics::recordFatal(ctx,ugkp::diagnostics::makeRecord(code,2302,0,0,
+        ugkp::diagnostics::EntityKind::Species,species,species,value,0,0,quantity));
+    return status;
+}
+
 template<class Real, int Ns, class TableReal, bool Complete=true, bool CompleteEnthalpy=false, bool CompleteEntropy=false>
 UGKWP_GAS_HD inline ThermoStatus evaluateSpecies
 (
     int species, Real temperature, const SpeciesThermoView<TableReal,Ns>& view,
-    SpeciesValues<Real>& output,bool* evaluated=nullptr
+    SpeciesValues<Real>& output,bool* evaluated=nullptr,Real* nonfiniteValue=nullptr
 ) noexcept
 {
+    using namespace ugkp::diagnostics;
     if(evaluated)*evaluated=false;
-    const bool declared=validMetadata(species,view);
-    if (!declared && (!Complete || !view.species || !view.coefficients))
-        return ThermoStatus::InvalidModel;
-    if (!Complete && !gasFinite(temperature)) return ThermoStatus::NonFiniteInput;
-    const SpeciesThermoData<TableReal>& data = view.species[species];
-    if(!declared && data.model!=SpeciesThermoModel::LinearCp
-        && data.model!=SpeciesThermoModel::NASA7)return ThermoStatus::InvalidModel;
-    const TableReal* c = view.coefficients + data.coefficientOffset;
-    const Real R = universalGasConstant<Real>()/data.molarMass;
-    const int available=declared?view.coefficientCount-data.coefficientOffset:0;
-
-
-    bool completeCoefficients=!declared;
-    ThermoStatus failure=!declared?ThermoStatus::InvalidModel
-        : (Complete && !gasFinite(temperature)?ThermoStatus::NonFiniteInput:ThermoStatus::Success);
+    if(species<0 || species>=Ns)
+        return failure(view.diagnostics,ThermoStatus::InvalidModel,Code::InvalidIndex,species,species,Quantity::Index);
+    if(!validMetadata(species,view))
+        return failure(view.diagnostics,ThermoStatus::InvalidModel,Code::MissingOperator,species,0);
+    if(!gasFinite(temperature))
+        return failure(view.diagnostics,ThermoStatus::NonFiniteInput,Code::NonFinite,species,temperature,Quantity::Temperature);
+    if(temperature<Real(0))
+        return failure(view.diagnostics,ThermoStatus::TemperatureOutOfRange,Code::NegativeTemperature,species,temperature,Quantity::Temperature);
+    const auto& data=view.species[species];
+    if(CompleteEntropy && data.model==SpeciesThermoModel::LinearCp && !data.hasEntropyReference)
+        return failure(view.diagnostics,ThermoStatus::InvalidModel,Code::MissingOperator,species,0);
+    if(!gasFinite(data.molarMass) || data.molarMass==Real(0))
+        return failure(view.diagnostics,ThermoStatus::InvalidModel,!gasFinite(data.molarMass)?Code::NonFinite:Code::ZeroDenominator,species,data.molarMass,Quantity::Denominator);
+    const Real R=universalGasConstant<Real>()/data.molarMass;
+    const int segment=data.model==SpeciesThermoModel::NASA7 && temperature>data.midTemperature?7:0;
+    const int available=view.coefficientCount-data.coefficientOffset-segment;
+    const int required=data.model==SpeciesThermoModel::LinearCp?2:5;
+    if(available<required || (CompleteEnthalpy && available<(required+1)) || (CompleteEntropy && data.model==SpeciesThermoModel::NASA7 && available<7))
+        return failure(view.diagnostics,ThermoStatus::InvalidModel,Code::InvalidIndex,species,available,Quantity::Index);
+    const TableReal* c=view.coefficients+data.coefficientOffset+segment;
     SpeciesValues<Real> local;
-    if (data.model == SpeciesThermoModel::LinearCp)
-    {
-        local.cp = c[0] + c[1]*temperature;
-
-
-
-        if(Complete && CompleteEnthalpy && !completeCoefficients && available<3
-            && failure==ThermoStatus::Success)failure=ThermoStatus::NonFiniteInput;
-        local.h = completeCoefficients || (Complete && CompleteEnthalpy) || available>=3
-            ? c[2] + temperature*(c[0] + Real(0.5)*c[1]*temperature) : invalidValue<Real>();
-        local.entropy = data.hasEntropyReference || (Complete && CompleteEntropy)
-            ? data.referenceEntropy + c[0]*::log(temperature/data.referenceTemperature)
-                + c[1]*(temperature-data.referenceTemperature)
-            : invalidValue<Real>();
-    }
-    else
-    {
-        const int segment=temperature>data.midTemperature?7:0;
-        if(!completeCoefficients && available-segment<5) {
-            if(!Complete)return ThermoStatus::InvalidModel;
-            completeCoefficients=true;
-            if(failure==ThermoStatus::Success)failure=ThermoStatus::InvalidModel;
+    if(data.model==SpeciesThermoModel::LinearCp) {
+        local.cp=c[0]+c[1]*temperature;
+        local.h=available>=3?c[2]+temperature*(c[0]+Real(.5)*c[1]*temperature):invalidValue<Real>();
+        local.entropy=invalidValue<Real>();
+        if(data.hasEntropyReference) {
+            if(temperature==Real(0) || data.referenceTemperature<=Real(0)) {
+                if(CompleteEntropy)
+                    return failure(view.diagnostics,ThermoStatus::NonFiniteInput,Code::ZeroDenominator,species,temperature,Quantity::Temperature);
+            } else {
+                local.entropy=data.referenceEntropy+c[0]*::log(temperature/data.referenceTemperature)+c[1]*(temperature-data.referenceTemperature);
+            }
         }
-        c+=segment;
-        local.cp = R*(c[0]+temperature*(c[1]+temperature*(c[2]+temperature*(c[3]+temperature*c[4]))));
-        if(Complete && CompleteEnthalpy && !completeCoefficients && available-segment<6
-            && failure==ThermoStatus::Success)failure=ThermoStatus::NonFiniteInput;
-        local.h = completeCoefficients || (Complete && CompleteEnthalpy) || available-segment>=6
-            ? R*(c[5]+temperature*(c[0]+temperature*(c[1]/Real(2)
-                +temperature*(c[2]/Real(3)+temperature*(c[3]/Real(4)+temperature*c[4]/Real(5))))))
-            : invalidValue<Real>();
-        local.entropy = completeCoefficients || (Complete && CompleteEntropy) || available-segment>=7
-            ? R*(c[0]*::log(temperature)+c[6]+temperature*(c[1]
-                +temperature*(c[2]/Real(2)+temperature*(c[3]/Real(3)+temperature*c[4]/Real(4)))))
-            : invalidValue<Real>();
+    } else {
+        local.cp=R*(c[0]+temperature*(c[1]+temperature*(c[2]+temperature*(c[3]+temperature*c[4]))));
+        local.h=available>=6?R*(c[5]+temperature*(c[0]+temperature*(c[1]/Real(2)+temperature*(c[2]/Real(3)+temperature*(c[3]/Real(4)+temperature*c[4]/Real(5)))))):invalidValue<Real>();
+        local.entropy=available>=7 && temperature>Real(0)?R*(c[0]*::log(temperature)+c[6]+temperature*(c[1]+temperature*(c[2]/Real(2)+temperature*(c[3]/Real(3)+temperature*c[4]/Real(4))))):invalidValue<Real>();
     }
-    local.cv = local.cp-R;
-    local.e = local.h-R*temperature;
-
-
-    output = local;
-    if(evaluated)*evaluated=true;
-    return failure;
+    local.cv=local.cp-R;local.e=local.h-R*temperature;
+    if(!gasFinite(local.cp) || !gasFinite(local.cv) || (CompleteEnthalpy && !gasFinite(local.h)) || (CompleteEntropy && !gasFinite(local.entropy))) {
+        const Real observed=!gasFinite(local.cp)?local.cp:(!gasFinite(local.cv)?local.cv:((CompleteEnthalpy && !gasFinite(local.h))?local.h:local.entropy));
+        // A face producer can retain the actual property fault while supplying
+        // its own entity/operator context; failed output remains unpublished.
+        if(nonfiniteValue)*nonfiniteValue=observed;
+        return failure(view.diagnostics,ThermoStatus::NonFiniteInput,Code::NonFinite,species,observed);
+    }
+    output=local;if(evaluated)*evaluated=true;
+    return ThermoStatus::Success;
 }
 
 } // namespace gasThermoDetail
@@ -159,20 +168,25 @@ UGKWP_GAS_HD inline ThermoStatus validateSpeciesThermoView
     return ThermoStatus::Success;
 }
 
-#define UGKWP_DEFINE_SPECIES_PROPERTY(Name, Member) \
+#define UGKWP_DEFINE_SPECIES_PROPERTY(Name, Member, NeedH, NeedS) \
 template<class Real, int Ns, class TableReal> \
 UGKWP_GAS_HD inline Real Name \
 (int species,Real temperature,const SpeciesThermoView<TableReal,Ns>& view) noexcept \
 { \
-    gasThermoDetail::SpeciesValues<Real> values; \
-    return gasThermoDetail::evaluateSpecies<Real,Ns,TableReal,false>(species,temperature,view,values)==ThermoStatus::Success \
-        && gasFinite(values.Member) ? values.Member : gasThermoDetail::invalidValue<Real>(); \
+    gasThermoDetail::SpeciesValues<Real> values{}; \
+    if(gasThermoDetail::evaluateSpecies<Real,Ns,TableReal,false,NeedH,NeedS>(species,temperature,view,values)!=ThermoStatus::Success) \
+        return gasThermoDetail::invalidValue<Real>(); \
+    if(!gasFinite(values.Member)) { \
+        gasThermoDetail::failure(view.diagnostics,ThermoStatus::NonFiniteInput,ugkp::diagnostics::Code::NonFinite,species,values.Member); \
+        return gasThermoDetail::invalidValue<Real>(); \
+    } \
+    return values.Member; \
 }
-UGKWP_DEFINE_SPECIES_PROPERTY(speciesCp,cp)
-UGKWP_DEFINE_SPECIES_PROPERTY(speciesCv,cv)
-UGKWP_DEFINE_SPECIES_PROPERTY(speciesH,h)
-UGKWP_DEFINE_SPECIES_PROPERTY(speciesE,e)
-UGKWP_DEFINE_SPECIES_PROPERTY(speciesEntropyStandard,entropy)
+UGKWP_DEFINE_SPECIES_PROPERTY(speciesCp,cp,false,false)
+UGKWP_DEFINE_SPECIES_PROPERTY(speciesCv,cv,false,false)
+UGKWP_DEFINE_SPECIES_PROPERTY(speciesH,h,true,false)
+UGKWP_DEFINE_SPECIES_PROPERTY(speciesE,e,true,false)
+UGKWP_DEFINE_SPECIES_PROPERTY(speciesEntropyStandard,entropy,false,true)
 #undef UGKWP_DEFINE_SPECIES_PROPERTY
 
 template<class Real,int Ns,class TableReal>
@@ -180,12 +194,15 @@ UGKWP_GAS_HD inline Real speciesGibbsStandard
 (int species,Real temperature,const SpeciesThermoView<TableReal,Ns>& view) noexcept
 {
     gasThermoDetail::SpeciesValues<Real> values;
-    if(gasThermoDetail::evaluateSpecies<Real,Ns,TableReal,false>(species,temperature,view,values)!=ThermoStatus::Success)
+    if(gasThermoDetail::evaluateSpecies<Real,Ns,TableReal,false,true,true>(species,temperature,view,values)!=ThermoStatus::Success)
         return gasThermoDetail::invalidValue<Real>();
     const Real gibbs=values.h-temperature*values.entropy;
+    if(!gasFinite(gibbs))gasThermoDetail::failure(view.diagnostics,ThermoStatus::NonFiniteInput,ugkp::diagnostics::Code::NonFinite,species,gibbs);
     return gasFinite(gibbs)?gibbs:gasThermoDetail::invalidValue<Real>();
 }
 
+// Legacy Refinement/Complete template switches remain source-compatible only;
+// they never select an alternate evaluator or change result acceptance.
 // The arrays contain masses [kg], not mass fractions or molar concentrations.
 // Supplying mass fractions is valid only when intentionally evaluating one kg.
 template<bool Refinement=false,class Real,int Ns,class TableReal,bool Complete=!Refinement,bool CompleteEnthalpy=false>
@@ -196,44 +213,18 @@ UGKWP_GAS_HD inline ThermoStatus evaluateMixtureEnergy
 ) noexcept
 {
     if(evaluated)*evaluated=false;
-    if(!speciesMass) return ThermoStatus::InvalidComposition;
-    Real totalMass=Real(0),localEnergy=Real(0),localCapacity=Real(0);
-    ThermoStatus failure=ThermoStatus::Success;
-    for(int s=0;s<Ns;++s)
-    {
-        if(!gasFinite(speciesMass[s]) || (Refinement && speciesMass[s]<Real(0))) {
-            if(!Complete || Refinement) return ThermoStatus::InvalidComposition;
-            if(failure==ThermoStatus::Success)failure=ThermoStatus::InvalidComposition;
-        }
+    if(!speciesMass)return ThermoStatus::InvalidComposition;
+    Real localEnergy=0,localCapacity=0;
+    for(int k=0;k<Ns;++k) {
+        if(!gasFinite(speciesMass[k]))return gasThermoDetail::failure(view.diagnostics,ThermoStatus::InvalidComposition,ugkp::diagnostics::Code::NonFinite,k,speciesMass[k]);
         gasThermoDetail::SpeciesValues<Real> values;
-        bool speciesEvaluated=false;
-        const ThermoStatus status=gasThermoDetail::evaluateSpecies<Real,Ns,TableReal,Complete && !Refinement,CompleteEnthalpy && !Refinement>
-            (s,temperature,view,values,Complete && !Refinement?&speciesEvaluated:nullptr);
-        if(status!=ThermoStatus::Success) {
-            if(!Complete || Refinement || !speciesEvaluated) return status;
-            if(failure==ThermoStatus::Success)failure=status;
-        }
-        if(Refinement) {
-            if(temperature<view.species[s].minTemperature || temperature>view.species[s].maxTemperature)
-                return ThermoStatus::TemperatureOutOfRange;
-            if(!gasFinite(values.cp) || !gasFinite(values.cv) || !gasFinite(values.h) || !gasFinite(values.e))
-                return ThermoStatus::NonFiniteInput;
-            if(!(values.cv>Real(0))) return ThermoStatus::NonPositiveHeatCapacity;
-            totalMass+=speciesMass[s];
-        }
-        localEnergy+=speciesMass[s]*values.e;
-        localCapacity+=speciesMass[s]*values.cv;
+        const auto status=gasThermoDetail::evaluateSpecies<Real,Ns,TableReal,false,true>(k,temperature,view,values);
+        if(status!=ThermoStatus::Success)return status;
+        localEnergy+=speciesMass[k]*values.e;localCapacity+=speciesMass[k]*values.cv;
     }
-    if(Refinement && (!gasFinite(totalMass) || !(totalMass>Real(0)))) return ThermoStatus::InvalidComposition;
-    if(!gasFinite(localEnergy) || !gasFinite(localCapacity)) {
-        if(!Complete || Refinement)return ThermoStatus::NonFiniteInput;
-        if(failure==ThermoStatus::Success)failure=ThermoStatus::NonFiniteInput;
-    }
-    if(Refinement && !(localCapacity>Real(0))) return ThermoStatus::NonPositiveHeatCapacity;
-    energy=localEnergy;
-    heatCapacity=localCapacity;
-    if(evaluated)*evaluated=true;
-    return failure;
+    if(!gasFinite(localEnergy)||!gasFinite(localCapacity))return gasThermoDetail::failure(view.diagnostics,ThermoStatus::NonFiniteInput,ugkp::diagnostics::Code::NonFinite,-1,!gasFinite(localEnergy)?localEnergy:localCapacity);
+    energy=localEnergy;heatCapacity=localCapacity;if(evaluated)*evaluated=true;
+    return ThermoStatus::Success;
 }
 
 
@@ -245,22 +236,8 @@ UGKWP_GAS_HD inline ThermoStatus evaluateMixtureInternalEnergy
     Real& energy,bool* evaluated=nullptr
 ) noexcept
 {
-    if(evaluated)*evaluated=false;
-    if(!speciesMass)return ThermoStatus::InvalidComposition;
-    Real localEnergy=Real(0);ThermoStatus failure=ThermoStatus::Success;
-    for(int species=0;species<Ns;++species)
-    {
-        if(!gasFinite(speciesMass[species]) && failure==ThermoStatus::Success)
-            failure=ThermoStatus::InvalidComposition;
-        gasThermoDetail::SpeciesValues<Real> values;bool propertyEvaluated=false;
-        const auto status=gasThermoDetail::evaluateSpecies<Real,Ns,TableReal,true,true>
-            (species,temperature,view,values,&propertyEvaluated);
-        if(!propertyEvaluated)return status;
-        if(status!=ThermoStatus::Success && failure==ThermoStatus::Success)failure=status;
-        localEnergy+=speciesMass[species]*values.e;
-    }
-    if(!gasFinite(localEnergy) && failure==ThermoStatus::Success)failure=ThermoStatus::NonFiniteInput;
-    energy=localEnergy;if(evaluated)*evaluated=true;return failure;
+    Real capacity;
+    return evaluateMixtureEnergy(speciesMass,temperature,view,energy,capacity,evaluated);
 }
 
 
@@ -274,20 +251,16 @@ UGKWP_GAS_HD inline ThermoStatus evaluateMixtureHeatCapacity
 {
     if(evaluated)*evaluated=false;
     if(!speciesMass)return ThermoStatus::InvalidComposition;
-    Real localCapacity=Real(0);ThermoStatus failure=ThermoStatus::Success;
-    for(int species=0;species<Ns;++species)
-    {
-        if(!gasFinite(speciesMass[species]) && failure==ThermoStatus::Success)
-            failure=ThermoStatus::InvalidComposition;
-        gasThermoDetail::SpeciesValues<Real> values;bool propertyEvaluated=false;
-        const auto status=gasThermoDetail::evaluateSpecies
-            (species,temperature,view,values,&propertyEvaluated);
-        if(!propertyEvaluated)return status;
-        if(status!=ThermoStatus::Success && failure==ThermoStatus::Success)failure=status;
-        localCapacity+=speciesMass[species]*values.cv;
+    Real local=0;
+    for(int k=0;k<Ns;++k){
+        if(!gasFinite(speciesMass[k]))return gasThermoDetail::failure(view.diagnostics,ThermoStatus::NonFiniteInput,ugkp::diagnostics::Code::NonFinite,k,speciesMass[k]);
+        gasThermoDetail::SpeciesValues<Real> values;
+        const auto status=gasThermoDetail::evaluateSpecies(k,temperature,view,values);
+        if(status!=ThermoStatus::Success)return status;
+        local+=speciesMass[k]*values.cv;
     }
-    if(!gasFinite(localCapacity) && failure==ThermoStatus::Success)failure=ThermoStatus::NonFiniteInput;
-    heatCapacity=localCapacity;if(evaluated)*evaluated=true;return failure;
+    if(!gasFinite(local))return gasThermoDetail::failure(view.diagnostics,ThermoStatus::NonFiniteInput,ugkp::diagnostics::Code::NonFinite,-1,local);
+    heatCapacity=local;if(evaluated)*evaluated=true;return ThermoStatus::Success;
 }
 
 template<class Real,int Ns,class TableReal>
@@ -316,15 +289,24 @@ template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline Real mixtureGasConstant
 (const Real* speciesMass,const SpeciesThermoView<TableReal,Ns>& view) noexcept
 {
-    if(!speciesMass || !view.species)
-        return gasThermoDetail::invalidValue<Real>();
-    Real totalMass=Real(0),weightedConstant=Real(0);
-    for(int species=0;species<Ns;++species)
-    {
-        totalMass+=speciesMass[species];
-        weightedConstant+=speciesMass[species]*universalGasConstant<Real>()/view.species[species].molarMass;
+    using namespace gasThermoDetail;
+    using namespace ugkp::diagnostics;
+    if(!speciesMass || !view.species)return invalidValue<Real>();
+    Real totalMass=0,weightedConstant=0;
+    for(int k=0;k<Ns;++k) {
+        const Real mass=view.species[k].molarMass;
+        if(!gasFinite(mass)||mass==Real(0)||!gasFinite(speciesMass[k])) {
+            failure(view.diagnostics,ThermoStatus::NonFiniteInput,mass==Real(0)?Code::ZeroDenominator:Code::NonFinite,k,(!gasFinite(mass)||mass==Real(0))?mass:speciesMass[k],(!gasFinite(mass)||mass==Real(0))?Quantity::Denominator:Quantity::Unspecified);
+            return invalidValue<Real>();
+        }
+        totalMass+=speciesMass[k];weightedConstant+=speciesMass[k]*universalGasConstant<Real>()/mass;
+    }
+    if(totalMass==Real(0)) {
+        failure(view.diagnostics,ThermoStatus::InvalidComposition,Code::ZeroDenominator,-1,totalMass,Quantity::Denominator);
+        return invalidValue<Real>();
     }
     const Real result=weightedConstant/totalMass;
+    if(!gasFinite(result))failure(view.diagnostics,ThermoStatus::NonFiniteInput,Code::NonFinite,-1,result);
     return result;
 }
 
@@ -339,35 +321,26 @@ UGKWP_GAS_HD inline ThermoStatus mixtureDensityFromPressureTemperatureImpl
     Real compositionTolerance=Real(64)*std::numeric_limits<Real>::epsilon()
 ) noexcept
 {
-    if(Refinement)
-    {
-        if(!gasFinite(pressure) || !gasFinite(temperature)) return ThermoStatus::NonFiniteInput;
-        if(!(pressure>Real(0)) || !(temperature>Real(0))) return ThermoStatus::InvalidComposition;
-        if(!gasFinite(compositionTolerance) || compositionTolerance<Real(0)) return ThermoStatus::InvalidControls;
-        if(!massFractions) return ThermoStatus::InvalidComposition;
-        Real total=Real(0);
-        for(int species=0;species<Ns;++species)
-        {
-            if(!gasFinite(massFractions[species]) || massFractions[species]<Real(0)
-                || massFractions[species]>Real(1)) return ThermoStatus::InvalidComposition;
-            total+=massFractions[species];
-        }
-        if(!gasFinite(total) || gasThermoDetail::absValue(total-Real(1))>compositionTolerance)
-            return ThermoStatus::InvalidComposition;
-        Real energy,capacity;
-        const ThermoStatus status=evaluateMixtureEnergy<true>(massFractions,temperature,view,energy,capacity);
-        if(status!=ThermoStatus::Success) return status;
+    using namespace gasThermoDetail;
+    using namespace ugkp::diagnostics;
+    if(!massFractions)return ThermoStatus::InvalidComposition;
+    if(!view.species)return ThermoStatus::InvalidModel;
+    if(!gasFinite(pressure)||!gasFinite(temperature))return failure(view.diagnostics,ThermoStatus::NonFiniteInput,Code::NonFinite,-1,!gasFinite(temperature)?temperature:pressure);
+    if(temperature<Real(0))return failure(view.diagnostics,ThermoStatus::TemperatureOutOfRange,Code::NegativeTemperature,-1,temperature,Quantity::Temperature);
+    Real local[Ns],total=0;
+    for(int k=0;k<Ns;++k) {
+        const Real y=massFractions[k];
+        if(!gasFinite(y))return failure(view.diagnostics,ThermoStatus::NonFiniteInput,Code::NonFinite,k,y,Quantity::MassFraction);
+        local[k]=maxValue(Real(0),minValue(Real(1),y));total+=local[k];
+        if(local[k]!=y)recordWarning(view.diagnostics,makeRecord(Code::FiniteYClip,2304,0,0,EntityKind::Species,k,k,y,0,local[k],Quantity::MassFraction));
     }
-    if(!massFractions) return ThermoStatus::InvalidComposition;
-    if(!view.species) return ThermoStatus::InvalidModel;
-    const Real gasConstant=mixtureGasConstant(massFractions,view);
-    const Real result=pressure/(gasConstant*temperature);
-    if(!gasFinite(result) || (Refinement && !(result>Real(0)))) {
-        if(!Refinement)density=result;
-        return ThermoStatus::NonFiniteInput;
-    }
-    density=result;
-    return ThermoStatus::Success;
+    if(absValue(total-Real(1))>compositionTolerance)recordWarning(view.diagnostics,makeRecord(Code::ConservationResidual,10004,0,0,EntityKind::None,-1,-1,total,1,total,Quantity::Conservation));
+    const Real gasConstant=mixtureGasConstant(local,view);
+    const Real denominator=gasConstant*temperature;
+    if(!gasFinite(denominator)||denominator==Real(0))return failure(view.diagnostics,ThermoStatus::NonFiniteInput,denominator==Real(0)?Code::ZeroDenominator:Code::NonFinite,-1,denominator,Quantity::Denominator);
+    const Real result=pressure/denominator;
+    if(!gasFinite(result))return failure(view.diagnostics,ThermoStatus::NonFiniteInput,Code::NonFinite,-1,result,Quantity::Density);
+    density=result;return ThermoStatus::Success;
 }
 
 
@@ -395,147 +368,74 @@ UGKWP_GAS_HD inline ThermoStatus evaluateCaloricEnergy
     Real localEnergy=gasThermoDetail::invalidValue<Real>();
     Real localCapacity=gasThermoDetail::invalidValue<Real>();
     const ThermoStatus status=evaluator(temperature,localEnergy,localCapacity);
-    if(evaluated)*evaluated=status==ThermoStatus::Success;
+    if(evaluated)*evaluated=false;
     if(status!=ThermoStatus::Success) return status;
     if(!gasFinite(localEnergy) || !gasFinite(localCapacity)) {
-        if(!Refinement && (Complete || evaluated)){energy=localEnergy;capacity=localCapacity;}
         return ThermoStatus::NonFiniteInput;
     }
-    if(Refinement && !(localCapacity>Real(0))) return ThermoStatus::NonPositiveHeatCapacity;
-    energy=localEnergy;capacity=localCapacity;return ThermoStatus::Success;
+    energy=localEnergy;capacity=localCapacity;if(evaluated)*evaluated=true;return ThermoStatus::Success;
 }
 
 template<class Real,int Ns,class TableReal,bool Refinement> struct MixtureEnergyEvaluator;
 
 
 
-template<class Real,class Evaluator>
-UGKWP_GAS_HD inline ThermoStatus completeCaloricEvaluation
-(const Evaluator& evaluator,Real T,Real& energy,Real& capacity,bool& evaluated,
- ThermoStatus previous=ThermoStatus::Success) noexcept
-{
-    if(previous!=ThermoStatus::Success){evaluated=false;return previous;}
-    const ThermoStatus status=evaluator(T,energy,capacity);
-    evaluated=status==ThermoStatus::Success;
-    return status;
-}
-template<class Real,int Ns,class TableReal,bool Refinement>
-UGKWP_GAS_HD inline ThermoStatus completeCaloricEvaluation
-(const MixtureEnergyEvaluator<Real,Ns,TableReal,Refinement>& evaluator,
- Real T,Real& energy,Real& capacity,bool& evaluated,
- ThermoStatus =ThermoStatus::Success) noexcept
-{ return evaluator.complete(T,energy,capacity,evaluated); }
-
-
-
-template<class Real,class Evaluator>
-UGKWP_GAS_HD inline ThermoStatus completeNonFiniteCaloricTarget
-(const Evaluator&,Real,Real,const ThermoInversionControls<Real>&,Real&,bool*) noexcept
-{ return ThermoStatus::NonFiniteInput; }
-template<class Real,int Ns,class TableReal,bool Refinement>
-UGKWP_GAS_HD inline ThermoStatus completeNonFiniteCaloricTarget
-(
-    const MixtureEnergyEvaluator<Real,Ns,TableReal,Refinement>& evaluator,
-    Real lower,Real upper,const ThermoInversionControls<Real>& controls,
-    Real& temperature,bool* evaluatedTemperature
-) noexcept
-{
-    using namespace gasThermoDetail;
-    const Real lo=maxValue(lower,controls.minTemperature);
-    const Real hi=controls.maxTemperature>Real(0)?minValue(upper,controls.maxTemperature):upper;
-    const Real trial=gasFinite(temperature)?temperature:lo+Real(0.5)*(hi-lo);
-    Real energy,capacity;bool evaluated=false;
-    const ThermoStatus status=evaluator.complete(trial,energy,capacity,evaluated);
-    if(!evaluated)return status;
-    temperature=trial;
-    if(evaluatedTemperature)*evaluatedTemperature=true;
-    return ThermoStatus::NonFiniteInput;
-}
-
 template<bool Refinement=false,class Real,class Evaluator>
 UGKWP_GAS_HD inline ThermoStatus invertCaloricEnergy
 (
     const Evaluator& evaluator,Real internalEnergy,Real lower,Real upper,
-    const ThermoInversionControls<Real>& controls,Real& temperature,bool* evaluatedTemperature=nullptr
+    const ThermoInversionControls<Real>& controls,Real& temperature,bool* evaluatedTemperature=nullptr,
+    ugkp::diagnostics::DeviceContext* diagnostics=nullptr
 ) noexcept
 {
     using namespace gasThermoDetail;
+    using namespace ugkp::diagnostics;
     if(evaluatedTemperature)*evaluatedTemperature=false;
-    if(!gasFinite(internalEnergy)) {
-        if(!Refinement)return completeNonFiniteCaloricTarget
-            (evaluator,lower,upper,controls,temperature,evaluatedTemperature);
-        return ThermoStatus::NonFiniteInput;
-    }
+    if(!gasFinite(internalEnergy))return failure(diagnostics,ThermoStatus::NonFiniteInput,Code::NonFinite,-1,internalEnergy,Quantity::InternalEnergy);
     Real lo=maxValue(lower,controls.minTemperature);
     Real hi=controls.maxTemperature>Real(0)?minValue(upper,controls.maxTemperature):upper;
-    Real elo=invalidValue<Real>(),clo=invalidValue<Real>();
-    Real ehi=invalidValue<Real>(),chi=invalidValue<Real>();
-    const ThermoStatus lowStatus=evaluateCaloricEnergy<Refinement,Real,Evaluator,false>(evaluator,lo,elo,clo);
-    const ThermoStatus highStatus=evaluateCaloricEnergy<Refinement,Real,Evaluator,false>(evaluator,hi,ehi,chi);
-    const bool lowAvailable=lowStatus==ThermoStatus::Success;
-    const bool highAvailable=highStatus==ThermoStatus::Success;
-
-
-    if(Refinement) {
-        if(!lowAvailable)return lowStatus;
-        if(!highAvailable)return highStatus;
-        if(!(ehi>elo))return ThermoStatus::NonPositiveHeatCapacity;
-        if(internalEnergy<elo || internalEnergy>ehi)return ThermoStatus::EnergyOutOfRange;
-    }
-    if(lowAvailable && internalEnergy==elo) { temperature=lo;if(evaluatedTemperature)*evaluatedTemperature=true;return ThermoStatus::Success; }
-    if(highAvailable && internalEnergy==ehi) { temperature=hi;if(evaluatedTemperature)*evaluatedTemperature=true;return ThermoStatus::Success; }
-    bool bracket=lowAvailable && highAvailable && lo<hi
-        && ((elo<internalEnergy && ehi>internalEnergy)
-            || (elo>internalEnergy && ehi<internalEnergy));
-    Real trial=gasFinite(temperature)
-        && ((Refinement ? false : (!bracket || controls.maximumIterations<=0)) || (temperature>lo && temperature<hi))
-        ? temperature : lo+Real(0.5)*(hi-lo);
-    Real saved=lowAvailable?lo:hi;
-    bool available=lowAvailable || highAvailable;
-    const Real energyTolerance=controls.absoluteEnergyTolerance
-        +controls.relativeEnergyTolerance*absValue(internalEnergy);
+    Real elo,clo,ehi,chi;
+    auto status=evaluateCaloricEnergy<false>(evaluator,lo,elo,clo);
+    if(status!=ThermoStatus::Success)return status;
+    status=evaluateCaloricEnergy<false>(evaluator,hi,ehi,chi);
+    if(status!=ThermoStatus::Success)return status;
+    if(internalEnergy==elo){temperature=lo;if(evaluatedTemperature)*evaluatedTemperature=true;return ThermoStatus::Success;}
+    if(internalEnergy==ehi){temperature=hi;if(evaluatedTemperature)*evaluatedTemperature=true;return ThermoStatus::Success;}
+    const bool bracket=lo<hi && ((elo<internalEnergy && ehi>internalEnergy)||(elo>internalEnergy && ehi<internalEnergy));
+    Real trial=gasFinite(temperature) && temperature>lo && temperature<hi?temperature:lo+Real(.5)*(hi-lo);
+    const Real energyTolerance=controls.absoluteEnergyTolerance+controls.relativeEnergyTolerance*absValue(internalEnergy);
     const int iterations=controls.maximumIterations>0?controls.maximumIterations:1;
-    for(int iteration=0;iteration<iterations;++iteration)
-    {
-        Real energy,capacity;bool evaluated=false;
-        const ThermoStatus status=evaluateCaloricEnergy<Refinement,Real,Evaluator,false>
-            (evaluator,trial,energy,capacity,Refinement?nullptr:&evaluated);
-        if(status!=ThermoStatus::Success)
-        {
-            if(!Refinement && available) { temperature=saved;if(evaluatedTemperature)*evaluatedTemperature=true;return ThermoStatus::Success; }
-            if(!Refinement) {
-                if(!evaluated) {
-                    const ThermoStatus completed=completeCaloricEvaluation(evaluator,trial,energy,capacity,evaluated,status);
-                    if(!evaluated)return completed;
-                }
-                temperature=trial;
-                if(evaluatedTemperature)*evaluatedTemperature=true;
-            }
-            return status;
+    Real residual=0;
+    for(int iteration=0;iteration<iterations;++iteration) {
+        Real energy,capacity;
+        status=evaluateCaloricEnergy<false>(evaluator,trial,energy,capacity);
+        if(status!=ThermoStatus::Success)return status;
+        residual=energy-internalEnergy;
+        if(!gasFinite(residual)) {
+            if(diagnostics)recordFatal(diagnostics,makeRecord(Code::NonFinite,30600,0,0,EntityKind::None,-1,-1,residual,0,0,Quantity::InternalEnergy));
+            return ThermoStatus::NonFiniteInput;
         }
-        saved=trial;available=true;
-        const Real residual=energy-internalEnergy;
+        if(capacity==Real(0))return failure(diagnostics,ThermoStatus::NonPositiveHeatCapacity,Code::ZeroDenominator,-1,capacity,Quantity::Denominator);
         const Real correction=residual/capacity;
-        const Real temperatureTolerance=controls.absoluteTemperatureTolerance
-            +controls.relativeTemperatureTolerance*absValue(trial);
-        if((!Refinement && residual==Real(0)) || (absValue(residual)<=energyTolerance
-            && absValue(correction)<=temperatureTolerance)) { temperature=trial;if(evaluatedTemperature)*evaluatedTemperature=true;return ThermoStatus::Success; }
-        if(bracket)
-        {
-
-            if((residual<Real(0))==(elo<internalEnergy)) { lo=trial;elo=energy; }
-            else { hi=trial;ehi=energy; }
+        if(!gasFinite(correction)) {
+            if(diagnostics)recordFatal(diagnostics,makeRecord(Code::NonFinite,30601,0,0,EntityKind::None,-1,-1,correction,0,0,Quantity::Temperature));
+            return ThermoStatus::NonFiniteInput;
         }
+        const Real tolerance=controls.absoluteTemperatureTolerance+controls.relativeTemperatureTolerance*absValue(trial);
+        if(absValue(residual)<=energyTolerance && absValue(correction)<=tolerance){
+            temperature=trial;if(evaluatedTemperature)*evaluatedTemperature=true;return ThermoStatus::Success;
+        }
+        if(iteration+1==iterations)break;
+        if(bracket){if((residual<Real(0))==(elo<internalEnergy)){lo=trial;elo=energy;}else{hi=trial;ehi=energy;}}
         Real next=trial-correction;
-        if(bracket && (!gasFinite(next) || !(next>lo && next<hi)))
-            next=lo+Real(0.5)*(hi-lo);
-        if(!gasFinite(next) || next==trial) { if(Refinement)return ThermoStatus::IterationLimit; break; }
+        // Safeguarded mathematical root iteration, not a failed physical-step retry.
+        if(bracket && (!gasFinite(next)||!(next>lo && next<hi)))next=lo+Real(.5)*(hi-lo);
+        if(!gasFinite(next))return failure(diagnostics,ThermoStatus::NonFiniteInput,Code::NonFinite,-1,next,Quantity::Temperature);
+        if(next==trial)break;
         trial=next;
     }
-    if(Refinement)return ThermoStatus::IterationLimit;
-
-    temperature=saved;
-    if(evaluatedTemperature)*evaluatedTemperature=true;
+    temperature=trial;if(evaluatedTemperature)*evaluatedTemperature=true;
+    recordWarning(diagnostics,makeRecord(Code::AccuracyResidual,2303,0,0,EntityKind::None,-1,-1,residual,energyTolerance,residual,Quantity::Accuracy));
     return ThermoStatus::Success;
 }
 
@@ -546,10 +446,6 @@ struct MixtureEnergyEvaluator
     SpeciesThermoView<TableReal,Ns> thermo;
     UGKWP_GAS_HD ThermoStatus operator()(Real T,Real& energy,Real& capacity) const noexcept
     { return evaluateMixtureEnergy<Refinement,Real,Ns,TableReal,false>(speciesMass,T,thermo,energy,capacity); }
-    UGKWP_GAS_HD ThermoStatus complete(Real T,Real& energy,Real& capacity,bool& evaluated) const noexcept
-    {
-        return evaluateMixtureEnergy<false,Real,Ns,TableReal,true>(speciesMass,T,thermo,energy,capacity,&evaluated);
-    }
 };
 
 template<bool Refinement=false,class Real,int Ns,class TableReal>
@@ -569,7 +465,7 @@ UGKWP_GAS_HD inline ThermoStatus invertMixtureEnergy
         hi=minValue(hi,Real(view.species[s].maxTemperature));
     }
     const MixtureEnergyEvaluator<Real,Ns,TableReal,Refinement> evaluator{speciesMass,view};
-    return invertCaloricEnergy<Refinement>(evaluator,internalEnergy,lo,hi,controls,temperature,evaluatedTemperature);
+    return invertCaloricEnergy<Refinement>(evaluator,internalEnergy,lo,hi,controls,temperature,evaluatedTemperature,view.diagnostics);
 }
 
 } // namespace ugkwp

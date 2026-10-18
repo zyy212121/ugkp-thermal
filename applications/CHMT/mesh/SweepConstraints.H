@@ -1,44 +1,44 @@
 #ifndef CHMT_MESH_SWEEP_CONSTRAINTS_H
 #define CHMT_MESH_SWEEP_CONSTRAINTS_H
 #include "mesh/Motion.H"
+#include "mesh/GeometryDiagnostics.H"
 namespace chmt {
-// Resource-bounded fixed-topology solve. A limit/rank/trajectory failure is a
-// rejection, never permission to rescale physical transfers or prescribe GCL.
+// Fixed-topology Newton solve. Invalid geometry and resource failures return
+// failure; finite conservation/accuracy residuals are warnings, with no replay.
 struct SweepConstraintControls {
     Real absoluteVolumeTolerance=1e-14, relativeVolumeTolerance=1e-10;
-    // Optional hard ceilings, one per constrained face. Neither the requested
-    // tolerance nor the geometric floating-point floor can override them.
+    // Optional per-face accuracy thresholds used to report residual warnings.
     std::vector<Real> faceVolumeTolerance{};
     Real rankTolerance=1e-11;
-    int maximumIterations=24, maximumLineSearch=24;
-    // Zero selects the workspace-based policy. Explicit positive legacy limits
-    // remain hard limits, including the logical point x mode count.
+    int maximumIterations=24;
+    int maximumLineSearch=24; // Bounded mathematical damping at fixed target/interval.
+    // Compatibility-only fields. Allocation is limited by actual representable
+    // sizes and allocator availability, never by a configured policy cap.
     int maximumDegreesOfFreedom=0, maximumConstraints=0;
     std::size_t maximumModeEntries=0;
-    std::size_t maximumWorkspaceBytes=256ull*1024*1024;
+    std::size_t maximumWorkspaceBytes=0;
 };
 // Bound both cell-inventory arithmetic and endpoint coordinate quantization.
 // A thin cell far from the coordinate origin cannot resolve eight epsilon of
 // its volume in world-coordinate vertices. Its actual face-area-weighted ULP
 // bound is retained in the signed remainder, not discarded or charged to mass.
 // Requested accuracy, explicit face ceilings, EOS and GCL are checked separately.
-template<bool Terminal=false>
 inline bool materialSweepResidualLimits(const HostMesh& mesh,const std::vector<int>& faces,
     std::vector<Real>& output) {
     std::vector<int> count(mesh.volumes.size());std::vector<unsigned char> seen(mesh.owner.size());
     for (int face:faces) {
-        if (!Terminal && face< -1)return false;
+        if (face< -1)return false;
         if (face== -1)continue;
-        if (!Terminal && (static_cast<std::size_t>(face)>=mesh.owner.size()||seen[face]++))return false;
+        if ((static_cast<std::size_t>(face)>=mesh.owner.size()||seen[face]++))return false;
         const int cell=mesh.owner[face];
-        if (!Terminal && (cell<0||static_cast<std::size_t>(cell)>=mesh.volumes.size()
+        if ((cell<0||static_cast<std::size_t>(cell)>=mesh.volumes.size()
             ||!finite(mesh.volumes[cell])||mesh.volumes[cell]<=0))return false;
         ++count[cell];
     }
     std::vector<Real> limits(faces.size(),0);
     for (std::size_t i=0;i<faces.size();++i)if(faces[i]>=0) {
         const int cell=mesh.owner[faces[i]];
-        
+
         // Inventory arithmetic and endpoint representation are independent
         // error sources. Bound the latter from this face's actual coordinate
         // spacing, rather than treating a global coordinate as cell-local.
@@ -53,61 +53,53 @@ inline bool materialSweepResidualLimits(const HostMesh& mesh,const std::vector<i
         }
         limits[i]=8*std::numeric_limits<Real>::epsilon()*mesh.volumes[cell]/count[cell]+2*representation;
 
-        if (!Terminal && (!(limits[i]>0)||!finite(limits[i])))return false;
+        if ((!(limits[i]>0)||!finite(limits[i])))return false;
     }
     output=std::move(limits);return true;
 }
-template<bool Terminal=false>
-inline bool validateMaterialSweepRemainder(const HostState& state,std::string& error) {
-    if(Terminal||state.solidSweepRemainder.empty()){error.clear();return true;}
+inline bool validateMaterialSweepRemainder(const HostState& state,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
+    if(state.solidSweepRemainder.empty()){error.clear();return true;}
     std::vector<Real> limits;
     if(state.solidSweepRemainder.size()!=state.surface.solidFace.size()
         ||!materialSweepResidualLimits(state.solidMesh,state.surface.solidFace,limits)){
         error="material swept-volume remainder mapping mismatch";return false;}
-    for(std::size_t f=0;f<limits.size();++f)if(!finite(state.solidSweepRemainder[f])
-        ||absValue(state.solidSweepRemainder[f])>4*limits[f]){
-        error="material swept-volume remainder exceeds roundoff bound";return false;}
+    for(std::size_t f=0;f<limits.size();++f) {
+        if(!finite(state.solidSweepRemainder[f])) {error="nonfinite material swept-volume remainder";return false;}
+        if(absValue(state.solidSweepRemainder[f])>4*limits[f])
+            geometryWarning(diagnostics,state.solidSweepRemainder[f],4*limits[f],f);
+    }
     error.clear();return true;
 }
-template<bool Terminal=false>
 inline bool compensateMaterialSweepTargets(const HostState& base,const std::vector<Real>& physical,
-    std::vector<Real>& output,std::string& error) {
-    if(!Terminal && physical.size()!=base.surface.solidFace.size()){error="material swept-volume target mapping mismatch";return false;}
-    if(!validateMaterialSweepRemainder<Terminal>(base,error))return false;
-    if(Terminal && !base.solidSweepRemainder.empty() && base.solidSweepRemainder.size()<physical.size()){
-        error="missing consumed material sweep remainder";return false;
-    }
+    std::vector<Real>& output,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
+    if(physical.size()!=base.surface.solidFace.size()){error="material swept-volume target mapping mismatch";return false;}
+    if(!validateMaterialSweepRemainder(base,error,diagnostics))return false;
     std::vector<Real> solve(physical.size());
     for(std::size_t f=0;f<physical.size();++f){
-        if(!Terminal && (!finite(physical[f])||(base.surface.solidFace[f]<0&&physical[f]!=0))){
+        if((!finite(physical[f])||(base.surface.solidFace[f]<0&&physical[f]!=0))){
             error="invalid physical material swept-volume target";return false;}
         solve[f]=static_cast<Real>(static_cast<long double>(physical[f])
             +(base.solidSweepRemainder.empty()?0:base.solidSweepRemainder[f]));
-        if(!Terminal && !finite(solve[f])){error="nonfinite compensated material swept-volume target";return false;}
+        if(!finite(solve[f])){error="nonfinite compensated material swept-volume target";return false;}
     }
     output=std::move(solve);error.clear();return true;
 }
-template<bool Terminal=false>
 inline bool updateMaterialSweepRemainder(const HostState& base,const std::vector<Real>& physical,
-    const std::vector<Real>& measured,const HostMesh& endpoint,std::vector<Real>& output,std::string& error) {
+    const std::vector<Real>& measured,const HostMesh& endpoint,std::vector<Real>& output,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
     std::vector<Real> solve,limits;
-    if(!compensateMaterialSweepTargets<Terminal>(base,physical,solve,error))return false;
-    if(!Terminal && (measured.size()!=endpoint.owner.size()||endpoint.owner!=base.solidMesh.owner
+    if(!compensateMaterialSweepTargets(base,physical,solve,error,diagnostics))return false;
+    if((measured.size()!=endpoint.owner.size()||endpoint.owner!=base.solidMesh.owner
         ||endpoint.topologyHash!=base.solidMesh.topologyHash
         ||!materialSweepResidualLimits(endpoint,base.surface.solidFace,limits))){
         error="material swept-volume remainder endpoint mismatch";return false;}
-    if(Terminal && base.surface.solidFace.size()<physical.size()){
-        error="missing consumed material sweep arrays";return false;
-    }
     std::vector<Real> next(physical.size());
     for(std::size_t f=0;f<physical.size();++f){const int face=base.surface.solidFace[f];
-        if(Terminal&&face>=0&&measured.empty()){error="missing consumed material swept volume";return false;}
         const Real actual=face<0?0:measured[face];
-        if(!Terminal && !finite(actual)){error="nonfinite measured material swept volume";return false;}
+        if(!finite(actual)){error="nonfinite measured material swept volume";return false;}
         next[f]=static_cast<Real>((base.solidSweepRemainder.empty()?0:static_cast<long double>(base.solidSweepRemainder[f]))
             +static_cast<long double>(physical[f])-actual);
-        if(!Terminal && (!finite(next[f])||absValue(next[f])>4*limits[f])){
-            error="updated material swept-volume remainder exceeds roundoff bound";return false;}
+        if(!finite(next[f])){error="nonfinite updated material swept-volume remainder";return false;}
+        if(absValue(next[f])>4*limits[f])geometryWarning(diagnostics,next[f],4*limits[f],f);
     }
     output=std::move(next);error.clear();return true;
 }
@@ -148,14 +140,5 @@ bool moveCoupledMeshesConstrained(const HostState&, const std::vector<FilmAux>&,
     HostMesh& gas, HostMesh& solid, SurfaceMesh&, SweepConstraintReport&,
     std::string& error, const SweepConstraintControls& controls=SweepConstraintControls{},
     const Tolerances& tolerances=Tolerances{},bool* numericalFailure=nullptr);
-namespace detail {
-bool completeFaceSweeps(const HostMesh&,const std::vector<int>&,const std::vector<Real>&,
-    const std::vector<Vec3>&,const std::vector<unsigned char>&,const std::vector<Vec3>&,Real,
-    HostMesh&,std::vector<Real>&,SweepConstraintReport&,std::string&,
-    const SweepConstraintControls& =SweepConstraintControls{},const Tolerances& =Tolerances{},bool* numericalFailure=nullptr);
-bool completeCoupledMeshes(const HostState&,const std::vector<FilmAux>&,const std::vector<Real>&,Real,
-    HostMesh&,HostMesh&,SurfaceMesh&,SweepConstraintReport&,std::string&,
-    const SweepConstraintControls& =SweepConstraintControls{},const Tolerances& =Tolerances{},bool* numericalFailure=nullptr);
-}
 }
 #endif
