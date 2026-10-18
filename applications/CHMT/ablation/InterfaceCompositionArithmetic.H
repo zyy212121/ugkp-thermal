@@ -58,6 +58,27 @@ namespace composition_detail {
         return finite(result);
     }
 
+    // R varies with each candidate. Share its EOS division across species while
+    // preserving diffusionScale's operation order and guarded extreme-range path.
+    struct DiffusionState {
+        Real pressure,T,distance,R,rho=0;
+        bool attempted=false,ready=false;
+        CHMT_HD DiffusionState(Real pressure_,Real T_,Real distance_,Real R_)
+            :pressure(pressure_),T(T_),distance(distance_),R(R_){}
+        CHMT_HD bool scale(Real D,Real& result) {
+            if(D==0){result=0;return true;}
+            if(!attempted){
+                attempted=true;Real denominator=0;
+                ready=productFinite(R,T,denominator)&&denominator>0
+                    &&quotientFinite(pressure,denominator,rho)&&rho>0;
+            }
+            Real weighted=0;
+            if(ready&&productFinite(rho,D,weighted)&&weighted>0
+                &&quotientFinite(weighted,distance,result)&&result>0)return true;
+            return diffusionScale(pressure,D,T,distance,R,result);
+        }
+    };
+
     CHMT_HD inline bool sumFinite(Real a,Real b,Real& result) {
         const Real maximum=1.7976931348623157e308;
         if(!finite(a)||!finite(b))return false;
