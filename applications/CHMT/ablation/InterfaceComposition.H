@@ -749,6 +749,24 @@ namespace composition_detail {
         return true;
     }
 
+    // For a 2x2 irreducible Metzler matrix, the positive Perron vector
+    // follows directly from its quadratic eigenvalue. Choose the sign branch
+    // with an addition rather than a subtractive cancellation. sqrt(b)*sqrt(c)
+    // avoids underflow of b*c. The original physical equations still certify it.
+    CHMT_HD inline bool uniqueTwoSpecies(const Real* d,const Real* u,const Real* v,
+        const Real* r,const Real* bulk,const Real* Js,Real pressure,Real T,
+        Real distance,const PhysicsConfig& p,Real tolerance,Selection& best) {
+        const Real a=u[0]*r[0]+v[0]-d[0],b=u[0]*r[1]+v[0];
+        const Real c=u[1]*r[0]+v[1],e=u[1]*r[1]+v[1]-d[1];
+        const Real half=(a-e)/2,root=::hypot(half,::sqrt(b)*::sqrt(c));
+        Real Y[Ns]{},one=0,two=0;
+        if(half>=0){one=root+half;two=c;}else{one=b;two=root-half;}
+        const Real sum=one+two;
+        if(!quotientFinite(one,sum,Y[0])||!quotientFinite(two,sum,Y[1]))return false;
+        bool solved=false;certify(Y,bulk,Js,pressure,T,distance,p,tolerance,best,&solved,false);
+        return solved;
+    }
+
     // Newton for (z+d_i)Y_i-u_i(r.Y)-v_i=0, sum(Y)=1.
     // Its bordered diagonal/rank-one linearization eliminates to two scalars,
     // delta(r.Y) and delta(z), with O(Ns) work. The mixture density is variable.
@@ -854,8 +872,12 @@ namespace composition_detail {
         const bool positive=uniquePositiveMatrix(u,v,r,bulk,matrixGamma);info.unique=positive;
         for(int i=0;i<Ns;++i){sumBulk+=bulk[i];rBulk+=r[i]*bulk[i];}
         Real scaledJ=0,scaledDb=0;for(int i=0;i<Ns;++i){scaledJ+=u[i];scaledDb+=v[i];}
-        if(positive&&uniqueNewton(d,u,v,r,scaledJ,scaledDb,bulk,Js,pressure,T,distance,p,tolerance,best,info))
-            return publishSelection(best,bulk,Js,pressure,T,distance,p,tolerance,out,info,suppliedInfo);
+        if(positive){
+            const bool solved=Ns==2
+                ?uniqueTwoSpecies(d,u,v,r,bulk,Js,pressure,T,distance,p,tolerance,best)
+                :uniqueNewton(d,u,v,r,scaledJ,scaledDb,bulk,Js,pressure,T,distance,p,tolerance,best,info);
+            if(solved)return publishSelection(best,bulk,Js,pressure,T,distance,p,tolerance,out,info,suppliedInfo);
+        }
         if(positive){Real lower=1.7976931348623157e308,upper=-lower;bool bounded=true;
             const Real rowGamma=(4*Ns+16)*epsilon/(1-(4*Ns+16)*epsilon);
             for(int i=0;i<Ns;++i){Real one=0,two=0,three=0,numerator=0,magnitude=0,ratio=0,error=0;
