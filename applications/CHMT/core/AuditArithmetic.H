@@ -41,6 +41,41 @@ CHMT_HD inline Real auditProduct(Real a,Real b) {
     }
     return a*b;
 }
+// Quotients used only by diagnostics/tolerances, including explicit IEEE
+// audit sentinels. Never execute zero division or an overflowing division.
+CHMT_HD inline Real auditQuotient(Real numerator,Real denominator) {
+    if(numerator!=numerator||denominator!=denominator)return undefinedValue();
+    const bool negative=::copysign(Real(1),numerator)!=::copysign(Real(1),denominator);
+    const Real infinity=std::numeric_limits<Real>::infinity();
+    if(denominator==0)return numerator==0?undefinedValue():(negative?-infinity:infinity);
+    if(!finite(numerator))return !finite(denominator)?undefinedValue():(negative?-infinity:infinity);
+    if(!finite(denominator)||numerator==0)return ::copysign(Real(0),negative?Real(-1):Real(1));
+    int en=0,ed=0,extra=0;
+    const Real mn=::frexp(absValue(numerator),&en),md=::frexp(absValue(denominator),&ed);
+    const Real mantissa=::frexp(mn/md,&extra);
+    const int exponent=en-ed+extra;
+    const int maximum=std::numeric_limits<Real>::max_exponent;
+    const Real maximumMantissa=::ldexp(std::numeric_limits<Real>::max(),-maximum);
+    if(exponent>maximum||(exponent==maximum&&mantissa>maximumMantissa))return negative?-infinity:infinity;
+    return numerator/denominator;
+}
+// Keep an unrepresentable denominator product from destroying a representable
+// audit quotient. The usual path keeps its original division order.
+CHMT_HD inline Real auditQuotientProduct(Real numerator,Real first,Real second) {
+    const Real product=auditProduct(first,second);
+    if(finite(product)&&product!=0)return auditQuotient(numerator,product);
+    if(!finite(numerator)||!finite(first)||!finite(second)||first==0||second==0)
+        return auditQuotient(numerator,product);
+    if(numerator==0)return Real(0);
+    int en=0,ef=0,es=0,extra=0;
+    const Real mn=::frexp(absValue(numerator),&en),mf=::frexp(absValue(first),&ef),ms=::frexp(absValue(second),&es);
+    const Real mantissa=::frexp((mn/mf)/ms,&extra);
+    const int exponent=en-ef-es+extra,maximum=std::numeric_limits<Real>::max_exponent;
+    const bool negative=(numerator<0)!=((first<0)!=(second<0));
+    if(exponent>maximum||(exponent==maximum&&mantissa>::ldexp(std::numeric_limits<Real>::max(),-maximum)))
+        return negative?-std::numeric_limits<Real>::infinity():std::numeric_limits<Real>::infinity();
+    const Real result=::ldexp(mantissa,exponent);return negative?-result:result;
+}
 CHMT_HD inline Real auditTolerance(Real absolute,Real relative,Real scale) {
     return auditAdd(absolute,auditProduct(relative,scale));
 }

@@ -707,11 +707,13 @@ CHMT_HD inline bool bisectFeasibleSurfaceImpl(const SurfacePhysicsInput& in, con
         if(Track){trace->attempted=T;trace->hasAttempt=true;}
         if(!evaluateSurfaceTemperature(in,trialPhysics,material,filmT,T,false,candidate,numericalFailure))return false;
         if(Track){trace->completedState=candidate;trace->hasCompleted=true;}
-        const Real scale=absValue(candidate.gasEnergy)+absValue(candidate.poreEnergy)
-            +absValue(candidate.phaseEnergy)+absValue(candidate.radiationFlux);
-        const Real fluxTolerance=p.tolerances.absoluteEnergy/(in.area*(in.dt>0 ? in.dt : 1))
-            +p.tolerances.relativeEnergy*scale;
-        const Real temperatureTolerance=p.tolerances.absoluteTemperature+p.tolerances.relativeTemperature*T;
+        const Real scale=auditAdd(auditAdd(absValue(candidate.gasEnergy),absValue(candidate.poreEnergy)),
+            auditAdd(absValue(candidate.phaseEnergy),absValue(candidate.radiationFlux)));
+        const Real relativeFluxTolerance=p.tolerances.relativeEnergy==0?Real(0):
+            (scale==std::numeric_limits<Real>::infinity()?scale:auditProduct(p.tolerances.relativeEnergy,scale));
+        const Real fluxTolerance=auditAdd(auditQuotientProduct(p.tolerances.absoluteEnergy,
+            in.area,(in.dt>0?in.dt:Real(1))),relativeFluxTolerance);
+        const Real temperatureTolerance=auditTolerance(p.tolerances.absoluteTemperature,p.tolerances.relativeTemperature,T);
         if (absValue(candidate.thermalResidual)<=fluxTolerance
             && (hi-lo<=temperatureTolerance || candidate.thermalResidual==0)) {
             out=candidate; return true;
