@@ -26,7 +26,7 @@ def executables(tmp_path_factory):
     (out/"source-sha256.json").write_text(json.dumps({"source_root":str(REVIEW_ROOT),"sha256":hashes},indent=2))
     return result
 
-@pytest.mark.parametrize("ns,mode",[(2,"boundary"),(10,"boundary"),(3,"endpoint"),(2,"near"),(10,"near"),(2,"arithmetic")])
+@pytest.mark.parametrize("ns,mode",[(2,"boundary"),(10,"boundary"),(3,"endpoint"),(2,"near"),(10,"near"),(2,"arithmetic"),(10,"pole-arithmetic")])
 def test_independent_composition_boundaries_and_contracts(executables,ns,mode):
     proc=subprocess.run([str(executables[ns]),mode],text=True,capture_output=True)
     assert proc.returncode==0,proc.stdout+proc.stderr
