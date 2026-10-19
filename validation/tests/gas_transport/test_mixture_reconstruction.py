@@ -61,7 +61,7 @@ for(int c=0;c<2;++c){threadIdx.x=c;computeGasPrimitiveGradientsKernel(&a);comput
 }
 ''')
 
-@pytest.mark.parametrize('scheme',[1,2])
+@pytest.mark.parametrize('scheme',[1,2,4])
 def test_smooth_periodic_muscl_has_refinement_gain_over_first_order(tmp_path,scheme):
     source=fixture().replace('new Real[8]{}','new Real[132]{}').replace('new int[8]{}','new int[132]{}')
     for field in ['rho','initial','gradX','gradY','gradZ','positivityScale']:
@@ -86,10 +86,12 @@ Real exact=-velocity*Real(.1)*2*pi*average*std::cos(2*pi*s.Cx[c]);norm+=std::abs
 int main(){Real first16=error(16,0),first32=error(32,0),muscl16=error(16,1),muscl32=error(32,1),muscl64=error(64,1);
 ck(first16/first32>1.8&&first16/first32<2.2,"first-order control refinement unexpected");
 ck(muscl16/muscl32>3.5&&muscl32/muscl64>3.5,"MUSCL lost second-order spatial refinement");
-ck(muscl32<Real(.02)*first32,"MUSCL did not improve smooth periodic transport");}
+// Contact restoration removes acoustic error already at first order.
+// Compare MUSCL with the dimensionless mesh angle; retain >3.5 refinement tests.
+ck(muscl32<(SCHEME==4?Real(2)*std::acos(Real(-1))/32:Real(.02))*first32,"MUSCL did not improve smooth periodic transport");}
 '''.replace('SCHEME',str(scheme)))
 
-@pytest.mark.parametrize('scheme',[1,2])
+@pytest.mark.parametrize('scheme',[1,2,4])
 def test_muscl_boundary_validates_only_with_reconstructed_composition(tmp_path,scheme):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);s.gasReconstruction=1;s.gasFluxScheme=SCHEME;

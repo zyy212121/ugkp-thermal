@@ -382,7 +382,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
         {
             if (ugkwp::mixtureGasActive(s))
             {
-                if((s.gasFluxScheme!=1 && s.gasFluxScheme!=2)
+                if(!ugkwp::mixtureGasFluxImplemented(s.gasFluxScheme)
                     || (s.gasReconstruction!=0 && s.gasReconstruction!=1))
                 {
                     using namespace ugkp::diagnostics;
@@ -391,8 +391,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::UnsupportedConfiguration);
                     return false;
                 }
-                // A composition contact carries formation energy through the
-                // very same Rusanov dissipation applied to partial densities.
+                // The same reconstructed composition supplies EOS, full energy,
+                // acoustic speed and the selected conservative species flux.
                 // Derived Real flux input only: never feeds back into rhoE storage.
                 ugkpriemann::Conservative leftConserved
                 {{s.rho[own],s.rhoUx[own],s.rhoUy[own],s.rhoUz[own],GPU_OPERATOR_REAL(s.rhoE[own])}};
@@ -513,7 +513,10 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     if(!leftShift || !rightShift)
                     {gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry);return false;}
                 }
-                if(s.gasFluxScheme==2)
+                if(s.gasFluxScheme==4)
+                    result=ugkpriemann::hllcFluxUnitNormal
+                    (leftRiemann,leftConserved,leftSound,rightRiemann,rightConserved,rightSound,nx,ny,nz);
+                else if(s.gasFluxScheme==2)
                     result=ugkpriemann::hllKurganovFluxUnitNormal
                     (leftRiemann,leftConserved,leftSound,rightRiemann,rightConserved,rightSound,nx,ny,nz,false);
                 else
@@ -534,9 +537,11 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 {
                     const GPU_OPERATOR_REAL l=leftSpecies[k];
                     const GPU_OPERATOR_REAL r=rightSpecies[k];
-                    s.gasSpecies.flux[k*s.nFaces+f]=area*(result.evaluatedScheme==ugkpriemann::Scheme::HllKurganov
-                        ?ugkpriemann::hllConservativeComponentFlux(unLeft*l,unRight*r,l,r,unLeft,unRight,leftSound,rightSound)
-                        :ugkpriemann::rusanovConservativeComponentFlux(unLeft*l,unRight*r,l,r,result.maxSignalSpeed));
+                    s.gasSpecies.flux[k*s.nFaces+f]=area*(result.evaluatedScheme==ugkpriemann::Scheme::HLLC
+                        ?result.flux[0]*(result.flux[0]>=GPU_OPERATOR_R(0.0)?l/leftRiemann.rho:r/rightRiemann.rho)
+                        :result.evaluatedScheme==ugkpriemann::Scheme::HllKurganov
+                            ?ugkpriemann::hllConservativeComponentFlux(unLeft*l,unRight*r,l,r,unLeft,unRight,leftSound,rightSound)
+                            :ugkpriemann::rusanovConservativeComponentFlux(unLeft*l,unRight*r,l,r,result.maxSignalSpeed));
                 }
                 if(moving && !ugkwp::restoreGasFluxFromFaceFrame(result,meshFrame,result))
                 {gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry);return false;}

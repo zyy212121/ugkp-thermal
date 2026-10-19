@@ -1329,6 +1329,64 @@ UGKP_RIEMANN_HD bool makeHllcStarState
     return finiteFive(starState.q);
 }
 
+// HLLC for a calorically general ideal mixture. The caller supplies EOS
+// pressure, acoustic speed and the *complete* conservative energy, including
+// species formation energy. No constant-gamma energy reconstruction or Roe
+// enthalpy subtraction is valid for these inputs.
+//
+// Davis outer waves bound both input acoustic fans. Contact velocity and
+// pressure follow the normal momentum Rankine-Hugoniot relations; tangential
+// velocity and composition are unchanged across each acoustic wave. This is
+// one selected three-wave solver, with no failure-driven substitute flux.
+UGKP_RIEMANN_HD FluxResult hllcFluxUnitNormal
+(
+    const Primitive& left, const Conservative& leftConserved,
+    const GpuReal leftSoundSpeed,
+    const Primitive& right, const Conservative& rightConserved,
+    const GpuReal rightSoundSpeed,
+    const GpuReal nx, const GpuReal ny, const GpuReal nz
+)
+{
+    FluxResult result=invalidResult(Scheme::HLLC);
+    const GpuReal unLeft=normalVelocity(left,nx,ny,nz);
+    const GpuReal unRight=normalVelocity(right,nx,ny,nz);
+    const GpuReal leftSpeed=minimum(unLeft-leftSoundSpeed,unRight-rightSoundSpeed);
+    const GpuReal rightSpeed=maximum(unLeft+leftSoundSpeed,unRight+rightSoundSpeed);
+    result.maxSignalSpeed=maximum(absolute(leftSpeed),absolute(rightSpeed));
+    if(leftSpeed>=GPU_R(0.0) || rightSpeed<=GPU_R(0.0))
+    {
+        if(leftSpeed>=GPU_R(0.0))
+            projectedEulerFlux(left,leftConserved,nx,ny,nz,result.flux);
+        else projectedEulerFlux(right,rightConserved,nx,ny,nz,result.flux);
+        result.valid=finiteScalar(result.maxSignalSpeed)&&finiteFive(result.flux);
+        return result;
+    }
+    const GpuReal leftAcoustic=left.rho*(leftSpeed-unLeft);
+    const GpuReal rightAcoustic=right.rho*(rightSpeed-unRight);
+    const GpuReal denominator=rightAcoustic-leftAcoustic;
+    if(!finiteScalar(denominator) || denominator==GPU_R(0.0))return result;
+    const GpuReal middleSpeed=(left.p-right.p-leftAcoustic*unLeft
+        +rightAcoustic*unRight)/denominator;
+    const GpuReal starPressure=left.p+leftAcoustic*(middleSpeed-unLeft);
+    if(!finiteScalar(middleSpeed)||!finiteScalar(starPressure))return result;
+    const bool takeLeft=middleSpeed>=GPU_R(0.0);
+    Conservative star;
+    if(!makeHllcStarState(takeLeft?left:right,
+        takeLeft?leftConserved:rightConserved,takeLeft?leftSpeed:rightSpeed,
+        middleSpeed,starPressure,nx,ny,nz,star))return result;
+    // The star pressure is a Riemann-fan auxiliary quantity, not a temperature
+    // recovered from its averaged energy. In particular do not apply the
+    // constant-gamma physicalConservative() check to formation-bearing energy.
+    result.flux[0]=middleSpeed*star.q[0];
+    result.flux[1]=middleSpeed*star.q[1]+starPressure*nx;
+    result.flux[2]=middleSpeed*star.q[2]+starPressure*ny;
+    result.flux[3]=middleSpeed*star.q[3]+starPressure*nz;
+    result.flux[4]=middleSpeed*(star.q[4]+starPressure);
+    result.maxSignalSpeed=maximum(result.maxSignalSpeed,absolute(middleSpeed));
+    result.valid=finiteScalar(result.maxSignalSpeed)&&finiteFive(result.flux);
+    return result;
+}
+
 UGKP_RIEMANN_HD FluxResult hllcFluxUnitNormal
 (
     const Primitive& left,
