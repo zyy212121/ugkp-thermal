@@ -189,6 +189,19 @@ UGKWP_DEFINE_SPECIES_PROPERTY(speciesE,e,true,false)
 UGKWP_DEFINE_SPECIES_PROPERTY(speciesEntropyStandard,entropy,false,true)
 #undef UGKWP_DEFINE_SPECIES_PROPERTY
 
+// Joint channels use exactly the same evaluator and arithmetic as speciesH/Cp.
+// A failed H channel still evaluates Cp as before, retaining the first fatal
+// record and the Cp value consumed by the caller's contextual diagnostic.
+template<class Real,int Ns,class TableReal>
+UGKWP_GAS_HD inline void speciesCpH(int species,Real temperature,
+ const SpeciesThermoView<TableReal,Ns>& view,Real& cp,Real& h) noexcept {
+    gasThermoDetail::SpeciesValues<Real> values{};
+    if(gasThermoDetail::evaluateSpecies<Real,Ns,TableReal,false,true,false>(species,temperature,view,values)!=ThermoStatus::Success){
+        h=gasThermoDetail::invalidValue<Real>();cp=speciesCp(species,temperature,view);return;
+    }
+    h=values.h;cp=values.cp;
+}
+
 template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline Real speciesGibbsStandard
 (int species,Real temperature,const SpeciesThermoView<TableReal,Ns>& view) noexcept

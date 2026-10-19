@@ -4880,11 +4880,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
 }
 
 
-struct GasCourantMaximum
-{
-    __host__ __device__ double operator()(double a,double b)const
-    {return a!=a?a:b!=b?b:fmax(a,b);}
-};
+#include "../../../common/GpuGasCourantReduction.cuh"
 #include "../../../common/GpuGasCourant.cuh"
 extern "C" int ugkwpGpuResidentStrictComputeGasCourant
 (
@@ -4897,13 +4893,13 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
     if(s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy
         && tuneFixedWorkBlockThreads(s,dt,scheduleTime))return 1;
     GasCourantMaxima result;
-    const auto maximum=[](const double* field,int count,cudaStream_t stream,double& value)
+    const auto maximum=[](const double* convective,const double* diffusion,const double* sst,
+        int count,cudaStream_t stream,GasCourantMaxima& value)
     {
         try
         {
-            value=thrust::reduce(thrust::cuda::par.on(stream),
-                thrust::device_pointer_cast(field),thrust::device_pointer_cast(field)+count,
-                -std::numeric_limits<double>::infinity(),GasCourantMaximum{});
+            const auto reduced=ugkwp::reduceGasCourantComponents(convective,diffusion,sst,count,stream);
+            value.convective=reduced.convective;value.diffusion=reduced.diffusion;value.sst=reduced.sst;
         }
         catch(const std::exception& e){setLastErrorText(e.what());return 1;}
         const auto error=cudaGetLastError();

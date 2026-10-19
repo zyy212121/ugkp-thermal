@@ -38,7 +38,7 @@ struct Backend {
     GasIntervalRecord record;std::vector<GasPrimitive> stageBulk;std::vector<GasGradient> stageGradient;std::vector<GasWallResult> faceRates;std::vector<GasQ> rawInterface;
     Real microDt=0,microTime=0,stageTime=0,stagePacketDt=0;
     WindowTime elapsed{};Real nextGasSeed=0;bool microGeometryPrepared=false;int gasStageIndex=0;
-    int nCells=0,nFaces=0,fixedCellBlockThreads=128,fixedFaceBlockThreads=128;
+    int nCells=0,nFaces=0,nInternalFaces=0,fixedCellBlockThreads=128,fixedFaceBlockThreads=128;
     int hostTurbulenceModel=0,hostGasFluxScheme=1,hostGasTimeIntegrator=1,hasPeriodicFaces=0;
     ugkwp::GasSpeciesState<Real,Ns> gasSpecies;
     ugkwp::GasGeometryState<Real> gasGeometry;
@@ -52,7 +52,7 @@ inline void bindSharedGasStorage(Backend& b){
     const auto& view=b.storage.hostView();
     b.preparedWallReady=false;
     b.gasSpecies=view.gasSpecies;b.gasBoundaryLayer=view.gasBoundaryLayer;b.gasGeometry=view.gasGeometry;
-    b.deviceState=b.storage.deviceView();b.nCells=view.nCells;b.nFaces=view.nFaces;
+    b.deviceState=b.storage.deviceView();b.nCells=view.nCells;b.nFaces=view.nFaces;b.nInternalFaces=view.nInternalFaces;
 }
 inline WindowTime coupledStageTime(const Backend& b){return b.elapsed+(b.gasStageIndex==0?0:b.gasStageIndex==1?b.microDt:.5*b.microDt);}
 bool loadGasWindowState(Backend&,const HostState&,std::string&);
@@ -379,9 +379,9 @@ struct CoupledCourantReduce {
 static bool currentGasCourant(Backend& b,Real referenceDt,transport::GasCourantMaxima& result){
     const auto& v=b.storage.hostView();
     struct View {
-        int nCells,nFaces,hostTurbulenceModel;SharedGasDeviceView* deviceState;
+        int nCells,nFaces,nInternalFaces,hostTurbulenceModel;SharedGasDeviceView* deviceState;
         Real *gasFluxPositivityScale,*gasDiffusionNumber,*sstSourceNumber;
-    } view{b.nCells,b.nFaces,b.hostTurbulenceModel,b.deviceState,v.gasFluxPositivityScale,v.gasDiffusionNumber,v.sstSourceNumber};
+    } view{b.nCells,b.nFaces,b.nInternalFaces,b.hostTurbulenceModel,b.deviceState,v.gasFluxPositivityScale,v.gasDiffusionNumber,v.sstSourceNumber};
     auto copy=[&](Real* to,const Real* from){const auto code=cudaMemcpy(to,from,b.nCells*sizeof(Real),cudaMemcpyDeviceToDevice);if(code!=cudaSuccess){transport::setLastError("current Co SST scratch copy",code);return false;}return true;};
     const bool sst=b.hostTurbulenceModel==3;
     if(sst&&b.gasBoundaryLayer.enabled&&!b.storage.wallMassPublished()){

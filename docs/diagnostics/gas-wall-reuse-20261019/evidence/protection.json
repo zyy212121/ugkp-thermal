@@ -1,0 +1,31 @@
+{
+  "formal_repository": {
+    "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal",
+    "head": "7c696b19b5510ef94cfbbf7eb837a00c29d74f0d",
+    "status": ""
+  },
+  "production_binaries": {
+    "gasUGKP": {
+      "sha256": "81a62f10b53784baeec74170000b83a5714616f061c00d562748411b1db9470a",
+      "same_as_previous_evidence": true
+    },
+    "gasUGKPCudaBackend": {
+      "sha256": "62c3b4adc7b48f9b9cf19207db11a653672953e09436c80b32485918a44d105d",
+      "same_as_previous_evidence": true
+    }
+  },
+  "original_case_paths": {
+    "old": {
+      "path": "/home/lss/ARC3696-runs/20261017T042008+0800/M0p55/baseline-rh1au35z",
+      "currently_exists": true,
+      "written_by_this_round": false
+    },
+    "current": {
+      "path": "/home/lss/ARC3696-runs/manual/M0p55/pr19-merged-20261018T212224/baseline-mhx4dmqp",
+      "currently_exists": false,
+      "written_by_this_round": false
+    }
+  },
+  "final_checked_utc": "2026-10-18T23:19:33.530827+00:00",
+  "unchanged_at_final_check": true
+}

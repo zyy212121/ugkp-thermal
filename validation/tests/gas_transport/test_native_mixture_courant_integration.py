@@ -22,11 +22,15 @@ namespace thrust{
 template<class T>using device_ptr=T*;int device=0;
 template<class T>T*device_pointer_cast(T*p){return p;}
 namespace cuda{struct Par{int on(cudaStream_t){return 0;}}par;}
+int make_counting_iterator(int i){return i;}
+template<class Read,class T,class F>T transform_reduce(int,int a,int b,Read read,T value,F f){++reductionCount;for(;a!=b;++a)value=f(value,read(a));return value;}
 template<class T>T*max_element(int,T*a,T*b){++reductionCount;return std::max_element(a,b);}
 template<class T,class F>T reduce(int,const T*a,const T*b,T value,F f){++reductionCount;for(;a!=b;++a)value=f(value,*a);return value;}
 }
 '''
-    code+=function(native,'struct GasCourantMaximum')+';\n'
+    reduction=(ROOT/'common/GpuGasCourantReduction.cuh').read_text()
+    code+='\n'.join(line for line in reduction.splitlines() if not line.startswith('#include'))
+    code+='\nusing GasCourantMaximum=ugkwp::ScalarGasCourantMaximum;\n'
     code+=tagged_launches((ROOT/'common/GpuGasCourant.cuh').read_text())
     code+=function(native,'extern "C" int ugkwpGpuResidentStrictComputeGasCourant')
     code+=tagged_launches(reference)+MODEL_SETUP+COMPARE_SPECIES
@@ -38,12 +42,12 @@ int main(){int cases=0;
 for(int moving:{0,1})for(int turbulence:{0,3})for(int visc:{0,1})for(int zero:{0,1}){
  DeviceState a,b,c;setupNative(a,0,turbulence);setupNative(b,0,turbulence);setupNative(c,0,turbulence);
  Real oldVolume[2]={1,1},newVolume[2]={1,1},sweep[3]={.001,0,0};
- for(auto*s:{&a,&b,&c}){s->gasMu=visc?1e5:0;if(!visc){std::free(const_cast<double*>(s->gasSpecies.diffusivity));--allocations;s->gasSpecies.diffusivity=nullptr;}s->gasGeometry.enabled=moving;s->gasGeometry.oldVolume=oldVolume;s->gasGeometry.newVolume=newVolume;s->gasGeometry.faceSweptVolume=sweep;s->gasGeometry.interval=.001;if(zero){s->nFaces=0;for(int i=0;i<2;++i)s->cellPlaneCount[i]=0;}}
+ for(auto*s:{&a,&b,&c}){s->gasMu=visc?1e5:0;if(!visc){std::free(const_cast<double*>(s->gasSpecies.diffusivity));--allocations;s->gasSpecies.diffusivity=nullptr;}s->gasGeometry.enabled=moving;s->gasGeometry.oldVolume=oldVolume;s->gasGeometry.newVolume=newVolume;s->gasGeometry.faceSweptVolume=sweep;s->gasGeometry.interval=.001;if(zero){s->nFaces=0;s->nInternalFaces=0;for(int i=0;i<2;++i)s->cellPlaneCount[i]=0;}}
  double old=-777,direct=-777,current=-777;trace.clear();reductionCount=0;
  REFERENCE_CALL
  const auto expectedTrace=trace;assert(reductionCount==(turbulence==3?3:2));
  trace.clear();reductionCount=0;assert(helper(&b,.001,direct)==0);assert(trace==expectedTrace&&reductionCount==(turbulence==3?3:2));
- trace.clear();reductionCount=0;assert(ugkwpGpuResidentStrictComputeGasCourant(&c,.001,.5,2.,&current)==0);assert(trace==expectedTrace&&reductionCount==(turbulence==3?3:2));
+ trace.clear();reductionCount=0;assert(ugkwpGpuResidentStrictComputeGasCourant(&c,.001,.5,2.,&current)==0);assert(trace==expectedTrace&&reductionCount==1);
  assert(std::memcmp(&old,&direct,sizeof old)==0&&std::memcmp(&old,&current,sizeof old)==0);
  compareSpeciesFields(a,b);compareSpeciesFields(a,c);
  COMPARE_ALL_WRITTEN_FIELDS

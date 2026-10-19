@@ -53,7 +53,7 @@ struct Payload{};
 #define HOST_TYPE IndependentHost
 #endif
 struct HOST_TYPE {
- int fixedCellBlockThreads=128,fixedFaceBlockThreads=128,nCells=4,nFaces=5;
+ int fixedCellBlockThreads=128,fixedFaceBlockThreads=128,nCells=4,nFaces=5,nInternalFaces=0;
  int hostGasTimeIntegrator=1,hostTurbulenceModel=0,hostGasFluxScheme=2,hasPeriodicFaces=0;
  Payload*deviceState=nullptr;cudaStream_t gasCaptureStream=nullptr;
  cudaGraph_t gasGraph=nullptr;cudaGraphExec_t gasGraphExec=nullptr;
@@ -294,3 +294,20 @@ int main(){for(int rk:{1,2,3})for(int turbulence:{0,3})for(int periodic:{0,1}){
     result=subprocess.run(['g++','-std=c++17','-O0','-I'+str(ROOT/'common'),str(path),'-o',str(exe)],capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr
     assert subprocess.run([str(exe)]).returncode==0
+
+def test_graph_with_internal_faces_only_has_no_scheduled_boundary_nodes(tmp_path):
+    source=re.sub(r"<<<[\s\S]*?>>>","",(ROOT/'common/GpuGasAdvance.cuh').read_text())
+    main=r'''
+int main(){IndependentHost h;Payload p;h.deviceState=&p;
+ h.nFaces=5;h.nInternalFaces=5;expectedDevice=&p;expectedTime=2.;
+ if(advancePureGasGraph(&h,.3,2.)!=0||!h.gasGraphTimeNodes.empty())return 1;
+ trace.clear();expectedTime=5.;if(advancePureGasGraph(&h,.3,5.)!=0)return 2;
+ if(trace!=std::vector<std::string>{"graph-launch"})return 3;
+}
+'''
+    cpp=tmp_path/'graph.cpp';cpp.write_text(PREAMBLE+source+main)
+    exe=tmp_path/'graph'
+    q=subprocess.run(['g++','-std=c++17','-I'+str(ROOT/'common'),str(cpp),'-o',str(exe)],capture_output=True,text=True)
+    assert q.returncode==0,q.stdout+q.stderr
+    q=subprocess.run([str(exe)],capture_output=True,text=True)
+    assert q.returncode==0,q.stdout+q.stderr

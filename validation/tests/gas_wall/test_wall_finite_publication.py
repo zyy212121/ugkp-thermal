@@ -122,7 +122,16 @@ def seed_fixture(header):
     if(variable==N+2||variable==N+3)for(int i=1;i<c.nodes-1;++i)
         w.delta[i][variable]=-R(.5)*(variable==N+2?w.state[i][variable]*w.state[i][variable]:w.seed[i][7]);
     return true;'''
-    return 'inline int seedPass=0;\n'+header[:start]+body+header[end:]
+    header=header[:start]+body+header[end:]
+    # The shared velocity solve replaces the variable-zero scalar call.
+    # Count that same Picard pass without changing the signed turbulence probe.
+    marker='template<class R,int N,int M> UGKWP_GAS_HD inline bool seedVelocityPair('
+    if marker in header:
+        start=header.index(marker);end=header.index('\n}\n',start)
+        body=header[start:end];pos=body.rindex(old)
+        body=body[:pos]+'    if(++::seedPass==2)return false;\n'+body[pos:]
+        header=header[:start]+body+header[end:]
+    return 'inline int seedPass=0;\n'+header
 
 
 SEED_BODY=r'''

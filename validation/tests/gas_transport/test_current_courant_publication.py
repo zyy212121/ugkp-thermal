@@ -17,7 +17,7 @@ using cudaStream_t=void*;using cudaError_t=int;
 constexpr int cudaSuccess=0;int launchFailure=0;
 int cudaGetLastError(){return launchFailure;}
 void setLastError(const char*,int){}void setLastErrorText(const char*){}
-struct State{int nCells=1,nFaces=0,hostTurbulenceModel=0;void*deviceState=nullptr;double *gasFluxPositivityScale=nullptr,*gasDiffusionNumber=nullptr,*sstSourceNumber=nullptr;};
+struct State{int nCells=1,nFaces=0,nInternalFaces=0,hostTurbulenceModel=0;void*deviceState=nullptr;double *gasFluxPositivityScale=nullptr,*gasDiffusionNumber=nullptr,*sstSourceNumber=nullptr;};
 '''
     shim+='\n'.join(f'template<class... T> void {k}(T...){{}}'for k in kernels)
     code=shim+'\n'+source+r'''
