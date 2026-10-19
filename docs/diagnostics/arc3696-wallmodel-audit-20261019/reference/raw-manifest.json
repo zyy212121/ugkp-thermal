@@ -1,0 +1,418 @@
+{
+  "archive_sha256": "103d9fcd18da311aeb1c488db9062d3da4cb0462ae873ade09a4fb755dfe1087",
+  "archive_bytes": 2335855,
+  "members": {
+    "inputs/of10-reference-160/0/C": {
+      "sha256": "fdd4801009d9cc275de7a1044195dd9df3340ed41eb8992231a60f277c68e94b",
+      "bytes": 3170550
+    },
+    "inputs/of10-reference-160/0/Cx": {
+      "sha256": "407e046f3a3fc8c2f5ceb00d1510aac33d3e4fdc11f26fb495ba4e728db8b506",
+      "bytes": 982245
+    },
+    "inputs/of10-reference-160/0/Cy": {
+      "sha256": "8d2a2cab9636c390ead87e6752728760c7c67836b07b4baa8abae5315ea26250",
+      "bytes": 1099040
+    },
+    "inputs/of10-reference-160/0/Cz": {
+      "sha256": "4ba6fb52075a34c40ba40bcb243a2559388e783f0d4daebfd82f886aa822a9f7",
+      "bytes": 981762
+    },
+    "inputs/of10-reference-160/0/T": {
+      "sha256": "8672ba6af65f4938bdf29b04cc77631ad11c144b686dc68acd6ca6ca606e0806",
+      "bytes": 536
+    },
+    "inputs/of10-reference-160/0/U": {
+      "sha256": "518ce2971c7a8e4638201660da68c22556004a64099f584f5d1b03c485a7380c",
+      "bytes": 522
+    },
+    "inputs/of10-reference-160/0/alphat": {
+      "sha256": "27a3431e5df2e26a25d4cebbe99eaf3a48146597e0e4a3010fffff5fdd961ab9",
+      "bytes": 669
+    },
+    "inputs/of10-reference-160/0/k": {
+      "sha256": "018dfe9ae8ee3dab72b66e21104b1b807eaced6454af9a1a9c7c8064faaf0a28",
+      "bytes": 546
+    },
+    "inputs/of10-reference-160/0/nut": {
+      "sha256": "ad4d4907eb29ed3d4510af31516587ee57ad1dd298f2174a694b464b882d2794",
+      "bytes": 671
+    },
+    "inputs/of10-reference-160/0/omega": {
+      "sha256": "dc850a2799d4e03350bec3231b278c32c55cbbebffc7eea3d4bfbcb0711c180e",
+      "bytes": 646
+    },
+    "inputs/of10-reference-160/0/p": {
+      "sha256": "c2ae1520f8a2ddbdf19010c2b737f4c53279b608af31ebf220d43cf2a7ac0606",
+      "bytes": 474
+    },
+    "inputs/of10-reference-160/0/wallShearStress": {
+      "sha256": "ae16a08cf6fb8fe3031d1a32f2bd3e235622a81fb2865c89991ba5cf72288b77",
+      "bytes": 11342
+    },
+    "inputs/of10-reference-160/0/yPlus": {
+      "sha256": "1822934365d0ee7bf5f43b3e0b8d97a901b7c1a7105c195a41975b4aac200586",
+      "bytes": 7466
+    },
+    "inputs/of10-reference-160/constant/momentumTransport": {
+      "sha256": "aca3cecdec71eaac515e7aaae1b9ed1233964d1e8f4e33272b77c8a7e41cead9",
+      "bytes": 160
+    },
+    "inputs/of10-reference-160/constant/physicalProperties": {
+      "sha256": "d5d2cfd056fe29f4d93a8303714321a78f2dec0ddc058bc7e020de79122f5423",
+      "bytes": 404
+    },
+    "inputs/of10-reference-160/constant/thermophysicalTransport": {
+      "sha256": "dc34bf975f5408def60e087a95469bd0243ce213167ffbd475f4b927c5f24620",
+      "bytes": 130
+    },
+    "inputs/of10-reference-160/system/blockMeshDict": {
+      "sha256": "3ae3bb868bc110eeddf5de5b16789b57887a6b46c2566b588f9381d29b5983cf",
+      "bytes": 1156
+    },
+    "inputs/of10-reference-160/system/controlDict": {
+      "sha256": "6351f44e812012369b7206fffe9382f2262d0896b29b106cada6eadd5ce4b6da",
+      "bytes": 740
+    },
+    "inputs/of10-reference-160/system/fvSchemes": {
+      "sha256": "88592751d54dd911fff15c4935a1c3ae8abdcf54f9f289953a7e97e2fa66b968",
+      "bytes": 688
+    },
+    "inputs/of10-reference-160/system/fvSolution": {
+      "sha256": "239c4a05be15458175851d996725408c15436f52c5ecf6e5a7ca56cfd0c5e254",
+      "bytes": 441
+    },
+    "inputs/of10-reference-80/0/C": {
+      "sha256": "4cfd9ba95e33d99a69d26e184fb381f83c86f39ba299dafaabbc5b0295ebc741",
+      "bytes": 1597502
+    },
+    "inputs/of10-reference-80/0/Cx": {
+      "sha256": "ccea27c9c2d7ae0a454013026820ca7ddec5317f6723b5564dd8d10bd3d26b81",
+      "bytes": 497682
+    },
+    "inputs/of10-reference-80/0/Cy": {
+      "sha256": "a12f8c13c0460062267502c1c1c30e8a4e94e2e07f7c4732df4e0f1516563d3a",
+      "bytes": 552628
+    },
+    "inputs/of10-reference-80/0/Cz": {
+      "sha256": "8c41eb5488b1113ae0d6204eddf4faa14091f76bcf9f8125a46d472947ae895b",
+      "bytes": 493926
+    },
+    "inputs/of10-reference-80/0/T": {
+      "sha256": "8672ba6af65f4938bdf29b04cc77631ad11c144b686dc68acd6ca6ca606e0806",
+      "bytes": 536
+    },
+    "inputs/of10-reference-80/0/U": {
+      "sha256": "518ce2971c7a8e4638201660da68c22556004a64099f584f5d1b03c485a7380c",
+      "bytes": 522
+    },
+    "inputs/of10-reference-80/0/alphat": {
+      "sha256": "27a3431e5df2e26a25d4cebbe99eaf3a48146597e0e4a3010fffff5fdd961ab9",
+      "bytes": 669
+    },
+    "inputs/of10-reference-80/0/k": {
+      "sha256": "018dfe9ae8ee3dab72b66e21104b1b807eaced6454af9a1a9c7c8064faaf0a28",
+      "bytes": 546
+    },
+    "inputs/of10-reference-80/0/nut": {
+      "sha256": "ad4d4907eb29ed3d4510af31516587ee57ad1dd298f2174a694b464b882d2794",
+      "bytes": 671
+    },
+    "inputs/of10-reference-80/0/omega": {
+      "sha256": "dc850a2799d4e03350bec3231b278c32c55cbbebffc7eea3d4bfbcb0711c180e",
+      "bytes": 646
+    },
+    "inputs/of10-reference-80/0/p": {
+      "sha256": "c2ae1520f8a2ddbdf19010c2b737f4c53279b608af31ebf220d43cf2a7ac0606",
+      "bytes": 474
+    },
+    "inputs/of10-reference-80/0/wallShearStress": {
+      "sha256": "7c3a96fbe6708179e3d7a2b79dc09348203f5ae088b99ac775c1ea7a04a25c86",
+      "bytes": 10350
+    },
+    "inputs/of10-reference-80/0/yPlus": {
+      "sha256": "2cf49cab742d2b3bc32250a89efcf993589b2cfcce67db3e3d6dbaa664ced1e1",
+      "bytes": 7474
+    },
+    "inputs/of10-reference-80/constant/momentumTransport": {
+      "sha256": "aca3cecdec71eaac515e7aaae1b9ed1233964d1e8f4e33272b77c8a7e41cead9",
+      "bytes": 160
+    },
+    "inputs/of10-reference-80/constant/physicalProperties": {
+      "sha256": "d5d2cfd056fe29f4d93a8303714321a78f2dec0ddc058bc7e020de79122f5423",
+      "bytes": 404
+    },
+    "inputs/of10-reference-80/constant/thermophysicalTransport": {
+      "sha256": "dc34bf975f5408def60e087a95469bd0243ce213167ffbd475f4b927c5f24620",
+      "bytes": 130
+    },
+    "inputs/of10-reference-80/system/blockMeshDict": {
+      "sha256": "30374c2000858d7e50565f56d5b93f70136c90f77652f8077440f7b5c3be0d6c",
+      "bytes": 1153
+    },
+    "inputs/of10-reference-80/system/controlDict": {
+      "sha256": "6351f44e812012369b7206fffe9382f2262d0896b29b106cada6eadd5ce4b6da",
+      "bytes": 740
+    },
+    "inputs/of10-reference-80/system/fvSchemes": {
+      "sha256": "88592751d54dd911fff15c4935a1c3ae8abdcf54f9f289953a7e97e2fa66b968",
+      "bytes": 688
+    },
+    "inputs/of10-reference-80/system/fvSolution": {
+      "sha256": "239c4a05be15458175851d996725408c15436f52c5ecf6e5a7ca56cfd0c5e254",
+      "bytes": 441
+    },
+    "inputs/of10-reference-work-160/0/C": {
+      "sha256": "fdd4801009d9cc275de7a1044195dd9df3340ed41eb8992231a60f277c68e94b",
+      "bytes": 3170550
+    },
+    "inputs/of10-reference-work-160/0/Cx": {
+      "sha256": "407e046f3a3fc8c2f5ceb00d1510aac33d3e4fdc11f26fb495ba4e728db8b506",
+      "bytes": 982245
+    },
+    "inputs/of10-reference-work-160/0/Cy": {
+      "sha256": "8d2a2cab9636c390ead87e6752728760c7c67836b07b4baa8abae5315ea26250",
+      "bytes": 1099040
+    },
+    "inputs/of10-reference-work-160/0/Cz": {
+      "sha256": "4ba6fb52075a34c40ba40bcb243a2559388e783f0d4daebfd82f886aa822a9f7",
+      "bytes": 981762
+    },
+    "inputs/of10-reference-work-160/0/T": {
+      "sha256": "8672ba6af65f4938bdf29b04cc77631ad11c144b686dc68acd6ca6ca606e0806",
+      "bytes": 536
+    },
+    "inputs/of10-reference-work-160/0/U": {
+      "sha256": "518ce2971c7a8e4638201660da68c22556004a64099f584f5d1b03c485a7380c",
+      "bytes": 522
+    },
+    "inputs/of10-reference-work-160/0/alphat": {
+      "sha256": "27a3431e5df2e26a25d4cebbe99eaf3a48146597e0e4a3010fffff5fdd961ab9",
+      "bytes": 669
+    },
+    "inputs/of10-reference-work-160/0/k": {
+      "sha256": "018dfe9ae8ee3dab72b66e21104b1b807eaced6454af9a1a9c7c8064faaf0a28",
+      "bytes": 546
+    },
+    "inputs/of10-reference-work-160/0/nut": {
+      "sha256": "ad4d4907eb29ed3d4510af31516587ee57ad1dd298f2174a694b464b882d2794",
+      "bytes": 671
+    },
+    "inputs/of10-reference-work-160/0/omega": {
+      "sha256": "dc850a2799d4e03350bec3231b278c32c55cbbebffc7eea3d4bfbcb0711c180e",
+      "bytes": 646
+    },
+    "inputs/of10-reference-work-160/0/p": {
+      "sha256": "c2ae1520f8a2ddbdf19010c2b737f4c53279b608af31ebf220d43cf2a7ac0606",
+      "bytes": 474
+    },
+    "inputs/of10-reference-work-160/0/wallShearStress": {
+      "sha256": "ae16a08cf6fb8fe3031d1a32f2bd3e235622a81fb2865c89991ba5cf72288b77",
+      "bytes": 11342
+    },
+    "inputs/of10-reference-work-160/0/yPlus": {
+      "sha256": "1822934365d0ee7bf5f43b3e0b8d97a901b7c1a7105c195a41975b4aac200586",
+      "bytes": 7466
+    },
+    "inputs/of10-reference-work-160/constant/momentumTransport": {
+      "sha256": "aca3cecdec71eaac515e7aaae1b9ed1233964d1e8f4e33272b77c8a7e41cead9",
+      "bytes": 160
+    },
+    "inputs/of10-reference-work-160/constant/physicalProperties": {
+      "sha256": "d5d2cfd056fe29f4d93a8303714321a78f2dec0ddc058bc7e020de79122f5423",
+      "bytes": 404
+    },
+    "inputs/of10-reference-work-160/constant/thermophysicalTransport": {
+      "sha256": "dc34bf975f5408def60e087a95469bd0243ce213167ffbd475f4b927c5f24620",
+      "bytes": 130
+    },
+    "inputs/of10-reference-work-160/system/blockMeshDict": {
+      "sha256": "3ae3bb868bc110eeddf5de5b16789b57887a6b46c2566b588f9381d29b5983cf",
+      "bytes": 1156
+    },
+    "inputs/of10-reference-work-160/system/controlDict": {
+      "sha256": "d986ce4a02bc9f782b618033c3ad3152ba182fadc3869c9fb5be8c89c61774a8",
+      "bytes": 749
+    },
+    "inputs/of10-reference-work-160/system/fvSchemes": {
+      "sha256": "c1ac4eace010be07daf50f6d37e3f0b1c93344ed88c1c6d9377ba2f02b9c1b3c",
+      "bytes": 719
+    },
+    "inputs/of10-reference-work-160/system/fvSolution": {
+      "sha256": "239c4a05be15458175851d996725408c15436f52c5ecf6e5a7ca56cfd0c5e254",
+      "bytes": 441
+    },
+    "inputs/of10-reference-work-80/0/C": {
+      "sha256": "4cfd9ba95e33d99a69d26e184fb381f83c86f39ba299dafaabbc5b0295ebc741",
+      "bytes": 1597502
+    },
+    "inputs/of10-reference-work-80/0/Cx": {
+      "sha256": "ccea27c9c2d7ae0a454013026820ca7ddec5317f6723b5564dd8d10bd3d26b81",
+      "bytes": 497682
+    },
+    "inputs/of10-reference-work-80/0/Cy": {
+      "sha256": "a12f8c13c0460062267502c1c1c30e8a4e94e2e07f7c4732df4e0f1516563d3a",
+      "bytes": 552628
+    },
+    "inputs/of10-reference-work-80/0/Cz": {
+      "sha256": "8c41eb5488b1113ae0d6204eddf4faa14091f76bcf9f8125a46d472947ae895b",
+      "bytes": 493926
+    },
+    "inputs/of10-reference-work-80/0/T": {
+      "sha256": "8672ba6af65f4938bdf29b04cc77631ad11c144b686dc68acd6ca6ca606e0806",
+      "bytes": 536
+    },
+    "inputs/of10-reference-work-80/0/U": {
+      "sha256": "518ce2971c7a8e4638201660da68c22556004a64099f584f5d1b03c485a7380c",
+      "bytes": 522
+    },
+    "inputs/of10-reference-work-80/0/alphat": {
+      "sha256": "27a3431e5df2e26a25d4cebbe99eaf3a48146597e0e4a3010fffff5fdd961ab9",
+      "bytes": 669
+    },
+    "inputs/of10-reference-work-80/0/k": {
+      "sha256": "018dfe9ae8ee3dab72b66e21104b1b807eaced6454af9a1a9c7c8064faaf0a28",
+      "bytes": 546
+    },
+    "inputs/of10-reference-work-80/0/nut": {
+      "sha256": "ad4d4907eb29ed3d4510af31516587ee57ad1dd298f2174a694b464b882d2794",
+      "bytes": 671
+    },
+    "inputs/of10-reference-work-80/0/omega": {
+      "sha256": "dc850a2799d4e03350bec3231b278c32c55cbbebffc7eea3d4bfbcb0711c180e",
+      "bytes": 646
+    },
+    "inputs/of10-reference-work-80/0/p": {
+      "sha256": "c2ae1520f8a2ddbdf19010c2b737f4c53279b608af31ebf220d43cf2a7ac0606",
+      "bytes": 474
+    },
+    "inputs/of10-reference-work-80/0/wallShearStress": {
+      "sha256": "7c3a96fbe6708179e3d7a2b79dc09348203f5ae088b99ac775c1ea7a04a25c86",
+      "bytes": 10350
+    },
+    "inputs/of10-reference-work-80/0/yPlus": {
+      "sha256": "2cf49cab742d2b3bc32250a89efcf993589b2cfcce67db3e3d6dbaa664ced1e1",
+      "bytes": 7474
+    },
+    "inputs/of10-reference-work-80/constant/momentumTransport": {
+      "sha256": "aca3cecdec71eaac515e7aaae1b9ed1233964d1e8f4e33272b77c8a7e41cead9",
+      "bytes": 160
+    },
+    "inputs/of10-reference-work-80/constant/physicalProperties": {
+      "sha256": "d5d2cfd056fe29f4d93a8303714321a78f2dec0ddc058bc7e020de79122f5423",
+      "bytes": 404
+    },
+    "inputs/of10-reference-work-80/constant/thermophysicalTransport": {
+      "sha256": "dc34bf975f5408def60e087a95469bd0243ce213167ffbd475f4b927c5f24620",
+      "bytes": 130
+    },
+    "inputs/of10-reference-work-80/system/blockMeshDict": {
+      "sha256": "30374c2000858d7e50565f56d5b93f70136c90f77652f8077440f7b5c3be0d6c",
+      "bytes": 1153
+    },
+    "inputs/of10-reference-work-80/system/controlDict": {
+      "sha256": "d986ce4a02bc9f782b618033c3ad3152ba182fadc3869c9fb5be8c89c61774a8",
+      "bytes": 749
+    },
+    "inputs/of10-reference-work-80/system/fvSchemes": {
+      "sha256": "c1ac4eace010be07daf50f6d37e3f0b1c93344ed88c1c6d9377ba2f02b9c1b3c",
+      "bytes": 719
+    },
+    "inputs/of10-reference-work-80/system/fvSolution": {
+      "sha256": "239c4a05be15458175851d996725408c15436f52c5ecf6e5a7ca56cfd0c5e254",
+      "bytes": 441
+    },
+    "logs/160-blockMesh.log": {
+      "sha256": "6c498afd7fcad238317c7e91bfb54d9d44119432e98e7eab29c410b19d1c638f",
+      "bytes": 2755
+    },
+    "logs/160-checkMesh.log": {
+      "sha256": "e97353358f3ddae283de17da2a0367fb3acef3c85a02e5c291a52eead10e78d8",
+      "bytes": 3431
+    },
+    "logs/160-commands.json": {
+      "sha256": "ebee99c0a658680c571c3886b7e23e16d8417f71cfa4588acecb4348938c5cd8",
+      "bytes": 2053
+    },
+    "logs/160-rhoSimpleFoam.log": {
+      "sha256": "c000be853f3f986f0988fca9feaf1af1facefc6fc90dbefbc2e6dda12880c1b7",
+      "bytes": 1519492
+    },
+    "logs/160-viscous-work-command.json": {
+      "sha256": "76f3281592abd9eaeffab8f485cfe7b4abe620f7bc1242d5135d01bd1df6e2be",
+      "bytes": 794
+    },
+    "logs/160-viscous-work.log": {
+      "sha256": "cc2f472311c3b57e58d5c13e32df92bf0ed0b29d29b43b5eb1705f48926e361f",
+      "bytes": 1546452
+    },
+    "logs/80-blockMesh.log": {
+      "sha256": "201973bb05601485be61f82cd1b7487b2dfd68f5ee551eb1c65a0e62ccd91666",
+      "bytes": 2909
+    },
+    "logs/80-checkMesh.log": {
+      "sha256": "a41fd855b2491bb838dea22b79368703856e0e88ba9f3ffbb1ad0dfb04c060ce",
+      "bytes": 3426
+    },
+    "logs/80-commands.json": {
+      "sha256": "0ee9cb6c9522dafe19218e3d3744ce3253c4a79e386e00d8af2838e36d1ec05e",
+      "bytes": 2046
+    },
+    "logs/80-initial-missing-wallDist.log": {
+      "sha256": "0887a598dbc8ea466e4de25149caaaa18803a195665e613bd44597d8d391f4fc",
+      "bytes": 2292
+    },
+    "logs/80-rhoSimpleFoam.log": {
+      "sha256": "88454c849059a3e1649df48c986d49012069c34988f2f4d550dc53aee1a7cd1a",
+      "bytes": 684306
+    },
+    "logs/80-viscous-work-command.json": {
+      "sha256": "c0bef275a65d8f72934d21084f772bd1cb9c52250b6638f39b01aa3fa14dfe77",
+      "bytes": 793
+    },
+    "logs/80-viscous-work-initial-missing-scheme.log": {
+      "sha256": "fe299d2839885513382064e61677e1b070d65aada1daefc70d5f9b26ec60cd6c",
+      "bytes": 3501
+    },
+    "logs/80-viscous-work.log": {
+      "sha256": "e3fdf6d99fd0f297b7ded26de9a7cae56339b11b3b8d29694fee8712eaac8727",
+      "bytes": 691975
+    },
+    "logs/final-post-commands.json": {
+      "sha256": "f8b95086c7d8bcde97a1744e839f5571c2e4f478fe542c8ab0ba45ac503cf54a",
+      "bytes": 2870
+    },
+    "logs/of10-reference-160-final-post.log": {
+      "sha256": "1f635bc2a6dd3cf8b1d9b143b0a4a307ee309537fd27eb74a704798a1ab5050d",
+      "bytes": 3510
+    },
+    "logs/of10-reference-80-final-post.log": {
+      "sha256": "b1ad54498651d1e2aafc5faa480c3f1d37fb536eb2a4b29303964801544c0e54",
+      "bytes": 3500
+    },
+    "logs/of10-reference-work-160-final-post.log": {
+      "sha256": "4eccf51c4178e2f90234e6303f7c0d90c0ac51abfd6259c5a92204b9f25f0983",
+      "bytes": 3637
+    },
+    "logs/of10-reference-work-80-final-post.log": {
+      "sha256": "111ca6ec34304abddb4d8556e962d1faf5f41204675122fc32d7aaae5f8691b9",
+      "bytes": 3635
+    },
+    "logs/portable-comparison-verification.json": {
+      "sha256": "fd459afcb5e1cb02e073492da1f30b45536dd4d543f2850b866cf403ceac4892",
+      "bytes": 140
+    },
+    "logs/portable-prepare-verification.json": {
+      "sha256": "e5a4819ba8885e4a5fff5af2f34b0fab9d99294a04a8e935829073abb67a70bc",
+      "bytes": 1318
+    },
+    "logs/viscous-work-build.log": {
+      "sha256": "2ead1288b95080f2a1009ca6741f2cd044d46f909d50975a66dbf21b44aa84ad",
+      "bytes": 2436
+    },
+    "logs/viscous-work-source.diff": {
+      "sha256": "1fc96f5478747565f820ecaffce9f1f929b9ada0a20e5ae7c377f31155892236",
+      "bytes": 506
+    }
+  }
+}

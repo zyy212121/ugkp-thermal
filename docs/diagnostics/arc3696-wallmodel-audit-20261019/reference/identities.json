@@ -1,0 +1,322 @@
+{
+  "OpenFOAM_build": "10-c4cf895ad8fa",
+  "binaries": {
+    "/opt/openfoam10/platforms/linux64GccDPInt32Opt/bin/rhoSimpleFoam": "7a996d949e2ab9419daa50bb7685684e49d9943a2b57c0d6e981cb3709579980",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin/rhoSimpleWallAuditFoam": "f8d20c199682640f8ea0d57ae3ec6e051813465ec38bd22151e681461870a58f"
+  },
+  "reference_sources": {
+    "UEqn.H": "c966695e1ab0ccea7fd1b9bddae444dbd0a2bc22dc597a1e057f46f9dcc3325c",
+    "pEqn.H": "75d87ecdb9b4d4db7abf1af6ad04c8e5a193d9caf3fac34dcc01ceee824907a7",
+    "EEqn.H": "cac62b4b76a3be86f36f71fc140aeca9395a38f82fd2965323f81bf76ffc50fe",
+    "rhoSimpleFoam.C": "f836c6a01b1c7f08eb0bc5651b554ace37be3c9cb136fe79429e1bfbcd0fc151",
+    "createFields.H": "0ea73fc17accbdcfb5339a55077b49ac86bc85c5a5bf9b311b2a3c8a6d09b9fc",
+    "createFieldRefs.H": "d81413d7a682adf6619cd6cd2b17c2fa26e88f9b98aef1ab054410055ad46e3d",
+    "rhoPorousSimpleFoam/rhoPorousSimpleFoam.C": "3769c876ef9f9005ffb316336cc56580c5402eb101e02f5988661ed270b5135b",
+    "rhoPorousSimpleFoam/UEqn.H": "6621f48dd4570eecfbbc8046bf15416ccf674d421b68fa8e0cfa396fbc00d940",
+    "rhoPorousSimpleFoam/pEqn.H": "10e44b429d3bbc9d9c7f4349ec3ee72ccef7fa47fcec37fd4413f07f776d3a09",
+    "rhoPorousSimpleFoam/createZones.H": "0697c530f1555faf93a3edc3a631f734bdb3c49eb854cababa2e1e48f949f31c",
+    "rhoPorousSimpleFoam/Make/options": "6e7492bfee08c1c1deec19b2414402541776c60e7b8482b1dabceb0022d07462",
+    "rhoPorousSimpleFoam/Make/files": "0cd09db84cd051e9e1fb4c97066b58fb070e686d05a1b0b3b625f2114c1af626",
+    "Make/options": "c4bb1035c7935d9818585df1b9f38006eed96d152e1cb132d86d83ad2e9b5f67",
+    "Make/files": "2dacf635b945ae5c2805eb0b8e422e3f9811cdebf865ab3e92e7f31b6abe4112"
+  },
+  "input_hashes": {
+    "of10-reference-work-80/0/k": "018dfe9ae8ee3dab72b66e21104b1b807eaced6454af9a1a9c7c8064faaf0a28",
+    "of10-reference-work-80/0/omega": "dc850a2799d4e03350bec3231b278c32c55cbbebffc7eea3d4bfbcb0711c180e",
+    "of10-reference-work-80/0/T": "8672ba6af65f4938bdf29b04cc77631ad11c144b686dc68acd6ca6ca606e0806",
+    "of10-reference-work-80/0/Cx": "ccea27c9c2d7ae0a454013026820ca7ddec5317f6723b5564dd8d10bd3d26b81",
+    "of10-reference-work-80/0/alphat": "27a3431e5df2e26a25d4cebbe99eaf3a48146597e0e4a3010fffff5fdd961ab9",
+    "of10-reference-work-80/0/yPlus": "2cf49cab742d2b3bc32250a89efcf993589b2cfcce67db3e3d6dbaa664ced1e1",
+    "of10-reference-work-80/0/Cy": "a12f8c13c0460062267502c1c1c30e8a4e94e2e07f7c4732df4e0f1516563d3a",
+    "of10-reference-work-80/0/U": "518ce2971c7a8e4638201660da68c22556004a64099f584f5d1b03c485a7380c",
+    "of10-reference-work-80/0/C": "4cfd9ba95e33d99a69d26e184fb381f83c86f39ba299dafaabbc5b0295ebc741",
+    "of10-reference-work-80/0/nut": "ad4d4907eb29ed3d4510af31516587ee57ad1dd298f2174a694b464b882d2794",
+    "of10-reference-work-80/0/Cz": "8c41eb5488b1113ae0d6204eddf4faa14091f76bcf9f8125a46d472947ae895b",
+    "of10-reference-work-80/0/wallShearStress": "7c3a96fbe6708179e3d7a2b79dc09348203f5ae088b99ac775c1ea7a04a25c86",
+    "of10-reference-work-80/0/p": "c2ae1520f8a2ddbdf19010c2b737f4c53279b608af31ebf220d43cf2a7ac0606",
+    "of10-reference-work-80/constant/momentumTransport": "aca3cecdec71eaac515e7aaae1b9ed1233964d1e8f4e33272b77c8a7e41cead9",
+    "of10-reference-work-80/constant/physicalProperties": "d5d2cfd056fe29f4d93a8303714321a78f2dec0ddc058bc7e020de79122f5423",
+    "of10-reference-work-80/constant/thermophysicalTransport": "dc34bf975f5408def60e087a95469bd0243ce213167ffbd475f4b927c5f24620",
+    "of10-reference-work-80/system/blockMeshDict": "30374c2000858d7e50565f56d5b93f70136c90f77652f8077440f7b5c3be0d6c",
+    "of10-reference-work-80/system/controlDict": "d986ce4a02bc9f782b618033c3ad3152ba182fadc3869c9fb5be8c89c61774a8",
+    "of10-reference-work-80/system/fvSolution": "239c4a05be15458175851d996725408c15436f52c5ecf6e5a7ca56cfd0c5e254",
+    "of10-reference-work-80/system/fvSchemes": "c1ac4eace010be07daf50f6d37e3f0b1c93344ed88c1c6d9377ba2f02b9c1b3c",
+    "of10-reference-80/0/k": "018dfe9ae8ee3dab72b66e21104b1b807eaced6454af9a1a9c7c8064faaf0a28",
+    "of10-reference-80/0/omega": "dc850a2799d4e03350bec3231b278c32c55cbbebffc7eea3d4bfbcb0711c180e",
+    "of10-reference-80/0/T": "8672ba6af65f4938bdf29b04cc77631ad11c144b686dc68acd6ca6ca606e0806",
+    "of10-reference-80/0/Cx": "ccea27c9c2d7ae0a454013026820ca7ddec5317f6723b5564dd8d10bd3d26b81",
+    "of10-reference-80/0/alphat": "27a3431e5df2e26a25d4cebbe99eaf3a48146597e0e4a3010fffff5fdd961ab9",
+    "of10-reference-80/0/yPlus": "2cf49cab742d2b3bc32250a89efcf993589b2cfcce67db3e3d6dbaa664ced1e1",
+    "of10-reference-80/0/Cy": "a12f8c13c0460062267502c1c1c30e8a4e94e2e07f7c4732df4e0f1516563d3a",
+    "of10-reference-80/0/U": "518ce2971c7a8e4638201660da68c22556004a64099f584f5d1b03c485a7380c",
+    "of10-reference-80/0/C": "4cfd9ba95e33d99a69d26e184fb381f83c86f39ba299dafaabbc5b0295ebc741",
+    "of10-reference-80/0/nut": "ad4d4907eb29ed3d4510af31516587ee57ad1dd298f2174a694b464b882d2794",
+    "of10-reference-80/0/Cz": "8c41eb5488b1113ae0d6204eddf4faa14091f76bcf9f8125a46d472947ae895b",
+    "of10-reference-80/0/wallShearStress": "7c3a96fbe6708179e3d7a2b79dc09348203f5ae088b99ac775c1ea7a04a25c86",
+    "of10-reference-80/0/p": "c2ae1520f8a2ddbdf19010c2b737f4c53279b608af31ebf220d43cf2a7ac0606",
+    "of10-reference-80/constant/momentumTransport": "aca3cecdec71eaac515e7aaae1b9ed1233964d1e8f4e33272b77c8a7e41cead9",
+    "of10-reference-80/constant/physicalProperties": "d5d2cfd056fe29f4d93a8303714321a78f2dec0ddc058bc7e020de79122f5423",
+    "of10-reference-80/constant/thermophysicalTransport": "dc34bf975f5408def60e087a95469bd0243ce213167ffbd475f4b927c5f24620",
+    "of10-reference-80/system/blockMeshDict": "30374c2000858d7e50565f56d5b93f70136c90f77652f8077440f7b5c3be0d6c",
+    "of10-reference-80/system/controlDict": "6351f44e812012369b7206fffe9382f2262d0896b29b106cada6eadd5ce4b6da",
+    "of10-reference-80/system/fvSolution": "239c4a05be15458175851d996725408c15436f52c5ecf6e5a7ca56cfd0c5e254",
+    "of10-reference-80/system/fvSchemes": "88592751d54dd911fff15c4935a1c3ae8abdcf54f9f289953a7e97e2fa66b968",
+    "of10-reference-160/0/k": "018dfe9ae8ee3dab72b66e21104b1b807eaced6454af9a1a9c7c8064faaf0a28",
+    "of10-reference-160/0/omega": "dc850a2799d4e03350bec3231b278c32c55cbbebffc7eea3d4bfbcb0711c180e",
+    "of10-reference-160/0/T": "8672ba6af65f4938bdf29b04cc77631ad11c144b686dc68acd6ca6ca606e0806",
+    "of10-reference-160/0/Cx": "407e046f3a3fc8c2f5ceb00d1510aac33d3e4fdc11f26fb495ba4e728db8b506",
+    "of10-reference-160/0/alphat": "27a3431e5df2e26a25d4cebbe99eaf3a48146597e0e4a3010fffff5fdd961ab9",
+    "of10-reference-160/0/yPlus": "1822934365d0ee7bf5f43b3e0b8d97a901b7c1a7105c195a41975b4aac200586",
+    "of10-reference-160/0/Cy": "8d2a2cab9636c390ead87e6752728760c7c67836b07b4baa8abae5315ea26250",
+    "of10-reference-160/0/U": "518ce2971c7a8e4638201660da68c22556004a64099f584f5d1b03c485a7380c",
+    "of10-reference-160/0/C": "fdd4801009d9cc275de7a1044195dd9df3340ed41eb8992231a60f277c68e94b",
+    "of10-reference-160/0/nut": "ad4d4907eb29ed3d4510af31516587ee57ad1dd298f2174a694b464b882d2794",
+    "of10-reference-160/0/Cz": "4ba6fb52075a34c40ba40bcb243a2559388e783f0d4daebfd82f886aa822a9f7",
+    "of10-reference-160/0/wallShearStress": "ae16a08cf6fb8fe3031d1a32f2bd3e235622a81fb2865c89991ba5cf72288b77",
+    "of10-reference-160/0/p": "c2ae1520f8a2ddbdf19010c2b737f4c53279b608af31ebf220d43cf2a7ac0606",
+    "of10-reference-160/constant/momentumTransport": "aca3cecdec71eaac515e7aaae1b9ed1233964d1e8f4e33272b77c8a7e41cead9",
+    "of10-reference-160/constant/physicalProperties": "d5d2cfd056fe29f4d93a8303714321a78f2dec0ddc058bc7e020de79122f5423",
+    "of10-reference-160/constant/thermophysicalTransport": "dc34bf975f5408def60e087a95469bd0243ce213167ffbd475f4b927c5f24620",
+    "of10-reference-160/system/blockMeshDict": "3ae3bb868bc110eeddf5de5b16789b57887a6b46c2566b588f9381d29b5983cf",
+    "of10-reference-160/system/controlDict": "6351f44e812012369b7206fffe9382f2262d0896b29b106cada6eadd5ce4b6da",
+    "of10-reference-160/system/fvSolution": "239c4a05be15458175851d996725408c15436f52c5ecf6e5a7ca56cfd0c5e254",
+    "of10-reference-160/system/fvSchemes": "88592751d54dd911fff15c4935a1c3ae8abdcf54f9f289953a7e97e2fa66b968",
+    "of10-reference-work-160/0/k": "018dfe9ae8ee3dab72b66e21104b1b807eaced6454af9a1a9c7c8064faaf0a28",
+    "of10-reference-work-160/0/omega": "dc850a2799d4e03350bec3231b278c32c55cbbebffc7eea3d4bfbcb0711c180e",
+    "of10-reference-work-160/0/T": "8672ba6af65f4938bdf29b04cc77631ad11c144b686dc68acd6ca6ca606e0806",
+    "of10-reference-work-160/0/Cx": "407e046f3a3fc8c2f5ceb00d1510aac33d3e4fdc11f26fb495ba4e728db8b506",
+    "of10-reference-work-160/0/alphat": "27a3431e5df2e26a25d4cebbe99eaf3a48146597e0e4a3010fffff5fdd961ab9",
+    "of10-reference-work-160/0/yPlus": "1822934365d0ee7bf5f43b3e0b8d97a901b7c1a7105c195a41975b4aac200586",
+    "of10-reference-work-160/0/Cy": "8d2a2cab9636c390ead87e6752728760c7c67836b07b4baa8abae5315ea26250",
+    "of10-reference-work-160/0/U": "518ce2971c7a8e4638201660da68c22556004a64099f584f5d1b03c485a7380c",
+    "of10-reference-work-160/0/C": "fdd4801009d9cc275de7a1044195dd9df3340ed41eb8992231a60f277c68e94b",
+    "of10-reference-work-160/0/nut": "ad4d4907eb29ed3d4510af31516587ee57ad1dd298f2174a694b464b882d2794",
+    "of10-reference-work-160/0/Cz": "4ba6fb52075a34c40ba40bcb243a2559388e783f0d4daebfd82f886aa822a9f7",
+    "of10-reference-work-160/0/wallShearStress": "ae16a08cf6fb8fe3031d1a32f2bd3e235622a81fb2865c89991ba5cf72288b77",
+    "of10-reference-work-160/0/p": "c2ae1520f8a2ddbdf19010c2b737f4c53279b608af31ebf220d43cf2a7ac0606",
+    "of10-reference-work-160/constant/momentumTransport": "aca3cecdec71eaac515e7aaae1b9ed1233964d1e8f4e33272b77c8a7e41cead9",
+    "of10-reference-work-160/constant/physicalProperties": "d5d2cfd056fe29f4d93a8303714321a78f2dec0ddc058bc7e020de79122f5423",
+    "of10-reference-work-160/constant/thermophysicalTransport": "dc34bf975f5408def60e087a95469bd0243ce213167ffbd475f4b927c5f24620",
+    "of10-reference-work-160/system/blockMeshDict": "3ae3bb868bc110eeddf5de5b16789b57887a6b46c2566b588f9381d29b5983cf",
+    "of10-reference-work-160/system/controlDict": "d986ce4a02bc9f782b618033c3ad3152ba182fadc3869c9fb5be8c89c61774a8",
+    "of10-reference-work-160/system/fvSolution": "239c4a05be15458175851d996725408c15436f52c5ecf6e5a7ca56cfd0c5e254",
+    "of10-reference-work-160/system/fvSchemes": "c1ac4eace010be07daf50f6d37e3f0b1c93344ed88c1c6d9377ba2f02b9c1b3c"
+  },
+  "final_result_hashes": {
+    "of10-reference-work-80": {
+      "last_iteration": "722",
+      "files": {
+        "k": "e8561806c5dd70f119765791b406341e04fdfb912afe2ab032f0343c43bc0155",
+        "omega": "2f4ae4ec145de9e75ddee5b70b942bbd943ecb883d1d7e5977446dda6c9015ba",
+        "rho": "d71698c81f70640f505568b0ed699568cc5a0c8ff68a2f13f4467ff64448335c",
+        "T": "a7a003cbe612345b0cb404df3ce4cf3d2556ff936dff88913fb8963923e65a7e",
+        "Cx": "c517a3722220fd1117c55bad7122d7224544d929aa1d7659ab9e5f2057cad0c6",
+        "alphat": "b7c96fa1453f61137c8eedad365ad0aae13c7b0cf1e9e5fef074413f4a118ff2",
+        "yPlus": "703f48c75d6d91229d5f5408e701f2f9f16c679fd184862b6a8ae86786ccb98f",
+        "Cy": "358baf003521d308a12f25528da3a4195555dcca0a15b6c1caf86f397b9d9426",
+        "U": "bb64876e071f54b203767c340cf7818c56cd9f25d1bb807fc2708b97d644ef40",
+        "C": "13a61be430ba1187ea9a277362f995c9829f667822d765d4be6c5e21330f77ca",
+        "nut": "2d69ec1658e365471b9824efbcca5c8e2536fea8396377361fe35874591c1010",
+        "Cz": "979143db79079c0d0fe84f6dd83671e07e1b35749774f2fdcdf055e27af05eb9",
+        "wallShearStress": "40721e971e46ac608029b272968f4f0a188c231e362191f149af5d9bb6fbe9f4",
+        "p": "a8affd4798d995e96f7cddd49939acb2d209550359f9aa79429162187d9c5a3a",
+        "phi": "176c7806c62f3f0bc8ac46d951b1f60709a03d516cab23f7141b63b22838b1a5"
+      }
+    },
+    "of10-reference-80": {
+      "last_iteration": "714",
+      "files": {
+        "k": "abde6e53d3b58b03fea0ff0e80ad1fc541c61ae3b903183678a58a569276880b",
+        "omega": "1115f79a02512679d84b06509e8129a957cbed284d10b53cf97ea644174c7a56",
+        "rho": "163f7c08aa71e3426d8da30d28ae29c87d3ba3d3412c5c673cf6d81cb998b5f0",
+        "T": "e4326c91154455994082143dd0c775b18b9474a7fbd524467f4c31e3fa729a91",
+        "Cx": "766d12e7e202054ebe3e97367af98b44fc8f9624c36ca26c474aeecd792c34fe",
+        "alphat": "a6f93f14108833a53015cc42cc837c7c1dd9e4523ead8aeef5c7f775da688f5c",
+        "yPlus": "a8c06d9da5054ef7c20b021bd1877824239332cfddde57827bc6324ea61ead2a",
+        "Cy": "ad6f7359264372e1ef14704c22f00afdb2f6529a403b4cf5db4f48f1f4347d43",
+        "U": "90c1bb01ac955fa4419fc9d8e12b4942f49dc57ff4e4cee93a9cce8c8e8c0266",
+        "C": "50d7fbf50e0fbfe8d42e7b989beb83c0db60852851af8ad8033547e66556f361",
+        "nut": "3c3064a17430eed32e72676d7dacd8dca0d7583fbc491c6b47573cb89aa25f67",
+        "Cz": "6bf9fc2a0759969c387f9d2062ce8a9f308583e1acedd7c06063a8ff8ae874e3",
+        "wallShearStress": "64e1f4357e88b76013f089c9ce23ece74450b14a4aef6368bff32f0d627c0e4a",
+        "p": "6d1d7bf5943805eb82154a87879472c89f57d6a1f7d350e0609e7c309646246a",
+        "phi": "d4a2e7b5fe87970f9fd78dd0d30d2afeb8598a5c2e78072327ac35536c40117f"
+      }
+    },
+    "of10-reference-160": {
+      "last_iteration": "1585",
+      "files": {
+        "k": "086aa3e239eeaebb0f3f7bec682d3947b5618ba4028d8f1276406a6bfd3ac1f1",
+        "omega": "11ca0fe9c5537adfd059d59334456c0f3e83422fd75a74046577db1d48ef9a40",
+        "rho": "3ff95c41604c0bd302d065dd1029c91cbddc59417d2ca3204703018559216ace",
+        "T": "4ac5eb2167e6ae046d5200e12e87eef9d892de686d5cc75e7271ae1bb5354e36",
+        "Cx": "3cbcc4b2030780da31d8583d04696872c5d63f9aa8e7092b6ad615e4b12cbffc",
+        "alphat": "a77e95a7f9d9cdef8e6f248c9bafca9c06bc6b675d2ff5be9c7930f876686623",
+        "yPlus": "5e43e8bf0d0730a737e024b71f8d93eb475081db8500422df98402e2e039877e",
+        "Cy": "d24f3baf5f2491e96cb6ea9cade66f63fd7ad5879b6402e2ec368456a669b83a",
+        "U": "bf997cf3a194da6f979255cbe05647019eddc02a93f7ad3f97c94cc97d2c7a03",
+        "C": "e21a1ec0adcaf0bebdd9f9b6c8804d0b022ceacf565bbbe4095c9a061b37bf9f",
+        "nut": "5da845aaa6bd170035776548813d1d3bd21a2a622ed8507efd8570f27f618624",
+        "Cz": "184d0ad107f0b42c4c4e073478b30bc064b21c4dda6f582e3121f02b91c90502",
+        "wallShearStress": "faeb8f0f26347959b6af144f2c8012882982c8b9dfa8f817edf268cc0fb0e394",
+        "p": "5e3c6a577bdd58273b9579a3353a3cb3e3088950ce4a8da19432670c273ed437",
+        "phi": "bdf109465bb7f6a6fa79184707856af3a40a9f39baa2e3f3b3784b5ca825c8f4"
+      }
+    },
+    "of10-reference-work-160": {
+      "last_iteration": "1613",
+      "files": {
+        "k": "80a5045c7e871717dcd694910e8651c4319629b9adb8aeed5df159a2a00279f0",
+        "omega": "06b76bbb1be52b8ef00670262ed38d48b226c8f14b9590ba3bdbf19348f705a6",
+        "rho": "499353fed38aac74a138f36c62e3f804edc3c17a0cce957ce9f51a018c833b8b",
+        "T": "3cc0aa8825dd275c8fd3370299a9687b6d5c7222be14f6fdf51ccc0280414df6",
+        "Cx": "0a1a511a02e489beb04eb52ce9ed63ccf1965129701b387a1c066df34d1de0a6",
+        "alphat": "932ae9aa1dd5f2bbcd936b33f3f1d2e7c8fdd4d195b364d3ddaa11d24ac528b3",
+        "yPlus": "dd602375eb2c6b57ad1252d2d9f5a37c9ee603932b81db0597141d5fb05f3d5d",
+        "Cy": "8c97d9c0def9673687aa09b0335f08e617f7e6066e5c8caa2de167561daddd7a",
+        "U": "d50094e0736999970a599f7acd5acf6c3c208d0ca7718e5e32a5dbb5699c9955",
+        "C": "fb60dcdc3773aaa904a594cdef0b453d96f78eed97704655858fdc4c504ff583",
+        "nut": "7c7e8e08153c58fd8f799b376a6fef2b87e60aac67269037bed19f57b46cdde9",
+        "Cz": "8ef02b4c820c28081ad05c59b9b669d753b0b6181b4e2cb1d8c76e7af6091cc0",
+        "wallShearStress": "a5e6b94a73d11726ea167bad13955e2607c5203c510da84551b6757eadaf37cb",
+        "p": "e9abfebda41cfce55b0959bea3a2b8d28a76294341cc157c85f791b560af5a21",
+        "phi": "e1596a5dcbbe049694a10da48c962be1242e6e36a4af5cad2f78a372dcd58fe7"
+      }
+    }
+  },
+  "commands": {
+    "160-commands.json": [
+      {
+        "argv": [
+          "bash",
+          "-c",
+          "source /opt/openfoam10/etc/bashrc >/dev/null 2>&1; export FOAM_USER_APPBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin\"; export FOAM_USER_LIBBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-libbin\"; exec blockMesh -case \"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/of10-reference-160\""
+        ],
+        "exit": 0,
+        "elapsed_seconds": 2.2728657722473145,
+        "log": "/mnt/d/tempt/pr21-wallmodel-audit-20261019/of10-reference/160-blockMesh.log"
+      },
+      {
+        "argv": [
+          "bash",
+          "-c",
+          "source /opt/openfoam10/etc/bashrc >/dev/null 2>&1; export FOAM_USER_APPBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin\"; export FOAM_USER_LIBBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-libbin\"; exec checkMesh -case \"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/of10-reference-160\""
+        ],
+        "exit": 0,
+        "elapsed_seconds": 5.0078771114349365,
+        "log": "/mnt/d/tempt/pr21-wallmodel-audit-20261019/of10-reference/160-checkMesh.log"
+      },
+      {
+        "argv": [
+          "bash",
+          "-c",
+          "source /opt/openfoam10/etc/bashrc >/dev/null 2>&1; export FOAM_USER_APPBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin\"; export FOAM_USER_LIBBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-libbin\"; exec rhoSimpleFoam -case \"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/of10-reference-160\""
+        ],
+        "exit": 0,
+        "elapsed_seconds": 106.20917797088623,
+        "log": "/mnt/d/tempt/pr21-wallmodel-audit-20261019/of10-reference/160-rhoSimpleFoam.log"
+      }
+    ],
+    "160-viscous-work-command.json": {
+      "command": [
+        "bash",
+        "-c",
+        "source /opt/openfoam10/etc/bashrc >/dev/null 2>&1; export FOAM_USER_APPBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin\"; export FOAM_USER_LIBBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-libbin\"; exec \"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin/rhoSimpleWallAuditFoam\" -case \"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/of10-reference-work-160\""
+      ],
+      "exit": 0,
+      "elapsed_seconds": 113.96687269210815,
+      "binary_sha256": "f8d20c199682640f8ea0d57ae3ec6e051813465ec38bd22151e681461870a58f"
+    },
+    "80-commands.json": [
+      {
+        "argv": [
+          "bash",
+          "-c",
+          "source /opt/openfoam10/etc/bashrc >/dev/null 2>&1; export FOAM_USER_APPBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin\"; export FOAM_USER_LIBBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-libbin\"; exec blockMesh -case \"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/of10-reference-80\""
+        ],
+        "exit": 0,
+        "elapsed_seconds": 1.4339876174926758,
+        "log": "/mnt/d/tempt/pr21-wallmodel-audit-20261019/of10-reference/80-blockMesh.log"
+      },
+      {
+        "argv": [
+          "bash",
+          "-c",
+          "source /opt/openfoam10/etc/bashrc >/dev/null 2>&1; export FOAM_USER_APPBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin\"; export FOAM_USER_LIBBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-libbin\"; exec checkMesh -case \"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/of10-reference-80\""
+        ],
+        "exit": 0,
+        "elapsed_seconds": 1.332995891571045,
+        "log": "/mnt/d/tempt/pr21-wallmodel-audit-20261019/of10-reference/80-checkMesh.log"
+      },
+      {
+        "argv": [
+          "bash",
+          "-c",
+          "source /opt/openfoam10/etc/bashrc >/dev/null 2>&1; export FOAM_USER_APPBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin\"; export FOAM_USER_LIBBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-libbin\"; exec rhoSimpleFoam -case \"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/of10-reference-80\""
+        ],
+        "exit": 0,
+        "elapsed_seconds": 20.999380588531494,
+        "log": "/mnt/d/tempt/pr21-wallmodel-audit-20261019/of10-reference/80-rhoSimpleFoam.log"
+      }
+    ],
+    "80-viscous-work-command.json": {
+      "command": [
+        "bash",
+        "-c",
+        "source /opt/openfoam10/etc/bashrc >/dev/null 2>&1; export FOAM_USER_APPBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin\"; export FOAM_USER_LIBBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-libbin\"; exec \"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin/rhoSimpleWallAuditFoam\" -case \"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/of10-reference-work-80\""
+      ],
+      "exit": 0,
+      "elapsed_seconds": 27.997934341430664,
+      "binary_sha256": "f8d20c199682640f8ea0d57ae3ec6e051813465ec38bd22151e681461870a58f"
+    },
+    "final-post-commands.json": [
+      {
+        "argv": [
+          "bash",
+          "-c",
+          "source /opt/openfoam10/etc/bashrc >/dev/null 2>&1; export FOAM_USER_APPBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin\"; export FOAM_USER_LIBBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-libbin\"; exec rhoSimpleFoam -case \"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/of10-reference-80\" -postProcess -latestTime -funcs \"(wallShearStress yPlus)\""
+        ],
+        "exit": 0,
+        "elapsed_seconds": 1.5706753730773926
+      },
+      {
+        "argv": [
+          "bash",
+          "-c",
+          "source /opt/openfoam10/etc/bashrc >/dev/null 2>&1; export FOAM_USER_APPBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin\"; export FOAM_USER_LIBBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-libbin\"; exec /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin/rhoSimpleWallAuditFoam -case \"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/of10-reference-work-80\" -postProcess -latestTime -funcs \"(wallShearStress yPlus)\""
+        ],
+        "exit": 0,
+        "elapsed_seconds": 1.1248092651367188
+      },
+      {
+        "argv": [
+          "bash",
+          "-c",
+          "source /opt/openfoam10/etc/bashrc >/dev/null 2>&1; export FOAM_USER_APPBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin\"; export FOAM_USER_LIBBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-libbin\"; exec rhoSimpleFoam -case \"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/of10-reference-160\" -postProcess -latestTime -funcs \"(wallShearStress yPlus)\""
+        ],
+        "exit": 0,
+        "elapsed_seconds": 1.9879822731018066
+      },
+      {
+        "argv": [
+          "bash",
+          "-c",
+          "source /opt/openfoam10/etc/bashrc >/dev/null 2>&1; export FOAM_USER_APPBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin\"; export FOAM_USER_LIBBIN=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-libbin\"; exec /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin/rhoSimpleWallAuditFoam -case \"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/of10-reference-work-160\" -postProcess -latestTime -funcs \"(wallShearStress yPlus)\""
+        ],
+        "exit": 0,
+        "elapsed_seconds": 1.8580479621887207
+      }
+    ]
+  },
+  "compiler": "g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+  "ldd": {
+    "/opt/openfoam10/platforms/linux64GccDPInt32Opt/bin/rhoSimpleFoam": "\tlinux-vdso.so.1 (0x00007fffa5d8e000)\n\tlibfluidThermophysicalModels.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfluidThermophysicalModels.so (0x000070ea6b200000)\n\tlibspecie.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libspecie.so (0x000070ea6bade000)\n\tlibmomentumTransportModels.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmomentumTransportModels.so (0x000070ea6ae00000)\n\tlibcompressibleMomentumTransportModels.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libcompressibleMomentumTransportModels.so (0x000070ea6aa00000)\n\tlibthermophysicalTransportModels.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libthermophysicalTransportModels.so (0x000070ea6b0f8000)\n\tlibfiniteVolume.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfiniteVolume.so (0x000070ea68e00000)\n\tlibsampling.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsampling.so (0x000070ea68a00000)\n\tlibmeshTools.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmeshTools.so (0x000070ea68400000)\n\tlibfvModels.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfvModels.so (0x000070ea68000000)\n\tlibfvConstraints.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfvConstraints.so (0x000070ea6ad13000)\n\tlibOpenFOAM.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libOpenFOAM.so (0x000070ea67600000)\n\tlibstdc++.so.6 => /lib/x86_64-linux-gnu/libstdc++.so.6 (0x000070ea67200000)\n\tlibm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x000070ea6a919000)\n\tlibgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x000070ea6baad000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x000070ea66e00000)\n\tlibPstream.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/openmpi-system/libPstream.so (0x000070ea6ba9b000)\n\tlibphysicalProperties.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libphysicalProperties.so (0x000070ea6ba6a000)\n\tlibthermophysicalProperties.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libthermophysicalProperties.so (0x000070ea688e5000)\n\tlibsolidThermo.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsolidThermo.so (0x000070ea66a00000)\n\tlibtriSurface.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libtriSurface.so (0x000070ea68362000)\n\tlibsurfMesh.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsurfMesh.so (0x000070ea674f7000)\n\tlibfileFormats.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfileFormats.so (0x000070ea6ba3a000)\n\tliblagrangian.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/liblagrangian.so (0x000070ea6b0c0000)\n\tlibdynamicMesh.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libdynamicMesh.so (0x000070ea66400000)\n\tlibconversion.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libconversion.so (0x000070ea6ac8a000)\n\tlibz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x000070ea6b0a4000)\n\t/lib64/ld-linux-x86-64.so.2 (0x000070ea6bbe9000)\n\tlibmpi.so.40 => /lib/x86_64-linux-gnu/libmpi.so.40 (0x000070ea670c9000)\n\tlibreactionThermophysicalModels.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libreactionThermophysicalModels.so (0x000070ea64a00000)\n\tlibextrudeModel.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libextrudeModel.so (0x000070ea68de2000)\n\tlibopen-rte.so.40 => /lib/x86_64-linux-gnu/libopen-rte.so.40 (0x000070ea6743a000)\n\tlibopen-pal.so.40 => /lib/x86_64-linux-gnu/libopen-pal.so.40 (0x000070ea66d4d000)\n\tlibhwloc.so.15 => /lib/x86_64-linux-gnu/libhwloc.so.15 (0x000070ea68d86000)\n\tlibevent_core-2.1.so.7 => /lib/x86_64-linux-gnu/libevent_core-2.1.so.7 (0x000070ea688b0000)\n\tlibevent_pthreads-2.1.so.7 => /lib/x86_64-linux-gnu/libevent_pthreads-2.1.so.7 (0x000070ea6ba31000)\n\tlibudev.so.1 => /lib/x86_64-linux-gnu/libudev.so.1 (0x000070ea68338000)\n",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/isolated-appbin/rhoSimpleWallAuditFoam": "\tlinux-vdso.so.1 (0x00007ffe97e66000)\n\tlibfluidThermophysicalModels.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfluidThermophysicalModels.so (0x0000788e51200000)\n\tlibspecie.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libspecie.so (0x0000788e51b30000)\n\tlibmomentumTransportModels.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmomentumTransportModels.so (0x0000788e50e00000)\n\tlibcompressibleMomentumTransportModels.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libcompressibleMomentumTransportModels.so (0x0000788e50a00000)\n\tlibthermophysicalTransportModels.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libthermophysicalTransportModels.so (0x0000788e510f8000)\n\tlibfiniteVolume.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfiniteVolume.so (0x0000788e4ee00000)\n\tlibsampling.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsampling.so (0x0000788e4ea00000)\n\tlibmeshTools.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmeshTools.so (0x0000788e4e400000)\n\tlibfvModels.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfvModels.so (0x0000788e4e000000)\n\tlibfvConstraints.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfvConstraints.so (0x0000788e51a3f000)\n\tlibOpenFOAM.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libOpenFOAM.so (0x0000788e4d600000)\n\tlibstdc++.so.6 => /lib/x86_64-linux-gnu/libstdc++.so.6 (0x0000788e4d200000)\n\tlibm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x0000788e50d19000)\n\tlibgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x0000788e510d8000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x0000788e4ce00000)\n\tlibPstream.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/openmpi-system/libPstream.so (0x0000788e510c8000)\n\tlibphysicalProperties.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libphysicalProperties.so (0x0000788e51097000)\n\tlibthermophysicalProperties.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libthermophysicalProperties.so (0x0000788e4e8e5000)\n\tlibsolidThermo.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsolidThermo.so (0x0000788e4ca00000)\n\tlibtriSurface.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libtriSurface.so (0x0000788e50962000)\n\tlibsurfMesh.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsurfMesh.so (0x0000788e4e2f7000)\n\tlibfileFormats.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfileFormats.so (0x0000788e50ceb000)\n\tliblagrangian.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/liblagrangian.so (0x0000788e50cb3000)\n\tlibdynamicMesh.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libdynamicMesh.so (0x0000788e4c400000)\n\tlibconversion.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libconversion.so (0x0000788e4ed77000)\n\tlibz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x0000788e50c97000)\n\t/lib64/ld-linux-x86-64.so.2 (0x0000788e51c49000)\n\tlibmpi.so.40 => /lib/x86_64-linux-gnu/libmpi.so.40 (0x0000788e4d4c9000)\n\tlibreactionThermophysicalModels.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libreactionThermophysicalModels.so (0x0000788e4aa00000)\n\tlibextrudeModel.so => /opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libextrudeModel.so (0x0000788e50944000)\n\tlibopen-rte.so.40 => /lib/x86_64-linux-gnu/libopen-rte.so.40 (0x0000788e4d143000)\n\tlibopen-pal.so.40 => /lib/x86_64-linux-gnu/libopen-pal.so.40 (0x0000788e4d090000)\n\tlibhwloc.so.15 => /lib/x86_64-linux-gnu/libhwloc.so.15 (0x0000788e4d46d000)\n\tlibevent_core-2.1.so.7 => /lib/x86_64-linux-gnu/libevent_core-2.1.so.7 (0x0000788e5090f000)\n\tlibevent_pthreads-2.1.so.7 => /lib/x86_64-linux-gnu/libevent_pthreads-2.1.so.7 (0x0000788e51092000)\n\tlibudev.so.1 => /lib/x86_64-linux-gnu/libudev.so.1 (0x0000788e4e8bb000)\n"
+  },
+  "formal_repo_read_only_end": {
+    "rev-parse HEAD": "7c696b19b5510ef94cfbbf7eb837a00c29d74f0d\n",
+    "status --porcelain=v1": ""
+  },
+  "ugkp_computation_source": "f9e8d77559c9d5f0eb884755203c22d2606aae7e",
+  "ugkp_production_source_modified": false
+}

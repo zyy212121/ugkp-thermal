@@ -1,0 +1,38 @@
+{
+  "exit": 0,
+  "input_files_same_tokens": [
+    "of10-reference-80/system/blockMeshDict",
+    "of10-reference-80/system/controlDict",
+    "of10-reference-80/system/fvSolution",
+    "of10-reference-80/system/fvSchemes",
+    "of10-reference-80/constant/momentumTransport",
+    "of10-reference-80/constant/physicalProperties",
+    "of10-reference-80/constant/thermophysicalTransport",
+    "of10-reference-80/0/k",
+    "of10-reference-80/0/omega",
+    "of10-reference-80/0/T",
+    "of10-reference-80/0/alphat",
+    "of10-reference-80/0/U",
+    "of10-reference-80/0/nut",
+    "of10-reference-80/0/p",
+    "of10-reference-160/system/blockMeshDict",
+    "of10-reference-160/system/controlDict",
+    "of10-reference-160/system/fvSolution",
+    "of10-reference-160/system/fvSchemes",
+    "of10-reference-160/constant/momentumTransport",
+    "of10-reference-160/constant/physicalProperties",
+    "of10-reference-160/constant/thermophysicalTransport",
+    "of10-reference-160/0/k",
+    "of10-reference-160/0/omega",
+    "of10-reference-160/0/T",
+    "of10-reference-160/0/alphat",
+    "of10-reference-160/0/U",
+    "of10-reference-160/0/nut",
+    "of10-reference-160/0/p"
+  ],
+  "whitespace_only": [
+    "of10-reference-80/system/fvSchemes",
+    "of10-reference-160/system/fvSchemes"
+  ],
+  "full_runner_not_reexecuted": true
+}

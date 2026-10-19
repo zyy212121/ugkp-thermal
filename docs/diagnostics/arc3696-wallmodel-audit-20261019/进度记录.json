@@ -19,5 +19,24 @@
     "本轮没有修改/实现通量或壁模型修复",
     "未完成原长算所有GPU/RK阶段的守恒审计或独立同条件物理解对照"
   ],
-  "next": "基于通用通量/重构与壁模型的离散兼容性设计修复；先过制造解和多组分接触验证，再端到端比较"
+  "next": "基于通用通量/重构与壁模型的离散兼容性设计修复；先过制造解和多组分接触验证，再端到端比较",
+  "independent_reference": {
+    "completed": [
+      "OF10 same-mesh SST",
+      "OF10 normal Ny160 SST",
+      "isolated compiled viscous-work sensitivity, Ny80/Ny160",
+      "all four converge and exit0",
+      "final wall stress/yplus postprocess",
+      "portable preparation and input identity check"
+    ],
+    "evidence": "独立参考与判断边界.md",
+    "current_source": "f9e8d77559c9d5f0eb884755203c22d2606aae7e",
+    "known_limitations": [
+      "steady versus transient",
+      "no exact same-condition experiment",
+      "no full multidimensional grid limit",
+      "thermal and wall coupling differences"
+    ],
+    "next_step": "通用混合气剪切/接触分辨通量及细剖面-宏观状态一致性修正，分别做制造解、守恒与收敛验证；本PR未实施生产修复"
+  }
 }

@@ -1,0 +1,10 @@
+--- /opt/openfoam10/applications/solvers/compressible/rhoSimpleFoam/EEqn.H	2023-01-21 18:09:51.000000000 +0800
++++ /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-execution-20261019/rhoSimpleWallAuditFoam/EEqn.H	2026-10-19 23:58:40.022751787 +0800
+@@ -10,6 +10,7 @@
+           : fvc::div(phi, volScalarField("K", 0.5*magSqr(U)))
+         )
+       + thermophysicalTransport->divq(he)
++      + fvc::div(turbulence->devTau() & U)
+      ==
+         fvModels.source(rho, he)
+     );
