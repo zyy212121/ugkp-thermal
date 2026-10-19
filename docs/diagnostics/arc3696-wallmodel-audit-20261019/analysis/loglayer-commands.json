@@ -1,0 +1,14 @@
+{
+  "build": [
+    "g++",
+    "-std=c++17",
+    "-O2",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/common",
+    "/mnt/c/Users/25094/Documents/Codex/2026-10-16/1-uniform-work-accepted-source-manifest/work/wallfunction-loglayer-probe.cpp",
+    "-o",
+    "/mnt/d/tempt/wallfunction-vs-boundarylayer-20261019/loglayer-probe"
+  ],
+  "build_exit": 0,
+  "run_exit": 0
+}

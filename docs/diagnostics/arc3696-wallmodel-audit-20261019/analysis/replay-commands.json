@@ -1,0 +1,26 @@
+{
+  "build": [
+    "g++",
+    "-std=c++17",
+    "-O2",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/common",
+    "/mnt/c/Users/25094/Documents/Codex/2026-10-16/1-uniform-work-accepted-source-manifest/work/wallfunction-replay.cpp",
+    "-o",
+    "/mnt/d/tempt/wallfunction-vs-boundarylayer-20261019/wallfunction-replay"
+  ],
+  "build_exit": 0,
+  "runs": [
+    {
+      "input": "/mnt/d/tempt/wallfunction-vs-boundarylayer-20261019/wall-input-t0.0005.csv",
+      "exit": 0
+    },
+    {
+      "input": "/mnt/d/tempt/wallfunction-vs-boundarylayer-20261019/wall-input-t0.004.csv",
+      "exit": 0
+    },
+    {
+      "input": "/mnt/d/tempt/wallfunction-vs-boundarylayer-20261019/wall-input-t0.018.csv",
+      "exit": 0
+    }
+  ]
+}

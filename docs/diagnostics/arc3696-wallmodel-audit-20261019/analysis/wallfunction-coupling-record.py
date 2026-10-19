@@ -1,0 +1,37 @@
+from pathlib import Path
+import json,hashlib,shutil
+O=Path('/mnt/d/tempt/wallfunction-vs-boundarylayer-20261019')
+t='''补充诊断：以当前宏观网格满足壁函数要求为前提
+日期：2026-10-19；源码仍为f9e8d775，工作树干净；原案例和源码未修改。
+
+用户明确当前网格满足壁函数要求。已有摩擦y+约73–114也不支持把本次差异归咎于黏性底层网格误用。后续应检查实现、数学模型和离散耦合，而不是用“网格不适用”解释。
+
+对上一份归因的收紧
+两种首层k生产项虽然实现表达式不同，但在一致对数层状态下具有共同极限。取uStar=uTau、k=uTau²/sqrt(Cmu)、U=uTau*log(E*yPlus)/kappa和|snGrad U|=U/y：
+OF10形式中的scaledShear=uStar*|snGrad U|*y/Uplus=uTau²，故G=uTau³/(kappa*y)。
+壁剪切形式G=tau/rho*uStar/(kappa*y)也等于uTau³/(kappa*y)。
+因此“公式不同”本身不是实际两倍差异的充分解释；实际粗网格状态、壁剪切以及匹配约束之间的关系必须一起检查。
+
+新增生产算子探针
+1. 通用对数层一致性探针：目标y+=30、80、200，各用24/48/96/128内部节点，共12组；全部真实壁层算子求解成功。两个生产关系的相对差最大4.44e-16。
+这只是对数层极限一致性检查，未把对数律误当成包含黏性底层、F1/F2和热方程的完整SST精确制造解。其BVP剪切不必严格等于目标tau。
+2. 原10组保存场重建输入固定，内部节点加密24/48/96/128，共40次生产BVP重放全部成功，保持原迭代上限及容差。
+旧baseline场x≈0.58：tau=48.6825、49.6576、50.2716、50.3216 Pa。24→128约增加3.37%，无法解释与壁函数87.2764 Pa的主要差距；这是所测局部输入的结论，不推广为全域内部网格已收敛。
+3. 同站旧baseline粗网格首层U=123.4812 m/s，辅助壁层在owner高度的点值≈83.1763 m/s。按这套正交矩形网格的实际首层高度2*y_owner，对已保存剖面作分段线性、rho∝1/T的质量加权积分，平均U≈77.2959 m/s。
+该积分是保存剖面的离线重构，不是新增的生产积分算子。它排除了“仅因点值与单元平均定义不同”就能解释两状态相差的说法。
+
+当前可下的判断
+壁函数的网格适用性不应成为本次差异的解释。当前最明确的耦合风险是：boundaryLayer发布的壁剪切/omega所依赖的辅助剖面，与粗网格首层动量状态没有共同的一致性约束。切换wallTreatment后，这种不同约束直接改变应力和k生产。
+但一向耦合的壁面模型可以有意保留辅助状态，单凭二者不相等不能宣布实现有bug；必须对照该模型的设计方程和离散交换要求作判断。也不能因某个boundaryLayer结果已被工程接受，就自动将wallFunction判为错误。
+本轮没有修改生产模型，也没有把两种模型强行调到相同结果。尚未完成独立参考流场的物理准确性判别或宏观离散耦合修复验证。
+
+原始证据
+loglayer-probe.csv、loglayer-commands.json、loglayer-build.log；
+node-convergence-24/48/96/128.csv、node-convergence-commands.json及对应构建/运行日志；
+profile-coarse-consistency.json；配套C++与Python脚本同目录。
+'''
+(O/'补充诊断-壁函数网格与耦合一致性.txt').write_text(t)
+p=O/'进度记录.json';m=json.loads(p.read_text());m['accepted_constraint']='当前宏观网格满足wallFunction使用要求，不将网格不适用作为本次差异原因';m['completed']+=['12组通用对数层一致性探针，全部成功','40组24/48/96/128内部节点重放，全部成功','粗网格首层与辅助剖面的质量加权平均检查'];m['refined_finding']='两种Pk关系在一致对数层状态有相同极限；重点转为boundaryLayer辅助状态与粗网格首层交换的一致性，尚未证明具体实现缺陷';p.write_text(json.dumps(m,ensure_ascii=False,indent=2))
+shutil.copy2(Path(__file__),O/Path(__file__).name)
+(O/'evidence-sha256.json').write_text(json.dumps({p.relative_to(O).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()for p in O.rglob('*')if p.is_file()and p.name!='evidence-sha256.json'},indent=2))
+print(O/'补充诊断-壁函数网格与耦合一致性.txt')

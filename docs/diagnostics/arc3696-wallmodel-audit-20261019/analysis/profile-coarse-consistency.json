@@ -1,0 +1,47 @@
+[
+  {
+    "x_station": 0.35,
+    "face": "53594",
+    "owner_y": 0.00012738855555975386,
+    "owner_height_for_this_orthogonal_rectangular_mesh": 0.0002547771111195077,
+    "coarse_owner_U": 133.19295210981807,
+    "profile_point_U_at_owner_y": 89.63490647871215,
+    "piecewise_linear_profile_mass_weighted_owner_average_U": 83.46865534138004
+  },
+  {
+    "x_station": 0.38,
+    "face": "53604",
+    "owner_y": 0.00012738855555975354,
+    "owner_height_for_this_orthogonal_rectangular_mesh": 0.00025477711111950707,
+    "coarse_owner_U": 131.50658030535448,
+    "profile_point_U_at_owner_y": 88.50975816596988,
+    "piecewise_linear_profile_mass_weighted_owner_average_U": 82.39320731915868
+  },
+  {
+    "x_station": 0.58,
+    "face": "53702",
+    "owner_y": 0.000127388555559755,
+    "owner_height_for_this_orthogonal_rectangular_mesh": 0.00025477711111951,
+    "coarse_owner_U": 123.48115216340732,
+    "profile_point_U_at_owner_y": 83.17632943136695,
+    "piecewise_linear_profile_mass_weighted_owner_average_U": 77.29594014050188
+  },
+  {
+    "x_station": 0.75,
+    "face": "53784",
+    "owner_y": 0.00012738855555975272,
+    "owner_height_for_this_orthogonal_rectangular_mesh": 0.00025477711111950545,
+    "coarse_owner_U": 120.07032053536635,
+    "profile_point_U_at_owner_y": 80.97602788530978,
+    "piecewise_linear_profile_mass_weighted_owner_average_U": 75.18913059219643
+  },
+  {
+    "x_station": 0.85,
+    "face": "53832",
+    "owner_y": 0.00012738855555975497,
+    "owner_height_for_this_orthogonal_rectangular_mesh": 0.00025477711111950995,
+    "coarse_owner_U": 119.08232786011709,
+    "profile_point_U_at_owner_y": 80.38328579222647,
+    "piecewise_linear_profile_mass_weighted_owner_average_U": 74.61850893246462
+  }
+]

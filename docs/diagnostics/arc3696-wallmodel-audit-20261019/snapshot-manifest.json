@@ -1,0 +1,1074 @@
+{
+  "created_local": "2026-10-19T23:11:04.597743+08:00",
+  "selected_physical_times_s": [
+    0.0005,
+    0.004,
+    0.008,
+    0.018
+  ],
+  "selection_reason": "startup, established model difference, intermediate, final common engineering comparison",
+  "reference_baseline_source": "Historical preserved boundaryLayer run; exact historical build SHA is not established by current source or runner source_commit metadata.",
+  "current_source_sha": "f9e8d77559c9d5f0eb884755203c22d2606aae7e",
+  "cases": {
+    "baseline-boundaryLayer": {
+      "source_directory": "/home/lss/ARC3696-runs/20261017T042008+0800/M0p55/baseline-rh1au35z",
+      "wallTreatment": "boundaryLayer/reactingSst",
+      "archive": "baseline-boundaryLayer.tar.gz",
+      "archive_sha256": "32505071d74c503e282009c8825042d8267b942c795ff5730f3eb5b48db3a02d",
+      "archive_bytes": 16022124,
+      "original_uncompressed_bytes": 49152250,
+      "file_count": 134,
+      "time_directories": {
+        "0.0005": "0.00050000000000000001",
+        "0.004": "0.0040000000000000001",
+        "0.008": "0.0080000000000000002",
+        "0.018": "0.018000000000000002"
+      },
+      "members": {
+        "baseline-boundaryLayer/0/C": {
+          "sha256": "b6c8bd08d2a0667490079f45af68f62981d4182a044446b12dc45305a4556f72",
+          "bytes": 1819004
+        },
+        "baseline-boundaryLayer/0/Cx": {
+          "sha256": "4bbe3a5ca48b2e28837b6814603232a9f995a3fb8faef6d85fbd1a1e8e9a7f1c",
+          "bytes": 549612
+        },
+        "baseline-boundaryLayer/0/Cy": {
+          "sha256": "86fbb6d864783af00ee68e0979dbf2aede2ef84075fd9930ac66ae4a7852c51e",
+          "bytes": 583043
+        },
+        "baseline-boundaryLayer/0/Cz": {
+          "sha256": "dba5f360634fd7e17f6d8db666d2ed8a94571af69555905b5158340f68600963",
+          "bytes": 633083
+        },
+        "baseline-boundaryLayer/0/T": {
+          "sha256": "aa21784e6e88dd8fa7db73c8a40b6cd8190008ea39826072f4b7a571d6ceffb2",
+          "bytes": 543
+        },
+        "baseline-boundaryLayer/0/U": {
+          "sha256": "5b86ff6e574e8a954e97ade4a089123545c9eedd6977b7a482e1d3fdf701fcd6",
+          "bytes": 529
+        },
+        "baseline-boundaryLayer/0/Us": {
+          "sha256": "acfbbeb55bd340de685fa780e7e9bf17114a4c77cc8f6210772f077228b76803",
+          "bytes": 479
+        },
+        "baseline-boundaryLayer/0/V": {
+          "sha256": "f1c032e8feb1bfedd9f4f985ed5bf4d9eaad80497cbd00938271cb03c854465c",
+          "bytes": 616730
+        },
+        "baseline-boundaryLayer/0/Y_Air": {
+          "sha256": "a6040dbec1cca622059647d94459f2d91651670bc974d645eb80fcba1ebe1463",
+          "bytes": 400
+        },
+        "baseline-boundaryLayer/0/Y_CO2": {
+          "sha256": "e72e94b36612b0cc61b927777a617c5ad2055e97cdadca0133f9184cd43d5cbe",
+          "bytes": 400
+        },
+        "baseline-boundaryLayer/0/epsilonS": {
+          "sha256": "380ddd6aa58e4be8ca96bf6481ee5b766cd5a2b0ed20b58f5cf196c57712dd2d",
+          "bytes": 403
+        },
+        "baseline-boundaryLayer/0/k": {
+          "sha256": "fd141c05a320ff93986b11312057567565fbffa5d71d260e7216129237b29e6c",
+          "bytes": 490
+        },
+        "baseline-boundaryLayer/0/omega": {
+          "sha256": "09ad6fa0054351e223130efdc1a89b79e4607c8c5a9afa1ade2be2d493390d0d",
+          "bytes": 452
+        },
+        "baseline-boundaryLayer/0/p": {
+          "sha256": "6f35ce0a8eed72549a57c5255497bb3a0bd73da4e1483e7599de7b06f412f463",
+          "bytes": 481
+        },
+        "baseline-boundaryLayer/0/rho": {
+          "sha256": "2d5f91cd67d09324f70e9989c6dcd6b78284c38f78e91936fcbb3988788f8502",
+          "bytes": 450
+        },
+        "baseline-boundaryLayer/0/rhoE": {
+          "sha256": "6891edcfcaa783a4d5a5236150b253c9985d636b2e20c853febdcd13ec0804a2",
+          "bytes": 452
+        },
+        "baseline-boundaryLayer/0/theta": {
+          "sha256": "14126729b46edb21ea33b22a09aaf928cd3a4cbed0165667cf0244c95a210cf1",
+          "bytes": 401
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/T": {
+          "sha256": "ceef08aef5f6d2d00848d74cd7436d6ba05fff7523ffe9d8b23b3253ec924e7e",
+          "bytes": 509185
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/U": {
+          "sha256": "df174e74c1ce9b0d9fda34ebf701cdfaba773fea0a8cf7cd88b5b43ea8421f58",
+          "bytes": 1750706
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/Us": {
+          "sha256": "8b42860887fb48ded8b87f3f31378213bc5b3eeef718ced847cceb3760dae328",
+          "bytes": 1400
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/Y_Air": {
+          "sha256": "1570a4da0286cd2b0b5d286761dc2d7f9841d4541d3244c167a50814ad1edd76",
+          "bytes": 1267
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/Y_CO2": {
+          "sha256": "5448565b4ccc0b4919d27d1709f939cbf148e6367d74a40427ce978aec1aa0b3",
+          "bytes": 1267
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/dMeanCell": {
+          "sha256": "8e0b8f212b0371eabea5f2e4593299953321829ff1ade11be23d80e105de64bf",
+          "bytes": 1403
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/epsilonS": {
+          "sha256": "dacfeb7cce0172a8a1801a3054cfa1057694ccd78e1473cca1856208359f8b88",
+          "bytes": 1270
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/gasModelIdentity": {
+          "sha256": "05be6584cdd7eebc92b3b89d86fee936b7b3765403743168138d6cfca1aca151",
+          "bytes": 859
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/k": {
+          "sha256": "7e24bd8df1ac77ff5e4e050556cd45666f74d326fefe7bc216e1cb43257571e6",
+          "bytes": 509115
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/nut": {
+          "sha256": "64340a506451255380ccc4658efc21f749f87f77c6263274094c2b774e1ab0b1",
+          "bytes": 616562
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/omega": {
+          "sha256": "327a35d1a5d0e3eb40b3cb572a55ae68d180efd082fe4a0387753ceae1b4c42b",
+          "bytes": 509206
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/p": {
+          "sha256": "b68434bafcc6fc23e43308ab01499e76844c7d9993a8edf389ec589ffb62a109",
+          "bytes": 508975
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/rho": {
+          "sha256": "473aad25fdfd697809cd33fae416eed10ef840adf57ea64432e5686da63090d0",
+          "bytes": 509017
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/rhoDs": {
+          "sha256": "7dcc609c251292f8fce1f9c7e71e05c68d755b8d5713d07a9d1f17d9071277c2",
+          "bytes": 1400
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/rhoE": {
+          "sha256": "c403bf73487f1b561cdf1fa4a2773d9b449f0bf0dd75f8cf87c49705eaf1105f",
+          "bytes": 509206
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/rhoEs": {
+          "sha256": "255a35e8a25de8403fcb1423020d972df4b10dbc88e276ba602fa5a2dee919b5",
+          "bytes": 1401
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/rhoU": {
+          "sha256": "fbf8e1134b678983a70a3326ae2e827bea105e0ff941e9534a14533138ce75ca",
+          "bytes": 1750094
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/rhoUs": {
+          "sha256": "537202b7056ddeeee7e6220b40eab34d0a92e3efc2f900f942335f2058fb4f9d",
+          "bytes": 1443
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/rhoY_Air": {
+          "sha256": "d542b7d4d6009e8d46f73bb51870f3d59be6fd2fc91255769823642e0c2b76ad",
+          "bytes": 517109
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/rhoY_CO2": {
+          "sha256": "a399810618c492a1d1564111a45e34f6d08aed1fbf945db1c330308efa24394c",
+          "bytes": 1403
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/theta": {
+          "sha256": "800d8ca3f219ea71e673eaa7958a1cf020c87e424f3be6a11828d0b0b0f909dd",
+          "bytes": 1268
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/uniform/gasBoundaryLayer.csv": {
+          "sha256": "b84bcf112542696ae215613ef4e8d4c125638979e147cf63ac0246c97bcee0cd",
+          "bytes": 81988
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/uniform/gasBoundaryLayerProfiles.csv": {
+          "sha256": "598af9bbe508e4973f800e39a890b517efb8c61b40c36992431ecaafc0c27dae",
+          "bytes": 1866591
+        },
+        "baseline-boundaryLayer/0.00050000000000000001/uniform/time": {
+          "sha256": "2e4d21d8cc02ebe5df654878ba54d93546b02bda311618cff06daef1b053f0b0",
+          "bytes": 899
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/T": {
+          "sha256": "5fa77b596c3832e208453c0692784550b958047321599d3244d0ff9dbf10c7ea",
+          "bytes": 509236
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/U": {
+          "sha256": "9541f1b1d363f14edd30ec24d35d8465fbda66c5bc5bbe826ba1234221999f57",
+          "bytes": 1735732
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/Us": {
+          "sha256": "04cb14a0f385f30aa2aaa07a6e51255f9113f7b372434f7fb8f8e0338272ddd2",
+          "bytes": 1399
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/Y_Air": {
+          "sha256": "88d61373e046572ef6e75cd4605e58004c082fd3c3a0f6efa58c6cd04a22b519",
+          "bytes": 1266
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/Y_CO2": {
+          "sha256": "153caae9c73aba83c4432f98cc2fcd0b566f1864508e5aa7bc47d8d2a9a295ea",
+          "bytes": 1266
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/dMeanCell": {
+          "sha256": "b845d4a900ecff937c2f963ccf564dcc1edce6220254fd595f69b4a42e3628b9",
+          "bytes": 1402
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/epsilonS": {
+          "sha256": "5c2c094a13a83cc448f274c0559189abed6a9cd487a8564959d3fd2f0ef29fc3",
+          "bytes": 1269
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/gasModelIdentity": {
+          "sha256": "5f24c044c8a295ef2c7b0c6f51fb560ce1da53392b66b7e637bf1ec8c7a771a5",
+          "bytes": 858
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/k": {
+          "sha256": "ecab08bbf4d4b9050bef9b4a705e3e13fa924d285c14350fed1ecf9124ef05f8",
+          "bytes": 525449
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/nut": {
+          "sha256": "f54e5eb1ebce60bcff4870ce6a9d03b9306f237e436e465e19055c0968fd5a1b",
+          "bytes": 616488
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/omega": {
+          "sha256": "9cb9218e96806235da3cc73d9754ada55c0c26dbd4ac08e25542bdf9fa545e3c",
+          "bytes": 509069
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/p": {
+          "sha256": "acdfa813a9e31f0d5dc60ab576c7ab8e393e770c5ae72441f7f1d2b0d6f430cf",
+          "bytes": 509049
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/rho": {
+          "sha256": "6098fb3bb624a62a61f976a6e589551e0825080bffec46b75c9855f81a8a9dd5",
+          "bytes": 509036
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/rhoDs": {
+          "sha256": "21ac43357c04e5e6811ad34bbdef405ef9d1274da7c0047084fde623659bfc33",
+          "bytes": 1399
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/rhoE": {
+          "sha256": "9cdcd5e261f2de0b5f72299124543ec88dced1701eea73fca7b91c786529c6c4",
+          "bytes": 509167
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/rhoEs": {
+          "sha256": "44568415614adf2fcf2aa24ee0cfc8e60bf86c4361ef220bf36c91928d561c0a",
+          "bytes": 1400
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/rhoU": {
+          "sha256": "fc6c6dd8dd196850074c2c136774459e82b4730e145506a1ec2adb2c52cde57d",
+          "bytes": 1732494
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/rhoUs": {
+          "sha256": "34bc3370f0cc3be577e6c5ed7716a523fc8c02bc38f7edb40b8ed6fc2d7a5cae",
+          "bytes": 1442
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/rhoY_Air": {
+          "sha256": "1652227edd3b1049962b8e2a970f38a5d90fdce6a548a2f7f9f7ad2e9920deb3",
+          "bytes": 517126
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/rhoY_CO2": {
+          "sha256": "dc13b0b25a94aa16f82d08c4ee6795211e0747b366740fdb080de23243b523a1",
+          "bytes": 1402
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/theta": {
+          "sha256": "a1c1fd23d9b1e33d137e0eb71ec85ed0fdd63d97e385b7ad072260225663fc28",
+          "bytes": 1267
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/uniform/gasBoundaryLayer.csv": {
+          "sha256": "b803d2a63bd3f4ec5376813e874a4b5e9c042e4272142fafd30db6e998a840c7",
+          "bytes": 81944
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/uniform/gasBoundaryLayerProfiles.csv": {
+          "sha256": "9755108cbad18649c17b89772d5ba8567a91dfe16125d73afe16714311585a40",
+          "bytes": 1851534
+        },
+        "baseline-boundaryLayer/0.0040000000000000001/uniform/time": {
+          "sha256": "c18af7b33330a5ff36f965c33b2252d95451725f281199ef1c5710afcc61f693",
+          "bytes": 897
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/T": {
+          "sha256": "1ac4b0543ea413ee1f11b4c9d8ae7acc4906e2cd9005940acc73bdf71a59d783",
+          "bytes": 509162
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/U": {
+          "sha256": "1c3b4feefeaa0926ca80f1e1d0f3efa8fc1fa3c217961c0f52a1edf3f1a1031f",
+          "bytes": 1727812
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/Us": {
+          "sha256": "1df58aaed0e4b1eced7094572450a7a9c1f41137a2f8ab9b0eca5f2c3d1fa68f",
+          "bytes": 1399
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/Y_Air": {
+          "sha256": "6c1c0ce83dbaa4906648fed6d037fd09a16579b67afb2f1d17c297abc2916f0a",
+          "bytes": 1266
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/Y_CO2": {
+          "sha256": "b849569ad25bcfeb96d047de2f85b9267ae4361b86a84a715052ba281b318cdc",
+          "bytes": 1266
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/dMeanCell": {
+          "sha256": "28fddaf12fcbf67833537a3bf674b7803d40c24e8c1e74adf119856dc58c709a",
+          "bytes": 1402
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/epsilonS": {
+          "sha256": "e5865018a7319247405da0fa3f5325ebb78067f55e2cff00bef4b150df8d73d8",
+          "bytes": 1269
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/gasModelIdentity": {
+          "sha256": "0456a689b5305cad88ddc18a56047f2cbaa5fa3ce550a48a53c1a393f307fb22",
+          "bytes": 858
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/k": {
+          "sha256": "482e8a0904b210831ceae55e3cad6c66657dfc56cdd82a4f01d14b3ef4c4f2ee",
+          "bytes": 525209
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/nut": {
+          "sha256": "3e653d96985329d5311e72d47b4ea8a435a1089ed84bb31210b8e74bbbc3a63d",
+          "bytes": 615459
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/omega": {
+          "sha256": "a9d6ab881f722a9a752854a3d51379f916f978328db76a9d250c520084c6b203",
+          "bytes": 509048
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/p": {
+          "sha256": "73dd901a1f809063785cce8bdad13016e67afd23269329e4e684e9e23544ed44",
+          "bytes": 509206
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/rho": {
+          "sha256": "a40bcde4be479b00180be17f20c3d18a57d6f036d0d74a7b0d327c8442d2d0e4",
+          "bytes": 509006
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/rhoDs": {
+          "sha256": "a6442733c7a7cc9d51405681179cb167cd1e85cb2f7514ec803df198e2a87d60",
+          "bytes": 1399
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/rhoE": {
+          "sha256": "00b6f042e41e7220289820b3abe46dd55d3a2bc0e9418156e401353f484800dc",
+          "bytes": 509112
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/rhoEs": {
+          "sha256": "63d05ef56602bd9ee9eebd64a24395800a357f8224d2a6bc8755e04a1444753c",
+          "bytes": 1400
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/rhoU": {
+          "sha256": "a5f0a68ed07b688a55c0455cd3a677c041ee44071f17307c58b4e21c2a7f76ca",
+          "bytes": 1726797
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/rhoUs": {
+          "sha256": "4891573ac2bb309b3471921f81d091ab02c92b2f01170b6475528b1e93811c33",
+          "bytes": 1442
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/rhoY_Air": {
+          "sha256": "adacecc4182f612001d81971840acca613116f2e70fb21b50f60d53973b95552",
+          "bytes": 517082
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/rhoY_CO2": {
+          "sha256": "8f80081779c18ac78d154439fa98a85c4e92e9c38f492c048e7cf20629eeb034",
+          "bytes": 1402
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/theta": {
+          "sha256": "cf632f78f619f90567fd63acbaa016f2af892e1c36c255bbac86297222cd9c97",
+          "bytes": 1267
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/uniform/gasBoundaryLayer.csv": {
+          "sha256": "99353f58e71cf23d71fadd6a594ff42651638dd2fa7c4794a92e1f905ae034b3",
+          "bytes": 81950
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/uniform/gasBoundaryLayerProfiles.csv": {
+          "sha256": "5bdc01223d1726cfa2feb7533248efbc0a7006d9a23cccdaeb3fd86f82185d21",
+          "bytes": 1852149
+        },
+        "baseline-boundaryLayer/0.0080000000000000002/uniform/time": {
+          "sha256": "96662321f83d93a10a6666e402ac7747a405f12477f15f7ca95732ba22307305",
+          "bytes": 898
+        },
+        "baseline-boundaryLayer/0.018000000000000002/T": {
+          "sha256": "4bb92ba9e416b6e5f3aa4eb823fd35792f7af9f149e13aa164b4da2cea0c6fc5",
+          "bytes": 509170
+        },
+        "baseline-boundaryLayer/0.018000000000000002/U": {
+          "sha256": "e9c0ab45ad4340c42d4032e82b87a308e97350947480982699f9f4223b8e53cf",
+          "bytes": 1727722
+        },
+        "baseline-boundaryLayer/0.018000000000000002/Us": {
+          "sha256": "50ca167008bd5bf959655c1dbb4ed89fdacfff80daa357a4595e02e7522421e3",
+          "bytes": 1398
+        },
+        "baseline-boundaryLayer/0.018000000000000002/Y_Air": {
+          "sha256": "9677cc6c63cdbcf0af88f0d4a7e1abdbbbf7cf77cbc27a0f336043667e012b53",
+          "bytes": 1265
+        },
+        "baseline-boundaryLayer/0.018000000000000002/Y_CO2": {
+          "sha256": "01553c9fe4bbd4449d04e73a3a92b212443961be6899de5573490e13c27615a6",
+          "bytes": 1265
+        },
+        "baseline-boundaryLayer/0.018000000000000002/dMeanCell": {
+          "sha256": "7936a6bf0923612712b70a7808449895aae8f2253b120e8a00e620cc58e50c86",
+          "bytes": 1401
+        },
+        "baseline-boundaryLayer/0.018000000000000002/epsilonS": {
+          "sha256": "b03b4dfa79ba53a6229998c526c0814cb4f160894d799b5e62db4d539cf044af",
+          "bytes": 1268
+        },
+        "baseline-boundaryLayer/0.018000000000000002/gasModelIdentity": {
+          "sha256": "1b40bd8a8fcde304418d7a4e31fe2ecb879e7426ed02f9676b61cd05d25ac918",
+          "bytes": 857
+        },
+        "baseline-boundaryLayer/0.018000000000000002/k": {
+          "sha256": "3b8d05dcbfee77fd0e139b8ca85c6ddb3d60737b751625118c3722cd9f27c341",
+          "bytes": 525209
+        },
+        "baseline-boundaryLayer/0.018000000000000002/nut": {
+          "sha256": "25d3fd7152655f179f03d610790e362b801efc28c2fc9fb2c31da53259c34672",
+          "bytes": 615505
+        },
+        "baseline-boundaryLayer/0.018000000000000002/omega": {
+          "sha256": "2956c6144dc21f2bb9c2c9cc758465d966d613b2aef4391651609cfb2c830628",
+          "bytes": 509093
+        },
+        "baseline-boundaryLayer/0.018000000000000002/p": {
+          "sha256": "fba19ec2c315c24c0ffe6f607edade719fad4ac6858eaa998743ed2ef4dd8f23",
+          "bytes": 509178
+        },
+        "baseline-boundaryLayer/0.018000000000000002/rho": {
+          "sha256": "3205171e948f4ad643f52a4975f7dc005e8e72a362faaef50575ed56618d0569",
+          "bytes": 509188
+        },
+        "baseline-boundaryLayer/0.018000000000000002/rhoDs": {
+          "sha256": "30cf6a11d50dd9d9e1af5ec1e2babbd371e1004870266ef41bd726152372f50e",
+          "bytes": 1398
+        },
+        "baseline-boundaryLayer/0.018000000000000002/rhoE": {
+          "sha256": "6ad47446e0d8285af6e51cbb67b161b6f0dd3d6aa13432c29b144eb789904ab5",
+          "bytes": 509095
+        },
+        "baseline-boundaryLayer/0.018000000000000002/rhoEs": {
+          "sha256": "fe9d7bf26629a89a56c397f05ff80e1ba2dc22c4b32efa5308829d10156145b8",
+          "bytes": 1399
+        },
+        "baseline-boundaryLayer/0.018000000000000002/rhoU": {
+          "sha256": "418ea3951a5353b5d13efb94d45b05c68e4f930d280b594da3d59bb58067bc8e",
+          "bytes": 1726578
+        },
+        "baseline-boundaryLayer/0.018000000000000002/rhoUs": {
+          "sha256": "b66bafb5f35ff74bf13536e1a5c7237e25f8a144983c982e82a43f4b16e67eca",
+          "bytes": 1441
+        },
+        "baseline-boundaryLayer/0.018000000000000002/rhoY_Air": {
+          "sha256": "b6b14561148fbbc9cea4fc47dd87eeb8bc0c378ab5b55fcfb5224420550e5dad",
+          "bytes": 517283
+        },
+        "baseline-boundaryLayer/0.018000000000000002/rhoY_CO2": {
+          "sha256": "8acbf531e81cb71acfda16a645a01e249fc5c375178175038fb4a96af8470271",
+          "bytes": 1401
+        },
+        "baseline-boundaryLayer/0.018000000000000002/theta": {
+          "sha256": "d213cc8056d3886a598f7317b71bda28e1e02e25c37825c49e1f4438f5296877",
+          "bytes": 1266
+        },
+        "baseline-boundaryLayer/0.018000000000000002/uniform/gasBoundaryLayer.csv": {
+          "sha256": "120ce724c499e00f7a1417610764a8d0f63bbea91b5fc372a60ff2a01c47d48b",
+          "bytes": 81566
+        },
+        "baseline-boundaryLayer/0.018000000000000002/uniform/gasBoundaryLayerProfiles.csv": {
+          "sha256": "82d26c3b81b77ff8597d6bce57d0554a8fbca88251c2e02dd05430ed941d0ebe",
+          "bytes": 1835838
+        },
+        "baseline-boundaryLayer/0.018000000000000002/uniform/time": {
+          "sha256": "dff7ffa7229a9951d52f532ae2175b434cd92d3e46c5905477dd52342c003e64",
+          "bytes": 894
+        },
+        "baseline-boundaryLayer/arc3696_stage_status.json": {
+          "sha256": "acd8e3c0d8f917754784ecc0090653c2514e1262b1589a985e99b9a5c1e7f7e9",
+          "bytes": 2582
+        },
+        "baseline-boundaryLayer/constant/fluidProperties": {
+          "sha256": "a331a7598b0df80e5f308041a53b2d4595158b6f71b66e3a86df0f43fbdeb865",
+          "bytes": 686
+        },
+        "baseline-boundaryLayer/constant/gasModelProperties": {
+          "sha256": "67d09d8b8d3b7784b82c347c6bb78741329e41ba2c26ddb82be061916ce189b7",
+          "bytes": 526
+        },
+        "baseline-boundaryLayer/constant/gasWallProperties": {
+          "sha256": "f545f08877fc380f6661f0fb121bc8694bfc0498a5da9b3a4bd3cd9ab463bc65",
+          "bytes": 274
+        },
+        "baseline-boundaryLayer/constant/particleProperties": {
+          "sha256": "cee97e9ada97977327e872d4ba65a388506e8c802da38e63caf15893760aa7d2",
+          "bytes": 214
+        },
+        "baseline-boundaryLayer/constant/polyMesh/boundary": {
+          "sha256": "e6435746178713c4276c7f53057061f20f1cd4128c5b82990b01c322b14da6a0",
+          "bytes": 1676
+        },
+        "baseline-boundaryLayer/constant/polyMesh/faces": {
+          "sha256": "5841fb9a6538a55cc7d0ede8ae5287c4b8f01997389463c911d8ee63122efa6d",
+          "bytes": 2827914
+        },
+        "baseline-boundaryLayer/constant/polyMesh/neighbour": {
+          "sha256": "42e8bcc18d9e38c0912a010a427d82464469b90d999f87c40a9582ea6d819b3b",
+          "bytes": 299206
+        },
+        "baseline-boundaryLayer/constant/polyMesh/owner": {
+          "sha256": "ef2dd51c7ac525159a391157636878b7172c87c3103cb559245c80dda6c471b2",
+          "bytes": 603367
+        },
+        "baseline-boundaryLayer/constant/polyMesh/points": {
+          "sha256": "0c8be9a3b6b28319d7b09beed42f1060c82a80e3bb3b788ad6f81889ee75ea05",
+          "bytes": 2706565
+        },
+        "baseline-boundaryLayer/constant/schedulingProperties": {
+          "sha256": "dcb7021c777c659d92600e09a5262d836d0bbab6c02b9c8261561d11e7196ffc",
+          "bytes": 369
+        },
+        "baseline-boundaryLayer/input_manifest.json": {
+          "sha256": "9775b9fb75b0d2adc854ac51c66fd74161f88738514cb75938e7444ccef5b080",
+          "bytes": 2079
+        },
+        "baseline-boundaryLayer/log.checkMesh": {
+          "sha256": "a5342e933caf17dd17c67de0aad8316837dba654330733e196414c1a087119e2",
+          "bytes": 3364
+        },
+        "baseline-boundaryLayer/log.mesh.0": {
+          "sha256": "1435297cdc0c77065e5e1cd868cfb5d696d7db3c28b8a639a4e5fabc7e04b199",
+          "bytes": 2681
+        },
+        "baseline-boundaryLayer/log.solver": {
+          "sha256": "f64ab87c45ec4267bb25e85de0e4509ab870b4cfd0f6c0655e8649f419cb625d",
+          "bytes": 7671
+        },
+        "baseline-boundaryLayer/run_status.json": {
+          "sha256": "306c3850dd8b597e7517f30ea5534534ac0c65d8ef77881d54ebfe397ef87eb2",
+          "bytes": 2364
+        },
+        "baseline-boundaryLayer/suite_case.json": {
+          "sha256": "ab2d642abb4b4b936b09a2781a6386d5864f86a5b0a36cc64ec21654cc76495e",
+          "bytes": 8890
+        },
+        "baseline-boundaryLayer/system/blockMeshDict": {
+          "sha256": "30374c2000858d7e50565f56d5b93f70136c90f77652f8077440f7b5c3be0d6c",
+          "bytes": 1153
+        },
+        "baseline-boundaryLayer/system/controlDict": {
+          "sha256": "96d28bba4ccdf9906ce6c676abd021f2a109978a5f776ca34c543ff3b15f9223",
+          "bytes": 449
+        },
+        "baseline-boundaryLayer/system/fvSchemes": {
+          "sha256": "484eceecc5f2eb4682ce78d33c2a532be9317176958e7949304f37c3d7d720c5",
+          "bytes": 543
+        },
+        "baseline-boundaryLayer/system/fvSolution": {
+          "sha256": "e9cc3b2c85539efb8c1f6e24824c82c9cd7655fd59fc66582cc98ff63b26f7d4",
+          "bytes": 162
+        }
+      },
+      "verified_archive_and_original_files": true
+    },
+    "wallFunction-f9": {
+      "source_directory": "/home/lss/ARC3696-runs/pr19-f9e8d775-20261019T185625+0800/M0p55/baseline-lae7a4r6",
+      "wallTreatment": "wallFunction",
+      "archive": "wallFunction-f9.tar.gz",
+      "archive_sha256": "761abac5d30577ae5f1ebfa2ef9f6c6f640f57e103827d32afdd388ac34860c2",
+      "archive_bytes": 13559799,
+      "original_uncompressed_bytes": 41387307,
+      "file_count": 122,
+      "time_directories": {
+        "0.0005": "0.00050000000000000001",
+        "0.004": "0.0040000000000000001",
+        "0.008": "0.0080000000000000002",
+        "0.018": "0.018000000000000002"
+      },
+      "members": {
+        "wallFunction-f9/0/C": {
+          "sha256": "b6c8bd08d2a0667490079f45af68f62981d4182a044446b12dc45305a4556f72",
+          "bytes": 1819004
+        },
+        "wallFunction-f9/0/Cx": {
+          "sha256": "4bbe3a5ca48b2e28837b6814603232a9f995a3fb8faef6d85fbd1a1e8e9a7f1c",
+          "bytes": 549612
+        },
+        "wallFunction-f9/0/Cy": {
+          "sha256": "86fbb6d864783af00ee68e0979dbf2aede2ef84075fd9930ac66ae4a7852c51e",
+          "bytes": 583043
+        },
+        "wallFunction-f9/0/Cz": {
+          "sha256": "dba5f360634fd7e17f6d8db666d2ed8a94571af69555905b5158340f68600963",
+          "bytes": 633083
+        },
+        "wallFunction-f9/0/T": {
+          "sha256": "aa21784e6e88dd8fa7db73c8a40b6cd8190008ea39826072f4b7a571d6ceffb2",
+          "bytes": 543
+        },
+        "wallFunction-f9/0/U": {
+          "sha256": "5b86ff6e574e8a954e97ade4a089123545c9eedd6977b7a482e1d3fdf701fcd6",
+          "bytes": 529
+        },
+        "wallFunction-f9/0/Us": {
+          "sha256": "acfbbeb55bd340de685fa780e7e9bf17114a4c77cc8f6210772f077228b76803",
+          "bytes": 479
+        },
+        "wallFunction-f9/0/V": {
+          "sha256": "f1c032e8feb1bfedd9f4f985ed5bf4d9eaad80497cbd00938271cb03c854465c",
+          "bytes": 616730
+        },
+        "wallFunction-f9/0/Y_Air": {
+          "sha256": "a6040dbec1cca622059647d94459f2d91651670bc974d645eb80fcba1ebe1463",
+          "bytes": 400
+        },
+        "wallFunction-f9/0/Y_CO2": {
+          "sha256": "e72e94b36612b0cc61b927777a617c5ad2055e97cdadca0133f9184cd43d5cbe",
+          "bytes": 400
+        },
+        "wallFunction-f9/0/epsilonS": {
+          "sha256": "380ddd6aa58e4be8ca96bf6481ee5b766cd5a2b0ed20b58f5cf196c57712dd2d",
+          "bytes": 403
+        },
+        "wallFunction-f9/0/k": {
+          "sha256": "fd141c05a320ff93986b11312057567565fbffa5d71d260e7216129237b29e6c",
+          "bytes": 490
+        },
+        "wallFunction-f9/0/omega": {
+          "sha256": "09ad6fa0054351e223130efdc1a89b79e4607c8c5a9afa1ade2be2d493390d0d",
+          "bytes": 452
+        },
+        "wallFunction-f9/0/p": {
+          "sha256": "6f35ce0a8eed72549a57c5255497bb3a0bd73da4e1483e7599de7b06f412f463",
+          "bytes": 481
+        },
+        "wallFunction-f9/0/rho": {
+          "sha256": "2d5f91cd67d09324f70e9989c6dcd6b78284c38f78e91936fcbb3988788f8502",
+          "bytes": 450
+        },
+        "wallFunction-f9/0/rhoE": {
+          "sha256": "6891edcfcaa783a4d5a5236150b253c9985d636b2e20c853febdcd13ec0804a2",
+          "bytes": 452
+        },
+        "wallFunction-f9/0/theta": {
+          "sha256": "14126729b46edb21ea33b22a09aaf928cd3a4cbed0165667cf0244c95a210cf1",
+          "bytes": 401
+        },
+        "wallFunction-f9/0.00050000000000000001/T": {
+          "sha256": "3b3e05337f7f15fb2b02bfb387e31104b12b8dfdbf361ee12dbc2f98adef8598",
+          "bytes": 509180
+        },
+        "wallFunction-f9/0.00050000000000000001/U": {
+          "sha256": "9d7de500c4265ef8764401e3522ef477839059622e155e6c295d1e23e154f514",
+          "bytes": 1750154
+        },
+        "wallFunction-f9/0.00050000000000000001/Us": {
+          "sha256": "8b42860887fb48ded8b87f3f31378213bc5b3eeef718ced847cceb3760dae328",
+          "bytes": 1400
+        },
+        "wallFunction-f9/0.00050000000000000001/Y_Air": {
+          "sha256": "1570a4da0286cd2b0b5d286761dc2d7f9841d4541d3244c167a50814ad1edd76",
+          "bytes": 1267
+        },
+        "wallFunction-f9/0.00050000000000000001/Y_CO2": {
+          "sha256": "5448565b4ccc0b4919d27d1709f939cbf148e6367d74a40427ce978aec1aa0b3",
+          "bytes": 1267
+        },
+        "wallFunction-f9/0.00050000000000000001/dMeanCell": {
+          "sha256": "8e0b8f212b0371eabea5f2e4593299953321829ff1ade11be23d80e105de64bf",
+          "bytes": 1403
+        },
+        "wallFunction-f9/0.00050000000000000001/epsilonS": {
+          "sha256": "dacfeb7cce0172a8a1801a3054cfa1057694ccd78e1473cca1856208359f8b88",
+          "bytes": 1270
+        },
+        "wallFunction-f9/0.00050000000000000001/gasModelIdentity": {
+          "sha256": "05be6584cdd7eebc92b3b89d86fee936b7b3765403743168138d6cfca1aca151",
+          "bytes": 859
+        },
+        "wallFunction-f9/0.00050000000000000001/k": {
+          "sha256": "1008a2e75a38dd1c4e62ad5d5be95958b8ca70aa4e4faafdf5973373b493125c",
+          "bytes": 508967
+        },
+        "wallFunction-f9/0.00050000000000000001/nut": {
+          "sha256": "656803b8cb6e17a69d50dc42185dc68ae41eb39ee2cfc17c09052b1b58d42004",
+          "bytes": 616338
+        },
+        "wallFunction-f9/0.00050000000000000001/omega": {
+          "sha256": "269ce6a62fe3b229f62cfa78383c01d9bd952d4c244c0a3e09a28cf10b66077f",
+          "bytes": 509004
+        },
+        "wallFunction-f9/0.00050000000000000001/p": {
+          "sha256": "f2dd56a1cbf6af3b11fc2ae99ad1ce1d40f37c2c8b5da2ce4e8d0bb3634f7814",
+          "bytes": 509236
+        },
+        "wallFunction-f9/0.00050000000000000001/rho": {
+          "sha256": "bc8f8184cb424bcd80cb99a5abc0267261e9f9856851f8d8e8995d76819875e8",
+          "bytes": 508992
+        },
+        "wallFunction-f9/0.00050000000000000001/rhoDs": {
+          "sha256": "7dcc609c251292f8fce1f9c7e71e05c68d755b8d5713d07a9d1f17d9071277c2",
+          "bytes": 1400
+        },
+        "wallFunction-f9/0.00050000000000000001/rhoE": {
+          "sha256": "734bbef1a7654f01621597a1ef181785902744127ac630cba7534983dd81085a",
+          "bytes": 509329
+        },
+        "wallFunction-f9/0.00050000000000000001/rhoEs": {
+          "sha256": "255a35e8a25de8403fcb1423020d972df4b10dbc88e276ba602fa5a2dee919b5",
+          "bytes": 1401
+        },
+        "wallFunction-f9/0.00050000000000000001/rhoU": {
+          "sha256": "0db244cb78d00f95d6a751f8ebe0e1a02ee96e8f3abb3389ebfac650323f14db",
+          "bytes": 1749040
+        },
+        "wallFunction-f9/0.00050000000000000001/rhoUs": {
+          "sha256": "537202b7056ddeeee7e6220b40eab34d0a92e3efc2f900f942335f2058fb4f9d",
+          "bytes": 1443
+        },
+        "wallFunction-f9/0.00050000000000000001/rhoY_Air": {
+          "sha256": "4e2d1e40c42aa0c30d2b94c61f2cf6fb49bd009ae902a117cc24df8e5b3fd7e3",
+          "bytes": 517074
+        },
+        "wallFunction-f9/0.00050000000000000001/rhoY_CO2": {
+          "sha256": "a399810618c492a1d1564111a45e34f6d08aed1fbf945db1c330308efa24394c",
+          "bytes": 1403
+        },
+        "wallFunction-f9/0.00050000000000000001/theta": {
+          "sha256": "800d8ca3f219ea71e673eaa7958a1cf020c87e424f3be6a11828d0b0b0f909dd",
+          "bytes": 1268
+        },
+        "wallFunction-f9/0.00050000000000000001/uniform/time": {
+          "sha256": "82e9be4a76a85ac21a145a82169611b1946a2ea91e977e34272faa26e376d8b0",
+          "bytes": 899
+        },
+        "wallFunction-f9/0.0040000000000000001/T": {
+          "sha256": "45203186a362c33c9402270778362c805f7cc3b63fade7f5c31ee132d95f0f40",
+          "bytes": 509211
+        },
+        "wallFunction-f9/0.0040000000000000001/U": {
+          "sha256": "f0f0584d4fca3aa6c4716166658e97d33886ea4e59abda0dee09c3ed1730f114",
+          "bytes": 1734615
+        },
+        "wallFunction-f9/0.0040000000000000001/Us": {
+          "sha256": "04cb14a0f385f30aa2aaa07a6e51255f9113f7b372434f7fb8f8e0338272ddd2",
+          "bytes": 1399
+        },
+        "wallFunction-f9/0.0040000000000000001/Y_Air": {
+          "sha256": "88d61373e046572ef6e75cd4605e58004c082fd3c3a0f6efa58c6cd04a22b519",
+          "bytes": 1266
+        },
+        "wallFunction-f9/0.0040000000000000001/Y_CO2": {
+          "sha256": "153caae9c73aba83c4432f98cc2fcd0b566f1864508e5aa7bc47d8d2a9a295ea",
+          "bytes": 1266
+        },
+        "wallFunction-f9/0.0040000000000000001/dMeanCell": {
+          "sha256": "b845d4a900ecff937c2f963ccf564dcc1edce6220254fd595f69b4a42e3628b9",
+          "bytes": 1402
+        },
+        "wallFunction-f9/0.0040000000000000001/epsilonS": {
+          "sha256": "5c2c094a13a83cc448f274c0559189abed6a9cd487a8564959d3fd2f0ef29fc3",
+          "bytes": 1269
+        },
+        "wallFunction-f9/0.0040000000000000001/gasModelIdentity": {
+          "sha256": "5f24c044c8a295ef2c7b0c6f51fb560ce1da53392b66b7e637bf1ec8c7a771a5",
+          "bytes": 858
+        },
+        "wallFunction-f9/0.0040000000000000001/k": {
+          "sha256": "486d6b8a00510f371a54a5c98b607b46be90be3dd6fb5ae16d7b279246175fc3",
+          "bytes": 524888
+        },
+        "wallFunction-f9/0.0040000000000000001/nut": {
+          "sha256": "dc78b56bb87ddde6ce78210ff4f965d90863a83a3874cf0e58dfe8a752ae53a9",
+          "bytes": 613704
+        },
+        "wallFunction-f9/0.0040000000000000001/omega": {
+          "sha256": "d9a5417cfcbb9d07e26f0623dbd76dbbd0d7ec3311dd3fecf38f9346584296bf",
+          "bytes": 509003
+        },
+        "wallFunction-f9/0.0040000000000000001/p": {
+          "sha256": "73e3b973bfea4c3391a38eb8544a7d53d2a3b88d272c28742b402d276825aa08",
+          "bytes": 509062
+        },
+        "wallFunction-f9/0.0040000000000000001/rho": {
+          "sha256": "caa377f5d5d62ead27f3c65c0338900fb5b46ed688cd1895be76992c20fd9dcc",
+          "bytes": 509073
+        },
+        "wallFunction-f9/0.0040000000000000001/rhoDs": {
+          "sha256": "21ac43357c04e5e6811ad34bbdef405ef9d1274da7c0047084fde623659bfc33",
+          "bytes": 1399
+        },
+        "wallFunction-f9/0.0040000000000000001/rhoE": {
+          "sha256": "66e9d444e9893a6f7e1510387b60de9f7b2ab47515425aca395f07048d7f84bb",
+          "bytes": 509011
+        },
+        "wallFunction-f9/0.0040000000000000001/rhoEs": {
+          "sha256": "44568415614adf2fcf2aa24ee0cfc8e60bf86c4361ef220bf36c91928d561c0a",
+          "bytes": 1400
+        },
+        "wallFunction-f9/0.0040000000000000001/rhoU": {
+          "sha256": "664749a539eff6e725f1e72fc7b6a0635a118852b54cf4087d151f50ac2c2a23",
+          "bytes": 1732168
+        },
+        "wallFunction-f9/0.0040000000000000001/rhoUs": {
+          "sha256": "34bc3370f0cc3be577e6c5ed7716a523fc8c02bc38f7edb40b8ed6fc2d7a5cae",
+          "bytes": 1442
+        },
+        "wallFunction-f9/0.0040000000000000001/rhoY_Air": {
+          "sha256": "0c4b38c25d395a8844d203a1d2d05f622d3197fba7ab3208b228978e8ba28074",
+          "bytes": 517162
+        },
+        "wallFunction-f9/0.0040000000000000001/rhoY_CO2": {
+          "sha256": "dc13b0b25a94aa16f82d08c4ee6795211e0747b366740fdb080de23243b523a1",
+          "bytes": 1402
+        },
+        "wallFunction-f9/0.0040000000000000001/theta": {
+          "sha256": "a1c1fd23d9b1e33d137e0eb71ec85ed0fdd63d97e385b7ad072260225663fc28",
+          "bytes": 1267
+        },
+        "wallFunction-f9/0.0040000000000000001/uniform/time": {
+          "sha256": "f2137738e8fcfe3f95be796484f4576477c2df3a6ba98b69f7bfd40fa6d30cf7",
+          "bytes": 897
+        },
+        "wallFunction-f9/0.0080000000000000002/T": {
+          "sha256": "f9f1e55ee95975d35954430d988fa0ebb54617e9916422b17e6678d86aedfb6e",
+          "bytes": 509193
+        },
+        "wallFunction-f9/0.0080000000000000002/U": {
+          "sha256": "960abdde7ef4be364dca5d29d6995249e9692a43bc547b988ce7ffa0127e0ed4",
+          "bytes": 1728061
+        },
+        "wallFunction-f9/0.0080000000000000002/Us": {
+          "sha256": "1df58aaed0e4b1eced7094572450a7a9c1f41137a2f8ab9b0eca5f2c3d1fa68f",
+          "bytes": 1399
+        },
+        "wallFunction-f9/0.0080000000000000002/Y_Air": {
+          "sha256": "6c1c0ce83dbaa4906648fed6d037fd09a16579b67afb2f1d17c297abc2916f0a",
+          "bytes": 1266
+        },
+        "wallFunction-f9/0.0080000000000000002/Y_CO2": {
+          "sha256": "b849569ad25bcfeb96d047de2f85b9267ae4361b86a84a715052ba281b318cdc",
+          "bytes": 1266
+        },
+        "wallFunction-f9/0.0080000000000000002/dMeanCell": {
+          "sha256": "28fddaf12fcbf67833537a3bf674b7803d40c24e8c1e74adf119856dc58c709a",
+          "bytes": 1402
+        },
+        "wallFunction-f9/0.0080000000000000002/epsilonS": {
+          "sha256": "e5865018a7319247405da0fa3f5325ebb78067f55e2cff00bef4b150df8d73d8",
+          "bytes": 1269
+        },
+        "wallFunction-f9/0.0080000000000000002/gasModelIdentity": {
+          "sha256": "0456a689b5305cad88ddc18a56047f2cbaa5fa3ce550a48a53c1a393f307fb22",
+          "bytes": 858
+        },
+        "wallFunction-f9/0.0080000000000000002/k": {
+          "sha256": "2ada0ed07a562a54d564d3d14c0f667e8f6efb3c05dd50f021fee6aae7fa94f4",
+          "bytes": 524411
+        },
+        "wallFunction-f9/0.0080000000000000002/nut": {
+          "sha256": "7f37722197120b936dfc23bc9d7d106619c6eea17d0782fb4294d74bd2740ce8",
+          "bytes": 613061
+        },
+        "wallFunction-f9/0.0080000000000000002/omega": {
+          "sha256": "f18056cece086c8c9d8a708ab941451d5ebf79d85c1369699977f74e5b372926",
+          "bytes": 509074
+        },
+        "wallFunction-f9/0.0080000000000000002/p": {
+          "sha256": "26620772f7882acf521b30276876207b16b26215011c6214f764a7fe5fd66058",
+          "bytes": 509103
+        },
+        "wallFunction-f9/0.0080000000000000002/rho": {
+          "sha256": "975eeb38383da6262ddfce5ac5ff4a58b3e6fdde654eba7112e97958ffb83db8",
+          "bytes": 509105
+        },
+        "wallFunction-f9/0.0080000000000000002/rhoDs": {
+          "sha256": "a6442733c7a7cc9d51405681179cb167cd1e85cb2f7514ec803df198e2a87d60",
+          "bytes": 1399
+        },
+        "wallFunction-f9/0.0080000000000000002/rhoE": {
+          "sha256": "7a13fe55bfb95de34984e01ea8bd85fc2b2ff1f40b574649c29590372c325feb",
+          "bytes": 509061
+        },
+        "wallFunction-f9/0.0080000000000000002/rhoEs": {
+          "sha256": "63d05ef56602bd9ee9eebd64a24395800a357f8224d2a6bc8755e04a1444753c",
+          "bytes": 1400
+        },
+        "wallFunction-f9/0.0080000000000000002/rhoU": {
+          "sha256": "99b84843e63aefcb8b963b94cf607acc4e5d63cda40d5985bc8584f6d3d62ca2",
+          "bytes": 1727172
+        },
+        "wallFunction-f9/0.0080000000000000002/rhoUs": {
+          "sha256": "4891573ac2bb309b3471921f81d091ab02c92b2f01170b6475528b1e93811c33",
+          "bytes": 1442
+        },
+        "wallFunction-f9/0.0080000000000000002/rhoY_Air": {
+          "sha256": "6b974d2fd3e29247a6698eb977fa60d3609199ef83ec95eae8eb351b4f032562",
+          "bytes": 517196
+        },
+        "wallFunction-f9/0.0080000000000000002/rhoY_CO2": {
+          "sha256": "8f80081779c18ac78d154439fa98a85c4e92e9c38f492c048e7cf20629eeb034",
+          "bytes": 1402
+        },
+        "wallFunction-f9/0.0080000000000000002/theta": {
+          "sha256": "cf632f78f619f90567fd63acbaa016f2af892e1c36c255bbac86297222cd9c97",
+          "bytes": 1267
+        },
+        "wallFunction-f9/0.0080000000000000002/uniform/time": {
+          "sha256": "e5833170cd531b44d2b5ae54ac798bddf89b888dcc49dad179eeed030bef8be7",
+          "bytes": 898
+        },
+        "wallFunction-f9/0.018000000000000002/T": {
+          "sha256": "9279a2fa451ee06981cea3153b43a378b4ccd9f6a0f2b26e2e8d68e6d525012f",
+          "bytes": 509239
+        },
+        "wallFunction-f9/0.018000000000000002/U": {
+          "sha256": "f5c549b0b83ef82458401d9ef16a813bd56b3888f93b3bea823ea84c6ffa8c90",
+          "bytes": 1727883
+        },
+        "wallFunction-f9/0.018000000000000002/Us": {
+          "sha256": "50ca167008bd5bf959655c1dbb4ed89fdacfff80daa357a4595e02e7522421e3",
+          "bytes": 1398
+        },
+        "wallFunction-f9/0.018000000000000002/Y_Air": {
+          "sha256": "9677cc6c63cdbcf0af88f0d4a7e1abdbbbf7cf77cbc27a0f336043667e012b53",
+          "bytes": 1265
+        },
+        "wallFunction-f9/0.018000000000000002/Y_CO2": {
+          "sha256": "01553c9fe4bbd4449d04e73a3a92b212443961be6899de5573490e13c27615a6",
+          "bytes": 1265
+        },
+        "wallFunction-f9/0.018000000000000002/dMeanCell": {
+          "sha256": "7936a6bf0923612712b70a7808449895aae8f2253b120e8a00e620cc58e50c86",
+          "bytes": 1401
+        },
+        "wallFunction-f9/0.018000000000000002/epsilonS": {
+          "sha256": "b03b4dfa79ba53a6229998c526c0814cb4f160894d799b5e62db4d539cf044af",
+          "bytes": 1268
+        },
+        "wallFunction-f9/0.018000000000000002/gasModelIdentity": {
+          "sha256": "1b40bd8a8fcde304418d7a4e31fe2ecb879e7426ed02f9676b61cd05d25ac918",
+          "bytes": 857
+        },
+        "wallFunction-f9/0.018000000000000002/k": {
+          "sha256": "7cc0f9ed414deb1b95f505526b253b65ba5336dd8effb58ac26a117a5e7e3b49",
+          "bytes": 524415
+        },
+        "wallFunction-f9/0.018000000000000002/nut": {
+          "sha256": "6cf19a567e98ff23a37bb192bedaaacbd8e484d0085b1da53f7c8bc997da27e8",
+          "bytes": 613092
+        },
+        "wallFunction-f9/0.018000000000000002/omega": {
+          "sha256": "d6d76777885156585652ae48779ff458038b47c14878aca236199ac8978b75f0",
+          "bytes": 509068
+        },
+        "wallFunction-f9/0.018000000000000002/p": {
+          "sha256": "87486b02f8ad16f9e6f67b889a3d63177b9d1f4523d5fd1e1fa53ec2a36ee3a2",
+          "bytes": 509099
+        },
+        "wallFunction-f9/0.018000000000000002/rho": {
+          "sha256": "d25e0542378ca37c52eb9014ad9c4a286110b52143faec87ac368e15074b182e",
+          "bytes": 509026
+        },
+        "wallFunction-f9/0.018000000000000002/rhoDs": {
+          "sha256": "30cf6a11d50dd9d9e1af5ec1e2babbd371e1004870266ef41bd726152372f50e",
+          "bytes": 1398
+        },
+        "wallFunction-f9/0.018000000000000002/rhoE": {
+          "sha256": "3cc08482f617fe04b9ec887b4539f18a45f9e26825df1561fd4385a0f236e2cd",
+          "bytes": 508974
+        },
+        "wallFunction-f9/0.018000000000000002/rhoEs": {
+          "sha256": "fe9d7bf26629a89a56c397f05ff80e1ba2dc22c4b32efa5308829d10156145b8",
+          "bytes": 1399
+        },
+        "wallFunction-f9/0.018000000000000002/rhoU": {
+          "sha256": "a0489fc819122d2d842e1cd7518852fb3555020b01ce30d96f6bcbba82fe4add",
+          "bytes": 1727116
+        },
+        "wallFunction-f9/0.018000000000000002/rhoUs": {
+          "sha256": "b66bafb5f35ff74bf13536e1a5c7237e25f8a144983c982e82a43f4b16e67eca",
+          "bytes": 1441
+        },
+        "wallFunction-f9/0.018000000000000002/rhoY_Air": {
+          "sha256": "40eab96e537df8faf7ed8571872ac500980bd415cfccd41e4334450d6508b7ae",
+          "bytes": 517107
+        },
+        "wallFunction-f9/0.018000000000000002/rhoY_CO2": {
+          "sha256": "8acbf531e81cb71acfda16a645a01e249fc5c375178175038fb4a96af8470271",
+          "bytes": 1401
+        },
+        "wallFunction-f9/0.018000000000000002/theta": {
+          "sha256": "d213cc8056d3886a598f7317b71bda28e1e02e25c37825c49e1f4438f5296877",
+          "bytes": 1266
+        },
+        "wallFunction-f9/0.018000000000000002/uniform/time": {
+          "sha256": "11bc2799d2dd26dfa2ce556b97584044e51d08ea40bd779fd69647024282893d",
+          "bytes": 895
+        },
+        "wallFunction-f9/constant/fluidProperties": {
+          "sha256": "948ebcda48643ff9d55a67ec8339d371dca54797656520dd2dce43c01d3de7df",
+          "bytes": 581
+        },
+        "wallFunction-f9/constant/gasModelProperties": {
+          "sha256": "67d09d8b8d3b7784b82c347c6bb78741329e41ba2c26ddb82be061916ce189b7",
+          "bytes": 526
+        },
+        "wallFunction-f9/constant/gasWallProperties": {
+          "sha256": "f545f08877fc380f6661f0fb121bc8694bfc0498a5da9b3a4bd3cd9ab463bc65",
+          "bytes": 274
+        },
+        "wallFunction-f9/constant/particleProperties": {
+          "sha256": "cee97e9ada97977327e872d4ba65a388506e8c802da38e63caf15893760aa7d2",
+          "bytes": 214
+        },
+        "wallFunction-f9/constant/polyMesh/boundary": {
+          "sha256": "e6435746178713c4276c7f53057061f20f1cd4128c5b82990b01c322b14da6a0",
+          "bytes": 1676
+        },
+        "wallFunction-f9/constant/polyMesh/faces": {
+          "sha256": "5841fb9a6538a55cc7d0ede8ae5287c4b8f01997389463c911d8ee63122efa6d",
+          "bytes": 2827914
+        },
+        "wallFunction-f9/constant/polyMesh/neighbour": {
+          "sha256": "42e8bcc18d9e38c0912a010a427d82464469b90d999f87c40a9582ea6d819b3b",
+          "bytes": 299206
+        },
+        "wallFunction-f9/constant/polyMesh/owner": {
+          "sha256": "ef2dd51c7ac525159a391157636878b7172c87c3103cb559245c80dda6c471b2",
+          "bytes": 603367
+        },
+        "wallFunction-f9/constant/polyMesh/points": {
+          "sha256": "0c8be9a3b6b28319d7b09beed42f1060c82a80e3bb3b788ad6f81889ee75ea05",
+          "bytes": 2706565
+        },
+        "wallFunction-f9/constant/schedulingProperties": {
+          "sha256": "dcb7021c777c659d92600e09a5262d836d0bbab6c02b9c8261561d11e7196ffc",
+          "bytes": 369
+        },
+        "wallFunction-f9/log.checkMesh": {
+          "sha256": "55329b6fdcfa1f5521a217ad47cc71ee004c9490059068b71f7fa2340dbddf92",
+          "bytes": 3393
+        },
+        "wallFunction-f9/log.solver": {
+          "sha256": "8b7ccb57be6d74ec54c7bd7da979f8c54e2db8d902d1a52d5faba02033519b35",
+          "bytes": 5345
+        },
+        "wallFunction-f9/run_status.json": {
+          "sha256": "9bcd538ed488bdc7b94ecd793a3138cfa654aee349385f4af70c8ffd5011923e",
+          "bytes": 1896
+        },
+        "wallFunction-f9/system/blockMeshDict": {
+          "sha256": "30374c2000858d7e50565f56d5b93f70136c90f77652f8077440f7b5c3be0d6c",
+          "bytes": 1153
+        },
+        "wallFunction-f9/system/controlDict": {
+          "sha256": "ce86c34d6ef5612be81ac53cf3accea5aa13f63a70ca011df836876a9d46d323",
+          "bytes": 435
+        },
+        "wallFunction-f9/system/fvSchemes": {
+          "sha256": "484eceecc5f2eb4682ce78d33c2a532be9317176958e7949304f37c3d7d720c5",
+          "bytes": 543
+        },
+        "wallFunction-f9/system/fvSolution": {
+          "sha256": "e9cc3b2c85539efb8c1f6e24824c82c9cd7655fd59fc66582cc98ff63b26f7d4",
+          "bytes": 162
+        }
+      },
+      "verified_archive_and_original_files": true
+    }
+  }
+}

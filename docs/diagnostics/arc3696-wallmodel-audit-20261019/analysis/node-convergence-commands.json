@@ -1,0 +1,44 @@
+{
+  "build": [
+    "g++",
+    "-std=c++17",
+    "-O2",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/common",
+    "-I/mnt/d/tempt/wallfunction-vs-boundarylayer-20261019",
+    "/mnt/d/tempt/wallfunction-vs-boundarylayer-20261019/wallfunction-node-convergence.cpp",
+    "-o",
+    "/mnt/d/tempt/wallfunction-vs-boundarylayer-20261019/wallfunction-node-convergence"
+  ],
+  "build_exit": 0,
+  "runs": [
+    {
+      "command": [
+        "/mnt/d/tempt/wallfunction-vs-boundarylayer-20261019/wallfunction-node-convergence",
+        "24"
+      ],
+      "exit": 0
+    },
+    {
+      "command": [
+        "/mnt/d/tempt/wallfunction-vs-boundarylayer-20261019/wallfunction-node-convergence",
+        "48"
+      ],
+      "exit": 0
+    },
+    {
+      "command": [
+        "/mnt/d/tempt/wallfunction-vs-boundarylayer-20261019/wallfunction-node-convergence",
+        "96"
+      ],
+      "exit": 0
+    },
+    {
+      "command": [
+        "/mnt/d/tempt/wallfunction-vs-boundarylayer-20261019/wallfunction-node-convergence",
+        "128"
+      ],
+      "exit": 0
+    }
+  ]
+}

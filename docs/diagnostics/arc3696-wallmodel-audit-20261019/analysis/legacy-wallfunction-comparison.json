@@ -1,0 +1,48 @@
+{
+  "build": [
+    "g++",
+    "-std=c++17",
+    "-O2",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/common",
+    "-I/mnt/d/tempt/wallfunction-vs-boundarylayer-20261019",
+    "/mnt/c/Users/25094/Documents/Codex/2026-10-16/1-uniform-work-accepted-source-manifest/work/wallfunction-replay.cpp",
+    "-o",
+    "/mnt/d/tempt/wallfunction-vs-boundarylayer-20261019/wallfunction-legacy-replay"
+  ],
+  "build_exit": 0,
+  "summary": [
+    {
+      "input": "wall-input-t0.0005.csv",
+      "faces": 336,
+      "run_exit": 0,
+      "max_relative_tau_change_legacy_to_current": 2.7581902842799266e-06,
+      "omega_unchanged": true,
+      "production_unchanged": true,
+      "thermal_unchanged": true,
+      "omega_saved_field_max_relative_difference": 0.0,
+      "max_Spalding_root_residual": 7.105427357601002e-15
+    },
+    {
+      "input": "wall-input-t0.004.csv",
+      "faces": 336,
+      "run_exit": 0,
+      "max_relative_tau_change_legacy_to_current": 2.976499395401788e-06,
+      "omega_unchanged": true,
+      "production_unchanged": true,
+      "thermal_unchanged": true,
+      "omega_saved_field_max_relative_difference": 0.0,
+      "max_Spalding_root_residual": 7.771561172376096e-15
+    },
+    {
+      "input": "wall-input-t0.018.csv",
+      "faces": 336,
+      "run_exit": 0,
+      "max_relative_tau_change_legacy_to_current": 0.0029757254564042324,
+      "omega_unchanged": true,
+      "production_unchanged": true,
+      "thermal_unchanged": true,
+      "omega_saved_field_max_relative_difference": 0.0,
+      "max_Spalding_root_residual": 7.105427357601002e-15
+    }
+  ]
+}

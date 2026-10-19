@@ -1,0 +1,13 @@
+{
+  "cwd": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018",
+  "command": [
+    "python3",
+    "-m",
+    "pytest",
+    "--assert=plain",
+    "-q",
+    "validation/tests/gas_wall/test_wall_function_terminal.py",
+    "validation/tests/gas_transport/test_mixture_wall_function.py::test_wall_thermo_flux_and_diffusion_use_same_mixture_properties"
+  ],
+  "exit": 0
+}
