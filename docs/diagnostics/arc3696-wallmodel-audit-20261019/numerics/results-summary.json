@@ -1,0 +1,960 @@
+{
+  "evidence_level": "CPU execution of unchanged production operators on reconstructed saved fields, not original CUDA RK-stage capture or a long-run conservation audit.",
+  "actual_snapshot_stations": [
+    {
+      "face": 181.0,
+      "owner": 90.0,
+      "neighbour": 186.0,
+      "x": 0.34880208333333335,
+      "y": 0.0002547771111195077,
+      "full_mx": -48.97962993763626,
+      "inviscid_mx": -47.17835930506736,
+      "viscous_mx": -1.8012706325688983,
+      "advective_mx": 6.5025661436829765,
+      "numerical_mx": -53.68092544875034,
+      "leftUx": 136.06091610711314,
+      "rightUx": 136.25682303367518,
+      "leftRho": 1.5286565639645284,
+      "rightRho": 1.5287947600358385,
+      "own_gradientUy": 534039.0096632027,
+      "own_limiterUx": 0.08565451877157246,
+      "HLLC_constant_gamma_core_mx": 6.492342827848664,
+      "SLAU2_constant_gamma_core_mx": 6.49571978036999,
+      "case": "baseline",
+      "station_target": 0.35,
+      "numerical_over_physical": 29.80169913290198
+    },
+    {
+      "face": 15273.0,
+      "owner": 7684.0,
+      "neighbour": 7876.0,
+      "x": 0.3792578125,
+      "y": 0.0002547771111195077,
+      "full_mx": -48.306668423853864,
+      "inviscid_mx": -46.461725343423325,
+      "viscous_mx": -1.844943080430545,
+      "advective_mx": 6.076005962378359,
+      "numerical_mx": -52.537731305801685,
+      "leftUx": 134.37173811870065,
+      "rightUx": 134.56387562119122,
+      "leftRho": 1.527387213927399,
+      "rightRho": 1.5275204624810668,
+      "own_gradientUy": 527408.987127079,
+      "own_limiterUx": 0.08664641294612373,
+      "HLLC_constant_gamma_core_mx": 6.066119497655228,
+      "SLAU2_constant_gamma_core_mx": 6.069482475248875,
+      "case": "baseline",
+      "station_target": 0.38,
+      "numerical_over_physical": 28.476613648991936
+    },
+    {
+      "face": 15469.0,
+      "owner": 7782.0,
+      "neighbour": 7974.0,
+      "x": 0.5808723958333333,
+      "y": 0.0002547771111195077,
+      "full_mx": -45.90401826079818,
+      "inviscid_mx": -43.57263566455346,
+      "viscous_mx": -2.3313825962447248,
+      "advective_mx": 3.811108962588485,
+      "numerical_mx": -47.383744627141944,
+      "leftUx": 126.22369565362439,
+      "rightUx": 126.3986843867735,
+      "leftRho": 1.5216187205623164,
+      "rightRho": 1.521730077402449,
+      "own_gradientUy": 495427.92560520937,
+      "own_limiterUx": 0.08829225454506563,
+      "HLLC_constant_gamma_core_mx": 3.8078096700007333,
+      "SLAU2_constant_gamma_core_mx": 3.8081246092944303,
+      "case": "baseline",
+      "station_target": 0.58,
+      "numerical_over_physical": 20.324310863204232
+    },
+    {
+      "face": 15633.0,
+      "owner": 7864.0,
+      "neighbour": 8056.0,
+      "x": 0.7495703125,
+      "y": 0.0002547771111195077,
+      "full_mx": -45.12242510052874,
+      "inviscid_mx": -42.274868564469436,
+      "viscous_mx": -2.8475565360592987,
+      "advective_mx": 2.806789959777295,
+      "numerical_mx": -45.081658524246734,
+      "leftUx": 122.62919934602957,
+      "rightUx": 122.79635973294732,
+      "leftRho": 1.5191318896592134,
+      "rightRho": 1.5192345584077336,
+      "own_gradientUy": 481319.52987141686,
+      "own_limiterUx": 0.0847941322960672,
+      "HLLC_constant_gamma_core_mx": 2.8044128671208832,
+      "SLAU2_constant_gamma_core_mx": 2.8046322910432124,
+      "case": "baseline",
+      "station_target": 0.75,
+      "numerical_over_physical": 15.83169919661533
+    },
+    {
+      "face": 45873.0,
+      "owner": 23080.0,
+      "neighbour": 23128.0,
+      "x": 0.8493749999999999,
+      "y": 0.0002547771111195077,
+      "full_mx": -45.08671890833907,
+      "inviscid_mx": -41.89330107158264,
+      "viscous_mx": -3.1934178367564314,
+      "advective_mx": 2.4075054590043075,
+      "numerical_mx": -44.30080653058695,
+      "leftUx": 121.52879106330204,
+      "rightUx": 121.69328937902729,
+      "leftRho": 1.5180064077470012,
+      "rightRho": 1.5181065121682216,
+      "own_gradientUy": 477000.4280576627,
+      "own_limiterUx": 0.0818030479065979,
+      "HLLC_constant_gamma_core_mx": 2.4052317756958215,
+      "SLAU2_constant_gamma_core_mx": 2.405564916590492,
+      "case": "baseline",
+      "station_target": 0.85,
+      "numerical_over_physical": 13.872536822673814
+    },
+    {
+      "face": 181.0,
+      "owner": 90.0,
+      "neighbour": 186.0,
+      "x": 0.34880208333333335,
+      "y": 0.0002547771111195077,
+      "full_mx": -68.7773511079422,
+      "inviscid_mx": -61.83638450134587,
+      "viscous_mx": -6.9409666065963185,
+      "advective_mx": 5.187923021810368,
+      "numerical_mx": -67.02430752315624,
+      "leftUx": 115.53118250433117,
+      "rightUx": 115.78186008099848,
+      "leftRho": 1.5150004999733437,
+      "rightRho": 1.5151368457259902,
+      "own_gradientUy": 453459.81825714174,
+      "own_limiterUx": 0.13264452628829626,
+      "HLLC_constant_gamma_core_mx": 5.182936374683388,
+      "SLAU2_constant_gamma_core_mx": 5.1824442999219755,
+      "case": "wallfunction",
+      "station_target": 0.35,
+      "numerical_over_physical": 9.656336260062103
+    },
+    {
+      "face": 15273.0,
+      "owner": 7684.0,
+      "neighbour": 7876.0,
+      "x": 0.3792578125,
+      "y": 0.0002547771111195077,
+      "full_mx": -67.81099921294495,
+      "inviscid_mx": -60.76099560223342,
+      "viscous_mx": -7.0500036107115225,
+      "advective_mx": 4.680436982245258,
+      "numerical_mx": -65.44143258447868,
+      "leftUx": 113.96115372798118,
+      "rightUx": 114.20628078574671,
+      "leftRho": 1.51412947035351,
+      "rightRho": 1.5142604687506498,
+      "own_gradientUy": 447297.4563030017,
+      "own_limiterUx": 0.13183686279828882,
+      "HLLC_constant_gamma_core_mx": 4.676088598629251,
+      "SLAU2_constant_gamma_core_mx": 4.675594409411739,
+      "case": "wallfunction",
+      "station_target": 0.38,
+      "numerical_over_physical": 9.28246795293116
+    },
+    {
+      "face": 15469.0,
+      "owner": 7782.0,
+      "neighbour": 7974.0,
+      "x": 0.5808723958333333,
+      "y": 0.0002547771111195077,
+      "full_mx": -65.40590061758716,
+      "inviscid_mx": -57.12647101203583,
+      "viscous_mx": -8.279429605551334,
+      "advective_mx": 2.5533779873385996,
+      "numerical_mx": -59.67984899937443,
+      "leftUx": 108.30545611339578,
+      "rightUx": 108.5300210444864,
+      "leftRho": 1.5115437685161306,
+      "rightRho": 1.511658184128646,
+      "own_gradientUy": 425098.84674292535,
+      "own_limiterUx": 0.11960475278208157,
+      "HLLC_constant_gamma_core_mx": 2.550637081166311,
+      "SLAU2_constant_gamma_core_mx": 2.5506370811663106,
+      "case": "wallfunction",
+      "station_target": 0.58,
+      "numerical_over_physical": 7.2082077924014545
+    },
+    {
+      "face": 15633.0,
+      "owner": 7864.0,
+      "neighbour": 8056.0,
+      "x": 0.7495703125,
+      "y": 0.0002547771111195077,
+      "full_mx": -65.97877696284037,
+      "inviscid_mx": -54.21220849349023,
+      "viscous_mx": -11.766568469350139,
+      "advective_mx": 1.7706642810229505,
+      "numerical_mx": -55.98287277451318,
+      "leftUx": 107.4159475009916,
+      "rightUx": 107.6268033317544,
+      "leftRho": 1.5112005675442575,
+      "rightRho": 1.5113069638142207,
+      "own_gradientUy": 421607.5260018732,
+      "own_limiterUx": 0.10497965580823337,
+      "HLLC_constant_gamma_core_mx": 1.7901475750970677,
+      "SLAU2_constant_gamma_core_mx": 1.7788173787370578,
+      "case": "wallfunction",
+      "station_target": 0.75,
+      "numerical_over_physical": 4.75779093287383
+    },
+    {
+      "face": 45873.0,
+      "owner": 23080.0,
+      "neighbour": 23128.0,
+      "x": 0.8493749999999999,
+      "y": 0.0002547771111195077,
+      "full_mx": -66.21316605583229,
+      "inviscid_mx": -54.04707826946493,
+      "viscous_mx": -12.166087786367353,
+      "advective_mx": 1.8292023112730522,
+      "numerical_mx": -55.87628058073798,
+      "leftUx": 107.65338280825253,
+      "rightUx": 107.86381646707571,
+      "leftRho": 1.5107371259772011,
+      "rightRho": 1.510844799219893,
+      "own_gradientUy": 422539.4594326564,
+      "own_limiterUx": 0.09862756875270018,
+      "HLLC_constant_gamma_core_mx": 1.8518254021435845,
+      "SLAU2_constant_gamma_core_mx": 1.8387727930294884,
+      "case": "wallfunction",
+      "station_target": 0.85,
+      "numerical_over_physical": 4.5927895278998285
+    }
+  ],
+  "euler_budget_dt": 1e-07,
+  "euler_budget": {
+    "baseline": [
+      {
+        "component": "0",
+        "inventory_before": "0.00012196896046542941782",
+        "inventory_after": "0.00012196896046725372695",
+        "measured_change": "1.8243085577054409595e-15",
+        "expected_change": "1.8243085628576443973e-15",
+        "closure_error": "-5.152203437872938977e-24",
+        "closure_over_absolute_boundary_step": "-1.0168650829934849187e-15"
+      },
+      {
+        "component": "1",
+        "inventory_before": "0.021770907903676647164",
+        "inventory_after": "0.02177090790142742393",
+        "measured_change": "-2.2492232436061075765e-12",
+        "expected_change": "-2.2492232698255722011e-12",
+        "closure_error": "2.6219464624570798358e-20",
+        "closure_over_absolute_boundary_step": "8.3334641584984294615e-15"
+      },
+      {
+        "component": "2",
+        "inventory_before": "2.7689061637244574984e-05",
+        "inventory_after": "2.7689062055786979992e-05",
+        "measured_change": "4.1854240505666520921e-13",
+        "expected_change": "4.1854240516794871672e-13",
+        "closure_error": "-1.1128350751252106194e-22",
+        "closure_over_absolute_boundary_step": "-5.1787759026302984198e-18"
+      },
+      {
+        "component": "3",
+        "inventory_before": "9.5743080221027456688e-17",
+        "inventory_after": "9.5804167194227393508e-17",
+        "measured_change": "6.1086973199936810706e-20",
+        "expected_change": "6.1086973199937088052e-20",
+        "closure_error": "-2.7734613713301051463e-34",
+        "closure_over_absolute_boundary_step": "-1.2094413387346644494e-16"
+      },
+      {
+        "component": "4",
+        "inventory_before": "26.11904040309537031",
+        "inventory_after": "26.119040403188169466",
+        "measured_change": "9.2799129558978013987e-11",
+        "expected_change": "9.2799152257102071606e-11",
+        "closure_error": "-2.2698124057619363515e-17",
+        "closure_over_absolute_boundary_step": "-1.5267639051459028674e-14"
+      }
+    ],
+    "wallfunction": [
+      {
+        "component": "0",
+        "inventory_before": "0.00012196217128722037048",
+        "inventory_after": "0.00012196217129017767778",
+        "measured_change": "2.9573066407259328965e-15",
+        "expected_change": "2.957306580815929035e-15",
+        "closure_error": "5.9910003861523911873e-23",
+        "closure_over_absolute_boundary_step": "1.1831018850921450861e-14"
+      },
+      {
+        "component": "1",
+        "inventory_before": "0.021689453243965819572",
+        "inventory_after": "0.021689453240250750381",
+        "measured_change": "-3.7150692175719365746e-12",
+        "expected_change": "-3.7150692083716502722e-12",
+        "closure_error": "-9.2002863023929655093e-21",
+        "closure_over_absolute_boundary_step": "-2.9237448649265494175e-15"
+      },
+      {
+        "component": "2",
+        "inventory_before": "4.0433148925153144336e-05",
+        "inventory_after": "4.0433149519333084797e-05",
+        "measured_change": "5.941799404897422141e-13",
+        "expected_change": "5.9417994040592003734e-13",
+        "closure_error": "8.3822176764140935022e-23",
+        "closure_over_absolute_boundary_step": "3.8991399543981460898e-18"
+      },
+      {
+        "component": "3",
+        "inventory_before": "9.5428789237134565415e-17",
+        "inventory_after": "9.5489859983689539832e-17",
+        "measured_change": "6.1070746554974392423e-20",
+        "expected_change": "6.1070746554974285688e-20",
+        "closure_error": "1.0673488705466370572e-34",
+        "closure_over_absolute_boundary_step": "4.6535182284282356657e-17"
+      },
+      {
+        "component": "4",
+        "inventory_before": "26.116994788985844178",
+        "inventory_after": "26.116994789110417051",
+        "measured_change": "1.2457288615534878753e-10",
+        "expected_change": "1.2457289406249266728e-10",
+        "closure_error": "-7.9071438797436433074e-18",
+        "closure_over_absolute_boundary_step": "-5.3211117690509922477e-15"
+      }
+    ]
+  },
+  "manufactured_shear": {
+    "definition": "Fixed analytic Spalding momentum profile and eddy viscosity; spatial refinement at a fixed physical face; not an SST manufactured full solution.",
+    "results": [
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 30,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.016554644676150816,
+        "cells": 16,
+        "fixed_physical_comparison_face_y": 0.001034665292259426,
+        "expected_physical_shear": 1,
+        "y": 0.001034665292259426,
+        "full_mx": -155.47685284148744,
+        "inviscid_mx": -153.87266361155451,
+        "viscous_mx": -1.6041892299329277,
+        "advective_mx": 0.0,
+        "numerical_mx": -153.87266361155451,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 30,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.016554644676150816,
+        "cells": 32,
+        "fixed_physical_comparison_face_y": 0.001034665292259426,
+        "expected_physical_shear": 1,
+        "y": 0.001034665292259426,
+        "full_mx": -26.80815718894805,
+        "inviscid_mx": -25.743382152684113,
+        "viscous_mx": -1.0647750362639385,
+        "advective_mx": 0.0,
+        "numerical_mx": -25.743382152684113,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 30,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.016554644676150816,
+        "cells": 64,
+        "fixed_physical_comparison_face_y": 0.001034665292259426,
+        "expected_physical_shear": 1,
+        "y": 0.001034665292259426,
+        "full_mx": -8.204258204818784,
+        "inviscid_mx": -7.189752593884479,
+        "viscous_mx": -1.0145056109343047,
+        "advective_mx": 0.0,
+        "numerical_mx": -7.189752593884479,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 30,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.016554644676150816,
+        "cells": 128,
+        "fixed_physical_comparison_face_y": 0.001034665292259426,
+        "expected_physical_shear": 1,
+        "y": 0.001034665292259426,
+        "full_mx": -2.978128992240312,
+        "inviscid_mx": -1.9745910254243713,
+        "viscous_mx": -1.0035379668159408,
+        "advective_mx": 0.0,
+        "numerical_mx": -1.9745910254243713,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 30,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.016554644676150816,
+        "cells": 256,
+        "fixed_physical_comparison_face_y": 0.001034665292259426,
+        "expected_physical_shear": 1,
+        "y": 0.001034665292259426,
+        "full_mx": -1.5240652763699045,
+        "inviscid_mx": -0.5231860954774384,
+        "viscous_mx": -1.0008791808924662,
+        "advective_mx": 0.0,
+        "numerical_mx": -0.5231860954774384,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 30,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.016554644676150816,
+        "cells": 512,
+        "fixed_physical_comparison_face_y": 0.001034665292259426,
+        "expected_physical_shear": 1,
+        "y": 0.001034665292259426,
+        "full_mx": -1.1353004402305347,
+        "inviscid_mx": -0.13508097370824282,
+        "viscous_mx": -1.0002194665222919,
+        "advective_mx": 0.0,
+        "numerical_mx": -0.13508097370824282,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 30,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.016554644676150816,
+        "cells": 1024,
+        "fixed_physical_comparison_face_y": 0.001034665292259426,
+        "expected_physical_shear": 1,
+        "y": 0.001034665292259426,
+        "full_mx": -1.0344033229106164,
+        "inviscid_mx": -0.03434847677407277,
+        "viscous_mx": -1.0000548461365437,
+        "advective_mx": 0.0,
+        "numerical_mx": -0.03434847677407277,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 80,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.044145719136402174,
+        "cells": 16,
+        "fixed_physical_comparison_face_y": 0.002759107446025136,
+        "expected_physical_shear": 1,
+        "y": 0.002759107446025136,
+        "full_mx": -117.09941209021316,
+        "inviscid_mx": -115.56370187491143,
+        "viscous_mx": -1.5357102153017337,
+        "advective_mx": 0.0,
+        "numerical_mx": -115.56370187491143,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 80,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.044145719136402174,
+        "cells": 32,
+        "fixed_physical_comparison_face_y": 0.002759107446025136,
+        "expected_physical_shear": 1,
+        "y": 0.002759107446025136,
+        "full_mx": -22.643359059028874,
+        "inviscid_mx": -21.59036469260734,
+        "viscous_mx": -1.052994366421533,
+        "advective_mx": 0.0,
+        "numerical_mx": -21.59036469260734,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 80,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.044145719136402174,
+        "cells": 64,
+        "fixed_physical_comparison_face_y": 0.002759107446025136,
+        "expected_physical_shear": 1,
+        "y": 0.002759107446025136,
+        "full_mx": -7.049182126629173,
+        "inviscid_mx": -6.037133873385797,
+        "viscous_mx": -1.0120482532433757,
+        "advective_mx": 0.0,
+        "numerical_mx": -6.037133873385797,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 80,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.044145719136402174,
+        "cells": 128,
+        "fixed_physical_comparison_face_y": 0.002759107446025136,
+        "expected_physical_shear": 1,
+        "y": 0.002759107446025136,
+        "full_mx": -2.653515671745294,
+        "inviscid_mx": -1.65056774315113,
+        "viscous_mx": -1.002947928594164,
+        "advective_mx": 0.0,
+        "numerical_mx": -1.65056774315113,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 80,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.044145719136402174,
+        "cells": 256,
+        "fixed_physical_comparison_face_y": 0.002759107446025136,
+        "expected_physical_shear": 1,
+        "y": 0.002759107446025136,
+        "full_mx": -1.4364668787833796,
+        "inviscid_mx": -0.4357337643920345,
+        "viscous_mx": -1.0007331143913452,
+        "advective_mx": 0.0,
+        "numerical_mx": -0.4357337643920345,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 80,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.044145719136402174,
+        "cells": 512,
+        "fixed_physical_comparison_face_y": 0.002759107446025136,
+        "expected_physical_shear": 1,
+        "y": 0.002759107446025136,
+        "full_mx": -1.1124326782697165,
+        "inviscid_mx": -0.11224963930206165,
+        "viscous_mx": -1.000183038967655,
+        "advective_mx": 0.0,
+        "numerical_mx": -0.11224963930206165,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 80,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.044145719136402174,
+        "cells": 1024,
+        "fixed_physical_comparison_face_y": 0.002759107446025136,
+        "expected_physical_shear": 1,
+        "y": 0.002759107446025136,
+        "full_mx": -1.0285534019551847,
+        "inviscid_mx": -0.028507657157722983,
+        "viscous_mx": -1.0000457447974618,
+        "advective_mx": 0.0,
+        "numerical_mx": -0.028507657157722983,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 200,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.11036429784100543,
+        "cells": 16,
+        "fixed_physical_comparison_face_y": 0.0068977686150628395,
+        "expected_physical_shear": 1,
+        "y": 0.0068977686150628395,
+        "full_mx": -104.3616842233569,
+        "inviscid_mx": -102.89166707297927,
+        "viscous_mx": -1.470017150377629,
+        "advective_mx": 0.0,
+        "numerical_mx": -102.89166707297927,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 200,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.11036429784100543,
+        "cells": 32,
+        "fixed_physical_comparison_face_y": 0.0068977686150628395,
+        "expected_physical_shear": 1,
+        "y": 0.0068977686150628395,
+        "full_mx": -21.26666714218529,
+        "inviscid_mx": -20.217689010086467,
+        "viscous_mx": -1.0489781320988243,
+        "advective_mx": 0.0,
+        "numerical_mx": -20.217689010086467,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 200,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.11036429784100543,
+        "cells": 64,
+        "fixed_physical_comparison_face_y": 0.0068977686150628395,
+        "expected_physical_shear": 1,
+        "y": 0.0068977686150628395,
+        "full_mx": -6.66592169751541,
+        "inviscid_mx": -5.654716061589324,
+        "viscous_mx": -1.0112056359260855,
+        "advective_mx": 0.0,
+        "numerical_mx": -5.654716061589324,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 200,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.11036429784100543,
+        "cells": 128,
+        "fixed_physical_comparison_face_y": 0.0068977686150628395,
+        "expected_physical_shear": 1,
+        "y": 0.0068977686150628395,
+        "full_mx": -2.5459260887891517,
+        "inviscid_mx": -1.5431807177218408,
+        "viscous_mx": -1.0027453710673109,
+        "advective_mx": 0.0,
+        "numerical_mx": -1.5431807177218408,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 200,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.11036429784100543,
+        "cells": 256,
+        "fixed_physical_comparison_face_y": 0.0068977686150628395,
+        "expected_physical_shear": 1,
+        "y": 0.0068977686150628395,
+        "full_mx": -1.4074717606090803,
+        "inviscid_mx": -0.4067888040646703,
+        "viscous_mx": -1.00068295654441,
+        "advective_mx": 0.0,
+        "numerical_mx": -0.4067888040646703,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 200,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.11036429784100543,
+        "cells": 512,
+        "fixed_physical_comparison_face_y": 0.0068977686150628395,
+        "expected_physical_shear": 1,
+        "y": 0.0068977686150628395,
+        "full_mx": -1.1048701483570336,
+        "inviscid_mx": -0.10469961911804868,
+        "viscous_mx": -1.0001705292389849,
+        "advective_mx": 0.0,
+        "numerical_mx": -0.10469961911804868,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      },
+      {
+        "purpose": "Manufactured 1-D momentum transport only, NOT an exact full coupled SST/energy solution. Prescribed Spalding U(y) and nu_eff(y)=nu*dyPlus/duPlus give exact rho*nu_eff*dU/dy=1 Pa; cell velocities are quadrature cell averages.",
+        "target_first_cell_yplus_at_N16": 200,
+        "utau": 1,
+        "rho": 1,
+        "nu": 1.72444215376571e-05,
+        "domain_height": 0.11036429784100543,
+        "cells": 1024,
+        "fixed_physical_comparison_face_y": 0.0068977686150628395,
+        "expected_physical_shear": 1,
+        "y": 0.0068977686150628395,
+        "full_mx": -1.0266197710321363,
+        "inviscid_mx": -0.026577151814003736,
+        "viscous_mx": -1.0000426192181326,
+        "advective_mx": 0.0,
+        "numerical_mx": -0.026577151814003736,
+        "HLLC_constant_gamma_core_mx": 0.0,
+        "SLAU2_constant_gamma_core_mx": 0.0
+      }
+    ],
+    "commands": [
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp30-n16",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp30-n16",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp30-n32",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp30-n32",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp30-n64",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp30-n64",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp30-n128",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp30-n128",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp30-n256",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp30-n256",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp30-n512",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp30-n512",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp30-n1024",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp30-n1024",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp80-n16",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp80-n16",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp80-n32",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp80-n32",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp80-n64",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp80-n64",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp80-n128",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp80-n128",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp80-n256",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp80-n256",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp80-n512",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp80-n512",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp80-n1024",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp80-n1024",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp200-n16",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp200-n16",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp200-n32",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp200-n32",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp200-n64",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp200-n64",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp200-n128",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp200-n128",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp200-n256",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp200-n256",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp200-n512",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp200-n512",
+          "1"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/manufactured-shear/yp200-n1024",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/manufactured-shear/yp200-n1024",
+          "1"
+        ],
+        "exit": 0
+      }
+    ]
+  },
+  "linear_controls": [
+    {
+      "sign": 1,
+      "cells": 16,
+      "expected_signed_face_momentum_flux": -1,
+      "max_total_flux_error": 6.190603585309873e-13,
+      "max_numerical_flux": 6.167848311743382e-13,
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/linear-shear-1",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/linear-shear-1",
+        "1"
+      ],
+      "run_exit": 0
+    },
+    {
+      "sign": -1,
+      "cells": 16,
+      "expected_signed_face_momentum_flux": 1,
+      "max_total_flux_error": 6.190603585309873e-13,
+      "max_numerical_flux": 6.167848311743382e-13,
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/snapshot-budget",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/linear-shear--1",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/logs/linear-shear--1",
+        "1"
+      ],
+      "run_exit": 0
+    }
+  ],
+  "stationary_contact_count": 81,
+  "unsupported_mixture_HLLC": "mixture_HLLC_success=0 fatal=1 code=4 site=10042 face=1 observed=1\n",
+  "portable_validation_exit": 0
+}

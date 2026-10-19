@@ -1,0 +1,13 @@
+{
+  "command": [
+    "python3",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-wallmodel-audit-20261019/docs/diagnostics/arc3696-wallmodel-audit-20261019/tools/reproduce_numerics.py",
+    "--source",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-wallmodel-audit-20261019",
+    "--snapshots",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-wallmodel-audit-20261019/isolated-extract-validation",
+    "--out",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019"
+  ],
+  "exit": 0
+}

@@ -1,0 +1,31 @@
+{
+  "commit": "a289cb067dd7cb8cf28ec90873eacac13987ec36",
+  "pr_number": 21,
+  "pr_url": "https://github.com/zyy212121/ugkp-thermal/pull/21",
+  "head_ref": "audit/arc3696-wallmodel-snapshots-20261019",
+  "head_sha": "a289cb067dd7cb8cf28ec90873eacac13987ec36",
+  "base_sha": "5c7f5e507075b35b63d23e7fee5e026bb48508e0",
+  "state": "open",
+  "merged": false,
+  "before_refs": "a289cb067dd7cb8cf28ec90873eacac13987ec36\trefs/heads/audit/arc3696-wallmodel-snapshots-20261019\n5c7f5e507075b35b63d23e7fee5e026bb48508e0\trefs/heads/main\n",
+  "archives": {},
+  "readback": {
+    "snapshot-manifest.json": {
+      "sha256": "22bc73037c176fc421b23524aa37695a8ee7d59d46fd6d9a7946f48c7c90b5d4",
+      "bytes": 48412
+    },
+    "审查资料说明.md": {
+      "sha256": "e5ca654446287aef27f2b76fa36c6f3f5ea1a0f8cd588103d0b5d67bdcf6fa02",
+      "bytes": 4151
+    },
+    "baseline-boundaryLayer.tar.gz": {
+      "sha256": "32505071d74c503e282009c8825042d8267b942c795ff5730f3eb5b48db3a02d",
+      "bytes": 16022124
+    },
+    "wallFunction-f9.tar.gz": {
+      "sha256": "761abac5d30577ae5f1ebfa2ef9f6c6f640f57e103827d32afdd388ac34860c2",
+      "bytes": 13559799
+    }
+  },
+  "after_refs": "a289cb067dd7cb8cf28ec90873eacac13987ec36\trefs/heads/audit/arc3696-wallmodel-snapshots-20261019\n5c7f5e507075b35b63d23e7fee5e026bb48508e0\trefs/heads/main\na289cb067dd7cb8cf28ec90873eacac13987ec36\trefs/pull/21/head\n"
+}

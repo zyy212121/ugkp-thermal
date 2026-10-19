@@ -1,0 +1,52 @@
+[
+  {
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-wallmodel-audit-20261019/docs/diagnostics/arc3696-wallmodel-audit-20261019/tools/export_snapshot.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/config.json"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-wallmodel-audit-20261019/docs/diagnostics/arc3696-wallmodel-audit-20261019/tools/build_budget.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/config.json"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-wallmodel-audit-20261019/docs/diagnostics/arc3696-wallmodel-audit-20261019/tools/manufactured_shear.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/config.json"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-wallmodel-audit-20261019/docs/diagnostics/arc3696-wallmodel-audit-20261019/tools/linear_controls.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/config.json"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "g++",
+      "-std=c++17",
+      "-O2",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-wallmodel-audit-20261019/common",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-wallmodel-audit-20261019/docs/diagnostics/arc3696-wallmodel-audit-20261019/tools/pr21-stationary-contact.cpp",
+      "-o",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/stationary-contact"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr21-audit-portable-final-20261019/execution/stationary-contact"
+    ],
+    "exit": 0
+  }
+]
