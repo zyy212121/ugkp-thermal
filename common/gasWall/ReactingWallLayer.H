@@ -892,7 +892,14 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
             const int end=c.nodes-1;LayerPoint<R,N> edge,previous;
             if(!evaluatePoint(in,c,ctx,w.state,w.y,end,edge)
                 ||!pointState(in,c,ctx,w.state[end-1],previous))return false;
-            const R average=powerIntegral(previous.omega*previous.omega,edge.omega*edge.omega,
+            R average;
+            if(end==1){
+                // The minimum two-node grid starts at z_wall=0 for a smooth
+                // wall. Integrate the existing linear-z asymptote only over
+                // its positive outer half; omega at the wall is not sampled.
+                const R a=R(2)/(previous.z+edge.z),b=R(1)/edge.z;
+                average=a*b*(a*a+a*b+b*b)/R(3);
+            }else average=powerIntegral(previous.omega*previous.omega,edge.omega*edge.omega,
                 w.y[end-1],w.y[end],(w.y[end-1]+w.y[end])/R(2),w.y[end])/matchingHalf;
             const R omegaSource=edge.sourceOmega+edge.rho*sstBeta(edge.f1,in.model.sstCoefficients)*(edge.omega*edge.omega-average);
             out.kFluxHeight[c.nodes]=w.y[end];
@@ -908,7 +915,7 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
             int control=0;
             if(in.volumeSstClosure){
                 while(control+1<c.nodes&&out.kFluxHeight[control+1]<y)++control;
-                if(control+1<c.nodes)out.ownerKBalanceResidual-=weight*((control+1==c.nodes?matchingKFlux:w.seed[control+1][3])-w.seed[control][3])/(out.kFluxHeight[control+1]-out.kFluxHeight[control]);
+                if(control+1<out.kFluxCount)out.ownerKBalanceResidual-=weight*((control+1==c.nodes?matchingKFlux:w.seed[control+1][3])-w.seed[control][3])/(out.kFluxHeight[control+1]-out.kFluxHeight[control]);
                 // The physical SST residual is never replaced by a flux
                 // identity. Interior dual volumes use the solved equation's
                 // actual nodal source, including an unconverged residual.

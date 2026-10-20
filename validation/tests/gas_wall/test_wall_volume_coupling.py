@@ -23,6 +23,7 @@ def test_owner_volume_k_equilibrium_and_finite_omega_moment(tmp_path):
         closure.kFluxCount=o.kFluxCount;closure.kFluxHeight=o.kFluxHeight;closure.kDiffusiveFlux=o.kDiffusiveFlux;
         double area=1e-6,outer=boundaryLayerKDiffusion(closure,.001);
         assert(near(o.integratedKSource,area*(outer-o.wallKFlux),1e-9));
+        assert(near(o.ownerKBalanceResidual,o.integratedKSource-area*(outer-o.wallKFlux),1e-12));
         // The macro source vanishes with its matching normal-flux divergence
         // at the projected rho*k mean. No separate wall-function P is added.
         double source=o.integratedKSource+o.ownerKDestruction-
@@ -41,3 +42,16 @@ def test_owner_volume_k_equilibrium_and_finite_omega_moment(tmp_path):
 
         """)
     finally: test_wall_model.BASE=original
+
+def test_minimum_node_volume_flux_is_finite(tmp_path):
+    test_wall_model.compile_run(tmp_path,r"""
+        Model m;double y[2]={.00025,.00075},weight[2]={.0005,.0005};
+        m.in.matchingDistance=.001;m.in.ownerDistance=.0005;
+        m.in.quadrature={y,weight,2,.001,5e-7};m.in.volumeSstClosure=true;m.in.integrateOwnerKSource=true;
+        m.in.matching.velocity[0]=30;m.in.matching.k=.5;m.in.matching.omega=2000;
+        WallModelConfig<double> c;c.nodes=2;c.enableSst=true;
+        WallWorkspace<double,2,2>w;WallOutput<double,2>o;WallStatus status;
+        assert(evaluateWallModel(m.in,c,w,o,status));
+        assert(o.kFluxCount==3);
+        for(int j=0;j<o.kFluxCount;++j)assert(std::isfinite(o.omegaDiffusiveFlux[j])&&std::isfinite(o.kDiffusiveFlux[j]));
+    """)
