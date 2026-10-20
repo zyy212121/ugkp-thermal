@@ -55,3 +55,32 @@ def test_minimum_node_volume_flux_is_finite(tmp_path):
         assert(o.kFluxCount==3);
         for(int j=0;j<o.kFluxCount;++j)assert(std::isfinite(o.omegaDiffusiveFlux[j])&&std::isfinite(o.kDiffusiveFlux[j]));
     """)
+
+def test_projection_compression_preserves_real_sst_integrals(tmp_path):
+    original=test_wall_model.BASE
+    test_wall_model.BASE=original+'\n#include "common/gasWall/WallGeometryBuilder.H"\n'
+    try:
+        test_wall_model.compile_run(tmp_path,r"""
+        Model m;WallGeometryDescriptor<double>d;d.volume=.001;
+        std::vector<double>profile;for(int j=0;j<24;++j)profile.push_back(.001*std::pow(double(j)/23,2));
+        for(int j=0;j<1000;++j){double y=.001*(j+.5)/1000;
+            d.distance.push_back(y);d.volumeWeight.push_back(1e-6);d.quadraturePoints.push_back({0,y,0});}
+        for(double y:{(profile[10]+profile[11])/2,(profile[10]+profile[11])/2+(profile[11]-profile[10])/8}){
+            d.distance.push_back(y);d.volumeWeight.push_back(1e-4);d.quadraturePoints.push_back({0,y,0});d.volume+=1e-4;}
+        m.in.matchingDistance=.001;m.in.ownerDistance=.0005;
+        m.in.volumeSstClosure=true;m.in.integrateOwnerKSource=true;
+        m.in.matching.velocity[0]=30;m.in.matching.k=.5;m.in.matching.omega=2000;
+        WallModelConfig<double>c;c.nodes=24;c.enableSst=true;WallStatus status;
+        WallWorkspace<double,2,24>w;WallOutput<double,2>a,b;
+        m.in.quadrature=d.quadrature();assert(evaluateWallModel(m.in,c,w,a,status));
+        wallGeometryDetail::compressProjectionQuadrature(d,profile);
+        assert(d.distance.size()<500);m.in.quadrature=d.quadrature();
+        assert(evaluateWallModel(m.in,c,w,b,status));
+        assert(near(a.ownerKContent,b.ownerKContent,1e-13));
+        assert(near(a.ownerKDestruction,b.ownerKDestruction,1e-13));
+        assert(near(a.integratedKSource,b.integratedKSource,1e-13));
+        assert(near(a.ownerKBalanceResidual,b.ownerKBalanceResidual,1e-13));
+        assert(near(a.ownerOmega,b.ownerOmega,1e-13));
+        assert(a.traction[0]==b.traction[0]&&a.conductiveHeatFlux==b.conductiveHeatFlux);
+        """)
+    finally: test_wall_model.BASE=original

@@ -455,6 +455,37 @@ template<class R> void matchingReconstruction(const WallGeometryMesh<R>&m,
     d.matchingWeights[0]+=R(1)-sum;
 }
 
+// The projected interior source is constant per dual cell and its K/D
+// moments are linear per nodal interval. One positive moment node per
+// intersection integrates these quantities exactly. Keep every near-wall
+// node, where the analytic SST asymptote is nonlinear.
+template<class R> void compressProjectionQuadrature(WallGeometryDescriptor<R>&d,const std::vector<R>&profile){
+    if(profile.size()<2)return;
+    std::vector<R>cuts=profile;
+    for(std::size_t j=1;j<profile.size();++j)cuts.push_back((profile[j-1]+profile[j])/R(2));
+    std::sort(cuts.begin(),cuts.end());
+    struct Moment{long double volume=0,height=0,point[3]{};};
+    std::vector<Moment> moments(cuts.size()+1);
+    WallGeometryDescriptor<R> compressed;
+    for(std::size_t j=0;j<d.distance.size();++j){
+        const R y=d.distance[j],weight=d.volumeWeight[j];
+        if(y<profile[1]){
+            compressed.distance.push_back(y);compressed.volumeWeight.push_back(weight);
+            compressed.quadraturePoints.push_back(d.quadraturePoints[j]);continue;
+        }
+        const auto bin=std::lower_bound(cuts.begin(),cuts.end(),y)-cuts.begin();
+        auto& m=moments[bin];m.volume+=weight;m.height+=static_cast<long double>(weight)*y;
+        for(int k=0;k<3;++k)m.point[k]+=static_cast<long double>(weight)*d.quadraturePoints[j][k];
+    }
+    for(const auto&m:moments)if(m.volume>0){
+        compressed.distance.push_back(R(m.height/m.volume));compressed.volumeWeight.push_back(R(m.volume));
+        Vec<R> point;for(int k=0;k<3;++k)point[k]=R(m.point[k]/m.volume);
+        compressed.quadraturePoints.push_back(point);
+    }
+    d.distance=std::move(compressed.distance);d.volumeWeight=std::move(compressed.volumeWeight);
+    d.quadraturePoints=std::move(compressed.quadraturePoints);
+}
+
 template<class R> bool matching(const WallGeometryMesh<R>&m,const Context<R>&ctx,WallGeometryDescriptor<R>&d,WallStatus&s,const WallGeometryOptions<R>&opt,R scale){
     (void)scale; // Distinct represented ray positions are not merged by mesh size.
     R entry=0;int cell=d.ownerCell;
@@ -563,6 +594,7 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
         d.volumeWeight[i]*=factor;d.firstMoment+=d.volumeWeight[i]*d.distance[i];
         d.firstMomentVector=add(d.firstMomentVector,mul(d.quadraturePoints[i],d.volumeWeight[i]));
     }
+    if(opt.reconstructMatching&&opt.profileNodes)compressProjectionQuadrature(d,profile);
     out=std::move(d);return true;
 }
 } // wallGeometryDetail

@@ -33,3 +33,17 @@ WallGeometryOptions<double> opt;opt.reconstructMatching=true;assert(buildWallGeo
 assert(near(d.matchingDistance,d.maximumOwnerDistance,1e-14));
 for(auto cell:d.matchingCells)assert(cell!=d.ownerCell);
 ''')
+
+def test_owner_projection_has_one_moment_node_per_linear_source_segment(tmp_path):
+    compile_run(tmp_path,r'''
+auto m=cubes(5);WallGeometryDescriptor<double>d;WallStatus status;
+WallGeometryOptions<double> opt;opt.reconstructMatching=true;opt.profileNodes=24;
+assert(buildWallGeometry(m,0,d,status,opt));
+std::vector<double>cuts;for(int i=0;i<24;++i)cuts.push_back(d.matchingDistance*std::pow(double(i)/23,2.));
+double first=cuts[1];for(int i=1;i<24;++i)cuts.push_back((std::pow(double(i-1)/23,2.)+std::pow(double(i)/23,2.))*d.matchingDistance/2);
+std::sort(cuts.begin(),cuts.end());std::map<int,int>count;double v=0,my=0;
+for(size_t j=0;j<d.distance.size();++j){v+=d.volumeWeight[j];my+=d.volumeWeight[j]*d.distance[j];
+ if(d.distance[j]>=first)++count[std::upper_bound(cuts.begin(),cuts.end(),d.distance[j])-cuts.begin()];}
+for(auto entry:count)assert(entry.second==1);
+assert(near(v,d.volume,1e-13)&&near(my,d.firstMoment,1e-13));
+''')
