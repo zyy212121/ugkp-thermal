@@ -1,0 +1,41 @@
+{
+  "cpu": {
+    "jacobian_reference_us": 316.583573,
+    "jacobian_cached_us": 194.105038,
+    "publication_reference_us": 22.9780972,
+    "publication_fused_us": 12.503858,
+    "jacobian_reduction_percent": 38.687583767967645,
+    "publication_reduction_percent": 45.583579479331306
+  },
+  "gpu": {
+    "jacobian_reference_128faces_us": 9094.60449,
+    "jacobian_cached_128faces_us": 6827.85187,
+    "publication_reference_128faces_us": 6583.47412,
+    "publication_fused_128faces_us": 3672.92755,
+    "jacobian_reduction_percent": 24.92414730615734,
+    "publication_reduction_percent": 44.20988853222681
+  },
+  "counts": {
+    "jacobian_intervals_before": 804,
+    "jacobian_intervals_after": 320,
+    "publication_intervals_before": 48,
+    "publication_intervals_after": 23,
+    "jacobian_layer_rows": 420,
+    "jacobian_point_state": 234
+  },
+  "resources": {
+    "workspace_bytes": 27072,
+    "wall_output_bytes": 3368,
+    "point_cache_bytes": 904,
+    "interval_cache_bytes": 1136,
+    "gpu_jacobian_registers_before": 255,
+    "gpu_jacobian_registers_after": 255,
+    "gpu_jacobian_local_bytes_before": 4272,
+    "gpu_jacobian_local_bytes_after": 4480,
+    "gpu_publication_registers_before": 166,
+    "gpu_publication_registers_after": 166,
+    "gpu_publication_local_bytes_before": 6576,
+    "gpu_publication_local_bytes_after": 5936
+  },
+  "scope": "Optimization-only equivalence snapshot, 24 nodes, 2 species, SST, blowing, volume source projection. GPU measures 128 frozen walls, production team layout. These do not substitute for solver end-to-end timing."
+}

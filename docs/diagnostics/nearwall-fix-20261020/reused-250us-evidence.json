@@ -1,0 +1,60 @@
+{
+  "wallFunction": {
+    "source": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/bvp-coupling-fix-20261020/wallFunction-compact/0.023300000000000001",
+    "source_numerical_commit": "92600a521d2d5526cddd5342adccbe8ed1d7b8ab",
+    "files": {
+      "dMeanCell": "0b7c4084b493e0db4b23f3b8861c996d0852e1508d8acfd7339a882034343da4",
+      "rhoDs": "337e57aa8c507e9af226273ca6b423fe417e473ce8a0157bf851ecea50a0ec85",
+      "Y_Air": "b8be3d607fd92706f1c41431f0997c58caed967bb59416d5d29fdc2e2d19b0c8",
+      "rhoEs": "d55a4af7037fdd5c4ab7714159679ccbdf89e5db10b756837b1a134db62addb2",
+      "Y_CO2": "eb2e7b342c201d9d9e708e6c4234c90df5725e1b6773c9f14f57bc65b199dc23",
+      "epsilonS": "2a61d10a6886644b6b02e8d7a2805843722fb59d70a31fd01651d3628a8f4008",
+      "gasModelIdentity": "e50252aed9baab393954baf571dcc407eb1e1bbf6f74bcbd090bf7e0e5b98908",
+      "k": "f165fab3dd53664d380c911197cbbe1e58eca0dcd95b5f1190fecd3a876847a5",
+      "omega": "6f972fc1ff65a6296341a45d81a94423185e59f5efadd0ac697fc6ae2e21c384",
+      "rho": "790b498b590cb761b7bd8a75602262f42ce4b43aa04f5ad6e5fb7730a6bba90b",
+      "theta": "3ad2808b3d65cdf1e7543c88c04f6636549ed45db5267c9887cdef6260eb89cb",
+      "T": "f1ac661068e8a5cd2d29c521e7b55b3f5d4abe024f33429bbec01a3bede46596",
+      "rhoE": "f8e784dc72918631941feb5a47c35ce7f10741d8bdc528f0ee084c06747f3398",
+      "rhoUs": "88bbdf1bcc4e9075ea1493bd5c682bc394faa4c3568f1846d900e210fe7220c9",
+      "rhoY_Air": "015a78af7f445fe48c814e08d31def960b341d82fc578cdffccee7364e86edc2",
+      "rhoY_CO2": "a423a6987b594f2e584858333c62f52ee410636e029f710e6cef2970573b827e",
+      "Us": "417efdd82c65ad694a680d6de7b873d32f4f9e2d3b1f0ffe94c7e68448f459b0",
+      "U": "17c4ea85f410c9482f95358c3794062a966d96447c51134ae0686b39c94de42a",
+      "nut": "62ba4de4818151b366c001f5a03748f0de8930579cbeb3c914f920abb4157ff8",
+      "rhoU": "ff79955f7dfc49654f196ce8696f75cb8e3f2bcbbdf3b6d617d7a83b6eb03c22",
+      "p": "e5752a1e35c2af62259acb7f6e82867770c5235e8fdd0cdbed83b3d1b5db8326",
+      "uniform/time": "d6e5546d86441ad123ed23882bbd8bccce40a71c5ba90da3dbe48b2ff9c82fb2"
+    }
+  },
+  "boundaryLayer": {
+    "source": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/bvp-coupling-fix-20261020/boundaryLayer-compact/0.023300000000000001",
+    "source_numerical_commit": "92600a521d2d5526cddd5342adccbe8ed1d7b8ab",
+    "files": {
+      "dMeanCell": "0b7c4084b493e0db4b23f3b8861c996d0852e1508d8acfd7339a882034343da4",
+      "rhoDs": "337e57aa8c507e9af226273ca6b423fe417e473ce8a0157bf851ecea50a0ec85",
+      "Y_Air": "3f9c31066dbab1260284eb5e74f940b97c5dfad6be5a298c910df34ac274c3f1",
+      "rhoEs": "d55a4af7037fdd5c4ab7714159679ccbdf89e5db10b756837b1a134db62addb2",
+      "Y_CO2": "eb2e7b342c201d9d9e708e6c4234c90df5725e1b6773c9f14f57bc65b199dc23",
+      "epsilonS": "2a61d10a6886644b6b02e8d7a2805843722fb59d70a31fd01651d3628a8f4008",
+      "gasModelIdentity": "e50252aed9baab393954baf571dcc407eb1e1bbf6f74bcbd090bf7e0e5b98908",
+      "k": "b96a8226e84184b24d7ad16242ebe778e17e50fb233af0184792962be23dfeff",
+      "omega": "e231d67a0a2a02b0ab7cda88227d629fdf2144f5bb923923c618fa18a3aea5ca",
+      "rho": "fb29bfb32197c47165ba5ebc782991a937ff28c1552b263560ac64b6d925099b",
+      "theta": "3ad2808b3d65cdf1e7543c88c04f6636549ed45db5267c9887cdef6260eb89cb",
+      "T": "50f328dac90bab9ba087291c6beaa73c6dc7d117d88472ff53aa52b2ad79f704",
+      "rhoE": "80d3732e6644516b0ca5ad8c6e63abf8940c4dbcb7c9b9089ff53cd8233161bd",
+      "rhoUs": "88bbdf1bcc4e9075ea1493bd5c682bc394faa4c3568f1846d900e210fe7220c9",
+      "rhoY_Air": "755bf99e7ac905d788850e8350e09d8ba34f72e49a6a24d2f31c7b6fa8ea833b",
+      "rhoY_CO2": "a423a6987b594f2e584858333c62f52ee410636e029f710e6cef2970573b827e",
+      "Us": "417efdd82c65ad694a680d6de7b873d32f4f9e2d3b1f0ffe94c7e68448f459b0",
+      "U": "be77dd96d8342bd0dcb1f9fb675e8979da26f51a561449c3bdd8dd507ed2a57e",
+      "nut": "d62baef03f4e401fe5b681bb9be1dcfbf761232367b4bb292246e401e1a27c36",
+      "rhoU": "f453b55549894774f9d8bb9806b0ea9739e2b9ccddb133776245c28c214758d1",
+      "p": "1e5233c9d1fb1ce657c5ab5127035a1c766cb4230f7e018699da20fc52e1946c",
+      "uniform/time": "6d84dc9eeb372d995e742c376aa9b799850076ad9a69226f0e899b5a3ccc3ef7",
+      "uniform/gasBoundaryLayer.csv": "94516de0e479c5943f9d63b4b04bcd5621e4b1b313b014238f9198590e61bc01",
+      "uniform/gasBoundaryLayerProfiles.csv": "f4ebb605e212a3e5bb90112995d11e8bd8dc704a8bd07c143391e68bc659093e"
+    }
+  }
+}

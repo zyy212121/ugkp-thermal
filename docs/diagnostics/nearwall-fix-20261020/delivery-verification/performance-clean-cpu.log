@@ -1,0 +1,10 @@
+scratch=/tmp/pr22-delivery-review-cdml2hp2
+command=python3 performance/cpu/run.py
+workspace_bytes=27072 cache_bytes=1136 output_bytes=3368
+sample=0 jacobian_us=258.417366->156.021672 publication_us=20.2663506->10.7778852
+sample=1 jacobian_us=268.20037->163.033527 publication_us=18.9743084->10.6617606
+sample=2 jacobian_us=258.009685->157.846674 publication_us=19.8008652->10.950036
+sample=3 jacobian_us=261.734076->159.847784 publication_us=19.6622774->10.9192162
+sample=4 jacobian_us=273.186191->165.415391 publication_us=20.400153->11.442675
+sample=5 jacobian_us=269.618949->170.497554 publication_us=19.733757->10.5501902
+sample=6 jacobian_us=267.517308->162.434571 publication_us=19.9251658->10.430153

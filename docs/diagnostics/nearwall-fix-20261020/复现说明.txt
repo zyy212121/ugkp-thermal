@@ -1,0 +1,63 @@
+复现环境
+本轮实际环境：WSL Ubuntu-22.04、OpenFOAM 10、CUDA 13.1、RTX4060 Laptop、sm_89、双精度、Ns=2。生产算例与冻结故障GPU验证使用fmad=true；隔离优化等价性及GPU计时使用fmad=false，其运行命令在performance-reproducer.tar.xz中。因此不能把该隔离加速比直接描述为最终生产fmad=true版本的速度收益。多组分3/10物种路径另有生产通量单元回归。工具链和硬件不同会影响计时与末位数值。
+
+以下命令在WSL的bash内执行。从仓库根目录复现定向回归：
+python3 docs/diagnostics/nearwall-fix-20261020/verify.py
+
+该命令将测试日志写入work/nearwall-fix-20261020，pytest也可能生成自己的缓存目录。测试包含实际CUDA模板编译；交付脚本中的NVCC路径固定为/usr/local/cuda-13.1/bin/nvcc，其他CUDA位置需先调整该脚本。
+
+隔离构建：
+source /opt/openfoam10/etc/bashrc
+task_output="$PWD/work/nearwall-reproduction"
+mkdir -p "$task_output/bin" "$task_output/lib" "$task_output/tmp" "$task_output/cuda-cache"
+export FOAM_USER_APPBIN="$task_output/bin"
+export FOAM_USER_LIBBIN="$task_output/lib"
+export CUDA_HOME=/usr/local/cuda-13.1
+export UGKWP_CUDA_ARCH=sm_89
+export UGKWP_GAS_SPECIES=2
+export GAS_UGKP_FMAD=1
+export CUDA_CACHE_PATH="$task_output/cuda-cache"
+export TMPDIR="$task_output/tmp"
+bash tool/gasUGKP/build_private_backend.sh
+
+该完整构建脚本先构建CUDA后端，再自动调用wmake构建gasUGKP前端；无需另行运行前端wmake。程序和库按上述环境变量输出到work；中间对象与构建日志仍写入本开发checkout的applications/gasUGKP。
+
+实际案例输入沿用已提交的压缩包，不重复提交大场文件：
+docs/diagnostics/bvp-coupling-20261020/restart-inputs.tar.gz
+SHA256 bd3a4da33a1a99e82d5a30fca45d0ba6def2e1c37b3fca4d039701e04720b08c
+
+首次复现时将该包展开到上述新建task_output（生成cases/wallFunction和cases/boundaryLayer），以下示例直接从0.02305运行250微秒。包内startFrom为latestTime，只有原始重启时间；50微秒筛选则把两个0.0233改为0.0231。不要对已有后续时间目录的试验副本重复解包后直接作为同起点对照，也不要修改原始生产算例。
+
+tar -xzf docs/diagnostics/bvp-coupling-20261020/restart-inputs.tar.gz -C "$task_output"
+for model in wallFunction boundaryLayer; do
+    control="$task_output/cases/$model/system/controlDict"
+    foamDictionary "$control" -entry endTime -set 0.0233
+    foamDictionary "$control" -entry writeInterval -set 0.0233
+    foamDictionary "$control" -entry logInterval -set 10
+done
+
+运行已构建程序：
+bash docs/diagnostics/bvp-coupling-20261020/run-case.sh "$task_output" "$task_output/cases/wallFunction"
+bash docs/diagnostics/bvp-coupling-20261020/run-case.sh "$task_output" "$task_output/cases/boundaryLayer"
+
+两个GPU案例串行执行。改变endTime后从latestTime会继续已有试验；比较修改前后时须重新使用相同初始输入，不要把续算误当作同起点对照。
+
+本轮实际保留的位置：
+work/nearwall-fix-20261020/bin/
+work/nearwall-fix-20261020/wallFunction-before/
+work/nearwall-fix-20261020/wallFunction-after/
+work/nearwall-fix-20261020/boundaryLayer-before/
+work/nearwall-fix-20261020/boundaryLayer-after/
+
+数值与证据：
+stations.csv为五站首层物理量；wall-audits.json为全部壁面收敛与收支统计。
+targeted.log/.xml为最后匹配秩修复前的885项定向测试；matching-rank-affected.log为最后修复的30项受影响测试。交付verify.py含新增2项秩回归，当前会收集887项，不应把已有日志写成单次887项通过。
+raw-validation-logs.tar.xz含宽测试及原版本失败核验、构建日志、实际运行日志、真实Newton捕获与GPU验证。
+直接展开供浏览的.log文件只规范化了行尾和尾部空白；对应原始日志保留在raw-validation-logs.tar.xz中。
+performance-reproducer.tar.xz含等精度固定输入性能源和原始计时。
+在新的空目录中解包该性能包后，运行python3 performance/cpu/run.py即可编译并执行CPU复现；本次交付已独立验证该命令成功，详情见delivery-verification/。CPU复现无需CUDA或GPU。
+thermal-reproducer.tar.xz含只读冻结热预算脚本与before/after系数头；所需已有预算输入位置列于thermal/thermal-audit-summary.json与audit-manifest.json，未重复封装大场数据。
+热审计包依赖原环境中另存的预算数组/参考场及部分辅助工具，不能在只有本仓库的干净环境直接重建全部热诊断；它用于保存诊断来源与已有结果，不是自包含的热验证算例。
+extract-metrics.py与wall_metrics.cpp用于读取本轮work/nearwall-fix-20261020中的before/after案例并生成stations.csv和wall-audits.json；有g++与numpy即可运行。它按现有案例26880单元及五个站点设计，不能直接当作任意网格后处理程序。
+
+性能数值仅在明确记录的同输入和同精度条件下比较。固定输入局部核计时不能直接替代完整求解的总时间；实际短算不代表近稳态或宏观网格收敛。

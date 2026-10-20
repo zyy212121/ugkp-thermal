@@ -1,0 +1,12 @@
+[
+  {
+    "ny": 80,
+    "input": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/flux-continuation-20261020/of10-matched-heat-80/matched-wall-last.csv",
+    "stdout": "faces=336 maximum_scaled_heat_difference=1.4874006672703029e-14 maximum_relative_conductivity_difference=4.5391171803969377e-16"
+  },
+  {
+    "ny": 160,
+    "input": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/flux-continuation-20261020/of10-matched-heat-160/matched-wall-last.csv",
+    "stdout": "faces=336 maximum_scaled_heat_difference=1.1159527537721525e-14 maximum_relative_conductivity_difference=5.3312472326590674e-16"
+  }
+]

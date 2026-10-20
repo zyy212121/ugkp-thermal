@@ -1,0 +1,44 @@
+Independent read-only review of the working-tree patch against cc392dd40e5736494975163cad5b3139dcf1065b.
+
+The reviewer was given the requirements and repository revision without the implementing agents' conversation history. The review covered the species donor, geometry/conservative matching, full SST production, stage ordering, blowing/ALE transport, interval cache, terminal publication, internal transport interpolation and final near-zero-k Newton changes.
+
+Finding fixed during review:
+P2, common/operators/computeSstFaceFluxKernel.cuh, computeSstStabilityNumberKernel sourceKBound:
+The ready volume BVP source already contains compression and no longer depends on macro divU. The old timestep bound nevertheless subtracted macro compression again. A production-kernel case returned 133.47733333333335 rather than 0.144. The correction uses actual BVP source activity only for ready volume profiles, preserving the existing cold/non-volume/coarse envelope.
+
+Independent executed checks: 99 tests passed (75 adapters/cache, 11 donor/matching, 5 Newton/derivative/capture, 8 source-stability cases). git diff --check passed. No unresolved code finding remained after the correction.
+
+Considered and ruled out:
+- Moving velocity gradients earlier does not stale k/omega gradients; their separate pass remains after wall omega publication.
+- The total k flux replacement retains ALE and other macro mass transport by subtracting only prescribed wall-normal m*kUpwind.
+- The closure remainder uses the actual relative-mass-flux donor; absent species remain zero.
+- The interval cache covers the production stencil and invalidates both intervals adjacent to each perturbed node.
+- Deleting the shear-k initialization bump preserves matching k, the physical residual and the residual-based line search.
+
+Limitations retained:
+- Full SST strain does not turn thin-layer traction and viscous work into a full multidimensional stress/energy closure.
+- Read-only code approval is conditional on actual production compilation and case execution. It does not approve engineering convergence or merging.
+- Final build and case results are recorded separately in the work report and manifest.
+
+Follow-up review: extruded-mesh rank correction
+The actual case exposed enormous matching weights after removing the old extrema clamp. The old rank test scaled its threshold by each candidate column, including columns containing only floating-point noise. The corrected test uses the maximum column norm of the full dimensionless moment matrix, preserving the existing 64*(n+10)*epsilon(R) factor.
+Independent checks: 23 rank/extrapolation/geometry tests and 4 cell-average matching tests passed; three additional anisotropic 3-D quadratic probes also passed. The actual 336-wall maximum weight fell from 3369.69 to 1.77346, while the resolved wall-normal order remained two. No additional finding remained. SVD or an arbitrary weight ceiling was not requested: neither was supported as necessary by the evidence.
+The root subsequently verified the real 50 us run and all 336 wall residuals. The 250 us continuation is documented separately.
+
+Delivery review at computation commit 46dca92cadff3958fdb9956e9b9043d6590bf91b
+The full build script tool/gasUGKP/build_private_backend.sh builds the CUDA backend and then runs frontend wmake with the CUDA/species defines. No separate frontend build is needed for a full clean reproduction. The output bin/lib directories are isolated through FOAM_USER_APPBIN/FOAM_USER_LIBBIN; intermediate objects and build logs remain in the development checkout.
+
+The restart-inputs.tar.gz SHA256 was independently checked as bd3a4da33a1a99e82d5a30fca45d0ba6def2e1c37b3fca4d039701e04720b08c. Both cases contain 0, constant, system and the original 0.023050000000000001 restart fields, including the BVP uniform data; no later solution time was included. The reproduction instructions now give explicit tar and foamDictionary commands and warn against retaining later time directories when making a same-start comparison.
+
+Clean performance-package smoke check:
+Run from WSL:
+python3 /mnt/c/Users/25094/Documents/Codex/2026-10-20/ugkp-thermal-wallfunction-reactingsst-pr-https/work/delivery_verify.py
+The script extracts performance-reproducer.tar.xz into a newly created /tmp/pr22-delivery-review-* directory, confirms the required GpuSstAlgebra.cuh is present, and executes:
+python3 performance/cpu/run.py
+Compilation and all seven CPU benchmark samples completed with exit code 0. This checks that the archive is runnable; these new timings do not replace the report's archived timing experiment. No GPU executable or GPU case was run in this delivery review.
+
+The same script reads the final boundaryLayer-after/0.023300000000000001/uniform/gasBoundaryLayer.csv through csv.DictReader and applies math.isfinite(float(value)) to every value. All 336 rows across 29 numeric columns were finite. This includes published flux, source, closure and residual columns; it does not extend the separate cell-field audit beyond rho, U, T, p, k and omega.
+
+Evidence: work/nearwall-fix-20261020/delivery-verification/performance-clean-cpu.log and summary.json. The packaging script includes them under docs/diagnostics/nearwall-fix-20261020/delivery-verification/, with the check script. Summary records source HEAD, command, archive/CSV SHA256, all checked column names and zero nonfinite values.
+
+Documentation corrections/limits: isolated optimization timing uses fmad=false, whereas production and frozen-fault GPU validation use fmad=true; the report must not infer a production speedup from that isolated timing. Existing targeted evidence is 885 tests plus the 30 affected rank tests, rather than an unexecuted single 887-test run. The thermal archive retains diagnostic sources and results but requires external saved budget/reference data and some original helper tools; it is not a self-contained clean-checkout thermal validation case. The full-strain isotropic case is expansion, and finite cell-field claims should name the six audited fields. These bounded claims leave no further delivery-blocking review finding. Engineering convergence, finer-node low-k robustness and merge approval remain outside this packaging check.

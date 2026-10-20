@@ -1,0 +1,80 @@
+{
+  "boundaryLayer-before/0.023050000000000001": {
+    "residual": 8.846054249879055e-09,
+    "heatBalanceResidual": NaN,
+    "ownerKBalanceResidual": NaN,
+    "iterations_mean": 5.1101190476190474,
+    "wall_count": 336,
+    "residual_above_1e-8": 0,
+    "nonfinite_residual": 0,
+    "iterations_max": 9.0,
+    "finite_all_cell_fields": true,
+    "minimum_k": 0.6402049859988135,
+    "minimum_omega": 1117.000970608411
+  },
+  "boundaryLayer-before/0.023099999999999999": {
+    "residual": 3.03182236426973e-10,
+    "heatBalanceResidual": 7.23048287909478e-11,
+    "ownerKBalanceResidual": 1.9170682402647188e-11,
+    "iterations_mean": 6.050595238095238,
+    "wall_count": 336,
+    "residual_above_1e-8": 0,
+    "nonfinite_residual": 0,
+    "iterations_max": 8.0,
+    "finite_all_cell_fields": true,
+    "minimum_k": 0.6402105807318941,
+    "minimum_omega": 1117.0080476046394
+  },
+  "boundaryLayer-before/0.023300000000000001": {
+    "residual": 3.539023192408302e-09,
+    "heatBalanceResidual": 1.2238388080731966e-10,
+    "ownerKBalanceResidual": 1.928641447934698e-11,
+    "iterations_mean": 6.050595238095238,
+    "wall_count": 336,
+    "residual_above_1e-8": 0,
+    "nonfinite_residual": 0,
+    "iterations_max": 8.0,
+    "finite_all_cell_fields": true,
+    "minimum_k": 0.6402208530084453,
+    "minimum_omega": 1117.0185177911255
+  },
+  "boundaryLayer-after/0.023050000000000001": {
+    "residual": 8.846054249879055e-09,
+    "heatBalanceResidual": NaN,
+    "ownerKBalanceResidual": NaN,
+    "iterations_mean": 5.1101190476190474,
+    "wall_count": 336,
+    "residual_above_1e-8": 0,
+    "nonfinite_residual": 0,
+    "iterations_max": 9.0,
+    "finite_all_cell_fields": true,
+    "minimum_k": 0.6402049859988135,
+    "minimum_omega": 1117.000970608411
+  },
+  "boundaryLayer-after/0.023099999999999999": {
+    "residual": 9.989865677809119e-09,
+    "heatBalanceResidual": 2.6759948923427146e-08,
+    "ownerKBalanceResidual": 2.1121909776766756e-11,
+    "iterations_mean": 7.7648809523809526,
+    "wall_count": 336,
+    "residual_above_1e-8": 0,
+    "nonfinite_residual": 0,
+    "iterations_max": 11.0,
+    "finite_all_cell_fields": true,
+    "minimum_k": 0.6402105807319971,
+    "minimum_omega": 1117.0080476047183
+  },
+  "boundaryLayer-after/0.023300000000000001": {
+    "residual": 9.984028198495154e-09,
+    "heatBalanceResidual": 2.0954598767275456e-07,
+    "ownerKBalanceResidual": 2.107925639593944e-11,
+    "iterations_mean": 7.806547619047619,
+    "wall_count": 336,
+    "residual_above_1e-8": 0,
+    "nonfinite_residual": 0,
+    "iterations_max": 11.0,
+    "finite_all_cell_fields": true,
+    "minimum_k": 0.6402209278878651,
+    "minimum_omega": 1117.0185734949125
+  }
+}

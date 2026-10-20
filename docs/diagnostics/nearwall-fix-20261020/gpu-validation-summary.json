@@ -1,0 +1,77 @@
+{
+  "cuda": "13.1",
+  "arch": "sm_89",
+  "fmad": true,
+  "production_source_changed": false,
+  "node_counts": [
+    24,
+    40,
+    128
+  ],
+  "capacities": [
+    24,
+    48,
+    128
+  ],
+  "faces": 5,
+  "workspace_workers": 2,
+  "launched_blocks": 3,
+  "modes": [
+    "converged solve",
+    "iteration limit",
+    "iteration limit with one invalid input"
+  ],
+  "checks": {
+    "normal": {
+      "exit": 0,
+      "seconds": 2.3656249046325684,
+      "cases": 45,
+      "bitwise_same_output_as_normal": true,
+      "pass_message": true,
+      "sanitizer_summary": [],
+      "approx_last_log_write_utc": "2026-10-20T10:01:30.315219+00:00",
+      "approx_start_utc": "2026-10-20T10:01:27.949594+00:00",
+      "timestamp_method": "Log mtime minus measured time.time() duration; approximate only, monotonic start/end were not recorded."
+    },
+    "memcheck": {
+      "exit": 0,
+      "seconds": 26.494047164916992,
+      "cases": 45,
+      "bitwise_same_output_as_normal": true,
+      "pass_message": true,
+      "sanitizer_summary": [
+        "========= ERROR SUMMARY: 0 errors"
+      ],
+      "approx_last_log_write_utc": "2026-10-20T10:01:56.836366+00:00",
+      "approx_start_utc": "2026-10-20T10:01:30.342319+00:00",
+      "timestamp_method": "Log mtime minus measured time.time() duration; approximate only, monotonic start/end were not recorded."
+    },
+    "racecheck": {
+      "exit": 0,
+      "seconds": 3.8264882564544678,
+      "cases": 45,
+      "bitwise_same_output_as_normal": true,
+      "pass_message": true,
+      "sanitizer_summary": [
+        "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+      ],
+      "approx_last_log_write_utc": "2026-10-20T10:02:00.664374+00:00",
+      "approx_start_utc": "2026-10-20T10:01:56.837885+00:00",
+      "timestamp_method": "Log mtime minus measured time.time() duration; approximate only, monotonic start/end were not recorded."
+    },
+    "synccheck": {
+      "exit": 0,
+      "seconds": 2.8546931743621826,
+      "cases": 45,
+      "bitwise_same_output_as_normal": true,
+      "pass_message": true,
+      "sanitizer_summary": [
+        "========= ERROR SUMMARY: 0 errors"
+      ],
+      "approx_last_log_write_utc": "2026-10-20T10:02:03.531815+00:00",
+      "approx_start_utc": "2026-10-20T10:02:00.677122+00:00",
+      "timestamp_method": "Log mtime minus measured time.time() duration; approximate only, monotonic start/end were not recorded."
+    }
+  },
+  "note": "Correctness/sanitizer test only; timing is not a performance comparison. Root wallFunction short run overlapped briefly at the start."
+}
