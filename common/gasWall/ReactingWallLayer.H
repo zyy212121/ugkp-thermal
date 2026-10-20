@@ -1057,12 +1057,9 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
     }
     out.iterations=iterations;out.residual=norm;output=out;return true;
 }
-} // detail
-
-template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> UGKWP_GAS_HD inline bool evaluateReactingWallLayerImpl(
- const WallInput<R,N,TableReal>& originalInput,const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,WallOutput<R,N>& output,WallStatus& status,const Team& team=Team{}){
-    using namespace detail;
-    auto in=originalInput;in.model.thermo.diagnostics=in.diagnostics;
+template<int M,class R,int N,class TableReal,class Team>
+UGKWP_GAS_HD inline bool prepareReactingWallInput(WallInput<R,N,TableReal>&in,
+ const WallModelConfig<R>&c,WallStatus&status,const Team&team){
     bool fractionsValid=true;
     for(int j=0;j<N;++j)if(!wallFraction(in,in.matching.massFraction[j],in.matching.massFraction[j],j))fractionsValid=false;
     if(!fractionsValid)return false;
@@ -1075,6 +1072,15 @@ template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> 
     const bool strictMechanism=in.model.mode!=GasMode::MixtureChemistry
         ||bool(validateGasMechanismView(in.model.thermo,in.model.mechanism));
     if(!strictMechanism){if(team.leader())wallFatal(in,ugkp::diagnostics::Code::MissingOperator,10021);return false;}
+    return true;
+}
+} // detail
+
+template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> UGKWP_GAS_HD inline bool evaluateReactingWallLayerImpl(
+ const WallInput<R,N,TableReal>& originalInput,const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,WallOutput<R,N>& output,WallStatus& status,const Team& team=Team{}){
+    using namespace detail;
+    auto in=originalInput;in.model.thermo.diagnostics=in.diagnostics;
+    if(!prepareReactingWallInput<M>(in,c,status,team))return false;
     LayerContext<R,N> ctx;if(!team.all(makeContext(in,c,ctx))){if(team.leader())fail(status,WallCode::InvalidThermodynamics);return false;}
     for(int i=team.rank();i<c.nodes;i+=team.size()){const R eta=R(i)/R(c.nodes-1),f=::pow(eta,c.stretch);w.y[i]=in.matchingDistance*f;
         w.state[i][0]=f*ctx.edgeU[0];w.state[i][1]=f*ctx.edgeU[1];
