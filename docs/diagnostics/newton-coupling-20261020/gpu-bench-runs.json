@@ -1,0 +1,78 @@
+{
+  "runs": [
+    {
+      "variant": "before",
+      "order": 0,
+      "seconds": 10.829029393993551,
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/work/newton-coupling-20261020/benchmark-before/gpu",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/continuation-input.csv",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/of10-input.csv",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/of10-matched-input.csv"
+      ]
+    },
+    {
+      "variant": "after",
+      "order": 1,
+      "seconds": 2.934957913006656,
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/work/newton-coupling-20261020/benchmark-after/gpu",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/continuation-input.csv",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/of10-input.csv",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/of10-matched-input.csv"
+      ]
+    },
+    {
+      "variant": "after",
+      "order": 2,
+      "seconds": 2.702515983983176,
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/work/newton-coupling-20261020/benchmark-after/gpu",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/continuation-input.csv",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/of10-input.csv",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/of10-matched-input.csv"
+      ]
+    },
+    {
+      "variant": "before",
+      "order": 3,
+      "seconds": 10.766970629018033,
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/work/newton-coupling-20261020/benchmark-before/gpu",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/continuation-input.csv",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/of10-input.csv",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/of10-matched-input.csv"
+      ]
+    },
+    {
+      "variant": "before",
+      "order": 4,
+      "seconds": 10.758107978006592,
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/work/newton-coupling-20261020/benchmark-before/gpu",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/continuation-input.csv",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/of10-input.csv",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/of10-matched-input.csv"
+      ]
+    },
+    {
+      "variant": "after",
+      "order": 5,
+      "seconds": 2.897616353002377,
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/work/newton-coupling-20261020/benchmark-after/gpu",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/continuation-input.csv",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/of10-input.csv",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/docs/diagnostics/bvp-coupling-20261020/fixed-input/of10-matched-input.csv"
+      ]
+    }
+  ],
+  "device": [
+    "timestamp, name, temperature.gpu, power.draw [W], clocks.current.sm [MHz], clocks.current.memory [MHz], utilization.gpu [%]\n2026/10/20 20:50:21.097, NVIDIA GeForce RTX 4060 Laptop GPU, 62, 13.08 W, 1890 MHz, 7000 MHz, 0 %\n",
+    "timestamp, name, temperature.gpu, power.draw [W], clocks.current.sm [MHz], clocks.current.memory [MHz], utilization.gpu [%]\n2026/10/20 20:50:32.030, NVIDIA GeForce RTX 4060 Laptop GPU, 69, 29.60 W, 2625 MHz, 8000 MHz, 43 %\n",
+    "timestamp, name, temperature.gpu, power.draw [W], clocks.current.sm [MHz], clocks.current.memory [MHz], utilization.gpu [%]\n2026/10/20 20:50:35.109, NVIDIA GeForce RTX 4060 Laptop GPU, 69, 29.13 W, 2625 MHz, 8000 MHz, 87 %\n",
+    "timestamp, name, temperature.gpu, power.draw [W], clocks.current.sm [MHz], clocks.current.memory [MHz], utilization.gpu [%]\n2026/10/20 20:50:37.935, NVIDIA GeForce RTX 4060 Laptop GPU, 69, 28.00 W, 2625 MHz, 8000 MHz, 100 %\n",
+    "timestamp, name, temperature.gpu, power.draw [W], clocks.current.sm [MHz], clocks.current.memory [MHz], utilization.gpu [%]\n2026/10/20 20:50:48.802, NVIDIA GeForce RTX 4060 Laptop GPU, 71, 29.75 W, 2625 MHz, 8000 MHz, 61 %\n",
+    "timestamp, name, temperature.gpu, power.draw [W], clocks.current.sm [MHz], clocks.current.memory [MHz], utilization.gpu [%]\n2026/10/20 20:51:00.165, NVIDIA GeForce RTX 4060 Laptop GPU, 73, 29.21 W, 2610 MHz, 8000 MHz, 69 %\n"
+  ]
+}

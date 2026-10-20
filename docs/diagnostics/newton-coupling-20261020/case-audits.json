@@ -1,0 +1,47 @@
+{
+  "baseline/0.023099999999999999": {
+    "wall_count": 336,
+    "residual_max": 9.989865677809119e-09,
+    "newton_mean": 7.7648809523809526,
+    "newton_max": 11,
+    "unconverged": 0,
+    "max_k_balance": 2.1121909776766756e-11,
+    "max_relative_k_balance": 5.375860510352893e-10
+  },
+  "combined/0.023300000000000001": {
+    "wall_count": 336,
+    "residual_max": 9.706644745965748e-09,
+    "newton_mean": 2.3392857142857144,
+    "newton_max": 3,
+    "unconverged": 0,
+    "max_k_balance": 2.0960454726048905e-11,
+    "max_relative_k_balance": 5.356938843909436e-10
+  },
+  "combined/0.023099999999999999": {
+    "wall_count": 336,
+    "residual_max": 9.881104385235295e-09,
+    "newton_mean": 2.1041666666666665,
+    "newton_max": 3,
+    "unconverged": 0,
+    "max_k_balance": 2.0999552791112208e-11,
+    "max_relative_k_balance": 5.351487117534849e-10
+  },
+  "prior250/0.023300000000000001": {
+    "wall_count": 336,
+    "residual_max": 9.984028198495154e-09,
+    "newton_mean": 7.806547619047619,
+    "newton_max": 11,
+    "unconverged": 0,
+    "max_k_balance": 2.107925639593944e-11,
+    "max_relative_k_balance": 5.380785064430351e-10
+  },
+  "prior250/0.023099999999999999": {
+    "wall_count": 336,
+    "residual_max": 9.989865677809119e-09,
+    "newton_mean": 7.7648809523809526,
+    "newton_max": 11,
+    "unconverged": 0,
+    "max_k_balance": 2.1121909776766756e-11,
+    "max_relative_k_balance": 5.375860510352893e-10
+  }
+}
