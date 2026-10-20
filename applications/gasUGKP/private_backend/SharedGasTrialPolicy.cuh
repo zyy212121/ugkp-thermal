@@ -4,6 +4,13 @@
 // structured diagnostics; it does not introduce another synchronization point.
 inline int releaseSharedGasTrialStorage(SharedGasTrialStorage&) { return 0; }
 
+__global__ void commitAcceptedWallHistory(DeviceState*state){
+ auto&m=state->gasBoundaryLayerModel;const int slot=blockIdx.x*blockDim.x+threadIdx.x;
+ if(slot>=state->gasBoundaryLayer.count||!m.acceptedHistory||!m.candidateHistory||!m.candidateFrame||!m.acceptedFrame||!m.candidateFrame[slot].valid)return;
+ constexpr int B=ugkwp::compiledGasSpecies+4;const std::size_t offset=std::size_t(slot)*m.config.nodes*B;
+ for(int i=0;i<m.config.nodes*B;++i)m.acceptedHistory[offset+i]=m.candidateHistory[offset+i];
+ m.acceptedFrame[slot]=m.candidateFrame[slot];
+}
 struct SharedGasTrialPolicy
 {
     static int beginInterval(DeviceState* s) { return s->gasModelPoisoned?1:0; }
@@ -48,6 +55,13 @@ struct SharedGasTrialPolicy
         return 0;
     }
     static int commit(DeviceState* s) { return s->gasModelPoisoned?1:0; }
-    static int commitInterval(DeviceState* s) { return s->gasModelPoisoned?1:0; }
+    static int commitInterval(DeviceState* s) {
+        if(s->gasModelPoisoned)return 1;
+        if(s->gasBoundaryLayer.enabled&&s->gasBoundaryLayerModel.acceptedHistory){
+            commitAcceptedWallHistory<<<(s->gasBoundaryLayer.count+63)/64,64,0,s->gasCaptureStream>>>(s->deviceState);
+            const auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("commit accepted wall history",error);return 1;}
+        }
+        return 0;
+    }
     static const double* stageVolumes(DeviceState* s,bool) { return s->V; }
 };

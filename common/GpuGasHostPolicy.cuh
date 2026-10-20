@@ -11,6 +11,9 @@ struct GasHostWithoutWallEnergy
     using Weight = WeightValue;
 
     template<class HostState>
+    static int applySstFaceSources(HostState*,const Time) { return 0; }
+
+    template<class HostState>
     static int applyFaceSources(HostState*, const Time, const Time) { return 0; }
 
     template<class HostState>
@@ -30,6 +33,9 @@ struct GasHostWithWallEnergy
 {
     using Time = TimeValue;
     using Weight = WeightValue;
+
+    template<class HostState>
+    static int applySstFaceSources(HostState*,const Time) { return 0; }
 
     template<class HostState>
     static int applyFaceSources(HostState*, const Time, const Time) { return 0; }

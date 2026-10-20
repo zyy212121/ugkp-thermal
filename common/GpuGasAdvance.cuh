@@ -192,6 +192,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
             setLastError("computeSstFaceFluxKernel launch", err);
             return 1;
         }
+        if(GasHostPolicy::applySstFaceSources(s,dt)!=0)return 1;
         if (s->hasPeriodicFaces != 0)
         {
             enforcePeriodicSstFluxAntisymmetryKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>

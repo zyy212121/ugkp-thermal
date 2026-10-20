@@ -1,5 +1,7 @@
 #pragma once
 #include <new>
+#include "ConservativeWallAllocation.cuh"
+#include "WallCouplingAudit.cuh"
 #include "gasTransport/GasBoundaryLayerWorkspace.H"
 extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
 (void* handle,const ugkwpGpuIpc::BoundaryLayerConfigV1* config,const int* faces,
@@ -67,6 +69,19 @@ try
     unsigned char* scratch=nullptr;
     rc|=allocate(scratch,sizing.bytes,"allocate bounded wall scratch");
     model.workspace=scratch;
+    if(a.model==1){
+        constexpr int B=ugkwp::compiledGasSpecies+4;
+        WALL_ALLOC(gasBoundaryLayerModel.acceptedHistory,std::size_t(a.wallCount)*a.nodes*B);
+        WALL_ALLOC(gasBoundaryLayerModel.candidateHistory,std::size_t(a.wallCount)*a.nodes*B);
+        WALL_ALLOC(gasBoundaryLayerModel.acceptedFrame,a.wallCount);
+        WALL_ALLOC(gasBoundaryLayerModel.candidateFrame,a.wallCount);
+        WALL_ALLOC(gasBoundaryLayerModel.referenceStats,a.wallCount);
+        WALL_ALLOC(gasBoundaryLayerModel.referenceCounters,a.wallCount);
+        unsigned char* referenceScratch=nullptr;
+        rc|=allocate(referenceScratch,std::size_t(sizing.slots)*model.workspaceCapacity*B*sizeof(double),"allocate wall reference scratch");
+        model.referenceScratch=referenceScratch;
+    }
+
     if(a.quadratureCount){WALL_ALLOC(gasWallQuadratureDistance,a.quadratureCount);WALL_ALLOC(gasWallQuadratureWeight,a.quadratureCount);}
 
 #undef WALL_ALLOC
@@ -105,6 +120,7 @@ try
     model.config.relativeTolerance=a.relativeTolerance;model.config.absoluteTolerance=a.absoluteTolerance;
     model.config.stretch=a.stretch;model.config.turbulentPrandtl=a.turbulentPrandtl;
     model.config.turbulentSchmidt=a.turbulentSchmidt;model.config.enableSst=s->hostTurbulenceModel==3;
+    if(configureConservativeWallStorage(s,candidate,faces,geometry)){discardBoundaryLayerCandidate(s,candidate);return 1;}
 
 
     if(releaseSharedGasTrialStorage(s->gasTrial)){discardBoundaryLayerCandidate(s,candidate);return 1;}
@@ -158,5 +174,5 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
 
         for(unsigned k=0;k<species;++k){r[25+k]=o.wallSpeciesFlux[k];r[25+species+k]=o.reactionIntegral[k];}
     }
-    std::copy(result.begin(),result.end(),diagnostics);return 0;
+    std::copy(result.begin(),result.end(),diagnostics);return writeConservativeWallAudit(s);
 }

@@ -2,6 +2,7 @@
 #include <cfloat>
 #include "gasStencilDiagnostics.cuh"
 #include "gasTransport/GasStateView.H"
+#include "gasTransport/GasConservativeWallAccess.H"
 #include "gasTransport/GasCapabilities.H"
 #include "gasTransport/MixtureThermo.H"
 #include "gasTransport/GasGeometryValidation.H"
@@ -72,6 +73,16 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
     if (f >= s.nFaces || s.sstConfigured == 0)
     {
         return;
+    }
+
+    if constexpr(ugkwp::GasConservativeWallCapability<GasState>::value){
+        const auto&d=s.gasBoundaryLayerModel.conservative;
+        if(d.enabled&&d.faceSlot&&d.faceSlot[f]>=0&&d.active[d.faceSlot[f]]&&ugkwp::gasBoundaryLayerSlotReady(s,d.faceSlot[f])){
+            const auto&v=d.face[3*d.faceSlot[f]+d.faceIndex[f]];
+            s.sstPhiRhoK[f]=s.gasPhiRho[f]*v.kUpwind+v.orientation*v.diffusion[5];
+            s.sstPhiRhoOmega[f]=s.gasPhiRho[f]*v.omegaUpwind+v.orientation*v.diffusion[6];
+            return;
+        }
     }
     if(!gasCoupledFaceStorageAvailable(s,f))
     {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return;}
@@ -421,6 +432,13 @@ __device__ bool sstSourcesForCell
     GPU_OPERATOR_REAL& sourceOmega
 )
 {
+    if constexpr(ugkwp::GasConservativeWallCapability<GasState>::value){
+        if(ugkwp::conservativeWallCellReady(s,c)){
+            sourceK=s.gasBoundaryLayerModel.conservative.sourceK[c];
+            sourceOmega=s.gasBoundaryLayerModel.conservative.sourceOmega[c];
+            return true;
+        }
+    }
     GPU_OPERATOR_REAL traceGradU = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL s2 = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL gByNu = GPU_OPERATOR_R(0.0);
@@ -483,6 +501,9 @@ __device__ GPU_OPERATOR_REAL sstKSourceActivity
     const GPU_OPERATOR_REAL divU
 )
 {
+    if constexpr(ugkwp::GasConservativeWallCapability<GasState>::value){
+        if(ugkwp::conservativeWallCellReady(s,c))return s.gasBoundaryLayerModel.conservative.sourceActivity[c];
+    }
     if(ugkwp::gasBoundaryLayerOwnerSlot(s,c)<0)return fabs(netSource);
     const GPU_OPERATOR_REAL compression=GPU_OPERATOR_R(2.0)/GPU_OPERATOR_R(3.0)
         *s.rho[c]*s.k[c]*divU;

@@ -15,7 +15,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
     GPU_OPERATOR_REAL& momFluxYArea,
     GPU_OPERATOR_REAL& momFluxZArea,
     GPU_OPERATOR_REAL& energyFluxArea,
-    const bool nativeRefinement=false
+    const bool nativeRefinement=false,
+    const bool ordinaryInviscid=false
 )
 {
     bool numericalSuccess=true;
@@ -70,10 +71,17 @@ __device__ bool computeRiemannGasFaceFluxDevice
 
         }
     }
+    // The inviscid impermeable wall has no species transport. Clear the
+    // complete returned operator, including a buffer used by a prior wall solve.
+    if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
+        if (ordinaryInviscid && ugkwp::mixtureGasActive(s) && (boundaryKind==1 || boundaryKind==2)) {
+            if(!s.gasSpecies.flux){ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return false;}
+            for(int j=0;j<ugkwp::GasStateTraits<GasState>::speciesCount;++j)s.gasSpecies.flux[j*s.nFaces+f]=0;
+        }
     if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
     {
         const int slot=ugkwp::gasBoundaryLayerFaceSlot(s,f);
-        if(slot>=0)
+        if(slot>=0&&!ordinaryInviscid)
         {
             const auto& wall=s.gasBoundaryLayer;
             if(slot>=wall.count)
@@ -772,7 +780,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
 
                                                                        
     // A fixed-temperature slip wall conducts heat while remaining stress-free.
-    if (boundaryKind != 1 || s.riemannBoundaryTFix[f] != 0)
+    if (!ordinaryInviscid && (boundaryKind != 1 || s.riemannBoundaryTFix[f] != 0))
     {
                                                                 
                                                                           
@@ -1102,7 +1110,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
 
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
     {
-        if (ugkwp::mixtureGasActive(s) && (s.gasSpecies.diffusivity || (IncludeTurbulence && s.turbulenceModel!=0))
+        if (!ordinaryInviscid && ugkwp::mixtureGasActive(s) && (s.gasSpecies.diffusivity || (IncludeTurbulence && s.turbulenceModel!=0))
             && (nei>=0 || (boundaryKind==0 && s.gasSpecies.compositionBoundaryFixed[f]!=0)))
         {
             constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
