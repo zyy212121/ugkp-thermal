@@ -1,0 +1,114 @@
+{
+  "wallFunction-before-after": {
+    "rho": {
+      "max_abs": 0.0,
+      "rms": 0.0,
+      "array_equal": true
+    },
+    "U": {
+      "max_abs": 0.0,
+      "rms": 0.0,
+      "array_equal": true
+    },
+    "T": {
+      "max_abs": 0.0,
+      "rms": 0.0,
+      "array_equal": true
+    },
+    "p": {
+      "max_abs": 0.0,
+      "rms": 0.0,
+      "array_equal": true
+    },
+    "k": {
+      "max_abs": 0.0,
+      "rms": 0.0,
+      "array_equal": true
+    },
+    "omega": {
+      "max_abs": 0.0,
+      "rms": 0.0,
+      "array_equal": true
+    },
+    "nut": {
+      "max_abs": 0.0,
+      "rms": 0.0,
+      "array_equal": true
+    },
+    "rhoE": {
+      "max_abs": 0.0,
+      "rms": 0.0,
+      "array_equal": true
+    },
+    "rhoY_Air": {
+      "max_abs": 0.0,
+      "rms": 0.0,
+      "array_equal": true
+    },
+    "rhoY_CO2": {
+      "max_abs": 0.0,
+      "rms": 0.0,
+      "array_equal": true
+    }
+  },
+  "projection-compression": {
+    "rho": {
+      "max_abs": 9.547918011776346e-15,
+      "rms": 1.7234801315525427e-15,
+      "array_equal": false
+    },
+    "U": {
+      "max_abs": 1.7479351299698465e-12,
+      "rms": 1.401203687946184e-13,
+      "array_equal": false
+    },
+    "T": {
+      "max_abs": 1.6484591469634324e-12,
+      "rms": 2.92908877462799e-13,
+      "array_equal": false
+    },
+    "p": {
+      "max_abs": 5.384208634495735e-10,
+      "rms": 8.396449682489419e-11,
+      "array_equal": false
+    },
+    "k": {
+      "max_abs": 3.5356606531422585e-11,
+      "rms": 4.2382209406419197e-13,
+      "array_equal": false
+    },
+    "omega": {
+      "max_abs": 1.3969838619232178e-07,
+      "rms": 1.43139102744941e-09,
+      "array_equal": false
+    },
+    "nut": {
+      "max_abs": 6.028164079019405e-16,
+      "rms": 3.784202171995427e-17,
+      "array_equal": false
+    },
+    "rhoE": {
+      "max_abs": 1.3387762010097504e-09,
+      "rms": 2.0566833514892082e-10,
+      "array_equal": false
+    },
+    "rhoY_Air": {
+      "max_abs": 9.547918011776346e-15,
+      "rms": 1.7234801315525427e-15,
+      "array_equal": false
+    },
+    "rhoY_CO2": {
+      "max_abs": 0.0,
+      "rms": 0.0,
+      "array_equal": true
+    }
+  },
+  "final-wall-statistics": {
+    "walls": 336,
+    "unconverged_count": 0,
+    "max_newton_residual": 3.539023192408302e-09,
+    "max_heat_balance_residual_W_m2": 1.2238388080731966e-10,
+    "max_ownerK_balance_residual": 1.928641447934698e-11,
+    "max_relative_ownerK_defect_over_D": 5.151134230003804e-10
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "file": "restart-inputs.tar.gz",
+  "bytes": 9131539,
+  "sha256": "bd3a4da33a1a99e82d5a30fca45d0ba6def2e1c37b3fca4d039701e04720b08c",
+  "start_time": 0.02305,
+  "end_time": 0.0233,
+  "input_origin": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/flux-continuation-20261020",
+  "notes": "Two input cases only; no produced full fields or executables. The backend rebuilds wall seeds/workspaces on restart; captures are not history restoration."
+}

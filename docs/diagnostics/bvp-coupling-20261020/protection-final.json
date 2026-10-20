@@ -1,0 +1,22 @@
+{
+  "formal": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal",
+  "formal_realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal",
+  "formal_head": "7c696b19b5510ef94cfbbf7eb837a00c29d74f0d",
+  "formal_status": "",
+  "test_realpath": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018",
+  "test_git_dir": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-fixes-20261018/.git/worktrees/pr19-math-merged-20261018",
+  "build_outputs": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/bvp-coupling-fix-20261020/bin",
+  "writes": "source and build products confined to test; original production repositories and cases only read",
+  "formal_programs": {
+    "/home/lss/OpenFOAM/lss-10/platforms/linux64GccDPInt32Opt/bin/gasUGKP": {
+      "sha256": "81a62f10b53784baeec74170000b83a5714616f061c00d562748411b1db9470a",
+      "mtime_utc": "2026-10-16T21:07:38.198471+00:00",
+      "resolved": "/home/lss/OpenFOAM/lss-10/platforms/linux64GccDPInt32Opt/bin/gasUGKP"
+    },
+    "/home/lss/OpenFOAM/lss-10/platforms/linux64GccDPInt32Opt/bin/gasUGKPCudaBackend": {
+      "sha256": "62c3b4adc7b48f9b9cf19207db11a653672953e09436c80b32485918a44d105d",
+      "mtime_utc": "2026-10-16T21:07:26.219677+00:00",
+      "resolved": "/home/lss/OpenFOAM/lss-10/platforms/linux64GccDPInt32Opt/bin/gasUGKPCudaBackend"
+    }
+  }
+}

@@ -1,0 +1,181 @@
+Read-only review of reactingSst FV-volume coupling patch
+Final integrated review: 2026-10-20; exact host projection-compression follow-up completed.
+Repository: /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018
+Branch: fix/reacting-sst-coupling-20261020
+Final base: origin/main=0bc0666d40e41aca4ad0ef044f28e6ad6ed87350
+Final HEAD: 92600a521d2d5526cddd5342adccbe8ed1d7b8ab
+Core coupling / final CUDA revision: 37f910b238ed357855e233801e677fde35fa93d2
+Scope: complete origin/main..HEAD production/test diff, including necessary HLLC/SLAU2 and absent-species reconstruction prerequisites. Final working tree is clean. Earlier sections below preserve the closed findings and runtime investigation of intermediate revisions.
+
+Verdict
+Code-review verdict for final HEAD92600a52: acceptable; no unresolved demonstrated code defect remains in the reviewed production diff. The midpoint-matching runtime defect, endpoint half-CV omission, audit guard, two-node omega boundary, thermal-weight NaN, and projection cut-point convention have all been corrected in the inspected source. The latest commit changes host geometry quadrature only. The main agent reports final37f910b2 GPU memory/race/synchronization checks with zero errors,126 passing regressions, and an actual250us BVP continuation exiting0 in233.9s. This reviewer did not launch those GPU or real-case runs; frontend rebuild, compressed-path timing and the full two-case delivery evidence remain with the main task.
+
+Resolved finding
+[P2, FIXED] Decreasing positive transport coefficients generated NaN stress work.
+Original defect location: common/gasWall/WallLayerMath.H:30 (with the original dependent reconstruction at lines 32-34); corrected implementation now spans lines 26-66.
+The expression log1p((muB-muA)/muA) becomes log1p(-1) when muB/muA is smaller than floating-point relative resolution, although both endpoints are strictly positive and finite. Then expm1 gives -1, muA*(1+relative) is zero, and the similarly reconstructed mobility becomes zero. The quadrature evaluates 0/0. This NaN enters LayerFlux::stressWork and the energy residual in common/gasWall/ReactingWallLayer.H:232, including when it is multiplied by zero shear.
+Independent temporary probe against the actual production helper:
+  thermalWorkVelocityWeight(1e20, 1., 1e20, 1.) -> -nan
+The exact result is 0.5 because B is proportional to mu, a case explicitly covered by the helper comment. Archived probe: review-probes/thermal-weight-red.cpp and thermal-weight-red.observed.log (original assertion failed, SIGABRT). No repository files were changed for this probe.
+Implemented fix independently inspected: orient the resistance coordinate so mu increases, map the result back with 1-w on reversal, interpolate B with positive endpoint weights, normalize the ordinary weights, and use log weights only when the coefficient ratio or weight range needs them. This addresses both the original log1p(-1) path and the dependent interpolation/weight overflow issues. The actual production-helper test covers 1e20, 1e100, and 1e300 ratios in both directions, plus 1e-300 to 1e300 ratios in both directions. All values are finite, the B-proportional-to-mu result is 0.5, and forward+reverse weights sum to 1.
+
+Defects found during review and corrected in the latest inspected source
+1. The original volume source was defined from BVP total-flux slopes, so an unconverged physical SST row could appear perfectly conservative by construction. Latest ReactingWallLayer.H:894-918 integrates the actual nodal source over the same dual CVs, uses the near-wall physical asymptotic in the wall half CV, and keeps a separate ownerKBalanceResidual audit. The new perturbed-profile test now passes. Finite nonconvergence retains its existing warning path; the physical defect is no longer hidden by source construction.
+2. The first k diffusion face used an ordinary secant despite the near-wall y^p model. Latest ReactingWallLayer.H:237-246 uses the same nearWallKShape/Derivative for face advection and diffusion; the independent smooth-wall first-face contract now passes.
+3. sstKSourceActivity used the old P-D-C identity after the source had changed to a projected profile term. It could become negative and overwrite the safe absolute source estimate. Latest computeSstFaceFluxKernel.cuh:498-508 splits the actual projected term, resolved correction, and linear destruction, and lower-bounds the result by abs(netSource). The new signed projected-compression test passes.
+
+Verified design / implementation points
+- Matching recovery applies one shared scaling to species, momentum, energy, rho*k, and rho*omega; it does not mutate macro inventories. The reconstruction consumes actual cell-volume polynomial moments and the matching point target, with neutral geometry opt-in preserving the old default.
+- Source quadrature covers the actual owner volume. The matching extension provides the BVP boundary condition but is not integrated as another owner inventory.
+- The production path adds the projected normal SST source once, removes the previous shear*sqrt(k_macro)/(kappa*y) wall-function production for volume closures, and uses the finite D/(betaStar*K) omega closure. Material and analytic adapters retain their explicit existing closure branch; failed BVP solves do not select it.
+- Normal k/omega diffusion is stored in per-wall persistent model.output arrays, not pooled workspace arrays or a temporary local result. The closure borrows these arrays only after successful evaluation. The common internal face receives one correction, then owner/neighbour use opposite orientations. No cell-local diffusion source duplicates that flux.
+- The gas backend node capacities are bounded at128. The final output has129 flux entries, allowing the physical wall,127 interval midpoints at128 nodes, and the appended matching endpoint.
+- The wall k flux orientation is consistent with the material-to-gas normal and the existing outward integrated face convention.
+- Energy remains formation-inclusive and preserves species transport, stress work, and moving-wall pressure work. The new signed conduction / viscous / transport partition is checked by production-flux tests.
+- No new physical-time retry/rollback path, terminal invalid-state bypass, flux format, or material-interface internal solver change was introduced by the reviewed production diff. Existing Newton line search remains.
+
+Behaviors set aside / limitations, not established defects
+- Oblique macro faces still use the existing face-centroid quadrature. A face crossing a kink in the piecewise BVP flux interpolant need not exactly balance a higher-order owner-volume source integral even for a converged profile. Example: owner 0<x,z<1, 0<y<1+x and F(y)=max(0,y-1.5) gives exact top flux 1/8 but centroid F(1.5)=0. This is a macro face-quadrature truncation error, not loss of global owner/neighbour antisymmetry. A documented oblique-face macro-refinement study with the remaining equilibrium error is adequate for this task; new subface IPC geometry is not mandatory.
+- Multiple distinct walls sharing one owner still use the pre-existing single ownerSlot selection (last configured wall); arbitrary corners are not a partitioned multidirectional volume model. The new source is selected once, so I found no literal repeated owner-volume source. All physical wall faces can now carry their k diffusion, so accuracy at an unresolved corner needs explicit qualification. Do not claim general corner support.
+- The production-limit / normal-strain subtraction is a hybrid directional closure. Exact replacement of a fully coupled multidirectional SST constitutive model, especially under cross strain and active production limits, is not proved by the present planar tests. I have not established a code defect from that model concern.
+- Host emulation and cooperative-equivalence tests do not replace nvcc and actual GPU continuation checks. I did not build the shared CUDA target while the main agent's build was running.
+- The two original production cases and formal repository were not mutated or run by this reviewer.
+
+Independent validation
+- Final thermal-helper follow-up: test_wall_conservative_transport.py and test_wall_energy_balance.py: 5 passed in 4.64 s. This targeted rerun includes the new extreme-ratio contract, conduction/transport contracts, Couette energy, multispecies blowing, moving-wall stress work, and ALE pressure work. These tests overlap the prior test runs below.
+- git diff --check: clean (including the final helper revision).
+- New affected modules: 13 passed in 14.32 s:
+  test_wall_matching_averages.py
+  test_wall_matching_state.py
+  test_wall_conservative_transport.py
+  test_wall_power_discretization.py
+  test_wall_energy_balance.py
+  test_wall_volume_coupling.py
+  test_boundary_layer_volume_projection.py
+- Modified pre-existing regression modules: 102 passed in 78.95 s:
+  test_boundary_layer_state.py
+  test_boundary_layer_team.py
+  test_wall_geometry.py
+  test_wall_publication_work.py
+  test_wall_sst_audit.py
+  test_wall_team_equivalence.py
+- All tests ran with PYTHONDONTWRITEBYTECODE=1, pytest cache disabled, and temporary build directories under /tmp. No working-tree/index/HEAD mutations were made by this reviewer.
+
+
+Historical runtime follow-up: real-case singular Newton failure before interface relocation (2026-10-20)
+Observed log: /mnt/d/tempt/ugkp-bvp-coupling-fix-20261020/boundaryLayer-final-0.02330000-153452.log.
+First representative large residual: face53506, step51166, time0.023068150943396235, residual1060.4387117125104.
+Fatal: face53507, step51178, time0.023073584905660392, site2421, singular Newton system.
+This is a confirmed production-coupling failure despite clean GPU memory/race/synchronization diagnostics and passing host tests.
+
+Independent root-cause evidence (no GPU run)
+From the saved real fields and gasBoundaryLayerProfiles.csv at time0.023060000000000001:
+- owner2 k=124.7875, versus 78.5451 at0.02305; adjacent bulk donor98 k=2.57460, versus6.07887.
+- owner3 k=130.9514, versus90.6223; adjacent bulk donor99 k=4.85034, versus8.53840.
+- The global minimum k moved from0.640205 to0.137092 at bulk cell96.
+- At the owner/bulk macro face y=0.0002547771111195, the BVP k still rises outward (~180 to188 between its surrounding nodes), whereas the matching endpoint at y=0.000386216040726 has k2.53024/4.10012. Thus the shared normal BVP flux draws k from the low-k bulk cell into the owner while the bulk source remains its original macro SST source.
+
+A temporary CPU program reconstructed the actual saved production intervalFlux and independently reproduced the saved profile residuals (2.5e-11 to6.6e-11). Its interpolated owner-interface flux densities:
+  face53504: -141.16645694612828
+  face53506: -148.43253978071624
+  face53507: -144.03154409354562
+At cell98 V=1.01317508238325e-9 and rho=1.56949106151, the shared face alone gives dk/dt=-359762.81/s; its saved k would deplete in7.15637us. At cell99 rho=1.56868113030, dk/dt=-349276.15/s; depletion time13.88684us. These match the first large residual at8.15094us and singular failure at13.58491us after the saved restart. Cell96 has only0.40128us of inventory at its corresponding face draw.
+Archived probe: review-probes/saved-profile-donor-drain.cpp and saved-profile-donor-drain.observed.log.
+
+Conclusion: actual bulk inventory depletion precedes the problematic matching state. The matching limiter can prevent a signed high-order overshoot, but cannot repair this domain-coupling mismatch. The macro k floor can hide the negative candidate while the next BVP receives an almost-zero physical donor. No independent evidence currently proves the local BVP is intrinsically unsolvable at the captured finite endpoint before this depletion.
+
+Implemented minimal domain correction (reviewed in final HEAD)
+For the gas reconstruction opt-in, ending the BVP at lower=max(ray entry,maximumOwnerDistance) is coherent on the planar case: the profile ends at the actual owner/bulk boundary instead of extending through the bulk half cell whose SST source was not replaced. The neutral default can retain its old geometry. Required invariants: L>=maximumOwnerDistance, every owner quadrature point remains strictly inside L, the matching reconstruction target/moments use the relocated point, donors remain unconstrained gas cells, and no inventory is overwritten by point recovery. One-sided endpoint recovery can activate the common k/omega range scale more often; record it rather than adding empirical floors.
+
+Endpoint companion defect, independently reproduced and subsequently fixed
+Simply moving L to the interface leaves a missing endpoint half-CV flux. Existing out.kFluxHeight ends at (y[n-2]+L)/2, and boundaryLayerKDiffusion(L) returns that midpoint value. However physical owner-source quadrature now includes the last Dirichlet node half CV. The endpoint total k flux must therefore include the half-CV physical source, with the advective split taken at the endpoint. Otherwise source and outer face flux disagree even for a converged BVP. Omega endpoint consistency also needs explicit treatment.
+Temporary production-helper reproduction (existing volume fixture with reconstructMatching=true):
+  L=.001; final stored flux height=.00095746691871455584
+  BVP residual=5.2395313782094277e-9
+  integral(owner source)=3.8655653785990415e-6
+  area*(outer interpolated flux-wall flux)=3.8420535116469278e-6
+  difference=2.351186695211196e-8
+  directly evaluated final half-CV source=2.3511607296830073e-8
+The ~0.61% net-source defect is exactly the missing half CV, not arbitrary tolerance noise. Add this relocated-endpoint case to test_wall_volume_coupling.py. If appending the endpoint to the current wall+midpoint list, 128-node runs need129 storage entries and matching precision-copy/count bounds.
+Archived probe: review-probes/interface-endpoint-red.cpp and interface-endpoint-red.observed.log.
+
+
+Final integrated follow-up and closure of runtime findings
+Reviewed final committed range:
+  6e224a2f fix: resolve mixture contacts and preserve absent-species reconstruction
+  9605093a feat(gas): add general-EOS mixture SLAU2 flux
+  ffd64367 fix(gas): couple reacting SST wall volumes at the macro interface
+  37f910b2 fix(gas): complete wall endpoint audits and two-node omega flux
+
+The complete production diff was reread relative to current origin/main. It retains the selected HLLC/SLAU2 solver and supplies full formation-inclusive conservative energy and acoustic speed from the same reconstructed mixture. Species fluxes use the selected mass flux and upwind composition; the ALE transform remains common. The simplex reconstruction closes on a present largest carrier and uses one analytic composition slope factor. No demonstrated new prerequisite defect was found. No README or removed evidence paths are restored by this range; git status is clean and git diff --check origin/main..HEAD is clean.
+
+Interface endpoint and source accounting, final source
+- WallGeometryBuilder.H:479-486 places the reconstructed gas endpoint at lower=max(entry,maximumOwnerDistance), leaving the neutral option's previous construction intact.
+- ReactingWallLayer.H:879-907 publishes the physical endpoint total k flux as last interval total flux plus matchingHalf*physical edge source, then subtracts mass*k_edge for its diffusive part. Omega uses the same power-reconstructed omega-squared half-CV average as the interior treatment, then subtracts mass*omega_edge.
+- WallModelTypes.H:66 stores129 entries. At maximum128 nodes, kFluxCount=129 and valid output indexes are0..128. WallPrecision.H:35 copies exactly those entries. The scratch seed still has128 node rows; no seed[128] is needed.
+- ReactingWallLayer.H:917-918 keeps the source control index at most nodes-1, uses the corrected control+1<out.kFluxCount guard, and uses matchingKFlux rather than seed[nodes] for the last flux slope. The physical nodal source is integrated once per dual CV; endpoint flux completion does not add a second volume source.
+- The prior guard control+1<c.nodes omitted the final audit slope and made its matchingKFlux branch unreachable. The direct ownerKBalanceResidual versus physical budget assertion failed before the guard fix and now passes.
+- At minimum two nodes, the previous endpoint is the smooth-wall singular omega point. The previous powerIntegral call on omega_wall=0,y_wall=0 returned NaN while reporting success. ReactingWallLayer.H:896-901 now integrates linear z=1/sqrt(omega) only on the positive outer half. Its average a*b*(a*a+a*b+b*b)/3 is the exact divided-difference expression for the average of1/z^4. This preserves two-node support without a new rejection or terminal bypass.
+
+Independent final verification
+1. Final interface/geometry/macro projection modules:8 passed in13.91s.
+   test_wall_volume_coupling.py
+   test_wall_matching_averages.py
+   test_boundary_layer_volume_projection.py
+   This includes the relocated endpoint budget, direct audit equality, perturbed-profile physical residual, and finite minimum-node endpoint arrays.
+2. Final maximum-node production-helper probe compiled with AddressSanitizer and UndefinedBehaviorSanitizer; exit0, no sanitizer report. At128 nodes:
+   fluxcount129, all k/omega flux coordinates and values finite;
+   integral(owner source)=5.0430557580176512e-6;
+   area*(outer flux-wall flux)=5.0430557580176097e-6;
+   ownerKBalanceResidual=4.5739779151732218e-20;
+   BVP residual=2.5343193632713153e-10.
+   Archived probe: review-probes/interface-128-asan-ubsan.cpp and interface-128-asan-ubsan.observed.log.
+3. Final prerequisite host regressions:78 passed in68.11s.
+   test_mixture_contact_flux.py
+   test_mixture_slau2_flux.py
+   test_mixture_reconstruction.py
+   test_mixture_riemann_sweep.py
+   test_mixture_selector_fallback.py
+4. Main-agent final-integrated regression log was read:126 passed in118.97s. This is corroborating evidence, separate from this reviewer's independent targeted runs.
+5. Examined real-case preaudit command/log: restart0.02305 to0.02310, exit0, log ends End. This50us interface-binary run crosses the former failure time0.0230735849. Its binary hashes are recorded in boundaryLayer-interface-preaudit-0.02310000-155035-command.json. It precedes the final audit/n2 changes and does not substitute for the requested final37f910b2 build and250us runs.
+No GPU run, production build, source mutation, index mutation, or HEAD mutation was performed by this reviewer.
+
+Delivery limitation at the earlier37f910b2 review (historical)
+The earlier code review had no open actionable finding, while final GPU and250us runtime evidence was still pending at that time. The main agent's later successful37f run is recorded in the final compression follow-up below. Full two-case delivery and compressed-frontend performance claims remain the main task's responsibility; retain the centroid-quadrature and single-owner corner qualifications recorded above.
+
+
+Independent probe evidence archived
+Directory: /mnt/d/tempt/ugkp-bvp-coupling-fix-20261020/review-probes/
+- interface-128-asan-ubsan.cpp / .observed.log: actual final128-node ASAN+UBSAN probe and observed exit0 output.
+- saved-profile-donor-drain.cpp / .observed.log: real captured profile values embedded in the source and reconstructed production fluxes.
+- interface-endpoint-red.cpp / .observed.log: original missing-half-CV budget counterexample.
+- minimum-nodes-omega-red.cpp / .observed.log: original finite-success/NaN-output two-node counterexample.
+- thermal-weight-red.cpp / .observed.log: original decreasing-coefficient NaN assertion.
+- depletion-rate-analysis.py / .observed.log: actual prior calculation and observed field-derived depletion rates.
+- commands.txt, manifest.json, README.txt: original/replay compiler and run arguments, observed exits, source contexts, SHA-256 checksums and provenance.
+All five C++ sources were copied byte-for-byte from the actual temporary probe sources and their checksums verified. Original runs did not persist combined log files; the archived .observed.log files transfer the exact stdout/stderr and exit results already captured by the review tools. No build/test/GPU run was repeated during archival. Historical RED outputs belong to their pre-fix header revisions, as documented; current fixed headers should not reproduce those defects.
+
+
+Final host-quadrature compression review: commit92600a52
+Scope was restricted to WallGeometryBuilder::compressProjectionQuadrature, its guarded call and directly affected tests. No additional GPU work or unrelated physical probes were performed.
+
+Mathematical preservation
+- Every original quadrature point below the first positive nodal height is retained. The nonlinear analytic near-wall source, K and D integration therefore uses unchanged points/weights.
+- Elsewhere, partitioning at the union of nodal heights and dual-face heights gives intersections on which physical sourceK and the reconstructed total-k flux slope are constant, and owner rho*k / betaStar*rho*k*omega moments are linear.
+- For each such intersection, storing positive summed volume and its volume-weighted height preserves a constant or linear integral exactly in real arithmetic. Casts and accumulation order change only floating-point rounding.
+- Weighted xyz coordinates likewise preserve geometric first moments. A compressed point need not be an actual interior point of a concave section, already allowed by this profile-aware geometry descriptor; the runtime projection consumes height and volume weight.
+- The call is reached only for reconstructMatching&&profileNodes after quadrature construction. The neutral material path does not opt in. No solver/source equation, CUDA workspace, IPC channel or physical-time control is changed.
+
+Specific issue found and fixed during this follow-up
+The initial helper used upper_bound for points exactly on a cut, but production publishLayer assigns an exact dual-cut point to the left control volume using a strict < comparison. With profile{0,1,2}, original points{1.5,1.75}, weights{1,1}, and source values1(left)/3(right), the original source integral is4 while merging both in the right bin would produce6. The final helper uses lower_bound, matching the production left-CV convention. This does not alter continuous K/D values at nodal boundaries.
+The actual temporary helper probe against the fixed source observed before=4 after=4 count=2 and exit0. The main agent added an exact dual-cut point and a right-side point to the permanent real-SST integral-equivalence test; the old upper_bound implementation has recorded RED evidence and the final lower_bound implementation has GREEN evidence.
+
+Validation observed by this reviewer
+- Independent directly affected matching-averages and volume-coupling modules:7 passed in14.36s.
+- The fixed cut-point helper was run independently with the numeric result above.
+- compression-final-green.xml was read:26 tests,0 failures,0 errors,54.601s (main-agent run; not independently repeated).
+- Final commit92600a52 contains only32 lines of host geometry helper/call plus the two affected test-module additions.
+- No further test or GPU run was performed after the main agent requested only this report update.
+
+Current conclusion
+No unresolved demonstrated mathematical or implementation defect remains in the compression helper or its guarded call. The source/K/D/audit preservation claim is justified for the actual piecewise reconstruction consumed by publishLayer. Main-agent reported37f910b2 GPU checks and250us BVP success remain evidence for the unchanged backend; cost claims for the compressed frontend should cite its own rebuild/timing evidence when available.
