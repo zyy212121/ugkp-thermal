@@ -607,6 +607,4 @@ gpuResidentMaxFaceWalkHops 512;
 The library default is 32. Increase this limit for trajectories that cross or reflect from many faces in one time step, such as passages near a narrow wedge axis. This limit counts all face-walk events, not only physical wall impacts.
 
 
-公共算子的维护所有权、字段注册、构建检查及 CUDA 调度契约见 [双库公共算子维护](docs/OPERATOR_MAINTENANCE_ZH.md)。
-
 
