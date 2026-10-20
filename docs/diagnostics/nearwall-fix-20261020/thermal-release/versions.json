@@ -1,0 +1,53 @@
+{
+  "ugkp_computational_source": "46dca92cadff3958fdb9956e9b9043d6590bf91b",
+  "pr_head_at_start": "608f4457bab711b0d1e07b2a0f5ff609f80053d0",
+  "official_openfoam": {
+    "package": "openfoam10",
+    "package_version": "20230119",
+    "runtime_build": "10-c4cf895ad8fa"
+  },
+  "cases": {
+    "of10-ny80": {
+      "original_location": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/flux-continuation-20261020/of10-matched-heat-80",
+      "saved_times": [
+        "0",
+        "722",
+        "1282"
+      ],
+      "final_source": "standalone matched source; content hashes identify exact source"
+    },
+    "of10-ny160": {
+      "original_location": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/flux-continuation-20261020/of10-matched-heat-160",
+      "saved_times": [
+        "0",
+        "1613",
+        "2887"
+      ],
+      "final_source": "standalone matched source; content hashes identify exact source"
+    },
+    "ugkp-wallFunction": {
+      "original_location": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/work/nearwall-fix-20261020/wallFunction-after",
+      "saved_times": [
+        "0",
+        "0.023050000000000001",
+        "0.023099999999999999",
+        "0.023300000000000001"
+      ],
+      "final_source": "46dca92cadff3958fdb9956e9b9043d6590bf91b",
+      "initial_field_source": "bab5d683ceb474eb82982fafcc2640caadfd9934, HLLC combined executable reused for continuation chunk20; see logs/historical/final-source-build-manifest.json"
+    }
+  },
+  "matched_source_sha256": {
+    "UEqn.H": "c966695e1ab0ccea7fd1b9bddae444dbd0a2bc22dc597a1e057f46f9dcc3325c",
+    "pEqn.H": "75d87ecdb9b4d4db7abf1af6ad04c8e5a193d9caf3fac34dcc01ceee824907a7",
+    "EEqn.H": "a7f83400fbeeb190f69faa3e32c9cea7ebca2e34a8364fc1fd78792a7eff4da2",
+    "rhoSimpleFoam.C": "e694a21f4e5243ae3613d70282663a839b80b6ad043bbff3a1aab0f4c6e2bc1d",
+    "createFields.H": "0ea73fc17accbdcfb5339a55077b49ac86bc85c5a5bf9b311b2a3c8a6d09b9fc",
+    "createFieldRefs.H": "d81413d7a682adf6619cd6cd2b17c2fa26e88f9b98aef1ab054410055ad46e3d",
+    "Make/options": "c4bb1035c7935d9818585df1b9f38006eed96d152e1cb132d86d83ad2e9b5f67",
+    "Make/files": "7141203e02446ef4f2fe05157b254884acf4c1278d96d352cc1ce4c013d366ab"
+  },
+  "reference_binary_sha256": "e50a9d804f4095e4fa44c1e86c6b99e952565669443446832494ff2829ac867e",
+  "matched_source_verified_against_original_build_record": true,
+  "matched_source_content_sha256": "771edfdb08be256210d91ef9516bc5bbb371fddb65bf3d550a71a8af1fb72aac"
+}

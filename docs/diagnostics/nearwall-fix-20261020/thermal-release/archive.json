@@ -1,0 +1,13 @@
+{
+  "archive": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr19-math-merged-20261018/work/thermal-delivery-20261020/ugkp-thermal-pr22-thermal-reproducer-20261020.tar.xz",
+  "bytes": 37401836,
+  "sha256": "daf98937334c92be1ee4ecf24c1fe8895abef0a6b557bde9080c11ce36e89420",
+  "files": 1297,
+  "newly_deduplicated_links": 0,
+  "newly_deduplicated_bytes": 0,
+  "archive_seconds": 47.81682483802433,
+  "computational_source": "46dca92cadff3958fdb9956e9b9043d6590bf91b",
+  "matched_source_content_sha256": "771edfdb08be256210d91ef9516bc5bbb371fddb65bf3d550a71a8af1fb72aac",
+  "archive_hardlink_entries": 121,
+  "archive_internal_symlink_entries": 49
+}

@@ -1,0 +1,77 @@
+{
+  "Cp": 1004.675,
+  "R_budget": 287.0500676,
+  "R_ugkp_from_exact_SI_and_molar_mass": 287.05,
+  "Cv_budget": 717.6249324,
+  "mu": 1.72444215376571e-05,
+  "Pr": 0.72,
+  "Prt": 0.9,
+  "laminar_conductivity": 0.024062554456035615,
+  "formation_enthalpy": 0,
+  "species_Cp": {
+    "Air": 1004.675,
+    "CO2": 843.6806256656001
+  },
+  "species_molar_mass_kg_per_mol": {
+    "Air": 0.028965206821645145,
+    "CO2": 0.0440095
+  },
+  "thermal_table": "linearCp coefficients are in cases/ugkp-wallFunction/constant/gasModelProperties",
+  "wall_temperature": 290.5321641847456,
+  "wall_velocity": [
+    0,
+    0,
+    0
+  ],
+  "wall_species_flux": [
+    0,
+    0
+  ],
+  "inlet_static_temperature": 275.90898782976797,
+  "inlet_velocity": [
+    179.81233357102013,
+    0,
+    0
+  ],
+  "inlet_pressure": 124094.11053558919,
+  "derived_inlet_total_temperature": 292.00000000000006,
+  "total_temperature_boundary_used": false,
+  "inlet_k": 1.212467823909593,
+  "inlet_omega": 2010.3630052883425,
+  "SST": {
+    "alphaK1": 0.85,
+    "alphaK2": 1,
+    "alphaOmega1": 0.5,
+    "alphaOmega2": 0.856,
+    "gamma1": 0.5555555555555556,
+    "gamma2": 0.44,
+    "beta1": 0.075,
+    "beta2": 0.0828,
+    "betaStar": 0.09,
+    "a1": 0.31,
+    "b1": 1,
+    "c1": 10,
+    "F3": false
+  },
+  "wall_functions": {
+    "kappa": 0.41,
+    "E": 9.8,
+    "Cmu": 0.09,
+    "nut": "nutUSpaldingWallFunction",
+    "SpaldingTolerance": 1e-10,
+    "SpaldingMaxIter": 100,
+    "omegaBlended": false
+  },
+  "energy_UGKP": "e=Cv_UGKP*T; rhoE=rho*(e+0.5*|U|^2), excluding rho*k",
+  "energy_OF10": "e=Cv_OF10*T-Cp*298.15; total energy excludes k",
+  "OF10_runtime_constants": {
+    "RR_J_per_kmol_K": 8314.47006650545,
+    "R_J_per_kg_K": 287.0502571482488,
+    "Cv_J_per_kg_K": 717.6247428517511,
+    "Tref_K": 298.15,
+    "energy_offset_J_per_kg": -299543.85124999995
+  },
+  "OF10_to_UGKP_frozen_import": "rho and rhoE reconstructed using UGKP R and energy zero; original OF rho and all fields retained in cases.",
+  "heat_sign": "positive into gas",
+  "property_authority": "Complete packaged original dictionaries, source and iteration audit inputs take precedence over this index."
+}
