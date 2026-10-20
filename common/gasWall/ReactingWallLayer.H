@@ -710,8 +710,8 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool seedScalarUsingScratch(
     for(int i=first;i<c.nodes;++i){R low=0,diagonal=1,upper=0,rhs=0;
         if(i==first)rhs=leftValue;
         else if(i==c.nodes-1)rhs=rightValue;
-        else {const R dl=(w.seed[i-1][diffusion]+w.seed[i][diffusion])/(R(2)*(w.y[i]-w.y[i-1]));
-            const R dr=(w.seed[i+1][diffusion]+w.seed[i][diffusion])/(R(2)*(w.y[i+1]-w.y[i]));
+        else {const R dl=w.diagonal[i-1][0][diffusion]/(w.y[i]-w.y[i-1]);
+            const R dr=w.diagonal[i][0][diffusion]/(w.y[i+1]-w.y[i]);
             const R volume=(w.y[i+1]-w.y[i-1])/R(2);
             low=-dl-mass;upper=-dr;diagonal=dl+dr+mass+(sink>=0?w.seed[i][sink]*volume:R(0));rhs=source>=0?w.seed[i][source]*volume:R(0);}
         if(i>first){diagonal-=low*w.upper[i-1][scratchRow][0];rhs-=low*w.delta[i-1][variable];}
@@ -733,8 +733,8 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool seedVelocityPair(
     for(int i=0;i<c.nodes;++i){R low=0,diagonal=1,upper=0,rhs0=0,rhs1=0;
         if(i==c.nodes-1){rhs0=edgeU0;rhs1=edgeU1;}
         else if(i>0){
-            const R dl=(w.seed[i-1][0]+w.seed[i][0])/(R(2)*(w.y[i]-w.y[i-1]));
-            const R dr=(w.seed[i+1][0]+w.seed[i][0])/(R(2)*(w.y[i+1]-w.y[i]));
+            const R dl=w.diagonal[i-1][0][0]/(w.y[i]-w.y[i-1]);
+            const R dr=w.diagonal[i][0][0]/(w.y[i+1]-w.y[i]);
             low=-dl-mass;upper=-dr;diagonal=dl+dr+mass+R(0);
         }
         if(i>0){diagonal-=low*w.upper[i-1][0][0];
@@ -803,11 +803,20 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
     if(team.leader())w.state[c.nodes-1][Z]=R(1)/::sqrt(in.matching.omega);
     team.sync();
     bool reuseThermo=false;
+    // A finite blowing wall omega depends nonlinearly on the shear.
+    // Establish that positive shear branch with the local destruction seed,
+    // then continue on the same profile with dual-volume destruction. Starting
+    // the latter from the bare linear profile can instead converge the Picard
+    // surrogate to a nearly shear-free basin that Newton cannot leave.
+    // With no blowing the singular-wall seed needs only the consistent phase.
+    for(int phase=ctx.mass>0?0:1;phase<2;++phase){
     for(int iteration=0;iteration<200;++iteration){
         bool valid=true,reusable=true;
         const SeedThermoRows<R,N,decltype(w.state)> base(w.state,w.lower,reuseThermo);
         for(int i=team.rank();i<c.nodes;i+=team.size()){LayerPoint<R,N> p;if(!evaluatePoint(in,c,ctx,base,w.y,i,p)){valid=false;break;}
-            if(iteration==0){
+            // Once readers use the cache, never rewrite a neighbour's data
+            // in this sweep (also across the blowing continuation phases).
+            if(iteration==0&&!reuseThermo){
                 storeSeedThermo(p,w.lower[i]);
                 R sum=0;for(int j=0;j<N-1;++j){const R v=w.state[i][3+j];reusable=reusable&&v>=0&&v<=1;sum+=v;}
                 // Clipping warnings must retain their original multiplicity.
@@ -822,9 +831,40 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
             const R omegaRest=p.sourceOmega+p.rho*sstBeta(p.f1,coefficients)*p.omega*p.omega;
             w.seed[i][5]=max(R(0),omegaRest);
             w.seed[i][6]=p.rho*sstBeta(p.f1,coefficients)*p.omega+(p.omega>0?max(R(0),-omegaRest)/p.omega:R(0));
+
+            // The omega equation integrates destruction over its dual cell;
+            // retaining pointwise omega^2 here changes its near-wall balance.
+            if(phase==1&&i>1&&i+1<c.nodes){
+                const R za=w.state[i-1][Z],zb=w.state[i+1][Z];
+                const R average=omegaSquareAverage(R(1)/(za*za),p.omega,R(1)/(zb*zb),w.y[i-1],w.y[i],w.y[i+1]);
+                w.seed[i][6]+=p.rho*sstBeta(p.f1,coefficients)*(average/p.omega-p.omega);
+            }
             w.seed[i][7]=p.omega;}
+
         if(!team.all(valid))return false;
         if(iteration==0)reuseThermo=team.all(reusable);
+        const SeedThermoRows<R,N,decltype(w.state)> faceBase(w.state,w.lower,reuseThermo);
+        // Newton's diagonal scratch is idle during initialization. Freeze
+        // the same face diffusivities used by the physical residual, including
+        // the first k interval and the positive power-fit omega conductance.
+        // A nodal arithmetic approximation seeds a different discrete problem
+        // and leaves Newton to repair its mesh-dependent near-wall defect.
+        for(int face=team.rank();face<c.nodes-1;face+=team.size()){
+            LayerPoint<R,N> a,b;
+            if(!loadBasePoint(in,c,ctx,faceBase[face],a)||!loadBasePoint(in,c,ctx,faceBase[face+1],b)){valid=false;break;}
+            const auto aa=a,bb=b;const R ya=w.y[face],yb=w.y[face+1],dy=yb-ya;
+            pointSst(in,c,ya,aa,bb,dy,a);pointSst(in,c,yb,aa,bb,dy,b);
+            auto* faceD=w.diagonal[face][0];
+            faceD[0]=transportConductance(in.model.viscosity+a.rho*a.nut,in.model.viscosity+b.rho*b.nut);
+            faceD[1]=(R(2)*in.model.viscosity+a.rho*sstAlphaK(a.f1,coefficients)*a.nut+b.rho*sstAlphaK(b.f1,coefficients)*b.nut)/R(2);
+            if(face==0){const R ell=a.z/slope;
+              const R power=(R(1)+::sqrt(R(1)+R(24)*coefficients.betaStar/coefficients.beta1))/R(2);
+              faceD[1]*=dy*nearWallKDerivative(dy/R(2),dy,ell,power,ctx.mass/(R(2)*in.model.viscosity));}
+            faceD[2]=(R(2)*in.model.viscosity+a.rho*sstAlphaOmega(a.f1,coefficients)*a.nut+b.rho*sstAlphaOmega(b.f1,coefficients)*b.nut)/R(2);
+            if(a.omega>0&&b.omega>0&&a.omega!=b.omega)
+                faceD[2]*=powerGradient(a.omega,b.omega,ya,yb,(ya+yb)/R(2))*dy/(b.omega-a.omega);
+        }
+        if(!team.all(valid))return false;
         // Boundary physics is uniform for this wall: evaluate it once, then
         // broadcast only the value needed by the independent omega recurrence.
         R wallZ=0,firstZ=0,firstOmega=0;bool boundaryValid=false;
@@ -852,7 +892,12 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
         for(int i=1;i<c.nodes-1;++i){for(int d=0;d<2;++d){change=max(change,abs(w.delta[i][d]-w.state[i][d])/max(R(1),abs(ctx.edgeU[d])));w.state[i][d]=(w.state[i][d]+w.delta[i][d])/R(2);}
             if(w.delta[i][K]<0||w.delta[i][Z]<=0){updated=false;break;}
             const R oldK=w.state[i][K]*w.state[i][K],oldOmega=w.seed[i][7];
-            change=max(change,abs(w.delta[i][K]-oldK)/max(R(1),in.matching.k));
+            // A tiny k is not a converged k. With max(1,k_match), an
+            // exponentially growing positive Picard mode was discarded after
+            // 11-13 sweeps while its omega/F1 coupling remained unresolved.
+            // Zero/zero has exactly zero change; no physical floor is added.
+            const R kScale=max(oldK,max(w.delta[i][K],in.matching.k));
+            if(kScale>0)change=max(change,abs(w.delta[i][K]-oldK)/kScale);
             change=max(change,abs(w.delta[i][Z]-oldOmega)/oldOmega);
             w.state[i][K]=::sqrt((oldK+w.delta[i][K])/R(2));w.state[i][Z]=R(1)/::sqrt((oldOmega+w.delta[i][Z])/R(2));
             if(!gasFinite(w.state[i][K])||!gasFinite(w.state[i][Z])){updated=false;break;}}
@@ -862,6 +907,7 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
         change=team.broadcast(change);
         if(change<R(1e-5))break;
         if(iteration==199&&team.leader())wallWarning(in,ugkp::diagnostics::Code::AccuracyResidual,2428,change,1e-5);
+    }
     }
     return true;
 }
@@ -1047,10 +1093,10 @@ template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> 
     bool seeded=false;
     if(seedIndependentSum<=R(1))seeded=seedSstLayer(in,c,ctx,w,team);
     else if(team.leader())seeded=seedSstLayer(in,c,ctx,w,SerialWallTeam{});
-    // Preserve the positive Picard profile as the Newton initial state. A
-    // separate shear-based k injection can destroy its near-laminar branch
-    // when admissible matching k approaches zero, causing root-coordinate
-    // stagnation even though the original Picard profile converges directly.
+    // Use the positive Picard solution directly, without a shear-based k
+    // injection or physical floor. A tiny positive matching k can support a
+    // finite interior turbulent branch; assess the accepted equation residual
+    // separately from that initializer's branch choice.
     seeded=team.broadcast(seeded);
     if(!seeded){if(team.leader()){fail(status,WallCode::InadmissibleState);wallFatal(in,ugkp::diagnostics::Code::NonFinite,2420);}return false;}
     team.sync();

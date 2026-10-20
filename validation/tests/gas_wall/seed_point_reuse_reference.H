@@ -1,4 +1,6 @@
-// Frozen pre-optimization seed loop from 677adfe8; independent behavioral oracle.
+// Uncached scalar oracle for seed property reuse. Updated for the consistent
+// face/sink discretization; the residual and captured-profile tests independently
+// validate that discretization. This oracle only tests cache transparency.
 namespace ugkwp { namespace gaswall { namespace detail {
 template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GAS_HD inline bool seedSstLayerReference(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,const Team& team=Team{}){
@@ -16,6 +18,7 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
     team.sync();
     if(team.leader())w.state[c.nodes-1][Z]=R(1)/::sqrt(in.matching.omega);
     team.sync();
+    for(int phase=ctx.mass>0?0:1;phase<2;++phase){
     for(int iteration=0;iteration<200;++iteration){
         bool valid=true;
         for(int i=team.rank();i<c.nodes;i+=team.size()){LayerPoint<R,N> p;if(!evaluatePoint(in,c,ctx,w.state,w.y,i,p)){valid=false;break;}
@@ -28,7 +31,30 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
             const R omegaRest=p.sourceOmega+p.rho*sstBeta(p.f1,coefficients)*p.omega*p.omega;
             w.seed[i][5]=max(R(0),omegaRest);
             w.seed[i][6]=p.rho*sstBeta(p.f1,coefficients)*p.omega+(p.omega>0?max(R(0),-omegaRest)/p.omega:R(0));
+            // The omega equation integrates destruction over its dual cell;
+            // retaining pointwise omega^2 here changes its near-wall balance.
+            if(phase==1&&i>1&&i+1<c.nodes){
+                const R za=w.state[i-1][Z],zb=w.state[i+1][Z];
+                const R average=omegaSquareAverage(R(1)/(za*za),p.omega,R(1)/(zb*zb),w.y[i-1],w.y[i],w.y[i+1]);
+                w.seed[i][6]+=p.rho*sstBeta(p.f1,coefficients)*(average/p.omega-p.omega);
+            }
             w.seed[i][7]=p.omega;}
+        if(!team.all(valid))return false;
+        for(int face=team.rank();face<c.nodes-1;face+=team.size()){
+            LayerPoint<R,N> a,b;
+            if(!loadBasePoint(in,c,ctx,w.state[face],a)||!loadBasePoint(in,c,ctx,w.state[face+1],b)){valid=false;break;}
+            const auto aa=a,bb=b;const R ya=w.y[face],yb=w.y[face+1],dy=yb-ya;
+            pointSst(in,c,ya,aa,bb,dy,a);pointSst(in,c,yb,aa,bb,dy,b);
+            auto* faceD=w.diagonal[face][0];
+            faceD[0]=transportConductance(in.model.viscosity+a.rho*a.nut,in.model.viscosity+b.rho*b.nut);
+            faceD[1]=(R(2)*in.model.viscosity+a.rho*sstAlphaK(a.f1,coefficients)*a.nut+b.rho*sstAlphaK(b.f1,coefficients)*b.nut)/R(2);
+            if(face==0){const R ell=a.z/slope;
+              const R power=(R(1)+::sqrt(R(1)+R(24)*coefficients.betaStar/coefficients.beta1))/R(2);
+              faceD[1]*=dy*nearWallKDerivative(dy/R(2),dy,ell,power,ctx.mass/(R(2)*in.model.viscosity));}
+            faceD[2]=(R(2)*in.model.viscosity+a.rho*sstAlphaOmega(a.f1,coefficients)*a.nut+b.rho*sstAlphaOmega(b.f1,coefficients)*b.nut)/R(2);
+            if(a.omega>0&&b.omega>0&&a.omega!=b.omega)
+                faceD[2]*=powerGradient(a.omega,b.omega,ya,yb,(ya+yb)/R(2))*dy/(b.omega-a.omega);
+        }
         if(!team.all(valid))return false;
         // Boundary physics is uniform for this wall: evaluate it once, then
         // broadcast only the value needed by the independent omega recurrence.
@@ -52,7 +78,8 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
         for(int i=1;i<c.nodes-1;++i){for(int d=0;d<2;++d){change=max(change,abs(w.delta[i][d]-w.state[i][d])/max(R(1),abs(ctx.edgeU[d])));w.state[i][d]=(w.state[i][d]+w.delta[i][d])/R(2);}
             if(w.delta[i][K]<0||w.delta[i][Z]<=0){updated=false;break;}
             const R oldK=w.state[i][K]*w.state[i][K],oldOmega=w.seed[i][7];
-            change=max(change,abs(w.delta[i][K]-oldK)/max(R(1),in.matching.k));
+            const R kScale=max(oldK,max(w.delta[i][K],in.matching.k));
+            if(kScale>0)change=max(change,abs(w.delta[i][K]-oldK)/kScale);
             change=max(change,abs(w.delta[i][Z]-oldOmega)/oldOmega);
             w.state[i][K]=::sqrt((oldK+w.delta[i][K])/R(2));w.state[i][Z]=R(1)/::sqrt((oldOmega+w.delta[i][Z])/R(2));
             if(!gasFinite(w.state[i][K])||!gasFinite(w.state[i][Z])){updated=false;break;}}
@@ -61,6 +88,7 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
         if(!team.broadcast(updated))return false;
         change=team.broadcast(change);
         if(change<R(1e-5))break;
+    }
     }
     return true;
 }
