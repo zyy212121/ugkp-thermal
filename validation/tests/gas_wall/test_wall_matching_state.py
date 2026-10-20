@@ -44,6 +44,26 @@ def test_matching_uses_one_feasible_scaling_for_all_conserved_components(tmp_pat
     // A finite quadratic omega overshoot reaches a strict positive-domain
     // boundary. Do not publish a rounded zero/negative omega to the BVP.
     rw[0]=12345.6789;rw[1]=.123456*rw[0];
-    assert(recoverWallMatching(s,cells,weights,2,true,result,p));assert(result.omega>=rw[1]&&result.omega<=rw[0]);
+    assert(recoverWallMatching(s,cells,weights,2,true,result,p));assert(result.omega>0&&std::isfinite(result.omega));
 
+    """)
+
+def test_matching_preserves_zero_turbulent_kinetic_energy(tmp_path):
+    compile_run(tmp_path,r"""
+    Model m;struct S:GasStateView<double,double,SstCoefficientsT<double>>{GasSpeciesState<double,2> gasSpecies;};
+    S s;s.nCells=3;s.gasSpecies.thermo=m.in.model.thermo;
+    double rho[3]={1,1,1},mx[3]={10,20,30},zero[3]{},t[3]={700,700,700};
+    double species[6]={.7,.7,.7,.3,.3,.3},e[3],rk[3]={0,0,0},rw[3]={100,100,100};
+    s.rho=rho;s.rhoUx=mx;s.rhoUy=zero;s.rhoUz=zero;s.rhoE=e;s.Tgas=t;
+    s.rhoK=rk;s.rhoOmega=rw;s.gasSpecies.rho=species;
+    const double cv=1000-universalGasConstant<double>()/.028;
+    for(int i=0;i<3;++i)e[i]=cv*700+.5*mx[i]*mx[i];
+    const int cells[3]={0,1,2};const double weights[3]={.5,.75,-.25};
+    WallMatchingState<double,2> result;double pressure;
+    assert(recoverWallMatching(s,cells,weights,3,true,result,pressure));
+    assert(result.k==0);assert(near(result.omega,100));assert(near(result.velocity[0],12.5));
+    // The reconstructed endpoint k=0 is legal even when all donor values are positive.
+    rk[0]=1;rk[1]=1;rk[2]=5;
+    assert(recoverWallMatching(s,cells,weights,3,true,result,pressure));
+    assert(result.k==0);assert(near(result.velocity[0],12.5));
     """)

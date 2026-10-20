@@ -17,7 +17,7 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool assembleJ
             const R old=perturbed.row[col],oldDonor=transfer?perturbed.row[donor]:R(0);
             const R rootEpsilon=::sqrt(std::numeric_limits<R>::epsilon());
             R variableScale=col==2?R(100):R(1);
-            if(c.enableSst&&col==N+2)variableScale=::sqrt(in.matching.k)*rootEpsilon;
+            if(c.enableSst&&col==N+2)variableScale=::sqrt(max(R(1),in.matching.k))*rootEpsilon;
             if(c.enableSst&&col==N+3)variableScale=rootEpsilon/::sqrt(in.matching.omega);
             R h=rootEpsilon*max(abs(old),variableScale);
             if(species){h=min(h,donorMass/R(4));if(col==donor)h=-h;}

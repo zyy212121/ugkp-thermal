@@ -536,11 +536,14 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 }
                 const GPU_OPERATOR_REAL unLeft=leftRiemann.ux*nx+leftRiemann.uy*ny+leftRiemann.uz*nz;
                 const GPU_OPERATOR_REAL unRight=rightRiemann.ux*nx+rightRiemann.uy*ny+rightRiemann.uz*nz;
+                const bool upwindSpecies=result.evaluatedScheme==ugkpriemann::Scheme::HLLC
+                    || result.evaluatedScheme==ugkpriemann::Scheme::SLAU2;
+                const GPU_OPERATOR_REAL* donorSpecies=result.flux[0]>=GPU_OPERATOR_R(0.0)?leftSpecies:rightSpecies;
                 for(int k=0;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)
                 {
                     const GPU_OPERATOR_REAL l=leftSpecies[k];
                     const GPU_OPERATOR_REAL r=rightSpecies[k];
-                    s.gasSpecies.flux[k*s.nFaces+f]=area*((result.evaluatedScheme==ugkpriemann::Scheme::HLLC || result.evaluatedScheme==ugkpriemann::Scheme::SLAU2)
+                    s.gasSpecies.flux[k*s.nFaces+f]=area*(upwindSpecies
                         ?result.flux[0]*(result.flux[0]>=GPU_OPERATOR_R(0.0)?l/leftRiemann.rho:r/rightRiemann.rho)
                         :result.evaluatedScheme==ugkpriemann::Scheme::HllKurganov
                             ?ugkpriemann::hllConservativeComponentFlux(unLeft*l,unRight*r,l,r,unLeft,unRight,leftSound,rightSound)
@@ -549,9 +552,15 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 if(moving && !ugkwp::restoreGasFluxFromFaceFrame(result,meshFrame,result))
                 {gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry);return false;}
                 int massCarrier=Ns-1;
-                // Redirect closure only when the last species is absent on
-                // both sides. One-sided inventory can carry physical inflow.
-                if(leftSpecies[massCarrier]==GPU_OPERATOR_R(0.0) && rightSpecies[massCarrier]==GPU_OPERATOR_R(0.0))
+                // Upwind contact fluxes must close on a species present in
+                // the actual (face-frame) donor. Downwind inventory cannot
+                // supply even roundoff outflow from an absent donor species.
+                // The largest donor fraction is least sensitive to closure.
+                if(upwindSpecies)
+                    for(int k=0;k<Ns;++k)
+                        if(donorSpecies[k]>donorSpecies[massCarrier])massCarrier=k;
+                // Diffusive schemes can transport species in both directions.
+                else if(leftSpecies[massCarrier]==GPU_OPERATOR_R(0.0) && rightSpecies[massCarrier]==GPU_OPERATOR_R(0.0))
                     for(int k=0;k<Ns;++k)
                         if(leftSpecies[k]+rightSpecies[k]>leftSpecies[massCarrier]+rightSpecies[massCarrier])massCarrier=k;
                 GPU_OPERATOR_REAL speciesSum=GPU_OPERATOR_R(0.0);

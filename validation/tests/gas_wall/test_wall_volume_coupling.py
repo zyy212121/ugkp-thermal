@@ -20,8 +20,8 @@ def test_owner_volume_k_equilibrium_and_finite_omega_moment(tmp_path):
         assert(evaluateWallModel(m.in,c,w,o,status));assert(o.residual<1.01e-8);
         assert(near(o.ownerOmega*m.in.model.sstCoefficients.betaStar*o.ownerKContent,o.ownerKDestruction,1e-12));
         GasBoundaryLayerSstClosure<double> closure;
-        closure.kFluxCount=o.kFluxCount;closure.kFluxHeight=o.kFluxHeight;closure.kDiffusiveFlux=o.kDiffusiveFlux;
-        double area=1e-6,outer=boundaryLayerKDiffusion(closure,.001);
+        closure.kFluxCount=o.kFluxCount;closure.kFluxHeight=o.kFluxHeight;closure.kTransportFlux=o.kTransportFlux;
+        double area=1e-6,outer=boundaryLayerSstFlux(closure,.001);
         assert(near(o.integratedKSource,area*(outer-o.wallKFlux),1e-9));
         assert(near(o.ownerKBalanceResidual,o.integratedKSource-area*(outer-o.wallKFlux),1e-12));
         // The macro source vanishes with its matching normal-flux divergence
@@ -36,8 +36,8 @@ def test_owner_volume_k_equilibrium_and_finite_omega_moment(tmp_path):
         detail::LayerContext<double,2>ctx;assert(detail::makeContext(m.in,c,ctx));
         w.state[10][4]*=1.3;WallOutput<double,2>bad;
         assert(detail::publishLayer(m.in,c,ctx,w,0,1.,bad));
-        closure.kFluxHeight=bad.kFluxHeight;closure.kDiffusiveFlux=bad.kDiffusiveFlux;
-        double defect=std::abs(bad.integratedKSource-area*(boundaryLayerKDiffusion(closure,.001)-bad.wallKFlux));
+        closure.kFluxHeight=bad.kFluxHeight;closure.kTransportFlux=bad.kTransportFlux;
+        double defect=std::abs(bad.integratedKSource-area*(boundaryLayerSstFlux(closure,.001)-bad.wallKFlux));
         assert(defect>100*originalDefect+1e-8*bad.ownerKDestruction);
 
         """)
@@ -53,7 +53,7 @@ def test_minimum_node_volume_flux_is_finite(tmp_path):
         WallWorkspace<double,2,2>w;WallOutput<double,2>o;WallStatus status;
         assert(evaluateWallModel(m.in,c,w,o,status));
         assert(o.kFluxCount==3);
-        for(int j=0;j<o.kFluxCount;++j)assert(std::isfinite(o.omegaDiffusiveFlux[j])&&std::isfinite(o.kDiffusiveFlux[j]));
+        for(int j=0;j<o.kFluxCount;++j)assert(std::isfinite(o.omegaDiffusiveFlux[j])&&std::isfinite(o.kTransportFlux[j]));
     """)
 
 def test_projection_compression_preserves_real_sst_integrals(tmp_path):

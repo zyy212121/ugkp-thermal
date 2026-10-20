@@ -145,6 +145,26 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
     in.integrateOwnerKSource=in.volumeSstClosure;
     if(in.volumeSstClosure&&(!in.quadrature.distance||!in.quadrature.volumeWeight||in.quadrature.count<=0||in.quadrature.volume<=0))
         return fail(GasTransportCode::InvalidStorage);
+    for(int i=0;i<3;++i)for(int j=0;j<2;++j)in.sstTangentialGradient[i][j]=0;
+    if(in.volumeSstClosure){
+        if(!state.faceOwner)return fail(GasTransportCode::InvalidStorage);
+        const int owner=state.faceOwner[face];
+        if(owner<0||owner>=state.nCells||!state.gradUxX||!state.gradUxY||!state.gradUxZ
+            ||!state.gradUyX||!state.gradUyY||!state.gradUyZ
+            ||!state.gradUzX||!state.gradUzY||!state.gradUzZ)
+            return fail(GasTransportCode::InvalidStorage);
+        Real tangent[2][3];
+        if(!gaswall::detail::wallTangentBasis(in.normal,tangent))return fail(GasTransportCode::InvalidGeometry);
+        const Real gradient[3][3]={{state.gradUxX[owner],state.gradUxY[owner],state.gradUxZ[owner]},
+            {state.gradUyX[owner],state.gradUyY[owner],state.gradUyZ[owner]},
+            {state.gradUzX[owner],state.gradUzY[owner],state.gradUzZ[owner]}};
+        for(int i=0;i<3;++i)for(int j=0;j<2;++j){
+            const Real* row=i<2?tangent[i]:in.normal;
+            Real value=0;for(int a=0;a<3;++a)for(int b=0;b<3;++b)value+=row[a]*gradient[a][b]*tangent[j][b];
+            if(!gasFinite(value))return fail(GasTransportCode::NonFiniteState);
+            in.sstTangentialGradient[i][j]=value;
+        }
+    }
     if(!model.useSuppliedWallState)
     {
     in.temperature=state.riemannBoundaryT[face];

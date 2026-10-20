@@ -84,7 +84,7 @@ int main(){
     <<" pointSst="<<sstCalls<<"->"<<sources<<" all_outputs=bitwise_equal"<<std::endl;
    assert(states==stateCalls-2*saved);
    assert(sources==sstCalls-saved);
-   if(!diagnostic){assert(states==5+c.nodes+2*(c.nodes-1));assert(sources==4+2*(c.nodes-1));}
+   if(!diagnostic){assert(states==1+c.nodes+2*(c.nodes-1));assert(sources==2*(c.nodes-1));}
    // Invalid profiles still reject without publishing any output, even when
    // the unused neighboring-state checks are skipped in the optimized path.
    current=w;reference=w;current.state[c.nodes/2][2]=reference.state[c.nodes/2][2]=

@@ -30,8 +30,10 @@ template<int N,class Fixture> int run(int nodes,bool sst,bool reacting,int scena
    for(int j=0;j<N-1;++j)initial.state[i][3+j]=scenario==1?(j==N-2?1.:0.):in.matching.massFraction[ctx.independent[j]];
    initial.state[i][N+2]=sst?std::sqrt(in.matching.k)*f:0;
    initial.state[i][N+3]=sst?f/std::sqrt(in.matching.omega):1;}}
- if(scenario==2)initial.state[nodes/2][2]=199-in.temperature;
- if(scenario==3)initial.state[nodes/2][3]=-.1;
+ // T199 and finite negative Y use supported extrapolation/clipping.
+ // Invalid physical data exercise the seed failure and partial-write contract.
+ if(scenario==2)initial.state[nodes/2][2]=-1-in.temperature;
+ if(scenario==3)initial.state[nodes/2][3]=std::numeric_limits<double>::quiet_NaN();
  if(scenario==4)initial.state[nodes/2][2]=std::numeric_limits<double>::quiet_NaN();
  auto expected=initial,actual=initial;seedPointCalls=0;seedIterations=0;
  bool want=seedSstLayerReference(in,c,ctx,expected);
@@ -74,7 +76,7 @@ def observe(binary,ns,nodes,sst,reacting,scenario):
 @pytest.mark.parametrize('ns',[2,3])
 @pytest.mark.parametrize('sst',[0,1])
 @pytest.mark.parametrize('reacting',[0,1])
-@pytest.mark.parametrize('scenario',range(6),ids=['normal','pure','low-T','negative-Y','nan-T','zero-k'])
+@pytest.mark.parametrize('scenario',range(6),ids=['normal','pure','negative-T','nan-Y','nan-T','zero-k'])
 def test_seed_reuse_preserves_state_and_failure_writes(seed_probe,ns,nodes,sst,reacting,scenario):
     observe(seed_probe,ns,nodes,sst,reacting,scenario)
 

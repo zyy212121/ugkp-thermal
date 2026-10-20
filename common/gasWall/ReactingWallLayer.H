@@ -65,10 +65,17 @@ template<class R,int N> struct CachedLayerRow {
 };
 template<class R,int N,class Rows> struct CachedLayerRows {
     const Rows& rows;mutable LayerPointCache<R,N> cache;
+    // Only conservative channels enter a residual. Four intervals cover the
+    // five-node stencil; unchanged outer intervals survive derivative columns.
+    mutable R fluxes[4][N+5]{};mutable unsigned char fluxStatus[4]{};
     UGKWP_GAS_HD CachedLayerRows(const Rows& values,int node)
         :rows(values),cache(node>1?node-2:0){}
     UGKWP_GAS_HD CachedLayerRow<R,N> operator[](int node)const{return {rows[node],&cache,node};}
-    UGKWP_GAS_HD void invalidate(int node){cache.invalidate(node);}
+    UGKWP_GAS_HD void invalidate(int node){
+        cache.invalidate(node);
+        for(int face=node-1;face<=node;++face){const int slot=face-cache.first;
+            if(slot>=0&&slot<4)fluxStatus[slot]=0;}
+    }
 };
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool loadBasePoint(
  const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
@@ -168,12 +175,20 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline void applySstGradien
  R y,R du0,R du1,R dv,R dk,R domega,LayerPoint<R,N>& p){
     const auto& a=in.model.sstCoefficients;
     const R cd=sstCrossDiffusion(p.omega,dk*domega,a);
-    const R s2=du0*du0+du1*du1+R(2)*dv*dv,g=s2-R(2)/R(3)*dv*dv;
+    // Form the complete strain before either viscosity or production limiting.
+    // Squared strain and limited production cannot be split into additive
+    // normal/tangential pieces: their cross terms can cancel or reinforce.
+    const auto& t=in.sstTangentialGradient;
+    const R div=dv+t[0][0]+t[1][1];
+    const R s2=R(2)*(t[0][0]*t[0][0]+t[1][1]*t[1][1]+dv*dv)
+        +(t[0][1]+t[1][0])*(t[0][1]+t[1][0])
+        +(du0+t[2][0])*(du0+t[2][0])+(du1+t[2][1])*(du1+t[2][1]);
+    const R g=s2-R(2)/R(3)*div*div;
     p.f1=sstF1(p.k,p.omega,in.model.viscosity/p.rho,y,cd,a);
     p.f2=sstF2(p.k,p.omega,in.model.viscosity/p.rho,y,a);
     p.nut=sstNut(p.k,p.omega,s2,p.f2,a);
-    p.sourceK=sstKSource(p.rho,p.k,p.omega,dv,p.nut,g,a);
-    p.sourceOmega=sstOmegaSource(p.rho,p.k,p.omega,dv,g,s2,p.f1,p.f2,cd,a);
+    p.sourceK=sstKSource(p.rho,p.k,p.omega,div,p.nut,g,a);
+    p.sourceOmega=sstOmegaSource(p.rho,p.k,p.omega,div,g,s2,p.f1,p.f2,cd,a);
 }
 template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF void pointSst(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
  R y,const LayerPoint<R,N>& left,const LayerPoint<R,N>& right,R length,LayerPoint<R,N>& p,R leftSpacing=R(0)){
@@ -280,6 +295,30 @@ template<class R,int N> UGKWP_GAS_HD inline void loadIntervalFlux(const R (*cach
     for(int j=0;j<N;++j)f.species[j]=cache[0][j];
     f.momentum[0]=cache[1][0];f.momentum[1]=cache[1][1];f.energy=cache[1][2];f.k=cache[1][3];f.omega=cache[1][4];
 }
+// Lazy per-perturbation interval reuse preserves the row evaluation order.
+// Every attempted state invalidates its two incident intervals; other entries
+// depend only on the immutable Newton iterate and remain valid across columns.
+template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD inline bool loadRowInterval(
+ const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
+ const Rows& x,const R* y,int face,LayerFlux<R,N>& f){
+    return intervalFlux(in,c,ctx,x[face],x[face+1],y[face],y[face+1],f);
+}
+template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD inline bool loadRowInterval(
+ const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
+ const CachedLayerRows<R,N,Rows>& x,const R* y,int face,LayerFlux<R,N>& f){
+    const int slot=face-x.cache.first;R* saved=x.fluxes[slot];
+    if(!x.fluxStatus[slot]){
+        if(!intervalFlux(in,c,ctx,x[face],x[face+1],y[face],y[face+1],f))return false;
+        for(int j=0;j<N;++j)saved[j]=f.species[j];
+        saved[N]=f.momentum[0];saved[N+1]=f.momentum[1];saved[N+2]=f.energy;
+        saved[N+3]=f.k;saved[N+4]=f.omega;x.fluxStatus[slot]=1;
+    }else{
+        for(int j=0;j<N;++j)f.species[j]=saved[j];
+        f.momentum[0]=saved[N];f.momentum[1]=saved[N+1];f.energy=saved[N+2];
+        f.k=saved[N+3];f.omega=saved[N+4];
+    }
+    return true;
+}
 template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool layerRow(const WallInput<R,N,TableReal>& originalInput,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const Rows& x,const R* y,int i,R* row,const R (*fluxes)[N+4][N+4]=nullptr){
     auto in=originalInput;in.diagnosticNode=static_cast<std::uint32_t>(i);
@@ -291,7 +330,7 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVIC
         return true;}
     LayerPoint<R,N> p;if(!evaluatePoint(in,c,ctx,x,y,i,p))return false;
     LayerFlux<R,N> right;if(fluxes)loadIntervalFlux(fluxes[i],right);
-    else if(!intervalFlux(in,c,ctx,x[i],x[i+1],y[i],y[i+1],right))return false;
+    else if(!loadRowInterval(in,c,ctx,x,y,i,right))return false;
     if(i==0){row[0]=x[0][0];row[1]=x[0][1];row[2]=x[0][2];
         for(int j=0;j<N-1;++j){const int s=ctx.independent[j];row[3+j]=(right.species[s]-in.massFlux[s]-p.source[s]*y[1]/R(2))/ctx.scale[3+j];}
         row[K]=x[0][K];R wallZ=0;
@@ -303,7 +342,7 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVIC
         row[Z]=x[0][Z]-(c.enableSst?wallZ:R(1));
         return true;}
     LayerFlux<R,N> left;if(fluxes)loadIntervalFlux(fluxes[i-1],left);
-    else if(!intervalFlux(in,c,ctx,x[i-1],x[i],y[i-1],y[i],left))return false;
+    else if(!loadRowInterval(in,c,ctx,x,y,i-1,left))return false;
     const R dyL=y[i]-y[i-1],dyR=y[i+1]-y[i],volume=(dyL+dyR)/R(2);
     for(int d=0;d<2;++d)row[d]=(right.momentum[d]-left.momentum[d])/ctx.scale[d];
     row[2]=(right.energy-left.energy)/ctx.scale[2];
@@ -549,7 +588,9 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
             const R old=perturbed.row[col],oldDonor=transfer?perturbed.row[donor]:R(0);
             const R rootEpsilon=::sqrt(std::numeric_limits<R>::epsilon());
             R variableScale=col==2?R(100):R(1);
-            if(c.enableSst&&col==N+2)variableScale=::sqrt(in.matching.k)*rootEpsilon;
+            // Match the k residual scale so an exactly zero boundary k still
+            // has a representable probe of its linear sqrt(k) constraint.
+            if(c.enableSst&&col==N+2)variableScale=::sqrt(max(R(1),in.matching.k))*rootEpsilon;
             if(c.enableSst&&col==N+3)variableScale=rootEpsilon/::sqrt(in.matching.omega);
             R h=rootEpsilon*max(abs(old),variableScale);
             if(species){h=min(h,donorMass/R(4));if(col==donor)h=-h;}
@@ -581,8 +622,11 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
             // only a zero-signal column with a symmetric physical-scale probe;
             // a true sqrt(k)=0 derivative remains exactly zero by symmetry.
             bool zeroSignal=c.enableSst&&col==N+2&&old!=R(0);
-            if(zeroSignal)for(int i=start;i<=end;++i)for(int row=0;row<B;++row)
-                if(rows[i-start][row]!=w.residual[i][row])zeroSignal=false;
+            // A coupled omega/energy row can change by roundoff while every
+            // k equation remains unresolved. Only the k rows can certify this
+            // probe; otherwise their zero column makes the Newton block singular.
+            if(zeroSignal)for(int i=start;i<=end;++i)
+                if(rows[i-start][N+2]!=w.residual[i][N+2])zeroSignal=false;
             R opposite[3][B]{};R denominator=actualStep;
             if(zeroSignal){
                 // The existing k residual normalization uses max(1,k_match).
@@ -641,13 +685,7 @@ UGKWP_GAS_HD inline bool newtonStep(const WallInput<R,N,TableReal>& in,
     return team.broadcast(solved);
 }
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool makeContext(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,LayerContext<R,N>& ctx){
-    int axis=0;if(abs(in.normal[1])<abs(in.normal[axis]))axis=1;if(abs(in.normal[2])<abs(in.normal[axis]))axis=2;
-    R tangentNorm=0;for(int d=0;d<3;++d){ctx.tangent[0][d]=(d==axis?R(1):R(0))-in.normal[axis]*in.normal[d];tangentNorm+=ctx.tangent[0][d]*ctx.tangent[0][d];}
-    if(!gasFinite(tangentNorm)||tangentNorm==0)return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10013,tangentNorm);
-    for(int d=0;d<3;++d)ctx.tangent[0][d]/=::sqrt(tangentNorm);
-    ctx.tangent[1][0]=in.normal[1]*ctx.tangent[0][2]-in.normal[2]*ctx.tangent[0][1];
-    ctx.tangent[1][1]=in.normal[2]*ctx.tangent[0][0]-in.normal[0]*ctx.tangent[0][2];
-    ctx.tangent[1][2]=in.normal[0]*ctx.tangent[0][1]-in.normal[1]*ctx.tangent[0][0];
+    if(!wallTangentBasis(in.normal,ctx.tangent))return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10013);
     R relative[3];for(int a=0;a<3;++a)relative[a]=in.matching.velocity[a]-in.velocity[a];
     for(int d=0;d<2;++d){ctx.wallU[d]=dot(in.velocity,ctx.tangent[d]);ctx.edgeU[d]=dot(relative,ctx.tangent[d]);}
     ctx.wallNormal=dot(in.velocity,in.normal);
@@ -832,15 +870,21 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
  const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,int iterations,R norm,WallOutput<R,N>& output,const bool terminalProfile=false){
     WallOutput<R,N> out;LayerPoint<R,N> wall;if(!pointState(in,c,ctx,w.state[0],wall,terminalProfile))return false;
     if(!trace(in,wall.Y,out,terminalProfile))return false;
-    LayerFlux<R,N> first,last;if(!intervalFlux(in,c,ctx,w.state[0],w.state[1],w.y[0],w.y[1],first,terminalProfile)
-        ||!intervalFlux(in,c,ctx,w.state[c.nodes-2],w.state[c.nodes-1],w.y[c.nodes-2],w.y[c.nodes-1],last,terminalProfile))return false;
-    for(int d=0;d<2;++d){const R tau=-first.momentum[d];for(int a=0;a<3;++a)out.traction[a]+=tau*ctx.tangent[d][a];}
+    LayerFlux<R,N> first,last;
     R wallEnergy=ctx.mass*wall.normalVelocity*wall.normalVelocity/R(2);
     for(int j=0;j<N;++j)wallEnergy+=in.massFlux[j]*(ctx.wallEnthalpy[j]-ctx.energyReference);
-    out.conductiveHeatFlux=first.energy-wallEnergy;
     R resistance=0,advectiveIntegral=0,viscousIntegral=0;bool heatAuditAvailable=true;
     for(int i=0;i+1<c.nodes;++i){LayerFlux<R,N> f;
         if(!intervalFlux(in,c,ctx,w.state[i],w.state[i+1],w.y[i],w.y[i+1],f,terminalProfile))return false;
+        if(i==0)first=f;
+        if(i+2==c.nodes)last=f;
+        if(c.enableSst&&in.volumeSstClosure){
+            const R za=w.state[i][N+3],zb=w.state[i+1][N+3];
+            const R omegaA=za>0?R(1)/(za*za):R(0),omegaB=zb>0?R(1)/(zb*zb):R(0);
+            out.kFluxHeight[i+1]=(w.y[i]+w.y[i+1])/R(2);
+            out.kTransportFlux[i+1]=f.k;w.seed[i+1][3]=f.k;
+            out.omegaDiffusiveFlux[i+1]=f.omega-ctx.mass*(omegaA+omegaB)/R(2);
+        }
         if(!(f.conductivity>0)){heatAuditAvailable=false;continue;}
         const R r=(w.y[i+1]-w.y[i])/f.conductivity;
         if(!gasFinite(r)||r>std::numeric_limits<R>::max()-resistance){heatAuditAvailable=false;continue;}
@@ -848,6 +892,8 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
         advectiveIntegral=a*advectiveIntegral+b*f.advectiveEnergy;
         viscousIntegral=a*viscousIntegral+b*f.stressWork;resistance=total;
     }
+    for(int d=0;d<2;++d){const R tau=-first.momentum[d];for(int a=0;a<3;++a)out.traction[a]+=tau*ctx.tangent[d][a];}
+    out.conductiveHeatFlux=first.energy-wallEnergy;
     out.heatConduction=heatAuditAvailable&&resistance>0?(in.temperature-in.matching.temperature)/resistance:std::numeric_limits<R>::quiet_NaN();
     out.heatViscous=heatAuditAvailable?viscousIntegral:std::numeric_limits<R>::quiet_NaN();
     out.heatTransport=heatAuditAvailable?advectiveIntegral-wallEnergy:std::numeric_limits<R>::quiet_NaN();
@@ -879,14 +925,7 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
         const R matchingHalf=(w.y[c.nodes-1]-w.y[c.nodes-2])/R(2);
         const R matchingKFlux=last.k+(in.volumeSstClosure?matchingHalf*w.seed[c.nodes-1][0]:R(0));
         if(in.volumeSstClosure){out.kFluxCount=c.nodes+1;
-            out.kFluxHeight[0]=0;out.kDiffusiveFlux[0]=out.wallKFlux;w.seed[0][3]=out.wallKFlux;
-            for(int i=1;i<c.nodes;++i){LayerFlux<R,N> f;LayerPoint<R,N> a,b;
-                if(!intervalFlux(in,c,ctx,w.state[i-1],w.state[i],w.y[i-1],w.y[i],f)
-                    ||!pointState(in,c,ctx,w.state[i-1],a)||!pointState(in,c,ctx,w.state[i],b))return false;
-                out.kFluxHeight[i]=(w.y[i-1]+w.y[i])/R(2);
-                out.kDiffusiveFlux[i]=f.k-f.kAdvection;w.seed[i][3]=f.k;
-                out.omegaDiffusiveFlux[i]=f.omega-ctx.mass*(a.omega+b.omega)/R(2);
-            }
+            out.kFluxHeight[0]=0;out.kTransportFlux[0]=out.wallKFlux;w.seed[0][3]=out.wallKFlux;
             // Matching data are imposed at the macro interface, not at the
             // final dual face. Include its remaining half control volume.
             const int end=c.nodes-1;LayerPoint<R,N> edge,previous;
@@ -903,7 +942,7 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
                 w.y[end-1],w.y[end],(w.y[end-1]+w.y[end])/R(2),w.y[end])/matchingHalf;
             const R omegaSource=edge.sourceOmega+edge.rho*sstBeta(edge.f1,in.model.sstCoefficients)*(edge.omega*edge.omega-average);
             out.kFluxHeight[c.nodes]=w.y[end];
-            out.kDiffusiveFlux[c.nodes]=matchingKFlux-ctx.mass*edge.k;
+            out.kTransportFlux[c.nodes]=matchingKFlux;
             out.omegaDiffusiveFlux[c.nodes]=last.omega+matchingHalf*omegaSource-ctx.mass*edge.omega;
         }
         if(in.integrateOwnerKSource){
@@ -1008,22 +1047,10 @@ template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> 
     bool seeded=false;
     if(seedIndependentSum<=R(1))seeded=seedSstLayer(in,c,ctx,w,team);
     else if(team.leader())seeded=seedSstLayer(in,c,ctx,w,SerialWallTeam{});
-    if(team.leader()&&c.enableSst&&seeded){
-        // Initialize the auxiliary nonlinear profile at a shear-based scale.
-        // This changes neither matching/owner k nor any physical equation.
-        // A near-zero sqrt(k) seed can make Newton cross its zero derivative
-        // and stagnate on alternating signed roots before reaching the BVP root.
-        LayerPoint<R,N> edge;
-        seeded=pointState(in,c,ctx,w.state[c.nodes-1],edge);
-        // The edge was already evaluated during the seed sweep.
-
-        const R speed=::sqrt(ctx.edgeU[0]*ctx.edgeU[0]+ctx.edgeU[1]*ctx.edgeU[1]);
-        const R kScale=seeded?in.model.viscosity*speed/(in.matchingDistance*edge.rho*::sqrt(in.model.sstCoefficients.betaStar)):R(0);
-
-        for(int i=1;seeded&&i<c.nodes-1;++i){const R eta=w.y[i]/in.matchingDistance;
-            w.state[i][N+2]=::sqrt(w.state[i][N+2]*w.state[i][N+2]+R(4)*eta*(R(1)-eta)*kScale);
-            seeded=seeded&&gasFinite(w.state[i][N+2]);}
-    }
+    // Preserve the positive Picard profile as the Newton initial state. A
+    // separate shear-based k injection can destroy its near-laminar branch
+    // when admissible matching k approaches zero, causing root-coordinate
+    // stagnation even though the original Picard profile converges directly.
     seeded=team.broadcast(seeded);
     if(!seeded){if(team.leader()){fail(status,WallCode::InadmissibleState);wallFatal(in,ugkp::diagnostics::Code::NonFinite,2420);}return false;}
     team.sync();

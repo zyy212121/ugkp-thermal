@@ -191,3 +191,51 @@ ck(std::abs(y[0]-.5)<1e-14&&std::abs(y[1]-.5)<1e-14,"feasible slope changed dire
 Real sum=0;for(int k=0;k<NCOUNT;++k){ck(y[k]>=0&&y[k]<=1,"nonphysical face fraction");sum+=y[k];if(k>=2)ck(std::abs(y[k])<1e-14,"absent species invented");}
 ck(std::abs(sum-1)<1e-15,"face fractions not one simplex");}
 """.replace('NCOUNT',str(count)))
+
+
+@pytest.mark.parametrize('count',[3,10])
+@pytest.mark.parametrize('scheme',[4,8])
+@pytest.mark.parametrize('reconstruction',[0,1])
+def test_upwind_absent_species_cannot_erase_momentum_or_energy(tmp_path,count,scheme,reconstruction):
+    """Last-species closure must not invent outflow from an empty donor.
+
+    Both directions, execution paths and ALE frames exercise the real face
+    producer and inventory limiter. The Euler contact flux is the reference.
+    """
+    compile_probe(tmp_path,_multispecies_fixture(count)+r'''
+int main(){
+for(int direction:{1,-1})for(bool moving:{false,true})for(bool native:{false,true}){
+ State s;initialise(s);s.gasFluxScheme=SCHEME;s.gasReconstruction=RECON;
+ const Real relativeVelocity=direction*Real(SCHEME==4?3:5)/7;
+ // Opposite absolute/relative directions detect use of the wrong ALE donor.
+ const Real meshVelocity=moving?-direction*Real(1.25):Real(0);
+ const Real velocity=relativeVelocity+meshVelocity;
+ const int donor=direction>0?0:1;
+ for(int c=0;c<2;++c){Real part[NS]{};
+  part[0]=c==donor?Real(.3):Real(.2);part[1]=c==donor?Real(.7):Real(.3);
+  part[NS-1]=c==donor?Real(0):Real(.5);
+  s.rho[c]=1;s.rhoUx[c]=velocity;s.rhoUy[c]=s.rhoUz[c]=0;
+  for(int k=0;k<NS;++k)s.gasSpecies.rho[2*k+c]=part[k];
+  s.rhoE[c]=ugkwp::mixtureEnergy(part,Real(700),s.gasSpecies.thermo)+Real(.5)*velocity*velocity;
+  threadIdx.x=c;recoverGasPrimitivesKernel(&s);ck(s.gasSpecies.cellStatus[c]==0,"absent-donor input recovery");
+  s.gasGradientLimiterRho[c]=s.gasGradientLimiterP[c]=s.gasGradientLimiterUx[c]=s.gasGradientLimiterUy[c]=s.gasGradientLimiterUz[c]=s.gasSpecies.limiter[c]=1;
+ }
+ Real oldV[2]={1,1},newV[2]={1,1},sweep[3]={meshVelocity*.001,-meshVelocity*.001,meshVelocity*.001};
+ if(moving){s.gasGeometry.enabled=true;s.gasGeometry.interval=.001;s.gasGeometry.oldVolume=oldV;s.gasGeometry.newVolume=newV;s.gasGeometry.faceSweptVolume=sweep;}
+ threadIdx.x=0;computeGasInternalFaceFluxKernel<false>(&s,Real(.001),native);
+ Real absentFlux=s.gasSpecies.flux[3*(NS-1)],mass=s.gasPhiRho[0],momentum=s.gasPhiRhoUx[0],energy=s.gasPhiRhoE[0];
+ for(int c=0;c<2;++c){threadIdx.x=c;computeGasFluxPositivityScaleKernel(&s,Real(.001));}
+ threadIdx.x=0;applyGasFluxPositivityScaleKernel(&s,native);
+ if(absentFlux!=0||s.gasPhiRhoUx[0]!=momentum)
+  std::fprintf(stderr,"scheme=%d recon=%d ns=%d direction=%d moving=%d native=%d absent=%.17g factor=%.17g momentum=%.17g limited=%.17g\n",SCHEME,RECON,NS,direction,moving,native,absentFlux,s.gasSpecies.positivityScale[2*(NS-1)+donor],momentum,s.gasPhiRhoUx[0]);
+ ck(absentFlux==0,"upwind absent species acquired a closure outflow");
+ ck(s.gasPhiRho[0]==mass&&s.gasPhiRhoUx[0]==momentum&&s.gasPhiRhoE[0]==energy,"absent donor erased physical mass/momentum/energy flux");
+ ck(std::abs(mass-relativeVelocity)<1e-9,"wrong contact mass flux");
+ ck(std::abs(momentum-(s.p[donor]+velocity*relativeVelocity))<1e-6,"wrong contact momentum flux");
+ ck(std::abs(energy-(s.rhoE[donor]*relativeVelocity+s.p[donor]*velocity))<1e-4,"wrong contact total-energy flux");
+ Real sum=0;for(int k=0;k<NS;++k){Real value=s.gasSpecies.flux[3*k];sum+=value;
+  ck(std::abs(value-relativeVelocity*s.gasSpecies.rho[2*k+donor])<1e-9,"species did not follow the relative mass donor");
+  if(s.gasSpecies.rho[2*k+donor]==0)ck(value==0,"absent species flux is not exactly zero");}
+ ck(std::abs(sum-mass)<1e-15,"species mass closure failed");
+}}
+'''.replace('NS',str(count)).replace('SCHEME',str(scheme)).replace('RECON',str(reconstruction)))

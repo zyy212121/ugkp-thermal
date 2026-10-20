@@ -49,6 +49,12 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
             return 1;
         }
     }
+    if(ugkwp::gasBoundaryLayerEnabled(*s) && !preparedBoundaryLayer)
+    {
+        computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,false,nativeRefinement);
+        err=cudaGetLastError();
+        if(err!=cudaSuccess){setLastError("wall stage primitive gradients",err);return 1;}
+    }
     if(ugkwp::prepareGasBoundaryLayerStage<GasHostPolicy>(s,dt,stageTime,false)!=0)
     {setLastErrorText("boundaryLayer stage preparation failed");return 1;}
     if (s->hostTurbulenceModel == 3 && !preparedBoundaryLayer)
@@ -71,12 +77,15 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
             return 1;
         }
     }
-    computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,false,nativeRefinement);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
+    if(!ugkwp::gasBoundaryLayerEnabled(*s))
     {
-        setLastError("computeGasPrimitiveGradientsKernel launch", err);
-        return 1;
+        computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,false,nativeRefinement);
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+        {
+            setLastError("computeGasPrimitiveGradientsKernel launch", err);
+            return 1;
+        }
     }
     computeGasGradientLimiterKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
     err = cudaGetLastError();
@@ -579,6 +588,9 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
                     error=cudaGetLastError();
                     if(error!=cudaSuccess){setLastError("wall preflight boundary state",error);return 1;}
                 }
+                computeGasPrimitiveGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,false,nativeRefinement);
+                const auto gradientError=cudaGetLastError();
+                if(gradientError!=cudaSuccess){setLastError("wall preflight primitive gradients",gradientError);return 1;}
                 if(ugkwp::prepareGasBoundaryLayerStage<GasHostPolicy>(s,dt,simulationTime,true)!=0)
                 {setLastErrorText("boundaryLayer preflight preparation failed");return 1;}
                 if(s->hostTurbulenceModel==3)

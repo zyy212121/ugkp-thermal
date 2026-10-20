@@ -116,7 +116,8 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
     if(input.volumeSstClosure){
         closure.nonDestructiveKSource=(output.integratedKSource+output.ownerKDestruction)/input.quadrature.volume;
         for(int d=0;d<3;++d)closure.normal[d]=input.normal[d];
-        closure.kFluxCount=output.kFluxCount;closure.kFluxHeight=output.kFluxHeight;closure.kDiffusiveFlux=output.kDiffusiveFlux;closure.omegaDiffusiveFlux=output.omegaDiffusiveFlux;
+        for(int species=0;species<Ns;++species)closure.normalMassFlux+=input.massFlux[species];
+        closure.kFluxCount=output.kFluxCount;closure.kFluxHeight=output.kFluxHeight;closure.kTransportFlux=output.kTransportFlux;closure.omegaDiffusiveFlux=output.omegaDiffusiveFlux;
     }
     candidate.ready=true;
     candidate.massReady=true;

@@ -7,7 +7,7 @@ def test_bvp_uses_volume_source_and_shared_normal_diffusion(tmp_path):
 int main(){State s;initialise(s);wall(s);s.gasMu=.01;
 Real height[3]={0,1,2},kflux[3]={-2,-3,-4},oflux[3]={-5,-7,-9};
 auto& closure=s.gasBoundaryLayer.sst[0];closure.normal[0]=1;
-closure.kFluxCount=3;closure.kFluxHeight=height;closure.kDiffusiveFlux=kflux;closure.omegaDiffusiveFlux=oflux;
+closure.kFluxCount=3;closure.kFluxHeight=height;closure.kTransportFlux=kflux;closure.omegaDiffusiveFlux=oflux;
 closure.nonDestructiveKSource=10;
 Real sk,so;ck(sstSourcesForCell(s,0,Real(0),sk,so),"volume source unavailable");
 near(sk,Real(10)-s.sstCoefficients.betaStar*s.rhoK[0]*closure.ownerOmega,"second wall-function production remained");
@@ -49,7 +49,7 @@ def test_oblique_macro_face_quadrature_refines_at_second_order(tmp_path):
 int main(){State s;initialise(s);wall(s);s.gasMu=.01;
 Real height[3]={0,1.5,2},flux[3]={0,0,.5};
 auto& c=s.gasBoundaryLayer.sst[0];c.normal[0]=0;c.normal[1]=1;
-c.ownerDistance=Real(7)/9;c.kFluxCount=3;c.kFluxHeight=height;c.kDiffusiveFlux=flux;c.omegaDiffusiveFlux=flux;
+c.ownerDistance=Real(7)/9;c.kFluxCount=3;c.kFluxHeight=height;c.kTransportFlux=flux;c.omegaDiffusiveFlux=flux;
 for(int n:{1,3,5,9}){Real integral=0,dx=Real(1)/n;
  for(int j=0;j<n;++j){s.faceCx[0]=(j+Real(.5))*dx;s.faceCy[0]=1+s.faceCx[0];
   s.Sfx[0]=-dx;s.Sfy[0]=dx;s.magSf[0]=std::sqrt(Real(2))*dx;

@@ -432,16 +432,23 @@ template<class R> void matchingReconstruction(const WallGeometryMesh<R>&m,
     for(auto&a:moment){for(int k=0;k<3;++k)a[1+k]/=scale[k];
         const int left[6]={0,0,0,1,1,2},right[6]={0,1,2,1,2,2};
         for(int k=0;k<6;++k)a[4+k]/=scale[left[k]]*scale[right[k]];}
+    // Rank belongs to the complete dimensionless moment matrix. A mode that
+    // vanishes in an extrusion can contain coordinate roundoff; scaling its
+    // threshold by its own tiny norm would promote that noise to a new mode.
+    L matrixNorm=0;
+    for(int mode=0;mode<10;++mode){L norm2=0;
+        for(int j=0;j<n;++j)norm2+=moment[j][mode]*moment[j][mode];
+        matrixNorm=std::max(matrixNorm,std::sqrt(norm2));}
+    const L roundoff=64*L(n+10)*std::numeric_limits<R>::epsilon()*matrixNorm;
     std::vector<std::vector<L>> basis;std::vector<L> beta,weights(n,0);weights[0]=1;
     bool normalLinear=false,normalQuadratic=false;
-    for(int mode=0;mode<10;++mode){std::vector<L> row(n);L rhs=(mode==0?1.L:0.L)-moment[0][mode],norm0=0;
-        for(int j=0;j<n;++j){row[j]=moment[j][mode];norm0+=row[j]*row[j];}
+    for(int mode=0;mode<10;++mode){std::vector<L> row(n);L rhs=(mode==0?1.L:0.L)-moment[0][mode];
+        for(int j=0;j<n;++j)row[j]=moment[j][mode];
         for(int pass=0;pass<2;++pass)for(std::size_t k=0;k<basis.size();++k){L projection=0;
             for(int j=0;j<n;++j)projection+=row[j]*basis[k][j];
             for(int j=0;j<n;++j)row[j]-=projection*basis[k][j];
             rhs-=projection*beta[k];}
         L norm=0;for(L v:row)norm+=v*v;norm=std::sqrt(norm);
-        const L roundoff=64*L(n+10)*std::numeric_limits<R>::epsilon()*std::sqrt(norm0);
         if(norm<=roundoff)continue;
         for(L&v:row)v/=norm;
         rhs/=norm;basis.push_back(row);beta.push_back(rhs);
