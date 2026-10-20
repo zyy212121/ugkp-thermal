@@ -22,12 +22,28 @@ template<class Real> struct GasBoundaryLayerExchange
 template<class Real> struct GasBoundaryLayerSstClosure
 {
     Real wallShearStress=0;  // magnitude of numerical-wall traction, Pa
-    Real ownerOmega=0;       // finite owner-distance algebraic constraint
+    Real ownerOmega=0;       // finite destruction-equivalent closure (point constraint in other adapters)
     Real volume=0;           // stage owner volume, m^3
     Real ownerDistance=0;    // physical wall to owner centre, m
-    // This is a high-Re numerical wall-function relation, not a second k
-    // inventory. Auxiliary BVP k flux/source remain model diagnostics only.
+    // Volume-projected SST closure: source evaluated from the same profile,
+    // destruction linearised in the sole macro rho*k inventory.
+    Real nonDestructiveKSource=0;
+    Real normal[3]{};
+    const Real* kFluxHeight=nullptr;
+    const Real* kDiffusiveFlux=nullptr;
+    const Real* omegaDiffusiveFlux=nullptr;
+    int kFluxCount=0;
 };
+// Normal diffusive flux at one shared macro face. The interpolant uses the
+// converged BVP control-face fluxes, not gradients of a separately averaged k.
+template<class R> UGKWP_GAS_HD inline R boundaryLayerKDiffusion(
+ const GasBoundaryLayerSstClosure<R>& closure,R y,bool omega=false){
+    const R* flux=omega?closure.omegaDiffusiveFlux:closure.kDiffusiveFlux;
+    int l=0;while(l+1<closure.kFluxCount&&closure.kFluxHeight[l+1]<y)++l;
+    if(l+1==closure.kFluxCount)return flux[l];
+    const R t=(y-closure.kFluxHeight[l])/(closure.kFluxHeight[l+1]-closure.kFluxHeight[l]);
+    return flux[l]+t*(flux[l+1]-flux[l]);
+}
 template<class Real> struct GasBoundaryLayerState
 {
     bool enabled=false;

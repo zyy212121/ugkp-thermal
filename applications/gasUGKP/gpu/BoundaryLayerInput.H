@@ -120,10 +120,13 @@ public:
         const label iterations=d.lookupOrDefault<label>("maxIterations",60);
         const label slots=d.lookupOrDefault<label>("workspaceSlots",0);
         config_.nodes=nodes;config_.maxIterations=iterations;config_.workspaceSlots=slots;
-        geometryOptions_.constructQuadrature=false;
+        geometryOptions_.reconstructMatching=true;
+        geometryOptions_.constructQuadrature=turbulenceModel==3&&config_.model==1;
+        geometryOptions_.profileNodes=nodes;
         config_.relativeTolerance=coefficient(d,"relativeTolerance","rtol",1e-8);
         config_.absoluteTolerance=coefficient(d,"absoluteTolerance","atol",1e-10);
         config_.stretch=d.lookupOrDefault<scalar>("stretch",2);
+        geometryOptions_.profileStretch=config_.stretch;
         config_.turbulentPrandtl=coefficient(d,"turbulentPrandtl","Prt",turbulentPrandtl);
         config_.turbulentSchmidt=coefficient(d,"turbulentSchmidt","Sct",gasModel.turbulentSchmidt);
         geometryOptions_.relativeTolerance=d.lookupOrDefault<scalar>("geometryTolerance",1e-9);
@@ -236,7 +239,8 @@ public:
         std::ofstream output(path.c_str());
         output<<std::setprecision(std::numeric_limits<double>::max_digits10);
         output<<"face,owner,matchingDistance,ownerDistance,heatFluxIntoGas,tractionX,tractionY,tractionZ,"
-            <<"wallKFlux,integratedKSource,ownerOmega,residual,iterations,traceDensity,viscosity,stageTime";
+            <<"wallKFlux,integratedKSource,ownerOmega,residual,iterations,traceDensity,viscosity,stageTime,"
+            <<"heatConduction,heatViscous,heatTransport,heatBalanceResidual,ownerKContent,ownerKDestruction,ownerVolume,ownerKBalanceResidual,volumeSstClosure";
         for(const auto& species:speciesNames_)output<<",speciesFlux_"<<species;
         for(const auto& species:speciesNames_)output<<",reactionIntegral_"<<species;
         output<<'\n';
@@ -247,7 +251,7 @@ public:
             for(std::size_t col=0;col<columns;++col)
             {
 
-                if(col>=16&&col<25)continue;
+
                 if(col)output<<',';
                 output<<diagnostics[row*columns+col];
             }

@@ -102,10 +102,7 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
     candidate.momentumZ=-area*(mass*output.traceVelocity[2]+input.pressure*input.normal[2]-output.traction[2]);
     candidate.energy=-area*(enthalpy+Real(.5)*mass*speed2+output.conductiveHeatFlux
         +input.pressure*normalSweepRate-viscousWork);
-    // High-Re kqR-type condition: no normal diffusive TKE exchange. The
-    // material model injects zero TKE with its prescribed nonnegative blowing.
-    // The auxiliary low-Re profile is not the coarse owner inventory.
-    candidate.k=Real(0);
+    candidate.k=input.volumeSstClosure?-area*output.wallKFlux:Real(0);
     const Real published[]={candidate.mass,candidate.momentumX,candidate.momentumY,
         candidate.momentumZ,candidate.energy,candidate.k,shear,output.ownerOmega,
         input.ownerDistance,input.quadrature.volume};
@@ -113,7 +110,14 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
         if(!gasFinite(published[component]))return failure(2506,published[component],component);
     for(int species=0;species<Ns;++species)
         wall.speciesFlux[species*wall.count+slot]=scaledSpecies[species];
-    wall.sst[slot]={shear,output.ownerOmega,input.quadrature.volume,input.ownerDistance};
+    auto& closure=wall.sst[slot];
+    closure={};closure.wallShearStress=shear;closure.ownerOmega=output.ownerOmega;
+    closure.volume=input.quadrature.volume;closure.ownerDistance=input.ownerDistance;
+    if(input.volumeSstClosure){
+        closure.nonDestructiveKSource=(output.integratedKSource+output.ownerKDestruction)/input.quadrature.volume;
+        for(int d=0;d<3;++d)closure.normal[d]=input.normal[d];
+        closure.kFluxCount=output.kFluxCount;closure.kFluxHeight=output.kFluxHeight;closure.kDiffusiveFlux=output.kDiffusiveFlux;closure.omegaDiffusiveFlux=output.omegaDiffusiveFlux;
+    }
     candidate.ready=true;
     candidate.massReady=true;
     wall.exchange[slot]=candidate;

@@ -47,9 +47,10 @@ template<class R,int N,class TableReal=R> struct WallInput {
     WallMatchingState<R,N> matching;
     WallGasModel<R,N,TableReal> model;
     WallOwnerQuadrature<TableReal> quadrature;
-    // Optional auxiliary diagnostic; never a coarse SST source. No point
-    // access or owner-volume quadrature traversal when disabled.
+    // Optional quadrature publication; volumeSstClosure promotes its conservative
+    // projection into the gas owner operator. Standalone diagnostics stay optional.
     bool integrateOwnerKSource=false;
+    bool volumeSstClosure=false; // actual owner volume only, not the matching extension
     // Optional coarse chemistry integrated per wall area over the same domain.
     // Absence sets chemistryMismatchAvailable=false and mismatch values to NaN.
     const TableReal* coarseReactionIntegral=nullptr;
@@ -59,6 +60,12 @@ template<class R,int N> struct WallOutput {
     R conductiveHeatFlux=0,traction[3]{},wallSpeciesFlux[N]{},matchingSpeciesFlux[N]{};
     R reactionIntegral[N]{},chemistryMismatch[N]{},speciesBalanceResidual[N]{};
     R integratedKSource=0,ownerOmega=0,wallKFlux=0;
+    R ownerKContent=0,ownerKDestruction=0,ownerKBalanceResidual=0; // integral rho*k and betaStar*rho*k*omega
+    // Persistent normal diffusion flux (kg/(m s^3)); the workspace is pooled.
+    // Faces interpolate this one flux, preserving owner/neighbour antisymmetry.
+    R kFluxHeight[129]{},kDiffusiveFlux[129]{},omegaDiffusiveFlux[129]{};
+    int kFluxCount=0;
+    R heatConduction=0,heatViscous=0,heatTransport=0,heatBalanceResidual=0;
     bool chemistryMismatchAvailable=false;
     int iterations=0;
     R residual=0;

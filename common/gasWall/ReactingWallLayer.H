@@ -192,7 +192,10 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF void
     const R domega=left.z>0&&right.z>0?(centered?centeredDerivative(left.omega,p.omega,right.omega,leftSpacing,hr):(right.omega-left.omega)/length):-R(2)*dz/(p.z*p.z*p.z);
     applySstGradients(in,y,du0,du1,dv,dk,domega,p);
 }
-template<class R,int N> struct LayerFlux {R species[N]{},momentum[2]{},energy=0,k=0,omega=0;};
+template<class R,int N> struct LayerFlux {
+    R species[N]{},momentum[2]{},energy=0,k=0,omega=0;
+    R thermal=0,stressWork=0,advectiveEnergy=0,conductivity=0,kAdvection=0;
+};
 // Restore formation-inclusive absolute-frame energy for diagnostic probes.
 // This is a constant linear combination of the solved conservative rows.
 template<class R,int N> UGKWP_GAS_HD inline R physicalLayerEnergyFlux(const LayerContext<R,N>& ctx,const LayerFlux<R,N>& f){
@@ -209,18 +212,42 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerFlux(const
     bool diffusionAvailable=false;
     const bool diffusionValid=correctedSpeciesDiffusion(Y,grad,rho,in.model.diffusivity,nut,c.turbulentSchmidt,T,in.model.thermo,diff,diffEnthalpy,true,&diffusionAvailable);
     if(!diffusionAvailable||!diffusionValid)return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2416,diffEnthalpy);
-    const R mu=in.model.viscosity+rho*nut,lambda=(in.model.molecularPrandtl>0?in.model.viscosity*(a.cp+b.cp)/(R(2)*in.model.molecularPrandtl):in.model.conductivity)+rho*nut*(a.cp+b.cp)/(R(2)*c.turbulentPrandtl);
+    const R muA=in.model.viscosity+a.rho*a.nut,muB=in.model.viscosity+b.rho*b.nut;
+    const R mu=transportConductance(muA,muB),temperatureJump=b.theta-a.theta;
+    R enthalpyJump=0;
+    for(int j=0;j<N;++j)enthalpyJump+=Y[j]*speciesEnthalpyIncrement(j,a.T,temperatureJump,in.model.thermo,ctx.enthalpyJump[j]);
+    // Integrate Cp exactly in T; formation offsets never enter the difference.
+    const R cpSecant=temperatureJump!=0?enthalpyJump/temperatureJump:(a.cp+b.cp)/R(2);
+    const R molecularMobility=in.model.molecularPrandtl>0?in.model.viscosity/in.model.molecularPrandtl:
+        (cpSecant!=0?in.model.conductivity/cpSecant:R(0));
+    const R mobilityA=molecularMobility+a.rho*a.nut/c.turbulentPrandtl;
+    const R mobilityB=molecularMobility+b.rho*b.nut/c.turbulentPrandtl;
+    const R mobility=transportConductance(mobilityA,mobilityB);
+    f.conductivity=mobility*cpSecant;f.thermal=-mobility*enthalpyJump/length;
+    const R thermalWeight=thermalWorkVelocityWeight(muA,muB,mobilityA,mobilityB);
     R kinetic=R(.5)*((a.normalVelocity+b.normalVelocity)/R(2))*((a.normalVelocity+b.normalVelocity)/R(2));
-    for(int j=0;j<N;++j){f.species[j]=ctx.mass*Y[j]+diff[j];f.energy+=f.species[j]*((ctx.wallEnthalpy[j]-ctx.energyReference)+speciesEnthalpyIncrement(j,in.temperature,(a.theta+b.theta)/R(2),in.model.thermo,ctx.enthalpyJump[j]));}
+    for(int j=0;j<N;++j){f.species[j]=ctx.mass*Y[j]+diff[j];f.advectiveEnergy+=f.species[j]*((ctx.wallEnthalpy[j]-ctx.energyReference)+speciesEnthalpyIncrement(j,in.temperature,(a.theta+b.theta)/R(2),in.model.thermo,ctx.enthalpyJump[j]));}
     for(int d=0;d<2;++d){const R u=(a.u[d]+b.u[d])/R(2),tau=mu*(b.u[d]-a.u[d])/length;
-        f.momentum[d]=ctx.mass*u-tau;f.energy-=tau*u;kinetic+=R(.5)*u*u;}
-    f.energy+=ctx.mass*kinetic-lambda*(b.theta-a.theta)/length;
-    const R dk=in.model.viscosity+rho*sstAlphaK((a.f1+b.f1)/R(2),in.model.sstCoefficients)*nut;
-    f.k=ctx.mass*(a.k+b.k)/R(2)-dk*(b.k-a.k)/length;
+        f.momentum[d]=ctx.mass*u-tau;
+        f.stressWork-=tau*(a.u[d]+thermalWeight*(b.u[d]-a.u[d]));kinetic+=R(.5)*u*u;}
+    f.advectiveEnergy+=ctx.mass*kinetic;f.energy=f.advectiveEnergy+f.stressWork+f.thermal;
+    const R dk=R(.5)*(in.model.viscosity+a.rho*sstAlphaK(a.f1,in.model.sstCoefficients)*a.nut+
+        in.model.viscosity+b.rho*sstAlphaK(b.f1,in.model.sstCoefficients)*b.nut);
+    R faceK=(a.k+b.k)/R(2),gradientK=(b.k-a.k)/length;
+    if(c.enableSst&&ya==0&&yb>0){
+        const R slope=::sqrt(a.rho*in.model.sstCoefficients.beta1/(R(6)*in.model.viscosity));
+        const R ell=a.z/slope;
+        const R power=(R(1)+::sqrt(R(1)+R(24)*in.model.sstCoefficients.betaStar/in.model.sstCoefficients.beta1))/R(2);
+        const R advection=ctx.mass/(R(2)*in.model.viscosity);
+        faceK=b.k*nearWallKShape(yb/R(2),yb,ell,power,advection);
+        gradientK=b.k*nearWallKDerivative(yb/R(2),yb,ell,power,advection);
+    }
+    f.kAdvection=ctx.mass*faceK;f.k=f.kAdvection-dk*gradientK;
 
 
-    if(c.enableSst){const R dw=in.model.viscosity+rho*sstAlphaOmega((a.f1+b.f1)/R(2),in.model.sstCoefficients)*nut;
-        f.omega=ctx.mass*(a.omega+b.omega)/R(2)-dw*omegaGradientFit(ya,yb)*(b.omega-a.omega)/length;}
+    if(c.enableSst){const R dw=R(.5)*(in.model.viscosity+a.rho*sstAlphaOmega(a.f1,in.model.sstCoefficients)*a.nut+
+        in.model.viscosity+b.rho*sstAlphaOmega(b.f1,in.model.sstCoefficients)*b.nut);
+        f.omega=ctx.mass*(a.omega+b.omega)/R(2)-dw*powerGradient(a.omega,b.omega,ya,yb,(ya+yb)/R(2));}
 
 
     (void)terminalProfile;
@@ -285,10 +312,11 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVIC
     row[K]=(right.k-left.k-volume*p.sourceK)/ctx.scale[K];
     if(i==1){LayerPoint<R,N> a;if(!loadBasePoint(in,c,ctx,x[i-1],a))return false;
         row[Z]=p.z-a.z-y[1]*::sqrt(a.rho*in.model.sstCoefficients.beta1/(R(6)*in.model.viscosity));}
-    else {const R yl=(y[i-1]+y[i])/R(2),yr=(y[i]+y[i+1])/R(2);
-      const R fit=omegaDestructionFit(y[i],yl,yr);
-      const R destruction=p.rho*sstBeta(p.f1,in.model.sstCoefficients)*p.omega*p.omega;
-      const R source=p.sourceOmega+destruction*(R(1)-fit);
+    else {
+      LayerPoint<R,N> a,b;
+      if(!loadBasePoint(in,c,ctx,x[i-1],a)||!loadBasePoint(in,c,ctx,x[i+1],b))return false;
+      const R average=omegaSquareAverage(a.omega,p.omega,b.omega,y[i-1],y[i],y[i+1]);
+      const R source=p.sourceOmega+p.rho*sstBeta(p.f1,in.model.sstCoefficients)*(p.omega*p.omega-average);
       row[Z]=-(right.omega-left.omega-volume*source)*p.z*p.z*p.z*p.z/(R(2)*volume*ctx.scale[Z]);}
     for(int j=0;j<N+4;++j)if(!gasFinite(row[j]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2425,row[j],0,j);
     return true;
@@ -810,6 +838,20 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
     R wallEnergy=ctx.mass*wall.normalVelocity*wall.normalVelocity/R(2);
     for(int j=0;j<N;++j)wallEnergy+=in.massFlux[j]*(ctx.wallEnthalpy[j]-ctx.energyReference);
     out.conductiveHeatFlux=first.energy-wallEnergy;
+    R resistance=0,advectiveIntegral=0,viscousIntegral=0;bool heatAuditAvailable=true;
+    for(int i=0;i+1<c.nodes;++i){LayerFlux<R,N> f;
+        if(!intervalFlux(in,c,ctx,w.state[i],w.state[i+1],w.y[i],w.y[i+1],f,terminalProfile))return false;
+        if(!(f.conductivity>0)){heatAuditAvailable=false;continue;}
+        const R r=(w.y[i+1]-w.y[i])/f.conductivity;
+        if(!gasFinite(r)||r>std::numeric_limits<R>::max()-resistance){heatAuditAvailable=false;continue;}
+        const R total=resistance+r,a=resistance/total,b=r/total;
+        advectiveIntegral=a*advectiveIntegral+b*f.advectiveEnergy;
+        viscousIntegral=a*viscousIntegral+b*f.stressWork;resistance=total;
+    }
+    out.heatConduction=heatAuditAvailable&&resistance>0?(in.temperature-in.matching.temperature)/resistance:std::numeric_limits<R>::quiet_NaN();
+    out.heatViscous=heatAuditAvailable?viscousIntegral:std::numeric_limits<R>::quiet_NaN();
+    out.heatTransport=heatAuditAvailable?advectiveIntegral-wallEnergy:std::numeric_limits<R>::quiet_NaN();
+    out.heatBalanceResidual=out.heatConduction+out.heatViscous+out.heatTransport-out.conductiveHeatFlux;
     // The matching endpoint also has a half control volume. Its source is
     // included consistently in both the diagnostic integral and edge flux.
     for(int i=0;i<c.nodes;++i){LayerPoint<R,N> p;
@@ -818,7 +860,9 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
         if(in.integrateOwnerKSource){
             if(!evaluatePoint(in,c,ctx,w.state,w.y,i,p,terminalProfile))return false;
         }else if(!pointState(in,c,ctx,w.state[i],p,terminalProfile)||!pointReaction(in,p,terminalProfile))return false;
-        if(in.integrateOwnerKSource)w.seed[i][0]=p.sourceK; // Diagnostic only.
+        if(in.integrateOwnerKSource){w.seed[i][0]=p.sourceK;
+            w.seed[i][1]=i>0?p.rho*in.model.sstCoefficients.betaStar*p.k*p.omega:R(0);
+            w.seed[i][2]=p.rho*p.k;}
         const R width=i==0?w.y[1]/R(2):(i==c.nodes-1?(w.y[i]-w.y[i-1])/R(2):(w.y[i+1]-w.y[i-1])/R(2));
         for(int j=0;j<N;++j)out.reactionIntegral[j]+=width*p.source[j];
         if(i==c.nodes-1)for(int j=0;j<N;++j)out.matchingSpeciesFlux[j]=last.species[j]+width*p.source[j];}
@@ -832,16 +876,52 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
         const R power=(R(1)+::sqrt(R(1)+R(24)*in.model.sstCoefficients.betaStar/in.model.sstCoefficients.beta1))/R(2);
         const R advection=ctx.mass/(R(2)*in.model.viscosity),firstK=w.state[1][N+2]*w.state[1][N+2];
         out.wallKFlux=-in.model.viscosity*firstK*nearWallKDerivativeAtWall(w.y[1],ell,power,advection);
+        const R matchingHalf=(w.y[c.nodes-1]-w.y[c.nodes-2])/R(2);
+        const R matchingKFlux=last.k+(in.volumeSstClosure?matchingHalf*w.seed[c.nodes-1][0]:R(0));
+        if(in.volumeSstClosure){out.kFluxCount=c.nodes+1;
+            out.kFluxHeight[0]=0;out.kDiffusiveFlux[0]=out.wallKFlux;w.seed[0][3]=out.wallKFlux;
+            for(int i=1;i<c.nodes;++i){LayerFlux<R,N> f;LayerPoint<R,N> a,b;
+                if(!intervalFlux(in,c,ctx,w.state[i-1],w.state[i],w.y[i-1],w.y[i],f)
+                    ||!pointState(in,c,ctx,w.state[i-1],a)||!pointState(in,c,ctx,w.state[i],b))return false;
+                out.kFluxHeight[i]=(w.y[i-1]+w.y[i])/R(2);
+                out.kDiffusiveFlux[i]=f.k-f.kAdvection;w.seed[i][3]=f.k;
+                out.omegaDiffusiveFlux[i]=f.omega-ctx.mass*(a.omega+b.omega)/R(2);
+            }
+            // Matching data are imposed at the macro interface, not at the
+            // final dual face. Include its remaining half control volume.
+            const int end=c.nodes-1;LayerPoint<R,N> edge,previous;
+            if(!evaluatePoint(in,c,ctx,w.state,w.y,end,edge)
+                ||!pointState(in,c,ctx,w.state[end-1],previous))return false;
+            const R average=powerIntegral(previous.omega*previous.omega,edge.omega*edge.omega,
+                w.y[end-1],w.y[end],(w.y[end-1]+w.y[end])/R(2),w.y[end])/matchingHalf;
+            const R omegaSource=edge.sourceOmega+edge.rho*sstBeta(edge.f1,in.model.sstCoefficients)*(edge.omega*edge.omega-average);
+            out.kFluxHeight[c.nodes]=w.y[end];
+            out.kDiffusiveFlux[c.nodes]=matchingKFlux-ctx.mass*edge.k;
+            out.omegaDiffusiveFlux[c.nodes]=last.omega+matchingHalf*omegaSource-ctx.mass*edge.omega;
+        }
         if(in.integrateOwnerKSource){
         if(q.count>0&&(!q.distance||!q.volumeWeight))return wallFatal(in,ugkp::diagnostics::Code::MissingOperator,10017);
         for(int qi=0;qi<q.count;++qi){const R y=q.distance[qi],weight=q.volumeWeight[qi];
             if(!gasFinite(y)||!gasFinite(weight))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2419,y);
             int l=0;while(l+1<c.nodes-1&&w.y[l+1]<y)++l;
             const R fraction=(y-w.y[l])/(w.y[l+1]-w.y[l]);
+            int control=0;
+            if(in.volumeSstClosure){
+                while(control+1<c.nodes&&out.kFluxHeight[control+1]<y)++control;
+                if(control+1<c.nodes)out.ownerKBalanceResidual-=weight*((control+1==c.nodes?matchingKFlux:w.seed[control+1][3])-w.seed[control][3])/(out.kFluxHeight[control+1]-out.kFluxHeight[control]);
+                // The physical SST residual is never replaced by a flux
+                // identity. Interior dual volumes use the solved equation's
+                // actual nodal source, including an unconverged residual.
+                if(control>0)out.integratedKSource+=weight*w.seed[control][0];
+            }
+
             // Reconstruct the already-discretized full source with positive
             // nodal weights. Recomputing it with interval secant gradients
             // destroys consistency when local production/destruction cancel.
-            if(l>0||fraction==R(1)){out.integratedKSource+=weight*((R(1)-fraction)*w.seed[l][0]+fraction*w.seed[l+1][0]);continue;}
+            if(l>0||fraction==R(1)){
+                if(!in.volumeSstClosure)out.integratedKSource+=weight*((R(1)-fraction)*w.seed[l][0]+fraction*w.seed[l+1][0]);
+                out.ownerKDestruction+=weight*((R(1)-fraction)*w.seed[l][1]+fraction*w.seed[l+1][1]);
+                out.ownerKContent+=weight*((R(1)-fraction)*w.seed[l][2]+fraction*w.seed[l+1][2]);continue;}
             R state[N+4];for(int j=0;j<N+4;++j)state[j]=w.state[l][j]+fraction*(w.state[l+1][j]-w.state[l][j]);
             if(l==0)state[N+2]=::sqrt(firstK*nearWallKShape(y,w.y[1],ell,power,advection));
             LayerPoint<R,N> p,a,b;if(!pointState(in,c,ctx,state,p,terminalProfile)||!pointState(in,c,ctx,w.state[l],a,terminalProfile)||!pointState(in,c,ctx,w.state[l+1],b,terminalProfile))return false;
@@ -849,17 +929,27 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
                 const R dk=firstK*nearWallKDerivative(y,dy,ell,power,advection);
                 applySstGradients(in,y,(b.u[0]-a.u[0])/dy,(b.u[1]-a.u[1])/dy,((b.normalCoefficient+a.normalCoefficient)/R(2)*(b.theta-a.theta)+(b.T+a.T)/R(2)*(b.normalCoefficient-a.normalCoefficient))/dy,dk,-R(2)*(b.z-a.z)/(dy*p.z*p.z*p.z),p);}
             else pointSst(in,c,y,a,b,w.y[l+1]-w.y[l],p);
-            out.integratedKSource+=weight*p.sourceK;}
+            if(!in.volumeSstClosure||control==0)out.integratedKSource+=weight*p.sourceK;
+            out.ownerKDestruction+=weight*p.rho*in.model.sstCoefficients.betaStar*p.k*p.omega;
+            out.ownerKContent+=weight*p.rho*p.k;}
+        out.ownerKBalanceResidual+=out.integratedKSource;
         }else out.integratedKSource=std::numeric_limits<R>::quiet_NaN();
         int l=0;while(l+1<c.nodes-1&&w.y[l+1]<in.ownerDistance)++l;
         const R fraction=(in.ownerDistance-w.y[l])/(w.y[l+1]-w.y[l]);const R z=w.state[l][N+3]+fraction*(w.state[l+1][N+3]-w.state[l][N+3]);
-        out.ownerOmega=R(1)/(z*z);}
+        out.ownerOmega=R(1)/(z*z);
+        if(in.volumeSstClosure&&out.ownerKContent>0)
+            out.ownerOmega=out.ownerKDestruction/(in.model.sstCoefficients.betaStar*out.ownerKContent);
+
+        }
 
 
     if(!gasFinite(out.conductiveHeatFlux))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2426,out.conductiveHeatFlux);
     if(!gasFinite(out.wallKFlux))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,31300,out.wallKFlux);
     if(!gasFinite(out.ownerOmega))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,31301,out.ownerOmega);
-    // The owner integral is auxiliary output, never a physical SST source.
+    if(in.volumeSstClosure&&(!gasFinite(out.ownerKContent)||!gasFinite(out.ownerKDestruction)||!gasFinite(out.integratedKSource)))
+        return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2419,!gasFinite(out.ownerKContent)?out.ownerKContent:(!gasFinite(out.ownerKDestruction)?out.ownerKDestruction:out.integratedKSource));
+    // Standalone optional integrals remain audits; production closure values
+    // above participate in the physical operator and must remain available.
     if(in.integrateOwnerKSource&&!gasFinite(out.integratedKSource))
         wallWarning(in,ugkp::diagnostics::Code::AccuracyResidual,2429,out.integratedKSource,std::numeric_limits<R>::max());
     for(int d=0;d<3;++d)if(!gasFinite(out.traction[d]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10018,out.traction[d],0,d);

@@ -29,7 +29,7 @@ int main(int argc,char**argv){
  WorkspaceEntry workspaceEntry=&ugkwp::evaluateGasBoundaryLayerWorkspace<false,Real,2,24>;
  ck(slotEntry&&workspaceEntry,"original entrypoint types unavailable");
  int mode=std::atoi(argv[1]),lanes=std::atoi(argv[2]);State s;initialise(s);
- s.gasMu=.02;s.gasThermalConductivity=.5;s.Uy[1]=10;
+ s.gasMu=.02;s.gasThermalConductivity=.5;s.Uy[1]=10;s.rhoUy[1]=s.rho[1]*10;s.rhoE[1]+=Real(.5)*s.rho[1]*100;
  Real diffusion[2]={.01,.01};s.gasSpecies.diffusivity=diffusion;
  auto&w=s.gasBoundaryLayer;w.enabled=true;w.count=2;int fs[3]={-1,0,1},os[2]={0,1},status[2]={0,0};
  ugkwp::GasBoundaryLayerExchange<Real> exchange[2];ugkwp::GasBoundaryLayerSstClosure<Real> closure[2];Real speciesFlux[4]{};
@@ -47,11 +47,11 @@ int main(int argc,char**argv){
  bool result[32][2]{};
 #if WALL_TEAM
  TeamStorage storage(lanes);std::vector<std::thread> threads;
- for(int lane=0;lane<lanes;++lane)threads.emplace_back([&,lane]{CpuTeam team{storage,lane,lanes};for(int slot=0;slot<2;++slot)result[lane][slot]=ugkwp::evaluateGasBoundaryLayerSlot(s,slot,0,team);});
+ for(int lane=0;lane<lanes;++lane)threads.emplace_back([&,lane]{CpuTeam team{storage,lane,lanes};for(int slot=0;slot<2;++slot){result[lane][slot]=ugkwp::evaluateGasBoundaryLayerSlot(s,slot,0,team);if(slot==0&&(mode==1||mode==2)){if(team.leader())*s.diagnostics=ugkp::diagnostics::DeviceContext{};team.sync();}}});
  for(auto& thread:threads)thread.join();
  for(int lane=1;lane<lanes;++lane)for(int slot=0;slot<2;++slot)ck(result[lane][slot]==result[0][slot],"team members returned different slot status");
 #else
- (void)lanes;for(int slot=0;slot<2;++slot)result[0][slot]=ugkwp::evaluateGasBoundaryLayerSlot(s,slot,0);
+ (void)lanes;for(int slot=0;slot<2;++slot){result[0][slot]=ugkwp::evaluateGasBoundaryLayerSlot(s,slot,0);if(slot==0&&(mode==1||mode==2))*s.diagnostics=ugkp::diagnostics::DeviceContext{};}
 #endif
  std::cout<<std::hexfloat;
  for(int slot=0;slot<2;++slot){auto&e=exchange[slot];auto&o=output[slot];auto&st=modelStatus[slot];
@@ -73,9 +73,9 @@ int main(int argc,char**argv){
 def slot_programs(tmp_path_factory):
     tmp=tmp_path_factory.mktemp('wall-slot-team');oracle=tmp/'oracle'
     shutil.copytree(ROOT/'common',oracle/'common')
-    for name in ('common/gasWall/ReactingWallLayer.H','common/gasTransport/GasBoundaryLayerModelState.H'):
-        original=subprocess.run(['git','show','HEAD:'+name],cwd=ROOT,check=True,capture_output=True,text=True).stdout
-        (oracle/name).write_text(original)
+    # Compare serial and cooperative execution of the same current numerical
+    # equations. HEAD contains the intentionally replaced point-matching and
+    # omega discretization, so it is no longer a bitwise numerical oracle.
     src=fixture().replace('ugkwp::GasSpeciesState<Real,2> gasSpecies;};','ugkwp::GasSpeciesState<Real,2> gasSpecies;ugkwp::GasBoundaryLayerModelState<Real,2> gasBoundaryLayerModel;int testPublishFailureSlot=-1;};')
     src='#include "gasTransport/GasBoundaryLayerModelState.H"\n'+src
     # Define the fault boundary wrapper before ModelState is first instantiated.

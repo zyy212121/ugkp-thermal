@@ -1,5 +1,6 @@
 #pragma once
 #include "GasBoundaryLayerEvaluation.H"
+#include "GasWallMatching.H"
 #include "GasGeometryValidation.H"
 #include "GasBoundaryLayerWorkspace.H"
 #include "../gasWall/WallModel.H"
@@ -14,6 +15,7 @@ namespace ugkwp
 template<class Real,int Ns,int MaxNodes=48> struct GasBoundaryLayerModelState
 {
     gaswall::WallModelConfig<Real> config;
+    bool volumeSstClosure=false; // gas FV adapter; material/interface adapters retain their own closure
     bool useSuppliedWallState=false; // material adapters own Tw, absolute velocity and total Js
     gaswall::WallInput<Real,Ns>* input=nullptr;
     gaswall::WallOutput<Real,Ns>* output=nullptr;
@@ -127,9 +129,9 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
     if((!analytic && (workspaceSlot<0 || workspaceSlot>=model.workspaceCount || !model.workspace))
         || !model.input || !model.output || !model.status || !model.matchingOffsets
         || !model.matchingCells || !model.matchingWeights || !wall.sst || !wall.speciesFlux
-        || !state.rho || !state.p || !state.Tgas || !state.Ux || !state.Uy || !state.Uz
+        || !state.rho || !state.rhoE || !state.rhoUx || !state.rhoUy || !state.rhoUz || !state.Tgas
         || !state.gasSpecies.rho || !state.magSf
-        || (model.config.enableSst&&(!state.k||!state.omega)))
+        || (model.config.enableSst&&(!state.rhoK||!state.rhoOmega)))
         return fail(GasTransportCode::InvalidStorage);
     if(!state.gasSpecies.diffusivity || (!model.useSuppliedWallState &&
         (!state.riemannBoundaryT || !state.riemannBoundaryUFix
@@ -138,9 +140,11 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
         return fail(GasTransportCode::InvalidStorage);
     auto& in=model.input[slot];
     in.diagnostics=state.diagnostics;in.diagnosticEntity=face;
-    // Coarse SST audit does not consume the auxiliary profile integral.
-    // Direct BVP research calls can opt in, but production never requests it.
-    in.integrateOwnerKSource=false;
+    // The BVP replaces only the actual owner-volume normal SST operator.
+    in.volumeSstClosure=model.volumeSstClosure&&model.config.enableSst&&model.config.model==gaswall::BoundaryLayerModel::ReactingSst;
+    in.integrateOwnerKSource=in.volumeSstClosure;
+    if(in.volumeSstClosure&&(!in.quadrature.distance||!in.quadrature.volumeWeight||in.quadrature.count<=0||in.quadrature.volume<=0))
+        return fail(GasTransportCode::InvalidStorage);
     if(!model.useSuppliedWallState)
     {
     in.temperature=state.riemannBoundaryT[face];
@@ -152,23 +156,11 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
     const int begin=model.matchingOffsets[slot],end=model.matchingOffsets[slot+1];
     if(begin<end && begin<0)return fail(GasTransportCode::InvalidStorage);
     for(int item=begin;item<end;++item)
-    {
-        const int cell=model.matchingCells[item];
-        if(cell<0 || cell>=state.nCells)return fail(GasTransportCode::InvalidStorage);
-        const Real weight=model.matchingWeights[item];
-        in.pressure+=weight*state.p[cell];
-        in.matching.temperature+=weight*state.Tgas[cell];
-        in.matching.velocity[0]+=weight*state.Ux[cell];
-        in.matching.velocity[1]+=weight*state.Uy[cell];
-        in.matching.velocity[2]+=weight*state.Uz[cell];
-        if(model.config.enableSst)
-        {
-            in.matching.k+=weight*state.k[cell];
-            in.matching.omega+=weight*state.omega[cell];
-        }
-        for(int species=0;species<Ns;++species)
-            in.matching.massFraction[species]+=weight*state.gasSpecies.rho[species*state.nCells+cell]/state.rho[cell];
-    }
+        if(model.matchingCells[item]<0||model.matchingCells[item]>=state.nCells)
+            return fail(GasTransportCode::InvalidStorage);
+    if(!recoverWallMatching(state,model.matchingCells+begin,model.matchingWeights+begin,
+        end-begin,model.config.enableSst,in.matching,in.pressure))
+        return fail(GasTransportCode::InvalidThermodynamics);
     in.model.thermo=state.gasSpecies.thermo;
     in.model.thermo.diagnostics=state.diagnostics;
     in.model.mechanism=state.gasSpecies.mechanism;

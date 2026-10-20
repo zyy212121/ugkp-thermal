@@ -56,8 +56,8 @@ void checkMoments(const WallGeometryDescriptor<double>& d,V expected,double volu
  }
  assert(near(v,volume));assert(near(d.volume,volume));assert(near(y,d.firstMoment));
  for(int k=0;k<3;++k){assert(near(p[k],volume*expected[k]));assert(near(d.firstMomentVector[k],p[k]));}
- assert(d.matchingDistance>d.maximumOwnerDistance);assert(d.matchingCells.size()==1);
- assert(d.matchingWeights[0]>0&&near(d.matchingWeights[0],1));
+ assert(d.matchingDistance>d.maximumOwnerDistance);assert(!d.matchingCells.empty());
+ double sum=0;for(double w:d.matchingWeights)sum+=w;assert(near(sum,1));
  auto q=d.quadrature();assert(q.count==int(d.distance.size()));assert(q.distance==d.distance.data());
  assert(near(q.volume,volume));assert(near(q.firstMoment,y));
 }
@@ -82,7 +82,7 @@ int main(){
     expected+=primitive(hi)-primitive(lo);
    }
    const double error=std::abs(actual-expected),threshold=2e-11*(1+std::abs(expected));
-   const int pointBound=2*(nodes+(tet?4:8)+1)+8;
+   const int pointBound=2*(2*nodes+(tet?4:8)+1)+16;
    std::cout<<std::setprecision(17)<<"{\"geometry\":\""<<names[meshIndex]<<"\",\"profile_nodes\":"<<nodes
     <<",\"quadrature_points\":"<<d.distance.size()<<",\"point_bound\":"<<pointBound
     <<",\"source_integral\":"<<actual<<",\"independent_exact\":"<<expected

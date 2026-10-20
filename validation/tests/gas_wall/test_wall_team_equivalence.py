@@ -71,11 +71,8 @@ def programs(tmp_path_factory):
     tmp=tmp_path_factory.mktemp('wall-team')
     oracle=tmp/'oracle'
     shutil.copytree(SOURCE_ROOT/'common',oracle/'common')
-    # Independent unchanged committed implementation is the numerical oracle.
-    original=subprocess.run(['git','show','HEAD:common/gasWall/ReactingWallLayer.H'],cwd=SOURCE_ROOT,check=True,capture_output=True,text=True).stdout
-    (oracle/'common/gasWall/ReactingWallLayer.H').write_text(original)
-    original_model=subprocess.run(['git','show','HEAD:common/gasTransport/GasBoundaryLayerModelState.H'],cwd=SOURCE_ROOT,check=True,capture_output=True,text=True).stdout
-    (oracle/'common/gasTransport/GasBoundaryLayerModelState.H').write_text(original_model)
+    # Same current equations in independent serial and cooperative execution;
+    # numerical changes are checked against captured baselines separately.
     cpp=tmp/'team.cpp';cpp.write_text(BASE+TEAM)
     executables=[]
     for root,enabled in ((oracle,0),(SOURCE_ROOT,1)):
