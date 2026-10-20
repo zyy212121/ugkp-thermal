@@ -18,7 +18,7 @@ def sweep(tmp_path_factory):
 @pytest.mark.parametrize('scenario,direction',[('constant-contact',-1),('constant-contact',1),('variable-contact',-1),('variable-contact',1),('sod',1),('rarefaction',1)])
 def test_conservation_positivity_and_refinement(sweep,tmp_path,scenario,direction):
     measurements={}
-    for scheme in [2,4]:
+    for scheme in [2,4,8]:
         series=[]
         for n in [64,128,256]:
             output=tmp_path/f'{scheme}-{n}';output.mkdir()

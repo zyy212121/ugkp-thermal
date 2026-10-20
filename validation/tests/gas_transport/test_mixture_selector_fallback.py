@@ -7,7 +7,7 @@ def test_missing_mixture_operator_reports_without_substitution(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);ugkp::diagnostics::DeviceContext diagnostics{};s.diagnostics=&diagnostics;
  for(int scheme=1;scheme<=9;++scheme)for(int reconstruction:{0,1,2}){
-  if((scheme==1 || scheme==2 || scheme==4) && reconstruction<=1)continue;
+  if((scheme==1 || scheme==2 || scheme==4 || scheme==8) && reconstruction<=1)continue;
   ugkp::diagnostics::reset(diagnostics,1,1);s.gasFluxScheme=scheme;s.gasReconstruction=reconstruction;
   for(int f=0;f<3;++f)s.gasSpecies.faceStatus[f]=0;
   Real out[5]={};s.gasSpecies.flux[0]=123;

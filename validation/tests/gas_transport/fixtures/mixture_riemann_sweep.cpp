@@ -33,8 +33,8 @@ State primitive(const Q&q,const Thermo&t){
 }
 Q state(R rho,R p,R u,R v,R y0,const Thermo&t){Q q{};q[0]=rho;q[1]=rho*u;q[2]=rho*v;R partial[Ns];for(int k=0;k<Ns;++k){partial[k]=rho*(k==0?y0:(1-y0)/(Ns-1));q[5+k]=partial[k];}R T=p/(rho*ugkwp::mixtureGasConstant(partial,t.view));q[4]=ugkwp::mixtureEnergy(partial,T,t.view)+R(.5)*rho*(u*u+v*v);return q;}
 Q flux(const Q&l,const Q&r,const Thermo&t,int scheme){auto a=primitive(l,t),b=primitive(r,t);ugkpriemann::Conservative ul{},ur{};for(int k=0;k<5;++k){ul.q[k]=l[k];ur.q[k]=r[k];}
- auto f=scheme==4?ugkpriemann::hllcFluxUnitNormal(a.p,ul,a.sound,b.p,ur,b.sound,R(1),R(0),R(0)):ugkpriemann::hllKurganovFluxUnitNormal(a.p,ul,a.sound,b.p,ur,b.sound,R(1),R(0),R(0),false);require(f.valid,"nonfinite Riemann flux");Q out{};for(int k=0;k<5;++k)out[k]=f.flux[k];
- if(scheme==4)for(int k=0;k<Ns;++k)out[5+k]=f.flux[0]*(f.flux[0]>=0?l[5+k]/l[0]:r[5+k]/r[0]);
+ auto f=scheme==8?ugkpriemann::slau2FluxUnitNormal(a.p,ul,a.sound,b.p,ur,b.sound,R(1),R(0),R(0)):scheme==4?ugkpriemann::hllcFluxUnitNormal(a.p,ul,a.sound,b.p,ur,b.sound,R(1),R(0),R(0)):ugkpriemann::hllKurganovFluxUnitNormal(a.p,ul,a.sound,b.p,ur,b.sound,R(1),R(0),R(0),false);require(f.valid,"nonfinite Riemann flux");Q out{};for(int k=0;k<5;++k)out[k]=f.flux[k];
+ if(scheme==4||scheme==8)for(int k=0;k<Ns;++k)out[5+k]=f.flux[0]*(f.flux[0]>=0?l[5+k]/l[0]:r[5+k]/r[0]);
  else for(int k=0;k<Ns;++k)out[5+k]=ugkpriemann::hllConservativeComponentFlux(a.p.ux*l[5+k],b.p.ux*r[5+k],l[5+k],r[5+k],a.p.ux,b.p.ux,a.sound,b.sound);
  R sum=0;for(int k=0;k<Ns-1;++k)sum+=out[5+k];out[5+Ns-1]=out[0]-sum;return out;
 }

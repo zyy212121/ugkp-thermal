@@ -516,6 +516,9 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 if(s.gasFluxScheme==4)
                     result=ugkpriemann::hllcFluxUnitNormal
                     (leftRiemann,leftConserved,leftSound,rightRiemann,rightConserved,rightSound,nx,ny,nz);
+                else if(s.gasFluxScheme==8)
+                    result=ugkpriemann::slau2FluxUnitNormal
+                    (leftRiemann,leftConserved,leftSound,rightRiemann,rightConserved,rightSound,nx,ny,nz);
                 else if(s.gasFluxScheme==2)
                     result=ugkpriemann::hllKurganovFluxUnitNormal
                     (leftRiemann,leftConserved,leftSound,rightRiemann,rightConserved,rightSound,nx,ny,nz,false);
@@ -537,7 +540,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 {
                     const GPU_OPERATOR_REAL l=leftSpecies[k];
                     const GPU_OPERATOR_REAL r=rightSpecies[k];
-                    s.gasSpecies.flux[k*s.nFaces+f]=area*(result.evaluatedScheme==ugkpriemann::Scheme::HLLC
+                    s.gasSpecies.flux[k*s.nFaces+f]=area*((result.evaluatedScheme==ugkpriemann::Scheme::HLLC || result.evaluatedScheme==ugkpriemann::Scheme::SLAU2)
                         ?result.flux[0]*(result.flux[0]>=GPU_OPERATOR_R(0.0)?l/leftRiemann.rho:r/rightRiemann.rho)
                         :result.evaluatedScheme==ugkpriemann::Scheme::HllKurganov
                             ?ugkpriemann::hllConservativeComponentFlux(unLeft*l,unRight*r,l,r,unLeft,unRight,leftSound,rightSound)

@@ -77,7 +77,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
                     EntityKind::None,-1,request.fluxScheme,request.reconstruction));
                 state->diagnosticOwner->dispatchPending();
             }
-            setLastErrorText("selected mixture operator is not implemented; supported flux create codes are 1 (Rusanov), 2 (Kurganov/HLL), and 4 (HLLC), reconstruction codes 0 (firstOrder) and 1 (MUSCL)");
+            setLastErrorText("selected mixture operator is not implemented; supported flux create codes are 1 (Rusanov), 2 (Kurganov/HLL), 4 (HLLC), and 8 (SLAU2), reconstruction codes 0 (firstOrder) and 1 (MUSCL)");
             return 1;
         }
         ugkwp::GasMechanismConfiguration mechanism;

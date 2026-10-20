@@ -998,6 +998,59 @@ UGKP_RIEMANN_HD FluxResult hllemFluxUnitNormal
                                                                            
                                                                             
    
+// SLAU2 split mass/pressure flux with caller-supplied general-EOS energy
+// and acoustic speeds. No gamma-law energy reconstruction or backup solver.
+// The standard SLAU2 Mach/pressure splitting constants are unchanged.
+UGKP_RIEMANN_HD FluxResult slau2FluxUnitNormal
+(
+    const Primitive& left, const Conservative& leftConserved,
+    const GpuReal leftSoundSpeed,
+    const Primitive& right, const Conservative& rightConserved,
+    const GpuReal rightSoundSpeed,
+    const GpuReal nx, const GpuReal ny, const GpuReal nz
+)
+{
+    FluxResult result=invalidResult(Scheme::SLAU2);
+    if(!(left.rho>GPU_R(0.0)) || !(right.rho>GPU_R(0.0))
+        || !(leftSoundSpeed>GPU_R(0.0)) || !(rightSoundSpeed>GPU_R(0.0)))return result;
+    const GpuReal unL=normalVelocity(left,nx,ny,nz),unR=normalVelocity(right,nx,ny,nz);
+    const GpuReal a=GPU_R(0.5)*leftSoundSpeed+GPU_R(0.5)*rightSoundSpeed;
+    if(!finiteScalar(a) || !(a>GPU_R(0.0)))return result;
+    const GpuReal ml=unL/a,mr=unR/a;
+    const GpuReal speed=::sqrt(GPU_R(0.5)*(left.ux*left.ux+left.uy*left.uy+left.uz*left.uz
+        +right.ux*right.ux+right.uy*right.uy+right.uz*right.uz));
+    const GpuReal mach=minimum(GPU_R(1.0),speed/a);
+    const GpuReal chi=(GPU_R(1.0)-mach)*(GPU_R(1.0)-mach);
+    const GpuReal g=-maximum(minimum(ml,GPU_R(0.0)),-GPU_R(1.0))
+        *minimum(maximum(mr,GPU_R(0.0)),GPU_R(1.0));
+    const GpuReal density=left.rho+right.rho;
+    if(!finiteScalar(density) || !(density>GPU_R(0.0)))return result;
+    const GpuReal vn=(left.rho*absolute(unL)+right.rho*absolute(unR))/density;
+    const GpuReal vl=(GPU_R(1.0)-g)*vn+g*absolute(unL);
+    const GpuReal vr=(GPU_R(1.0)-g)*vn+g*absolute(unR);
+    const GpuReal mass=GPU_R(0.5)*(left.rho*(unL+vl)+right.rho*(unR-vr)
+        -chi/a*(right.p-left.p));
+    GpuReal pl=GPU_R(0.0),pr=GPU_R(0.0);
+    if(absolute(ml)<GPU_R(1.0))pl=GPU_R(0.25)*(GPU_R(2.0)-ml)*(ml+GPU_R(1.0))*(ml+GPU_R(1.0));
+    else if(ml>=GPU_R(0.0))pl=GPU_R(1.0);
+    if(absolute(mr)<GPU_R(1.0))pr=GPU_R(0.25)*(GPU_R(2.0)+mr)*(mr-GPU_R(1.0))*(mr-GPU_R(1.0));
+    else if(mr<GPU_R(0.0))pr=GPU_R(1.0);
+    const GpuReal pressure=GPU_R(0.5)*(left.p+right.p)
+        +GPU_R(0.5)*(pl-pr)*(left.p-right.p)
+        +speed*(pl+pr-GPU_R(1.0))*a*GPU_R(0.5)*density;
+    const bool takeLeft=mass>=GPU_R(0.0);
+    const Primitive& upwind=takeLeft?left:right;
+    const Conservative& conserved=takeLeft?leftConserved:rightConserved;
+    result.flux[0]=mass;
+    result.flux[1]=mass*upwind.ux+pressure*nx;
+    result.flux[2]=mass*upwind.uy+pressure*ny;
+    result.flux[3]=mass*upwind.uz+pressure*nz;
+    result.flux[4]=mass*((conserved.q[4]+upwind.p)/upwind.rho);
+    result.maxSignalSpeed=maximum(absolute(unL)+leftSoundSpeed,absolute(unR)+rightSoundSpeed);
+    result.valid=finiteScalar(result.maxSignalSpeed)&&finiteFive(result.flux);
+    return result;
+}
+
 UGKP_RIEMANN_HD FluxResult slau2FluxUnitNormalImpl
 (
     const Primitive& left,

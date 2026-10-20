@@ -5,7 +5,8 @@ import pytest
 from validation.tools.paths import SOURCE_ROOT,VALIDATION_ROOT
 from test_mixture_transport import fixture
 
-def test_real_gpu_stationary_moving_and_ale_mixture_contacts(tmp_path):
+@pytest.mark.parametrize('scheme',[4,8])
+def test_real_gpu_stationary_moving_and_ale_mixture_contacts(tmp_path,scheme):
     nvcc=os.environ.get('NVCC')or shutil.which('nvcc')
     if not nvcc:pytest.skip('CUDA compiler unavailable')
     gpu=shutil.which('nvidia-smi')
@@ -53,7 +54,7 @@ for(int mode=0;mode<4;++mode)for(int native=0;native<2;++native){
 }
 std::puts("8 real GPU contact/ALE/native combinations passed");}
 """
-    source=tmp_path/'contact.cu';source.write_text('#include <cuda_runtime.h>\n#include <algorithm>\n'+pre+support+setup+body);exe=tmp_path/'contact'
+    source=tmp_path/'contact.cu';source.write_text('#include <cuda_runtime.h>\n#include <algorithm>\n'+pre+support+setup+body.replace('s.gasFluxScheme=4','s.gasFluxScheme='+str(scheme)));exe=tmp_path/'contact'
     cmd=[nvcc,'-std=c++17','-O2','-arch=sm_89','-I'+str(SOURCE_ROOT/'common'),'-I'+str(SOURCE_ROOT/'common/gasNumerics'),'-I'+str(Path(VALIDATION_ROOT)/'tests/gas_transport'),str(source),'-o',str(exe)]
     result=subprocess.run(cmd,capture_output=True,text=True);assert result.returncode==0,result.stdout+result.stderr
     result=subprocess.run([str(exe)],capture_output=True,text=True);assert result.returncode==0,result.stdout+result.stderr

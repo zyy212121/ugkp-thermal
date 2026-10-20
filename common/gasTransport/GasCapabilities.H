@@ -21,7 +21,7 @@ enum class GasTransportCode : int
 };
 // One producer/host contract for implemented conservative mixture fluxes.
 UGKWP_GAS_HD inline bool mixtureGasFluxImplemented(int createCode)
-{ return createCode==1 || createCode==2 || createCode==4; }
+{ return createCode==1 || createCode==2 || createCode==4 || createCode==8; }
 
 struct GasCapabilityRequest
 {
@@ -58,7 +58,7 @@ UGKWP_GAS_HD inline GasCapabilityResult validateGasCapabilities(const GasCapabil
         return {GasTransportCode::Success, "legacy gas capabilities"};
     if (r.particleCoupling)
         return {GasTransportCode::UnsupportedConfiguration, "mixture particle thermal and void-fraction closure is not enabled"};
-    return {GasTransportCode::Success, "mixture shared Rusanov, Kurganov/HLL or HLLC with firstOrder or MUSCL"};
+    return {GasTransportCode::Success, "mixture shared Rusanov, Kurganov/HLL, HLLC or SLAU2 with firstOrder or MUSCL"};
 }
 
 } // namespace ugkwp
