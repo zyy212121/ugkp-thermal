@@ -8,9 +8,9 @@ int main(){State s;initialise(s);wall(s);s.gasMu=.01;
 Real height[3]={0,1,2},kflux[3]={-2,-3,-4},oflux[3]={-5,-7,-9};
 auto& closure=s.gasBoundaryLayer.sst[0];closure.normal[0]=1;
 closure.kFluxCount=3;closure.kFluxHeight=height;closure.kTransportFlux=kflux;closure.omegaDiffusiveFlux=oflux;
-closure.nonDestructiveKSource=10;
+closure.nonDestructiveKSource=10;closure.kDestructionRate=.7;
 Real sk,so;ck(sstSourcesForCell(s,0,Real(0),sk,so),"volume source unavailable");
-near(sk,Real(10)-s.sstCoefficients.betaStar*s.rhoK[0]*closure.ownerOmega,"second wall-function production remained");
+near(sk,Real(10)-s.rhoK[0]*closure.kDestructionRate,"second wall-function production remained");
 s.gasPhiRho[0]=.4;threadIdx.x=0;computeSstFaceFluxKernel(&s);
 near(s.sstPhiRhoK[0],Real(.4)*s.k[0]-Real(3),"BVP normal k flux absent");
 near(s.sstPhiRhoOmega[0],Real(.4)*s.omega[0]-Real(7),"BVP omega gradient was replaced by effective-omega secant");
@@ -29,13 +29,13 @@ near(s.rhoK[0]+s.rhoK[1],old+dt*(source[0]+source[1]),"shared diffusion broke th
 def test_volume_source_activity_bounds_heated_blowing_compression(tmp_path):
     compile_probe(tmp_path,fixture()+SETUP+r"""
 int main(){State s;initialise(s);wall(s);
-auto& closure=s.gasBoundaryLayer.sst[0];closure.normal[0]=1;closure.kFluxCount=3;
+auto& closure=s.gasBoundaryLayer.sst[0];closure.normal[0]=1;closure.kFluxCount=3;closure.kDestructionRate=.7;
 for(Real projected:{Real(-100),Real(100)})for(Real div:{Real(-50),Real(0),Real(50)}){
  closure.nonDestructiveKSource=projected;Real sk,so;
  ck(sstSourcesForCell(s,0,div,sk,so),"volume source unavailable");
  Real activity=sstKSourceActivity(s,0,sk,div);
  ck(activity>=std::abs(sk)&&activity>=0,"projected compression hid actual source stiffness");
- Real decay=s.sstCoefficients.betaStar*s.rhoK[0]*closure.ownerOmega;
+ Real decay=s.rhoK[0]*closure.kDestructionRate;
  ck(activity>=decay,"linear destruction vanished by cancellation");
 }}
 """)

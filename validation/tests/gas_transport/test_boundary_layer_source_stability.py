@@ -18,7 +18,7 @@ def test_source_bound_tracks_production_source_without_duplicate_compression(tmp
 int main(){
 State s;initialise(s);wall(s);threadIdx.x=0;
 auto& closure=s.gasBoundaryLayer.sst[0];
-closure.kFluxCount=3;closure.ownerOmega=s.omega[0];
+closure.kFluxCount=3;closure.ownerOmega=s.omega[0];closure.kDestructionRate=s.sstCoefficients.betaStar*s.omega[0];
 closure.nonDestructiveKSource=s.rho[0]*s.sstCoefficients.betaStar*s.k[0]*s.omega[0];
 SETUP
 const Real dt=.1,targetCo=.5,divU=DIRECTION*Real(1000);

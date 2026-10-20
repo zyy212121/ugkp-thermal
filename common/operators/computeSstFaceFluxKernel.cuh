@@ -453,7 +453,7 @@ __device__ bool sstSourcesForCell
                 // resolved tangential gradient before limiting production.
                 // Its projected source already contains full compression.
                 sourceK=closure.nonDestructiveKSource
-                    -s.rho[c]*s.sstCoefficients.betaStar*s.k[c]*closure.ownerOmega;
+                    -s.rho[c]*s.k[c]*closure.kDestructionRate;
             }
         }
     }
@@ -497,8 +497,9 @@ __device__ GPU_OPERATOR_REAL sstKSourceActivity
                 // compression. Bound the actual constant/profile term, the
                 // resolved correction, and local linear destruction separately.
                 // This is >= |netSource| and cannot turn negative by cancellation.
-                const GPU_OPERATOR_REAL resolved=netSource+destruction-closure.nonDestructiveKSource;
-                return fmax(fabs(netSource),fabs(closure.nonDestructiveKSource)+fabs(resolved)+destruction);
+                const GPU_OPERATOR_REAL projectedDestruction=s.rho[c]*s.k[c]*closure.kDestructionRate;
+                const GPU_OPERATOR_REAL resolved=netSource+projectedDestruction-closure.nonDestructiveKSource;
+                return fmax(fabs(netSource),fabs(closure.nonDestructiveKSource)+fabs(resolved)+projectedDestruction);
             }
         }
     }

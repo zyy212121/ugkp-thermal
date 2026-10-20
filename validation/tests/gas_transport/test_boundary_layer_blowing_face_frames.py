@@ -39,7 +39,7 @@ int main(){State s;initialise(s);wall(s);s.gasMu=.25;
  for(int side=0;side<2;++side){
   exchange[side].ready=true;exchange[side].k=side==0?-.1:.2;
   auto& c=closures[side];c.normal[0]=side==0?1:-1;c.normalMassFlux=side==0?.4:-.4;
-  c.ownerDistance=1;c.volume=1;c.ownerOmega=4;c.nonDestructiveKSource=0;
+  c.ownerDistance=1;c.volume=1;c.ownerOmega=4;c.kDestructionRate=.36;c.nonDestructiveKSource=0;
   c.kFluxCount=2;c.kFluxHeight=heights;c.kTransportFlux=side==0?positive:negative;c.omegaDiffusiveFlux=omega;
  }
  s.k[0]=2;s.k[1]=5;s.rhoK[0]=4;s.rhoK[1]=10;s.gasPhiRho[0]=.4;

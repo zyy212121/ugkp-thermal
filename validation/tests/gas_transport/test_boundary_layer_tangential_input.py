@@ -71,7 +71,7 @@ def test_full_projected_source_is_not_augmented_by_macro_production_or_compressi
     compile_probe(tmp_path, model_fixture() + r'''
 int main(){State s;initialise(s);ModelStorage storage;storage.bind(s);
  auto& closure=s.gasBoundaryLayer.sst[0];closure.kFluxCount=3;
- closure.nonDestructiveKSource=17;closure.ownerOmega=5;
+ closure.nonDestructiveKSource=17;closure.ownerOmega=123;closure.kDestructionRate=s.sstCoefficients.betaStar*5;
  s.gasBoundaryLayer.exchange[0].ready=true;
  s.rho[0]=2;s.k[0]=3;s.rhoK[0]=6;s.omega[0]=99;s.nut[0]=2;
  for(Real gradient:{Real(-100),Real(0),Real(100)}){

@@ -1,7 +1,7 @@
 from test_wall_geometry import BASE as GEOMETRY
 import test_wall_model
 
-def test_owner_volume_k_equilibrium_and_finite_omega_moment(tmp_path):
+def test_owner_point_omega_and_independent_k_volume_equilibrium(tmp_path):
     # Use real geometry quadrature, real converged BVP, and real shared-face
     # interpolant. This tests a volume budget, not a fitted reference value.
     original=test_wall_model.BASE
@@ -18,7 +18,14 @@ def test_owner_volume_k_equilibrium_and_finite_omega_moment(tmp_path):
         m.in.volumeSstClosure=true;m.in.integrateOwnerKSource=true;
         WallModelConfig<double> c;c.nodes=24;c.enableSst=true;WallWorkspace<double,2,24>w;WallOutput<double,2>o;
         assert(evaluateWallModel(m.in,c,w,o,status));assert(o.residual<1.01e-8);
-        assert(near(o.ownerOmega*m.in.model.sstCoefficients.betaStar*o.ownerKContent,o.ownerKDestruction,1e-12));
+        int ownerInterval=0;while(w.y[ownerInterval+1]<m.in.ownerDistance)++ownerInterval;
+        const double f=(m.in.ownerDistance-w.y[ownerInterval])/(w.y[ownerInterval+1]-w.y[ownerInterval]);
+        const double z=(1-f)*w.state[ownerInterval][5]+f*w.state[ownerInterval+1][5];
+        assert(near(o.ownerOmega,1/(z*z),1e-12));
+        // The finite k-weighted destruction moment is not the point omega
+        // used for eddy viscosity or the neighbour's omega transport.
+        const double destructionRate=o.ownerKDestruction/o.ownerKContent;
+        assert(std::abs(destructionRate/m.in.model.sstCoefficients.betaStar-o.ownerOmega)>.1*o.ownerOmega);
         GasBoundaryLayerSstClosure<double> closure;
         closure.kFluxCount=o.kFluxCount;closure.kFluxHeight=o.kFluxHeight;closure.kTransportFlux=o.kTransportFlux;
         double area=1e-6,outer=boundaryLayerSstFlux(closure,.001);
@@ -27,7 +34,7 @@ def test_owner_volume_k_equilibrium_and_finite_omega_moment(tmp_path):
         // The macro source vanishes with its matching normal-flux divergence
         // at the projected rho*k mean. No separate wall-function P is added.
         double source=o.integratedKSource+o.ownerKDestruction-
-            m.in.model.sstCoefficients.betaStar*o.ownerOmega*o.ownerKContent;
+            destructionRate*o.ownerKContent;
         assert(near(source-area*(outer-o.wallKFlux),0.,1e-9));
         assert(std::abs(o.heatBalanceResidual)<1e-5);
         // A valid but unconverged profile must expose its SST equation defect;

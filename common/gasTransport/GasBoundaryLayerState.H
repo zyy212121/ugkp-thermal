@@ -22,7 +22,7 @@ template<class Real> struct GasBoundaryLayerExchange
 template<class Real> struct GasBoundaryLayerSstClosure
 {
     Real wallShearStress=0;  // magnitude of numerical-wall traction, Pa
-    Real ownerOmega=0;       // finite destruction-equivalent closure (point constraint in other adapters)
+    Real ownerOmega=0;       // representative omega at the owner centre, s^-1
     Real volume=0;           // stage owner volume, m^3
     Real ownerDistance=0;    // physical wall to owner centre, m
     // Volume-projected SST closure: source evaluated from the same profile,
@@ -33,6 +33,7 @@ template<class Real> struct GasBoundaryLayerSstClosure
     const Real* kTransportFlux=nullptr;
     const Real* omegaDiffusiveFlux=nullptr;
     int kFluxCount=0;
+    Real kDestructionRate=0; // integral(rho*betaStar*k*omega)/integral(rho*k), s^-1
     Real normalMassFlux=0; // prescribed relative mass through the wall, positive into gas
 };
 // k uses total normal transport (m*k - Dk'); omega retains diffusion.

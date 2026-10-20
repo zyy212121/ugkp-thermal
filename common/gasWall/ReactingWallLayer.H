@@ -1029,8 +1029,10 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
         int l=0;while(l+1<c.nodes-1&&w.y[l+1]<in.ownerDistance)++l;
         const R fraction=(in.ownerDistance-w.y[l])/(w.y[l+1]-w.y[l]);const R z=w.state[l][N+3]+fraction*(w.state[l+1][N+3]-w.state[l][N+3]);
         out.ownerOmega=R(1)/(z*z);
-        if(in.volumeSstClosure&&out.ownerKContent>0)
-            out.ownerOmega=out.ownerKDestruction/(in.model.sstCoefficients.betaStar*out.ownerKContent);
+        // The macro omega row is a representative value at the cell centre.
+        // A k-weighted destruction moment is finite even for a smooth wall,
+        // but is not this point value and must not set macro eddy viscosity.
+        // Publish its independent decay rate in the gas FV adapter instead.
 
         }
 

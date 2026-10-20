@@ -114,6 +114,11 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
     closure={};closure.wallShearStress=shear;closure.ownerOmega=output.ownerOmega;
     closure.volume=input.quadrature.volume;closure.ownerDistance=input.ownerDistance;
     if(input.volumeSstClosure){
+        // At exactly zero profile k the moment ratio is undefined; retain
+        // the existing point-omega decay of any nonzero macro inventory.
+        closure.kDestructionRate=output.ownerKContent>0
+            ?output.ownerKDestruction/output.ownerKContent
+            :input.model.sstCoefficients.betaStar*output.ownerOmega;
         closure.nonDestructiveKSource=(output.integratedKSource+output.ownerKDestruction)/input.quadrature.volume;
         for(int d=0;d<3;++d)closure.normal[d]=input.normal[d];
         for(int species=0;species<Ns;++species)closure.normalMassFlux+=input.massFlux[species];

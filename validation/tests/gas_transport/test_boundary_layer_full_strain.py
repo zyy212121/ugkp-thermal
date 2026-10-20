@@ -19,7 +19,7 @@ for(Real transverse:{Real(-1),Real(1)}){
  in.sstTangentialGradient[2][0]=transverse;
  ugkwp::gaswall::detail::LayerPoint<Real,2> p;p.rho=1;p.k=1;p.omega=1;p.z=1;
  ugkwp::gaswall::detail::applySstGradients(in,Real(1),Real(2),Real(0),Real(0),Real(0),Real(0),p);
- c.nonDestructiveKSource=p.sourceK+in.model.sstCoefficients.betaStar;
+ c.nonDestructiveKSource=p.sourceK+in.model.sstCoefficients.betaStar;c.kDestructionRate=0; // isolate production, independently of point omega
  near(p.nut,Real(1),"fixture viscosity differs");
  Real sk,so;ck(sstSourcesForCell(s,0,Real(0),sk,so),"source rejected");
  std::fprintf(stderr,"cross=%g production=%g expected=%g\n",double(transverse),double(sk),transverse<0?1.:9.);
