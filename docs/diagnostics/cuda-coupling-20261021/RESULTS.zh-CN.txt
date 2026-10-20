@@ -1,0 +1,75 @@
+ugkp-thermal PR22 CUDA 接续验收（2026-10-21）
+
+1. 版本与边界
+起点：main 0bc0666d40e41aca4ad0ef044f28e6ad6ed87350；本地与远端 PR22 dd7f251f54211ddab64a82378150c45f97457e32。原工作区没有已跟踪文件修改，保留既有 work/ 数据。
+本轮源码提交：5cf7c622522dce4cec4fb6c9f50d95d9adcb470a（Newton）；6c3489bae894d6e058d6a5b89cba9758e772bedd（相容耦合及CUDA复现入口）
+本文及原始证据随后单独提交；最终远端 HEAD 以 PR 读回为准。没有合并 PR，没有修改 README、生产库或原生产算例。
+三份 CPU ZIP 的 SHA256 及输入快照哈希见 evidence.zip 内 archive-verification.json、operator-inputs.json；使用同目录解压结果作为 CPU 对照，没有重做既有 CPU 研究。
+
+2. 数学与 CUDA 实现
+(1) Newton：common/gasWall/WallReferenceSolver.H、WallAcceptedHistory.H。
+冷启动执行一致 Picard；有效接受态历史直接进入 Newton，不再强制做整剖面端点 lift 或 warm Picard。历史仅在宏观步接受后提交；参考系变化转换速度、温度及组分坐标，法向变化使历史失效。
+保持原 maxnorm 绝对+相对停止容差 1.01e-8，以真实 L2 残差作全局化 merit。正常前向差分方向保留；无有效下降或 alpha <= sqrt(eps) 时，同次 Newton 内使用更准确的中心差分物理变量列，组分列保持可行单边处理。仍以真实残差接受更新，不用“返回成功”替代收敛判据。
+CUDA 每 warp 一列，工作区在有界池中复用；接受态和候选态分别存储。最终残差、迭代、残差评价、Jacobian、中心方向和历史使用均有累积计数。
+
+(2) 相容耦合：common/gasWall/reconstruction/、common/gasTransport/GasConservativeWall.H、private_backend/ConservativeWallProjection.cuh。
+在两单元完整控制体上，一次参考 BVP 表示参考结构；三角保守矩重构表示实际宏观库存与非平衡扰动。PB 是未拟合参考的积分投影。唯一共享面通量为
+  F = Riemann(Q) - Riemann(PB) + F_reference,inviscid + F_reconstructed,diffusive。
+PB 使用独立状态、梯度、限制器和边界缓冲区，不能覆盖实际 Q。最终唯一质量通量携带 k、omega 和组分，组分通量改变同步补偿焓通量；形成焓、绝对速度应力功及 ALE 通量使用一致参考系。相邻单元以相反贡献消费同一面数组。
+SST 源直接积分真实物理表达，没有用通量差制造平衡。首层 omega 保留代数中心代表值；第二层 omega 按有限体积方程推进。首层奇异壁面 omega 不解释成有限体积平均值。覆盖单元不再重复计算旧 SST 源，覆盖面不再重复计算旧标量闭合。
+完整覆盖选择只接受无重叠的两单元棱柱列；排除 donor 同时为另一壁面 owner 的情形。当前新重构为两组分实现。其他组分数、非匹配几何继续使用原耦合及新的 Newton 求解器，未关闭原能力。
+严格零组分库存与仍含该组分的连续非负参考剖面不相容时，本阶段整列退回现有有限体积路径。PB 替换、气体面、SST 面和体积源共用 active 标志，避免混用新旧算子；不抬高组分下限、不停算、不修改原停止容差。纯 Air 的共同缺失组分不会触发。
+
+3. CPU→CUDA 定向验证
+五个有效失败快照的 CPU 移植版与交付最终 HistoryReference 实现逐项一致；五次 Newton 迭代数为 5、5、5、3、7。l2-last 快照实际进入一次中心方向，38 次残差评价，最终残差约 3.2e-11。
+CUDA 共 11 个参考求解：普通/近零 k × 24/48/128，加五个真实历史快照，全部满足原容差；CPU/GPU 迭代数及残差评价数一致，剖面最大相对差约 1.03e-13。
+8 个重构算子案例（24/128、纯气/混合物、吹出 0/.01，含移动壁面+速度平移及非零网格法向速度）比较 155 项库存、剖面、梯度、通量及源；最大相对差见 operator-profile.csv。另四个严格零库存反例均进入整体 fallback。
+reference 与 profile 的 memcheck/racecheck/synccheck 全通过；strict-zero 后对 profile 三项重跑。完整应用检查结果见下节。独立审查发现并修复的其他问题：普通无黏壁面分支残留 species flux；ALE k 预算遗漏绝对散度及旧体积；warp 内非统一 fatal 退出；角点 donor 重叠。
+
+4. 实际二维结果（相同输入和物理时刻）
+final-24-4us: solves=13440, failures=0, Newton=23350, residual evaluations=50267, Jacobians=23350, central=0, history=12768, max residual=1.008002331e-08, max moment=9.176e-16, fallback=0。
+final-128-4us: solves=13440, failures=0, Newton=22440, residual evaluations=49871, Jacobians=22441, central=1, history=12768, max residual=1.009885289e-08, max moment=1.832e-15, fallback=0。
+final-24-50us: solves=168000, failures=0, Newton=275663, residual evaluations=612697, Jacobians=275664, central=1, history=167328, max residual=1.009979495e-08, max moment=1.475e-15, fallback=0。
+final-half-50us: solves=336000, failures=0, Newton=510511, residual evaluations=1183685, Jacobians=510514, central=3, history=335328, max residual=1.009834707e-08, max moment=1.098e-15, fallback=0。
+24/128 各20步与最终CPU回归全域最大差：U 3.89e-11 m/s、k 7.37e-11、omega 4.08e-7 s^-1；p 的最大差1.62e-6 Pa。50us/半dt 对照交付CPU长算：U 最大差2.46e-6/4.32e-6 m/s，omega 最大差 .0149/.0201 s^-1。长算CPU证据使用其当时版本，不能把这一差异表述为逐位一致；最终20步对照使用最终接受态/中心方向实现。
+Euler 全域积分缺陷（实际更新 − dt×实际面通量/源）：质量 −7.48e-23；x动量 4.30e-21；能量 −1.91e-15；k 2.78e-22；排除代数首层后的 omega 6.22e-19。最大单元能量缺陷1.53e-18。Air质量同总质量，CO2为严格0。
+完整应用2步 memcheck/racecheck/synccheck：退出0，0 errors / 0 hazards。初始 Picard 的 accuracy warning 是预测器诊断，最终 Newton 判据由上面的真实残差独立核查。
+同输入50us：x(m) | U旧→新(m/s) | tau旧→新(Pa) | k旧→新 | omega旧→新(1/s)
+0.348802 | 100.775900→97.806046 | 71.639491→66.839363 | 148.323092→124.332740 | 500038.968→503711.122
+0.379258 | 99.985430→96.967441 | 70.635764→66.022871 | 146.179033→122.373691 | 496553.973→500853.860
+0.580872 | 96.172535→93.022954 | 65.974809→62.131825 | 136.205805→113.666438 | 480347.979→487016.173
+0.749570 | 94.076933→90.906197 | 63.499428→59.953101 | 130.898735→109.318246 | 471738.595→479241.574
+0.849375 | 93.092667→89.923125 | 62.358464→58.935598 | 128.452228→107.368252 | 467762.844→475575.448
+五站半时间步剪切最大差 0.00121637 Pa；速度最大差 0.00040172 m/s。
+50 us 仍是瞬态。本轮证据确认 CPU→CUDA 一致、真实残差收敛及离散守恒，不等同于证明最终稳态工程精度。
+五站剖面图见 five-station-profiles.png，完整法向数据见 profiles.csv，站点汇总及新旧对照见 stations.csv。实际重构壁面剪切来自 wall-work.csv / 最终通量；常规 uniform/gasBoundaryLayer.csv 保留的是参考 BVP 输出，不能混为同一个剪切量。
+
+5. 性能、存储与数值精度成本
+新旧闭合不同，下列整步对比不是同等精度加速比；相同积分/矩精度的优化收益由固定输入配对另行给出。
+配对旧版50us：0.278158 s/步；最终24节点50us：0.299952 s/步（+7.84%）；半dt 0.293401 s/步；24/128节点20步：0.298006/1.421508 s/步。均剔除启动，以相同工具链、输入和GPU记录；设备状态见各run.json。没有将并发GPU任务混入这些端到端计时。
+Nsight 20步共40个阶段：重构65.7% GPU核时间，BVP30.8%；剔除前两次冷调用后，单阶段平均重构102.276ms、BVP40.890ms、共享面组合0.325ms。重构是后续优化首要对象；优先减少同一采样点的重复物性/导数求值及改善访存，不能仅增加Newton容差。
+BVP warp核寄存器80→255、栈8576→12496 B；重构核128寄存器、4544 B栈。新增全局工作区与寄存器成本真实存在，不能宣称资源零回退。
+固定 336 输入、同 GPU 的重构 fit+source 配对：24 节点 566.567→191.051 ms；128 节点 4304.98→2087.61 ms。此为独立 fmad=false 核函数测试，不能当完整每步加速比。
+24/48/128 工作区分别为 27072/54144/144384 B；新增 Newton best scratch 为 1152/2304/6144 B 每 worker。重构 quadrature scratch 为 155648 B 每 worker；双份历史为 2×节点数×6×8 B 每 wall，另加 frame/stats。WallOutput 仍为 3368 B。实际寄存器与局部存储、核函数时间见 resource-usage.txt、nsys CSV。
+将 BVP 和重构拆为两个有界池核函数，避免组合内联导致编译资源暴涨；重构采样和积分由 warp 协作复用。尝试共享非内联 WorkView 辅助函数触发 CUDA 编译器崩溃，已撤回，没有进入交付。
+内部各 Newton 子步骤尚未分别安装侵入式 GPU clock 计时；提供实际残差/Jacobian 工作次数及 Nsight 核函数阶段时间，不把 CPU 线程时间冒充 GPU 时间。
+
+6. 复用的精度证据与仍有的限制
+交付 CPU 制造解宏观加密 32→64→128：速度误差 .014085→.003325→.000848；剪切 .002076→.001174→.000623 Pa。独立 1024 节点同 SST 参考下，24/48/128/256/512 的 k 源相对误差为 1.224/.3613/.06584/.01616/.002992。24 节点动态回归便宜，但不是源项高精度验收。原 CPU 网格/半时间步研究直接复用，本轮没有把不同初始 OF 场的差异冒充空间收敛率。
+wallFunction 原成果保留；本轮没有改写它或重新宣称其热流验收通过。reactingSst 已有动态 CUDA 实现与短程证据，近稳态、共同精确解下的宏观网格收敛仍需独立验收。平板原案例以外的曲面、任意多组分数量及完整移动网格案例未作本轮全应用验证，有限吹出、两组分及参考系不变性只作算子覆盖。
+严格零库存的过渡列暂用整列 fallback；要让这类列仍保持重构，需要零库存兼容的端点/分片表示。热流按用户决定不作为本轮阻断项；保留敏感大数相减及内部应力功离散问题的独立审查边界。
+既有壁层测试全扫结果为 987 通过、32 失败；32 项均在起始 HEAD 重现。ALE 组另两项失败亦在基线重现。新增定向测试通过；没有将已有测试失败静默删除或宣称全库测试全绿。原始日志列入证据。这轮广扫发生在5cf7c622及中间工作树，属于历史复用证据；最终6c3489ba的四项定向回归另行重跑，4通过。
+
+7. 复现
+依赖：OF10、CUDA 13.1、C++17、Python3/numpy/pytest，测试 GPU RTX4060 Laptop sm_89。构建使用 UGKWP_GAS_SPECIES=2、GAS_UGKP_FMAD=1；独立精确对照 fmad=false。
+构建：source /opt/openfoam10/etc/bashrc；设置 FOAM_USER_APPBIN=$RUNTIME/bin、FOAM_USER_LIBBIN=$RUNTIME/lib、CUDA_HOME=/usr/local/cuda-13.1、UGKWP_CUDA_ARCH=sm_89、UGKWP_GAS_SPECIES=2、GAS_UGKP_FMAD=1，然后 bash tool/gasUGKP/build_private_backend.sh。完整环境命令见证据 commands/build_reference21.sh。
+三个 ZIP 解压到同一 $ARCHIVE 后，在仓库根运行：
+  python3 validation/cuda/wall_coupling/reproduce.py --archive "$ARCHIVE" --output "$OUT/operators" --cuda /usr/local/cuda-13.1 --sanitize
+  python3 validation/cuda/wall_coupling/prepare_case.py --archive "$ARCHIVE" --output "$OUT/case24" --nodes 24 --duration 5e-5
+  python3 validation/cuda/wall_coupling/run_case.py --case "$OUT/case24" --runtime "$RUNTIME" --output "$OUT/audit24"
+  python3 validation/cuda/wall_coupling/compare_case.py --case "$OUT/case24" --cpu "$ARCHIVE/complete-coupling/twod/mass-consistent50us" --audit "$OUT/audit24" --output "$OUT/comparison.json"
+48/128 用 --nodes；半 dt 用 --dt 1e-7；Euler 收支用 --integrator Euler --duration 2e-7，再运行 audit_euler.py。run_case.py --sanitize memcheck/racecheck/synccheck 可检查整个子进程树。构建和本次原始命令见 evidence。
+
+证据封装：evidence.zip 的 manifest.json 给出每个成员的 SHA256 与源码归属；final-build-source.json 的全部源文件逐个核对了6c3489ba的Git blob。run.json保留执行时HEAD（当时源码尚未提交），verified_source_commit记录经内容核验后的归属。
+
+合并建议：维持 PR22 草稿，提交可运行 CUDA 实现供审查。可以按独立提交审查 Newton 修复与耦合实现；不把短程相容性验证表述为最终工程稳态验收。远端合并由用户确认。

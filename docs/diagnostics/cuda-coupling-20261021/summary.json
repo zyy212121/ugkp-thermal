@@ -1,0 +1,627 @@
+{
+  "source_commit": "6c3489bae894d6e058d6a5b89cba9758e772bedd",
+  "solver_commit": "5cf7c622522dce4cec4fb6c9f50d95d9adcb470a",
+  "baseline_head": "dd7f251f54211ddab64a82378150c45f97457e32",
+  "baseline_binary_source": "b161fa69c8e590244e5236519f0cbd92f7f91c5b",
+  "source_files_verified_against_commit": 274,
+  "binaries": {
+    "gasUGKP": "17c98d7c50606390257b37a762bbca1f45f26e6d406d7f80ad4883658b49fda6",
+    "gasUGKPCudaBackend": "e9eed77e2163243da8e20b6b2d8ae46ecfefbb894640b4c5628b465c890b7375"
+  },
+  "runs": {
+    "final-24-4us": {
+      "time": 3.999999999999998e-06,
+      "fields": {
+        "U": {
+          "max_abs": 3.885247679136228e-11,
+          "max_relative": 2.4143378322369123e-13,
+          "worst_cell": 4832
+        },
+        "T": {
+          "max_abs": 3.325340003357269e-09,
+          "max_relative": 1.2052001918009346e-11,
+          "worst_cell": 4833
+        },
+        "p": {
+          "max_abs": 1.6134436009451747e-06,
+          "max_relative": 1.3000619954775759e-11,
+          "worst_cell": 4833
+        },
+        "rho": {
+          "max_abs": 1.4863665853681596e-12,
+          "max_relative": 9.485727040523738e-13,
+          "worst_cell": 4833
+        },
+        "rhoE": {
+          "max_abs": 4.454050213098526e-07,
+          "max_relative": 1.3272553370063996e-12,
+          "worst_cell": 4833
+        },
+        "k": {
+          "max_abs": 6.602363100682851e-11,
+          "max_relative": 5.528500920334967e-13,
+          "worst_cell": 7957
+        },
+        "omega": {
+          "max_abs": 1.3434328138828278e-07,
+          "max_relative": 7.254870887279123e-13,
+          "worst_cell": 7758
+        }
+      },
+      "reference_final": {
+        "max_residual": 5.966010013702042e-09,
+        "failed": 0
+      },
+      "work": {
+        "solves": 13440,
+        "failures": 0,
+        "iterations": 23350,
+        "residuals": 50267,
+        "jacobians": 23350,
+        "central": 0,
+        "history": 12768,
+        "fallbacks": 0,
+        "max_residual": 1.0080023310588404e-08,
+        "max_moment_residual": 9.17614590395886e-16,
+        "active": 336
+      },
+      "stations": [
+        {
+          "cell": 90,
+          "U": 101.37232079963358,
+          "T": 286.73444335116517,
+          "p": 124218.61799102342,
+          "rho": 1.5092086204329611,
+          "rhoE": 318301.1210457514,
+          "k": 140.0402020237929,
+          "omega": 507478.47374920815,
+          "tractionX": 70.0302628867143,
+          "ownerSourceK": -540296.5952157899,
+          "donorSourceK": -1873475.2138123086,
+          "donorSourceOmega": -2313625316.3485847
+        },
+        {
+          "cell": 7684,
+          "U": 100.55994214280796,
+          "T": 286.79470348052763,
+          "p": 124215.71298157777,
+          "rho": 1.5088562243583399,
+          "rhoE": 318168.2873448337,
+          "k": 138.17786775503868,
+          "omega": 504139.6464029497,
+          "tractionX": 69.09722492675951,
+          "ownerSourceK": -521824.7067949844,
+          "donorSourceK": -1846932.6847379785,
+          "donorSourceOmega": -2279573799.828047
+        },
+        {
+          "cell": 7782,
+          "U": 96.67406703907149,
+          "T": 287.07768688132063,
+          "p": 124201.76004804435,
+          "rho": 1.5071995672503147,
+          "rhoE": 317547.4496942563,
+          "k": 129.33110646937897,
+          "omega": 488467.1352550978,
+          "tractionX": 64.73231639814553,
+          "ownerSourceK": -443713.7770018816,
+          "donorSourceK": -1710509.9744095013,
+          "donorSourceOmega": -2122390496.721442
+        },
+        {
+          "cell": 7864,
+          "U": 94.54379302581204,
+          "T": 287.2289908481444,
+          "p": 124194.67450760059,
+          "rho": 1.50631967951177,
+          "rhoE": 317218.82720649673,
+          "k": 124.55571770475755,
+          "omega": 479888.89406868664,
+          "tractionX": 62.34378473081302,
+          "ownerSourceK": -400865.8402984258,
+          "donorSourceK": -1634053.899143853,
+          "donorSourceOmega": -2041678977.2210982
+        },
+        {
+          "cell": 23080,
+          "U": 93.54559740717951,
+          "T": 287.2989312077558,
+          "p": 124190.82629787047,
+          "rho": 1.505906317024492,
+          "rhoE": 317065.9922980727,
+          "k": 122.33790698482905,
+          "omega": 475847.76821230224,
+          "tractionX": 61.21786285594324,
+          "ownerSourceK": -380897.18335812626,
+          "donorSourceK": -1598165.1195990092,
+          "donorSourceOmega": -2005029831.9060576
+        }
+      ],
+      "seconds_per_step": 0.29800574350520037
+    },
+    "final-128-4us": {
+      "time": 3.999999999999998e-06,
+      "fields": {
+        "U": {
+          "max_abs": 3.885247679136228e-11,
+          "max_relative": 2.573951626439376e-13,
+          "worst_cell": 4832
+        },
+        "T": {
+          "max_abs": 3.325340003357269e-09,
+          "max_relative": 1.2052001918009346e-11,
+          "worst_cell": 4833
+        },
+        "p": {
+          "max_abs": 1.6134436009451747e-06,
+          "max_relative": 1.3000619954775759e-11,
+          "worst_cell": 4833
+        },
+        "rho": {
+          "max_abs": 1.4863665853681596e-12,
+          "max_relative": 9.485727040523738e-13,
+          "worst_cell": 4833
+        },
+        "rhoE": {
+          "max_abs": 4.454050213098526e-07,
+          "max_relative": 1.3272553370063996e-12,
+          "worst_cell": 4833
+        },
+        "k": {
+          "max_abs": 7.361222742474638e-11,
+          "max_relative": 5.528500920334967e-13,
+          "worst_cell": 10
+        },
+        "omega": {
+          "max_abs": 4.076864570379257e-07,
+          "max_relative": 1.133495015019015e-12,
+          "worst_cell": 106
+        }
+      },
+      "reference_final": {
+        "max_residual": 8.875585999094738e-09,
+        "failed": 0
+      },
+      "work": {
+        "solves": 13440,
+        "failures": 0,
+        "iterations": 22440,
+        "residuals": 49871,
+        "jacobians": 22441,
+        "central": 1,
+        "history": 12768,
+        "fallbacks": 0,
+        "max_residual": 1.0098852894005352e-08,
+        "max_moment_residual": 1.83247547469163e-15,
+        "active": 336
+      },
+      "stations": [
+        {
+          "cell": 90,
+          "U": 101.43276643837372,
+          "T": 286.7280537198806,
+          "p": 124218.3020976162,
+          "rho": 1.5092384145334476,
+          "rhoE": 318309.7350317087,
+          "k": 141.2901550071949,
+          "omega": 495092.1995021457,
+          "tractionX": 68.8848880635147,
+          "ownerSourceK": 170473.81990771194,
+          "donorSourceK": -1875364.813970369,
+          "donorSourceOmega": -2302337923.790311
+        },
+        {
+          "cell": 7684,
+          "U": 100.61978431285881,
+          "T": 286.7884326512549,
+          "p": 124215.4035712099,
+          "rho": 1.5088854580431994,
+          "rhoE": 318176.74438241415,
+          "k": 139.37891492113093,
+          "omega": 491796.21343835606,
+          "tractionX": 67.95806776286138,
+          "ownerSourceK": 165906.42852843166,
+          "donorSourceK": -1848716.372595185,
+          "donorSourceOmega": -2268199943.661747
+        },
+        {
+          "cell": 7782,
+          "U": 96.7313546594544,
+          "T": 287.0719878483755,
+          "p": 124201.56074551879,
+          "rho": 1.5072270699931676,
+          "rhoE": 317555.4297881748,
+          "k": 130.32509528181842,
+          "omega": 476308.74892821314,
+          "tractionX": 63.606372017796474,
+          "ownerSourceK": 144787.9115133104,
+          "donorSourceK": -1711994.618139368,
+          "donorSourceOmega": -2110892635.1733892
+        },
+        {
+          "cell": 7864,
+          "U": 94.59872351721098,
+          "T": 287.22365643891806,
+          "p": 124194.4866241753,
+          "rho": 1.506345376536996,
+          "rhoE": 317226.2975685914,
+          "k": 125.4445285766026,
+          "omega": 467975.6503476944,
+          "tractionX": 61.2767504001578,
+          "ownerSourceK": 134720.7528608402,
+          "donorSourceK": -1635105.3091436112,
+          "donorSourceOmega": -2030309068.8980236
+        },
+        {
+          "cell": 23080,
+          "U": 93.59906524551434,
+          "T": 287.2937996103308,
+          "p": 124190.64666626527,
+          "rho": 1.5059310370842893,
+          "rhoE": 317073.1857095879,
+          "k": 123.17911225510751,
+          "omega": 464109.2490021097,
+          "tractionX": 60.199886700027186,
+          "ownerSourceK": 129981.42354895615,
+          "donorSourceK": -1598955.5343537135,
+          "donorSourceOmega": -1993809086.6611254
+        }
+      ],
+      "seconds_per_step": 1.4215076094988035
+    },
+    "final-24-50us": {
+      "time": 4.9999999999999914e-05,
+      "fields": {
+        "U": {
+          "max_abs": 2.453408313840555e-06,
+          "max_relative": 2.012551678530487e-08,
+          "worst_cell": 8130
+        },
+        "T": {
+          "max_abs": 3.792160669036093e-06,
+          "max_relative": 1.337722603371302e-08,
+          "worst_cell": 8165
+        },
+        "p": {
+          "max_abs": 0.006057472914108075,
+          "max_relative": 4.881734085999858e-08,
+          "worst_cell": 8165
+        },
+        "rho": {
+          "max_abs": 5.404235436934357e-08,
+          "max_relative": 3.5440114359907365e-08,
+          "worst_cell": 8165
+        },
+        "rhoE": {
+          "max_abs": 0.015792433579917997,
+          "max_relative": 4.8939882602647473e-08,
+          "worst_cell": 8165
+        },
+        "k": {
+          "max_abs": 9.128298557925518e-06,
+          "max_relative": 7.500613562455645e-08,
+          "worst_cell": 7967
+        },
+        "omega": {
+          "max_abs": 0.014884867414366454,
+          "max_relative": 9.468759043417199e-08,
+          "worst_cell": 7967
+        }
+      },
+      "reference_final": {
+        "max_residual": 9.805253747431301e-09,
+        "failed": 0
+      },
+      "work": {
+        "solves": 168000,
+        "failures": 0,
+        "iterations": 275663,
+        "residuals": 612697,
+        "jacobians": 275664,
+        "central": 1,
+        "history": 167328,
+        "fallbacks": 0,
+        "max_residual": 1.0099794946978506e-08,
+        "max_moment_residual": 1.4746705293546878e-15,
+        "active": 336
+      },
+      "stations": [
+        {
+          "cell": 90,
+          "U": 97.80604618520255,
+          "T": 286.8441090096704,
+          "p": 124237.89573233557,
+          "rho": 1.5088657504776117,
+          "rhoE": 317811.6615918832,
+          "k": 124.33273959704972,
+          "omega": 503711.1221688022,
+          "tractionX": 66.83936289986646,
+          "ownerSourceK": -250079.86841767697,
+          "donorSourceK": -404621.6264697927,
+          "donorSourceOmega": -886321874.3506155
+        },
+        {
+          "cell": 7684,
+          "U": 96.96744065973498,
+          "T": 286.9128497478916,
+          "p": 124240.05539859844,
+          "rho": 1.5085304678758256,
+          "rhoE": 317692.25656028476,
+          "k": 122.37369085085831,
+          "omega": 500853.86003079126,
+          "tractionX": 66.02287103927515,
+          "ownerSourceK": -277783.35582250694,
+          "donorSourceK": -411999.4124509097,
+          "donorSourceOmega": -908298545.3348267
+        },
+        {
+          "cell": 7782,
+          "U": 93.02295382343813,
+          "T": 287.2149769532075,
+          "p": 124232.53609595002,
+          "rho": 1.5068524105659455,
+          "rhoE": 317100.94057272293,
+          "k": 113.6664384436583,
+          "omega": 487016.17276715074,
+          "tractionX": 62.13182502989233,
+          "ownerSourceK": -374771.2466662116,
+          "donorSourceK": -413269.32657231914,
+          "donorSourceOmega": -960044686.0615005
+        },
+        {
+          "cell": 7864,
+          "U": 90.90619695302529,
+          "T": 287.3697042801395,
+          "p": 124226.65397350218,
+          "rho": 1.5059697744634393,
+          "rhoE": 316789.2543772713,
+          "k": 109.31824587286803,
+          "omega": 479241.57371480716,
+          "tractionX": 59.9531014400602,
+          "ownerSourceK": -400925.0496436032,
+          "donorSourceK": -408262.207802039,
+          "donorSourceOmega": -977075985.2813907
+        },
+        {
+          "cell": 23080,
+          "U": 89.92312473258751,
+          "T": 287.4403065320453,
+          "p": 124223.50330678836,
+          "rho": 1.5055616866785475,
+          "rhoE": 316645.8709312671,
+          "k": 107.36825236304034,
+          "omega": 475575.4484218527,
+          "tractionX": 58.935597727843906,
+          "ownerSourceK": -407361.6909191957,
+          "donorSourceK": -404915.50811322796,
+          "donorSourceOmega": -981926399.5611902
+        }
+      ],
+      "seconds_per_step": 0.29995198000688106
+    },
+    "final-half-50us": {
+      "time": 5.0000000000000375e-05,
+      "fields": {
+        "U": {
+          "max_abs": 4.312828735919538e-06,
+          "max_relative": 3.5640877930793274e-08,
+          "worst_cell": 7935
+        },
+        "T": {
+          "max_abs": 5.431554939150374e-06,
+          "max_relative": 1.909138330942877e-08,
+          "worst_cell": 7956
+        },
+        "p": {
+          "max_abs": 0.008326087714522146,
+          "max_relative": 6.70918632064117e-08,
+          "worst_cell": 7956
+        },
+        "rho": {
+          "max_abs": 7.294111048494756e-08,
+          "max_relative": 4.800047913616073e-08,
+          "worst_cell": 7956
+        },
+        "rhoE": {
+          "max_abs": 0.02092529577203095,
+          "max_relative": 6.514678740914088e-08,
+          "worst_cell": 7956
+        },
+        "k": {
+          "max_abs": 1.1300684803927652e-05,
+          "max_relative": 9.234172747819316e-08,
+          "worst_cell": 7955
+        },
+        "omega": {
+          "max_abs": 0.020063830685103312,
+          "max_relative": 1.270919484846398e-07,
+          "worst_cell": 7955
+        }
+      },
+      "reference_final": {
+        "max_residual": 2.3449467966199536e-09,
+        "failed": 0
+      },
+      "work": {
+        "solves": 336000,
+        "failures": 0,
+        "iterations": 510511,
+        "residuals": 1183685,
+        "jacobians": 510514,
+        "central": 3,
+        "history": 335328,
+        "fallbacks": 0,
+        "max_residual": 1.009834706624423e-08,
+        "max_moment_residual": 1.098106918663335e-15,
+        "active": 336
+      },
+      "stations": [
+        {
+          "cell": 90,
+          "U": 97.80606335451569,
+          "T": 286.8454086925978,
+          "p": 124239.82504857701,
+          "rho": 1.508882345263876,
+          "rhoE": 317816.56656882877,
+          "k": 124.33172415327098,
+          "omega": 503711.9283487699,
+          "tractionX": 66.83814653190899,
+          "ownerSourceK": -250752.54979263566,
+          "donorSourceK": -408343.2943361929,
+          "donorSourceOmega": -889858069.3145683
+        },
+        {
+          "cell": 7684,
+          "U": 96.96784238168011,
+          "T": 286.9109928005063,
+          "p": 124237.45884999403,
+          "rho": 1.5085087037390879,
+          "rhoE": 317685.7217303808,
+          "k": 122.37590831675261,
+          "omega": 500852.5276415178,
+          "tractionX": 66.02378744634173,
+          "ownerSourceK": -279407.09880044597,
+          "donorSourceK": -407646.79261524114,
+          "donorSourceOmega": -904871629.7373065
+        },
+        {
+          "cell": 7782,
+          "U": 93.02315158286754,
+          "T": 287.2146098097915,
+          "p": 124232.25890988107,
+          "rho": 1.5068509746851324,
+          "rhoE": 317100.2691151972,
+          "k": 113.66481283889826,
+          "omega": 487019.622871614,
+          "tractionX": 62.13229997518132,
+          "ownerSourceK": -375076.1432435158,
+          "donorSourceK": -414644.11989546916,
+          "donorSourceOmega": -960839947.7962434
+        },
+        {
+          "cell": 7864,
+          "U": 90.90601858412171,
+          "T": 287.36966403559126,
+          "p": 124226.66069621341,
+          "rho": 1.5059700668640805,
+          "rhoE": 316789.2479705639,
+          "k": 109.31845177130472,
+          "omega": 479241.6280061783,
+          "tractionX": 59.9531116483159,
+          "ownerSourceK": -400929.81852128165,
+          "donorSourceK": -408254.106153951,
+          "donorSourceOmega": -977105227.7054917
+        },
+        {
+          "cell": 23080,
+          "U": 89.92316895335088,
+          "T": 287.44028139124237,
+          "p": 124223.51784804188,
+          "rho": 1.505561994598483,
+          "rhoE": 316645.91451528436,
+          "k": 107.36835514468444,
+          "omega": 475576.0685125134,
+          "tractionX": 58.93574584713266,
+          "ownerSourceK": -407359.9662791082,
+          "donorSourceK": -404932.6395406929,
+          "donorSourceOmega": -981935817.4302924
+        }
+      ],
+      "seconds_per_step": 0.29340110201155767
+    }
+  },
+  "euler_budget": {
+    "mass": {
+      "max_cell_inventory_defect": 1.2906521715884765e-24,
+      "sum_inventory_defect": -7.483539145462065e-23,
+      "sum_actual_change": -3.968394332995034e-10,
+      "sum_flux_and_source_change": -3.9683943329942855e-10,
+      "owner_omega_excluded": false
+    },
+    "momentumX": {
+      "max_cell_inventory_defect": 3.272242492728815e-22,
+      "sum_inventory_defect": 4.3024815839881276e-21,
+      "sum_actual_change": -7.21639076869971e-08,
+      "sum_flux_and_source_change": -7.216390768700143e-08,
+      "owner_omega_excluded": false
+    },
+    "momentumY": {
+      "max_cell_inventory_defect": 8.271806125530277e-24,
+      "sum_inventory_defect": -2.0287585195785498e-22,
+      "sum_actual_change": -1.8909635723331646e-07,
+      "sum_flux_and_source_change": -1.890963572333163e-07,
+      "owner_omega_excluded": false
+    },
+    "momentumZ": {
+      "max_cell_inventory_defect": 1.1134282490988707e-34,
+      "sum_inventory_defect": -3.516635140966931e-34,
+      "sum_actual_change": -7.918529654113155e-21,
+      "sum_flux_and_source_change": -7.918529654112791e-21,
+      "owner_omega_excluded": false
+    },
+    "energy": {
+      "max_cell_inventory_defect": 1.5267504176462747e-18,
+      "sum_inventory_defect": -1.9140629381949127e-15,
+      "sum_actual_change": -0.00011659689782521061,
+      "sum_flux_and_source_change": -0.00011659689782329655,
+      "owner_omega_excluded": false
+    },
+    "rhoK": {
+      "max_cell_inventory_defect": 4.3323584582464824e-23,
+      "sum_inventory_defect": 2.7806768440884177e-22,
+      "sum_actual_change": -1.0625986173044868e-07,
+      "sum_flux_and_source_change": -1.0625986173044896e-07,
+      "owner_omega_excluded": false
+    },
+    "rhoOmega": {
+      "max_cell_inventory_defect": 8.279747059410786e-20,
+      "sum_inventory_defect": 6.223968997778006e-19,
+      "sum_actual_change": 2.115664427354859e-05,
+      "sum_flux_and_source_change": 2.1156644273547946e-05,
+      "owner_omega_excluded": true
+    },
+    "speciesAir": {
+      "max_cell_inventory_defect": 1.2906521715884765e-24,
+      "sum_inventory_defect": -7.483539145462065e-23,
+      "sum_actual_change": -3.968394332995034e-10,
+      "sum_flux_and_source_change": -3.9683943329942855e-10,
+      "owner_omega_excluded": false
+    },
+    "speciesCO2": {
+      "max_cell_inventory_defect": 0.0,
+      "sum_inventory_defect": 0.0,
+      "sum_actual_change": 0.0,
+      "sum_flux_and_source_change": 0.0,
+      "owner_omega_excluded": false
+    }
+  },
+  "nsys": {
+    "reconstructConservativeWallPool": {
+      "calls": 40,
+      "warm_mean_ms": 102.27635368421052,
+      "warm_median_ms": 102.0416075,
+      "min_ms": 101.98105,
+      "max_ms": 110.089625
+    },
+    "evaluateGasBoundaryLayerTeamKernel": {
+      "calls": 40,
+      "warm_mean_ms": 40.88967321052631,
+      "warm_median_ms": 45.113309,
+      "min_ms": 29.052125,
+      "max_ms": 213.069425
+    },
+    "assembleConservativeWallFlux": {
+      "calls": 40,
+      "warm_mean_ms": 0.3247686052631579,
+      "warm_median_ms": 0.32560049999999996,
+      "min_ms": 0.319779,
+      "max_ms": 0.328357
+    }
+  },
+  "baseline_seconds_per_step": 0.2781578729918692,
+  "sanitizers": {
+    "memcheck": 0,
+    "racecheck": 0,
+    "synccheck": 0
+  }
+}
