@@ -1,0 +1,89 @@
+FFF.FF                                                                   [100%]
+=================================== FAILURES ===================================
+_ test_captured_profiles_reach_verified_residual_without_newton_stagnation[restart-24] _
+
+binary = PosixPath('/tmp/pytest-of-lss/pytest-186/seed-consistency0/probe')
+nodes = 24, tiny = False
+
+    @pytest.mark.parametrize("nodes",[24,48,128])
+    @pytest.mark.parametrize("tiny",[False,True],ids=["restart","tiny-k"])
+    def test_captured_profiles_reach_verified_residual_without_newton_stagnation(binary,nodes,tiny):
+        run=subprocess.run([str(binary),str(nodes),str(int(tiny))],capture_output=True,text=True)
+>       assert run.returncode==0,run.stdout+run.stderr
+E       AssertionError: probe: /tmp/pytest-of-lss/pytest-186/seed-consistency0/probe.cpp:25: int main(int, char**): Assertion `out.iterations<=5' failed.
+E
+E       assert -6 == 0
+E        +  where -6 = CompletedProcess(args=['/tmp/pytest-of-lss/pytest-186/seed-consistency0/probe', '24', '0'], returncode=-6, stdout='', ...test-of-lss/pytest-186/seed-consistency0/probe.cpp:25: int main(int, char**): Assertion `out.iterations<=5' failed.\n").returncode
+
+validation/tests/gas_wall/test_wall_seed_consistency.py:50: AssertionError
+_ test_captured_profiles_reach_verified_residual_without_newton_stagnation[restart-48] _
+
+binary = PosixPath('/tmp/pytest-of-lss/pytest-186/seed-consistency0/probe')
+nodes = 48, tiny = False
+
+    @pytest.mark.parametrize("nodes",[24,48,128])
+    @pytest.mark.parametrize("tiny",[False,True],ids=["restart","tiny-k"])
+    def test_captured_profiles_reach_verified_residual_without_newton_stagnation(binary,nodes,tiny):
+        run=subprocess.run([str(binary),str(nodes),str(int(tiny))],capture_output=True,text=True)
+>       assert run.returncode==0,run.stdout+run.stderr
+E       AssertionError: probe: /tmp/pytest-of-lss/pytest-186/seed-consistency0/probe.cpp:25: int main(int, char**): Assertion `out.iterations<=5' failed.
+E
+E       assert -6 == 0
+E        +  where -6 = CompletedProcess(args=['/tmp/pytest-of-lss/pytest-186/seed-consistency0/probe', '48', '0'], returncode=-6, stdout='', ...test-of-lss/pytest-186/seed-consistency0/probe.cpp:25: int main(int, char**): Assertion `out.iterations<=5' failed.\n").returncode
+
+validation/tests/gas_wall/test_wall_seed_consistency.py:50: AssertionError
+_ test_captured_profiles_reach_verified_residual_without_newton_stagnation[restart-128] _
+
+binary = PosixPath('/tmp/pytest-of-lss/pytest-186/seed-consistency0/probe')
+nodes = 128, tiny = False
+
+    @pytest.mark.parametrize("nodes",[24,48,128])
+    @pytest.mark.parametrize("tiny",[False,True],ids=["restart","tiny-k"])
+    def test_captured_profiles_reach_verified_residual_without_newton_stagnation(binary,nodes,tiny):
+        run=subprocess.run([str(binary),str(nodes),str(int(tiny))],capture_output=True,text=True)
+>       assert run.returncode==0,run.stdout+run.stderr
+E       AssertionError: probe: /tmp/pytest-of-lss/pytest-186/seed-consistency0/probe.cpp:25: int main(int, char**): Assertion `out.iterations<=5' failed.
+E
+E       assert -6 == 0
+E        +  where -6 = CompletedProcess(args=['/tmp/pytest-of-lss/pytest-186/seed-consistency0/probe', '128', '0'], returncode=-6, stdout='',...test-of-lss/pytest-186/seed-consistency0/probe.cpp:25: int main(int, char**): Assertion `out.iterations<=5' failed.\n").returncode
+
+validation/tests/gas_wall/test_wall_seed_consistency.py:50: AssertionError
+_ test_captured_profiles_reach_verified_residual_without_newton_stagnation[tiny-k-48] _
+
+binary = PosixPath('/tmp/pytest-of-lss/pytest-186/seed-consistency0/probe')
+nodes = 48, tiny = True
+
+    @pytest.mark.parametrize("nodes",[24,48,128])
+    @pytest.mark.parametrize("tiny",[False,True],ids=["restart","tiny-k"])
+    def test_captured_profiles_reach_verified_residual_without_newton_stagnation(binary,nodes,tiny):
+        run=subprocess.run([str(binary),str(nodes),str(int(tiny))],capture_output=True,text=True)
+>       assert run.returncode==0,run.stdout+run.stderr
+E       AssertionError: probe: /tmp/pytest-of-lss/pytest-186/seed-consistency0/probe.cpp:16: int main(int, char**): Assertion `out.residual<=c.absoluteTolerance+c.relativeTolerance' failed.
+E
+E       assert -6 == 0
+E        +  where -6 = CompletedProcess(args=['/tmp/pytest-of-lss/pytest-186/seed-consistency0/probe', '48', '1'], returncode=-6, stdout='', ...ncy0/probe.cpp:16: int main(int, char**): Assertion `out.residual<=c.absoluteTolerance+c.relativeTolerance' failed.\n").returncode
+
+validation/tests/gas_wall/test_wall_seed_consistency.py:50: AssertionError
+_ test_captured_profiles_reach_verified_residual_without_newton_stagnation[tiny-k-128] _
+
+binary = PosixPath('/tmp/pytest-of-lss/pytest-186/seed-consistency0/probe')
+nodes = 128, tiny = True
+
+    @pytest.mark.parametrize("nodes",[24,48,128])
+    @pytest.mark.parametrize("tiny",[False,True],ids=["restart","tiny-k"])
+    def test_captured_profiles_reach_verified_residual_without_newton_stagnation(binary,nodes,tiny):
+        run=subprocess.run([str(binary),str(nodes),str(int(tiny))],capture_output=True,text=True)
+>       assert run.returncode==0,run.stdout+run.stderr
+E       AssertionError: probe: /tmp/pytest-of-lss/pytest-186/seed-consistency0/probe.cpp:16: int main(int, char**): Assertion `out.residual<=c.absoluteTolerance+c.relativeTolerance' failed.
+E
+E       assert -6 == 0
+E        +  where -6 = CompletedProcess(args=['/tmp/pytest-of-lss/pytest-186/seed-consistency0/probe', '128', '1'], returncode=-6, stdout='',...ncy0/probe.cpp:16: int main(int, char**): Assertion `out.residual<=c.absoluteTolerance+c.relativeTolerance' failed.\n").returncode
+
+validation/tests/gas_wall/test_wall_seed_consistency.py:50: AssertionError
+=========================== short test summary info ============================
+FAILED validation/tests/gas_wall/test_wall_seed_consistency.py::test_captured_profiles_reach_verified_residual_without_newton_stagnation[restart-24]
+FAILED validation/tests/gas_wall/test_wall_seed_consistency.py::test_captured_profiles_reach_verified_residual_without_newton_stagnation[restart-48]
+FAILED validation/tests/gas_wall/test_wall_seed_consistency.py::test_captured_profiles_reach_verified_residual_without_newton_stagnation[restart-128]
+FAILED validation/tests/gas_wall/test_wall_seed_consistency.py::test_captured_profiles_reach_verified_residual_without_newton_stagnation[tiny-k-48]
+FAILED validation/tests/gas_wall/test_wall_seed_consistency.py::test_captured_profiles_reach_verified_residual_without_newton_stagnation[tiny-k-128]
+5 failed, 1 passed in 1.93s

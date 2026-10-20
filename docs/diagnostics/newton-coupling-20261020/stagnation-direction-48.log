@@ -1,0 +1,87 @@
+solved 1 norm 0.00025636229017121041
+linear_system_residual 5.5511151231257827e-17
+probe 1 valid 1 norm 0.17394594302224137 deriv_error 0.17394594302224137 at 27,5
+probe 0.5 valid 1 norm 0.065979953321590942 deriv_error 0.13204280344203401 at 27,5
+probe 0.1 valid 1 norm 0.013554005655043878 deriv_error 0.13628612774010801 at 27,5
+probe 0.01 valid 1 norm 0.0003474921748146065 deriv_error 0.027627140029958908 at 27,5
+probe 0.001 valid 1 norm 0.00025715251679127088 deriv_error 0.0033716847732446131 at 27,5
+probe 0.0001 valid 1 norm 0.00025634719793395252 deriv_error 0.00034345469746226793 at 27,5
+probe 1e-05 valid 1 norm 0.00025635982777613789 deriv_error 3.335200352628281e-05 at 27,5
+probe 1e-06 valid 1 norm 0.00025636203438781892 deriv_error 2.2675929490675693e-06 at 27,5
+probe 1e-07 valid 1 norm 0.00025636226449739951 deriv_error 8.4131475414790365e-07 at 27,5
+worst node 26
+point 25 y 7.208496806e-05 k 3.475796857e-14 omega 1221986.407 nut 2.844382587e-20 f1 0.2317727028 f2 0.6795840286 sourceO -1.093808838e+10 deltaK -9.984398255e-08 deltaZ 0.000312025337
+derivative j 25 col 0 rel 0.0001 prod -0.0134961400994 central -0.0134961407209
+derivative j 25 col 0 rel 1e-05 prod -0.0134961400994 central -0.0134961407208
+derivative j 25 col 0 rel 1e-06 prod -0.0134961400994 central -0.0134961407201
+derivative j 25 col 0 rel 1e-07 prod -0.0134961400994 central -0.0134961407146
+derivative j 25 col 1 rel 0.0001 prod 0 central 0
+derivative j 25 col 1 rel 1e-05 prod 0 central 0
+derivative j 25 col 1 rel 1e-06 prod 0 central 0
+derivative j 25 col 1 rel 1e-07 prod 0 central 0
+derivative j 25 col 2 rel 0.0001 prod 0 central 0
+derivative j 25 col 2 rel 1e-05 prod 0 central 0
+derivative j 25 col 2 rel 1e-06 prod 0 central 0
+derivative j 25 col 2 rel 1e-07 prod 0 central 0
+derivative j 25 col 3 rel 0.0001 prod 0 central 0
+derivative j 25 col 3 rel 1e-05 prod 0 central 0
+derivative j 25 col 3 rel 1e-06 prod 0 central 0
+derivative j 25 col 3 rel 1e-07 prod 0 central 0
+derivative j 25 col 4 rel 0.0001 prod -92768.4571956 central -92768.4792991
+derivative j 25 col 4 rel 1e-05 prod -92768.4571956 central -92768.4619813
+derivative j 25 col 4 rel 1e-06 prod -92768.4571956 central -92768.4618366
+derivative j 25 col 4 rel 1e-07 prod -92768.4571956 central -92768.4617489
+derivative j 25 col 5 rel 0.0001 prod 145.181285994 central 145.231954689
+derivative j 25 col 5 rel 1e-05 prod 145.181285994 central 145.180992207
+derivative j 25 col 5 rel 1e-06 prod 145.181285994 central 145.180482607
+derivative j 25 col 5 rel 1e-07 prod 145.181285994 central 145.18047739
+point 26 y 7.796710146e-05 k 1.632871782e-14 omega 1189578.209 nut 1.372647691e-20 f1 0.138554722 f2 0.5637065845 sourceO -6944016695 deltaK -2.992180248e-07 deltaZ 0.0003272302289
+derivative j 26 col 0 rel 0.0001 prod 0.000999358216215 central 0.000999358230667
+derivative j 26 col 0 rel 1e-05 prod 0.000999358216215 central 0.000999358230664
+derivative j 26 col 0 rel 1e-06 prod 0.000999358216215 central 0.000999358230625
+derivative j 26 col 0 rel 1e-07 prod 0.000999358216215 central 0.000999358232846
+derivative j 26 col 1 rel 0.0001 prod 0 central 0
+derivative j 26 col 1 rel 1e-05 prod 0 central 0
+derivative j 26 col 1 rel 1e-06 prod 0 central 0
+derivative j 26 col 1 rel 1e-07 prod 0 central 0
+derivative j 26 col 2 rel 0.0001 prod 5.98692124186e-06 central 5.98692122914e-06
+derivative j 26 col 2 rel 1e-05 prod 5.98692124186e-06 central 5.98692123371e-06
+derivative j 26 col 2 rel 1e-06 prod 5.98692124186e-06 central 5.98692118797e-06
+derivative j 26 col 2 rel 1e-07 prod 5.98692124186e-06 central 5.98692275633e-06
+derivative j 26 col 3 rel 0.0001 prod -0.000592899777985 central 0
+derivative j 26 col 3 rel 1e-05 prod -0.000592899777985 central 0
+derivative j 26 col 3 rel 1e-06 prod -0.000592899777985 central 0
+derivative j 26 col 3 rel 1e-07 prod -0.000592899777985 central 0
+derivative j 26 col 4 rel 0.0001 prod 120921.641318 central 120921.644466
+derivative j 26 col 4 rel 1e-05 prod 120921.641318 central 120921.636767
+derivative j 26 col 4 rel 1e-06 prod 120921.641318 central 120921.636713
+derivative j 26 col 4 rel 1e-07 prod 120921.641318 central 120921.636658
+derivative j 26 col 5 rel 0.0001 prod 662.609741277 central 662.609674701
+derivative j 26 col 5 rel 1e-05 prod 662.609741277 central 662.609708062
+derivative j 26 col 5 rel 1e-06 prod 662.609741277 central 662.609708346
+derivative j 26 col 5 rel 1e-07 prod 662.609741277 central 662.609708148
+point 27 y 8.407990675e-05 k 4.000994735e-15 omega 1174160.32 nut 3.407537e-21 f1 0.1261963393 f2 0.4494624014 sourceO -3217890489 deltaK -9.247468697e-07 deltaZ 0.0003311048547
+derivative j 27 col 0 rel 0.0001 prod 0.0124967831082 central 0.0124967824902
+derivative j 27 col 0 rel 1e-05 prod 0.0124967831082 central 0.0124967824903
+derivative j 27 col 0 rel 1e-06 prod 0.0124967831082 central 0.0124967824904
+derivative j 27 col 0 rel 1e-07 prod 0.0124967831082 central 0.0124967824871
+derivative j 27 col 1 rel 0.0001 prod 0 central 0
+derivative j 27 col 1 rel 1e-05 prod 0 central 0
+derivative j 27 col 1 rel 1e-06 prod 0 central 0
+derivative j 27 col 1 rel 1e-07 prod 0 central 0
+derivative j 27 col 2 rel 0.0001 prod 0 central 0
+derivative j 27 col 2 rel 1e-05 prod 0 central 0
+derivative j 27 col 2 rel 1e-06 prod 0 central 0
+derivative j 27 col 2 rel 1e-07 prod 0 central 0
+derivative j 27 col 3 rel 0.0001 prod 0 central 0
+derivative j 27 col 3 rel 1e-05 prod 0 central 0
+derivative j 27 col 3 rel 1e-06 prod 0 central 0
+derivative j 27 col 3 rel 1e-07 prod 0 central 0
+derivative j 27 col 4 rel 0.0001 prod 29143.7643449 central 29143.7725799
+derivative j 27 col 4 rel 1e-05 prod 29143.7643449 central 29143.7723279
+derivative j 27 col 4 rel 1e-06 prod 29143.7643449 central 29143.7722851
+derivative j 27 col 4 rel 1e-07 prod 29143.7643449 central 29143.7718189
+derivative j 27 col 5 rel 0.0001 prod -629.747250929 central -629.785953532
+derivative j 27 col 5 rel 1e-05 prod -629.747250929 central -629.748275018
+derivative j 27 col 5 rel 1e-06 prod -629.747250929 central -629.747898243
+derivative j 27 col 5 rel 1e-07 prod -629.747250929 central -629.747894383
