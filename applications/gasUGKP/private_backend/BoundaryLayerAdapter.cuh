@@ -121,6 +121,18 @@ try
     model.config.stretch=a.stretch;model.config.turbulentPrandtl=a.turbulentPrandtl;
     model.config.turbulentSchmidt=a.turbulentSchmidt;model.config.enableSst=s->hostTurbulenceModel==3;
     if(configureConservativeWallStorage(s,candidate,faces,geometry)){discardBoundaryLayerCandidate(s,candidate);return 1;}
+    // Keep legacy reference scratch intact. Coherent work is pooled, while
+    // factors and numerical continuation are owned by each physical wall.
+    if constexpr(ugkwp::compiledGasSpecies==2) {
+        if(model.conservative.enabled&&a.model==1) {
+            unsigned char* coherentScratch=nullptr;unsigned char* coherentState=nullptr;
+            rc|=allocateSharedGasZero(coherentScratch,std::size_t(model.workspaceCount)*ugkwp::gasCoherentWallScratchBytes(a.nodes));
+            rc|=allocateSharedGasZero(coherentState,std::size_t(a.wallCount)*ugkwp::gasCoherentWallStateBytes(a.nodes));
+            model.coherentScratch=coherentScratch;model.coherentState=coherentState;
+            if(rc){discardBoundaryLayerCandidate(s,candidate);return 1;}
+            model.coherentEnabled=true;
+        }
+    }
 
 
     if(releaseSharedGasTrialStorage(s->gasTrial)){discardBoundaryLayerCandidate(s,candidate);return 1;}

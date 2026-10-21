@@ -1,4 +1,5 @@
 #pragma once
+#include "gasTransport/GasConservativeMatching.H"
 // Separate primitive/gradient/limiter buffers for PB. No writes to Q while
 // evaluating its reference operator; shared geometry and property tables are
 // read-only.
@@ -40,7 +41,9 @@ __launch_bounds__(32) void reconstructConservativeWallPool(State *state) {
           w.state[i][j] = profile[i * 6 + j];
       }
       team.sync();
-      ugkwp::reconstructConservativeWall(s, slot, worker, in, m.config, w,
+      auto profileConfig=m.config;
+      profileConfig.coherentDiscretization=ugkwp::gasBoundaryLayerUsesCoherent(m,slot);
+      ugkwp::reconstructConservativeWall(s, slot, worker, in, profileConfig, w,
                                          m.output[slot], team);
     }
   }
@@ -151,6 +154,12 @@ __global__ void prepareConservativeWallMatching(State *state) {
   m.velocity[2] = p.uz;
   for (int j = 0; j < 2; ++j)
     m.massFraction[j] = y[j];
+  if constexpr (ugkwp::compiledGasSpecies == 2) {
+    if (ugkwp::gasBoundaryLayerUsesCoherent(s.gasBoundaryLayerModel, slot)) {
+      const auto physicalFace = riemannFacePrimitiveForGradient(s, c, f);
+      ugkwp::sampleConservativeWallThermocomposition(s, f, physicalFace.T, m);
+    }
+  }
   double weight = s.faceWeight[f];
   int a = s.faceOwner[f], b = s.faceNeighbour[f];
   m.k = weight * s.k[a] + (1 - weight) * s.k[b];

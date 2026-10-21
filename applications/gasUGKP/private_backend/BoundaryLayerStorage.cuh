@@ -31,6 +31,8 @@ template<class State> int releaseBoundaryLayerStorage(State& s)
     WALL_RELEASE(gasBoundaryLayerModel.conservative.projectedStatus);
     WALL_RELEASE(gasBoundaryLayerModel.conservative.projectedState);
     WALL_RELEASE(gasBoundaryLayerModel.referenceScratch);
+    WALL_RELEASE(gasBoundaryLayerModel.coherentScratch);
+    WALL_RELEASE(gasBoundaryLayerModel.coherentState);
     WALL_RELEASE(gasBoundaryLayerModel.acceptedHistory);WALL_RELEASE(gasBoundaryLayerModel.candidateHistory);
     WALL_RELEASE(gasBoundaryLayerModel.acceptedFrame);WALL_RELEASE(gasBoundaryLayerModel.candidateFrame);
     WALL_RELEASE(gasBoundaryLayerModel.referenceStats);
