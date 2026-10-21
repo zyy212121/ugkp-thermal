@@ -14,6 +14,15 @@ struct Stats {
   double physicalResidual=0,seconds=0;
 };
 
+// Numeric fixtures cross host toolchains. Keep the physical tolerance and all
+// discrete work counts exact, but allow accumulated FP64 roundoff in values.
+// On the unchanged WSL baseline, the cold root's state differs by 2.46e-14
+// relatively and its residual array by 6.12e-13 absolutely.
+static bool pinnedNear(double actual,double expected,double floor=1.) {
+  return std::isfinite(actual)&&std::isfinite(expected)&&
+      std::abs(actual-expected)<=1e-12*std::max(floor,std::abs(expected));
+}
+
 // Fresh-cache replay of the recorded failed terminal iterate, not a claim to
 // reconstruct the original pre-call warm-cache chronology.
 int main() {
@@ -61,16 +70,16 @@ int main() {
     assert(stats.iterations == expected.iterations);
     assert(stats.residualEvaluations == expected.residualEvaluations);
     assert(stats.factorizations == expected.factorizations);
-    assert(stats.physicalResidual == expected.residual);
-    assert(output.conductiveHeatFlux == expected.heat);
-    assert(output.traction[0] == expected.shear);
+    assert(pinnedNear(stats.physicalResidual, expected.residual));
+    assert(pinnedNear(output.conductiveHeatFlux, expected.heat));
+    assert(pinnedNear(output.traction[0], expected.shear));
     WallWorkspace<double, 2, 24> reference{};
     fixture.expectedRoot(expectedMode, reference);
     for (int i = 0; i < cfg.nodes; ++i) {
       assert(work.y[i] == reference.y[i]);
       for (int j = 0; j < 6; ++j) {
-        assert(work.state[i][j] == reference.state[i][j]);
-        assert(work.residual[i][j] == reference.residual[i][j]);
+        assert(pinnedNear(work.state[i][j], reference.state[i][j], 1e-8));
+        assert(pinnedNear(work.residual[i][j], reference.residual[i][j]));
       }
     }
   }

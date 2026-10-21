@@ -1,6 +1,7 @@
 """Matching-only common T/Y sampling; runnable with unittest or pytest."""
 from pathlib import Path
 import subprocess
+import shutil
 import ast
 import re
 import tempfile
@@ -24,6 +25,29 @@ class ConservativeMatchingPhysicalTrace(unittest.TestCase):
                 '-I'+str(HERE),str(src),'-o',str(exe)],capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stdout+result.stderr)
             result=subprocess.run([str(exe)],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
+    def test_production_dependency_precedes_anonymous_operator_scope(self):
+        # The backend includes model state globally, then operator bodies inside
+        # its anonymous namespace. A first include there must not create a
+        # nested ugkwp that shadows the real state/thermo namespace.
+        nvcc=shutil.which('nvcc')
+        if not nvcc:
+            self.skipTest('native CUDA compiler unavailable')
+        with tempfile.TemporaryDirectory() as tmp:
+            src=Path(tmp)/'namespace.cu'
+            src.write_text(r'''
+#include <cuda_runtime.h>
+#include "common/GpuGasOperatorDependencies.cuh"
+namespace {
+#include "common/gasTransport/GasConservativeMatching.H"
+using Matching=ugkwp::gaswall::WallMatchingState<double,2>;
+}
+int main() { return 0; }
+''')
+            result=subprocess.run([nvcc,'-std=c++17','-arch=sm_89',
+                '-I'+str(ROOT),'-I'+str(ROOT/'common'),'-c',str(src),
+                '-o',str(Path(tmp)/'namespace.o')],capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
     def test_hd_sampler_changes_only_temperature_and_each_species(self):

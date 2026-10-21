@@ -124,3 +124,6 @@ architectures. Both complete device computations stay on the GPU; CPU runs are
 validation oracles only. Existing legacy CUDA BVP tests remain separately named.
 The runner records source/binary hashes, commands, logs and explicit execution
 status. No speedup or GPU pass is claimed before user execution.
+
+
+后续本机原生 CUDA、整算例、守恒及效率验收见 [2026-10-22 报告](pr22-native-cuda-20261022/RESULTS.md)。本文的 UNRUN 状态保留为当时记录，最终结论以新报告及原始证据为准。

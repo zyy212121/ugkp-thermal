@@ -70,6 +70,7 @@
 #include "GpuCouplingMath.H"
 
 #include <algorithm>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
@@ -3924,6 +3925,36 @@ extern "C" int ugkwpGpuResidentStrictCreate
     {
         setLastError("cudaFree(nullptr) strict warmup", err);
         return 1;
+    }
+
+    // Fast-compile builds outline thermo/wall calls. CUDA's default thread
+    // stack can then overflow before the first timestep. Keep the default
+    // unchanged unless the caller explicitly requests a larger stack.
+    if (const char* requestedStack = std::getenv("GAS_UGKP_CUDA_STACK_BYTES"))
+    {
+        char* end = nullptr;
+        errno = 0;
+        const auto bytes = std::strtoull(requestedStack, &end, 10);
+        if (errno || end == requestedStack || *end || requestedStack[0] == '-'
+            || requestedStack[0] < '0' || requestedStack[0] > '9'
+            || bytes == 0 || bytes > std::numeric_limits<std::size_t>::max())
+        {
+            setLastErrorText("invalid GAS_UGKP_CUDA_STACK_BYTES (expected positive byte count)");
+            return 1;
+        }
+        std::size_t stackBytes = 0;
+        err = cudaDeviceGetLimit(&stackBytes, cudaLimitStackSize);
+        if (err == cudaSuccess && bytes > stackBytes)
+            err = cudaDeviceSetLimit(cudaLimitStackSize, static_cast<std::size_t>(bytes));
+        if (err == cudaSuccess)
+            err = cudaDeviceGetLimit(&stackBytes, cudaLimitStackSize);
+        if (err != cudaSuccess)
+        {
+            setLastError("configure CUDA thread stack", err);
+            return 1;
+        }
+        std::fprintf(stderr, "[cuda-runtime] stackLimitBytes=%zu requested=%llu\n",
+            stackBytes, bytes);
     }
 
     DeviceState* s = new DeviceState;

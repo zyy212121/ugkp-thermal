@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "source_files_verified": 534,
+  "evidence_files_verified": 2174,
+  "archive_parts_verified": 13,
+  "archive_sha256": "cfac943e48a3eff17cf9501a686c38a570469c0fbdf4ffe10940c10744f5e317",
+  "summary_identical": true,
+  "credential_pattern_check_passed": true,
+  "diff_check_passed": true
+}

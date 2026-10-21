@@ -1,0 +1,73 @@
+{
+  "archive": "pr22-native-cuda-evidence-20261022.tar.gz",
+  "size": 265652679,
+  "sha256": "cfac943e48a3eff17cf9501a686c38a570469c0fbdf4ffe10940c10744f5e317",
+  "files": 2174,
+  "parts": [
+    {
+      "name": "evidence.tar.gz.part00",
+      "size": 20971520,
+      "sha256": "9fb78b88f2faec81e49ac163606bedb32cb78c15856b7f4795b7c86a13616ddb"
+    },
+    {
+      "name": "evidence.tar.gz.part01",
+      "size": 20971520,
+      "sha256": "5b5feefc5c0d72332e6d7e99d6b07803d82125e08d6bac741fc6890652310966"
+    },
+    {
+      "name": "evidence.tar.gz.part02",
+      "size": 20971520,
+      "sha256": "8a67b25934ebdf515bc2897b2806f4b40da5d23677473c2bc7add4d6dc0599ac"
+    },
+    {
+      "name": "evidence.tar.gz.part03",
+      "size": 20971520,
+      "sha256": "38a8ab66fac7de8c100eedfc66a0e5a70eb05fa46afe724350981424379e20c0"
+    },
+    {
+      "name": "evidence.tar.gz.part04",
+      "size": 20971520,
+      "sha256": "f2b4c624a6741a1e49b5a90a4081e15ce5b05134f6cd2c7a0133e973d03168cd"
+    },
+    {
+      "name": "evidence.tar.gz.part05",
+      "size": 20971520,
+      "sha256": "ed31186d569de93ff2e31027dbba04cd1b203697c163e02209c71f8086ca230f"
+    },
+    {
+      "name": "evidence.tar.gz.part06",
+      "size": 20971520,
+      "sha256": "42fb8e9ff26f18b56150c87c58e872de4afc035ee648b5918e6fe01fd070f907"
+    },
+    {
+      "name": "evidence.tar.gz.part07",
+      "size": 20971520,
+      "sha256": "9ac2b7723bb5e123ce863a3e3f6ba4b88d6a6949d7ea7dacbbdffa6c54358605"
+    },
+    {
+      "name": "evidence.tar.gz.part08",
+      "size": 20971520,
+      "sha256": "3150bd10e18acb17cc2e2af30fc977c55c46db0ad46fadf22de386325d243ae4"
+    },
+    {
+      "name": "evidence.tar.gz.part09",
+      "size": 20971520,
+      "sha256": "ccc6d7d198c926ebd6564974a32839e2e95b0c90a8c9295685401d76c02e3183"
+    },
+    {
+      "name": "evidence.tar.gz.part10",
+      "size": 20971520,
+      "sha256": "3c62dd932351ccba3a83eacf666067cc598d7bc2fba9ce49e2b1f9919fa53458"
+    },
+    {
+      "name": "evidence.tar.gz.part11",
+      "size": 20971520,
+      "sha256": "902a12eadf9f944172600e04eff2043fc31b1c06173a401ad9efaa63d4a5fee7"
+    },
+    {
+      "name": "evidence.tar.gz.part12",
+      "size": 13994439,
+      "sha256": "336c9e582e270f3a34db6e1fbe646577b36aa5b31df5483da1f223df7f54f400"
+    }
+  ]
+}

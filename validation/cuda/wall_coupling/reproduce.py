@@ -11,6 +11,7 @@ roots against pinned numeric evidence, then compares native CUDA Engine<24> to
 the current scalar engine. Full coupled qualification remains separate.
 """
 import argparse
+import sys
 import hashlib
 import json
 import os
@@ -37,6 +38,8 @@ def main():
                     help="run CUDA memcheck/racecheck/synccheck (not used with --cpu-only)")
     ap.add_argument("--benchmark", action="store_true",
                     help="GPU-only single-lane vs warp32 control (not CPU parallelism)")
+    ap.add_argument("--math-reference", type=Path,
+                    help="verified extracted pr22-math-reference archive; add 4000 chronological frozen-oracle replays")
     args = ap.parse_args()
     archive = args.archive.resolve() if args.archive else None
     out = args.output.resolve()
@@ -166,6 +169,43 @@ def main():
                         program + "-" + tool, env, status=("gpu_sanitizers",))
             scope["gpu_sanitizers"] = "passed"
             save_scope()
+    if args.math_reference:
+        math_root = args.math_reference.resolve()
+        cost = math_root / "source-sign-audit/math-gap-20261021T0626Z/final-serial-operator-cost"
+        frozen = cost / "final-A.csv"
+        # The frozen table is independent of the current shared scalar oracle.
+        # The record ABI and geometric measure are tracked helper headers only;
+        # every solver/profile header comes from this checkout.
+        scope["sequence_independent_mathematical_reference"] = str(frozen)
+        (out / "math-inputs.json").write_text(json.dumps({
+            str(p.relative_to(math_root)): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in [frozen, *sorted((cost / "inputs").glob("*.bin"))]
+        }, indent=2) + "\n")
+        run([*host, HERE / "sequence_cpu.cpp", "-o", out / "sequence-cpu"], "build-sequence-cpu")
+        binaries.append("sequence-cpu")
+        run([out / "sequence-cpu", cost / "inputs", out / "sequence-cpu.csv"], "sequence-cpu")
+        compare = [sys.executable, HERE / "compare_sequence.py", "--reference", frozen]
+        run([*compare, "--actual", out / "sequence-cpu.csv", "--output", out / "sequence-cpu-comparison.json"],
+            "compare-sequence-cpu", status=("sequence_scalar_frozen_parity",))
+        if not args.cpu_only:
+            run([*nvcc, HERE / "sequence_replay.cu", "-o", out / "sequence-gpu"], "build-sequence-gpu")
+            binaries.append("sequence-gpu")
+            run([out / "sequence-gpu", cost / "inputs", out / "sequence-gpu.csv"],
+                "sequence-gpu", status=("sequence_gpu_execution",))
+            run([*compare, "--actual", out / "sequence-gpu.csv", "--shared-cpu", out / "sequence-cpu.csv", "--output", out / "sequence-gpu-comparison.json"],
+                "compare-sequence-gpu", status=("sequence_gpu_frozen_parity",))
+            if args.sanitize:
+                for sanitizer in ["memcheck", "racecheck", "synccheck"]:
+                    # Four consecutive calls per wall cover cold and warm cache
+                    # reuse without repeating the full 4000-record trajectory.
+                    run([args.cuda / "bin/compute-sanitizer", "--tool", sanitizer,
+                         "--error-exitcode", "99", out / "sequence-gpu", cost / "inputs",
+                         out / ("sequence-" + sanitizer + ".csv"), "4"],
+                        "sequence-" + sanitizer, status=("sequence_gpu_sanitizers",))
+                    run([*compare, "--actual", out / ("sequence-" + sanitizer + ".csv"),
+                         "--output", out / ("sequence-" + sanitizer + "-comparison.json"), "--shared-cpu", out / "sequence-cpu.csv", "--limit", "4"],
+                        "compare-sequence-" + sanitizer)
+
     hashes = {name: hashlib.sha256((out / name).read_bytes()).hexdigest() for name in binaries}
     (out / "binaries.json").write_text(json.dumps(hashes, indent=2) + "\n")
 

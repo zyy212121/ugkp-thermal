@@ -11,7 +11,7 @@ if a.sanitize:cmd=[str(a.cuda/'bin/compute-sanitizer'),'--target-processes','all
 def device():
  p=subprocess.run(['nvidia-smi','--query-gpu=name,driver_version,pstate,temperature.gpu,utilization.gpu,clocks.sm,clocks.mem,memory.used,power.draw','--format=csv'],capture_output=True,text=True)
  return p.stdout+p.stderr
-record={'command':cmd,'device_before':device(),'head':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'binaries':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (a.runtime/'bin').iterdir() if p.is_file()}}
+record={'command':cmd,'runtime_environment':{'GAS_UGKP_CUDA_STACK_BYTES':env.get('GAS_UGKP_CUDA_STACK_BYTES')},'device_before':device(),'head':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'binaries':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (a.runtime/'bin').iterdir() if p.is_file()}}
 t=time.monotonic();events=[]
 with (a.output/'run.log').open('w') as log:
  p=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,env=env,bufsize=1)

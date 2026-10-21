@@ -65,6 +65,7 @@ log="${log_dir}/separated_build_$(date +%Y%m%d_%H%M%S).log"
 
     "${cuda_home}/bin/nvcc" \
         -std=c++17 \
+        --expt-relaxed-constexpr \
         "-DUGKWP_GAS_SPECIES=${gas_species}" \
         -O3 \
         "${probe_nvcc_flags[@]}" \

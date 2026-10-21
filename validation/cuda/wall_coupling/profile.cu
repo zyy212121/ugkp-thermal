@@ -343,7 +343,7 @@ int main() {
           targets[0] = saved;
         }
 #ifndef UGKP_PROFILE_CPU_ONLY
-        if (pool > 1 && !mixture && mass == 0) {
+        if (pool > 1 && mass == 0) {
           double expected[4]{};
           for (int mode = 0; mode < 2; ++mode) {
             benchmark<<<pool, 32>>>(in, c, w, out, targets, scratch, result, mode);
@@ -361,7 +361,7 @@ int main() {
               else if (std::abs(result[0].v[j + 1] - expected[j]) >
                        1e-8 * std::max(1., std::abs(expected[j]))) return 7;
             }
-            std::cerr << "BENCH_GPU_ONLY," << nodes << ',' << pool << ','
+            std::cerr << (mixture ? "BENCH_GPU_MIXED," : "BENCH_GPU_ONLY,") << nodes << ',' << pool << ','
                       << (mode ? "warp32" : "single-lane") << ',' << elapsed / 3 << '\n';
             ck(cudaEventDestroy(a)); ck(cudaEventDestroy(b));
           }

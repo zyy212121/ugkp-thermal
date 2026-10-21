@@ -4,6 +4,7 @@
 // namespace would create a second ugkwp and break the shared-state templates.
 #include "gasTransport/GasStateView.H"
 #include "gasTransport/GasBoundaryLayerHost.H"
+#include "gasTransport/GasConservativeMatching.H"
 #include "gasTransport/GasCapabilities.H"
 #include "gasTransport/GasGeometryValidation.H"
 #include "gasTransport/SpeciesDiffusion.H"
