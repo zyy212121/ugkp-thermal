@@ -11,9 +11,11 @@ struct WallReferenceStats {
     double residual=std::numeric_limits<double>::infinity();
     int iterations=0,residualEvaluations=0,jacobianEvaluations=0,centralDirections=0;
     bool usedHistory=false,converged=false;
+    bool usedNumericalState=false; // separate from accepted macro history
 };
 struct WallReferenceCounters {
  unsigned long long solves=0,failures=0,iterations=0,residuals=0,jacobians=0,central=0,history=0;
+ unsigned long long numericalHistory=0;
  double maxResidual=0;
 };
 namespace detail {

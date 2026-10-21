@@ -20,6 +20,9 @@ template<class R> struct WallModelConfig {
     R relativeTolerance=R(1e-8),absoluteTolerance=R(1e-10),stretch=R(2);
     R turbulentPrandtl=R(.9),turbulentSchmidt=R(.7);
     bool enableSst=false;
+    // Internal route selection, set only on a coherent solver/profile config copy.
+    // Legacy, analytic and unrelated template routes retain their original math.
+    bool coherentDiscretization=false;
 };
 template<class R,int N> struct WallMatchingState {
     R temperature=0,velocity[3]{},massFraction[N]{},k=0,omega=0;

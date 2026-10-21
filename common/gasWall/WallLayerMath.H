@@ -124,4 +124,46 @@ template<class R> UGKWP_GAS_HD inline R nearWallKDerivativeAtWall(R y1,R ell,R p
     const R exponent=R(2)*p-R(1),denominator=-::expm1(-exponent*::log1p(y1/ell));
     return exponent/ell*::pow(ell/(y1+ell),p)/denominator*::exp(-advection*y1);
 }
+// q(x)=(log(1+x)-x)/(-x*x). Taylor evaluation avoids cancellation.
+// Eighteen coefficients at |x|<=1/8 bound truncation below double epsilon.
+template<class R> UGKWP_GAS_HD inline R logSlopeRemainder(R x){
+    if(::fabs(x)<=R(0.125)){
+      R q=R(1)/R(19);
+      // Constant denominators keep the same Horner order without runtime divides.
+      q=R(1)/R(18)-x*q;
+      q=R(1)/R(17)-x*q;
+      q=R(1)/R(16)-x*q;
+      q=R(1)/R(15)-x*q;
+      q=R(1)/R(14)-x*q;
+      q=R(1)/R(13)-x*q;
+      q=R(1)/R(12)-x*q;
+      q=R(1)/R(11)-x*q;
+      q=R(1)/R(10)-x*q;
+      q=R(1)/R(9)-x*q;
+      q=R(1)/R(8)-x*q;
+      q=R(1)/R(7)-x*q;
+      q=R(1)/R(6)-x*q;
+      q=R(1)/R(5)-x*q;
+      q=R(1)/R(4)-x*q;
+      q=R(1)/R(3)-x*q;
+      q=R(1)/R(2)-x*q;
+      return q;
+    }
+    return (R(1)-::log1p(x)/x)/x;
+}
+// Geometry-fixed three-point derivative exact for {1,y,log(y)}. General
+// smooth fields remain second-order; no velocity law or source is prescribed.
+// The stencil touching y=0 retains its ordinary quadratic derivative.
+template<class R> UGKWP_GAS_HD inline R logShearDerivative(R left,R center,R right,R hLeft,R hRight,R y){
+    if(y>hLeft){
+      const R qLeft=logSlopeRemainder(-hLeft/y);
+      const R qRight=logSlopeRemainder(hRight/y);
+      // Equivalent to b*qRight/(a*qLeft+b*qRight), a=hLeft/y,
+      // b=hRight/y. Scale physical spacings to avoid ratio underflow.
+      const R spacing=max(hLeft,hRight),a=hLeft/spacing,b=hRight/spacing;
+      const R weight=b*qRight/(a*qLeft+b*qRight);
+      return weight*(center-left)/hLeft+(R(1)-weight)*(right-center)/hRight;
+    }
+    return centeredDerivative(left,center,right,hLeft,hRight);
+}
 }}}

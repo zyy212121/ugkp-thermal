@@ -194,8 +194,8 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF void
  R y,const LayerPoint<R,N>& left,const LayerPoint<R,N>& right,R length,LayerPoint<R,N>& p,R leftSpacing=R(0)){
     if(!c.enableSst||p.z<=0||y<=0)return;
     const R hr=length-leftSpacing;const bool centered=leftSpacing>0&&hr>0;
-    const R du0=centered?centeredDerivative(left.u[0],p.u[0],right.u[0],leftSpacing,hr):(right.u[0]-left.u[0])/length;
-    const R du1=centered?centeredDerivative(left.u[1],p.u[1],right.u[1],leftSpacing,hr):(right.u[1]-left.u[1])/length;
+    const R du0=centered?(c.coherentDiscretization?logShearDerivative(left.u[0],p.u[0],right.u[0],leftSpacing,hr,y):centeredDerivative(left.u[0],p.u[0],right.u[0],leftSpacing,hr)):(right.u[0]-left.u[0])/length;
+    const R du1=centered?(c.coherentDiscretization?logShearDerivative(left.u[1],p.u[1],right.u[1],leftSpacing,hr,y):centeredDerivative(left.u[1],p.u[1],right.u[1],leftSpacing,hr)):(right.u[1]-left.u[1])/length;
     const R leftNormal=(p.normalCoefficient+left.normalCoefficient)/R(2)*(p.theta-left.theta)+(p.T+left.T)/R(2)*(p.normalCoefficient-left.normalCoefficient);
     const R rightNormal=(right.normalCoefficient+p.normalCoefficient)/R(2)*(right.theta-p.theta)+(right.T+p.T)/R(2)*(right.normalCoefficient-p.normalCoefficient);
     const R dv=centered?hr*leftNormal/(leftSpacing*length)+leftSpacing*rightNormal/(hr*length):(leftNormal+rightNormal)/length;
