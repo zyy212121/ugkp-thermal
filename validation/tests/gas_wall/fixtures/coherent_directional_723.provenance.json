@@ -1,0 +1,21 @@
+{
+  "scope": "Numeric owner23058 step723/stage2 fixture, fresh LU cache, accepted/failed/cold roots; expected[3] is diagnostic scalar recovery with batch mirror disabled only in a temporary reference copy. No original warm-cache chronology claim.",
+  "configuration": "Inherited CapturedSstWall maxIterations60, abs1e-10+rel1e-8, 24nodes; current coherentDiscretization selected by drivers.",
+  "fixture_sha256": "b48f9f115c1f1f3951a77c098cf2c48b4d9129003fead2165bde513a8de0ea59",
+  "sources": {
+    "directional-candidate/tree/source-sign-theory/general-coherent/HermiteProfile.H": "8d11bde002bbd5066c730883f886676a05f15127b0614b9a20131f8384c1ecb4",
+    "directional-candidate/tree/source-sign-audit/full-goal-validation/continuous-lu/mixed-failure-538/FactorCachePchipTie.H": "9013c6a40291cdbfb2a2451d804d9ffc6a8ae59b8a9387ad03de51a3fdc95732",
+    "directional-candidate/tree/source-sign-audit/full-goal-validation/continuous-lu/mixed-failure-538/FdProbeDirections.H": "fb35229e17ffe33b56167dae76b5cf953f0ee61e7f8e261e7c1162802333f2ff",
+    "affine-candidate/TY-affine-200us/capture-step723-stage2-owner23058/input.bin": "5f2a31bd514433d596b624fc2422b62b53323ad54072f11ea89f4cf6413f006c",
+    "affine-candidate/TY-affine-200us/capture-step723-stage2-owner23058/config.bin": "80be777b08401d151b45a87bfd21f92504b4b40628224d50f8eca3ed67f11083",
+    "affine-candidate/TY-affine-200us/capture-step723-stage2-owner23058/history.bin": "289d325971656a92f99b0ebe5d2434f5645c92b1eec6ffe84ce633d94e8ce990",
+    "affine-candidate/TY-affine-200us/capture-step723-stage2-owner23058/failed-workspace.bin": "317cf80f9e31463112dbe0bddb4c75e32098452b215563ca0323d046a0e7b216",
+    "affine-candidate/TY-affine-200us/capture-step723-stage2-owner23058/metadata.csv": "5d1067d5ade49484a59c2d8e67340244cd3dc5be7bd2e32072e8414553f1e354",
+    "failure723-20261021/directional-results.csv": "210a33ab0e293ec8237b817c0eb28c93c49ff6d630bebbb5ad5c79bd2a62eed3",
+    "failure723-20261021/directional-accepted_fresh_j.csv": "17a07921f6472273597978033989c68b07f493ea7e67ccafb0a81f0dad38f64f",
+    "failure723-20261021/directional-failed_fresh_j.csv": "7e41957062f0d0ee83abd8904fceadff81f2e39a7a914f719a10b7715b4469de",
+    "failure723-20261021/directional-cold.csv": "265d1dcac005d7c1f3a80e350e10c741bd5c900b71f338a832fa188ae5d934c9",
+    "failure723-20261021/scalar-exercise-results.csv": "6231ee7f65a22f50f146cb77442e036c53d64b5f9c6a38b6ff9eb922a6a06e84",
+    "failure723-20261021/scalar-exercise-failed_fresh_j.csv": "bca87da379b7a0780de10e0c3c30aeeb1b0bfb2c80c7e5ac2441e161ceba3d12"
+  }
+}
