@@ -58,3 +58,6 @@ Nsight跟踪本身有开销；上述数值用于增量归因，不能替换未�
 采集脚本实际使用 `nsys profile --trace=cuda,nvtx,osrt --sample=none --cpuctxsw=none --wait=all --export=sqlite` 包裹原有run-case.sh。未启用fork前跟踪、统一内存缺页跟踪或额外墙面审计。完整参数和运行环境见`runs.json`。
 
 最终核验无gasUGKP、gasUGKPCudaBackend、nsys、ncu活动进程，无后台对比任务残留。PR保持草稿，不合并。本轮不声称解决性能回退或改变既有数值验收结论。
+## 后续：拆开融合重构核函数后的结论
+
+后续设备内部计时确认：源项／参考均值／面计算合计耗时下降22.82%，准备／拟合增加82.94%；两者融合后仍然变慢。上一表的“保守剖面重构”包含这两部分，“其余GPU核函数”不包含这里的源项／面计算。详见[分段报告](../pr22-source-face-gpu-20261022/RESULTS.md)。
