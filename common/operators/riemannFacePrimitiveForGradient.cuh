@@ -1,6 +1,7 @@
 #pragma once
 #include "gasStencilDiagnostics.cuh"
 #include "GpuCellNeighbour.cuh"
+#include "gasTransport/GasConservativeMatching.H"
 // One operator implementation; scalar/time adapters are compile-time only.
 template<class GasState>
 __device__ GasPrimDevice riemannFacePrimitiveForGradient
@@ -55,7 +56,7 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
                 wc*centre.uy+(GPU_OPERATOR_R(1.0)-wc)*adjacent.uy,
                 wc*centre.uz+(GPU_OPERATOR_R(1.0)-wc)*adjacent.uz,
                 wc*centre.p+(GPU_OPERATOR_R(1.0)-wc)*adjacent.p,
-                wc*centre.T+(GPU_OPERATOR_R(1.0)-wc)*adjacent.T
+                ugkwp::physicalFaceTemperature(centre.T,adjacent.T,wc)
             };
         GasPrimDevice face = makeGasPrimDevice
         (
@@ -66,7 +67,7 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
             wc*centre.p + (GPU_OPERATOR_R(1.0) - wc)*adjacent.p,
             s.Rgas, s.rhoMin, s.TgasMin
         );
-        face.T = wc*centre.T + (GPU_OPERATOR_R(1.0) - wc)*adjacent.T;
+        face.T = ugkwp::physicalFaceTemperature(centre.T,adjacent.T,wc);
         return face;
     }
 
