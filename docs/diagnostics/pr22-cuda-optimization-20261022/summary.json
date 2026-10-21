@@ -1,0 +1,779 @@
+{
+  "code_commit": "cee8dcaec4d761708b4f0ca59e48bce97a62ec7b",
+  "preoptimization_head": "8c01896e3dec5101e0ed9f61182de167412f6e6e",
+  "old_baseline": "2f4a66f82c8405fad65542490c4d88841b2b9cd4",
+  "performance": {
+    "metrics": {
+      "fair-preopt-mid-a": {
+        "median_step_seconds": 0.7357757330173627,
+        "mean_step_seconds": 0.807193050000077,
+        "total_seconds": 23.223789379990194,
+        "binary_sha256": {
+          "gasUGKP": "17c98d7c50606390257b37a762bbca1f45f26e6d406d7f80ad4883658b49fda6",
+          "gasUGKPCudaBackend": "e0bb4542064d89677332d1d80549b01202325e00764862dd7e111aac556b83a9"
+        }
+      },
+      "fair-preopt-mid-b": {
+        "median_step_seconds": 0.7581162760034204,
+        "mean_step_seconds": 0.823992738411214,
+        "total_seconds": 23.429293647990562,
+        "binary_sha256": {
+          "gasUGKP": "17c98d7c50606390257b37a762bbca1f45f26e6d406d7f80ad4883658b49fda6",
+          "gasUGKPCudaBackend": "e0bb4542064d89677332d1d80549b01202325e00764862dd7e111aac556b83a9"
+        }
+      },
+      "fair-preopt-min": {
+        "median_step_seconds": 0.6834986400208436,
+        "mean_step_seconds": 0.7627861669410348,
+        "total_seconds": 22.07439514499856,
+        "binary_sha256": {
+          "gasUGKP": "17c98d7c50606390257b37a762bbca1f45f26e6d406d7f80ad4883658b49fda6",
+          "gasUGKPCudaBackend": "4645fe041c222fef68945e13c701759d2ce736e7bb57e7620bbaf49cf0248ebb"
+        }
+      },
+      "fair-final-mid": {
+        "median_step_seconds": 0.5115163850132376,
+        "mean_step_seconds": 0.5641019433524515,
+        "total_seconds": 18.222387222980615,
+        "binary_sha256": {
+          "gasUGKP": "17c98d7c50606390257b37a762bbca1f45f26e6d406d7f80ad4883658b49fda6",
+          "gasUGKPCudaBackend": "58eb12441bb5c31163fb7471cb9e292a9b02c017b5f89c6bb1fdff2b5fc137cf"
+        }
+      },
+      "fair-final-min-a": {
+        "median_step_seconds": 0.4239581720321439,
+        "mean_step_seconds": 0.4844819482326891,
+        "total_seconds": 15.870423635002226,
+        "binary_sha256": {
+          "gasUGKP": "17c98d7c50606390257b37a762bbca1f45f26e6d406d7f80ad4883658b49fda6",
+          "gasUGKPCudaBackend": "c5e8d899f3c5013c89032dd3a38dd9a31f1ac935442bf0369abbd913dc781682"
+        }
+      },
+      "fair-final-min-b": {
+        "median_step_seconds": 0.43466456898022443,
+        "mean_step_seconds": 0.4972137570593451,
+        "total_seconds": 16.02899049600819,
+        "binary_sha256": {
+          "gasUGKP": "17c98d7c50606390257b37a762bbca1f45f26e6d406d7f80ad4883658b49fda6",
+          "gasUGKPCudaBackend": "c5e8d899f3c5013c89032dd3a38dd9a31f1ac935442bf0369abbd913dc781682"
+        }
+      },
+      "final-production-20": {
+        "median_step_seconds": 0.432500749011524,
+        "mean_step_seconds": 0.4955457981764887,
+        "total_seconds": 16.583548063994385,
+        "binary_sha256": {
+          "gasUGKP": "1bc1f3ed9f6b2e37022b83c9e21bac6cef1fc8c78c4b36c6c4b5d3d821a869b7",
+          "gasUGKPCudaBackend": "82e4d9cab94893e5a0e741c8a330fcbaa717b1e285e5e0665036ec58db4edfdb"
+        }
+      },
+      "fair-old2f4-mid": {
+        "median_step_seconds": 0.4465087080025114,
+        "mean_step_seconds": 0.48550421582288383,
+        "total_seconds": 12.944716910016723,
+        "binary_sha256": {
+          "gasUGKP": "17c98d7c50606390257b37a762bbca1f45f26e6d406d7f80ad4883658b49fda6",
+          "gasUGKPCudaBackend": "8f372ed10c3a311ca6322a5607efc7febbb62a5965070b9c070dd7105787311a"
+        }
+      },
+      "fair-old2f4-min": {
+        "median_step_seconds": 0.3505081420298666,
+        "mean_step_seconds": 0.39668770752819804,
+        "total_seconds": 11.192278358037584,
+        "binary_sha256": {
+          "gasUGKP": "17c98d7c50606390257b37a762bbca1f45f26e6d406d7f80ad4883658b49fda6",
+          "gasUGKPCudaBackend": "33d95a8f4da03feccb45835e9fb4d6e423f841f38073cd608a7523c795983ed1"
+        }
+      },
+      "ratios": {
+        "final_over_preopt_mid": 0.5790254535132292,
+        "final_over_preopt_min": 0.6327748494105778,
+        "final_mid_over_preopt_mid": 0.6848103904759844,
+        "final_over_old_mid": 0.9686278033553859,
+        "final_over_old_min": 1.2339249710629288
+      }
+    },
+    "identical_input_file_count": 31,
+    "input_sha256": {
+      "0/Y_Air": "a6040dbec1cca622059647d94459f2d91651670bc974d645eb80fcba1ebe1463",
+      "0/Y_CO2": "e72e94b36612b0cc61b927777a617c5ad2055e97cdadca0133f9184cd43d5cbe",
+      "0/epsilonS": "380ddd6aa58e4be8ca96bf6481ee5b766cd5a2b0ed20b58f5cf196c57712dd2d",
+      "0/k": "fd141c05a320ff93986b11312057567565fbffa5d71d260e7216129237b29e6c",
+      "0/omega": "09ad6fa0054351e223130efdc1a89b79e4607c8c5a9afa1ade2be2d493390d0d",
+      "0/rho": "2d5f91cd67d09324f70e9989c6dcd6b78284c38f78e91936fcbb3988788f8502",
+      "0/theta": "14126729b46edb21ea33b22a09aaf928cd3a4cbed0165667cf0244c95a210cf1",
+      "0/T": "aa21784e6e88dd8fa7db73c8a40b6cd8190008ea39826072f4b7a571d6ceffb2",
+      "0/V": "f1c032e8feb1bfedd9f4f985ed5bf4d9eaad80497cbd00938271cb03c854465c",
+      "0/Cx": "4bbe3a5ca48b2e28837b6814603232a9f995a3fb8faef6d85fbd1a1e8e9a7f1c",
+      "0/rhoE": "6891edcfcaa783a4d5a5236150b253c9985d636b2e20c853febdcd13ec0804a2",
+      "0/Cy": "86fbb6d864783af00ee68e0979dbf2aede2ef84075fd9930ac66ae4a7852c51e",
+      "0/Us": "acfbbeb55bd340de685fa780e7e9bf17114a4c77cc8f6210772f077228b76803",
+      "0/U": "5b86ff6e574e8a954e97ade4a089123545c9eedd6977b7a482e1d3fdf701fcd6",
+      "0/C": "b6c8bd08d2a0667490079f45af68f62981d4182a044446b12dc45305a4556f72",
+      "0/Cz": "dba5f360634fd7e17f6d8db666d2ed8a94571af69555905b5158340f68600963",
+      "0/p": "6f35ce0a8eed72549a57c5255497bb3a0bd73da4e1483e7599de7b06f412f463",
+      "constant/schedulingProperties": "dcb7021c777c659d92600e09a5262d836d0bbab6c02b9c8261561d11e7196ffc",
+      "constant/gasModelProperties": "67d09d8b8d3b7784b82c347c6bb78741329e41ba2c26ddb82be061916ce189b7",
+      "constant/fluidProperties": "98c88a945d2421fb38f080c16fe96ce7656dfa3b0538061dad9ff747775cb271",
+      "constant/particleProperties": "cee97e9ada97977327e872d4ba65a388506e8c802da38e63caf15893760aa7d2",
+      "constant/gasWallProperties": "f545f08877fc380f6661f0fb121bc8694bfc0498a5da9b3a4bd3cd9ab463bc65",
+      "constant/polyMesh/points": "0c8be9a3b6b28319d7b09beed42f1060c82a80e3bb3b788ad6f81889ee75ea05",
+      "constant/polyMesh/boundary": "e6435746178713c4276c7f53057061f20f1cd4128c5b82990b01c322b14da6a0",
+      "constant/polyMesh/faces": "5841fb9a6538a55cc7d0ede8ae5287c4b8f01997389463c911d8ee63122efa6d",
+      "constant/polyMesh/neighbour": "42e8bcc18d9e38c0912a010a427d82464469b90d999f87c40a9582ea6d819b3b",
+      "constant/polyMesh/owner": "ef2dd51c7ac525159a391157636878b7172c87c3103cb559245c80dda6c471b2",
+      "system/blockMeshDict": "30374c2000858d7e50565f56d5b93f70136c90f77652f8077440f7b5c3be0d6c",
+      "system/controlDict": "5946f5816827856c7e1131c905812e9e09d5cb0c1a9295abd7fe9dfec1ac49af",
+      "system/fvSolution": "e9cc3b2c85539efb8c1f6e24824c82c9cd7655fd59fc66582cc98ff63b26f7d4",
+      "system/fvSchemes": "484eceecc5f2eb4682ce78d33c2a532be9317176958e7949304f37c3d7d720c5"
+    }
+  },
+  "kernel_profiles": {
+    "preopt-min": {
+      "steps": "3..19",
+      "mean_step_seconds": 0.7479325315294117,
+      "kernels": {
+        "evaluateGasBoundaryLayerTeamKernel": {
+          "count": 34,
+          "per_step_ms": 505.4288281176471
+        },
+        "reconstructConservativeWallPool": {
+          "count": 34,
+          "per_step_ms": 225.75037852941176
+        },
+        "applySstWallFunctionStateKernel": {
+          "count": 34,
+          "per_step_ms": 0.027563235294117645
+        },
+        "recoverGasPrimitivesKernel": {
+          "count": 170,
+          "per_step_ms": 1.6909909411764705
+        },
+        "saveGasConservativeStateKernel": {
+          "count": 17,
+          "per_step_ms": 0.0065925882352941174
+        },
+        "recoverSstPrimitivesKernel": {
+          "count": 102,
+          "per_step_ms": 0.14472723529411766
+        },
+        "computeGasGradientLimiterKernel": {
+          "count": 102,
+          "per_step_ms": 5.041437588235294
+        },
+        "computeGasEddyViscosityKernel": {
+          "count": 34,
+          "per_step_ms": 0.10577364705882353
+        },
+        "computeGasInternalFaceFluxKernel": {
+          "count": 34,
+          "per_step_ms": 3.6847117647058822
+        },
+        "initializeWallProjectionView": {
+          "count": 34,
+          "per_step_ms": 0.020768764705882355
+        },
+        "populateWallProjection": {
+          "count": 34,
+          "per_step_ms": 0.07040288235294118
+        },
+        "updateRiemannBoundaryMirrorKernel": {
+          "count": 85,
+          "per_step_ms": 0.014697941176470589
+        },
+        "computeGasPrimitiveGradientsKernel": {
+          "count": 68,
+          "per_step_ms": 1.2817645294117648
+        },
+        "assembleConservativeWallFlux": {
+          "count": 34,
+          "per_step_ms": 0.6898069411764706
+        },
+        "computeGasFluxPositivityScaleKernel": {
+          "count": 34,
+          "per_step_ms": 0.08468311764705883
+        },
+        "applyGasFluxPositivityScaleKernel": {
+          "count": 34,
+          "per_step_ms": 0.06852570588235295
+        },
+        "computeSstGradientsKernel": {
+          "count": 68,
+          "per_step_ms": 0.23650441176470588
+        },
+        "computeSstFaceFluxKernel": {
+          "count": 34,
+          "per_step_ms": 0.2357000588235294
+        },
+        "conservativeKFluxBudget": {
+          "count": 34,
+          "per_step_ms": 0.32600582352941176
+        },
+        "applyConservativeKFluxBudget": {
+          "count": 34,
+          "per_step_ms": 0.007915294117647059
+        },
+        "applySstFluxAndSourceKernel": {
+          "count": 34,
+          "per_step_ms": 0.393062
+        },
+        "applyGasFluxDivergenceByCellKernel": {
+          "count": 34,
+          "per_step_ms": 0.18390841176470588
+        },
+        "prepareConservativeWallMatching": {
+          "count": 34,
+          "per_step_ms": 0.051766058823529415
+        },
+        "blendGasConservativeStateKernel": {
+          "count": 17,
+          "per_step_ms": 0.03607735294117647
+        },
+        "updateLegacyGasBoundaryMirrorKernel": {
+          "count": 34,
+          "per_step_ms": 0.006363294117647059
+        },
+        "updateWaveTransmissivePressureBoundaryKernel": {
+          "count": 17,
+          "per_step_ms": 0.0021199411764705883
+        },
+        "commitAcceptedWallHistory": {
+          "count": 17,
+          "per_step_ms": 0.029361529411764706
+        },
+        "beginOperationKernel": {
+          "count": 17,
+          "per_step_ms": 0.0007564705882352941
+        }
+      }
+    },
+    "final-min": {
+      "steps": "3..19",
+      "mean_step_seconds": 0.4918903911764706,
+      "kernels": {
+        "evaluateGasBoundaryLayerTeamKernel": {
+          "count": 34,
+          "per_step_ms": 415.06721429411766
+        },
+        "reconstructConservativeWallPool": {
+          "count": 34,
+          "per_step_ms": 59.14800105882353
+        },
+        "applySstWallFunctionStateKernel": {
+          "count": 34,
+          "per_step_ms": 0.02813294117647059
+        },
+        "recoverGasPrimitivesKernel": {
+          "count": 170,
+          "per_step_ms": 1.714929294117647
+        },
+        "saveGasConservativeStateKernel": {
+          "count": 17,
+          "per_step_ms": 0.0070211176470588235
+        },
+        "recoverSstPrimitivesKernel": {
+          "count": 102,
+          "per_step_ms": 0.14687382352941175
+        },
+        "computeGasGradientLimiterKernel": {
+          "count": 102,
+          "per_step_ms": 5.105039470588236
+        },
+        "computeGasEddyViscosityKernel": {
+          "count": 34,
+          "per_step_ms": 0.10716547058823529
+        },
+        "computeGasInternalFaceFluxKernel": {
+          "count": 34,
+          "per_step_ms": 3.7365925294117646
+        },
+        "initializeWallProjectionView": {
+          "count": 34,
+          "per_step_ms": 0.021051
+        },
+        "populateWallProjection": {
+          "count": 34,
+          "per_step_ms": 0.07066847058823529
+        },
+        "updateRiemannBoundaryMirrorKernel": {
+          "count": 85,
+          "per_step_ms": 0.015142058823529411
+        },
+        "computeGasPrimitiveGradientsKernel": {
+          "count": 68,
+          "per_step_ms": 1.2976885294117646
+        },
+        "assembleConservativeWallFlux": {
+          "count": 34,
+          "per_step_ms": 0.6964354705882353
+        },
+        "computeGasFluxPositivityScaleKernel": {
+          "count": 34,
+          "per_step_ms": 0.08538041176470589
+        },
+        "applyGasFluxPositivityScaleKernel": {
+          "count": 34,
+          "per_step_ms": 0.07007
+        },
+        "computeSstGradientsKernel": {
+          "count": 68,
+          "per_step_ms": 0.23983882352941177
+        },
+        "computeSstFaceFluxKernel": {
+          "count": 34,
+          "per_step_ms": 0.23865558823529412
+        },
+        "conservativeKFluxBudget": {
+          "count": 34,
+          "per_step_ms": 0.3317405294117647
+        },
+        "applyConservativeKFluxBudget": {
+          "count": 34,
+          "per_step_ms": 0.008013705882352942
+        },
+        "applySstFluxAndSourceKernel": {
+          "count": 34,
+          "per_step_ms": 0.3987468823529412
+        },
+        "applyGasFluxDivergenceByCellKernel": {
+          "count": 34,
+          "per_step_ms": 0.1863144117647059
+        },
+        "prepareConservativeWallMatching": {
+          "count": 34,
+          "per_step_ms": 0.05216611764705882
+        },
+        "blendGasConservativeStateKernel": {
+          "count": 17,
+          "per_step_ms": 0.036973470588235295
+        },
+        "updateLegacyGasBoundaryMirrorKernel": {
+          "count": 34,
+          "per_step_ms": 0.006424117647058823
+        },
+        "updateWaveTransmissivePressureBoundaryKernel": {
+          "count": 17,
+          "per_step_ms": 0.002095764705882353
+        },
+        "commitAcceptedWallHistory": {
+          "count": 17,
+          "per_step_ms": 0.029749705882352942
+        },
+        "beginOperationKernel": {
+          "count": 17,
+          "per_step_ms": 0.0007598235294117647
+        }
+      }
+    }
+  },
+  "gpu_frozen_comparison": {
+    "passed": true,
+    "records": 4000,
+    "nodes": 24,
+    "physical_residual_limit": 1.01e-08,
+    "moment_limit": 1e-09,
+    "max_residual": 1.0099159942149514e-08,
+    "max_moment": 2.275957200481571e-15,
+    "physical_comparison": {
+      "rawQ": {
+        "max_abs": 1.0125233984581428e-10,
+        "max_normalized_floor_1": 1.7103797544937294e-11,
+        "worst_record": [
+          0,
+          395,
+          1
+        ]
+      },
+      "rawTau": {
+        "max_abs": 2.8407498575688805e-11,
+        "max_normalized_floor_1": 2.9438729212284645e-13,
+        "worst_record": [
+          0,
+          547,
+          1
+        ]
+      },
+      "fitQ": {
+        "max_abs": 2.391118414379889e-10,
+        "max_normalized_floor_1": 1.1185019577197863e-10,
+        "worst_record": [
+          7782,
+          18,
+          1
+        ]
+      },
+      "fitTau": {
+        "max_abs": 2.8052227207808755e-11,
+        "max_normalized_floor_1": 2.5164612902328364e-13,
+        "worst_record": [
+          0,
+          547,
+          1
+        ]
+      },
+      "source0": {
+        "max_abs": 1.430511474609375e-06,
+        "max_normalized_floor_1": 6.902462743026519e-13,
+        "worst_record": [
+          7782,
+          909,
+          1
+        ]
+      },
+      "source1": {
+        "max_abs": 3.841705620288849e-07,
+        "max_normalized_floor_1": 1.8090416721079541e-12,
+        "worst_record": [
+          0,
+          31,
+          2
+        ]
+      },
+      "checksum": {
+        "max_abs": 5.345791578292847e-07,
+        "max_normalized_floor_1": 4.6585681918684036e-14,
+        "worst_record": [
+          0,
+          174,
+          1
+        ]
+      }
+    },
+    "failures": [],
+    "operator_and_launch_seconds": 167.31785670800033,
+    "nonzero_transport_records": {
+      "0": 2000,
+      "7782": 2000
+    },
+    "max_profile_species_sum": 1.1102230246251565e-16,
+    "shared_cpu_output_error_floor_1": {
+      "matchingJ0": 2.0280279843547744e-15,
+      "matchingJ1": 2.0280279843547744e-15,
+      "heatBalance": 7.285905212484067e-11,
+      "kBalance": 4.792851228743733e-17,
+      "profileJ0": 9.971190539914687e-15,
+      "profileJ1": 9.970756859045693e-15
+    },
+    "timing_scope": "single chronological wall launch, not a GPU throughput speedup",
+    "max_abs_wallJ0": 0.0,
+    "max_abs_wallJ1": 0.0,
+    "max_abs_heatBalance": 2.0442082302452036e-06,
+    "max_abs_kBalance": 1.7678067640179206e-05,
+    "max_abs_profileJ0": 0.08228897376854347,
+    "max_abs_profileJ1": 0.08228897376854347
+  },
+  "preopt_gpu_sequence": {
+    "rows": 4000,
+    "columns": {
+      "owner": 0.0,
+      "step": 0.0,
+      "stage": 0.0,
+      "ok": 0.0,
+      "actualOk": 0.0,
+      "fitOk": 0.0,
+      "finite": 0.0,
+      "residual": 0.0,
+      "moment": 0.0,
+      "iterations": 0.0,
+      "F": 0.0,
+      "J": 0.0,
+      "rawQ": 0.0,
+      "rawTau": 0.0,
+      "fitQ": 0.0,
+      "fitTau": 0.0,
+      "source0": 0.0,
+      "source1": 0.0,
+      "checksum": 0.0,
+      "wallJ0": 0.0,
+      "wallJ1": 0.0,
+      "matchingJ0": 0.0,
+      "matchingJ1": 0.0,
+      "heatBalance": 0.0,
+      "kBalance": 0.0,
+      "profileJ0": 0.0,
+      "profileJ1": 0.0
+    },
+    "max_normalized_difference": 0.0
+  },
+  "preopt_cpu_sequence": {
+    "rows": 4000,
+    "columns": {
+      "owner": 0.0,
+      "step": 0.0,
+      "stage": 0.0,
+      "ok": 0.0,
+      "actualOk": 0.0,
+      "fitOk": 0.0,
+      "finite": 0.0,
+      "residual": 0.0,
+      "moment": 0.0,
+      "iterations": 0.0,
+      "F": 0.0,
+      "J": 0.0,
+      "rawQ": 0.0,
+      "rawTau": 0.0,
+      "fitQ": 0.0,
+      "fitTau": 0.0,
+      "source0": 0.0,
+      "source1": 0.0,
+      "checksum": 0.0,
+      "wallJ0": 0.0,
+      "wallJ1": 0.0,
+      "matchingJ0": 0.0,
+      "matchingJ1": 0.0,
+      "heatBalance": 0.0,
+      "kBalance": 0.0,
+      "profileJ0": 0.0,
+      "profileJ1": 0.0
+    }
+  },
+  "mixed_application": {
+    "fields": {
+      "rho": {
+        "max_abs": 0.0,
+        "max_normalized": 0.0
+      },
+      "rhoE": {
+        "max_abs": 0.0,
+        "max_normalized": 0.0
+      },
+      "p": {
+        "max_abs": 0.0,
+        "max_normalized": 0.0
+      },
+      "T": {
+        "max_abs": 0.0,
+        "max_normalized": 0.0
+      },
+      "U": {
+        "max_abs": 0.0,
+        "max_normalized": 0.0
+      },
+      "rhoU": {
+        "max_abs": 0.0,
+        "max_normalized": 0.0
+      },
+      "k": {
+        "max_abs": 0.0,
+        "max_normalized": 0.0
+      },
+      "omega": {
+        "max_abs": 0.0,
+        "max_normalized": 0.0
+      },
+      "rhoY_Air": {
+        "max_abs": 0.0,
+        "max_normalized": 0.0
+      },
+      "rhoY_CO2": {
+        "max_abs": 0.0,
+        "max_normalized": 0.0
+      },
+      "Y_Air": {
+        "max_abs": 0.0,
+        "max_normalized": 0.0
+      },
+      "Y_CO2": {
+        "max_abs": 0.0,
+        "max_normalized": 0.0
+      },
+      "nut": {
+        "max_abs": 0.0,
+        "max_normalized": 0.0
+      }
+    },
+    "walls": {
+      "wall-work.csv": {
+        "rows": 336,
+        "columns": {
+          "slot": 0.0,
+          "owner": 0.0,
+          "donor": 0.0,
+          "solves": 0.0,
+          "failures": 0.0,
+          "iterations": 0.0,
+          "residuals": 0.0,
+          "jacobians": 0.0,
+          "central": 0.0,
+          "history": 0.0,
+          "maxResidual": 0.0,
+          "momentResidual": 0.0,
+          "ownerSourceK": 0.0,
+          "donorSourceK": 0.0,
+          "donorSourceOmega": 0.0,
+          "tractionX": 0.0,
+          "tractionY": 0.0,
+          "tractionZ": 0.0,
+          "diffusiveEnergy": 0.0,
+          "active": 0.0,
+          "fallbacks": 0.0
+        }
+      },
+      "wall-faces.csv": {
+        "rows": 1008,
+        "columns": {
+          "slot": 0.0,
+          "index": 0.0,
+          "face": 0.0,
+          "mass": 0.0,
+          "mx": 0.0,
+          "my": 0.0,
+          "mz": 0.0,
+          "energy": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "species0": 0.0,
+          "species1": 0.0
+        }
+      }
+    }
+  },
+  "euler_budget": {
+    "mass": {
+      "max_cell_inventory_defect": 8.621227330332493e-24,
+      "sum_inventory_defect": -3.569397034619703e-21,
+      "sum_actual_change": -4.176794075244068e-10,
+      "sum_flux_and_source_change": -4.176794075208373e-10,
+      "owner_omega_excluded": false
+    },
+    "momentumX": {
+      "max_cell_inventory_defect": 1.564671097574439e-21,
+      "sum_inventory_defect": -6.416588476120768e-19,
+      "sum_actual_change": -7.57229675608475e-08,
+      "sum_flux_and_source_change": -7.572296756020583e-08,
+      "owner_omega_excluded": false
+    },
+    "momentumY": {
+      "max_cell_inventory_defect": 2.5849394142282115e-23,
+      "sum_inventory_defect": -1.4201533974809694e-21,
+      "sum_actual_change": -1.9235898638321053e-07,
+      "sum_flux_and_source_change": -1.9235898638320918e-07,
+      "owner_omega_excluded": false
+    },
+    "momentumZ": {
+      "max_cell_inventory_defect": 2.234379662043004e-34,
+      "sum_inventory_defect": -1.9895967807656083e-34,
+      "sum_actual_change": -8.722563570437866e-21,
+      "sum_flux_and_source_change": -8.722563570437723e-21,
+      "owner_omega_excluded": false
+    },
+    "energy": {
+      "max_cell_inventory_defect": 2.18752348745683e-18,
+      "sum_inventory_defect": -6.323443733152431e-16,
+      "sum_actual_change": -0.00011995185455411389,
+      "sum_flux_and_source_change": -0.00011995185455348154,
+      "owner_omega_excluded": false
+    },
+    "rhoK": {
+      "max_cell_inventory_defect": 1.1428853973951181e-22,
+      "sum_inventory_defect": -1.1507160910875368e-20,
+      "sum_actual_change": -8.695661445957787e-08,
+      "sum_flux_and_source_change": -8.695661445956633e-08,
+      "owner_omega_excluded": false
+    },
+    "rhoOmega": {
+      "max_cell_inventory_defect": 8.809142651444724e-20,
+      "sum_inventory_defect": -6.036498401828013e-18,
+      "sum_actual_change": 2.1177631117841035e-06,
+      "sum_flux_and_source_change": 2.117763111790144e-06,
+      "owner_omega_excluded": true
+    },
+    "speciesAir": {
+      "max_cell_inventory_defect": 7.003693090510549e-24,
+      "sum_inventory_defect": -3.008188875920442e-21,
+      "sum_actual_change": -3.5581884399568925e-10,
+      "sum_flux_and_source_change": -3.5581884399268105e-10,
+      "owner_omega_excluded": false
+    },
+    "speciesCO2": {
+      "max_cell_inventory_defect": 1.364603148287515e-24,
+      "sum_inventory_defect": -3.923335737643271e-22,
+      "sum_actual_change": -6.186056352854905e-11,
+      "sum_flux_and_source_change": -6.18605635281567e-11,
+      "owner_omega_excluded": false
+    }
+  },
+  "tests": {
+    "first_wall_suite": {
+      "passed": 999,
+      "failed": 33,
+      "log": "gas-wall-tests.log"
+    },
+    "preexisting_failures": [
+      "validation/tests/gas_wall/test_wall_execution_work.py::test_accepted_candidate_reuses_residual_and_table_preflight",
+      "validation/tests/gas_wall/test_wall_finite_publication.py::test_double_zero_shear_preserves_unavailable_diagnostic_and_real_fields",
+      "validation/tests/gas_wall/test_wall_finite_publication.py::test_finite_continuation[finite_input]",
+      "validation/tests/gas_wall/test_wall_finite_publication.py::test_finite_continuation[signed_diffusion]",
+      "validation/tests/gas_wall/test_wall_finite_publication.py::test_finite_continuation[signed_point]",
+      "validation/tests/gas_wall/test_wall_finite_publication.py::test_finite_continuation[zero_shear]",
+      "validation/tests/gas_wall/test_wall_finite_publication.py::test_unrepresentable_newton_step_keeps_evaluated_profile",
+      "validation/tests/gas_wall/test_wall_geometry_single_construction.py::test_finite_projection_budget_reports_residual_without_restarting",
+      "validation/tests/gas_wall/test_wall_local_efficiency.py::test_layer_row_skips_already_checked_unused_endpoints[14]",
+      "validation/tests/gas_wall/test_wall_local_efficiency.py::test_layer_row_skips_already_checked_unused_endpoints[17]",
+      "validation/tests/gas_wall/test_wall_newton_globalization.py::test_captured_sst_input_converges_in_physical_domain",
+      "validation/tests/gas_wall/test_wall_original_search.py::test_original_successful_rejected_trials_and_complete_profile[reacting-one-damping]",
+      "validation/tests/gas_wall/test_wall_original_search.py::test_original_successful_rejected_trials_and_complete_profile[reacting-six-damping]",
+      "validation/tests/gas_wall/test_wall_original_search.py::test_original_successful_rejected_trials_and_complete_profile[sst-fifty-six-damping]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_exchange_completes_all_actual_channels[area]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_exchange_completes_all_actual_channels[heat]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_exchange_completes_all_actual_channels[missing_h]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_exchange_completes_all_actual_channels[omega]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_exchange_completes_all_actual_channels[partial_h]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_exchange_completes_all_actual_channels[species]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_exchange_completes_all_actual_channels[traction]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_exchange_completes_all_actual_channels[velocity]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_terminal_wall_completion[analytic_heat]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_terminal_wall_completion[analytic_trace]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_terminal_wall_completion[bvp_diffusion]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_terminal_wall_completion[bvp_rate_tail]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_terminal_wall_completion[bvp_trace]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_terminal_wall_completion[layer_diffusion]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_terminal_wall_completion[partial_enthalpy]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_terminal_wall_completion[point_rate]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_terminal_wall_completion[point_state]",
+      "validation/tests/gas_wall/test_wall_terminal_completion.py::test_terminal_wall_completion[precision]"
+    ],
+    "new_failure": {
+      "test": "validation/tests/gas_wall/test_wall_feasible_derivatives.py::test_newton_trial_cannot_hide_selected_missing_thermo_segment",
+      "cause": "Source catalogue line moved after added CUDA annotation macro; production computation passed and anchor assertion failed.",
+      "fix": "refresh all ReactingWallLayer producer anchors and four stale function labels",
+      "verification": "metadata-and-new-tests.log: 9 passed"
+    },
+    "full_collection": {
+      "status": "blocked_by_missing_companion_asset",
+      "log": "all-validation-tests.log",
+      "missing": "ugkp-thermal-cases/example/tools/production/bentSRM_coldWall/assets/postprocessing/bentsrm_wall_model_comparison.py"
+    }
+  },
+  "final_targeted_tests": {
+    "command": [
+      "python3",
+      "-m",
+      "pytest",
+      "-q",
+      "validation/tests/gas_transport/test_native_qualification_comparators.py",
+      "validation/tests/gas_transport/test_conservative_matching_physical_trace.py",
+      "validation/tests/gas_wall/test_coherent_shared_numerics.py",
+      "validation/tests/gas_wall/test_affine_directional_scalar.py",
+      "validation/tests/gas_wall/test_coherent_production_route.py",
+      "validation/tests/gas_wall/test_coherent_components.py",
+      "validation/tests/gas_wall/test_coherent_wall_storage.py",
+      "validation/tests/gas_wall/test_cooperative_publication.py",
+      "validation/tests/gas_wall/test_ordered_profile_average.py",
+      "validation/tests/gas_wall/test_profile_point_reuse.py",
+      "validation/tests/gas_wall/test_wall_flux_basis.py",
+      "validation/tests/gas_wall/test_wall_feasible_derivatives.py"
+    ],
+    "exit": 0,
+    "seconds": 42.620634275022894,
+    "PATH_prefix": "/usr/local/cuda/bin"
+  },
+  "math_changes": false,
+  "numerical_setting_changes": false,
+  "pr": {
+    "number": 22,
+    "draft": true,
+    "merge": false
+  },
+  "qualification_limit": "No new 1000-step full-field acceptance; prior strict CPU/GPU 1e-5 full-field failure and wallFunction limits remain."
+}
