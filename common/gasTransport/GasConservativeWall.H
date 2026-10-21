@@ -82,7 +82,7 @@ UGKWP_GAS_HD inline void reconstructConservativeWall(
   if (!data.enabled || data.columns[slot].cells[0] < 0)
     return;
   const auto &col = data.columns[slot];
-  gaswall::reconstruction::Profile p(in, cfg, w);
+  gaswall::reconstruction::Profile p(in, cfg, w, data.scratch[worker].transformSlope, team);
   p.setWallFlux(out);
   for (int i = 0; i < 2; ++i) {
     gaswall::reconstruction::Segment seg{};
@@ -123,7 +123,7 @@ UGKWP_GAS_HD inline void reconstructConservativeWall(
   if (team.leader())
     data.momentResidual[slot] = p.maxResidual;
   for (int i = 0; i < 2; ++i) {
-    auto source = p.sourceTeam(i, team);
+    auto source = p.sourceTeam(i, team, cfg.coherentDiscretization ? 1 : 4);
     if (team.leader()) {
       auto q = p.baseAverage(p.segments[i]);
       if (i == 0)

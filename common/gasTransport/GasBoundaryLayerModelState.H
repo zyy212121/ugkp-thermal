@@ -4,6 +4,7 @@
 #include "GasWallMatching.H"
 #include "GasGeometryValidation.H"
 #include "GasBoundaryLayerWorkspace.H"
+#include "GasCoherentBoundaryLayer.H"
 #include "../gasWall/WallModel.H"
 #include "../gasWall/WallAcceptedHistory.H"
 #if defined(__CUDACC__)
@@ -27,6 +28,11 @@ template<class Real,int Ns,int MaxNodes=48> struct GasBoundaryLayerModelState
     gaswall::WallStatus* status=nullptr;
     Real* profile=nullptr; // enabled-at-startup rows: y,U[3],T,k,omega,Y[Ns]
     void* referenceScratch=nullptr;
+    // New operator selection is internal storage ownership, not an input gate.
+    // Legacy/no-storage routes retain the original solver and reconstruction.
+    bool coherentEnabled=false;
+    void* coherentScratch=nullptr; // worker-indexed, capacity-bucketed
+    void* coherentState=nullptr; // wall-indexed numerical state and LU cache
     Real* acceptedHistory=nullptr;
     Real* candidateHistory=nullptr;
     gaswall::WallHistoryFrame<Ns>* acceptedFrame=nullptr;
@@ -39,6 +45,20 @@ template<class Real,int Ns,int MaxNodes=48> struct GasBoundaryLayerModelState
     const int* matchingCells=nullptr;
     const Real* matchingWeights=nullptr;
 };
+// Route selection follows the owned coherent storage, never a new physical
+// validity condition. Uncovered columns and legacy callers retain their solver.
+template<class Real,int Ns,int MaxNodes>
+UGKWP_GAS_HD inline bool gasBoundaryLayerUsesCoherent(
+    const GasBoundaryLayerModelState<Real,Ns,MaxNodes>& m,int slot) {
+    if constexpr(std::is_same<Real,double>::value&&Ns==2)
+        return m.coherentEnabled&&m.coherentScratch&&m.coherentState
+            &&m.referenceScratch&&m.acceptedHistory&&m.candidateHistory
+            &&m.acceptedFrame&&m.candidateFrame&&m.referenceStats
+            &&m.config.model==gaswall::BoundaryLayerModel::ReactingSst
+            &&m.conservative.enabled&&m.conservative.columns
+            &&m.conservative.columns[slot].cells[0]>=0;
+    else return false;
+}
 template<class State,class=void> struct GasBoundaryLayerModelCapability:std::false_type{};
 template<class State> struct GasBoundaryLayerModelCapability<State,
     std::void_t<decltype(std::declval<State>().gasBoundaryLayerModel)>>:std::true_type{};
@@ -79,27 +99,38 @@ UGKWP_GAS_HD UGKWP_WALL_WORKSPACE_CALL bool evaluateGasBoundaryLayerWorkspace(
     gaswall::WallWorkspace<Real,Ns,Capacity>& workspace,gaswall::WallOutput<Real,Ns>& output,
     gaswall::WallStatus& status,Real* profile,const Team& team,
     gaswall::WallReferenceScratch<Ns,Capacity>* scratch=nullptr,
-    const Real* accepted=nullptr,gaswall::WallReferenceStats* statistics=nullptr)
+    const Real* accepted=nullptr,gaswall::WallReferenceStats* statistics=nullptr,
+    gaswall::coherent::Scratch<Capacity>* coherentScratch=nullptr,
+    gaswall::coherent::PersistentWallState<Capacity>* coherentWall=nullptr)
 {
     using ScalarExecution=std::integral_constant<bool,
         std::is_same<Team,gaswall::detail::SerialWallTeam>::value
         || !std::is_same<Real,gaswall::WallReal>::value>;
-    bool evaluated=false;
-    if constexpr(std::is_same<Real,gaswall::WallReal>::value){
-        if(scratch&&statistics&&config.model==gaswall::BoundaryLayerModel::ReactingSst)
-            evaluated=gaswall::evaluateWallReference(input,config,workspace,*scratch,accepted,output,status,*statistics,team);
-        else evaluated=evaluateGasBoundaryLayerModelWithTeam(input,config,workspace,output,status,team,ScalarExecution{});
-    }else evaluated=evaluateGasBoundaryLayerModelWithTeam(input,config,workspace,output,status,team,ScalarExecution{});
+    bool evaluated=false,coherentRoute=false;
+    if constexpr(std::is_same<Real,double>::value&&Ns==2) {
+        coherentRoute=coherentScratch&&coherentWall&&statistics
+            &&config.model==gaswall::BoundaryLayerModel::ReactingSst;
+        if(coherentRoute)evaluated=evaluateGasCoherentWallWorkspace(input,config,workspace,
+            *coherentScratch,*coherentWall,accepted,output,status,*statistics,team);
+    }
+    if(!coherentRoute){
+        if constexpr(std::is_same<Real,gaswall::WallReal>::value){
+            if(scratch&&statistics&&config.model==gaswall::BoundaryLayerModel::ReactingSst)
+                evaluated=gaswall::evaluateWallReference(input,config,workspace,*scratch,accepted,output,status,*statistics,team);
+            else evaluated=evaluateGasBoundaryLayerModelWithTeam(input,config,workspace,output,status,team,ScalarExecution{});
+        }else evaluated=evaluateGasBoundaryLayerModelWithTeam(input,config,workspace,output,status,team,ScalarExecution{});
+    }
     if constexpr(Capture)
     {
         if(evaluated && team.leader())
         {
+            auto profileConfig=config;profileConfig.coherentDiscretization=coherentRoute;
             gaswall::detail::LayerContext<Real,Ns> context;
-            const bool available=gaswall::detail::makeContext(input,config,context);
+            const bool available=gaswall::detail::makeContext(input,profileConfig,context);
             for(int node=0;node<config.nodes;++node)
             {
                 gaswall::WallProfileNode<Real,Ns> p;
-                const bool decoded=available && gaswall::reactingWallProfileNode(input,config,workspace,node,context,p);
+                const bool decoded=available && gaswall::reactingWallProfileNode(input,profileConfig,workspace,node,context,p);
                 Real* row=profile+node*(7+Ns);
                 row[0]=p.y;for(int d=0;d<3;++d)row[1+d]=p.velocity[d];
                 row[4]=p.temperature;row[5]=p.k;row[6]=p.omega;
@@ -148,8 +179,11 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerHistory(State&state,int slot,in
      team.sync();history=&w.trial[0][0];
    }
  }
- const bool ok=evaluateGasBoundaryLayerWorkspace<Capture>(in,m.config,w,m.output[slot],m.status[slot],Capture?m.profile+std::size_t(slot)*m.config.nodes*(7+Ns):nullptr,team,scratch,history,reference?m.referenceStats+slot:nullptr);
- if(reference&&team.leader()&&m.referenceCounters){auto&total=m.referenceCounters[slot];const auto&v=m.referenceStats[slot];++total.solves;total.failures+=!ok||!v.converged;total.iterations+=v.iterations;total.residuals+=v.residualEvaluations;total.jacobians+=v.jacobianEvaluations;total.central+=v.centralDirections;total.history+=v.usedHistory;total.maxResidual=gaswall::detail::max(total.maxResidual,v.residual);}
+ const bool coherentRoute=gasBoundaryLayerUsesCoherent(m,slot);
+ auto* coherentScratch=coherentRoute?static_cast<gaswall::coherent::Scratch<Capacity>*>(m.coherentScratch)+worker:nullptr;
+ auto* coherentWall=coherentRoute?static_cast<gaswall::coherent::PersistentWallState<Capacity>*>(m.coherentState)+slot:nullptr;
+ const bool ok=evaluateGasBoundaryLayerWorkspace<Capture>(in,m.config,w,m.output[slot],m.status[slot],Capture?m.profile+std::size_t(slot)*m.config.nodes*(7+Ns):nullptr,team,scratch,history,reference?m.referenceStats+slot:nullptr,coherentScratch,coherentWall);
+ if(reference&&team.leader()&&m.referenceCounters){auto&total=m.referenceCounters[slot];const auto&v=m.referenceStats[slot];++total.solves;total.failures+=!ok||!v.converged;total.iterations+=v.iterations;total.residuals+=v.residualEvaluations;total.jacobians+=v.jacobianEvaluations;total.central+=v.centralDirections;total.history+=v.usedHistory;total.numericalHistory+=v.usedNumericalState;total.maxResidual=gaswall::detail::max(total.maxResidual,v.residual);}
  if(reference&&ok){
    Real*next=m.candidateHistory+std::size_t(slot)*m.config.nodes*B;
    for(int i=team.rank();i<m.config.nodes;i+=team.size())for(int j=0;j<B;++j)next[i*B+j]=w.state[i][j];
