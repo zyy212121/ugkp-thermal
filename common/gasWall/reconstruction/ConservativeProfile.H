@@ -40,6 +40,10 @@ struct ProfileScratch {
   Sample samples[128 * 8];
   // Worker-owned active slope cache, shared by the same node team as samples.
   double transformSlope[128][3];
+  // One bounded worker buffer. Points are evaluated cooperatively, then the
+  // original quadrature-order FP64 sum is retained by the leader.
+  Q orderedTerms[128 * 8];
+  Q baseMeans[2];
 };
 struct Profile {
   struct WorkView {
@@ -127,6 +131,45 @@ struct Profile {
     if (D > 0)
       wallSpeciesSlopeDelta0 = -(in.massFlux[0] - ctx.mass * wall.Y[0]) / D -
                                (edge.Y[0] - wall.Y[0]) / dy;
+  }
+  // Snapshot only coefficients independent of auxiliary q/traction. The caller
+  // owns its lifetime and must rebuild it when the input or workspace changes.
+  struct WallFluxBasis {
+    double tangentSlope[2], temperatureSlope, conductivity, speciesSlope = 0;
+    bool correctSpecies = false;
+  };
+  UGKWP_GAS_HD WallFluxBasis wallFluxBasis() const {
+    WallFluxBasis basis;
+    d::LayerPoint<double, 2> wall, edge;
+    d::pointState(in, cfg, ctx, w.state[0], wall);
+    const double dy = w.y[1] - w.y[0];
+    for (int t = 0; t < 2; ++t)
+      basis.tangentSlope[t] = (w.state[1][t] - w.state[0][t]) / dy;
+    basis.conductivity = in.model.molecularPrandtl > 0
+        ? in.model.viscosity * wall.cp / in.model.molecularPrandtl
+        : in.model.conductivity;
+    basis.temperatureSlope = (w.state[1][2] - w.state[0][2]) / dy;
+    d::pointState(in, cfg, ctx, w.state[1], edge);
+    const double D = wall.rho * (in.model.diffusivity[0] * wall.Y[1] +
+                                in.model.diffusivity[1] * wall.Y[0]);
+    basis.correctSpecies = D > 0;
+    if (basis.correctSpecies)
+      basis.speciesSlope = -(in.massFlux[0] - ctx.mass * wall.Y[0]) / D -
+                           (edge.Y[0] - wall.Y[0]) / dy;
+    return basis;
+  }
+  UGKWP_GAS_HD void setWallFlux(const ugkwp::gaswall::WallOutput<double, 2> &out,
+                                const WallFluxBasis &basis) {
+    for (int t = 0; t < 2; ++t) {
+      double tau = 0;
+      for (int j = 0; j < 3; ++j)
+        tau += out.traction[j] * ctx.tangent[t][j];
+      wallSlopeDelta[t] = tau / in.model.viscosity - basis.tangentSlope[t];
+    }
+    wallSlopeDelta[2] = -out.conductiveHeatFlux / basis.conductivity -
+                        basis.temperatureSlope;
+    if (basis.correctSpecies)
+      wallSpeciesSlopeDelta0 = basis.speciesSlope;
   }
   UGKWP_GAS_HD double nodeSlope(int i, int j) const {
     if (j >= 4 || j == 2)
@@ -231,11 +274,33 @@ struct Profile {
   }
   UGKWP_GAS_HD void reconstructInternalTraces() {
     int n = segments.size();
-    Primitive a[2]{}, b[2]{}, trace[3]{};
+    Primitive a[2]{}, b[2]{};
     for (int i = 0; i < n; ++i) {
       a[i] = primitiveAverage(segments[i].target);
       b[i] = primitiveAverage(baseAverage(segments[i]));
     }
+    reconstructInternalTracesFromAverages(a, b);
+  }
+  template <class Team>
+  UGKWP_GAS_HD void reconstructInternalTracesTeam(ProfileScratch &scratch,
+                                                  const Team &team) {
+    Primitive a[2]{}, b[2]{};
+    for (int i = 0; i < int(segments.size()); ++i) {
+      auto q = baseAverageTeam(segments[i], scratch, team);
+      for (int j = 0; j < 9; ++j)
+        q[j] = team.broadcast(q[j]);
+      if (team.leader())
+        scratch.baseMeans[i] = q;
+      a[i] = primitiveAverage(segments[i].target);
+      b[i] = primitiveAverage(q);
+    }
+    team.sync();
+    reconstructInternalTracesFromAverages(a, b);
+  }
+  UGKWP_GAS_HD void reconstructInternalTracesFromAverages(
+      const Primitive *a, const Primitive *b) {
+    const int n = segments.size();
+    Primitive trace[3]{};
     trace[0] = base(segments.front().lo);
     trace[n] = base(segments.back().hi);
     for (int i = 1; i < n; ++i) {
@@ -300,8 +365,9 @@ struct Profile {
     if(affineSpeciesMode!=1)return 0;auto c=affineCoordinate(y,side);double r=c[0],Y=affineValue(y,baseY,side);
     return Y*(1-Y)*(baseGradient/(baseY*(1-baseY))+(-2*affineSpeciesA*r+affineSpeciesB*(2*r-3*r*r))*c[1]);
   }
-  UGKWP_GAS_HD Primitive pointIn(double y, const Segment &s) const {
-    auto p = base(y);
+  UGKWP_GAS_HD Primitive pointIn(double y, const Segment &s,
+                                  const Primitive *basePoint = nullptr) const {
+    auto p = basePoint ? *basePoint : base(y);
     const double speciesBaseY=p.Y[0];
     double x = (y - s.lo) / (s.hi - s.lo);
     if (s.endpointOverride) {
@@ -422,6 +488,50 @@ struct Profile {
           q[j] += weight * v[j] / (s.hi - s.lo);
     });
     return q;
+  }
+  template <bool BaseOnly, class Team>
+  UGKWP_GAS_HD Q orderedAverageTeam(const Segment &s, ProfileScratch &scratch,
+                                    const Team &team) const {
+    if (team.size() == 1) {
+      if constexpr (BaseOnly)
+        return baseAverage(s);
+      else
+        return average(s);
+    }
+    int count = 0;
+    quadrature(s, [&](double y, double weight) {
+      const int index = count++;
+      if (index % team.size() != team.rank())
+        return;
+      Q v;
+      if constexpr (BaseOnly)
+        v = conserved(base(y));
+      else
+        v = conserved(pointIn(y, s));
+      for (int j = 0; j < 9; ++j)
+        if (j != 6 || !s.algebraicOmega)
+          scratch.orderedTerms[index][j] = weight * v[j] / (s.hi - s.lo);
+    });
+    team.sync();
+    Q q{};
+    if (team.leader())
+      for (int index = 0; index < count; ++index)
+        for (int j = 0; j < 9; ++j)
+          if (j != 6 || !s.algebraicOmega)
+            q[j] += scratch.orderedTerms[index][j];
+    // Publish the reads before another segment reuses the worker buffer.
+    team.sync();
+    return q;
+  }
+  template <class Team>
+  UGKWP_GAS_HD Q averageTeam(const Segment &s, ProfileScratch &scratch,
+                             const Team &team) const {
+    return orderedAverageTeam<false>(s, scratch, team);
+  }
+  template <class Team>
+  UGKWP_GAS_HD Q baseAverageTeam(const Segment &s, ProfileScratch &scratch,
+                                 const Team &team) const {
+    return orderedAverageTeam<true>(s, scratch, team);
   }
   template <class Getter>
   UGKWP_GAS_HD void monotonic(double &coef, double target, Getter value) {
@@ -636,8 +746,8 @@ struct Profile {
             return x.weight * x.rho * x.p.omega * ::exp(s.aOmega * x.b);
           });
         });
+      const auto q = averageTeam(s, scratch, team);
       if (team.leader()) {
-        auto q = average(s);
         for (int j = 0; j < 9; ++j)
           if (j != 6 || !s.algebraicOmega)
             maxResidual =
@@ -687,7 +797,7 @@ struct Profile {
     // Last numerical fit remains publishable: observations do not add a gate.
     affineSpeciesMode=requested;
     for(int c=0;c<2;++c){auto&seg=segments[c];int begin=offsets[c],count=offsets[c+1]-begin;for(int i=team.rank();i<count;i+=team.size()){auto&x=scratch.samples[begin+i];x.Y[0]=requested==2?0:requested==3?1:speciesLogistic(x.speciesBaseLogit+affineSpeciesA*x.speciesBasis[0]+affineSpeciesB*x.speciesBasis[1]);x.Y[1]=1-x.Y[0];}team.sync();monotonic(seg.aT,seg.target[4],[&](){double value=0;for(int i=team.rank();i<count;i+=team.size()){const auto&x=scratch.samples[begin+i];value+=x.weight*x.rho*(ugkwp::mixtureEnergy(x.Y,x.p.T*::exp(seg.aT*x.b),in.model.thermo)+x.kinetic);}return team.sum(value);});}
-    if(team.leader())for(const auto&seg:segments){auto q=average(seg);for(int j=0;j<9;++j)if(j!=6||!seg.algebraicOmega)maxResidual=d::max(maxResidual,::fabs(q[j]-seg.target[j])/d::max(1.,::fabs(seg.target[j])));}maxResidual=team.broadcast(maxResidual);return true;
+    for(const auto&seg:segments){auto q=averageTeam(seg,scratch,team);if(team.leader())for(int j=0;j<9;++j)if(j!=6||!seg.algebraicOmega)maxResidual=d::max(maxResidual,::fabs(q[j]-seg.target[j])/d::max(1.,::fabs(seg.target[j])));}maxResidual=team.broadcast(maxResidual);return true;
   }
   template <class Team>
   UGKWP_GAS_HD Array<double, 3> sourceTeam(int cell, const Team &team,
@@ -714,9 +824,10 @@ struct Profile {
   }
 
   // One-sided micro derivatives, recovered symmetrically at shared macro faces.
-  UGKWP_GAS_HD Primitive derivativeRaw(double y, const Segment &s) const {
+  UGKWP_GAS_HD Primitive derivativeRaw(double y, const Segment &s,
+                                        const Primitive *basePoint = nullptr) const {
     if (y == 0 && s.lo == 0) {
-      auto p = base(0);
+      auto p = basePoint ? *basePoint : base(0);
       Primitive g{};
       double micro = w.y[1] - w.y[0], db = 6 / (s.hi - s.lo),
              tbase =
@@ -804,7 +915,7 @@ struct Profile {
         state[3] += sign * wallSpeciesSlopeDelta0 * shape;
         ds[3] += sign * wallSpeciesSlopeDelta0 * dshape;
       }
-      auto p = base(y);
+      auto p = basePoint ? *basePoint : base(y);
       Primitive g{};
       double dy0 = (ctx.independent[0] == 0 ? 1 : -1) * ds[3],
              R = ugkwp::mixtureGasConstant(p.Y, in.model.thermo),
@@ -855,10 +966,11 @@ struct Profile {
       return g;
     }
   }
-  UGKWP_GAS_HD Primitive derivative(double y, int side = 0) const {
+  UGKWP_GAS_HD Primitive derivative(double y, int side = 0,
+                                     const Primitive *basePoint = nullptr) const {
     const auto &s = segments[segment(y, side)];
     if (y == 0 || !s.endpointOverride) {
-      auto g=derivativeRaw(y,s);if(affineSpeciesMode){double Y=base(y).Y[0];g.Y[0]=affineGradient(y,Y,g.Y[0],side);g.Y[1]=-g.Y[0];}return g;
+      auto g=derivativeRaw(y,s,basePoint);if(affineSpeciesMode){double Y=(basePoint ? basePoint->Y[0] : base(y).Y[0]);g.Y[0]=affineGradient(y,Y,g.Y[0],side);g.Y[1]=-g.Y[0];}return g;
     }
     // Evaluate the base derivative directly: no recursive Profile copy on GPU.
     Segment plain = s;
@@ -867,7 +979,7 @@ struct Profile {
     plain.aRho = plain.aT = plain.aK = plain.aOmega = plain.aY = 0;
     for (int j = 0; j < 3; ++j)
       plain.aU[j] = 0;
-    auto g0 = derivativeRaw(y, plain), p0 = base(y);
+    auto g0 = derivativeRaw(y, plain,basePoint), p0 = basePoint ? *basePoint : base(y);
     Primitive g{};
     double h = s.hi - s.lo, x = (y - s.lo) / h, b = bubble(x),
            db = 6 * (1 - 2 * x) / h;
@@ -974,8 +1086,11 @@ struct Profile {
   }
   UGKWP_GAS_HD physical::Primitive<double, 2>
   physicalPrimitive(double y, int side = 0) const {
-    auto p = point(y, side), g = derivative(y, side);
     const auto &s = segments[segment(y, side)];
+    // These consumers observe the same immutable query state. Reuse the exact
+    // base value instead of repeating its interpolation and thermochemistry.
+    const auto basePoint = base(y);
+    auto p = pointIn(y, s, &basePoint), g = derivative(y, side, &basePoint);
     physical::Primitive<double, 2> v;
     v.rho = p.rho;
     v.T = p.T;

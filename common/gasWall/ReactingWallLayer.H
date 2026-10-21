@@ -28,7 +28,14 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool validatePointDy
     if(!gasFinite(p.k)||!gasFinite(p.z)||p.z<0)return wallFatal(in,(gasFinite(p.k)&&gasFinite(p.z)?ugkp::diagnostics::Code::InvalidPhysicalState:ugkp::diagnostics::Code::NonFinite),2411,p.z);
     return true;
 }
-template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool pointState(const WallInput<R,N,TableReal>& in,
+// This small, frequently called primitive benefits from device inlining;
+// retain out-of-line boundaries around the larger SST and Newton routines.
+#if defined(__CUDA_ARCH__)
+#define UGKWP_WALL_POINT_INLINE __forceinline__
+#else
+#define UGKWP_WALL_POINT_INLINE inline
+#endif
+template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_POINT_INLINE bool pointState(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const R* state,LayerPoint<R,N>& p,const bool terminalProfile=false){
     if(!in.model.thermo.species||!in.model.thermo.coefficients)return wallFatal(in,ugkp::diagnostics::Code::MissingOperator,2400);
     p.theta=state[2];p.T=in.temperature+p.theta;p.u[0]=state[0];p.u[1]=state[1];p.k=state[N+2]*state[N+2];p.z=state[N+3];
@@ -1149,4 +1156,5 @@ template<class S,int N,int M> UGKWP_GAS_HD inline typename std::enable_if<!std::
 }
 }} // namespace
 
+#undef UGKWP_WALL_POINT_INLINE
 #undef UGKWP_WALL_DEVICE_LEAF

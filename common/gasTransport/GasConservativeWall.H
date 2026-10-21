@@ -112,7 +112,7 @@ UGKWP_GAS_HD inline void reconstructConservativeWall(
     p.segments[i].normalLo = normals[i];
     p.segments[i].normalHi = normals[i + 1];
   }
-  p.reconstructInternalTraces();
+  p.reconstructInternalTracesTeam(data.scratch[worker], team);
   if (!p.fitTeam(data.scratch[worker], team)) {
     if (team.leader())
       ++data.fallbacks[slot];
@@ -125,7 +125,8 @@ UGKWP_GAS_HD inline void reconstructConservativeWall(
   for (int i = 0; i < 2; ++i) {
     auto source = p.sourceTeam(i, team, cfg.coherentDiscretization ? 1 : 4);
     if (team.leader()) {
-      auto q = p.baseAverage(p.segments[i]);
+      // base() is unchanged by trace/moment fitting; reuse this exact mean.
+      auto q = data.scratch[worker].baseMeans[i];
       if (i == 0)
         q[6] = q[0] * out.ownerOmega;
       data.baseInventory[2 * slot + i] = q;

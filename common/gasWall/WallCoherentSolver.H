@@ -19,6 +19,7 @@ template<int M> struct Scratch {
  WallWorkspace<double,2,M> probe;
  WallOutput<double,2> trialOut;
  double cachedUslopes[M][2],transformSlope[M][3],low[M][6];
+ double publicationIntegral[M][3];
  detail::LayerPoint<double,2> points[M];
  detail::LayerFlux<double,2> oldFlux[M];
  physical::Face<double,2> faces[M];
@@ -72,7 +73,8 @@ UGKWP_GAS_HD physical::Face<double,2> resistanceFace(Profile&p,int l,const doubl
 // not additional BVP nodes/unknowns. Always retain the last physical iterate.
 UGKWP_GAS_HD bool closeFirstFace(Profile&p,const double*speciesFlux,double wallEnergy,WallOutput<double,2>&out,double&closure,double&scaledClosure){
  double x[3]={out.conductiveHeatFlux,0,0};for(int d=0;d<2;++d)for(int a=0;a<3;++a)x[d+1]+=out.traction[a]*p.ctx.tangent[d][a];
- auto evaluate=[&](const double*v,double*r){auto candidate=out;candidate.conductiveHeatFlux=v[0];for(int a=0;a<3;++a){candidate.traction[a]=0;for(int d=0;d<2;++d)candidate.traction[a]+=v[d+1]*p.ctx.tangent[d][a];}p.setWallFlux(candidate);bool valid=true;auto f=resistanceFace(p,0,speciesFlux,nullptr,nullptr,&valid);r[0]=f.energy-wallEnergy-v[0];for(int d=0;d<2;++d){double tau=p.ctx.mass*p.ctx.wallU[d];for(int a=0;a<3;++a)tau-=f.momentum[a]*p.ctx.tangent[d][a];r[d+1]=tau-v[d+1];}return valid;};
+ const auto wallBasis=p.wallFluxBasis();
+ auto evaluate=[&](const double*v,double*r){auto candidate=out;candidate.conductiveHeatFlux=v[0];for(int a=0;a<3;++a){candidate.traction[a]=0;for(int d=0;d<2;++d)candidate.traction[a]+=v[d+1]*p.ctx.tangent[d][a];}p.setWallFlux(candidate,wallBasis);bool valid=true;auto f=resistanceFace(p,0,speciesFlux,nullptr,nullptr,&valid);r[0]=f.energy-wallEnergy-v[0];for(int d=0;d<2;++d){double tau=p.ctx.mass*p.ctx.wallU[d];for(int a=0;a<3;++a)tau-=f.momentum[a]*p.ctx.tangent[d][a];r[d+1]=tau-v[d+1];}return valid;};
  auto magnitude=[](const double*r){return std::max(std::abs(r[0]),std::max(std::abs(r[1]),std::abs(r[2])));};
  double r[3];bool valid=evaluate(x,r);closure=magnitude(r);const double tolerance=p.cfg.absoluteTolerance+p.cfg.relativeTolerance;
  for(int iteration=0;valid&&closure>tolerance&&iteration<p.cfg.maxIterations;++iteration){double jac[3][3],step[3]={-r[0],-r[1],-r[2]};bool derivativeValid=true;
@@ -84,7 +86,7 @@ UGKWP_GAS_HD bool closeFirstFace(Profile&p,const double*speciesFlux,double wallE
  }
  // No new input rejection: expose remaining local residual to the caller's
  // actual equation norm instead of falsely claiming a closed first interval.
- out.conductiveHeatFlux=x[0];for(int a=0;a<3;++a){out.traction[a]=0;for(int d=0;d<2;++d)out.traction[a]+=x[d+1]*p.ctx.tangent[d][a];}p.setWallFlux(out);scaledClosure=std::max(std::abs(r[0])/p.ctx.scale[2],std::max(std::abs(r[1])/p.ctx.scale[0],std::abs(r[2])/p.ctx.scale[1]));return valid;
+ out.conductiveHeatFlux=x[0];for(int a=0;a<3;++a){out.traction[a]=0;for(int d=0;d<2;++d)out.traction[a]+=x[d+1]*p.ctx.tangent[d][a];}p.setWallFlux(out,wallBasis);scaledClosure=std::max(std::abs(r[0])/p.ctx.scale[2],std::max(std::abs(r[1])/p.ctx.scale[0],std::abs(r[2])/p.ctx.scale[1]));return valid;
 }
 
 UGKWP_GAS_HD void trackOldInterval(const Input&in,const Config&cfg,const detail::LayerPoint<double,2>&left,const detail::LayerPoint<double,2>&right,const detail::LayerPoint<double,2>&p,double length,double y){
@@ -117,12 +119,8 @@ UGKWP_GAS_HD bool refresh(const Input&in,const Config&cfg,W&w,const Ctx&ctx,doub
  return physicalValid;}
 UGKWP_GAS_HD BoundedVector<int,2*M> hermiteBranches(const Config&cfg,const W&w){BoundedVector<int,2*M>b;for(int j:{4,5}){for(int i=1;i<cfg.nodes-1;++i){double dl=w.state[i][j]-w.state[i-1][j],dr=w.state[i+1][j]-w.state[i][j];b.push_back((dl>0?1:dl<0?-1:0)*3+(dr>0?1:dr<0?-1:0));}int i=cfg.nodes-1;if(i==1){b.push_back(2);continue;}double h0=w.y[i]-w.y[i-1],h1=w.y[i-1]-w.y[i-2],d0=(w.state[i][j]-w.state[i-1][j])/h0,d1=(w.state[i-1][j]-w.state[i-2][j])/h1,sl=((2*h0+h1)*d0-h0*d1)/(h0+h1);b.push_back(sl*d0<=0?0:d0*d1<0&&std::abs(sl)>3*std::abs(d0)?1:2);}return b;}
 // Publication retains old species-row semantics and replaces every changed high-operator field.
-UGKWP_GAS_HD bool publish(const Input&in,const Config&cfg,W&w,const Ctx&ctx,int iterations,double norm,WallOutput<double,2>&out){
- auto high=out;if(!detail::publishLayer(in,cfg,ctx,w,iterations,norm,out))return false;
- out.conductiveHeatFlux=high.conductiveHeatFlux;for(int a=0;a<3;++a)out.traction[a]=high.traction[a];
- Profile p(in,cfg,w,s.transformSlope);for(int i=1;i<cfg.nodes;++i)for(int j=0;j<2;++j)cachedUslopes[i][j]=p.nodeSlope(i,j);p.setWallFlux(out);Segment seg;seg.lo=0;seg.hi=w.y[cfg.nodes-1];p.segments.push_back(seg);
- if(cfg.enableSst)out.ownerOmega=p.base(in.ownerDistance).omega;
- bool physicalValid=true;double totalR=0,totalStress=0,totalAdvective=0;auto& faces=s.faces;for(int i=0;i<cfg.nodes-1;++i){double R,W,A;detail::LayerFlux<double,2> old;if(!detail::intervalFlux(in,cfg,ctx,w.state[i],w.state[i+1],w.y[i],w.y[i+1],old))return false;faces[i]=resistanceFace(p,i,old.species,&R,&W,&physicalValid,&A);totalR+=R;totalStress+=W;totalAdvective+=A;}
+UGKWP_GAS_HD bool completePublication(const Input&in,const Config&cfg,W&w,const Ctx&ctx,Profile&p,int iterations,double norm,WallOutput<double,2>&out,double totalR,double totalStress,double totalAdvective,bool physicalValid){
+ auto& faces=s.faces;
  out.heatConduction=(in.temperature-in.matching.temperature)/totalR;out.heatViscous=totalStress/totalR;detail::LayerPoint<double,2> wallPoint;if(!detail::pointState(in,cfg,ctx,w.state[0],wallPoint))return false;out.heatTransport=totalAdvective/totalR-coherent_energy::wallTransport(in,ctx,wallPoint.normalVelocity);out.heatBalanceResidual=out.heatConduction+out.heatViscous+out.heatTransport-out.conductiveHeatFlux;
  auto wall=p.physicalPrimitive(0);physical::Face<double,2>wallFace;physical::Source<double,2>wallSource;physicalValid=trackedEvaluate(in,cfg,wall,0.,in.normal,ctx.wallNormal,wallFace,wallSource)&&physicalValid;out.wallKFlux=wallFace.k;
  if(cfg.enableSst&&in.volumeSstClosure){out.kFluxCount=cfg.nodes+1;out.kFluxHeight[0]=0;out.kTransportFlux[0]=out.wallKFlux;out.omegaDiffusiveFlux[0]=0;
@@ -132,6 +130,14 @@ UGKWP_GAS_HD bool publish(const Input&in,const Config&cfg,W&w,const Ctx&ctx,int 
  }
  if(cfg.enableSst&&in.integrateOwnerKSource){out.integratedKSource=out.ownerKContent=out.ownerKDestruction=out.ownerKBalanceResidual=0;const auto&q=in.quadrature;for(int j=0;j<q.count;++j){double y=q.distance[j],weight=q.volumeWeight[j];auto v=basePhysical(p,y);physical::Face<double,2>f;physical::Source<double,2>src;physicalValid=trackedEvaluate(in,cfg,v,y,in.normal,ctx.wallNormal,f,src)&&physicalValid;out.integratedKSource+=weight*src.k;out.ownerKContent+=weight*v.rho*v.k;out.ownerKDestruction+=weight*v.rho*in.model.sstCoefficients.betaStar*v.k*v.omega;if(in.volumeSstClosure){int control=0;while(control+1<cfg.nodes&&out.kFluxHeight[control+1]<y)++control;out.ownerKBalanceResidual-=weight*(out.kTransportFlux[control+1]-out.kTransportFlux[control])/(out.kFluxHeight[control+1]-out.kFluxHeight[control]);}}out.ownerKBalanceResidual+=out.integratedKSource;}
  out.iterations=iterations;out.residual=norm;return physicalValid;
+}
+UGKWP_GAS_HD bool publish(const Input&in,const Config&cfg,W&w,const Ctx&ctx,int iterations,double norm,WallOutput<double,2>&out){
+ auto high=out;if(!detail::publishLayer(in,cfg,ctx,w,iterations,norm,out))return false;
+ out.conductiveHeatFlux=high.conductiveHeatFlux;for(int a=0;a<3;++a)out.traction[a]=high.traction[a];
+ Profile p(in,cfg,w,s.transformSlope);for(int i=1;i<cfg.nodes;++i)for(int j=0;j<2;++j)cachedUslopes[i][j]=p.nodeSlope(i,j);p.setWallFlux(out);Segment seg;seg.lo=0;seg.hi=w.y[cfg.nodes-1];p.segments.push_back(seg);
+ if(cfg.enableSst)out.ownerOmega=p.base(in.ownerDistance).omega;
+ bool physicalValid=true;double totalR=0,totalStress=0,totalAdvective=0;auto& faces=s.faces;for(int i=0;i<cfg.nodes-1;++i){double R,W,A;detail::LayerFlux<double,2> old;if(!detail::intervalFlux(in,cfg,ctx,w.state[i],w.state[i+1],w.y[i],w.y[i+1],old))return false;faces[i]=resistanceFace(p,i,old.species,&R,&W,&physicalValid,&A);totalR+=R;totalStress+=W;totalAdvective+=A;}
+ return completePublication(in,cfg,w,ctx,p,iterations,norm,out,totalR,totalStress,totalAdvective,physicalValid);
 }
 template<class Stats> UGKWP_GAS_HD bool solve(const Input&in,const Config&originalConfig,W&w,Cache<M>&cache,WallOutput<double,2>&out,Stats&stats){
  auto cfg=originalConfig;cfg.coherentDiscretization=true;bool ok=true;int seedIts=0;if(!cache.haveState){WallStatus status;ok=evaluateWallModel(in,cfg,w,out,status);seedIts=out.iterations;}Ctx ctx;detail::makeContext(in,cfg,ctx);{int e=cfg.nodes-1;w.state[e][0]=ctx.edgeU[0];w.state[e][1]=ctx.edgeU[1];w.state[e][2]=in.matching.temperature-in.temperature;w.state[e][3]=in.matching.massFraction[ctx.independent[0]];w.state[e][4]=cfg.enableSst?std::sqrt(in.matching.k):0;w.state[e][5]=cfg.enableSst?1/std::sqrt(in.matching.omega):1;}for(int i=0;i<cfg.nodes;++i)w.y[i]=in.matchingDistance*std::pow(double(i)/(cfg.nodes-1),cfg.stretch);double norm=0;int evaluations=0,its=0;ok=refresh(in,cfg,w,ctx,norm,out)&&ok;++evaluations;double maxOffBand=0;
@@ -208,11 +214,39 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
  using Base::s;using Base::cachedUslopes;using Base::collectNutBranches;
  using Base::nutBranchPhase;using Base::currentNutBranches;using Base::observerSlot;
  using Base::trackedEvaluate;using Base::trackOldInterval;using Base::basePhysical;
- using Base::resistanceFace;using Base::closeFirstFace;using Base::hermiteBranches;using Base::publish;
+ using Base::resistanceFace;using Base::closeFirstFace;using Base::hermiteBranches;using Base::publish;using Base::completePublication;
  Team team;
  UGKWP_GAS_HD explicit Engine(Scratch<M>&scratch,const Team&t=Team{}):Base(scratch),team(t){}
  UGKWP_GAS_HD void copyActive(const Config&cfg,W&dest,const W&src){
   for(int i=team.rank();i<cfg.nodes;i+=team.size()){dest.y[i]=src.y[i];for(int j=0;j<6;++j){dest.state[i][j]=src.state[i][j];dest.residual[i][j]=src.residual[i][j];}}team.sync();
+ }
+ // Independent interval work is distributed, while the final R/W/A sums
+ // retain exactly the scalar interval order and the same publication helper.
+ UGKWP_GAS_HD bool publishTeam(const Input&in,const Config&cfg,W&w,const Ctx&ctx,int iterations,double norm,WallOutput<double,2>&out){
+  bool valid=false;
+  if(team.leader()){
+   auto high=out;valid=detail::publishLayer(in,cfg,ctx,w,iterations,norm,out);
+   if(valid){out.conductiveHeatFlux=high.conductiveHeatFlux;for(int a=0;a<3;++a)out.traction[a]=high.traction[a];}
+  }
+  if(!team.broadcast(valid))return false;
+  Profile p(in,cfg,w,s.transformSlope,team);
+  for(int i=1+team.rank();i<cfg.nodes;i+=team.size())for(int j=0;j<2;++j)cachedUslopes[i][j]=p.nodeSlope(i,j);
+  team.sync();p.setWallFlux(out);Segment seg;seg.lo=0;seg.hi=w.y[cfg.nodes-1];p.segments.push_back(seg);
+  if(team.leader()&&cfg.enableSst)out.ownerOmega=p.base(in.ownerDistance).omega;
+  team.sync();bool intervalValid=true,physicalValid=true;
+  for(int i=team.rank();i<cfg.nodes-1;i+=team.size()){
+   double R,W,A;detail::LayerFlux<double,2> old;
+   bool intervalOk=detail::intervalFlux(in,cfg,ctx,w.state[i],w.state[i+1],w.y[i],w.y[i+1],old);intervalValid=intervalOk&&intervalValid;
+   if(intervalOk){s.faces[i]=resistanceFace(p,i,old.species,&R,&W,&physicalValid,&A);s.publicationIntegral[i][0]=R;s.publicationIntegral[i][1]=W;s.publicationIntegral[i][2]=A;}
+  }
+  if(!team.all(intervalValid))return false;
+  physicalValid=team.all(physicalValid);bool published=false;
+  if(team.leader()){
+   double totalR=0,totalStress=0,totalAdvective=0;
+   for(int i=0;i<cfg.nodes-1;++i){totalR+=s.publicationIntegral[i][0];totalStress+=s.publicationIntegral[i][1];totalAdvective+=s.publicationIntegral[i][2];}
+   published=completePublication(in,cfg,w,ctx,p,iterations,norm,out,totalR,totalStress,totalAdvective,physicalValid);
+  }
+  return team.broadcast(published);
  }
  // Only the leader inspects a shared probe before a collective permits writes.
  UGKWP_GAS_HD bool sameBranches(const Config&cfg,const W&w,const W&probe){bool same=false;if(team.leader())same=currentNutBranches==s.baseNutBranches&&pchipFdCompatible(cfg,w,probe);return team.broadcast(same);}
@@ -406,8 +440,10 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
   }
   if(team.leader()){
    cache.haveState=true;stats.iterations=seedIts+its;stats.residualEvaluations=evaluations;stats.factorizations=jacobianBuilds;stats.physicalResidual=norm;
-   observerSlot=-1;if(ok)ok=publish(in,cfg,w,ctx,seedIts+its,norm,out);stats.seconds=0;
+   stats.seconds=0;
   }
+  observerSlot=-1;
+  if(team.broadcast(ok))ok=publishTeam(in,cfg,w,ctx,seedIts+its,norm,out);
   return team.broadcast(ok);
  }
 };
