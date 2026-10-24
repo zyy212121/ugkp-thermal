@@ -1,0 +1,100 @@
+{
+  "repository": "https://github.com/nasa/pato",
+  "commit": "33d895885ceb1b61e71e2d2f2cf5327339205570",
+  "required_inputs": [
+    {
+      "path": "pato/data/Materials/Composites/TACOT/constantProperties",
+      "sha256": "d6a3234188f4fb1b6d27f802732749c2255239e6a4e8929bd046cefbf99a6475",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/data/Materials/Composites/TACOT/constantProperties"
+    },
+    {
+      "path": "pato/tutorials/0D/purePyrolysis/FIAT/constant/porousMat/porousMatProperties",
+      "sha256": "91b1453c49708cd957cf4ae36cf9473022c7c1e79e3cf8b151097ee16292bfc4",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/tutorials/0D/purePyrolysis/FIAT/constant/porousMat/porousMatProperties"
+    },
+    {
+      "path": "pato/tutorials/0D/purePyrolysis/PATO/Temperature.txt",
+      "sha256": "655aea3f315c64b7fbbeea09adac87bff76b3ad7dd5b1b295e6b8993f17417b5",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/tutorials/0D/purePyrolysis/PATO/Temperature.txt"
+    },
+    {
+      "path": "zeroD_PATO_reference.csv",
+      "sha256": "0f58321cc8ccb6ae839ba4c107452a254632ce712057b6c239fe138843db4baf",
+      "provenance": "Extracted four-column CSV from pinned PATO stored test-reference output; not a separately executed FIAT binary."
+    },
+    {
+      "path": "zeroD_FIAT_reference.csv",
+      "sha256": "4a36369ef0f7e7a4942d7a6efda792a94b1dc867fe4a35f2a9923b6ff3c4a6dd",
+      "provenance": "Extracted four-column CSV from pinned PATO stored test-reference output; not a separately executed FIAT binary."
+    }
+  ],
+  "original_reference_files": [
+    {
+      "path": "pato/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/FIAT/Allclean",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/FIAT/Allclean",
+      "sha256": "10bdc8ecade1d29302f20bb3e33dd982f5269cf31a9c78842217c26235cd4e3e"
+    },
+    {
+      "path": "pato/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/FIAT/Allrun",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/FIAT/Allrun",
+      "sha256": "dc1447cba1f7c71e871913fa9484d3256863f924df84cee22784f3846160b89c"
+    },
+    {
+      "path": "pato/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/FIAT/output/empty",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/FIAT/output/empty",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "pato/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/FIAT/output/porousMat/scalar/Ta_plot",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/FIAT/output/porousMat/scalar/Ta_plot",
+      "sha256": "2c39ca2280b2e570f38be45718d3f93f8b4f247245abd8996c060ad2513757ec"
+    },
+    {
+      "path": "pato/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/FIAT/output/porousMat/scalar/piTotal_plot",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/FIAT/output/porousMat/scalar/piTotal_plot",
+      "sha256": "82471085fbd1c1769b263bcd447a47e2a066a10a726ddce2f276dbc982226319"
+    },
+    {
+      "path": "pato/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/FIAT/output/porousMat/scalar/rho_s_plot",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/FIAT/output/porousMat/scalar/rho_s_plot",
+      "sha256": "0b6a761ec3452118c1091b67370748d5babe40887b31a88e73d29fe0f2775f0a"
+    },
+    {
+      "path": "pato/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/PATO/Allclean",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/PATO/Allclean",
+      "sha256": "10bdc8ecade1d29302f20bb3e33dd982f5269cf31a9c78842217c26235cd4e3e"
+    },
+    {
+      "path": "pato/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/PATO/Allrun",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/PATO/Allrun",
+      "sha256": "40f374d3478e28a381f54ad6399a152225b70fc9bb73a4cdceb3edfddc6a0e60"
+    },
+    {
+      "path": "pato/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/PATO/output/empty",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/PATO/output/empty",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "pato/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/PATO/output/porousMat/scalar/Ta_plot",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/PATO/output/porousMat/scalar/Ta_plot",
+      "sha256": "2c39ca2280b2e570f38be45718d3f93f8b4f247245abd8996c060ad2513757ec"
+    },
+    {
+      "path": "pato/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/PATO/output/porousMat/scalar/piTotal_plot",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/PATO/output/porousMat/scalar/piTotal_plot",
+      "sha256": "5749746dac7a91fb18e84f399761ef6a7e8bf8fa9358f62eb07e88e8bb6bacf8"
+    },
+    {
+      "path": "pato/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/PATO/output/porousMat/scalar/rho_s_plot",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/src/applications/utilities/tests/testsuites/tutorials/ref/0D/purePyrolysis/PATO/output/porousMat/scalar/rho_s_plot",
+      "sha256": "8e1df2638ccb0762df7fe31c4a578322a835e8b578e655439cc9e50c5dd0f086"
+    }
+  ],
+  "limitations": [
+    "Prescribed T=300+3.1t K isolates reaction mass kinetics; no energy/porous/surface/experimental validation.",
+    "FIAT-labelled stored PATO implementation has different rounded kinetics/onsets; compare with explicit caveats.",
+    "PATO stored density has a one-step-lag signature; raw time-aligned comparisons are authoritative, no time-shift fit.",
+    "Seven gamma yields are provided mass fractions; no independent elemental-composition proof is inferred.",
+    "Source enthalpy correction and energy closures are not exercised by this test."
+  ]
+}

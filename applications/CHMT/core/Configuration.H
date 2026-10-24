@@ -61,6 +61,9 @@ struct PhysicsConfig {
     CondensedThermo liquid{}; // e0 is h_ref's T=0 intercept for THIS table.
     Real liquidViscosity=0,liquidReferencePressure=0,meltTemperature=0;
     Real permeability=0,poreViscosity=0,gasViscosity=0,gasConductivity=0,gasDiffusivity[Ns]{};
+    // Effective pore diffusivity [m2/s], including porosity/tortuosity once.
+    // Independent of gas-side molecular transport; zero preserves pure Darcy.
+    Real poreEffectiveDiffusivity[Ns]{};
     Real emissivity=0,ambientTemperature=0;Vec3 gravity{};
     bool enableFilm=false,enableReactions=false,enableParticles=false,enableSst=false,enableRadiation=false;
     FilmThermalMode filmThermalMode=FilmThermalMode::ThicknessAveraged;

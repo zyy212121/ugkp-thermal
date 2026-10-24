@@ -7,7 +7,6 @@
 #include "materials/SurfacePacketAddressing.H"
 #include "ablation/CpuSurfaceInterface.H"
 #include "ablation/WallClosureHost.H"
-#include "film/CpuFilmDriver.H"
 #include "mesh/Geometry.H"
 #include "mesh/SweepConstraints.H"
 #include "mesh/TrajectorySurface.H"
@@ -161,15 +160,18 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
     }
     error="OpenFOAM material caloric nonlinear iteration failed";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;
 }
-void filmForcing(const ExchangePacket& packet,std::vector<CpuFilmForcing>& forcing){if(!(requiredConsumers(packet.kind)&ConsumeFilm))return;const auto d=packetDelta(packet);auto& f=forcing.at(packet.filmFace);
-    if(packet.kind==ExchangeKind::SolidFilm){f.phaseMass+=d.film.mass;for(int s=0;s<Ns;++s)f.phaseSpecies[s]+=d.film.species[s];}
-    else{f.mass+=d.film.mass;for(int s=0;s<Ns;++s)f.species[s]+=d.film.species[s];}
-    f.withdrawnMass+=maxValue(0,-d.film.mass);for(int s=0;s<Ns;++s)f.withdrawnSpecies[s]+=maxValue(0,-d.film.species[s]);
-    if(packet.kind==ExchangeKind::SolidFilm){f.phaseEnergy+=packet.energy;f.phaseKineticOutflow+=packet.liquidKineticAdvection;f.bottomWorkIncluded=true;}else{f.energy-=packet.energy;f.interfaceKineticOutflow+=packet.liquidKineticAdvection;f.topWorkIncluded=true;}
+// The dry interface owns geometry, not a liquid inventory. Keep the shared
+// geometry carrier face-sized even when a caller has no legacy FilmAux slots.
+std::vector<FilmAux> dryGeometryAux(const HostState& state){
+    auto aux=state.filmAux;const auto oldSize=aux.size();aux.resize(state.surface.area.size());
+    for(std::size_t f=0;f<aux.size();++f){
+        aux[f].area=state.surface.area[f];aux[f].normal=state.surface.normal[f];
+        aux[f].baseVelocity=state.surface.baseVelocity.empty()?Vec3{}:state.surface.baseVelocity[f];
+        aux[f].thickness=0;
+        if(f>=oldSize){aux[f].meanVelocity=aux[f].baseVelocity;aux[f].topVelocity=aux[f].baseVelocity;}
+    }
+    return aux;
 }
-void gasDrive(const HostState& state,const std::vector<GasPrimitive>& bulk,const std::vector<Vec3>& traction,std::vector<CpuFilmDrive>& drive){drive.resize(state.film.size());for(std::size_t f=0;f<drive.size();++f){const auto& a=state.filmAux[f];auto& d=drive[f];const Vec3 n=state.surface.normal[f];const bool coupled=state.surface.gasFace[f]>=0;
-    d.pressure=coupled?bulk[f].pressure:a.pressure;d.endpointPressure=d.pressure;d.shear=coupled?(traction[f]-n*dot(traction[f],n))*(mag(state.gasMesh.areaVectors[state.surface.gasFace[f]])/state.surface.area[f]):(state.surface.prescribedTopTraction.empty()?Vec3{}:state.surface.prescribedTopTraction[f]);
-    d.hasCoupledNormalTrace=coupled;d.bottomNormalVelocity=2*dot(a.meanVelocity,n)-dot(a.topVelocity,n);d.topNormalVelocity=dot(a.topVelocity,n);d.interfaceNormalVelocity=a.normalVelocity;d.solidNormalVelocity=a.solidNormalVelocity;}}
 bool baseTrace(const HostState& base,const PhysicsConfig& p,std::vector<GasPrimitive>& bulk,std::string& error,bool* numerical=nullptr){
     if(numerical)*numerical=false;
     bulk.resize(base.surface.area.size());
@@ -251,7 +253,6 @@ bool CpuMaterialDriver::predictWallImpl(const HostState& base,const CouplingInte
     const auto fail=[&](MaterialFailureOrigin origin){if(diagnostics)diagnostics->failureOrigin=origin;return false;};
     if(!(validateMaterialSweepRemainder(base,error,p.diagnostics)))return fail(MaterialFailureOrigin::GeometryNumerical);
     if((!validCouplingInterval(interval)||interval.begin!=base.time)){error="wall predictor interval/base time mismatch";return fail(MaterialFailureOrigin::GeometryNumerical);}
-    if((p.filmThermalMode!=FilmThermalMode::ThicknessAveraged||!base.normalEnthalpy.empty())){error="CPU material owner requires actual volume/surface state, not normal columns";return fail(MaterialFailureOrigin::SurfaceNumerical);}
     std::vector<GasPrimitive> bulk;bool numerical=false;
     if(!(baseTrace(base,p,bulk,error,&numerical)))return fail(numerical?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None);CpuSurfaceResult surface;
     if(!data_->evaluate(base,p,bulk,{},{},{},interval.end-interval.begin,interval.identity.sequence,surface,error,nullptr,nullptr)){if(diagnostics)diagnostics->recoverable=false;return fail(data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None);}
@@ -264,11 +265,11 @@ bool CpuMaterialDriver::predictWallImpl(const HostState& base,const CouplingInte
         for(std::size_t i=0;i<last.gasPoints.size();++i){const Vec3 X=base.gasMesh.referencePoints[i];last.gasPoints[i]={X.x+motion.amplitude.x*::sin(motion.spatialWaveNumber.x*(X.x-motion.spatialOrigin.x))*temporal,
             X.y+motion.amplitude.y*::sin(motion.spatialWaveNumber.y*(X.y-motion.spatialOrigin.y))*temporal,X.z+motion.amplitude.z*::sin(motion.spatialWaveNumber.z*(X.z-motion.spatialOrigin.z))*temporal};}
     }
-    if(p.meshMotion.policy==MeshMotionPolicy::CoupledRecession&&!base.surface.area.empty()){auto aux=base.filmAux;std::vector<Real> targets(aux.size());const Real dt=interval.end-interval.begin;
+    if(p.meshMotion.policy==MeshMotionPolicy::CoupledRecession&&!base.surface.area.empty()){HostState geometryBase=base;geometryBase.filmAux=dryGeometryAux(base);auto aux=geometryBase.filmAux;std::vector<Real> targets(aux.size());const Real dt=interval.end-interval.begin;
         for(std::size_t f=0;f<aux.size();++f){aux[f].solidNormalVelocity=surface.physics[f].solidSpeed;aux[f].normalVelocity=surface.physics[f].topSpeed;aux[f].solidFront+=dt*aux[f].solidNormalVelocity;aux[f].gasFront+=dt*aux[f].normalVelocity;
             const int sf=base.surface.solidFace[f];targets[f]=sf>=0?dt*aux[f].solidNormalVelocity*mag(base.solidMesh.areaVectors[sf]):0;}
         HostMesh gas,solid;SurfaceMesh moved;SweepConstraintReport report;
-        if(!moveCoupledMeshesConstrained(base,aux,targets,dt,gas,solid,moved,report,error,SweepConstraintControls{},p.tolerances,&numerical)){
+        if(!moveCoupledMeshesConstrained(geometryBase,aux,targets,dt,gas,solid,moved,report,error,SweepConstraintControls{},p.tolerances,&numerical)){
             if(diagnostics)diagnostics->recoverable=false;
             return fail(numerical?MaterialFailureOrigin::GeometryNumerical:MaterialFailureOrigin::None);
         }
@@ -301,9 +302,8 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
     report=CpuMaterialReport{};error.clear();
     if(!(validateMaterialSweepRemainder(base,error,p.diagnostics))){report.failureOrigin=MaterialFailureOrigin::GeometryNumerical;report.recoverable=false;return false;}
     const auto& window=history.interval();
-    auto wallGeometryConfig=p.wallModel;wallGeometryConfig.enableSst=p.enableSst;
     if(!base.solid.empty()&&!data_->mesh){report.recoverable=false;error="CPU material native mesh unavailable";return false;}
-    if((!controlsValid(controls)||!history.complete()||window.begin!=base.time||p.filmThermalMode!=FilmThermalMode::ThicknessAveraged||!base.normalEnthalpy.empty()||base.solidMesh.topologyHash!=geometryEndpoint.solidMesh.topologyHash||base.gasMesh.topologyHash!=geometryEndpoint.gasMesh.topologyHash)){
+    if((!controlsValid(controls)||!history.complete()||window.begin!=base.time||base.solidMesh.topologyHash!=geometryEndpoint.solidMesh.topologyHash||base.gasMesh.topologyHash!=geometryEndpoint.gasMesh.topologyHash)){
         report.failureOrigin=MaterialFailureOrigin::OwnerNumerical;
         if(!controlsValid(controls)){
             report.failureOrigin=(!finite(controls.transportCfl)||controls.transportCfl<=0||controls.transportCfl>1)?MaterialFailureOrigin::TransportNumerical:controls.maxSubsteps<=0?MaterialFailureOrigin::LocalSourceNumerical:
@@ -332,17 +332,14 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
             origin=numerical?MaterialFailureOrigin::GeometryNumerical:MaterialFailureOrigin::None;
             return false;
         };
-        HostState state=base;state.ledger.clear();state.filmStorage.clear();
+        HostState state=base;state.filmAux=dryGeometryAux(base);state.ledger.clear();state.filmStorage.clear();
         WallProgram program;program.interval=window;program.surface=base.surface;
         CpuMaterialReport accumulated;accumulated.donorPlan.interval=window;
         MaterialReserveKnot initial;initial.time=base.time;initial.cumulativeSolid.resize(base.solid.size());initial.cumulativeFilm.resize(base.film.size());accumulated.donorPlan.knots.push_back(initial);
         std::vector<IntervalDonorSum> physicalSweepSum(base.surface.area.size()),actualSweepSum(base.surface.area.size());
-        std::vector<SolidQ> gasSolidChange(base.solid.size());std::vector<FilmQ> gasFilmChange(base.film.size());
+        std::vector<SolidQ> gasSolidChange(base.solid.size());
         auto cursor=history.cursor();const Real interval=window.end-window.begin;
         WindowTime elapsed{};const WindowTime windowEnd=intervalDuration(window);
-        // The macro endpoint has an actual gas state. Do not substitute the
-        // representative last RK stage when converting film endpoint pV.
-        std::vector<GasWallMatchingSample> endpointMatching;bool endpointMatchingReady=false;
         while(elapsed<windowEnd){
             if(p.diagnostics)ugkp::diagnostics::beginOperation(*p.diagnostics,window.identity.sequence,base.acceptedSteps,state.time);
             if(accumulated.materialSteps==static_cast<std::uint64_t>(controls.maxSubsteps))materialWarning(state,ugkp::diagnostics::Code::AccuracyResidual,"CPU material substep warning budget exceeded; advancing calculation retained",accumulated.materialSteps,controls.maxSubsteps);
@@ -365,11 +362,9 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 if(state.surface.area.empty()){bulk.clear();traction.clear();}else{report.failureOrigin=MaterialFailureOrigin::OwnerNumerical;report.recoverable=false;error="CPU material requires actual face-ordered gas drive history";return false;}}
 
             HostState trial;WallKnot beginning;CpuSurfaceResult surface;MaterialTransportResult transport;
-            std::vector<ExchangePacket> packets;std::vector<Real> radiation;std::vector<CpuFilmDrive> drive;
-            std::vector<CpuFilmForcing> forcing;std::vector<FilmQ> filmRate;
+            std::vector<ExchangePacket> packets;std::vector<Real> radiation;
             std::vector<Real> sideVolume;
             std::vector<Real> solidSweep,gasSweep;IntervalCursor trialCursor=cursor;
-            SurfaceMesh filmEvaluationSurface=state.surface;filmEvaluationSurface.sweptEdgeArea.assign(state.surface.edgeOwner.size(),0);
             bool accepted=false;WindowTime trialElapsed;
             MaterialFailureOrigin lastFailure=MaterialFailureOrigin::None;
             // Select the physical transport CFL step once, before any sources
@@ -384,7 +379,6 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 error.clear();trial=state;trialElapsed=elapsed+dt;trial.time=windowAbsolute(window.begin,trialElapsed);trialCursor=cursor;
                 if(!trialCursor.takeThroughLocal(trialElapsed,packets,radiation,error))break;
 
-                gasDrive(state,bulk,traction,drive);
                 std::vector<GasPrimitive> endpointBulk;std::vector<Vec3> endpointTraction;const GasIntervalRecord* endpointRecord=nullptr;
                 if(trialElapsed==windowEnd){bool numerical=false;
                     if(!(baseTrace(geometryEndpoint,p,endpointBulk,error,&numerical))){lastFailure=numerical?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;break;}}
@@ -393,32 +387,8 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     for(const auto& r:history.records())if(trialElapsed<r.localEnd){endpointRecord=&r;break;}
                     if(!endpointRecord){error="missing endpoint gas driving record";break;}
                 }
-                for(std::size_t f=0;f<drive.size();++f)if(state.surface.gasFace[f]>=0){
-
-                    drive[f].endpointPressure=endpointBulk[f].pressure;}
-                if(!error.empty())break;
-                if(data_->wall&&p.enableFilm){
-                    const auto& matching=driveRecord->gasWallMatching;
-                    if(trialElapsed==windowEnd&&!endpointMatchingReady){
-                        if(!data_->wall->prepareGeometry(geometryEndpoint.gasMesh,geometryEndpoint.surface.gasFace,error,wallGeometryConfig,p.diagnostics)||!data_->wall->sample(geometryEndpoint,p,endpointMatching,error)){report.recoverable=false;return false;}
-                        endpointMatchingReady=true;
-                    }
-                    const auto& ending=trialElapsed==windowEnd?endpointMatching:endpointRecord->gasWallMatching;
-                    if((matching.size()!=state.surface.area.size()||ending.size()!=matching.size())){
-                        report.failureOrigin=MaterialFailureOrigin::OwnerNumerical;report.recoverable=false;error="film wall matching pressure history layout mismatch";return false;}
-                    for(std::size_t f=0;f<drive.size();++f)if(state.surface.gasFace[f]>=0){
-
-                        drive[f].pressure=matching[f].pressure;drive[f].endpointPressure=ending[f].pressure;
-                    }
-                }
-                forcing.assign(state.film.size(),CpuFilmForcing{});
-                for(const auto& packet:packets){if((requiredConsumers(packet.kind)&ConsumeFilm)&&(packet.filmFace<0||static_cast<std::size_t>(packet.filmFace)>=forcing.size())){lastFailure=MaterialFailureOrigin::FilmNumerical;error="CPU gas history film receiver outside mesh";break;}filmForcing(packet,forcing);}
-                if(!error.empty())break;
                 if(radiation.size()!=state.surface.area.size()&&!radiation.empty()){lastFailure=MaterialFailureOrigin::LocalSourceNumerical;error="CPU radiation face layout mismatch";break;}
-                for(std::size_t f=0;f<radiation.size();++f)if(driveRecord->radiationReceiver[f]==ConsumeFilm){if(f>=forcing.size()){lastFailure=MaterialFailureOrigin::FilmNumerical;error="film radiation has no film owner";break;}forcing[f].radiationEnergy+=radiation[f];}
-                if(!error.empty())break;
-                // An imposed trajectory is independent of film transport. Build
-                // its endpoint/ALE geometry once before the interface RHS.
+                // Build the imposed endpoint/ALE geometry once before the interface RHS.
                 auto prepareImposedGeometry=[&]()->bool{
                     const Real fraction=windowFraction(trialElapsed,WindowTime{},windowEnd,trial.time,window.begin,window.end);std::vector<Vec3> gp=base.gasMesh.points,sp=base.solidMesh.points;
                     if((gp.size()!=geometryEndpoint.gasMesh.points.size()||sp.size()!=geometryEndpoint.solidMesh.points.size())){lastFailure=MaterialFailureOrigin::OwnerNumerical;error="material trajectory topology mismatch";return false;}
@@ -432,54 +402,15 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 };
                 if(p.meshMotion.policy!=MeshMotionPolicy::CoupledRecession){
                     if(!prepareImposedGeometry())break;
-                    if(p.enableFilm)filmEvaluationSurface=trial.surface;
                 }
-                const auto primaryForcing=forcing;
-                const int filmCouplingBudget=p.enableFilm?std::max(1,p.tolerances.maxCouplingIterations):1;
-                HostState evaluation;std::vector<FilmAux> aux;std::vector<Real> target;
-                bool filmCouplingReady=false;
-                for(int localIteration=0;localIteration<filmCouplingBudget;++localIteration){
-                forcing=primaryForcing;const auto previousDrive=drive;
                 bool stageSweepsReady=p.meshMotion.policy!=MeshMotionPolicy::CoupledRecession;
-                evaluation=state;evaluation.surface=filmEvaluationSurface;
-                if(p.enableFilm){std::vector<FilmAux> profiles;
-                    bool numerical=false;
-                    if(!evaluateCpuFilmTransport(evaluation,p,dt,drive,filmRate,error,&profiles,nullptr,&sideVolume,&numerical)){
-                        lastFailure=numerical?MaterialFailureOrigin::FilmNumerical:MaterialFailureOrigin::None;
-                        break;
-                    }
-                    evaluation.filmAux=profiles;
-                    for(std::size_t f=0;f<profiles.size();++f)evaluation.film[f].enthalpy+=pressureVolumeProduct(state.filmAux[f].pressure,state.film[f].mass/p.liquid.rho,profiles[f].pressure,state.film[f].mass/p.liquid.rho);
-                }else{filmRate.clear();sideVolume.assign(state.surface.area.size(),0);}
-                if(!data_->evaluate(evaluation,p,bulk,driveRecord->gasGradient,transport.rates,filmRate,dt,window.identity.sequence,surface,error,&sideVolume,&driveRecord->gasWallMatching)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
-
-                // Preserve actual gas-facing source energy. Only the CPU-owned
-                // internal phase packet is taken from the constitutive proposal.
-                for(std::size_t f=0;f<drive.size();++f)if(state.surface.gasFace[f]>=0){const auto& physics=surface.physics[f];
-                    drive[f].hasCoupledNormalTrace=true;drive[f].bottomNormalVelocity=physics.liquidBottomNormal;drive[f].topNormalVelocity=physics.liquidTopNormal;
-                    drive[f].solidNormalVelocity=physics.solidSpeed;drive[f].interfaceNormalVelocity=physics.topSpeed;}
-                for(auto& phase:surface.phasePackets){const std::size_t f=phase.filmFace;
-                    const Vec3 velocity=state.surface.baseVelocity.empty()?Vec3{}:state.surface.baseVelocity[f];
-                    const Vec3 n=state.surface.normal[f];const Vec3 bottom=velocity-n*dot(velocity,n)+n*surface.physics[f].liquidBottomNormal;
-                    bool exactEvent=false;
-                    bool numerical=false;
-                    if(!finalizeCpuFilmPhasePacket(state.film[f],state.filmAux[f].pressure,filmRate[f],forcing[f],dt,bottom,p,phase,exactEvent,error,&numerical)){
-                        lastFailure=numerical?MaterialFailureOrigin::FilmNumerical:MaterialFailureOrigin::None;
-                        break;
-                    }
-                    forcing[f].exactPhaseEvent=forcing[f].exactPhaseEvent||exactEvent;
-                    if(!error.empty())break;filmForcing(phase,forcing);}
-                if(!error.empty())break;
-                if(p.enableFilm)for(std::size_t f=0;f<forcing.size();++f){const Real remaining=(state.film[f].mass+dt*filmRate[f].mass+forcing[f].mass)+forcing[f].phaseMass;
-                    const Real scale=absValue(state.film[f].mass)+absValue(auditProduct(dt,filmRate[f].mass))+absValue(forcing[f].mass)+absValue(forcing[f].phaseMass);
-                    if((forcing[f].mass<0||forcing[f].phaseMass<0)&&absValue(remaining)<=16*std::numeric_limits<Real>::epsilon()*scale)forcing[f].exactPhaseEvent=true;
-                }
-                if(p.enableFilm){Real filmDt=dt;bool numerical=false;
-                    if(!estimateCpuFilmStep(evaluation,p,forcing,drive,dt,dt,filmDt,error,&numerical)){
-                        lastFailure=numerical?MaterialFailureOrigin::FilmNumerical:MaterialFailureOrigin::None;
-                        break;
-                    }
-                    if(filmDt<dt*(1-32*std::numeric_limits<Real>::epsilon()))materialWarning(state,ugkp::diagnostics::Code::AccuracyResidual,"film estimated step exceeded",dt,filmDt);}
+                HostState evaluation=state;
+                evaluation.surface.sweptEdgeArea.assign(state.surface.edgeOwner.size(),0);
+                std::vector<FilmAux> aux;std::vector<Real> target;
+                sideVolume.assign(state.surface.area.size(),0);
+                if(!data_->evaluate(evaluation,p,bulk,driveRecord->gasGradient,transport.rates,{},dt,window.identity.sequence,surface,error,&sideVolume,&driveRecord->gasWallMatching)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
+                // Geometry follows the accepted condensed transfer. The new
+                // constitutive proposal never replaces accepted gas energy.
                 target.assign(state.surface.area.size(),0);
                 for(const auto& packet:packets)if(packet.kind==ExchangeKind::GasSolid){
                     std::size_t match=0;
@@ -495,19 +426,11 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     }
                     if(!error.empty())break;
                 }
-                for(const auto& phase:surface.phasePackets){MaterialPrimitive material;const int c=phase.solidCell;if(!(recoverMaterial(state.solid[c],state.solidMesh.volumes[c],p,material))){lastFailure=MaterialFailureOrigin::GeometryNumerical;error="phase donor EOS failed";break;}
-
-                    target[phase.filmFace]-=phase.mass==0 ? Real(0)
-                        : phase.mass/p.condensed[p.material.phaseCondensed].rho/(1-material.porosity);}
                 if(!error.empty())break;
                 aux=evaluation.filmAux;
-                for(std::size_t f=0;f<aux.size();++f)if(state.surface.gasFace[f]>=0){const int sf=state.surface.solidFace[f],gf=state.surface.gasFace[f];const Real as=sf>=0?mag(state.solidMesh.areaVectors[sf]):0,ag=mag(state.gasMesh.areaVectors[gf]);
+                for(std::size_t f=0;f<aux.size();++f)if(state.surface.gasFace[f]>=0){const int sf=state.surface.solidFace[f];const Real as=sf>=0?mag(state.solidMesh.areaVectors[sf]):0;
                     aux[f].solidNormalVelocity=as>0?target[f]/(as*dt):0;
-                    const Real mass=p.enableFilm?dt*filmRate[f].mass+forcing[f].mass+forcing[f].phaseMass:0;
-                    const Real side=p.enableFilm?sideVolume[f]:0;
-                    if(p.enableFilm){Real endpointMass=state.film[f].mass+mass;const Real roundoff=16*std::numeric_limits<Real>::epsilon()*(absValue(state.film[f].mass)+absValue(mass));if(absValue(endpointMass)<=roundoff&&forcing[f].exactPhaseEvent)endpointMass=0;if((endpointMass<0||!finite(endpointMass))){lastFailure=MaterialFailureOrigin::GeometryNumerical;error="negative film mass in geometric proposal";break;}
-                        if(!(filmThicknessFromMass(endpointMass,evaluation.surface.area[f],p.liquid.rho,aux[f].thickness))){lastFailure=MaterialFailureOrigin::GeometryNumerical;error="invalid endpoint film thickness";break;}aux[f].area=evaluation.surface.area[f];}
-                    aux[f].normalVelocity=p.enableFilm&&surface.physics[f].wet?(target[f]/dt+mass/(dt*p.liquid.rho)-side)/ag:aux[f].solidNormalVelocity;
+                    aux[f].normalVelocity=aux[f].solidNormalVelocity;
                     aux[f].solidFront=state.filmAux[f].solidFront+dt*aux[f].solidNormalVelocity;aux[f].gasFront=state.filmAux[f].gasFront+dt*aux[f].normalVelocity;}
                 if(!error.empty())break;
                 if(p.meshMotion.policy==MeshMotionPolicy::CoupledRecession&&!target.empty()){SweepConstraintReport motion;
@@ -538,97 +461,23 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 }
                 if(!stageSweepsReady&&(!stageGeometry(state.solidMesh,trial.solidMesh.points,dt,trial.solidMesh,solidSweep,lastFailure)
                     ||!stageGeometry(state.gasMesh,trial.gasMesh.points,dt,trial.gasMesh,gasSweep,lastFailure)))break;
-                if(!p.enableFilm){filmCouplingReady=true;break;}
-                HostState consistentFilm=state;consistentFilm.surface=trial.surface;
-                std::vector<FilmQ> actualRates;std::vector<Real> actualSideVolume;
-                bool rateNumerical=false;
-                if(!evaluateCpuFilmTransport(consistentFilm,p,dt,drive,actualRates,error,nullptr,nullptr,&actualSideVolume,&rateNumerical)){
-                    lastFailure=rateNumerical?MaterialFailureOrigin::FilmNumerical:MaterialFailureOrigin::None;break;
-                }
-                if(actualRates.size()!=filmRate.size()||actualSideVolume.size()!=sideVolume.size()){
-                    lastFailure=MaterialFailureOrigin::FilmNumerical;error="film local coupling layout changed";break;
-                }
-                Real couplingResidual=0;
-                // Host-only audit arithmetic: a finite tolerance or a small
-                // residual must not overflow before their dimensionless ratio.
-                const auto scaledDifference=[](long double difference,long double tolerance){
-                    if(difference==0)return Real(0);
-                    const long double magnitude=std::abs(difference);
-                    if(!std::isfinite(magnitude)||std::isnan(tolerance)||tolerance<=0)
-                        return std::numeric_limits<Real>::infinity();
-                    return hostAuditNarrow(magnitude/tolerance);
-                };
-                const long double auditDt=dt;
-                for(std::size_t f=0;f<filmRate.size();++f){
-                    const long double massScale=std::max(std::abs(static_cast<long double>(state.film[f].mass)),
-                        std::max(std::abs(auditDt*filmRate[f].mass),std::abs(auditDt*actualRates[f].mass)));
-                    const long double massTolerance=p.tolerances.absoluteMass+static_cast<long double>(p.tolerances.relativeMass)*massScale;
-                    couplingResidual=maxValue(couplingResidual,scaledDifference(auditDt*(static_cast<long double>(actualRates[f].mass)-filmRate[f].mass),massTolerance));
-                    for(int species=0;species<Ns;++species)couplingResidual=maxValue(couplingResidual,
-                        scaledDifference(auditDt*(static_cast<long double>(actualRates[f].species[species])-filmRate[f].species[species]),massTolerance));
-                    const long double energyScale=std::max(std::abs(static_cast<long double>(state.film[f].enthalpy)),
-                        std::max(std::abs(auditDt*filmRate[f].enthalpy),std::abs(auditDt*actualRates[f].enthalpy)));
-                    const long double energyTolerance=p.tolerances.absoluteEnergy+static_cast<long double>(p.tolerances.relativeEnergy)*energyScale;
-                    couplingResidual=maxValue(couplingResidual,scaledDifference(auditDt*(static_cast<long double>(actualRates[f].enthalpy)-filmRate[f].enthalpy),energyTolerance));
-                    couplingResidual=maxValue(couplingResidual,scaledDifference(p.liquid.rho*auditDt*(static_cast<long double>(actualSideVolume[f])-sideVolume[f]),massTolerance));
-                    const long double normalChange=std::max(std::abs(static_cast<long double>(drive[f].bottomNormalVelocity)-previousDrive[f].bottomNormalVelocity),
-                        std::max(std::abs(static_cast<long double>(drive[f].topNormalVelocity)-previousDrive[f].topNormalVelocity),
-                        std::max(std::abs(static_cast<long double>(drive[f].solidNormalVelocity)-previousDrive[f].solidNormalVelocity),
-                        std::abs(static_cast<long double>(drive[f].interfaceNormalVelocity)-previousDrive[f].interfaceNormalVelocity))));
-                    couplingResidual=maxValue(couplingResidual,scaledDifference(p.liquid.rho*auditDt*trial.surface.area[f]*normalChange,massTolerance));
-                }
-                if(couplingResidual<=1||localIteration+1==filmCouplingBudget){
-                    if(couplingResidual>1)materialWarning(state,ugkp::diagnostics::Code::AccuracyResidual,
-                        "same-dt film geometry/transport coupling residual",couplingResidual,1);
-                    filmCouplingReady=true;break;
-                }
-                // Same accepted inventory, physical interval and external packets.
-                // Only the mathematical geometry/transport/interface iterate changes.
-                filmEvaluationSurface=trial.surface;
-                }
-                if(!filmCouplingReady)break;
-                // Audit the final local RHS once; this does not drive the fixed point.
+                // Audit source variation without replacing the accepted transfer.
                 for(const auto& record:history.records())if(record.localBegin>elapsed&&record.localBegin<trialElapsed){
                     CpuSurfaceResult response;
-                    if(!data_->evaluate(evaluation,p,record.gasTrace,record.gasGradient,transport.rates,filmRate,dt,window.identity.sequence,response,error,&sideVolume,&record.gasWallMatching)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
+                    if(!data_->evaluate(evaluation,p,record.gasTrace,record.gasGradient,transport.rates,{},dt,window.identity.sequence,response,error,&sideVolume,&record.gasWallMatching)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
                     Real fraction=0;
                     for(std::size_t f=0;f<surface.physics.size();++f){if(state.surface.gasFace[f]<0)continue;
                         const auto& a=surface.physics[f];const auto& b=response.physics[f];const Real scale=state.surface.area[f]*dt;
-                        const int cell=state.surface.solidCell[f];Real solidThermalScale=0,solidDonor=0,phaseDonor=0,solidSpecific=0,filmThermalScale=0,filmSpecific=0;
-                        if(cell>=0){MaterialCaloric caloric;MaterialPrimitive primitive;if(!materialCaloric(state.solid[cell],p,caloric,error)||!recoverMaterial(state.solid[cell],state.solidMesh.volumes[cell],p,primitive)){report=accumulated;report.failureOrigin=MaterialFailureOrigin::SurfaceNumerical;return false;}
-                            solidThermalScale=caloric.capacity(primitive.temperature)*maxValue(1,primitive.temperature);
-                            for(int c=0;c<Nc;++c)solidDonor+=state.solid[cell].condensed[c];
-                            if(p.material.phaseCondensed>=0){phaseDonor=state.solid[cell].condensed[p.material.phaseCondensed];solidSpecific=condensedE(p.condensed[p.material.phaseCondensed],primitive.temperature);}}
-                        Real thermalScale=solidThermalScale,primaryDonor=solidDonor;
-                        if(p.enableFilm&&state.film[f].mass>0){const Real T=state.filmAux[f].temperature;
-                            filmThermalScale=state.film[f].mass*(p.liquid.cp0+p.liquid.cp1*T)*maxValue(1,T);filmSpecific=condensedE(p.liquid,T)-p.liquidReferencePressure/p.liquid.rho;
-                            thermalScale=thermalScale>0?minValue(thermalScale,filmThermalScale):filmThermalScale;primaryDonor=state.film[f].mass;
-                            if(a.phaseMass<0||b.phaseMass<0)phaseDonor=state.film[f].mass;}
-                        fraction=maxValue(fraction,scale*absValue(a.phaseMass-b.phaseMass)/maxValue(p.tolerances.absoluteMass,phaseDonor));
-                        for(int species=0;species<Ns;++species){const Real donor=p.enableFilm&&state.film[f].mass>0?state.film[f].species[species]:primaryDonor;
+                        const int cell=state.surface.solidCell[f];Real solidDonor=0;
+                        if(cell>=0)for(int c=0;c<Nc;++c)solidDonor+=state.solid[cell].condensed[c];
+                        for(int species=0;species<Ns;++species){const Real donor=solidDonor;
                             fraction=maxValue(fraction,scale*absValue(a.gasSpecies[species]-b.gasSpecies[species])/maxValue(p.tolerances.absoluteMass,donor));
                             if(cell>=0)fraction=maxValue(fraction,scale*absValue(a.poreSpecies[species]-b.poreSpecies[species])/maxValue(p.tolerances.absoluteMass,state.solid[cell].pore[species]));}
-                        if(thermalScale>0)fraction=maxValue(fraction,scale*absValue(a.phaseConductive-b.phaseConductive)/thermalScale);
-                        const long double massChange=static_cast<long double>(b.phaseMass)-a.phaseMass;
-                        const long double energyChange=static_cast<long double>(b.phaseEnergy)-a.phaseEnergy;
-                        if(solidThermalScale>0)fraction=maxValue(fraction,scale*static_cast<Real>(std::fabs(energyChange-massChange*solidSpecific))/solidThermalScale);
-                        if(filmThermalScale>0)fraction=maxValue(fraction,scale*static_cast<Real>(std::fabs(energyChange+static_cast<long double>(b.bottomKineticAdvection)-a.bottomKineticAdvection-massChange*filmSpecific))/filmThermalScale);
                     }
                     if(fraction>controls.driveSourceFraction)materialWarning(state,ugkp::diagnostics::Code::AccuracyResidual,"material source variation",fraction,controls.driveSourceFraction);
                 }
                 if(!error.empty())break;
 
-                if(p.enableFilm&&p.meshMotion.policy==MeshMotionPolicy::CoupledRecession){
-                    for(std::size_t f=0;f<state.film.size();++f)if(state.surface.gasFace[f]>=0){
-                        const int gf=state.surface.gasFace[f],sf=state.surface.solidFace[f];
-                        Real updatedMass=(state.film[f].mass+dt*filmRate[f].mass+forcing[f].mass)+forcing[f].phaseMass;
-                        const Real roundoff=16*std::numeric_limits<Real>::epsilon()*(absValue(state.film[f].mass)+absValue(auditProduct(dt,filmRate[f].mass))+absValue(forcing[f].mass)+absValue(forcing[f].phaseMass));
-                        if(forcing[f].exactPhaseEvent&&absValue(updatedMass)<=roundoff)updatedMass=0;
-                        if(!filmSweepsCompatible(state.film[f].mass,updatedMass,p.liquid.rho,gasSweep[gf],sf>=0?solidSweep[sf]:0,dt*sideVolume[f],p.tolerances)){
-                            materialWarning(state,ugkp::diagnostics::Code::ConservationResidual,"film swept volume / mass mismatch",gasSweep[gf]-(sf>=0?solidSweep[sf]:0)-dt*sideVolume[f],(updatedMass-state.film[f].mass)/p.liquid.rho);}
-                    }
-                    if(!error.empty())break;
-                }
                 {bool numerical=false;if(!evaluateMaterialTransport(state.solidMesh,state.solid,p,solidSweep,dt,controls.transportCfl,transport,error,&numerical)){
                     lastFailure=numerical?MaterialFailureOrigin::TransportNumerical:MaterialFailureOrigin::None;
                     break;
@@ -642,10 +491,9 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     }
                     trial.solid[c]=addSolid(reacted,transport.rates[c],dt);}
                 if(!reactionOk){break;}
-                std::vector<ExchangePacket> all=packets;all.insert(all.end(),surface.phasePackets.begin(),surface.phasePackets.end());
                 std::vector<SolidQ> applied;
                 bool packetNumerical=false;
-                if(!applyMaterialPacketBatch(trial.solid,all,applied,error,&packetNumerical)){
+                if(!applyMaterialPacketBatch(trial.solid,packets,applied,error,&packetNumerical)){
                     lastFailure=packetNumerical?MaterialFailureOrigin::ReactionNumerical:MaterialFailureOrigin::None;
                     break;
                 }
@@ -662,16 +510,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     if(trialElapsed<windowEnd)trial.solid[c].porosity=material.porosity;
                 }
                 if(!materialAdmissible){break;}
-                if(p.enableFilm){HostState filmState=state;filmState.surface=trial.surface;CpuFilmCandidate film;
-                    bool numerical=false;
-                    if(!advanceCpuFilmCandidate(filmState,p,dt,forcing,drive,film,error,&numerical)){
-                        lastFailure=numerical?MaterialFailureOrigin::FilmNumerical:MaterialFailureOrigin::None;
-                        break;
-                    }
-                    trial.film=std::move(film.film);trial.filmAux=std::move(film.filmAux);
-                    for(std::size_t f=0;f<trial.film.size();++f){trial.filmAux[f].solidFront=aux[f].solidFront;trial.filmAux[f].gasFront=aux[f].gasFront;trial.filmAux[f].solidNormalVelocity=aux[f].solidNormalVelocity;trial.filmAux[f].normalVelocity=aux[f].normalVelocity;
-                        if((state.film[f].mass==0)!=(trial.film[f].mass==0)&&trialElapsed<windowEnd)materialWarning(state,ugkp::diagnostics::Code::AccuracyResidual,"film phase transition inside coupling window",trial.time);}}
-                else trial.filmAux=aux;
+                trial.filmAux=aux;
                 if(p.meshMotion.policy==MeshMotionPolicy::CoupledRecession&&!(updateMaterialSweepRemainder(state,target,solidSweep,trial.solidMesh,trial.solidSweepRemainder,error,p.diagnostics))){lastFailure=MaterialFailureOrigin::GeometryNumerical;break;}
                 for(std::size_t f=0;f<target.size();++f){
                     physicalSweepSum[f].add(target[f]);
@@ -685,13 +524,11 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     ending.faces=endpointProposal.wall;for(std::size_t f=0;f<ending.faces.size();++f)ending.faces[f].primaryKind=beginning.faces[f].primaryKind;}
                 for(std::size_t f=0;f<ending.faces.size();++f){ending.faces[f].solidNormalVelocity=aux[f].solidNormalVelocity;ending.faces[f].normalVelocity=aux[f].normalVelocity;}
                 program.knots.push_back(ending);
-                for(const auto& packet:packets){const auto d=packetDelta(packet);if(requiredConsumers(packet.kind)&ConsumeSolid)gasSolidChange[packet.solidCell]=addSolid(gasSolidChange[packet.solidCell],d.solid);
-                    if(requiredConsumers(packet.kind)&ConsumeFilm){auto& q=gasFilmChange[packet.filmFace];q.mass+=d.film.mass;for(int s=0;s<Ns;++s)q.species[s]+=d.film.species[s];}}
+                for(const auto& packet:packets){const auto d=packetDelta(packet);if(requiredConsumers(packet.kind)&ConsumeSolid)gasSolidChange[packet.solidCell]=addSolid(gasSolidChange[packet.solidCell],d.solid);}
                 MaterialReserveKnot knot;knot.time=trial.time;knot.localTime=trialElapsed;knot.cumulativeSolid.resize(trial.solid.size());knot.cumulativeFilm.resize(trial.film.size());
                 for(std::size_t c=0;c<trial.solid.size();++c)knot.cumulativeSolid[c]=addSolid(addSolid(trial.solid[c],base.solid[c],-1),gasSolidChange[c],-1);
-                for(std::size_t f=0;f<trial.film.size();++f){auto& q=knot.cumulativeFilm[f];q.mass=trial.film[f].mass-base.film[f].mass-gasFilmChange[f].mass;for(int s=0;s<Ns;++s)q.species[s]=trial.film[f].species[s]-base.film[f].species[s]-gasFilmChange[f].species[s];}
+
                 accumulated.donorPlan.knots.push_back(std::move(knot));
-                for(auto phase:surface.phasePackets){phase.consumerMask=requiredConsumers(phase.kind);trial.ledger.push_back(phase);}
                 accumulated.materialSteps++;
                 state=std::move(trial);elapsed=trialElapsed;cursor=trialCursor;accepted=true;
             } while(false);
@@ -699,13 +536,12 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
         }
         // Lie/IMEX splitting: all conservative local sources are now in Utarget.
         // This is one true 3-D backward-Euler conduction candidate per window,
-        // regardless of gas microstep or local reaction/film step count.
+        // regardless of gas microstep or local reaction step count.
         if(!state.solid.empty()){
             if(p.diagnostics)ugkp::diagnostics::beginOperation(*p.diagnostics,window.identity.sequence,base.acceptedSteps,state.time);
             const bool solved=nativeConduction(*data_->mesh,base,state,p,interval,controls,accumulated,error);
             if(!solved){report=accumulated;return false;}
         }
-        state.filmStorage.resize(state.film.size());for(std::size_t f=0;f<state.film.size();++f){auto& storage=state.filmStorage[f];storage.step=window.identity.sequence;storage.stage=1;storage.geometry=state.gasMesh.geometryVersion;storage.face=state.surface.persistentId[f];storage.filmFace=f;storage.oldPV=base.filmAux[f].pressure*base.film[f].mass/p.liquid.rho;storage.newPV=state.filmAux[f].pressure*state.film[f].mass/p.liquid.rho;storage.consumed=true;}
         const auto samePoints=[](const HostMesh& a,const HostMesh& b){if(a.points.size()!=b.points.size())return false;for(std::size_t i=0;i<a.points.size();++i)if(a.points[i].x!=b.points[i].x||a.points[i].y!=b.points[i].y||a.points[i].z!=b.points[i].z)return false;return true;};
         if(samePoints(state.gasMesh,geometryEndpoint.gasMesh)&&samePoints(state.solidMesh,geometryEndpoint.solidMesh)){
             state.gasMesh=geometryEndpoint.gasMesh;state.solidMesh=geometryEndpoint.solidMesh;state.gasStages=geometryEndpoint.gasStages;state.solidStages=geometryEndpoint.solidStages;
@@ -747,7 +583,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
             if(!data_->evaluate(state,p,finalBulk,last.gasGradient,{},{},interval,window.identity.sequence,endpointSurface,error,nullptr,nullptr)){report=accumulated;report.failureOrigin=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;report.recoverable=false;return false;}
             program.knots.back().faces=endpointSurface.wall;
             // The executed regime owns the interval including its terminal flux.
-            // An endpoint phase event changes the next window's predictor only.
+            // Endpoint proposals affect only the next window's predictor.
             for(std::size_t f=0;f<program.knots.back().faces.size();++f)program.knots.back().faces[f].primaryKind=program.knots.front().faces[f].primaryKind;
         }
         for(std::size_t i=0;i<state.gasMesh.points.size();++i)if(mag(state.gasMesh.points[i]-geometryEndpoint.gasMesh.points[i])>p.tolerances.absoluteGeometry)accumulated.geometryCorrection=true;

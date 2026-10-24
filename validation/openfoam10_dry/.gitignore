@@ -1,0 +1,6 @@
+/bin/
+/cases/
+/results/
+__pycache__/
+/driver/Make/linux*/
+/driver/lnInclude/

@@ -79,6 +79,14 @@ int main(){
  require(sameBits(restored.solidSweepRemainder,h.solidSweepRemainder),"signed numerical sweep remainder bitwise roundtrip");
  require(restored.solidMesh.thermalBoundary==m.thermalBoundary,"explicit fixed/zeroGradient policies roundtrip independently of values");
  require(writeCheckpoint(directory,model,restored,error)&&bytes(file)==original,"entire dry checkpoint bitwise reserialization");
+ // Dry pore diffusivity is part of the serialized model evidence. The
+ // restart reader deliberately takes active model controls from its caller.
+ auto diffusive=model;diffusive.physics.poreEffectiveDiffusivity[0]=1.234e-5;
+ require(writeCheckpoint(directory,diffusive,h,error),error);
+ require(bytes(file)!=original,"pore diffusivity is recorded in checkpoint model");
+ require(readCheckpoint(directory,diffusive,restored,error),error);
+ require(writeCheckpoint(directory,diffusive,restored,error),error);
+ require(writeCheckpoint(directory,model,h,error)&&bytes(file)==original,"restore nondiffusive checkpoint");
  // Schema 5 canonical gas identity is serialized even when testing a material-only component.
  for(int change=0;change<9;++change){auto wrong=model;
   if(change==0)wrong.physics.gasThermoFingerprint=123;
