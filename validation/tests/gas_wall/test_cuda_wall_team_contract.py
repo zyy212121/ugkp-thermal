@@ -25,7 +25,6 @@ int __shfl_sync(unsigned mask,int value,int leader){requireOrder(mask);assert(le
  if(threadIdx.x==0)integer=value;barrier.wait();int out=integer;barrier.wait();return out;}
 double __shfl_sync(unsigned mask,double value,int leader){requireOrder(mask);assert(leader==0);
  if(threadIdx.x==0)std::memcpy(&scalar,&value,sizeof(value));barrier.wait();double out;std::memcpy(&out,&scalar,sizeof(out));barrier.wait();return out;}
-double __shfl_down_sync(unsigned,double,int); // Reductions are covered by CUDA parity tests.
 #define __device__
 #include "common/gasWall/WallCudaTeam.cuh"
 int main(){using ugkwp::gaswall::detail::CudaWallTeam;static_assert(CudaWallTeam::width==32,"one full warp");

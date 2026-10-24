@@ -1,2 +1,0 @@
-name, driver_version, memory.total [MiB], pstate, clocks.current.sm [MHz], power.draw [W], temperature.gpu
-NVIDIA GeForce RTX 4060 Laptop GPU, 592.00, 8188 MiB, P0, 2610 MHz, 50.80 W, 82

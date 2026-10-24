@@ -62,8 +62,8 @@ void checkMoments(const WallGeometryDescriptor<double>& d,V expected,double volu
  }
  assert(near(v,volume));assert(near(d.volume,volume));assert(near(y,d.firstMoment));
  for(int k=0;k<3;++k){assert(near(p[k],volume*expected[k]));assert(near(d.firstMomentVector[k],p[k]));}
- assert(d.matchingDistance>d.maximumOwnerDistance);assert(!d.matchingCells.empty());
- double sum=0;for(double w:d.matchingWeights)sum+=w;assert(near(sum,1));
+ assert(d.matchingDistance>d.maximumOwnerDistance);assert(d.matchingCells.size()==1);
+ assert(d.matchingWeights[0]>0&&near(d.matchingWeights[0],1));
  auto q=d.quadrature();assert(q.count==int(d.distance.size()));assert(q.distance==d.distance.data());
  assert(near(q.volume,volume));assert(near(q.firstMoment,y));
 }
@@ -283,7 +283,7 @@ def test_profile_section_aggregation_bounds_resident_storage(tmp_path):
   checkMoments(d,mesh.cellCentres[0],mesh.volumes[0]);
   assert(!d.quadraturePointsAreInterior);
   const int ownerVertices=mesh.volumes[0]<1?4:8;
-  assert(d.distance.size()<=size_t(2*(2*opt.profileNodes+ownerVertices+1)+16));
+  assert(d.distance.size()<=size_t(2*(opt.profileNodes+ownerVertices+1)+8));
   // The transmitted view needs just these compact scalar samples. Full
   // tetrahedral geometry and cut searches are not repeated during a gas stage.
   assert(d.quadrature().count==int(d.distance.size()));
