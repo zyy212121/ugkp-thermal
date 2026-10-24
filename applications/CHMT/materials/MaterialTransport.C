@@ -106,7 +106,10 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
 
     MaterialTransportResult result;result.rates.resize(q.size());result.poreVelocity.resize(q.size());result.faceFlux.resize(m.owner.size());
     std::vector<MaterialPrimitive> primitive(q.size());std::vector<SolidQ> outgoing(q.size());
-    std::vector<Vec3> pressureGradient(q.size());std::vector<Real> gradientSensitivity(q.size());
+    std::vector<Vec3> pressureGradient(q.size());std::vector<Real> gradientSensitivity(q.size()),stabilityRate(q.size());
+    for(int species=0;species<Ns;++species)if(!finite(p.poreEffectiveDiffusivity[species])||p.poreEffectiveDiffusivity[species]<0){
+        error="invalid material effective pore diffusivity";return false;
+    }
     for(std::size_t c=0;c<q.size();++c)if(!recoverMaterial<false>(q[c],m.volumes[c],p,primitive[c])){error="material transport EOS recovery failed in cell "+std::to_string(c);return false;}
     for(std::size_t c=0;c<q.size();++c){Symmetric3 matrix;Vec3 rhs{};
         for(int e=m.cellFaceOffsets[c];e<m.cellFaceOffsets[c+1];++e){const int f=m.cellFaces[e],other=otherCell(m,c,f);
@@ -138,7 +141,7 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
             if(storage>0)pressureRate+=darcyPressureRelaxation(storage,p.permeability,p.poreViscosity,
                 maxValue(primitive[c].poreDensity,primitive[other].poreDensity),area,1/inverseLength);
         }
-        if(pressureRate+sweepRate>0)result.dtLimit=minValue(result.dtLimit,cfl/(pressureRate+sweepRate));
+        stabilityRate[c]=pressureRate+sweepRate;
     }
     for(std::size_t f=0;f<m.owner.size();++f){const auto kind=m.boundaryKind[f];const int left=m.owner[f];int right=m.neighbour[f];
         if(kind==BoundaryKind::Interface||kind==BoundaryKind::Empty)continue;
@@ -175,6 +178,14 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
             // Native implicit fvScalarMatrix conduction owns the conductive
             // channel; passing k=0 avoids counting the same heat flux twice.
             auto poreFlux=dry::poreFaceFlux(poreLeft,poreRight,distance,velocity,diffusivity,0,calorics);
+            // Bound the explicit operator, not just current net mass outflow:
+            // at almost uniform composition, q/outflow misses diffusion stiffness.
+            // Total pore inventory is the storage for the mass fractions. Sum
+            // face losses before combining with Darcy/ALE stiffness above.
+            Real leftMass=0,rightMass=0;
+            for(int species=0;species<Ns;++species){leftMass+=q[left].pore[species];rightMass+=q[right].pore[species];}
+            if(leftMass>0)stabilityRate[left]+=area*poreFlux.diffusionLossLeft/leftMass;
+            if(rightMass>0)stabilityRate[right]+=area*poreFlux.diffusionLossRight/rightMass;
             if(p.spatialOrder==2&&velocity!=0){
                 SolidQ reconstructed;MaterialPrimitive recovered;
                 if(!reconstruct(m,q,p,velocity>=0?left:right,f,reconstructed)||!recoverMaterial<false>(reconstructed,1,p,recovered)){
@@ -200,6 +211,7 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
             result.rates[c]=addSolid(result.rates[c],flux,-sign);
             for(int k=0;k<Nc;++k)outgoing[c].condensed[k]+=maxValue(0,sign*flux.condensed[k]);
             for(int s=0;s<Ns;++s)outgoing[c].pore[s]+=maxValue(0,sign*flux.pore[s]);}
+        if(stabilityRate[c]>0)result.dtLimit=minValue(result.dtLimit,cfl/stabilityRate[c]);
         Real poreMass=0;for(int s=0;s<Ns;++s)poreMass+=q[c].pore[s];const Real power=poreMass*dot(p.gravity,result.poreVelocity[c]);
         result.rates[c].energy+=power;
         for(int k=0;k<Nc;++k)if(outgoing[c].condensed[k]>0)result.dtLimit=minValue(result.dtLimit,cfl*q[c].condensed[k]/outgoing[c].condensed[k]);

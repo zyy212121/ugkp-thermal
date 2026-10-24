@@ -32,6 +32,26 @@ int main(){
     assert(evaluateMaterialTransport(m,empty,p,{},.01,.4,out,error));close(out.faceFlux[0].energy,0);
     auto noGasTables=p;for(auto& species:noGasTables.species)species=SpeciesThermo{};
     assert(evaluateMaterialTransport(m,empty,noGasTables,{},.01,.4,out,error));close(out.faceFlux[0].energy,0);
+    // A nearly uniform field has arbitrarily small net outflow, but its
+    // explicit diffusion eigenvalue is finite. The donor-only bound formerly
+    // amplified this two-cell perturbation by about 200000 in one step.
+    auto weak=q; auto diffusionOnly=p;
+    diffusionOnly.poreEffectiveDiffusivity[0]=diffusionOnly.poreEffectiveDiffusivity[1]=1e-4;
+    for(int cell=0;cell<2;++cell){
+        weak[cell].pore[0]=.001*(.5+(cell?-1:1)*1e-6);
+        weak[cell].pore[1]=.001-weak[cell].pore[0];energy(weak[cell],diffusionOnly,600);
+    }
+    assert(evaluateMaterialTransport(m,weak,diffusionOnly,{},1e8,.4,out,error));
+    // M_pore/(rho_face*D*A/d) = 50 s; CFL .4 gives 20 s.
+    close(out.dtLimit,20);
+    auto invalid=diffusionOnly;invalid.poreEffectiveDiffusivity[0]=-1;
+    MaterialTransportResult ignored;
+    assert(!evaluateMaterialTransport(m,weak,invalid,{},1,.4,ignored,error));
+    invalid.poreEffectiveDiffusivity[0]=std::numeric_limits<double>::quiet_NaN();
+    assert(!evaluateMaterialTransport(m,weak,invalid,{},1,.4,ignored,error));
+    const double difference=weak[0].pore[0]-weak[1].pore[0];
+    const double advanced=difference+out.dtLimit*(out.rates[0].pore[0]-out.rates[1].pore[0]);
+    close(advanced/difference,.2,1e-9);
     // A thermal gradient alone must not enter explicit transport: native
     // OpenFOAM owns implicit conduction. Set pore diffusion/flow to zero.
     for(auto& d:p.poreEffectiveDiffusivity)d=0;energy(q[1],p,800);

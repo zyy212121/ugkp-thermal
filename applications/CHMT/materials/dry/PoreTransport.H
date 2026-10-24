@@ -20,6 +20,9 @@ struct PoreFlux {
     double conductionEnergy=0;
     double energy=0;                      // W/m2, including species enthalpy
     double darcyVelocity=0;               // m/s superficial, NOT pore speed
+    // Largest diagonal loss coefficient of the frozen diffusion operator,
+    // kg/(m2 s) per donor mass fraction. This remains nonzero at uniform Y.
+    double diffusionLossLeft=0, diffusionLossRight=0;
 };
 
 // Darcy volume flux on a face, g projected along the same left->right normal.
@@ -62,8 +65,9 @@ PoreFlux<Ns> poreFaceFlux(const PoreFaceState<Ns>& left,
     out.darcyVelocity=superficialVelocity;
     std::array<double,Ns> gradient{};
     const double faceDensity=0.5*(left.density+right.density);
-    double rawSum=0;
+    double rawSum=0, maximumDiffusivity=0;
     for(std::size_t s=0;s<Ns;++s) {
+        if(effectiveDiffusivity[s]>maximumDiffusivity)maximumDiffusivity=effectiveDiffusivity[s];
         gradient[s]=(right.massFraction[s]-left.massFraction[s])/distance;
         rawSum-=faceDensity*effectiveDiffusivity[s]*gradient[s];
     }
@@ -74,6 +78,9 @@ PoreFlux<Ns> poreFaceFlux(const PoreFaceState<Ns>& left,
     // three or more species, making any positive explicit step impossible.
     // This is one fixed conservative scheme (no clipping/fallback); its
     // unequal-D correction is generally first-order in space.
+    const double diagonal=faceDensity*maximumDiffusivity/distance;
+    out.diffusionLossLeft=diagonal+(rawSum<0?-rawSum:0);
+    out.diffusionLossRight=diagonal+(rawSum>0?rawSum:0);
     const auto& correctionDonor=rawSum<=0 ? left : right;
     out.diffusion=correctedDiffusion(faceDensity,
         correctionDonor.massFraction,gradient,effectiveDiffusivity);

@@ -23,6 +23,8 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/system/cuda/execution_policy.h>
 #include <memory>
+#include <cerrno>
+#include <cstdlib>
 #include <algorithm>
 #include <vector>
 namespace chmt {
@@ -300,6 +302,20 @@ Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati
     if(gas.mode!=ugkwp::GasMode::SingleLegacy
         && ((options.fluxScheme!=1&&options.fluxScheme!=2)||(options.reconstruction!=0&&options.reconstruction!=1))) {
         error="selected mixture gas operator is unavailable";return nullptr;
+    }
+    // Outlined calls in CUDA fast-compile builds may exceed the default
+    // per-thread stack. Match the existing gasUGKP opt-in runtime control;
+    // normal release builds retain the CUDA default.
+    if(const char* requested=std::getenv("CHMT_CUDA_STACK_BYTES")){
+        char* end=nullptr;errno=0;
+        const auto bytes=std::strtoull(requested,&end,10);
+        if(errno||end==requested||*end||requested[0]<'0'||requested[0]>'9'
+            ||bytes==0||bytes>std::numeric_limits<std::size_t>::max()){
+            error="invalid CHMT_CUDA_STACK_BYTES (expected positive byte count)";return nullptr;
+        }
+        std::size_t current=0;auto code=cudaDeviceGetLimit(&current,cudaLimitStackSize);
+        if(code==cudaSuccess&&bytes>current)code=cudaDeviceSetLimit(cudaLimitStackSize,static_cast<std::size_t>(bytes));
+        if(code!=cudaSuccess){error=std::string("configure CHMT CUDA stack: ")+cudaGetErrorString(code);return nullptr;}
     }
     std::unique_ptr<Backend> b(new Backend);b->model=model;b->options=options;b->accepted=b->trial=state;
     const auto diagnosticInit=b->diagnostics.initialise();

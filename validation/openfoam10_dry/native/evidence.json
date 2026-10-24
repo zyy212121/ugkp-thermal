@@ -1,0 +1,190 @@
+{
+  "baseline": "d86797558373938abc3aaf5ec302dea5a46eec06",
+  "case_source_sha256": {
+    "test/tools/CHMT/coupled_runtime/make_case.py": "1c41bc34c47c1d767fe6cd2636ec304eec6c6e46d206c61be13371ce4bfe8828",
+    "test/tools/CHMT/coupled_runtime/check_case.py": "09f844b05137497b47dad310a61e539872b97c9f39982d775afbbb1b8fca418d",
+    "test/tools/chmt_wall_suite/generate.py": "7664784cec608888fbc5875ae6a42cb7368c506c25b483b260dcf974d50b6fee"
+  },
+  "native": {
+    "binary": "CHMT (native sm_89)",
+    "sha256": "6f8370671fe85da5eb87a98ae39e9c7c89ad7f94482500875db67dc42ec571d8",
+    "grid": 2,
+    "cuda_stack_bytes": "65536",
+    "memcheck": false,
+    "results": [
+      {
+        "scenario": "thermal",
+        "repeat": 0,
+        "elapsed_seconds": 2.7025914459954947,
+        "initial": {
+          "mass": 1001.0,
+          "energy": 300445832.9438967,
+          "solid0": 1000.0,
+          "volume": 1.0
+        },
+        "final": {
+          "mass": 1001.0,
+          "energy": 300445832.9438967,
+          "solid0": 1000.0,
+          "volume": 1.0
+        },
+        "mass_relative": 0.0,
+        "energy_relative": 0.0
+      },
+      {
+        "scenario": "single",
+        "repeat": 0,
+        "elapsed_seconds": 0.8450188099959632,
+        "initial": {
+          "mass": 1001.0,
+          "energy": 300445832.9438967,
+          "solid0": 1000.0,
+          "volume": 1.0
+        },
+        "final": {
+          "mass": 1001.0,
+          "energy": 300445832.9438967,
+          "solid0": 1000.0,
+          "volume": 1.0
+        },
+        "mass_relative": 0.0,
+        "energy_relative": 0.0
+      },
+      {
+        "scenario": "diffusion",
+        "repeat": 0,
+        "elapsed_seconds": 1.019210298996768,
+        "initial": {
+          "mass": 1001.0,
+          "energy": 300445832.9438967,
+          "solid0": 1000.0,
+          "volume": 1.0
+        },
+        "final": {
+          "mass": 1001.0,
+          "energy": 300445832.9438967,
+          "solid0": 1000.0,
+          "volume": 1.0
+        },
+        "mass_relative": 0.0,
+        "energy_relative": 0.0
+      },
+      {
+        "scenario": "dry",
+        "repeat": 0,
+        "elapsed_seconds": 1.6599291449965676,
+        "initial": {
+          "mass": 501.5,
+          "energy": 150559518.2680722,
+          "solid0": 500.0,
+          "volume": 1.0
+        },
+        "final": {
+          "mass": 501.5,
+          "energy": 150559518.26807225,
+          "solid0": 499.0005,
+          "volume": 1.0
+        },
+        "mass_relative": 0.0,
+        "energy_relative": 3.958875895794524e-16,
+        "pyrolysis_mass_error": 0.0004993336665393144
+      },
+      {
+        "scenario": "receding",
+        "repeat": 0,
+        "elapsed_seconds": 14.065993426003843,
+        "initial": {
+          "mass": 1000.4874638549882,
+          "energy": 700253548.6864314,
+          "solid0": 1000.0,
+          "volume": 1.0
+        },
+        "final": {
+          "mass": 1000.4874638549882,
+          "energy": 700253548.6864313,
+          "solid0": 999.99999,
+          "volume": 0.9999999900000004
+        },
+        "mass_relative": 0.0,
+        "energy_relative": 1.7023732300164655e-16
+      }
+    ]
+  },
+  "refined": {
+    "binary": "CHMT (native sm_89)",
+    "sha256": "6f8370671fe85da5eb87a98ae39e9c7c89ad7f94482500875db67dc42ec571d8",
+    "grid": 2,
+    "cuda_stack_bytes": "65536",
+    "memcheck": false,
+    "results": [
+      {
+        "scenario": "dry",
+        "repeat": 0,
+        "elapsed_seconds": 3.905342345999088,
+        "initial": {
+          "mass": 501.5,
+          "energy": 150559518.2680722,
+          "solid0": 500.0,
+          "volume": 1.0
+        },
+        "final": {
+          "mass": 501.5,
+          "energy": 150559518.26807222,
+          "solid0": 499.0007497500313,
+          "volume": 1.0
+        },
+        "mass_relative": 0.0,
+        "energy_relative": 1.979437947897262e-16,
+        "pyrolysis_mass_error": 0.0002495836352522929
+      },
+      {
+        "scenario": "thermal",
+        "repeat": 0,
+        "elapsed_seconds": 1.7519107059924863,
+        "initial": {
+          "mass": 1001.0,
+          "energy": 300445832.9438967,
+          "solid0": 1000.0,
+          "volume": 1.0
+        },
+        "final": {
+          "mass": 1001.0,
+          "energy": 300445832.9438967,
+          "solid0": 1000.0,
+          "volume": 1.0
+        },
+        "mass_relative": 0.0,
+        "energy_relative": 0.0
+      }
+    ]
+  },
+  "memcheck": {
+    "binary": "CHMT (native sm_89)",
+    "sha256": "6f8370671fe85da5eb87a98ae39e9c7c89ad7f94482500875db67dc42ec571d8",
+    "grid": 2,
+    "cuda_stack_bytes": "65536",
+    "memcheck": true,
+    "results": [
+      {
+        "scenario": "dry",
+        "repeat": 0,
+        "elapsed_seconds": 5.623348837994854,
+        "initial": {
+          "mass": 501.5,
+          "energy": 150559518.2680722,
+          "solid0": 500.0,
+          "volume": 1.0
+        },
+        "final": {
+          "mass": 501.5,
+          "energy": 150559518.26807225,
+          "solid0": 499.0005,
+          "volume": 1.0
+        },
+        "mass_relative": 0.0,
+        "energy_relative": 3.958875895794524e-16,
+        "pyrolysis_mass_error": 0.0004993336665393144
+      }
+    ]
+  }
+}
