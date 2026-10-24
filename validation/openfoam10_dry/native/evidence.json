@@ -186,5 +186,34 @@
         "pyrolysis_mass_error": 0.0004993336665393144
       }
     ]
+  },
+  "restart": {
+    "state_payload_bitwise_equal": true,
+    "state_bytes": 122696,
+    "state_sha256": "4189d492b16465982595bf3197e84d8be89e2480ef1cd1ec12c90a78e369dbfa",
+    "temperature_count": 8,
+    "accepted_step": 2,
+    "terminal_outputs": [
+      {
+        "path": "accepted-2.csv",
+        "bytes": 219,
+        "sha256": "825dca62a7ec37e973313874cd1f1c16e347b091b6f03a0da2eff47db7d0bcc3"
+      },
+      {
+        "path": "gas-2.csv",
+        "bytes": 1164,
+        "sha256": "6ca5307c71c747046fcd1c95d28d712c51f59150b377067df35de0853d604e63"
+      },
+      {
+        "path": "material-2.csv",
+        "bytes": 460,
+        "sha256": "863bfb1a0ef6516ba074a7c07e80dc9d83256e24c026ee2e908935b2f5ae662e"
+      },
+      {
+        "path": "exchange-2.csv",
+        "bytes": 23866,
+        "sha256": "a56ee76a98146a2e712a832a203f35f25a2eed50ad7c82f11506d2f19ea38d0c"
+      }
+    ]
   }
 }

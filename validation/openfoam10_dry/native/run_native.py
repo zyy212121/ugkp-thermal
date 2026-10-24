@@ -76,7 +76,9 @@ material { enablePoreOutflow true; }
             if a.memcheck:command=['compute-sanitizer','--tool','memcheck','--error-exitcode','99']+command
             elapsed=run(command,case/'run.log',env)
             result=dict(scenario=name,repeat=repeat,elapsed_seconds=elapsed,case=str(case),**inventory(case))
-            if name in ('thermal','single','diffusion'):
+            # External contact-conductance oracle fixes cell distances at .25 m.
+            # Other grids retain independent inventory checks and baseline parity.
+            if name in ('thermal','single','diffusion') and a.grid==2:
                 checker=a.source_root/'validation/openfoam10_dry/native/check_coupled.py'
                 run(['python3',checker,case],case/'independent-check.json',env)
             if name=='dry':

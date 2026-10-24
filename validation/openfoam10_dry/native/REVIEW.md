@@ -86,3 +86,14 @@ wall-waveform accuracy warnings occur on these finite windows, are retained in
 logs, and are not reported as nonlinear convergence. Generic all-host legacy
 check_host.sh stops at its pre-existing C++14 versus C++17 warning-as-error;
 the explicit dry, OF10, checkpoint and native checks above are the evidence.
+
+## Native split/restart check
+
+A thermal run split at 0.0005 s and resumed to 0.001 s has an identical
+122696-byte physical checkpoint payload and byte-identical terminal accepted,
+gas, material and exchange CSVs compared with the uninterrupted run. The state
+SHA-256 is 4189d492b16465982595bf3197e84d8be89e2480ef1cd1ec12c90a78e369dbfa.
+
+The external contact-conductance oracle assumes a 2x2x2 mesh. Larger-grid timing
+runs use the independent extensive-inventory check and before/after physical
+checkpoint comparison; they do not reuse that fixed-distance analytic oracle.
