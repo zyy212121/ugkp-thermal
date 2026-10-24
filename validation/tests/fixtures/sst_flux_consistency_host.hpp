@@ -35,9 +35,8 @@ struct DeviceState {
  R k[2]={R(.1),R(.2)},omega[2]={2,4},rhoK[2]={R(.2),R(1.6)},rhoOmega[2]={4,32};
  R nut[2]={R(.1),R(.2)},sstF1[2]={1,1},sstF2[2]={1,1},sstWallDistance[2]={R(.1),R(.1)};
  R sstKMin=1e-10,sstOmegaMin=1e-8,sstWallKappa=R(.41),sstWallE=R(9.8),sstWallCmu=R(.09);
- R sstPhiRhoK[2]={0,0},sstPhiRhoOmega[2]={0,0},sstSourceNumber[2]={0,0};
+ R sstPhiRhoK[2]={0,0},sstPhiRhoOmega[2]={0,0};
  R gasPhiRho[2]={0,0},gasPhiRhoE[2]={0,0},gasFluxPositivityScale[2]={0,0};
- R maxDiffusionNumber=1,sstMaxSourceNumber=1;
  R V[2]={2,2},Sfx[2]={1,-1},Sfy[2]={0,0},Sfz[2]={0,0},magSf[2]={1,1},deltaCoeffs[2]={10,10},faceWeight[2]={R(.25),R(.75)};
  R Cx[2]={0,1},Cy[2]={0,0},Cz[2]={0,0};
  R riemannBoundaryUx[2]={0,0},riemannBoundaryUy[2]={0,0},riemannBoundaryUz[2]={0,0},boundaryRho[2]={4,4};

@@ -23,7 +23,7 @@ int main(){
  ck(!ugkwp::publishGasBoundaryLayerOutput(s,0,input,output,nan,Real(.25)),"NaN area published");
  ck(diagnostics.fatalClaim&&diagnostics.firstFatal.sourceSiteId==2501,"missing area fatal");
  ck(diagnostics.firstFatal.step==7&&diagnostics.firstFatal.simulationTime==.25,"source operation lost");
- ck(!exchange[0].ready&&!exchange[0].massReady&&exchange[0].energy==oldEnergy&&speciesFlux[0]==oldFlux,"invalid exchange changed storage");
+ ck(!exchange[0].ready&&exchange[0].energy==oldEnergy&&speciesFlux[0]==oldFlux,"invalid exchange changed storage");
  ugkp::diagnostics::reset(diagnostics,10,4,8,.5);output.traceTemperature=-1;
  ck(!ugkwp::publishGasBoundaryLayerOutput(s,0,input,output,Real(2),Real(.25)),"negative temperature published");
  ck(diagnostics.firstFatal.code==ugkp::diagnostics::Code::NegativeTemperature,"negative temperature misclassified");

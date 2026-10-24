@@ -63,7 +63,7 @@ class SharedGasDeviceStorage {
     std::unique_ptr<WallClosureHost> wallGeometry_;
     std::vector<int> wallFaces_;
     std::vector<ugkwp::gaswall::WallInput<Real,Ns>> wallHostInput_;
-    std::uint64_t wallGeometryVersion_=0;bool wallGeometryReady_=false,wallModelFailed_=false,wallInputDirty_=false,wallMassPublished_=false;
+    std::uint64_t wallGeometryVersion_=0;bool wallGeometryReady_=false,wallModelFailed_=false,wallInputDirty_=false;
     Buffer<int> wallFaceSlot_,wallOwnerSlot_,wallStatus_,wallFaceList_,wallMatchOffsets_,wallMatchCells_;
     Buffer<Real> wallSpecies_,wallDistance_,wallWeights_,wallMatchWeights_;
     Buffer<ugkwp::GasBoundaryLayerExchange<Real>> wallExchange_;
@@ -178,7 +178,7 @@ class SharedGasDeviceStorage {
             wallOutput_.swap(other.wallOutput_);
             wallModelStatus_.swap(other.wallModelStatus_);
             wallGeometry_.swap(other.wallGeometry_);wallFaces_.swap(other.wallFaces_);wallHostInput_.swap(other.wallHostInput_);
-            std::swap(wallGeometryVersion_,other.wallGeometryVersion_);std::swap(wallGeometryReady_,other.wallGeometryReady_);std::swap(wallModelFailed_,other.wallModelFailed_);std::swap(wallInputDirty_,other.wallInputDirty_);std::swap(wallMassPublished_,other.wallMassPublished_);
+            std::swap(wallGeometryVersion_,other.wallGeometryVersion_);std::swap(wallGeometryReady_,other.wallGeometryReady_);std::swap(wallModelFailed_,other.wallModelFailed_);std::swap(wallInputDirty_,other.wallInputDirty_);
         }
         rebindOwners();other.rebindOwners();
     }
@@ -304,11 +304,10 @@ public:
     template<class T>bool write(T* pointer,const std::vector<T>& values){return upload(pointer,values);}
     void invalidateWallGeometry(){if(wallGeometry_)wallGeometry_->clearGeometry();wallGeometryReady_=false;}
     const WallClosureHost* wallGeometry()const{return wallGeometry_.get();}
-    bool wallMassPublished()const{return wallMassPublished_;}
     bool runtimeFailure()const{return fault_.runtimeFailure;}
     void beginOperation(){fault_.message.clear();fault_.runtimeFailure=false;}
     bool clearTrialStatus(){
-        wallModelFailed_=false;wallMassPublished_=false;
+        wallModelFailed_=false;
         view_.gasBoundaryLayer.preparedFirstStage=false;
         if(view_.gasBoundaryLayer.enabled&&(!wallStatus_.zero(nullptr)||!wallExchange_.zero(nullptr)||!wallModelStatus_.zero(nullptr)))return false;
         return cellStatus_.zero(nullptr)&&faceStatus_.zero(nullptr);}
@@ -424,13 +423,13 @@ private:
         view_.gasThermalConductivity=model.physics.gasConductivity;
         // CHMT uses zero for disabled conduction, never a negative unset sentinel.
         view_.gasThermalConductivityConfigured=true;
-        view_.maxDiffusionNumber=.25;view_.turbulentPrandtl=model.physics.sst.turbulentPrandtl;
+        view_.turbulentPrandtl=model.physics.sst.turbulentPrandtl;
         view_.sstCoefficients=ugkwp::defaultSstCoefficients();
         const auto& st=model.physics.sst;auto& coeff=view_.sstCoefficients;
         coeff.a1=st.a1;coeff.betaStar=st.betaStar;coeff.beta1=st.beta1;coeff.beta2=st.beta2;
         coeff.gamma1=st.gamma1;coeff.gamma2=st.gamma2;coeff.alphaK1=st.sigmaK1;coeff.alphaK2=st.sigmaK2;
         coeff.alphaOmega1=st.sigmaOmega1;coeff.alphaOmega2=st.sigmaOmega2;coeff.c1=st.productionLimit;
-        view_.sstKMin=maxValue(st.minimumK,1e-12);view_.sstOmegaMin=maxValue(st.minimumOmega,1e-12);view_.sstMaxSourceNumber=.25;
+        view_.sstKMin=maxValue(st.minimumK,1e-12);view_.sstOmegaMin=maxValue(st.minimumOmega,1e-12);
         view_.turbulenceModel=model.physics.enableSst?3:0;view_.sstConfigured=model.physics.enableSst;view_.sstWallTreatment=int(model.physics.wallModel.family);
         view_.sstWallKappa=.41;view_.sstWallE=9.8;view_.sstWallCmu=.09;view_.lesDeltaCoeff=1;view_.waleCw=.325;view_.smagorinskyCs=.17;
         if(geometry&&!uploadGeometry(state.gasMesh,false)){error=fault_.message;return false;}
@@ -510,7 +509,7 @@ public:
         auto& layer=view_.gasBoundaryLayerModel;layer.input=wallInput_.data();layer.output=wallOutput_.data();layer.status=wallModelStatus_.data();
         layer.faces=wallFaceList_.data();layer.matchingOffsets=wallMatchOffsets_.data();layer.matchingCells=wallMatchCells_.data();layer.matchingWeights=wallMatchWeights_.data();
         wallInputDirty_=false;wallGeometryReady_=true;wallGeometryVersion_=mesh.geometryVersion;
-        wallMassPublished_=false;return wallExchange_.zero(nullptr)&&wallStatus_.zero(nullptr)&&wallModelStatus_.zero(nullptr);
+        return wallExchange_.zero(nullptr)&&wallStatus_.zero(nullptr)&&wallModelStatus_.zero(nullptr);
     }
     bool prepareWallBoundary(const WallKnot& knot,const SurfaceMesh& surface,std::string& error){
         if(!view_.gasBoundaryLayer.enabled){error.clear();return true;}
@@ -547,7 +546,6 @@ public:
         }
 
 
-        wallMassPublished_=true;
         if(!wallOutput_.download(output,nullptr)||!wallInput_.download(inputs,nullptr))return false;
         matching.resize(inputs.size());for(std::size_t f=0;f<inputs.size();++f){matching[f].pressure=inputs[f].pressure;matching[f].mechanicalPressure=0;matching[f].state=inputs[f].matching;}return true;
     }

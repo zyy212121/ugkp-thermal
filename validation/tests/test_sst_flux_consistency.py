@@ -12,7 +12,6 @@ def operators():
     return ('\n'+p[p.index('template<class GasState>\n__device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue'):p.index('template<class GasState>\n__global__ void initialiseSstConservativeStateKernel')]
         +'\n'+(ROOT/'common/operators/sstVelocityInvariants.cuh').read_text()
         +'\n'+s[:s.index('template<class GasState>\n__global__ void computeGasCourantFieldKernel')]
-        +'\n'+s[s.index('template<class GasState>\n__global__ void computeSstStabilityNumberKernel'):s.index('template<class GasState>\n__global__ void applyGasFluxDivergenceByCellKernel')]
         +'\n'+(ROOT/'common/operators/computeSstGradientsKernel.cuh').read_text()
         +'\n'+(ROOT/'common/operators/applyGasVolumeFractionSourceKernel.cuh').read_text().replace('asm("trap;");','std::abort();'))
 
@@ -45,36 +44,14 @@ int main(){
  R div=R(.25); // (4/4-2/4)/V
  R dt=R(.001),sk=s.rho[0]*(-R(2)/3*div*s.k[0]-s.sstCoefficients.betaStar*s.k[0]*s.omega[0]);
  R so=ugkwp::sstOmegaSource(s.rho[0],s.k[0],s.omega[0],div,0,0,s.sstF1[0],s.sstF2[0],0,s.sstCoefficients);
- R oldK=s.rhoK[0],oldO=s.rhoOmega[0];computeSstStabilityNumberKernel(&s,dt,1);
- R divBound=R(.5);
- R boundK=s.rho[0]*(R(2)/3*divBound*s.k[0]+s.sstCoefficients.betaStar*s.k[0]*s.omega[0]);
- R boundO=std::max(std::abs(ugkwp::sstOmegaSource(s.rho[0],s.k[0],s.omega[0],-divBound,0,0,s.sstF1[0],s.sstF2[0],0,s.sstCoefficients)),std::abs(ugkwp::sstOmegaSource(s.rho[0],s.k[0],s.omega[0],divBound,0,0,s.sstF1[0],s.sstF2[0],0,s.sstCoefficients)));
- check("stability bounds face-flux compression",s.sstSourceNumber[0],std::max(std::abs(dt*boundK/oldK),std::abs(dt*boundO/oldO)));
+ R oldK=s.rhoK[0],oldO=s.rhoOmega[0];
  applySstFluxAndSourceKernel(&s,dt);check("k source uses face-flux divergence",s.rhoK[0],oldK+dt*sk);check("omega source uses face-flux divergence",s.rhoOmega[0],oldO+dt*so);
  // Internal rho interpolation uses owner-oriented face weight, also for neighbor cell.
  s=DeviceState();s.gasMu=0;s.nut[0]=s.nut[1]=0;s.nInternalFaces=1;s.faceNeighbour[0]=1;s.cellPlaneCount[0]=1;s.gasPhiRho[0]=13;
  div=1;oldK=s.rhoK[0];sk=s.rho[0]*(-R(2)/3*div*s.k[0]-s.sstCoefficients.betaStar*s.k[0]*s.omega[0]);applySstFluxAndSourceKernel(&s,dt);check("weighted internal rho divU",s.rhoK[0],oldK+dt*sk);
- // Opposing predictor fluxes cancel; unequal positivity scaling must not
- // erase the source estimate. Bound all scale combinations at fixed state.
- s=DeviceState();s.gasMu=0;s.nut[0]=s.nut[1]=0;s.V[0]=1;s.boundaryRho[0]=s.boundaryRho[1]=1;s.gasPhiRho[0]=100;s.gasPhiRho[1]=-100;
- for(R magnitude:{R(0),R(100),R(1e15)}){
- s.gasPhiRho[0]=magnitude;s.gasPhiRho[1]=-magnitude;
- computeSstStabilityNumberKernel(&s,dt,1);R estimated=s.sstSourceNumber[0];
- R b=magnitude;
- R endpointK=s.rho[0]*(R(2)/3*b*s.k[0]+s.sstCoefficients.betaStar*s.k[0]*s.omega[0]);
- R endpointO=std::max(std::abs(ugkwp::sstOmegaSource(s.rho[0],s.k[0],s.omega[0],-b,0,0,s.sstF1[0],s.sstF2[0],0,s.sstCoefficients)),std::abs(ugkwp::sstOmegaSource(s.rho[0],s.k[0],s.omega[0],b,0,0,s.sstF1[0],s.sstF2[0],0,s.sstCoefficients)));
- check("affine compression envelope equals endpoint maximum",estimated,std::max(dt*endpointK/s.rhoK[0],dt*endpointO/s.rhoOmega[0]));
- for(R outgoingScale:{R(0),R(.5),R(1)})for(R incomingScale:{R(0),R(.5),R(1)}){
-  R actualDiv=magnitude*outgoingScale-magnitude*incomingScale;
-  R actualK=s.rho[0]*(-R(2)/3*actualDiv*s.k[0]-s.sstCoefficients.betaStar*s.k[0]*s.omega[0]);
-  R actualO=ugkwp::sstOmegaSource(s.rho[0],s.k[0],s.omega[0],actualDiv,0,0,s.sstF1[0],s.sstF2[0],0,s.sstCoefficients);
-  if(estimated+R(1e-6)<std::max(std::abs(dt*actualK/s.rhoK[0]),std::abs(dt*actualO/s.rhoOmega[0]))){std::cerr<<"cancelling flux underestimates positivity-scaled source\n";++fails;}
- }
- }
  // Neighbor orientation uses the identical owner-oriented density.
  s=DeviceState();s.gasMu=0;s.nut[0]=s.nut[1]=0;s.nInternalFaces=1;s.faceNeighbour[0]=1;s.cellPlaneStart[1]=0;s.cellPlaneCount[1]=1;s.gasPhiRho[0]=13;threadIdx.x=1;
  div=-1;oldK=s.rhoK[1];sk=s.rho[1]*(-R(2)/3*div*s.k[1]-s.sstCoefficients.betaStar*s.k[1]*s.omega[1]);applySstFluxAndSourceKernel(&s,dt);check("neighbor signed divergence uses same rho face",s.rhoK[1],oldK+dt*sk);threadIdx.x=0;
- s.periodic=true;s.gasPhiRho[0]=13;s.gasPhiRho[1]=-9;check("periodic predictor pair average",sstPredictorMassFlux(s,0),11);check("periodic predictor antisymmetry",sstPredictorMassFlux(s,1),-11);check("periodic predictor leaves raw flux immutable",s.gasPhiRho[0],13);
  // Physical volume source conserves primitive turbulence in unconstrained cells.
  for(R eps:{R(.1),R(.3)}){s=DeviceState();s.epsSolid[0]=s.epsSolid[1]=eps;R k=s.k[0],o=s.omega[0];applyGasVolumeFractionSourceKernel(&s,R(.01));check("epsG k primitive coherence",s.rhoK[0]/s.rho[0],k);check("epsG omega primitive coherence",s.rhoOmega[0]/s.rho[0],o);}
  s=DeviceState();s.sstConfigured=0;oldK=s.rhoK[0];oldO=s.rhoOmega[0];applyGasVolumeFractionSourceKernel(&s,R(.01));check("disabled SST k untouched",s.rhoK[0],oldK);check("disabled SST omega untouched",s.rhoOmega[0],oldO);
@@ -92,20 +69,16 @@ def test_all_sst_gradient_consumers_have_same_stage_mass_flux():
     tuning=(ROOT/'common/GpuToolB1Launch.cuh').read_text()
     assert 'computeSstGradientsKernel' not in tuning.split('int launchToolB1FaceBundle')[0]
     assert tuning.index('computeGasInternalFaceFluxKernel')<tuning.index('computeSstGradientsKernel')<tuning.index('computeSstFaceFluxKernel')
-    for path in ('applications/gasUGKP/private_backend/GpuResidentStrict.cu','applications/FSH/private_backend/GpuResidentStrict.cu','applications/CHT/gpu/GpuResidentStrict.cu'):
-        src=(ROOT/path).read_text()
-        a=src.index('computeSstGradientsKernel<<<')
-        assert src.rfind('computeGasCourantFieldKernel<<<',0,a)>src.rfind('computeGasPrimitiveGradientsKernel<<<',0,a),path
     eddy=(ROOT/'common/operators/computeGasEddyViscosityKernel.cuh').read_text()
     assert 'gradKX' not in eddy and 'sstF1[c] =' not in eddy
 
 def test_courant_scratch_no_longer_overwrites_sst_mass():
     source=(ROOT/'common/operators/computeSstFaceFluxKernel.cuh').read_text()
     face=source.split('template<class GasState>\n__global__ void computeGasCourantFieldKernel')[1].split('__global__ void computeGasConvectiveCourantByCellKernel')[0]
-    cell=source.split('__global__ void computeGasConvectiveCourantByCellKernel')[1].split('template<class GasState>\n__global__ void computeGasDiffusionNumberKernel')[0]
-    assert 'computeRiemannGasFaceFluxDevice<false, true>' in face
-    assert 's.gasPhiRhoE[f]=amaxSf;' in face
-    assert 'sumAmaxSf += finiteOr(s.gasPhiRhoE[f]' in cell
+    cell=source.split('__global__ void computeGasConvectiveCourantByCellKernel')[1].split('template<class GasState>\n__global__ void applyGasFluxDivergenceByCellKernel')[0]
+    assert 'computeRiemannGasFaceFluxDevice' not in face
+    assert 's.gasPhiRhoE[f] =' in face
+    assert 'sumAmaxSf +=' in cell and 's.gasPhiRhoE[f]' in cell
 
 def test_volume_source_validates_before_commit_and_skips_disabled_arrays(tmp_path):
     pre=((VALIDATION_ROOT / 'tests/fixtures/sst_flux_consistency_host.hpp')).read_text()

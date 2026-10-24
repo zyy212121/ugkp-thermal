@@ -36,7 +36,7 @@ def test_actual_trial_reuses_first_profile_and_retries_large_outer_interval(tmp_
     from test_gas_advance_view import PREAMBLE
     source=re.sub(r'<<<[\s\S]*?>>>','',(ROOT/'common/GpuGasAdvance.cuh').read_text())
     pre=PREAMBLE.replace('GRADIENT_KERNEL(computeGasPrimitiveGradientsKernel)',
-        'template<class S>void computeGasPrimitiveGradientsKernel(S*,bool=false,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("gas-gradients");}')
+        'template<class S>void computeGasPrimitiveGradientsKernel(S*,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("gas-gradients");}')
     pre=pre.replace('using GasHostPolicy=GasHostWithWallEnergy<double,double,accumulateWall>;',r'''
 struct GasHostPolicy:GasHostWithWallEnergy<double,double,accumulateWall>{
  template<class S>static int prepareBoundaryLayer(S*,double,double){trace.push_back("profile");return 0;}};
@@ -50,8 +50,6 @@ struct MixedHost:IndependentHost{SpeciesTag gasSpecies;MixedDevice*deviceState;u
 template<class S,class T>void advanceGasChemistryKernel(S*,T,const double*,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("chemistry");}
 template<class S>void computeGasCourantFieldKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("fresh-mass");}
 template<class S>void computeGasConvectiveCourantByCellKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);}
-template<class S>void computeGasDiffusionNumberKernel(S*,double,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);}
-template<class S>void computeSstStabilityNumberKernel(S*,double,double,bool requireWallProfile=true,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);if(!requireWallProfile)std::abort();trace.push_back("sst-bound");}
 struct Policy{
  static inline int attempts=0,rollbacks=0;static inline bool limit=false;static inline double covered=0,current=0;
  static int begin(MixedHost*){++attempts;return 0;}static int applySources(MixedHost*,double dt){current=dt;return 0;}

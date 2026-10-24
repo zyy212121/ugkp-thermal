@@ -150,7 +150,6 @@ struct DeviceState
     int gasReconstruction = 0;
     int gasLimiter = 1;
     int gasTimeIntegrator = 1;
-    int gasRobustFallback = 1;
     int turbulenceModel = 0;
                                                                          
                                                                        
@@ -162,13 +161,11 @@ struct DeviceState
     double turbulentPrandtl = 0.9;
     double waleCw = 0.325;
     double smagorinskyCs = 0.17;
-    double maxDiffusionNumber = 0.25;
     int sstConfigured = 0;
     ugkwp::SstCoefficients sstCoefficients =
         ugkwp::defaultSstCoefficients();
     double sstKMin = 1.0e-12;
     double sstOmegaMin = 1.0e-6;
-    double sstMaxSourceNumber = 0.25;
     int sstWallTreatment = 0;
     double sstWallKappa = 0.41;
     double sstWallE = 9.8;
@@ -359,7 +356,6 @@ struct DeviceState
     double* gasGradientLimiterP = nullptr;
     double* gasGradientLimiterT = nullptr;
     double* nut = nullptr;
-    double* gasDiffusionNumber = nullptr;
     double* rhoK = nullptr;
     double* rhoOmega = nullptr;
     double* rhoKInitial = nullptr;
@@ -381,7 +377,6 @@ struct DeviceState
     int* sstBoundaryOmegaMode = nullptr;
     double* sstBoundaryK = nullptr;
     double* sstBoundaryOmega = nullptr;
-    double* sstSourceNumber = nullptr;
     double* Ux = nullptr;
     double* Uy = nullptr;
     double* Uz = nullptr;
@@ -905,13 +900,12 @@ int prepareSstOwners(DeviceState* s)
     rc |= acquire(s->sstBoundaryOmegaMode, nf, "cudaMalloc SST boundaryOmegaMode");
     rc |= acquire(s->sstBoundaryK, nf, "cudaMalloc SST boundaryK");
     rc |= acquire(s->sstBoundaryOmega, nf, "cudaMalloc SST boundaryOmega");
-    rc |= acquire(s->sstSourceNumber, nc, "cudaMalloc SST sourceNumber");
     if (rc != 0) return 1;
     if ((s->particleStuckInitialisationPending & publicationPending) != 0)
     {
         const size_t first = offsetof(DeviceState, rhoK);
-        const size_t last = offsetof(DeviceState, sstSourceNumber)
-                          + sizeof(s->sstSourceNumber);
+        const size_t last = offsetof(DeviceState, sstBoundaryOmega)
+                          + sizeof(s->sstBoundaryOmega);
         const cudaError_t error = cudaMemcpy
         (
             reinterpret_cast<unsigned char*>(s->deviceState) + first,
@@ -1084,7 +1078,6 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->gasGradientLimiterP);
     release(s->gasGradientLimiterT);
     release(s->nut);
-    release(s->gasDiffusionNumber);
     release(s->rhoK);
     release(s->rhoOmega);
     release(s->rhoKInitial);
@@ -1106,7 +1099,6 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->sstBoundaryOmegaMode);
     release(s->sstBoundaryK);
     release(s->sstBoundaryOmega);
-    release(s->sstSourceNumber);
     release(s->Ux);
     release(s->Uy);
     release(s->Uz);
@@ -1410,7 +1402,6 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->gasGradientLimiterP, nc, "cudaMalloc strict gasGradientLimiterP");
     rc |= allocate(s->gasGradientLimiterT, nc, "cudaMalloc strict gasGradientLimiterT");
     rc |= allocate(s->nut, nc, "cudaMalloc strict nut");
-    rc |= allocate(s->gasDiffusionNumber, nc, "cudaMalloc strict gasDiffusionNumber");
     if (s->hostTurbulenceModel == 3)
     {
         rc |= allocate(s->rhoK, nc, "cudaMalloc SST rhoK");
@@ -1434,7 +1425,6 @@ int allocateFields(DeviceState* s)
         rc |= allocate(s->sstBoundaryOmegaMode, nf, "cudaMalloc SST boundaryOmegaMode");
         rc |= allocate(s->sstBoundaryK, nf, "cudaMalloc SST boundaryK");
         rc |= allocate(s->sstBoundaryOmega, nf, "cudaMalloc SST boundaryOmega");
-        rc |= allocate(s->sstSourceNumber, nc, "cudaMalloc SST sourceNumber");
     }
     rc |= allocate(s->Ux, nc, "cudaMalloc strict Ux");
     rc |= allocate(s->Uy, nc, "cudaMalloc strict Uy");
@@ -2627,13 +2617,11 @@ extern "C" int ugkwpGpuResidentStrictCreate
     int gasReconstruction,
     int gasLimiter,
     int gasTimeIntegrator,
-    int gasRobustFallback,
     int turbulenceModel,
     double lesDeltaCoeff,
     double turbulentPrandtl,
     double waleCw,
     double smagorinskyCs,
-    double maxDiffusionNumber,
     int csrCellLocalPathEnabled,
     int csrHeavyReductionMode,
     int csrHeavyAutoInterval,
@@ -2700,7 +2688,6 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->gasReconstruction = gasReconstruction;
     s->gasLimiter = gasLimiter;
     s->gasTimeIntegrator = gasTimeIntegrator;
-    s->gasRobustFallback = gasRobustFallback;
     s->turbulenceModel = turbulenceModel;
     s->hostGasFluxScheme = gasFluxScheme;
     s->hostGasTimeIntegrator = gasTimeIntegrator;
@@ -2709,7 +2696,6 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->turbulentPrandtl = turbulentPrandtl;
     s->waleCw = waleCw;
     s->smagorinskyCs = smagorinskyCs;
-    s->maxDiffusionNumber = maxDiffusionNumber;
     s->csrCellLocalPathEnabled = csrCellLocalPathEnabled;
     s->csrHeavyReductionMode = csrHeavyReductionMode;
     s->csrHeavyAutoInterval = csrHeavyAutoInterval;
@@ -3413,7 +3399,6 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     double c1,
     double kMin,
     double omegaMin,
-    double maxSourceNumber,
     int wallTreatment,
     double wallKappa,
     double wallE,
@@ -3465,7 +3450,6 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     };
     s->sstKMin = kMin;
     s->sstOmegaMin = omegaMin;
-    s->sstMaxSourceNumber = maxSourceNumber;
     s->sstWallTreatment = wallTreatment;
     s->sstWallKappa = wallKappa;
     s->sstWallE = wallE;
@@ -3536,7 +3520,6 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
 (
     void* handle,
     double dt,
-    double targetMaxCo,
     double scheduleTime,
     double* maxCo
 )
@@ -3570,16 +3553,6 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         setLastError("recoverGasPrimitivesKernel launch for gas Courant", err);
         return 1;
     }
-    if (s->hostTurbulenceModel == 3)
-    {
-        recoverSstPrimitivesKernel<<<cellGrid, cellBlock>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("recoverSstPrimitivesKernel for gas Courant", err);
-            return 1;
-        }
-    }
 
     if (allFaceGrid > 0)
     {
@@ -3606,43 +3579,6 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         }
     }
 
-    if (s->hostTurbulenceModel == 3)
-    {
-        applySstWallFunctionStateKernel<<<cellGrid, cellBlock>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError
-            (
-                "applySstWallFunctionStateKernel for gas Courant",
-                err
-            );
-            return 1;
-        }
-    }
-
-    computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock>>>(s->deviceState, true);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasPrimitiveGradientsKernel for gas Courant", err);
-        return 1;
-    }
-    computeGasGradientLimiterKernel<<<cellGrid, cellBlock>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasGradientLimiterKernel for gas Courant", err);
-        return 1;
-    }
-    computeGasEddyViscosityKernel<<<cellGrid, cellBlock>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasEddyViscosityKernel for gas Courant", err);
-        return 1;
-    }
-
     if (faceGrid > 0)
     {
         computeGasCourantFieldKernel<<<faceGrid, faceBlock>>>(s->deviceState, dt);
@@ -3653,16 +3589,7 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
             return 1;
         }
     }
-    if (s->hostTurbulenceModel == 3)
-    {
-        computeSstGradientsKernel<<<cellGrid, cellBlock>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeSstGradientsKernel for gas Courant", err);
-            return 1;
-        }
-    }
+
     computeGasConvectiveCourantByCellKernel<<<cellGrid, cellBlock>>>
     (
         s->deviceState,
@@ -3679,34 +3606,6 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         return 1;
     }
 
-    computeGasDiffusionNumberKernel<<<cellGrid, cellBlock>>>
-    (
-        s->deviceState,
-        dt,
-        targetMaxCo
-    );
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasDiffusionNumberKernel launch", err);
-        return 1;
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        computeSstStabilityNumberKernel<<<cellGrid, cellBlock>>>
-        (
-            s->deviceState,
-            dt,
-            targetMaxCo
-        );
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeSstStabilityNumberKernel launch", err);
-            return 1;
-        }
-    }
-
     thrust::device_ptr<double> convectiveBegin
     (
         s->gasFluxPositivityScale
@@ -3718,26 +3617,6 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         convectiveBegin + s->nCells
     );
     *maxCo = *maxConvectiveIt;
-    thrust::device_ptr<double> diffusionBegin(s->gasDiffusionNumber);
-    const thrust::device_ptr<double> maxDiffusionIt = thrust::max_element
-    (
-        thrust::device,
-        diffusionBegin,
-        diffusionBegin + s->nCells
-    );
-    *maxCo = fmax(*maxCo, *maxDiffusionIt);
-    if (s->hostTurbulenceModel == 3)
-    {
-        thrust::device_ptr<double> sstBegin(s->sstSourceNumber);
-        const thrust::device_ptr<double> maxSstIt = thrust::max_element
-        (
-            thrust::device,
-            sstBegin,
-            sstBegin + s->nCells
-        );
-        *maxCo = fmax(*maxCo, *maxSstIt);
-    }
-
     // Courant's existing reduction has returned its host scalar.
     const auto diagnosticReadback=s->diagnosticOwner->observeCompletedWork();
     if(diagnosticReadback!=cudaSuccess) {setLastError("diagnostics at Courant readback",diagnosticReadback);return 1;}

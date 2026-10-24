@@ -26,7 +26,7 @@ in[0].normal[0]=1;in[0].matchingDistance=1.5;in[0].ownerDistance=.5;
 in[0].quadrature.volume=9;in[0].quadrature.firstMoment=-3;
 std::memset(out,0xA5,sizeof(out));
 ck(ugkwp::evaluateGasBoundaryLayerSlot(s,0),"33 actual matching donors rejected");
-ck(exchange[0].ready&&exchange[0].massReady&&status[0]==0,"output is not completely ready");
+ck(exchange[0].ready&&status[0]==0,"output is not completely ready");
 ck(in[0].matching.temperature==expectedT&&in[0].pressure==expectedP,"donor loop omitted actual input");
 ck(modelStatus[0].code==ugkwp::gaswall::WallCode::Success,"convergence poisoned completed output");
 ck(ugkwp::gasBoundaryLayerSlotReady(s,0),"bulk readiness rejected complete output");

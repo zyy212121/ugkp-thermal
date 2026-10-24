@@ -185,7 +185,6 @@ struct DeviceState
     int gasReconstruction = 0;
     int gasLimiter = 1;
     int gasTimeIntegrator = 1;
-    int gasRobustFallback = 1;
     int turbulenceModel = 0;
                                                                              
                                                                              
@@ -200,13 +199,11 @@ struct DeviceState
     double turbulentPrandtl = 0.9;
     double waleCw = 0.325;
     double smagorinskyCs = 0.17;
-    double maxDiffusionNumber = 0.25;
     int sstConfigured = 0;
     ugkwp::SstCoefficients sstCoefficients =
         ugkwp::defaultSstCoefficients();
     double sstKMin = 1.0e-12;
     double sstOmegaMin = 1.0e-6;
-    double sstMaxSourceNumber = 0.25;
     int sstWallTreatment = 0;
     double sstWallKappa = 0.41;
     double sstWallE = 9.8;
@@ -378,12 +375,10 @@ struct DeviceState
     double* gasGradientLimiterP = nullptr;
     double* gasGradientLimiterT = nullptr;
     double* nut = nullptr;
-    double* gasDiffusionNumber = nullptr;
     double* rhoK = nullptr;
     double* rhoOmega = nullptr;
     double* rhoKInitial = nullptr;
     double* rhoOmegaInitial = nullptr;
-    double* gasCourantSstSnapshot = nullptr;
     double* k = nullptr;
     double* omega = nullptr;
     double* sstWallDistance = nullptr;
@@ -401,7 +396,6 @@ struct DeviceState
     int* sstBoundaryOmegaMode = nullptr;
     double* sstBoundaryK = nullptr;
     double* sstBoundaryOmega = nullptr;
-    double* sstSourceNumber = nullptr;
     double* Ux = nullptr;
     double* Uy = nullptr;
     double* Uz = nullptr;
@@ -952,17 +946,14 @@ void scrubHostCalculationScalars(DeviceState* s)
     s->gasReconstruction = 0;
     s->gasLimiter = 0;
     s->gasTimeIntegrator = 0;
-    s->gasRobustFallback = 0;
     s->turbulenceModel = 0;
     s->lesDeltaCoeff = 0.0;
     s->turbulentPrandtl = 0.0;
     s->waleCw = 0.0;
     s->smagorinskyCs = 0.0;
-    s->maxDiffusionNumber = 0.0;
     s->sstCoefficients = ugkwp::defaultSstCoefficients();
     s->sstKMin = 0.0;
     s->sstOmegaMin = 0.0;
-    s->sstMaxSourceNumber = 0.0;
     s->sstWallTreatment = 0;
 
 
@@ -1112,12 +1103,10 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->gasGradientLimiterP);
     release(s->gasGradientLimiterT);
     release(s->nut);
-    release(s->gasDiffusionNumber);
     release(s->rhoK);
     release(s->rhoOmega);
     release(s->rhoKInitial);
     release(s->rhoOmegaInitial);
-    release(s->gasCourantSstSnapshot);
     release(s->k);
     release(s->omega);
     release(s->sstWallDistance);
@@ -1135,7 +1124,6 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->sstBoundaryOmegaMode);
     release(s->sstBoundaryK);
     release(s->sstBoundaryOmega);
-    release(s->sstSourceNumber);
     release(s->Ux);
     release(s->Uy);
     release(s->Uz);
@@ -1425,14 +1413,12 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->gasGradientLimiterP, nc, "cudaMalloc strict gasGradientLimiterP");
     rc |= allocate(s->gasGradientLimiterT, nc, "cudaMalloc strict gasGradientLimiterT");
     rc |= allocate(s->nut, nc, "cudaMalloc strict nut");
-    rc |= allocate(s->gasDiffusionNumber, nc, "cudaMalloc strict gasDiffusionNumber");
     if (s->hostTurbulenceModel == 3)
     {
         rc |= allocate(s->rhoK, nc, "cudaMalloc SST rhoK");
         rc |= allocate(s->rhoOmega, nc, "cudaMalloc SST rhoOmega");
         rc |= allocate(s->rhoKInitial, nc, "cudaMalloc SST rhoKInitial");
         rc |= allocate(s->rhoOmegaInitial, nc, "cudaMalloc SST rhoOmegaInitial");
-        rc |= allocate(s->gasCourantSstSnapshot, 2*nc, "cudaMalloc gas Courant SST snapshot");
         rc |= allocate(s->k, nc, "cudaMalloc SST k");
         rc |= allocate(s->omega, nc, "cudaMalloc SST omega");
         rc |= allocate(s->sstWallDistance, nc, "cudaMalloc SST wallDistance");
@@ -1450,7 +1436,6 @@ int allocateFields(DeviceState* s)
         rc |= allocate(s->sstBoundaryOmegaMode, nf, "cudaMalloc SST boundaryOmegaMode");
         rc |= allocate(s->sstBoundaryK, nf, "cudaMalloc SST boundaryK");
         rc |= allocate(s->sstBoundaryOmega, nf, "cudaMalloc SST boundaryOmega");
-        rc |= allocate(s->sstSourceNumber, nc, "cudaMalloc SST sourceNumber");
     }
     rc |= allocate(s->Ux, nc, "cudaMalloc strict Ux");
     rc |= allocate(s->Uy, nc, "cudaMalloc strict Uy");
@@ -3893,13 +3878,11 @@ extern "C" int ugkwpGpuResidentStrictCreate
     int gasReconstruction,
     int gasLimiter,
     int gasTimeIntegrator,
-    int gasRobustFallback,
     int turbulenceModel,
     double lesDeltaCoeff,
     double turbulentPrandtl,
     double waleCw,
     double smagorinskyCs,
-    double maxDiffusionNumber,
     int csrCellLocalPathEnabled,
     int csrHeavyReductionMode,
     int csrHeavyAutoInterval,
@@ -4011,7 +3994,6 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->gasReconstruction = gasReconstruction;
     s->gasLimiter = gasLimiter;
     s->gasTimeIntegrator = gasTimeIntegrator;
-    s->gasRobustFallback = gasRobustFallback;
     s->turbulenceModel = turbulenceModel;
     s->hostGasFluxScheme = gasFluxScheme;
     s->hostGasReconstruction = gasReconstruction;
@@ -4025,7 +4007,6 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->turbulentPrandtl = turbulentPrandtl;
     s->waleCw = waleCw;
     s->smagorinskyCs = smagorinskyCs;
-    s->maxDiffusionNumber = maxDiffusionNumber;
     s->csrCellLocalPathEnabled = csrCellLocalPathEnabled;
     s->csrHeavyReductionMode = csrHeavyReductionMode;
     s->csrHeavyAutoInterval = csrHeavyAutoInterval;
@@ -4791,7 +4772,6 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     double c1,
     double kMin,
     double omegaMin,
-    double maxSourceNumber,
     int wallTreatment,
     double wallKappa,
     double wallE,
@@ -4873,7 +4853,6 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     };
     s->sstKMin = kMin;
     s->sstOmegaMin = omegaMin;
-    s->sstMaxSourceNumber = maxSourceNumber;
     s->sstWallTreatment = wallTreatment;
     s->sstWallKappa = wallKappa;
     s->sstWallE = wallE;
@@ -4947,10 +4926,9 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
 
 #include "../../../common/GpuGasCourantReduction.cuh"
 #include "../../../common/GpuGasCourant.cuh"
-#include "../../../common/gasTransport/GasCourantBoundaryLayer.H"
 extern "C" int ugkwpGpuResidentStrictComputeGasCourant
 (
-    void* handle, double dt, double targetMaxCo, double scheduleTime, double* maxCo
+    void* handle, double dt, double scheduleTime, double* maxCo
 )
 {
     DeviceState* s=asState(handle);
@@ -4959,68 +4937,27 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
     if(s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy
         && tuneFixedWorkBlockThreads(s,dt,scheduleTime))return 1;
     GasCourantMaxima result;
-    const auto maximum=[](const double* convective,const double* diffusion,const double* sst,
-        int count,cudaStream_t stream,GasCourantMaxima& value)
+    const auto maximum=[](const double* acoustic,int count,cudaStream_t stream,double& value)
     {
         try
         {
-            const auto reduced=ugkwp::reduceGasCourantComponents(convective,diffusion,sst,count,stream);
-            value.convective=reduced.convective;value.diffusion=reduced.diffusion;value.sst=reduced.sst;
+            value=ugkwp::reduceGasAcousticCourant(acoustic,count,stream);
         }
         catch(const std::exception& e){setLastErrorText(e.what());return 1;}
         const auto error=cudaGetLastError();
         if(error!=cudaSuccess){setLastError("gas Courant maximum reduction",error);return 1;}
         return 0;
     };
-    const auto prepareWall=[](DeviceState* state,double interval,double time,
-        int grid,int block,cudaStream_t stream)
-    {
-        return ugkwp::prepareGasCourantBoundaryLayer<GasHostPolicy>
-            (state,interval,time,grid,block,stream);
-    };
-    // Wall preparation projects a representative omega into each wall owner.
-    // A timestep query may use that projection, but must leave the caller's
-    // primitive/conservative omega unchanged, including on a failed estimate.
-    // This storage is independent of the RK initial-state arrays.
-    const bool preserveSst=s->hostTurbulenceModel==3 && s->sstConfigured;
-    const std::size_t sstBytes=std::size_t(s->nCells)*sizeof(double);
-    const cudaStream_t courantStream=nullptr;
-    if(preserveSst)
-    {
-        if(!s->gasCourantSstSnapshot || !s->omega || !s->rhoOmega)
-        {setLastErrorText("gas Courant SST snapshot storage unavailable");return 1;}
-        auto error=cudaMemcpyAsync(s->gasCourantSstSnapshot,s->omega,sstBytes,
-            cudaMemcpyDeviceToDevice,courantStream);
-        if(error==cudaSuccess)
-            error=cudaMemcpyAsync(s->gasCourantSstSnapshot+s->nCells,s->rhoOmega,sstBytes,
-                cudaMemcpyDeviceToDevice,courantStream);
-        if(error!=cudaSuccess){setLastError("save gas Courant SST state",error);return 1;}
-    }
-    const int courantStatus=computeGasCurrentCourant(s,dt,targetMaxCo,scheduleTime,
-        s->fixedCellBlockThreads,s->fixedFaceBlockThreads,courantStream,result,maximum,prepareWall);
-    if(preserveSst)
-    {
-        // Queue both restores even if the estimate reported a host-side error.
-        const auto primitiveError=cudaMemcpyAsync(s->omega,s->gasCourantSstSnapshot,sstBytes,
-            cudaMemcpyDeviceToDevice,courantStream);
-        const auto inventoryError=cudaMemcpyAsync(s->rhoOmega,s->gasCourantSstSnapshot+s->nCells,sstBytes,
-            cudaMemcpyDeviceToDevice,courantStream);
-        const auto completionError=cudaStreamSynchronize(courantStream);
-        const auto restoreError=primitiveError!=cudaSuccess?primitiveError:
-            (inventoryError!=cudaSuccess?inventoryError:completionError);
-        if(ugkwp::gasBoundaryLayerEnabled(*s))ugkwp::invalidateGasBoundaryLayerPreparation(*s);
-        if(restoreError!=cudaSuccess){setLastError("restore gas Courant SST state",restoreError);return 1;}
-    }
+    if(computeGasCurrentCourant(s,dt,scheduleTime,
+        s->fixedCellBlockThreads,s->fixedFaceBlockThreads,nullptr,result,maximum))return 1;
     if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)
     {
         // validate already observes and dispatches diagnostics at this same
         // completed Courant reduction; no physical work intervenes.
-        const int validationStatus=SharedGasTrialPolicy::validate(s);
-        if(courantStatus || validationStatus)return 1;
+        if(SharedGasTrialPolicy::validate(s))return 1;
         *maxCo=result.maximum;
         return 0;
     }
-    if(courantStatus)return 1;
     *maxCo=result.maximum;
     // Courant's existing reduction has returned its host scalar.
     const auto diagnosticReadback=s->diagnosticOwner->observeCompletedWork();

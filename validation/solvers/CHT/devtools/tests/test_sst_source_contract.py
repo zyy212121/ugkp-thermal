@@ -47,7 +47,6 @@ def test_openfoam_ras_sst_configuration_is_supported() -> None:
         'lookupOrDefault<scalar>("a1", scalar(0.31))',
         'lookupOrDefault<scalar>("kMin", scalar(1.0e-12))',
         'lookupOrDefault<scalar>("omegaMin", scalar(1.0e-6))',
-        'lookupOrDefault<scalar>("maxSourceNumber", scalar(0.25))',
     ):
         assert token in configuration
 
@@ -74,10 +73,8 @@ def test_sst_runtime_path_is_explicit_and_gpu_resident() -> None:
         "computeSstGradientsKernel",
         "computeSstFaceFluxKernel",
         "applySstFluxAndSourceKernel",
-        "computeSstStabilityNumberKernel",
         "recoverSstPrimitivesKernel",
         "sstLowReWallOmega",
-        "sstMaxSourceNumber",
         "ugkwpGpuResidentStrictConfigureSst",
         "ugkwpGpuResidentStrictDownloadSst",
     ):

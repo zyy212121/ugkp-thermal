@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-                                                           
 
-                                                                            
-                                                                             
-              
-   
+
+
+
+
+
 
 from __future__ import annotations
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
@@ -26,7 +26,7 @@ ROOT = (SOURCE_ROOT / 'applications/FSH')
 
 
 def positive_half_first_moment(mean: float, variance: float) -> float:
-                                                     
+
     sigma = math.sqrt(variance)
     z = mean / sigma
     probability = 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
@@ -35,7 +35,7 @@ def positive_half_first_moment(mean: float, variance: float) -> float:
 
 
 def negative_half_first_moment(mean: float, variance: float) -> float:
-                                                     
+
     sigma = math.sqrt(variance)
     z = mean / sigma
     probability = 0.5 * (1.0 - math.erf(z / math.sqrt(2.0)))
@@ -44,7 +44,7 @@ def negative_half_first_moment(mean: float, variance: float) -> float:
 
 
 def alpha_bar(dt_over_tau: float) -> float:
-                                                                    
+
     if dt_over_tau == 0.0:
         return 1.0
     if abs(dt_over_tau) < 1.0e-7:
@@ -136,7 +136,7 @@ class NumericalContractTests(unittest.TestCase):
         self.assertAlmostEqual(positive_half_first_moment(0.0, variance), expected, places=14)
         self.assertAlmostEqual(negative_half_first_moment(0.0, variance), -expected, places=14)
 
-                                                                              
+
         legacy_prefactor = math.sqrt(variance / math.pi)
         self.assertAlmostEqual(legacy_prefactor / expected, math.sqrt(2.0), places=14)
 
@@ -271,7 +271,6 @@ class SourceContractTests(unittest.TestCase):
             "Euler",
             "SSPRK2",
             "SSPRK3",
-            "robustFallback",
             "hllem",
             "hllcAdc",
             "slau2",
@@ -284,7 +283,6 @@ class SourceContractTests(unittest.TestCase):
             "turbulentPrandtl",
             "Cw",
             "Cs",
-            "maxDiffusionNumber",
         )
         for token in required:
             with self.subTest(token=token):
@@ -295,11 +293,9 @@ class SourceContractTests(unittest.TestCase):
             "Unsupported gas reconstruction",
             "Unsupported gas limiter",
             "Unsupported ddtSchemes/default",
-            "robustFallback must remain true",
             "Valid values are laminar, WALE, Smagorinsky and kOmegaSST",
             "LES deltaCoeff must be finite and positive",
             "Turbulent Prandtl number must be finite and positive",
-            "maxDiffusionNumber must be positive",
         )
         for text in rejection_contracts:
             with self.subTest(rejection=text):
@@ -319,13 +315,11 @@ class SourceContractTests(unittest.TestCase):
                 "gasReconstruction",
                 "gasLimiter",
                 "gasTimeIntegrator",
-                "gasRobustFallback",
                 "turbulenceModel",
                 "lesDeltaCoeff",
                 "turbulentPrandtl",
                 "waleCw",
                 "smagorinskyCs",
-                "maxDiffusionNumber",
                 "csrCellLocalPathEnabled",
                 "csrHeavyReductionMode",
                 "csrHeavyAutoInterval",
@@ -538,7 +532,7 @@ class SourceContractTests(unittest.TestCase):
         self.assertIn("ugkpcharacteristic::limitFacePair", active_face_flux)
 
     def test_muscl_uses_componentwise_bounded_primitive_limiters(self) -> None:
-                                                                               
+
         cuda = read("private_backend/GpuResidentStrict.cu")
         limiter_fields = (
             "gasGradientLimiterRho",

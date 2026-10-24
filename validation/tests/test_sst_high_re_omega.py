@@ -67,7 +67,6 @@ int main(){
   check("wall omega equation rejects RHS",s.rhoOmega[0],oldOmega);
   changed("k equation continues",s.rhoK[0],oldK);
   check("wall k update equals free k update",s.rhoK[0],free.rhoK[0]);
-  check("constrained omega source excluded",s.sstSourceNumber[0],dt*s.sstCoefficients.betaStar*s.omega[0]);
   R suppressed=s.rhoOmega[0]-free.rhoOmega[0];
   s.rho[0]=R(1.25);R beforeProjection=s.rhoOmega[0];recoverSstPrimitivesKernel(&s);
   checkLogState("Euler endpoint current-state projection",s);

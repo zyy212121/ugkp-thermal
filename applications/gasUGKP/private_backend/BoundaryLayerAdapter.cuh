@@ -27,9 +27,7 @@ try
     {setLastErrorText("missing consumed boundaryLayer arrays or species values");return 1;}
     if(a.model>2){setLastErrorText("missing selected boundaryLayer model");return 1;}
     std::vector<int> owners(s->nFaces);
-    std::vector<double> areas(s->nFaces);
-    if(copyToHost(owners.data(),s->faceOwner,owners.size(),"read wall owners")
-        || copyToHost(areas.data(),s->magSf,areas.size(),"read wall areas"))return 1;
+    if(copyToHost(owners.data(),s->faceOwner,owners.size(),"read wall owners"))return 1;
     if(s->diagnosticOwner->completeReadback(0,!owners.empty()))return 1;
     std::vector<int> faceSlot(s->nFaces,-1),ownerSlot(s->nCells,-1);
     for(unsigned slot=0;slot<a.wallCount;++slot)
@@ -54,7 +52,6 @@ try
 
 
     std::vector<ugkwp::gaswall::WallInput<double,ugkwp::compiledGasSpecies>> inputs(a.wallCount);
-    std::vector<ugkwp::GasBoundaryLayerExchange<double>> exchanges(a.wallCount);
     BoundaryLayerAllocation candidate;auto& w=candidate.gasBoundaryLayer;auto& model=candidate.gasBoundaryLayerModel;
     w.count=a.wallCount;int rc=0;
 #define WALL_ALLOC(field,count) rc|=allocateSharedGasZero(candidate.field,count)
@@ -92,12 +89,9 @@ try
         for(int species=0;species<ugkwp::compiledGasSpecies;++species)
         {
             in.massFlux[species]=speciesFlux[std::size_t(species)*a.wallCount+slot];
-            exchanges[slot].mass-=areas[faces[slot]]*in.massFlux[species];
         }
-        exchanges[slot].massReady=true;
     }
     rc|=copyToDevice(model.input,inputs.data(),inputs.size(),"upload wall input descriptors");
-    rc|=copyToDevice(w.exchange,exchanges.data(),exchanges.size(),"upload known wall mass flux");
     if(rc){discardBoundaryLayerCandidate(s,candidate);return 1;}
     // Retain the converged profile's volume diagnostics, but do not identify
     // that steady inventory with the independently advanced macro SST state.

@@ -24,7 +24,7 @@ void observedApply(State*sp,double dt,bool strict=false){auto&s=*sp;const int c=
  samePhysical(s.rhoK[c],ek,"physical SST k differs from independent face/source prediction");samePhysical(s.rhoOmega[c],eo,"physical SST omega differs from independent face/source prediction");
  if(observed.enabled){observed.transportK[c]+=dt*fk;observed.transportOmega[c]+=dt*fo;observed.sourceK[c]+=dt*oldV*sk;observed.sourceOmega[c]+=dt*oldV*so;observed.constraintK[c]+=ek*newV-k*oldV-dt*fk-dt*oldV*sk;observed.constraintOmega[c]+=eo*newV-o*oldV-dt*fo-dt*oldV*so;observed.volume[c]=newV;}}
 void observedRecover(State*sp){auto&s=*sp;int c=blockIdx.x*blockDim.x+threadIdx.x;Real k=s.rhoK[c],o=s.rhoOmega[c];recoverSstPrimitivesKernel(sp);if(s.sstConfigured){const Real floor=clampMin(s.rho[c],s.rhoMin)*s.sstKMin;samePhysical(s.rhoK[c],clampMin(finiteOr(k,floor),floor),"SST recovery changed physical k beyond its floor");}if(observed.enabled){observed.constraintK[c]+=(s.rhoK[c]-k)*observed.volume[c];observed.constraintOmega[c]+=(s.rhoOmega[c]-o)*observed.volume[c];}}
-void observedWall(State*sp,bool only=false,bool strict=false){auto&s=*sp;int c=blockIdx.x*blockDim.x+threadIdx.x;Real k=s.rhoK[c],o=s.rhoOmega[c];applySstWallFunctionStateKernel(sp,only,strict);if(observed.enabled){observed.constraintK[c]+=(s.rhoK[c]-k)*observed.volume[c];observed.constraintOmega[c]+=(s.rhoOmega[c]-o)*observed.volume[c];}}
+void observedWall(State*sp,bool strict=false){auto&s=*sp;int c=blockIdx.x*blockDim.x+threadIdx.x;Real k=s.rhoK[c],o=s.rhoOmega[c];applySstWallFunctionStateKernel(sp,strict);if(observed.enabled){observed.constraintK[c]+=(s.rhoK[c]-k)*observed.volume[c];observed.constraintOmega[c]+=(s.rhoOmega[c]-o)*observed.volume[c];}}
 void observedSave(State*sp){saveGasConservativeStateKernel(sp);int c=blockIdx.x*blockDim.x+threadIdx.x;
 observed.initialTransportK[c]=observed.transportK[c];
 observed.initialTransportOmega[c]=observed.transportOmega[c];
@@ -88,7 +88,7 @@ def test_moving_mixture_sst_preserves_species_energy_and_audit_closure(tmp_path)
     from test_mixture_transport import fixture as mixture_fixture
     near=r'''void near(Real a,Real b,const char*m){ck(std::abs(a-b)<=Real(256)*std::numeric_limits<Real>::epsilon()*std::max(Real(1),std::abs(b)),m);}'''
     compile_probe(tmp_path,mixture_fixture()+near+AUDIT+r'''
-int main(){ugkwp::GasCapabilityRequest request;request.mode=ugkwp::GasMode::MixtureFrozen;request.movingGeometry=true;request.turbulenceModel=3;ck(bool(ugkwp::validateGasCapabilities(request)),"verified moving mixture SST capabilities rejected");State s;initialise(s);s.turbulenceModel=3;s.sstConfigured=1;s.sstWallTreatment=0;s.sstCoefficients=ugkwp::defaultSstCoefficients();s.gasMu=.001;s.turbulentPrandtl=.9;s.sstKMin=1e-12;s.sstOmegaMin=1e-8;s.sstMaxSourceNumber=.25;s.sstWallKappa=.41;s.sstWallE=9.8;s.sstWallCmu=.09;
+int main(){ugkwp::GasCapabilityRequest request;request.mode=ugkwp::GasMode::MixtureFrozen;request.movingGeometry=true;request.turbulenceModel=3;ck(bool(ugkwp::validateGasCapabilities(request)),"verified moving mixture SST capabilities rejected");State s;initialise(s);s.turbulenceModel=3;s.sstConfigured=1;s.sstWallTreatment=0;s.sstCoefficients=ugkwp::defaultSstCoefficients();s.gasMu=.001;s.turbulentPrandtl=.9;s.sstKMin=1e-12;s.sstOmegaMin=1e-8;s.sstWallKappa=.41;s.sstWallE=9.8;s.sstWallCmu=.09;
 Real oldV[2]={1,1},newV[2]={Real(1.01),Real(.99)},sweeps[3]={Real(.01),0,0};const Real dt=Real(1e-6);
 auto&g=s.gasGeometry;g.enabled=true;g.oldVolume=oldV;g.newVolume=newV;g.faceSweptVolume=sweeps;g.interval=dt;g.absoluteGeometryTolerance=Real(32)*std::numeric_limits<Real>::epsilon();g.relativeGeometryTolerance=Real(32)*std::numeric_limits<Real>::epsilon();
 for(int c=0;c<2;++c){s.k[c]=.1;s.omega[c]=10;s.sstWallDistance[c]=.5;threadIdx.x=c;initialiseSstConservativeStateKernel(&s);recoverSstPrimitivesKernel(&s);}audit(s);
@@ -113,17 +113,7 @@ s.V[0]=Real(EVALUATION_VOLUME); // Evaluation metrics need not equal stage inven
 s.gasPhiRho[0]=-s.rho[0]*sweeps[0]/dt;
 s.sstPhiRhoK[0]=s.gasPhiRho[0]*s.k[0];s.sstPhiRhoOmega[0]=s.gasPhiRho[0]*s.omega[0];
 const Real sourceK=-s.rho[0]*s.sstCoefficients.betaStar*s.k[0]*s.omega[0];
-threadIdx.x=0;computeSstStabilityNumberKernel(&s,dt,Real(.5));
-const Real bound=s.sstSourceNumber[0]*s.sstMaxSourceNumber/Real(.5);
-for(Real scale:{Real(0),Real(.5),Real(1)}){
- // Main's positivity envelope scales relative mass, not the fixed mesh rate.
- const Real div=(Real(1)-scale)*sweeps[0]/dt/oldV[0];
- const Real sk=s.rho[0]*(-Real(2)/3*div*s.k[0]-s.sstCoefficients.betaStar*s.k[0]*s.omega[0]);
- const Real so=ugkwp::sstOmegaSource(s.rho[0],s.k[0],s.omega[0],div,Real(0),Real(0),s.sstF1[0],s.sstF2[0],Real(0),s.sstCoefficients);
- const Real actual=fmax(fabs(dt*sk/s.rhoK[0]),fabs(dt*so/s.rhoOmega[0]));
- ck(bound+Real(1e-5)>=actual,"moving SST positivity envelope missed absolute compression");
-}
-applySstFluxAndSourceKernel(&s,dt);
+threadIdx.x=0;applySstFluxAndSourceKernel(&s,dt);
 near(observed.sourceK[0],dt*oldV[0]*sourceK,"mesh motion spuriously compressed SST energy");
 checkBudget(s,6,8,0);
 }

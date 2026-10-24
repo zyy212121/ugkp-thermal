@@ -244,10 +244,10 @@ bool handleCreate
         a.pressureKickFraction, a.jammingPressureEnabled,
         a.packingFraction, a.packingProjectionIterations,
         a.gasFluxScheme, a.gasReconstruction,
-        a.gasLimiter, a.gasTimeIntegrator, a.gasRobustFallback,
+        a.gasLimiter, a.gasTimeIntegrator,
         a.turbulenceModel, a.lesDeltaCoeff,
         a.turbulentPrandtl, a.waleCw, a.smagorinskyCs,
-        a.maxDiffusionNumber, a.csrCellLocalPathEnabled,
+        a.csrCellLocalPathEnabled,
         a.csrHeavyReductionMode, a.csrHeavyAutoInterval,
         a.particleBlockThreads, a.reductionBlockThreads,
         a.csrWarpAggregatedBinning,
@@ -499,7 +499,7 @@ bool handleConfigureSst
         s.backend,
         a.alphaK1, a.alphaK2, a.alphaOmega1, a.alphaOmega2,
         a.beta1, a.beta2, a.betaStar, a.gamma1, a.gamma2,
-        a.a1, a.b1, a.c1, a.kMin, a.omegaMin, a.maxSourceNumber,
+        a.a1, a.b1, a.c1, a.kMin, a.omegaMin,
         a.wallTreatment, a.wallKappa, a.wallE, a.wallCmu,
         ptr(k), ptr(omega), ptr(wallDistance),
         ptr(boundaryKMode), ptr(boundaryOmegaMode),
@@ -543,7 +543,7 @@ bool handleCourant(const int fd,const RequestHeader& request,ServerState& s)
     double maxCo=0;
     const int status=ugkwpGpuResidentStrictComputeGasCourant
     (
-        s.backend,a.dt,a.targetMaxCo,a.scheduleTime,&maxCo
+        s.backend,a.dt,a.scheduleTime,&maxCo
     );
     if(status!=0) return responseHeader(fd,s,status,0);
     return responseHeader(fd,s,0,sizeof(maxCo)) && writeObject(fd,maxCo);

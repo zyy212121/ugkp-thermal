@@ -16,12 +16,9 @@ int main() {
     std::string input((std::istreambuf_iterator<char>(std::cin)), {});
     Foam::IStringStream stream(input);
     Foam::dictionary schemes(stream);
-    Foam::IStringStream controlsStream(std::getenv("T07_NO_FALLBACK")?"robustFallback false;":"robustFallback true;");
-    Foam::dictionary controls(controlsStream);
-    const auto result = Foam::readGasNumericsConfiguration(schemes, &controls);
+    const auto result = Foam::readGasNumericsConfiguration(schemes);
     std::cout << result.gasFluxScheme << " " << result.gasReconstruction << " "
-              << result.gasLimiter << " " << result.gasTimeIntegrator << " "
-              << result.gasRobustFallback << std::endl;
+              << result.gasLimiter << " " << result.gasTimeIntegrator << std::endl;
 }
 '''
 @pytest.fixture(scope="module")
@@ -65,7 +62,7 @@ def test_all_original_numerical_selections_use_shared_parser(probe):
                 for time_id, time in enumerate(("Euler","SSPRK2","SSPRK3"),1):
                     run = subprocess.run([str(binary)], input=dictionary(flux,rec,limiter,time), capture_output=True, text=True)
                     assert run.returncode == 0, run.stdout+run.stderr
-                    assert run.stdout.strip() == f"{flux_id} {rec_id} {limiter_id} {time_id} 1"
+                    assert run.stdout.strip() == f"{flux_id} {rec_id} {limiter_id} {time_id}"
 
 @pytest.mark.parametrize("old,new,message", [
     ("fluxScheme HLLC;", "fluxScheme bogus;", "Unsupported fvSchemes fluxScheme"),
@@ -81,16 +78,13 @@ def test_invalid_selectors_keep_original_diagnostics(probe, old, new, message):
     assert message in run.stdout+run.stderr
 
 
-@pytest.mark.parametrize("change_text,no_fallback,expected", [
-    (lambda x:x.replace("fluxScheme HLLC;", ""),False,"2 1 1 2 1"),
-    (lambda x:x,True,"4 1 1 2 0"),
-    (lambda x:x.replace("default SSPRK2;", "default SSPRK2 ignored;"),False,"4 1 1 2 1"),
+@pytest.mark.parametrize("change_text,expected", [
+    (lambda x:x.replace("fluxScheme HLLC;", ""),"2 1 1 2"),
+    (lambda x:x.replace("default SSPRK2;", "default SSPRK2 ignored;"),"4 1 1 2"),
 ])
-def test_t07_existing_numerics_defaults_and_selected_flux_reach_dispatch(probe,change_text,no_fallback,expected):
+def test_t07_existing_numerics_defaults_and_selected_flux_reach_dispatch(probe,change_text,expected):
     binary,build=probe
     assert build.returncode==0,build.stdout+build.stderr
-    env=dict(os.environ)
-    if no_fallback:env["T07_NO_FALLBACK"]="1"
-    run=subprocess.run([str(binary)],input=change_text(dictionary()),env=env,capture_output=True,text=True)
+    run=subprocess.run([str(binary)],input=change_text(dictionary()),capture_output=True,text=True)
     assert run.returncode==0,run.stdout+run.stderr
     assert run.stdout.strip()==expected

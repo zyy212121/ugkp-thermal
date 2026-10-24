@@ -28,7 +28,6 @@ struct ConservativeWallData {
   double *sourceK = nullptr;
   double *sourceOmega = nullptr;
   double *kFluxScale = nullptr;
-  double *sourceActivity = nullptr;
   double *momentResidual = nullptr;
   int *active =
       nullptr; // stage-local, all four coupling consumers use this flag
@@ -132,7 +131,6 @@ UGKWP_GAS_HD inline void reconstructConservativeWall(
       data.baseInventory[2 * slot + i] = q;
       const double length = col.edge[i + 1] - col.edge[i];
       data.sourceK[col.cells[i]] = source[0] / length;
-      data.sourceActivity[col.cells[i]] = source[2] / length;
       data.sourceOmega[col.cells[i]] = i ? source[1] / length : 0;
     }
   }

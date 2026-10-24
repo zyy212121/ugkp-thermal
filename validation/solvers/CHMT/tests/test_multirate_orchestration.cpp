@@ -90,7 +90,7 @@ bool downloadState(const Backend& b,HostState& out,std::string& error){out=b.acc
 int main(){
     using namespace chmt;
     ModelConfig model;CpuMaterialControls material;
-    CouplingControls controls;controls.interval=1;controls.minimumInterval=1e-6;controls.gasMaxDt=.01;controls.maxWindowRetries=2;
+    CouplingControls controls;controls.interval=1;controls.gasMaxDt=.01;
     HostState initial;GasQ gas;gas.mass=1;gas.species[0]=1;gas.energy=3;initial.gas.push_back(gas);initial.gasMesh.points.push_back({0,0,0});
     CpuMaterialDriver cpu(model,nullptr);std::string error;
     {
@@ -197,12 +197,6 @@ int main(){
         Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
         assert(!advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
         assert(accepted.time==0&&script.predictorCalls==2&&backend.begins==1&&backend.rollbacks==1&&backend.commits==0);
-    }
-    {
-        script=Script{};script.failPredictor=true;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
-        CouplingControls bounded=controls;bounded.minimumInterval=.1;bounded.maxWindowRetries=20;
-        assert(!advanceCoupledWindow(backend,cpu,model,bounded,material,.2,false,accepted,report,error));
-        assert(accepted.time==0&&script.predictorCalls==21&&backend.begins==0&&backend.commits==0);
     }
     for(int failure=0;failure<2;++failure){
         script=Script{};script.failPredictor=true;script.numericalPredictor=true;script.failTerminalPredictor=failure;

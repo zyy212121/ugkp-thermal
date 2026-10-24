@@ -18,7 +18,6 @@ template<class State> int releaseBoundaryLayerStorage(State& s)
     WALL_RELEASE(gasBoundaryLayerModel.conservative.face);
     WALL_RELEASE(gasBoundaryLayerModel.conservative.sourceK);
     WALL_RELEASE(gasBoundaryLayerModel.conservative.kFluxScale);
-    WALL_RELEASE(gasBoundaryLayerModel.conservative.sourceActivity);
     WALL_RELEASE(gasBoundaryLayerModel.conservative.sourceOmega);
     WALL_RELEASE(gasBoundaryLayerModel.conservative.momentResidual);
     WALL_RELEASE(gasBoundaryLayerModel.conservative.active);

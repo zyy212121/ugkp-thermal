@@ -5,7 +5,7 @@
 #ifndef GPU_GAS_WALL_EXPOSURE
 #define GPU_GAS_WALL_EXPOSURE(s, f, neighbour, kind) GPU_OPERATOR_R(1.0)
 #endif
-template<bool IncludeTurbulence, bool MassOnly = false, class GasState>
+template<bool IncludeTurbulence, class GasState>
 __device__ bool computeRiemannGasFaceFluxDevice
 (
     const GasState& s,
@@ -94,23 +94,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
                 return false;
             }
-            if constexpr(MassOnly && ugkwp::GasSuppliedWallInputCapability<GasState>::value)
-                if(s.gasBoundaryLayerModel.useSuppliedWallState
-                    && (!wall.exchange || !wall.exchange[slot].massReady)){
-                    if(!s.gasBoundaryLayerModel.input||!s.magSf){
-                        if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
-                        return false;
-                    }
-                    GPU_OPERATOR_REAL mass=GPU_OPERATOR_R(0);
-                    for(int species=0;species<ugkwp::GasStateTraits<GasState>::speciesCount;++species)
-                        mass+=s.gasBoundaryLayerModel.input[slot].massFlux[species];
-                    massFluxArea=-s.magSf[f]*mass;
-                    const bool numerical=finiteDevice(massFluxArea);
-                    if(!numerical)ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);
-                    return numerical;
-                }
             const bool storage=wall.exchange;
-            const bool ready=storage && (MassOnly?wall.exchange[slot].massReady:wall.exchange[slot].ready);
+            const bool ready=storage && wall.exchange[slot].ready;
             if(!ready)
             {if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return false;}
             if(nativeRefinement && boundaryKind!=2)
@@ -120,7 +105,6 @@ __device__ bool computeRiemannGasFaceFluxDevice
             if(!finiteDevice(exchange.mass))
             {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);return false;}
             massFluxArea=exchange.mass;
-            if constexpr(!MassOnly)
             {
                 momFluxXArea=exchange.momentumX;momFluxYArea=exchange.momentumY;momFluxZArea=exchange.momentumZ;
                 energyFluxArea=exchange.energy;
@@ -204,9 +188,6 @@ __device__ bool computeRiemannGasFaceFluxDevice
             if(!gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
         return false;
     }
-    // Preserve ALE validation above before the mass-only impermeable shortcut.
-    if constexpr (MassOnly)
-        if (boundaryKind == 1 || boundaryKind == 2) return true;
     GasPrimDevice left = reconstructGasCellToFace(s,own,f,nativeRefinement);
     if(ugkp::diagnostics::hasFatal(s.diagnostics))return false;
     GasPrimDevice right = left;
@@ -652,11 +633,6 @@ __device__ bool computeRiemannGasFaceFluxDevice
             return false;
         }
         massFlux = result.flux[0];
-        if constexpr (MassOnly)
-        {
-            massFluxArea = massFlux*area;
-            return numericalSuccess;
-        }
         momentumFluxX = result.flux[1];
         momentumFluxY = result.flux[2];
         momentumFluxZ = result.flux[3];

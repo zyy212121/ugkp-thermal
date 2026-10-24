@@ -38,7 +38,7 @@ def create_fixture(app,rev=None):
         match=re.search(r'^\s*((?:unsigned long long|unsigned short|double|GpuReal|int|bool))\s+'+field+r'\s*=',src,re.M)
         assert match,field
         declarations.append(f'{match[1]} {field}{{}};')
-    parameters=args(code);defaults={'particleGasHeatTransferModelId':'1','gammaGas':'1.4','gasMu':'.1','gasPr':'.7','packingFraction':'.6','particleBlockThreads':'128','reductionBlockThreads':'128','gasRobustFallback':'1','csrCellLocalPathEnabled':'1','gasFluxScheme':'2','gasReconstruction':'1','gasLimiter':'1','gasTimeIntegrator':'1','turbulenceModel':'0','csrHeavyReductionMode':'0','csrWarpAggregatedBinning':'0','jammingPressureEnabled':'0'}
+    parameters=args(code);defaults={'particleGasHeatTransferModelId':'1','gammaGas':'1.4','gasMu':'.1','gasPr':'.7','packingFraction':'.6','particleBlockThreads':'128','reductionBlockThreads':'128','csrCellLocalPathEnabled':'1','gasFluxScheme':'2','gasReconstruction':'1','gasLimiter':'1','gasTimeIntegrator':'1','turbulenceModel':'0','csrHeavyReductionMode':'0','csrWarpAggregatedBinning':'0','jammingPressureEnabled':'0'}
     declarations2=''.join(f'{typ} {name}={defaults.get(name.removesuffix("Wire"),"2")};' for typ,name in parameters[:-1])
     call='ugkwpGpuResidentStrictCreate('+','.join(n for _,n in parameters[:-1])+',&handle)'
     dump=''.join(f'std::cout<<" {f}="<<std::hexfloat<<s->{f};' for f in fields)
@@ -51,7 +51,7 @@ void releaseState(DeviceState*s){++releases;delete s;}
 assert(CALL==0);auto*s=static_cast<DeviceState*>(handle);DUMP;std::cout<<"\n";delete s;
 #ifdef COUNTEREXAMPLE
 gammaGas=2.;assert(CALL==0);s=static_cast<DeviceState*>(handle);assert(s->gammaGas==2.&&s->gasCp==2.*Rgas);delete s;
-gasMu=-3.;gasFluxScheme=27;gasRobustFallback=0;assert(CALL==0);s=static_cast<DeviceState*>(handle);assert(s->gasMu==-3.&&s->gasFluxScheme==27&&s->gasRobustFallback==0);delete s;
+gasMu=-3.;gasFluxScheme=27;assert(CALL==0);s=static_cast<DeviceState*>(handle);assert(s->gasMu==-3.&&s->gasFluxScheme==27);delete s;
 #endif
 allocationError=1;assert(CALL!=0&&handle==nullptr);allocationError=0;occupancyError=1;assert(CALL!=0&&handle==nullptr&&releases==1);
 }

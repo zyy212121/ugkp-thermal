@@ -1,4 +1,4 @@
-                                                                        
+
 
 from __future__ import annotations
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
@@ -42,7 +42,7 @@ def close_wave_pressure_state(
     wave_pressure: float,
     gas_constant: float,
 ) -> tuple[float, float, float]:
-                                                                         
+
 
     del owner_pressure
     pressure = wave_pressure
@@ -185,7 +185,7 @@ class RiemannBoundaryGradientSourceContract(unittest.TestCase):
         self.assertIn("spectralRadius*area", self.courant_kernel)
         self.assertNotIn("deltaCoeffs", self.courant_kernel)
         # Courant keeps fresh signed mass separate from acoustic scratch.
-        self.assertIn("computeRiemannGasFaceFluxDevice<false, true>", self.courant_kernel)
+        self.assertNotIn("computeRiemannGasFaceFluxDevice", self.courant_kernel)
         self.assertIn("s.gasPhiRho[f] = mass;", self.courant_kernel)
         self.assertIn(
             "s.gasPhiRhoE[f] = finiteDevice(amaxSf) ? amaxSf : OfGreat;",
@@ -228,7 +228,7 @@ class RiemannBoundaryGradientSourceContract(unittest.TestCase):
     def test_wedge_symmetry_is_not_a_propagating_courant_direction(
         self,
     ) -> None:
-                                                                             
+
 
         active = code_only(self.courant_kernel)
         self.assertRegex(

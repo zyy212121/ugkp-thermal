@@ -5,11 +5,9 @@
 #include <vector>
 FIXTURE_PREFIX
 struct ProbeResult { int success=0; double value[5]={}; };
-__global__ void faceProbe(DeviceState* state,bool massOnly,bool native,ProbeResult* result) {
+__global__ void faceProbe(DeviceState* state,bool native,ProbeResult* result) {
     double mass=0,mx=0,my=0,mz=0,energy=0;
-    result->success=massOnly
-        ?computeRiemannGasFaceFluxDevice<false,true>(*state,1,mass,mx,my,mz,energy,native)
-        :computeRiemannGasFaceFluxDevice<false,false>(*state,1,mass,mx,my,mz,energy,native);
+    result->success=computeRiemannGasFaceFluxDevice<false>(*state,1,mass,mx,my,mz,energy,native);
     result->value[0]=mass;result->value[1]=mx;result->value[2]=my;
     result->value[3]=mz;result->value[4]=energy;
 }
@@ -28,7 +26,7 @@ void exercise() {
     const int counts[]={2,2,2,0,2};
     const int slots[]={2,3,9,0,1};
     int invalid=0,valid=0,retries=0;
-    for(int path=0;path<4;++path)for(bool native:{false,true}) {
+    for(int path=0;path<1;++path)for(bool native:{false,true}) {
         auto* s=fixture();auto& wall=s->gasBoundaryLayer;auto& model=s->gasBoundaryLayerModel;
         int* faceSlot=nullptr;testMem(faceSlot,3);faceSlot[0]=faceSlot[2]=-1;
         GasBoundaryLayerExchange<double>* exchange=nullptr;testMem(exchange,2);
@@ -48,7 +46,7 @@ void exercise() {
             exchange[slot].mass=17.125+slot;exchange[slot].momentumX=19.25+slot;
             exchange[slot].momentumY=-21.5-slot;exchange[slot].momentumZ=23.75+slot;
             exchange[slot].energy=29.125+slot;exchange[slot].matchingPressure=s->p[0];
-            exchange[slot].ready=true;exchange[slot].massReady=path!=3;
+            exchange[slot].ready=true;
             supplied[slot].massFlux[0]=.125+slot;supplied[slot].massFlux[1]=.375+slot;
             speciesFlux[slot]=.25+slot;speciesFlux[2+slot]=-.5-slot;
         }
@@ -61,7 +59,7 @@ void exercise() {
             const auto originalInput=std::vector<gaswall::WallInput<double,compiledGasSpecies>>(supplied,supplied+2);
             const double wallSpecies[4]={speciesFlux[0],speciesFlux[1],speciesFlux[2],speciesFlux[3]};
             cudaCheck(cudaMemcpy(s->deviceState,s,sizeof(DeviceState),cudaMemcpyHostToDevice));
-            faceProbe<<<1,1>>>(s->deviceState,path!=0,native,result);sync();
+            faceProbe<<<1,1>>>(s->deviceState,native,result);sync();
             check(std::memcmp(exchange,originalExchange.data(),2*sizeof(*exchange))==0,"exchange input mutated");
             check(std::memcmp(supplied,originalInput.data(),2*sizeof(*supplied))==0,"supplied input mutated");
             check(std::memcmp(speciesFlux,wallSpecies,sizeof(wallSpecies))==0,"wall species source mutated");
@@ -75,7 +73,7 @@ void exercise() {
                 std::printf("PASS wall-slot path=%s native=%d count=%d slot=%d invalidStorage=1 unchangedPhysical=1\n",names[path],int(native),wall.count,faceSlot[1]);
                 wall.count=2;faceSlot[1]=1;s->gasSpecies.faceStatus[1]=0;
                 cudaCheck(cudaMemcpy(s->deviceState,s,sizeof(DeviceState),cudaMemcpyHostToDevice));
-                faceProbe<<<1,1>>>(s->deviceState,path!=0,native,result);sync();
+                faceProbe<<<1,1>>>(s->deviceState,native,result);sync();
                 ++retries;
             } else ++valid;
             check(result->success&&s->gasSpecies.faceStatus[1]==0,"legal last slot failed");
@@ -90,7 +88,7 @@ void exercise() {
             if(scenario==4)std::printf("PASS wall-last path=%s native=%d unusedOptional=1 mass=%a energy=%a\n",names[path],int(native),result->value[0],result->value[4]);
         }
     }
-    check(invalid==32&&valid==8&&retries==32,"incomplete wall slot matrix");
+    check(invalid==8&&valid==2&&retries==8,"incomplete wall slot matrix");
 }
 struct OrdinaryObservation {
     ProbeResult result;
@@ -99,7 +97,7 @@ struct OrdinaryObservation {
     int faceStatus[8];
 };
 OrdinaryObservation ordinary(DeviceState* s,ProbeResult* result,int* slots,
-    int slot,bool enabled,bool selected,bool massOnly,bool native) {
+    int slot,bool enabled,bool selected,bool native) {
     auto& wall=s->gasBoundaryLayer;
     wall.enabled=enabled;wall.count=0;wall.faceSlot=selected?slots:nullptr;
     wall.exchange=nullptr;wall.speciesFlux=nullptr;wall.status=nullptr;wall.sst=nullptr;
@@ -113,7 +111,7 @@ OrdinaryObservation ordinary(DeviceState* s,ProbeResult* result,int* slots,
     std::memcpy(cellBefore,s->gasSpecies.cellStatus,sizeof(cellBefore));
     std::memcpy(faceBefore,s->gasSpecies.faceStatus,sizeof(faceBefore));
     cudaCheck(cudaMemcpy(s->deviceState,s,sizeof(DeviceState),cudaMemcpyHostToDevice));
-    faceProbe<<<1,1>>>(s->deviceState,massOnly,native,result);sync();
+    faceProbe<<<1,1>>>(s->deviceState,native,result);sync();
     check(result->success,"ordinary unselected wall route failed");
     check(std::memcmp(cellBefore,s->gasSpecies.cellStatus,sizeof(cellBefore))==0
         &&std::memcmp(faceBefore,s->gasSpecies.faceStatus,sizeof(faceBefore))==0,
@@ -128,16 +126,16 @@ OrdinaryObservation ordinary(DeviceState* s,ProbeResult* result,int* slots,
 }
 void negativeSlots() {
     int scenarios=0,comparisons=0;
-    for(bool massOnly:{false,true})for(bool native:{false,true}) {
+    for(bool native:{false,true}) {
         auto* s=fixture();
         int* slots=nullptr;testMem(slots,3);slots[0]=slots[2]=-1;
         ProbeResult* result=nullptr;testMem(result,1);
-        const auto disabled=ordinary(s,result,slots,0,false,true,massOnly,native);
-        const auto unselected=ordinary(s,result,slots,0,true,false,massOnly,native);
+        const auto disabled=ordinary(s,result,slots,0,false,true,native);
+        const auto unselected=ordinary(s,result,slots,0,true,false,native);
         const OrdinaryObservation* references[]={&disabled,&unselected};
         const char* names[]={"disabled","unselected"};
         for(int slot:{-1,-7}) {
-            const auto actual=ordinary(s,result,slots,slot,true,true,massOnly,native);
+            const auto actual=ordinary(s,result,slots,slot,true,true,native);
             ++scenarios;
             for(int reference=0;reference<2;++reference) {
                 const auto& expected=*references[reference];
@@ -150,12 +148,12 @@ void negativeSlots() {
                     "negative slot status differs from ordinary reference");
                 ++comparisons;
                 std::printf("PASS wall-negative path=%s native=%d slot=%d reference=%s fluxBitsEqual=1 speciesBitsEqual=1 statusUnchanged=1\n",
-                    massOnly?"mass-only":"full",int(native),slot,names[reference]);
+                    "full",int(native),slot,names[reference]);
             }
         }
     }
-    check(scenarios==8&&comparisons==16,"incomplete negative slot matrix");
-    std::puts("PASS real CUDA wall-slot resources invalid=32 valid=8 retries=32 negative=8 negativeComparisons=16");
+    check(scenarios==4&&comparisons==8,"incomplete negative slot matrix");
+    std::puts("PASS real CUDA wall-slot resources invalid=8 valid=2 retries=8 negative=4 negativeComparisons=8");
 }
 void cleanup() {
     sync();

@@ -39,9 +39,9 @@ ALLOCATE_NATIVE_FIELDS
     s->gasFluxScheme=s->hostGasFluxScheme=1;s->gasReconstruction=s->hostGasReconstruction=0;
     s->gasLimiter=s->hostGasLimiter=0;s->hostTurbulenceModel=s->turbulenceModel=0;
     s->gammaGas=1.4;s->Rgas=universalGasConstant<double>()/.028;s->gasCp=1000;
-    s->gasMu=0;s->gasPrClamped=.7;s->rhoMin=1e-12;s->TgasMin=1e-9;s->maxDiffusionNumber=.25;
+    s->gasMu=0;s->gasPrClamped=.7;s->rhoMin=1e-12;s->TgasMin=1e-9;
     s->sstCoefficients=defaultSstCoefficients();s->sstKMin=1e-12;s->sstOmegaMin=1e-9;
-    s->sstMaxSourceNumber=.25;s->turbulentPrandtl=.9;
+    s->turbulentPrandtl=.9;
     auto& g=s->gasSpecies;g.mode=GasMode::MixtureChemistry;
 #define CHEM_MEM(field) testMem(g.field)
     CHEM_MEM(rho);CHEM_MEM(initial);CHEM_MEM(flux);CHEM_MEM(gradX);CHEM_MEM(gradY);CHEM_MEM(gradZ);

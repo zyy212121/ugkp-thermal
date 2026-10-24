@@ -37,13 +37,12 @@ cudaStream_t stream=nullptr;if(graphTiming)check(cudaStreamCreate(&stream));
 PRESSURE_PREPARE
 check(cudaDeviceSynchronize());
 cudaEvent_t start,stop;check(cudaEventCreate(&start));check(cudaEventCreate(&stop));
-for(int stage=0;stage<5;stage++){
+for(int stage=0;stage<4;stage++){
  auto launch=[&](){switch(stage){
  case 0:computeGasPrimitiveGradientsKernel<<<cellGrid,block,0,stream>>>(s);break;
  case 1:computeGasGradientLimiterKernel<<<cellGrid,block,0,stream>>>(s);break;
  case 2:PRESSURE_CELL;break;
  case 3:PRESSURE_PARTICLES;break;
- case 4:computeGasDiffusionNumberKernel<<<cellGrid,block,0,stream>>>(s,1e-6,1.);break;
  }};
  for(int i=0;i<20;i++)launch();check(cudaDeviceSynchronize());
  cudaGraph_t graph=nullptr;cudaGraphExec_t graphExec=nullptr;
@@ -53,7 +52,7 @@ for(int stage=0;stage<5;stage++){
   for(int i=0;i<3;i++)check(cudaGraphLaunch(graphExec,stream));check(cudaDeviceSynchronize());
  }
  check(cudaEventRecord(start,stream));if(graphTiming)check(cudaGraphLaunch(graphExec,stream));else for(int i=0;i<64;i++)launch();check(cudaEventRecord(stop,stream));check(cudaEventSynchronize(stop));float ms=0;check(cudaEventElapsedTime(&ms,start,stop));
- const char*names[]={"gas_gradients","gas_limiter","pressure_cell","pressure_particles","gas_diffusion"};printf("TIME %s %.9g\n",names[stage],ms/64);
+ const char*names[]={"gas_gradients","gas_limiter","pressure_cell","pressure_particles"};printf("TIME %s %.9g\n",names[stage],ms/64);
  if(graphTiming){check(cudaGraphExecDestroy(graphExec));check(cudaGraphDestroy(graph));}
 }
 check(cudaEventDestroy(start));check(cudaEventDestroy(stop));if(graphTiming)check(cudaStreamDestroy(stream));return 0;}

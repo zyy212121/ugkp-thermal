@@ -23,8 +23,7 @@ s.turbulenceModel=0;computeGasEddyViscosityKernel(&s);ck(invariantCalls==0&&s.nu
 s.turbulenceModel=1;computeGasEddyViscosityKernel(&s);ck(invariantCalls==0&&std::isfinite(s.nut[0]),"LES branch changed");
 s.turbulenceModel=3;s.sstConfigured=1;computeGasEddyViscosityKernel(&s);ck(invariantCalls==1&&std::isfinite(s.nut[0]),"SST eddy call count changed");
 Real sk,so;sstSourcesForCell(s,0,Real(0),sk,so);ck(invariantCalls==2&&std::isfinite(sk)&&std::isfinite(so),"source invariants incomplete");
-sstKSourceActivity(s,0,sk,Real(0));ck(invariantCalls==2,"ordinary activity repeated invariants");
-int ownerSlot[2]={0,-1};s.gasBoundaryLayer.enabled=true;s.gasBoundaryLayer.count=1;s.gasBoundaryLayer.ownerSlot=ownerSlot;sstKSourceActivity(s,0,sk,Real(0));ck(invariantCalls==2,"selected-wall activity repeated constitutive work");}
+}
 ''')
     exe=tmp_path/'calls';r=subprocess.run(['g++','-std=c++17','-O0','-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(source),'-o',str(exe)],capture_output=True,text=True);assert r.returncode==0,r.stderr
     r=subprocess.run([str(exe)],capture_output=True,text=True);assert r.returncode==0,r.stdout+r.stderr

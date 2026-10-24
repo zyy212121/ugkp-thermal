@@ -48,7 +48,6 @@ struct LegacyGasFixture
     Real* gasBoundaryUy{};
     Real* gasBoundaryUz{};
     Real gasCp{};
-    Real* gasDiffusionNumber{};
     Real* gasFluxPositivityScale{};
     int gasFluxScheme{};
     Real* gasGradientLimiterP{};
@@ -94,7 +93,6 @@ struct LegacyGasFixture
     Real* k{};
     Real lesDeltaCoeff{};
     Real* magSf{};
-    Real maxDiffusionNumber{};
     int nCells{};
     int nFaces{};
     int nInternalFaces{};
@@ -145,11 +143,9 @@ struct LegacyGasFixture
     Real* sstF2{};
     Real sstJayatillekeP{};
     Real sstKMin{};
-    Real sstMaxSourceNumber{};
     Real sstOmegaMin{};
     Real* sstPhiRhoK{};
     Real* sstPhiRhoOmega{};
-    Real* sstSourceNumber{};
     Real sstThermalYPlus{};
     Real sstWallCmu{};
     Real* sstWallDistance{};

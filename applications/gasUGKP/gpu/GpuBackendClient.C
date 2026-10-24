@@ -372,10 +372,10 @@ extern "C" int ugkwpGpuResidentStrictCreate
     int jammingPressureEnabled, double packingFraction,
     int packingProjectionIterations,
     int gasFluxScheme, int gasReconstruction, int gasLimiter,
-    int gasTimeIntegrator, int gasRobustFallback, int turbulenceModel,
+    int gasTimeIntegrator, int turbulenceModel,
     double lesDeltaCoeff,
     double turbulentPrandtl, double waleCw, double smagorinskyCs,
-    double maxDiffusionNumber, int csrCellLocalPathEnabled,
+    int csrCellLocalPathEnabled,
     int csrHeavyReductionMode, int csrHeavyAutoInterval,
     int particleBlockThreads, int reductionBlockThreads,
     int csrWarpAggregatedBinning,
@@ -412,10 +412,9 @@ extern "C" int ugkwpGpuResidentStrictCreate
         pressureKickFraction, jammingPressureEnabled, packingFraction,
         packingProjectionIterations,
         gasFluxScheme, gasReconstruction, gasLimiter, gasTimeIntegrator,
-        gasRobustFallback, turbulenceModel,
+        turbulenceModel,
         lesDeltaCoeff, turbulentPrandtl,
-        waleCw, smagorinskyCs, maxDiffusionNumber,
-        csrCellLocalPathEnabled, csrHeavyReductionMode,
+        waleCw, smagorinskyCs, csrCellLocalPathEnabled, csrHeavyReductionMode,
         csrHeavyAutoInterval, particleBlockThreads,
         reductionBlockThreads,
         csrWarpAggregatedBinning,
@@ -668,7 +667,6 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     double c1,
     double kMin,
     double omegaMin,
-    double maxSourceNumber,
     int wallTreatment,
     double wallKappa,
     double wallE,
@@ -702,8 +700,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     {
         alphaK1, alphaK2, alphaOmega1, alphaOmega2,
         beta1, beta2, betaStar, gamma1, gamma2,
-        a1, b1, c1, kMin, omegaMin, maxSourceNumber,
-        wallTreatment, wallKappa, wallE, wallCmu
+        a1, b1, c1, kMin, omegaMin, wallTreatment, wallKappa, wallE, wallCmu
     };
     std::uint64_t bytes = wireBytes(args);
     if
@@ -765,11 +762,11 @@ extern "C" int ugkwpGpuResidentStrictDownloadSst
 }
 
 extern "C" int ugkwpGpuResidentStrictComputeGasCourant
-(void* handle, double dt, double targetMaxCo, double scheduleTime, double* maxCo)
+(void* handle, double dt, double scheduleTime, double* maxCo)
 {
     ClientState* s = static_cast<ClientState*>(handle);
     if (maxCo == nullptr) return fail("null gas Courant output");
-    const CourantArgs args{dt, targetMaxCo, scheduleTime};
+    const CourantArgs args{dt, scheduleTime};
     if (!startRequest(s, Op::computeGasCourant, wireBytes(args))
      || !sendObject(s->fd, args)) return -1;
     std::uint64_t bytes = 0;

@@ -1,9 +1,9 @@
-                                                                 
 
-                                                                            
-                                                                             
-                                                                          
-   
+
+
+
+
+
 
 from __future__ import annotations
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
@@ -59,13 +59,11 @@ CREATE_FIELDS = (
     ("std::int32_t", "gasReconstruction"),
     ("std::int32_t", "gasLimiter"),
     ("std::int32_t", "gasTimeIntegrator"),
-    ("std::int32_t", "gasRobustFallback"),
     ("std::int32_t", "turbulenceModel"),
     ("double", "lesDeltaCoeff"),
     ("double", "turbulentPrandtl"),
     ("double", "waleCw"),
     ("double", "smagorinskyCs"),
-    ("double", "maxDiffusionNumber"),
     ("std::int32_t", "csrCellLocalPathEnabled"),
     ("std::int32_t", "csrHeavyReductionMode"),
     ("std::int32_t", "csrHeavyAutoInterval"),
@@ -118,13 +116,11 @@ TWO_PHASE_CREATE_ARGUMENTS = (
     "int(gasReconstruction)",
     "int(gasLimiter)",
     "int(gasTimeIntegrator)",
-    "gasRobustFallback ? 1 : 0",
     "int(gasTurbulenceModel)",
     "lesDeltaCoeff",
     "turbulentPrandtl",
     "waleCw",
     "smagorinskyCs",
-    "maxDiffusionNumber",
     "csrCellLocalPathEnabled ? 1 : 0",
     "csrHeavyReductionMode",
     "int(scheduling.heavyReductionAutoInterval)",
@@ -177,13 +173,11 @@ PURE_GAS_CREATE_ARGUMENTS = (
     "int(gasReconstruction)",
     "int(gasLimiter)",
     "int(gasTimeIntegrator)",
-    "gasRobustFallback ? 1 : 0",
     "int(gasTurbulenceModel)",
     "lesDeltaCoeff",
     "turbulentPrandtl",
     "waleCw",
     "smagorinskyCs",
-    "maxDiffusionNumber",
     "scheduling.csrCellLocalPath ? 1 : 0",
     "int(scheduling.heavyReductionMode)",
     "int(scheduling.heavyReductionAutoInterval)",
