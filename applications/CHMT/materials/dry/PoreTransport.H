@@ -60,13 +60,23 @@ PoreFlux<Ns> poreFaceFlux(const PoreFaceState<Ns>& left,
 {
     PoreFlux<Ns> out;
     out.darcyVelocity=superficialVelocity;
-    std::array<double,Ns> faceY{},gradient{};
+    std::array<double,Ns> gradient{};
+    const double faceDensity=0.5*(left.density+right.density);
+    double rawSum=0;
     for(std::size_t s=0;s<Ns;++s) {
-        faceY[s]=0.5*(left.massFraction[s]+right.massFraction[s]);
         gradient[s]=(right.massFraction[s]-left.massFraction[s])/distance;
+        rawSum-=faceDensity*effectiveDiffusivity[s]*gradient[s];
     }
-    out.diffusion=correctedDiffusion(0.5*(left.density+right.density),
-        faceY,gradient,effectiveDiffusivity);
+    // Discretize the common mass-correction velocity with its UPWIND
+    // composition, not a centered Y. C=-sum(J*) is the correction mass flux.
+    // This preserves sum(J)=0 and cannot export an absent species from its
+    // zero-inventory side. Centered correction can do so for unequal D and
+    // three or more species, making any positive explicit step impossible.
+    // This is one fixed conservative scheme (no clipping/fallback); its
+    // unequal-D correction is generally first-order in space.
+    const auto& correctionDonor=rawSum<=0 ? left : right;
+    out.diffusion=correctedDiffusion(faceDensity,
+        correctionDonor.massFraction,gradient,effectiveDiffusivity);
     const auto& donor=superficialVelocity>=0 ? left : right;
     const double faceTemperature=0.5*(left.temperature+right.temperature);
     out.conductionEnergy=-effectiveConductivity*(right.temperature-left.temperature)/distance;

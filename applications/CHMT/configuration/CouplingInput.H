@@ -1,7 +1,7 @@
 #ifndef CHMT_CONFIGURATION_COUPLINGINPUT_H
 #define CHMT_CONFIGURATION_COUPLINGINPUT_H
 #include "configuration/MultirateIO.H"
-#include "configuration/InitialConditions.H"
+#include "io/MeshIO.H"
 #include "gpu/StateValidation.H"
 #include "../../../common/gasTransport/GasNumericsIO.H"
 #include "../../../common/gasTransport/GasMechanismIO.H"
@@ -51,8 +51,7 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     importGasFields(*candidate.gasMesh,candidate.model,state);
     importSolidFields(*candidate.solidMesh,candidate.model,state);
     auto surface=importSurface(*candidate.solidMesh,state.solidMesh,d.subDict("surface"));
-    if(candidate.model.physics.enableFilm)initialFilm(d,candidate.model,surface,state);
-    else {state.surface=surface.mesh;initializeDryInterfaceAux(state);}
+    state.surface=surface.mesh;initializeDryInterfaceAux(state);
     attachCoupledSurface(*candidate.gasMesh,d,state);
     std::string error;
     require(validateRuntimeState(candidate.model,state,error),error);

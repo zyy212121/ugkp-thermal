@@ -30,8 +30,20 @@ CHMT_HD inline Real reactionMassDerivative(const Reaction& reaction,int componen
         derivative*=::pow(q.condensed[k]/volume,reaction.order[k]);
     return derivative;
 }
+// The unchanged device policy uses legacy callable wrappers. CPU dry material
+// injects verified constitutive rates into the same numerical controller.
+struct MaterialReactionRates {
+    CHMT_HD Real rate(const Reaction& r,const SolidQ& q,Real V,Real T)const {
+        return reactionRate<false>(r,q.condensed,V,T);
+    }
+    CHMT_HD Real derivative(const Reaction& r,int c,const SolidQ& q,Real V,Real T,Real value)const {
+        return reactionMassDerivative(r,c,q,V,T,value);
+    }
+};
+template<class RateEvaluator=MaterialReactionRates>
 CHMT_HD inline bool reactionStepControl(const SolidQ& state,Real volume,const PhysicsConfig& p,
-    Real cfl,ReactionStepControl& output,bool* numericalFailure=nullptr) {
+    Real cfl,ReactionStepControl& output,bool* numericalFailure=nullptr,
+    const RateEvaluator& evaluator=RateEvaluator{}) {
     if(numericalFailure)*numericalFailure=true;
     if(!(finite(cfl)&&cfl>0))return reactionControlFailure(p,finite(cfl)?ugkp::diagnostics::Code::InvalidPhysicalState:ugkp::diagnostics::Code::NonFinite,4110,cfl);
     if(p.nReactions<0||p.nReactions>Nr)return reactionControlFailure(p,ugkp::diagnostics::Code::InvalidIndex,4111,p.nReactions);
@@ -45,7 +57,7 @@ CHMT_HD inline bool reactionStepControl(const SolidQ& state,Real volume,const Ph
     if(!finite(c.massTolerance)||c.massTolerance<0)return reactionControlFailure(p,!finite(c.massTolerance)?ugkp::diagnostics::Code::NonFinite:ugkp::diagnostics::Code::InvalidPhysicalState,4113,c.massTolerance);
     if(!p.enableReactions){output=c;return true;}
     SolidQ loss;Real stageRates[Nr]{};bool negligible[Nr]{};
-    for(int r=0;r<p.nReactions;++r){const auto& reaction=p.reactions[r];const Real rate=reactionRate<false>(reaction,state.condensed,volume,c.temperature);
+    for(int r=0;r<p.nReactions;++r){const auto& reaction=p.reactions[r];const Real rate=evaluator.rate(reaction,state,volume,c.temperature);
         if(!finite(rate)||rate<0)return reactionControlFailure(p,!finite(rate)?ugkp::diagnostics::Code::NonFinite:ugkp::diagnostics::Code::InvalidPhysicalState,4114,rate,r);
         stageRates[r]=rate;c.active=c.active||rate>0;
         Real donorExtent=std::numeric_limits<Real>::max();bool fractionalDonor=false;
@@ -64,7 +76,7 @@ CHMT_HD inline bool reactionStepControl(const SolidQ& state,Real volume,const Ph
     // and temperature response dT/dextent_j=-sum(nu_j*e)/capacity at fixed U.
     for(int r=0;r<p.nReactions;++r)if(!negligible[r]){
         const auto& reaction=p.reactions[r];Real row=0,dm[Nc]{};
-        for(int k=0;k<Nc;++k)dm[k]=reactionMassDerivative(reaction,k,state,volume,c.temperature,stageRates[r]);
+        for(int k=0;k<Nc;++k)dm[k]=evaluator.derivative(reaction,k,state,volume,c.temperature,stageRates[r]);
         const Real dT=stageRates[r]*(reaction.temperaturePower/c.temperature
             +reaction.activationEnergy/(universalGasConstant*c.temperature*c.temperature));
         for(int j=0;j<p.nReactions;++j){Real entry=-dT*c.extentEnergy[j]/c.capacity;

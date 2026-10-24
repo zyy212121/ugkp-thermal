@@ -1,0 +1,3 @@
+dryMaterialFoam.C
+
+EXE = $(DRY_VALIDATION_BIN)/dryMaterialFoam

@@ -12,6 +12,27 @@ CHMT_HD inline bool interfaceFailure(const PhysicsConfig& p,unsigned site,Real v
     return false;
 }
 
+// Shared producer sites for legacy device and host dry constitutive paths.
+// Callers retain the original conditions and diagnostic values.
+CHMT_HD inline bool surfacePressureFailure(const PhysicsConfig& p,Real pressure) {
+    return interfaceFailure(p,3844,pressure);
+}
+CHMT_HD inline void surfaceCompositionWarning(const PhysicsConfig& p,Real change,Real tolerance) {
+    reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3803,change,tolerance);
+}
+CHMT_HD inline bool surfaceEnergyFailure(const PhysicsConfig& p,Real residual,Real phaseEnergy) {
+    return interfaceFailure(p,3847,residual,-1,ugkp::diagnostics::Code::NonFinite,phaseEnergy);
+}
+CHMT_HD inline bool surfaceGeometryFailure(const PhysicsConfig& p,Real area,Real distance) {
+    return interfaceFailure(p,3826,area,-1,ugkp::diagnostics::Code::InvalidPhysicalState,distance);
+}
+CHMT_HD inline void surfaceNormalWarning(const PhysicsConfig& p,Real residual) {
+    reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3827,residual,1e-12);
+}
+CHMT_HD inline void surfaceAreaWarning(const PhysicsConfig& p,Real areaResidual,Real normalResidual) {
+    reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,3828,areaResidual,normalResidual);
+}
+
 CHMT_HD inline Real interfacePartialPressure(Real pressure, const Real* Y,
     const PhysicsConfig& p, int species) {
     Real R=0;
@@ -372,7 +393,7 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     if((p.wallModel.family!=ugkwp::gaswall::WallFamily::LowRe&&p.wallModel.family!=ugkwp::gaswall::WallFamily::BoundaryLayer))return false;
     const Real mechanicalPressure=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
         ?in.wallContext.mechanicalPressure:in.bulk.pressure;
-    if((!finite(mechanicalPressure)||mechanicalPressure<=0))return interfaceFailure(p,3844,mechanicalPressure);
+    if((!finite(mechanicalPressure)||mechanicalPressure<=0))return surfacePressureFailure(p,mechanicalPressure);
     SurfacePhysicsResult result;
     const int phase=p.material.phaseCondensed;
     const Real gasRatio=in.gasArea/in.area;
@@ -607,7 +628,7 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
         compositionChange=change;
         if (change<=p.tolerances.relativeMass+1e-12) { compositionConverged=true; break; }
     }
-    if (!compositionConverged) reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3803,compositionChange,p.tolerances.relativeMass+1e-12);
+    if (!compositionConverged) surfaceCompositionWarning(p,compositionChange,p.tolerances.relativeMass+1e-12);
     Vec3 liquidTop{};
     if (result.wet) {
         liquidTop=in.aux.topVelocity-in.normal*dot(in.aux.topVelocity,in.normal)
@@ -672,9 +693,18 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
         result.thermalResidual=result.gasEnergy+result.poreEnergy-solidDonorEnergy-poreDonorEnergy
             -solidRatio*solidConductance*(material.temperature-topT)-result.radiationFlux;
     }
-    if ((!finite(result.thermalResidual) || !finite(result.phaseEnergy))) return interfaceFailure(p,3847,result.thermalResidual,-1,ugkp::diagnostics::Code::NonFinite,result.phaseEnergy);
+    if ((!finite(result.thermalResidual) || !finite(result.phaseEnergy))) return surfaceEnergyFailure(p,result.thermalResidual,result.phaseEnergy);
     out=result; return true;
 }
+// The host dry material adapter supplies another constitutive evaluator. The
+// default retains the existing device evaluator and identical root arithmetic.
+struct LegacySurfaceEvaluation {
+    CHMT_HD static bool evaluate(const SurfacePhysicsInput& in,const PhysicsConfig& p,
+        const MaterialPrimitive& material,Real filmT,Real topT,bool birth,
+        SurfacePhysicsResult& out,bool* numericalFailure) {
+        return evaluateSurfaceTemperature(in,p,material,filmT,topT,birth,out,numericalFailure);
+    }
+};
 struct SurfaceRootTrace {
     Real attempted=0;bool hasAttempt=false,hasCompleted=false;
     SurfacePhysicsResult completedState{};
@@ -715,7 +745,7 @@ CHMT_HD inline bool surfaceTemperatureConfiguration(const SurfacePhysicsInput& i
 }
 // The owner copies immutable physics once per root solve. CUDA device atomics
 // must never target an automatic/thread-local DeviceContext.
-template<bool Track=false>
+template<bool Track=false,class Evaluation=LegacySurfaceEvaluation>
 CHMT_HD inline bool bisectFeasibleSurfaceImpl(const SurfacePhysicsInput& in, const PhysicsConfig& p,
     const PhysicsConfig& trialPhysics,const MaterialPrimitive& material, Real filmT, Real lo, Real hi,
     SurfacePhysicsResult left, SurfacePhysicsResult right, SurfacePhysicsResult& out,SurfaceRootTrace* trace=nullptr,bool* numericalFailure=nullptr) {
@@ -727,7 +757,7 @@ CHMT_HD inline bool bisectFeasibleSurfaceImpl(const SurfacePhysicsInput& in, con
         const Real T=0.5*(lo+hi);
         SurfacePhysicsResult candidate;
         if(Track){trace->attempted=T;trace->hasAttempt=true;}
-        if(!evaluateSurfaceTemperature(in,trialPhysics,material,filmT,T,false,candidate,numericalFailure))return false;
+        if(!Evaluation::evaluate(in,trialPhysics,material,filmT,T,false,candidate,numericalFailure))return false;
         if(Track){trace->completedState=candidate;trace->hasCompleted=true;}
         const Real scale=auditAdd(auditAdd(absValue(candidate.gasEnergy),absValue(candidate.poreEnergy)),
             auditAdd(absValue(candidate.phaseEnergy),absValue(candidate.radiationFlux)));
@@ -750,7 +780,7 @@ CHMT_HD inline bool bisectFeasibleSurfaceImpl(const SurfacePhysicsInput& in, con
     }
     return false;
 }
-template<bool Track=false>
+template<bool Track=false,class Evaluation=LegacySurfaceEvaluation>
 CHMT_HD inline bool bisectFeasibleSurface(const SurfacePhysicsInput& in,const PhysicsConfig& p,
     const MaterialPrimitive& material,Real filmT,Real lo,Real hi,
     SurfacePhysicsResult left,SurfacePhysicsResult right,SurfacePhysicsResult& out,
@@ -760,10 +790,10 @@ CHMT_HD inline bool bisectFeasibleSurface(const SurfacePhysicsInput& in,const Ph
     trialPhysics.diagnostics=nullptr;trialPhysics.tolerances.diagnostics=nullptr;
     auto trialInput=in;trialInput.wallContext.failureStatus=nullptr;
     SurfacePhysicsResult candidate;
-    if(!bisectFeasibleSurfaceImpl<Track>(trialInput,p,trialPhysics,material,filmT,lo,hi,left,right,candidate,trace,numericalFailure))return false;
-    return evaluateSurfaceTemperature(in,p,material,filmT,candidate.topTemperature,false,out,numericalFailure);
+    if(!bisectFeasibleSurfaceImpl<Track,Evaluation>(trialInput,p,trialPhysics,material,filmT,lo,hi,left,right,candidate,trace,numericalFailure))return false;
+    return Evaluation::evaluate(in,p,material,filmT,candidate.topTemperature,false,out,numericalFailure);
 }
-template<bool Track=false>
+template<bool Track=false,class Evaluation=LegacySurfaceEvaluation>
 CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const PhysicsConfig& p,
     const MaterialPrimitive& material, Real filmT, Real lo, Real hi, SurfacePhysicsResult& out,SurfaceRootTrace* trace=nullptr,bool* numericalFailure=nullptr) {
     if (!(hi>lo)) return false;
@@ -774,7 +804,7 @@ CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const
     auto trialInput=in;trialInput.wallContext.failureStatus=nullptr;
     SurfacePhysicsResult seed;
     if(Track){trace->attempted=preferred;trace->hasAttempt=true;}
-    const bool seedValid=evaluateSurfaceTemperature(trialInput,trialPhysics,material,filmT,preferred,false,seed,numericalFailure);
+    const bool seedValid=Evaluation::evaluate(trialInput,trialPhysics,material,filmT,preferred,false,seed,numericalFailure);
     if(Track&&seedValid){trace->completedState=seed;trace->hasCompleted=true;}
     if (seedValid&&seed.thermalResidual==0) { out=seed; return true; }
     SurfacePhysicsResult last=seed;bool hasValid=seedValid;
@@ -791,7 +821,7 @@ CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const
                 const Real T=insert && part==0 ? preferred : gridT;
                 SurfacePhysicsResult current;
                 if(Track){trace->attempted=T;trace->hasAttempt=true;}
-                const bool valid=evaluateSurfaceTemperature(trialInput,trialPhysics,material,filmT,T,false,current,numericalFailure);
+                const bool valid=Evaluation::evaluate(trialInput,trialPhysics,material,filmT,T,false,current,numericalFailure);
                             if(!valid){previousValid=false;continue;}
                 last=current;hasValid=true;
                 if(Track){trace->completedState=current;trace->hasCompleted=true;}
@@ -799,7 +829,7 @@ CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const
                 if (valid && previousValid
                     && (current.thermalResidual>0)!=(previous.thermalResidual>0)) {
                     SurfacePhysicsResult root;
-                    if(!bisectFeasibleSurfaceImpl<Track>(trialInput,p,trialPhysics,material,filmT,previousT,T,previous,current,root,trace,numericalFailure)){
+                    if(!bisectFeasibleSurfaceImpl<Track,Evaluation>(trialInput,p,trialPhysics,material,filmT,previousT,T,previous,current,root,trace,numericalFailure)){
                         if(ugkp::diagnostics::hasFatal(p.diagnostics))return false;
                         previousValid=false;continue;}
                     out=root;return true;
@@ -812,7 +842,7 @@ CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const
     if(!hasValid){
         // Retain a real failure record when no mathematical state is evaluable.
         SurfacePhysicsResult failed;
-        if(!evaluateSurfaceTemperature(in,p,material,filmT,preferred,false,failed,numericalFailure)){
+        if(!Evaluation::evaluate(in,p,material,filmT,preferred,false,failed,numericalFailure)){
             if(!ugkp::diagnostics::hasFatal(p.diagnostics))interfaceFailure(p,3860,preferred);
             return false;
         }
@@ -832,9 +862,9 @@ CHMT_HD inline bool solveSurfaceInterface(const SurfacePhysicsInput& in,
         || (in.hasSolid && (mag(in.baseVelocity)!=0 || in.solidDistance<=0 || in.solidArea<=0
             || !finite(in.solidNormal) || mag(in.solidNormal)==0
             || dot(in.normal,in.solidNormal)<=0))
-        || (in.useSweptGeometry && (!finite(in.gasSweptRate) || !finite(in.solidSweptRate))))) return interfaceFailure(p,3826,in.area,-1,ugkp::diagnostics::Code::InvalidPhysicalState,in.gasDistance);
+        || (in.useSweptGeometry && (!finite(in.gasSweptRate) || !finite(in.solidSweptRate))))) return surfaceGeometryFailure(p,in.area,in.gasDistance);
     const Real normalResidual=maxValue(absValue(mag(in.normal)-1),maxValue(absValue(mag(in.gasNormal)-1),in.hasSolid?absValue(mag(in.solidNormal)-1):0));
-    if(normalResidual>1e-12)reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3827,normalResidual,1e-12);
+    if(normalResidual>1e-12)surfaceNormalWarning(p,normalResidual);
     MaterialPrimitive material;
     if (in.hasSolid && !recoverMaterial(in.solid,in.solidVolume,p,material,nullptr,-1,numericalFailure)) return false;
     FilmAux filmAux=in.aux;
@@ -843,7 +873,7 @@ CHMT_HD inline bool solveSurfaceInterface(const SurfacePhysicsInput& in,
     if (!wet && !in.hasSolid) {if(numericalFailure)*numericalFailure=false;return false;}
     if (!wet && (!closeEnough(in.gasArea,in.solidArea,p.tolerances.absoluteGeometry,
         p.tolerances.relativeGeometry) || mag(in.gasNormal-in.solidNormal)>1e-10))
-        reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,3828,in.gasArea-in.solidArea,mag(in.gasNormal-in.solidNormal));
+        surfaceAreaWarning(p,in.gasArea-in.solidArea,mag(in.gasNormal-in.solidNormal));
     if (wet && p.material.enableSurfaceReactions) return interfaceFailure(p,3829,in.film.mass,-1,ugkp::diagnostics::Code::MissingOperator);
     // Pore collapse/bubbling into a film needs an additional mechanical model.
     // The first Stefan phase interface is a dense material phase boundary.
