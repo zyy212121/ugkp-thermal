@@ -5,10 +5,12 @@ EXE_INC = \
     -I. \
     -I../../common \
     -Igpu \
+    -std=c++17 \
     $(UGKWP_CUDA_EXE_INC)
 
 EXE_LIBS = \
     -lfiniteVolume \
     -lmeshTools \
     -lmomentumTransportModels \
-    -lOpenFOAM
+    -lOpenFOAM \
+    $(UGKWP_CUDA_EXE_LIBS)

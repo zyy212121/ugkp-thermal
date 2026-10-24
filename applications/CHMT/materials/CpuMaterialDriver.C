@@ -478,7 +478,10 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 }
                 if(!error.empty())break;
 
-                {bool numerical=false;if(!evaluateMaterialTransport(state.solidMesh,state.solid,p,solidSweep,dt,controls.transportCfl,transport,error,&numerical)){
+                // The initial physical transport evaluation remains valid when
+                // no face swept volume was added. Only ALE changes its rates.
+                if(std::any_of(solidSweep.begin(),solidSweep.end(),[](Real swept){return swept!=0;})){
+                bool numerical=false;if(!evaluateMaterialTransport(state.solidMesh,state.solid,p,solidSweep,dt,controls.transportCfl,transport,error,&numerical)){
                     lastFailure=numerical?MaterialFailureOrigin::TransportNumerical:MaterialFailureOrigin::None;
                     break;
                 }}

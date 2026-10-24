@@ -23,7 +23,7 @@ bool beginGasWindow(Backend&,const WallProgram&,std::string&);
 bool advanceGasMicrostep(Backend&,Real,GasMicroReport&,std::string&);
 bool gasWindowHistory(const Backend&,IntervalHistory&,std::string&);
 bool gasWindowStageGeometry(const Backend&,std::array<HostStageGeometry,2>&,std::array<HostStageGeometry,2>&,std::string&);
-bool downloadGasWindow(const Backend&,HostState&,std::string&);
+bool downloadGasWindow(Backend&,HostState&,std::string&);
 bool commitGasWindow(Backend&,const HostState&,std::string&);
 bool downloadState(const Backend&,HostState&,std::string&);
 }

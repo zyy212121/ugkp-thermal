@@ -192,11 +192,8 @@ class UGKPNumericsConfiguration(unittest.TestCase):
             + "\n"
             + (ROOT / "createFields.H").read_text()
         )
-        cls.protocol = (ROOT / "gpu/GpuBackendProtocol.H").read_text()
         cls.api = (ROOT / "gpu/GpuBackendApi.H").read_text()
-        cls.client = (ROOT / "gpu/GpuBackendClient.C").read_text()
         cls.wrapper = (ROOT / "gpu/GpuResidentStrict.H").read_text()
-        cls.server = (ROOT / "private_backend/GpuBackendServer.C").read_text()
         cls.cuda = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
 
     def test_runtime_dictionary_and_supported_names(self) -> None:
@@ -225,47 +222,6 @@ class UGKPNumericsConfiguration(unittest.TestCase):
             self.assertIn(f'"{name}"', self.create)
 
     def test_runtime_names_map_to_protocol_enum_values(self) -> None:
-        enum_expectations = {
-            "GasFluxScheme": {
-                "RusanovTadmor": 1,
-                "HllKurganov": 2,
-                "Hlle": 3,
-                "Hllc": 4,
-                "Roe": 5,
-                "Hllem": 6,
-                "HllcAdc": 7,
-                "Slau2": 8,
-                "Slau2_2": 9,
-            },
-            "GasReconstruction": {
-                "firstOrder": 0,
-                "MUSCL": 1,
-                "OpenFoamEnergyLimitedLinear": 2,
-            },
-            "GasLimiter": {
-                "none": 0,
-                "barthJespersen": 1,
-                "venkatakrishnan": 2,
-            },
-            "GasTimeIntegrator": {"Euler": 1, "SSPRK2": 2, "SSPRK3": 3},
-        }
-        for enum_name, expected in enum_expectations.items():
-            match = re.search(
-                rf"enum class {enum_name}\s*:[^{{]+"
-                rf"\{{(?P<body>.*?)\}};",
-                self.protocol,
-                flags=re.S,
-            )
-            self.assertIsNotNone(match, enum_name)
-            actual = {
-                name: int(value)
-                for name, value in re.findall(
-                    r"([A-Za-z_]\w*)\s*=\s*(\d+)",
-                    match.group("body"),
-                )
-            }
-            self.assertEqual(actual, expected)
-
         mapping_contracts = (
             (r'gasFluxSchemeName == "rusanovTadmor".*?gasFluxScheme = 1;',),
             (r'gasFluxSchemeName == "hllKurganov".*?gasFluxScheme = 2;',),
@@ -295,55 +251,18 @@ class UGKPNumericsConfiguration(unittest.TestCase):
                     re.compile(pattern, flags=re.S),
                 )
 
-    def test_create_payload_field_order_and_size(self) -> None:
-        match = re.search(
-            r"struct CreateArgs\s*\{(?P<body>.*?)\n\};",
-            self.protocol,
-            flags=re.S,
-        )
-        self.assertIsNotNone(match)
-        body = match.group("body")
-        actual = re.findall(
-            r"(std::int32_t|std::uint64_t|double)\s+([A-Za-z_]\w*)\s*;",
-            body,
-        )
-        self.assertEqual(actual, list(PROTOCOL_CREATE_FIELDS))
-        self.assertEqual(create_payload_size(), 376)
 
     def test_c_abi_create_signatures_match_protocol_exactly(self) -> None:
         expected = list(CREATE_FIELDS) + [("void**", "handle")]
         layers = {
             "public API": self.api,
             "OpenFOAM wrapper": self.wrapper,
-            "IPC client definition": self.client,
             "CUDA definition": self.cuda,
         }
         for layer, source in layers.items():
             with self.subTest(layer=layer):
                 self.assertEqual(_create_signature(source), expected)
 
-    def test_client_payload_and_server_forwarding_are_exact(self) -> None:
-        payload, _ = _delimited_after(
-            self.client,
-            "const CreateArgs args",
-            "{",
-            "}",
-        )
-        self.assertEqual(
-            _split_top_level(payload),
-            [name for _, name in CREATE_FIELDS],
-        )
-
-        forwarding, _ = _delimited_after(
-            self.server,
-            "const int status = ugkwpGpuResidentStrictCreate",
-            "(",
-            ")",
-        )
-        self.assertEqual(
-            _split_top_level(forwarding),
-            [f"a.{name}" for _, name in CREATE_FIELDS] + ["&state.backend"],
-        )
 
     def test_openfoam_wrapper_forwards_gas_numerics_contiguously(self) -> None:
         wrapper_call_marker = "const int createRc = ugkwpGpuResidentStrictCreate"
@@ -404,8 +323,6 @@ class UGKPNumericsConfiguration(unittest.TestCase):
     def test_validation_is_present_at_every_untrusted_boundary(self) -> None:
         layers = {
             "OpenFOAM dictionary": self.create,
-            "IPC client": self.client,
-            "IPC server": self.server,
             "CUDA C ABI": self.cuda,
         }
         for field in (
@@ -417,7 +334,6 @@ class UGKPNumericsConfiguration(unittest.TestCase):
             for layer, source in layers.items():
                 with self.subTest(field=field, layer=layer):
                     self.assertIn(field, source)
-        self.assertEqual(create_payload_size(), 376)
         self.assertNotIn('"entropyFixCoefficient"', self.create)
         self.assertNotIn("gasEntropyFixCoefficient", self.create)
 

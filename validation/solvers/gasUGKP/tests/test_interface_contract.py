@@ -23,54 +23,19 @@ ACTIVE_INTERFACE = (
     "createFields.H",
     "diluteUgkwpFoam.C",
     "gpu/GpuBackendApi.H",
-    "gpu/GpuBackendClient.C",
-    "gpu/GpuBackendProtocol.H",
     "gpu/GpuResidentStrict.H",
-    "private_backend/GpuBackendServer.C",
     "private_backend/GpuResidentStrict.cu",
 )
 
 
 class UGKPInterfaceContract(unittest.TestCase):
-    def test_ugkp_executable_backend_and_protocol_identity(self) -> None:
-        self.assertIn(
-            "$(FOAM_USER_APPBIN)/gasUGKP",
-            source("Make/files"),
-        )
-        private_build = source('../../tool/gasUGKP/build_private_backend.sh')
-        public_build = source('../../tool/gasUGKP/build_public_frontend.sh')
-        client = source("gpu/GpuBackendClient.C")
-        protocol = source("gpu/GpuBackendProtocol.H")
+    def test_resident_executable_identity(self):
+        make_files=(ROOT/'Make/files').read_text()
+        build=(ROOT/'../../tool/gasUGKP/build_cuda_solver.sh').read_text()
+        self.assertIn('$(FOAM_USER_APPBIN)/gasUGKP',make_files)
+        self.assertIn('libugkwp_cuda_backend.a',build)
+        self.assertNotIn('GpuBackendClient.C',make_files)
 
-        self.assertIn("gasUGKPCudaBackend", private_build)
-        self.assertIn("gasUGKP", private_build)
-        self.assertIn("gasUGKP", public_build)
-        self.assertIn('frontend="${FOAM_USER_APPBIN}/gasUGKP"', public_build)
-        self.assertIn("GAS_UGKP_CUDA_BACKEND", client)
-        self.assertIn('"gasUGKPCudaBackend"', client)
-        self.assertRegex(protocol, r"0x47554750U\s*;")
-
-        identity_text = "\n".join(
-            (
-                source("Make/files"),
-                private_build,
-                public_build,
-                client,
-                protocol,
-                source("createFields.H"),
-                source("diluteUgkwpFoam.C"),
-                source("gpu/GpuResidentStrict.H"),
-            )
-        )
-        for legacy in (
-            "legacySolverName",
-            "ugkpCudaBackend",
-            "GU25",
-            "GU26",
-            "0x47553236",
-        ):
-            with self.subTest(legacy=legacy):
-                self.assertNotIn(legacy, identity_text)
 
     def test_gas_kappa_is_absent_from_active_interface_and_backend(self) -> None:
         offenders = [name for name in ACTIVE_INTERFACE if "gasKappa" in source(name)]

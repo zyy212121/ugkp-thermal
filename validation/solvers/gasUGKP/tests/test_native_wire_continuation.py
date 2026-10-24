@@ -14,7 +14,7 @@ def run_cpp(tmp_path,code,app='gasUGKP',flags=(),timeout=30):
     run=subprocess.run([str(binary)],capture_output=True,text=True,timeout=timeout)
     assert run.returncode==0,run.stdout+run.stderr
     return run.stdout
-@pytest.mark.parametrize('app',['gasUGKP','FSH'])
+@pytest.mark.parametrize('app',['FSH'])
 def test_representable_payload_has_no_policy_ceiling(tmp_path,app):
     if app=='FSH':
         run_cpp(tmp_path,r'''
@@ -38,7 +38,7 @@ bytes=std::numeric_limits<std::uint64_t>::max()-3;assert(!addBytes(bytes,1,4));
 bytes=0;assert(!addBytes(bytes,std::numeric_limits<std::uint64_t>::max(),2));
 }
 ''',app)
-@pytest.mark.parametrize('app',['gasUGKP','FSH'])
+@pytest.mark.parametrize('app',['FSH'])
 def test_actual_client_consumes_surplus_and_metadata_with_next_frame(tmp_path,app):
     run_cpp(tmp_path,f'#include "applications/{app}/gpu/GpuBackendClient.C"\n'+r'''
 #include <cassert>
@@ -66,11 +66,11 @@ const std::string text=R"(gasMode mixtureFrozen;species(A B);speciesThermo{
 A{model linearCp;molarMass .028;minTemperature 100;maxTemperature 4000;coefficients(1040 0 0);}
 B{model linearCp;molarMass .032;minTemperature 100;maxTemperature 4000;coefficients(1200 0 0);}}
 diffusion{model constant;coefficients(.02 .03);turbulentSchmidt .7;})";
-ugkwpGpuIpc::GasModelConfigureArgsV1 args{99,77,42,33,0,0,0,text.size(),0};
+ugkwpGpu::GasModelConfigureArgsV1 args{99,77,42,33,0,0,0,text.size(),0};
 state.gasInitialFieldsUploaded=true;
 assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)==0);
 const int count=allocations;
-ugkwpGpuIpc::GasSpeciesIdentityV1 identity{99,42,0,0,0};
+ugkwpGpu::GasSpeciesIdentityV1 identity{99,42,0,0,0};
 double values[]={-.1,.4,1.1,.6};
 assert(ugkwpGpuResidentStrictUploadSpeciesV1(&state,&identity,values)==0);
 assert(hostCopies==0);
@@ -130,7 +130,7 @@ bool failed=false;try{readVXPayload(bad,99999999,out);}catch(const std::exceptio
 }
 '''.replace('DECLARATIONS',declarations).replace('ASSIGNMENTS',assignments).replace('EXTRA',extra).replace('VX','Current').replace('CHECKS',checks).replace('CARRYCHECK','for(int i=0;i<3;++i)assert(restored[i]==carry[i]);' if app=='CHT' else ''),app)
 
-@pytest.mark.parametrize('app',['gasUGKP','FSH'])
+@pytest.mark.parametrize('app',['FSH'])
 def test_actual_server_decodes_extra_bytes_then_next_frame_and_short_field(tmp_path,app):
 
 
@@ -197,7 +197,7 @@ unsigned char mask[]={0,1,2};assert(ugkwpGpuResidentStrictConfigureParticleStuck
 peer.join();close(sockets[0]);}
 ''','FSH')
 
-@pytest.mark.parametrize('app',['gasUGKP','FSH'])
+@pytest.mark.parametrize('app',['FSH'])
 @pytest.mark.parametrize('packed',[False,True])
 def test_fixed_field_codec_matches_ordinary_bytes_and_packed_host_layout(tmp_path,app,packed):
     prefix=r'''
@@ -222,7 +222,7 @@ else assert(sizeof(a)!=bytes.size());
 }
 ''',app)
 
-@pytest.mark.parametrize('app',['gasUGKP','FSH'])
+@pytest.mark.parametrize('app',['FSH'])
 def test_actual_client_full_field_output_and_error_bytes_without_cap(tmp_path,app):
     run_cpp(tmp_path,f'#include "applications/{app}/gpu/GpuBackendClient.C"\n'+r'''
 #include <cassert>
@@ -242,7 +242,7 @@ assert(ugkwpGpuResidentStrictAdvanceGasOnly(&s,.1,1.1)==0);peer.join();close(soc
 }
 ''',app)
 
-@pytest.mark.parametrize('app',['gasUGKP','FSH'])
+@pytest.mark.parametrize('app',['FSH'])
 def test_actual_client_required_bytes_and_disconnect_are_errors(tmp_path,app):
     run_cpp(tmp_path,f'#include "applications/{app}/gpu/GpuBackendClient.C"\n'+r'''
 #include <cassert>
@@ -282,7 +282,7 @@ bool failed=false;try{readV7Payload(bad,0,out);}catch(const std::exception&){fai
 }
 ''',app)
 
-@pytest.mark.parametrize('app',['gasUGKP','FSH'])
+@pytest.mark.parametrize('app',['FSH'])
 def test_server_large_surplus_progress_full_output_and_second_frame(tmp_path,app):
     api=(ROOT/f'applications/{app}/gpu/GpuBackendApi.H').read_text()
     import re
@@ -316,7 +316,7 @@ def test_configuration_has_no_dead_capability_query(tmp_path):
 static int configured=0,queried=0;
 extern "C" const char* ugkwpGpuResidentStrictLastError(){return "query unavailable";}
 extern "C" int ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1(void*,ugkwpGpuIpc::GasModelCapabilitiesV1*){++queried;return 7;}
-extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1(void*,const ugkwpGpuIpc::GasModelConfigureArgsV1* a,const char* text,const char*){assert(a->modelBytes==5&&std::memcmp(text,"model",5)==0);++configured;return 0;}
+extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1(void*,const ugkwpGpu::GasModelConfigureArgsV1* a,const char* text,const char*){assert(a->modelBytes==5&&std::memcmp(text,"model",5)==0);++configured;return 0;}
 int main(){using namespace ugkwpGpuIpc;int sockets[2];assert(socketpair(AF_UNIX,SOCK_STREAM,0,sockets)==0);ServerState s;s.backend=&s;
 GasModelConfigureArgsV1 a{99,1,42,33,0,0,0,5,0};auto bytes=encodeWire(a);assert(writeAll(sockets[1],bytes.data(),bytes.size()));assert(writeAll(sockets[1],"model",5));
 RequestHeader request{magic,protocolMajor,protocolMinor,unsigned(Op::configureGasModelV1),0,bytes.size()+5};readingFrame=true;frameBytes=frameRemaining=request.payloadBytes;
@@ -351,18 +351,8 @@ def test_fsh_client_profile_arguments_execute_wide_actual_products(tmp_path):
     checks=''.join(f'assert(({e})==std::uint64_t(count)*{64 if e.endswith("*64") else 8});' for e in expressions)
     run_cpp(tmp_path,'#include <cassert>\n#include <climits>\n#include <cstdint>\nint main(){const int count=INT_MAX/64+1;'+checks+'}\n','FSH',('-fsanitize=undefined','-fno-sanitize-recover=undefined'))
 
-def test_boundary_diagnostic_required_extent_arithmetic(tmp_path):
-    run_cpp(tmp_path,r'''
-#include "applications/gasUGKP/gpu/GpuBackendProtocol.H"
-#include <cassert>
-int main(){using namespace ugkwpGpuIpc;std::uint64_t bytes=99;
-assert(boundaryLayerDiagnosticBytes(0,0xffffffffu,bytes)&&bytes==0);
-assert(boundaryLayerDiagnosticBytes(3,2,bytes)&&bytes==3*(25+4)*sizeof(double));
-assert(boundaryLayerDiagnosticBytes(1,0xffffffffu,bytes)&&bytes==(25+2ULL*0xffffffffu)*sizeof(double));
-assert(!boundaryLayerDiagnosticBytes(0xffffffffu,0xffffffffu,bytes));}
-''')
 
-@pytest.mark.parametrize('app',['gasUGKP','FSH'])
+@pytest.mark.parametrize('app',['FSH'])
 def test_ordinary_empty_response_has_no_bookkeeping_allocation(tmp_path,app):
     run_cpp(tmp_path,r'''
 #include <cstdlib>

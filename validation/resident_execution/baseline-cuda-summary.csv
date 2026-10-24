@@ -1,0 +1,21 @@
+Generating SQLite file /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/pr24-pr25-review-20261025/profiles/baseline-cuda.sqlite from /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/pr24-pr25-review-20261025/profiles/baseline-cuda.nsys-rep
+Processing [/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/pr24-pr25-review-20261025/profiles/baseline-cuda.sqlite] with [/opt/nvidia/nsight-systems/2025.5.2/host-linux-x64/reports/cuda_api_sum.py]...
+Time (%),Total Time (ns),Num Calls,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Name
+62.1,401831628,12708,31620.4,16038.0,4085,51901820,470886.5,cudaMemcpy
+16.3,105347512,2400,43894.8,4928.0,2463,85053055,1737065.3,cudaLaunchKernel
+10.6,68322041,400,170805.1,158527.5,10983,893137,117044.7,cudaDeviceSynchronize
+5.8,37473282,200,187366.4,127649.5,566,523327,187814.0,cudaStreamSynchronize
+3.9,25262220,1,25262220.0,25262220.0,25262220,25262220,0.0,cuLibraryLoadData
+0.6,4060748,100,40607.5,38543.0,19532,117187,11708.9,cudaMemcpyAsync
+0.4,2613568,139,18802.6,1770.0,1117,2229111,188868.1,cudaMalloc
+0.3,1748792,344,5083.7,4644.5,2153,121554,6929.1,cudaMemsetAsync
+0.1,645195,139,4641.7,1358.0,1092,343497,29320.4,cudaFree
+0.0,243594,2400,101.5,81.0,46,10960,230.3,cuKernelGetName
+0.0,9494,15,632.9,617.0,270,1173,257.3,cuLibraryGetKernel
+0.0,8001,1,8001.0,8001.0,8001,8001,0.0,cuModuleGetLoadingMode
+
+Processing [/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/pr24-pr25-review-20261025/profiles/baseline-cuda.sqlite] with [/opt/nvidia/nsight-systems/2025.5.2/host-linux-x64/reports/cuda_gpu_mem_size_sum.py]...
+Total (MB),Count,Avg (MB),Med (MB),Min (MB),Max (MB),StdDev (MB),Operation
+1.829,6207,0.000,0.000,0.000,0.002,0.000,[CUDA memcpy Host-to-Device]
+1.191,6601,0.000,0.000,0.000,0.001,0.000,[CUDA memcpy Device-to-Host]
+0.038,344,0.000,0.000,0.000,0.001,0.000,[CUDA memset]

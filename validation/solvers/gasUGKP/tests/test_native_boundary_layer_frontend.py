@@ -21,7 +21,7 @@ PROBE = r'''
 using namespace Foam;
 inline bool finiteScalar(scalar x){return std::isfinite(x);}
 extern "C" const char* ugkwpGpuResidentStrictLastError(){return "recording backend";}
-extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1(void*,const ugkwpGpuIpc::BoundaryLayerConfigV1* c,
+extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1(void*,const ugkwpGpu::BoundaryLayerConfigV1* c,
  const int* faces,const int* qo,const int* mo,const int* mc,const double* g,const double* qd,
  const double* qw,const double* mw,const double* js){
  if(c->quadratureCount!=0||qo[0]!=0||qo[1]!=0||qd||qw)return 1;

@@ -30,7 +30,7 @@ int main(){DeviceState s,device;s.deviceState=&device;
 int owner[]={0,1},neighbour[]={1,-1},kind[]={0,0};double volume[]={99,99},area[]={2,1},diffusion[]={.1,.1};
 s.faceOwner=owner;s.faceNeighbour=neighbour;s.gasBoundaryKind=kind;s.V=volume;s.magSf=area;
 s.gasSpecies.mode=ugkwp::GasMode::MixtureFrozen;s.gasSpecies.diffusivity=diffusion;s.gasSpeciesUploaded=true;
-ugkwpGpuIpc::BoundaryLayerConfigV1 a;a.model=1;a.speciesCount=3;a.version=99;a.wallCount=1;a.quadratureCount=1;a.matchingCount=33;
+ugkwpGpu::BoundaryLayerConfigV1 a;a.model=1;a.speciesCount=3;a.version=99;a.wallCount=1;a.quadratureCount=1;a.matchingCount=33;
 a.nodes=2;a.workspaceSlots=5000;a.relativeTolerance=-1;a.absoluteTolerance=-2;a.stretch=.5;a.maxIterations=0;
 int faces[]={0},qo[]={0,1},mo[]={0,33},mc[33];double mw[33];for(int i=0;i<33;++i){mc[i]=1;mw[i]=.1;}
 double g[]={2,0,0,.5,1.5,1,std::numeric_limits<double>::quiet_NaN()},qd[]={.7},qw[]={2},flux[]={-.2,.1,999};

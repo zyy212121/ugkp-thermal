@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
 
     const label progressLogInterval =
         ugkwp::logging::progressLogInterval(runTime.controlDict());
-    Info<< "gasUGKP: weighted-parcel configurable-block dynamic-heavy separated-backend GPU solver" << nl;
+    Info<< "gasUGKP: weighted-parcel configurable-block dynamic-heavy resident CUDA solver" << nl;
     #include "createMesh.H"
     #include "createFields.H"
 

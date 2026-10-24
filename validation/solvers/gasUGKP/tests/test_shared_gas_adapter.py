@@ -54,7 +54,7 @@ int main(){
  B{model linearCp;molarMass .028;minTemperature 100;maxTemperature 4000;coefficients(1040 0 0);}}
  diffusion{model constant;coefficients(.02 .02);turbulentSchmidt .7;})";
  auto model=ugkwp::parseGasModelProperties(text);
- ugkwpGpuIpc::GasModelConfigureArgsV1 args{1,1,2,0,model.speciesOrderHash,model.thermoHash,0,text.size(),0};
+ ugkwpGpu::GasModelConfigureArgsV1 args{1,1,2,0,model.speciesOrderHash,model.thermoHash,0,text.size(),0};
  state.turbulenceModel=state.hostTurbulenceModel=3;state.sstWallTreatment=1;
  // Existing wall operators remain selectable for moving/reacting input.
  auto wallRequest=sharedGasCapabilityRequest(&state,model.mode,1);
@@ -87,7 +87,7 @@ int main(){
  assert(allocations>0 && device.gasSpecies.mode==ugkwp::GasMode::MixtureFrozen);
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)==0);
  double density[]={1,1};state.rho=density;state.gasInitialFieldsUploaded=true;
- ugkwpGpuIpc::GasSpeciesIdentityV1 identity{1,2,model.speciesOrderHash,model.thermoHash,0};
+ ugkwpGpu::GasSpeciesIdentityV1 identity{1,2,model.speciesOrderHash,model.thermoHash,0};
  double values[]={-.1,.4,1.1,.6};
  // Signed fields are exercised by the continuation probe; ordinary fault tests
  // start from actual unpopulated storage and inspect all transfer results.
@@ -185,8 +185,8 @@ int main(int argc,char**argv){
  std::ifstream mechanismFile(directory+"/h2o2.mechanism");
  std::string chemistry((std::istreambuf_iterator<char>(mechanismFile)),{});
  const auto mechanism=ugkwp::parseGasMechanismProperties<10>(chemistry,model.thermoView<10>(),model.phase);
- ugkwpGpuIpc::GasModelConfigureArgsV1 args{1,2,10,0,model.speciesOrderHash,model.thermoHash,mechanism.mechanismHash,text.size(),chemistry.size()};
- ugkwpGpuIpc::GasModelCapabilitiesV1 capabilities{};
+ ugkwpGpu::GasModelConfigureArgsV1 args{1,2,10,0,model.speciesOrderHash,model.thermoHash,mechanism.mechanismHash,text.size(),chemistry.size()};
+ ugkwpGpu::GasModelCapabilitiesV1 capabilities{};
  assert(ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1(&state,&capabilities)==0);
  assert(capabilities.compiledSpecies==10 && (capabilities.modeMask&4));
  state.turbulenceModel=state.hostTurbulenceModel=3;state.sstWallTreatment=1;
@@ -273,7 +273,7 @@ def test_double_view_copy_failure_quarantines_live_storage_and_poisoned_resident
  const int configured=ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr);
  assert((configured!=0)==(operation==0));
  double density[]={1,1};state.rho=density;state.gasInitialFieldsUploaded=true;
- ugkwpGpuIpc::GasSpeciesIdentityV1 identity{1,2,model.speciesOrderHash,model.thermoHash,0};
+ ugkwpGpu::GasSpeciesIdentityV1 identity{1,2,model.speciesOrderHash,model.thermoHash,0};
  double values[]={.4,.4,.6,.6};int fixed[]={1,1};double boundary[]={.3,.4,.7,.6};
  if(operation>0){
   double* accepted=state.gasSpecies.rho;
@@ -292,7 +292,7 @@ def test_double_view_copy_failure_quarantines_live_storage_and_poisoned_resident
  assert(state.gasModelPoisoned);
  if(operation<2){assert(state.gasRejectedView.rho);assert(device.gasSpecies.rho==state.gasRejectedView.rho);}
  else {assert(state.gasRejectedView.compositionBoundaryFixed);assert(device.gasSpecies.compositionBoundaryFixed==state.gasRejectedView.compositionBoundaryFixed);}
- ugkwpGpuIpc::GasModelCapabilitiesV1 caps{};
+ ugkwpGpu::GasModelCapabilitiesV1 caps{};
  assert(ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1(&state,&caps)!=0);
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)!=0);
  assert(ugkwpGpuResidentStrictUploadSpeciesV1(&state,&identity,values)!=0);

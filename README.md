@@ -47,16 +47,21 @@ export CUDA_HOME=/usr/local/cuda
 ```
 
 `Allwmake` checks the OpenFOAM environment and CUDA compiler and then builds
-all three solvers. The generated executables are installed in
+all four solvers. The generated executables are installed in
 `$FOAM_USER_APPBIN`:
 
 ```text
 gasUGKP
-gasUGKPCudaBackend
 FSH
 FSHCudaBackend
 CHT
+CHMT
 ```
+
+gasUGKP links its resident CUDA backend into the solver, as CHT does; no
+separate gas backend process or socket transport is required. CHMT retains
+its CPU material/GPU gas split within one process. Select gasUGKP for pure
+flow, CHT for conjugate heat transfer, and CHMT for heat, mass and ablation.
 
 A successful build ends with `All solvers built successfully.` and prints a
 source hash and the hashes of the generated executables.
