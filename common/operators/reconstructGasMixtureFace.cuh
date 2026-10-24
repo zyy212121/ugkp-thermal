@@ -46,7 +46,20 @@ __device__ bool reconstructGasMixtureFace
         if(yc[k]!=original)recordWarning(s.diagnostics,makeRecord(Code::FiniteYClip,2101,21,0,EntityKind::Face,f,k,original,yc[k],yc[k],Quantity::MassFraction));
     }
     (void)nativeRefinement;
-    const int dependent=Ns-1;
+    // Fractions live on one simplex. Close on a present, largest carrier:
+    // 1-sum(Y_other) must never invent an absent trace species from roundoff.
+    int dependent=Ns-1;
+    GPU_OPERATOR_REAL total=GPU_OPERATOR_R(0.0);
+    for(int k=0;k<Ns;++k){total+=yc[k];if(yc[k]>yc[dependent])dependent=k;}
+    if(total==GPU_OPERATOR_R(0.0))
+    {
+        recordFatal(s.diagnostics,makeRecord(Code::ZeroDenominator,10050,21,0,
+            EntityKind::Face,f,-1,total,0,0,Quantity::Denominator));
+        return false;
+    }
+    GPU_OPERATOR_REAL centreSum=GPU_OPERATOR_R(0.0);
+    for(int k=0;k<Ns;++k)if(k!=dependent){yc[k]/=total;centreSum+=yc[k];}
+    yc[dependent]=GPU_OPERATOR_R(1.0)-centreSum;
     if(s.gasReconstruction!=1)
     {output=centre;for(int k=0;k<Ns;++k)massFractions[k]=yc[k];if(evaluated)*evaluated=true;return true;}
     if(!gasCoupledFaceStorageAvailable(s,f))
@@ -112,20 +125,40 @@ __device__ bool reconstructGasMixtureFace
     }
     GasPrimDevice candidate{centre.rho+increment.rho,centre.ux+increment.ux,
         centre.uy+increment.uy,centre.uz+increment.uz,centre.p+increment.p,centre.T};
-    GPU_OPERATOR_REAL y[Ns],sum=GPU_OPERATOR_R(0.0);
+    // One analytic feasible slope, not a candidate search or a physical-dt
+    // retry. The dependent slope is the negative sum of the independent ones.
+    GPU_OPERATOR_REAL slopeSum=GPU_OPERATOR_R(0.0);
+    for(int k=0;k<Ns;++k)if(k!=dependent)slopeSum+=dy[k];
+    dy[dependent]=-slopeSum;
+    GPU_OPERATOR_REAL alpha=GPU_OPERATOR_R(1.0);
     for(int k=0;k<Ns;++k)
     {
-        y[k]=k==dependent?GPU_OPERATOR_R(1.0)-sum:yc[k]+dy[k];
-        if(!ugkwp::gasFinite(y[k]))
+        if(!ugkwp::gasFinite(dy[k]))
         {
-            recordFatal(s.diagnostics,makeRecord(Code::NonFinite,10048,21,0,EntityKind::Face,f,k,y[k],0,0,Quantity::MassFraction));
+            recordFatal(s.diagnostics,makeRecord(Code::NonFinite,10048,21,0,
+                EntityKind::Face,f,k,dy[k],0,0,Quantity::MassFraction));
             return false;
         }
-        const auto original=y[k];
-        y[k]=clampRange(y[k],GPU_OPERATOR_R(0.0),GPU_OPERATOR_R(1.0));
-        if(y[k]!=original)recordWarning(s.diagnostics,makeRecord(Code::FiniteYClip,10049,21,0,EntityKind::Face,f,k,original,y[k],y[k],Quantity::MassFraction));
-        if(k!=dependent)sum+=y[k];
+        if(dy[k]<GPU_OPERATOR_R(0.0))alpha=fmin(alpha,-yc[k]/dy[k]);
+        else if(dy[k]>GPU_OPERATOR_R(0.0))alpha=fmin(alpha,
+            (GPU_OPERATOR_R(1.0)-yc[k])/dy[k]);
     }
+    GPU_OPERATOR_REAL y[Ns];
+    int closure=dependent;
+    for(int k=0;k<Ns;++k)
+    {
+        const auto original=yc[k]+dy[k];
+        y[k]=clampRange(yc[k]+alpha*dy[k],GPU_OPERATOR_R(0.0),GPU_OPERATOR_R(1.0));
+        if(original<GPU_OPERATOR_R(0.0)||original>GPU_OPERATOR_R(1.0))
+            recordWarning(s.diagnostics,makeRecord(Code::FiniteYClip,10049,21,0,
+                EntityKind::Face,f,k,original,y[k],y[k],Quantity::MassFraction));
+    }
+    for(int k=0;k<Ns;++k)if(y[k]>y[closure])closure=k;
+    // Only roundoff remains after the feasible slope. Put that closure on a
+    // largest present component; exact zeros and proportional slopes survive.
+    GPU_OPERATOR_REAL sum=GPU_OPERATOR_R(0.0);
+    for(int k=0;k<Ns;++k)if(k!=closure)sum+=y[k];
+    y[closure]=GPU_OPERATOR_R(1.0)-sum;
     const auto gasConstant=ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo);
     const auto denominator=candidate.rho*gasConstant;
     if(denominator==GPU_OPERATOR_R(0.0))

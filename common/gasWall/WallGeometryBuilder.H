@@ -1,4 +1,5 @@
 #pragma once
+#include "WallResolutionDefaults.H"
 #include "WallModelTypes.H"
 #include <algorithm>
 #include <array>
@@ -21,16 +22,17 @@ template<class R> struct WallGeometryOptions {
     ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
     R relativeTolerance=R(1e-9);
     int maxRayCells=32,quadratureRefinement=1;
+    bool reconstructMatching=false; // enabled by the gas FV-average adapter
     bool constructQuadrature=true; // Optional direct diagnostics; production adapters disable.
     // When requested, zero uses a purely geometric rule. Direct SST research
     // supplies BVP nodes/stretch to integrate its source reconstruction.
     int profileNodes=0,firstSegmentGaussOrder=8;
-    R profileStretch=R(2);
+    R profileStretch=R(defaultWallStretch);
 };
 template<class R> struct WallGeometryDescriptor {
     int ownerCell=-1,wallFace=-1;
-    // Positive containing-cell sampling is piecewise constant (order zero),
-    // never advertised as an affine-exact reconstruction at matchingPoint.
+    // Highest resolved wall-normal polynomial degree. Tangential rank can be
+    // lower on a geometrically two-dimensional mesh.
     int samplingOrder=0;
     R matchingDonorDistance=0; // |donor cell centre - matchingPoint|.
     std::uint64_t geometryVersion=0;
@@ -342,6 +344,8 @@ template<class R> bool profileOwnerQuadrature(const std::vector<std::array<Vec<R
     }
     cut=vertices;
     for(R y:profile)if(y>vertices.front()&&y<vertices.back())cut.push_back(y);
+    for(std::size_t i=0;i+1<profile.size();++i){const R y=(profile[i]+profile[i+1])/R(2);
+        if(y>vertices.front()&&y<vertices.back())cut.push_back(y);}
     std::sort(cut.begin(),cut.end());cut.erase(std::unique(cut.begin(),cut.end()),cut.end());
     const R first=profile[1],gauss=R(1)/std::sqrt(R(3));
     d.quadraturePointsAreInterior=false;
@@ -381,7 +385,116 @@ template<class R> bool rayTriangle(const Vec<R>&o,const Vec<R>&n,const Vec<R>&a,
     if(u<-eps||v<-eps||u+v>R(1)+eps)return false;
     time=dot(e2,q)/det;return gasFinite(time);
 }
-template<class R> bool matching(const WallGeometryMesh<R>&m,const Context<R>&ctx,WallGeometryDescriptor<R>&d,WallStatus&s,const WallGeometryOptions<R>&,R scale){
+
+// Cell-average polynomial moments about the matching point. Signed tetrahedra
+// integrate arbitrary closed polyhedra; a star seed is not required here.
+template<class R> std::array<long double,10> matchingMoments(
+ const WallGeometryMesh<R>&m,const Context<R>&ctx,int cell,const WallGeometryDescriptor<R>&d){
+    using L=long double;using P=std::array<L,3>;
+    const auto local=[&](const Vec<R>&x){P p{};const Vec<R> basis[3]={d.normal,d.tangent1,d.tangent2};
+        for(int a=0;a<3;++a)for(int k=0;k<3;++k)p[a]+=(L(x[k])-L(d.matchingPoint[k]))*L(basis[a][k]);
+        return p;};
+    const P seed=local(m.cellCentres[cell]);std::array<L,10> sum{};L volume=0;
+    for(int f:ctx.cellFaces[cell])for(auto t:ctx.faces[f].triangles){
+        if(m.owner[f]!=cell)std::swap(t.b,t.c);
+        const P a=local(m.points[t.a]),b=local(m.points[t.b]),c=local(m.points[t.c]);
+        P u,v,w;for(int k=0;k<3;++k){u[k]=a[k]-seed[k];v[k]=b[k]-seed[k];w[k]=c[k]-seed[k];}
+        const L vol=(u[0]*(v[1]*w[2]-v[2]*w[1])+u[1]*(v[2]*w[0]-v[0]*w[2])+u[2]*(v[0]*w[1]-v[1]*w[0]))/6;
+        const P point[4]={seed,a,b,c};P total{};for(const auto&p:point)for(int k=0;k<3;++k)total[k]+=p[k];
+        volume+=vol;sum[0]+=vol;for(int k=0;k<3;++k)sum[1+k]+=vol*total[k]/4;
+        const int left[6]={0,0,0,1,1,2},right[6]={0,1,2,1,2,2};
+        for(int k=0;k<6;++k){L diagonal=0;for(const auto&p:point)diagonal+=p[left[k]]*p[right[k]];
+            sum[4+k]+=vol*(total[left[k]]*total[right[k]]+diagonal)/20;}
+    }
+    for(auto&x:sum)x/=volume;
+    return sum;
+}
+// A degree-two FV reconstruction on two face-neighbour rings. Rank revealing
+// orthogonalisation keeps only geometric modes resolved by this mesh (e.g. a
+// one-cell-thick extrusion has no independent normal-to-extrusion curvature).
+// The minimum correction to containing-cell sampling preserves constants and
+// all resolved volume moments, including the normal quadratic deconvolution.
+template<class R> void matchingReconstruction(const WallGeometryMesh<R>&m,
+ const Context<R>&ctx,int anchor,WallGeometryDescriptor<R>&d){
+    using L=long double;
+    std::vector<int> cells{anchor},front{anchor};
+    for(int ring=0;ring<2;++ring){std::vector<int> next;
+        for(int cell:front)for(int f:ctx.cellFaces[cell]){const int nb=m.owner[f]==cell?m.neighbour[f]:m.owner[f];
+            if(nb<0||ctx.constrained[nb]||(!m.gasCell.empty()&&!m.gasCell[nb]))continue;
+            if(std::find(cells.begin(),cells.end(),nb)!=cells.end())continue;
+            cells.push_back(nb);next.push_back(nb);}
+        front.swap(next);
+    }
+    const int n=static_cast<int>(cells.size());std::vector<std::array<L,10>> moment(n);
+    L scale[3]={0,0,0};const int diagonal[3]={4,7,9};
+    for(int j=0;j<n;++j){moment[j]=matchingMoments(m,ctx,cells[j],d);
+        for(int k=0;k<3;++k)scale[k]=std::max(scale[k],std::sqrt(std::abs(moment[j][diagonal[k]])));}
+    for(auto&x:scale)if(x==0)x=1;
+    for(auto&a:moment){for(int k=0;k<3;++k)a[1+k]/=scale[k];
+        const int left[6]={0,0,0,1,1,2},right[6]={0,1,2,1,2,2};
+        for(int k=0;k<6;++k)a[4+k]/=scale[left[k]]*scale[right[k]];}
+    // Rank belongs to the complete dimensionless moment matrix. A mode that
+    // vanishes in an extrusion can contain coordinate roundoff; scaling its
+    // threshold by its own tiny norm would promote that noise to a new mode.
+    L matrixNorm=0;
+    for(int mode=0;mode<10;++mode){L norm2=0;
+        for(int j=0;j<n;++j)norm2+=moment[j][mode]*moment[j][mode];
+        matrixNorm=std::max(matrixNorm,std::sqrt(norm2));}
+    const L roundoff=64*L(n+10)*std::numeric_limits<R>::epsilon()*matrixNorm;
+    std::vector<std::vector<L>> basis;std::vector<L> beta,weights(n,0);weights[0]=1;
+    bool normalLinear=false,normalQuadratic=false;
+    for(int mode=0;mode<10;++mode){std::vector<L> row(n);L rhs=(mode==0?1.L:0.L)-moment[0][mode];
+        for(int j=0;j<n;++j)row[j]=moment[j][mode];
+        for(int pass=0;pass<2;++pass)for(std::size_t k=0;k<basis.size();++k){L projection=0;
+            for(int j=0;j<n;++j)projection+=row[j]*basis[k][j];
+            for(int j=0;j<n;++j)row[j]-=projection*basis[k][j];
+            rhs-=projection*beta[k];}
+        L norm=0;for(L v:row)norm+=v*v;norm=std::sqrt(norm);
+        if(norm<=roundoff)continue;
+        for(L&v:row)v/=norm;
+        rhs/=norm;basis.push_back(row);beta.push_back(rhs);
+        for(int j=0;j<n;++j)weights[j]+=rhs*row[j];
+        if(mode==1)normalLinear=true;
+        if(mode==4)normalQuadratic=true;
+    }
+    d.samplingOrder=normalQuadratic?2:(normalLinear?1:0);
+    d.matchingCells=cells;d.matchingWeights.resize(n);R sum=0;
+    for(int j=0;j<n;++j){d.matchingWeights[j]=static_cast<R>(weights[j]);sum+=d.matchingWeights[j];}
+    d.matchingWeights[0]+=R(1)-sum;
+}
+
+// The projected interior source is constant per dual cell and its K/D
+// moments are linear per nodal interval. One positive moment node per
+// intersection integrates these quantities exactly. Keep every near-wall
+// node, where the analytic SST asymptote is nonlinear.
+template<class R> void compressProjectionQuadrature(WallGeometryDescriptor<R>&d,const std::vector<R>&profile){
+    if(profile.size()<2)return;
+    std::vector<R>cuts=profile;
+    for(std::size_t j=1;j<profile.size();++j)cuts.push_back((profile[j-1]+profile[j])/R(2));
+    std::sort(cuts.begin(),cuts.end());
+    struct Moment{long double volume=0,height=0,point[3]{};};
+    std::vector<Moment> moments(cuts.size()+1);
+    WallGeometryDescriptor<R> compressed;
+    for(std::size_t j=0;j<d.distance.size();++j){
+        const R y=d.distance[j],weight=d.volumeWeight[j];
+        if(y<profile[1]){
+            compressed.distance.push_back(y);compressed.volumeWeight.push_back(weight);
+            compressed.quadraturePoints.push_back(d.quadraturePoints[j]);continue;
+        }
+        const auto bin=std::lower_bound(cuts.begin(),cuts.end(),y)-cuts.begin();
+        auto& m=moments[bin];m.volume+=weight;m.height+=static_cast<long double>(weight)*y;
+        for(int k=0;k<3;++k)m.point[k]+=static_cast<long double>(weight)*d.quadraturePoints[j][k];
+    }
+    for(const auto&m:moments)if(m.volume>0){
+        compressed.distance.push_back(R(m.height/m.volume));compressed.volumeWeight.push_back(R(m.volume));
+        Vec<R> point;for(int k=0;k<3;++k)point[k]=R(m.point[k]/m.volume);
+        compressed.quadraturePoints.push_back(point);
+    }
+    d.distance=std::move(compressed.distance);d.volumeWeight=std::move(compressed.volumeWeight);
+    d.quadraturePoints=std::move(compressed.quadraturePoints);
+}
+
+template<class R> bool matching(const WallGeometryMesh<R>&m,const Context<R>&ctx,WallGeometryDescriptor<R>&d,WallStatus&s,const WallGeometryOptions<R>&opt,R scale){
     (void)scale; // Distinct represented ray positions are not merged by mesh size.
     R entry=0;int cell=d.ownerCell;
 
@@ -404,9 +517,14 @@ template<class R> bool matching(const WallGeometryMesh<R>&m,const Context<R>&ctx
         if(exitFace<0||ambiguous)return invalid(s,d.wallFace);
         const R lower=std::max(entry,d.maximumOwnerDistance);
         if(cell!=d.ownerCell&&!ctx.constrained[cell]&&exit>lower){
-            d.matchingDistance=lower+(exit-lower)/R(2);d.matchingPoint=add(d.origin,mul(d.normal,d.matchingDistance));
+            // Reconstructed gas closure ends at the owner/bulk interface. Extending
+            // to a bulk cell centre would model part of that cell while its
+            // unchanged macro source still covers its whole volume.
+            d.matchingDistance=opt.reconstructMatching?lower:lower+(exit-lower)/R(2);d.matchingPoint=add(d.origin,mul(d.normal,d.matchingDistance));
             d.matchingDonorDistance=norm(sub(m.cellCentres[cell],d.matchingPoint));
-            d.matchingCells.push_back(cell);d.matchingWeights.push_back(R(1));return true;
+            if(opt.reconstructMatching)matchingReconstruction(m,ctx,cell,d);
+            else {d.matchingCells.push_back(cell);d.matchingWeights.push_back(R(1));}
+            return true;
         }
         if(m.physicalWall[exitFace])return invalid(s,exitFace);
         int next=m.owner[exitFace]==cell?m.neighbour[exitFace]:m.owner[exitFace];
@@ -484,6 +602,7 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
         d.volumeWeight[i]*=factor;d.firstMoment+=d.volumeWeight[i]*d.distance[i];
         d.firstMomentVector=add(d.firstMomentVector,mul(d.quadraturePoints[i],d.volumeWeight[i]));
     }
+    if(opt.reconstructMatching&&opt.profileNodes)compressProjectionQuadrature(d,profile);
     out=std::move(d);return true;
 }
 } // wallGeometryDetail
@@ -504,6 +623,7 @@ public:
     bool rebuild(const WallGeometryMesh<R>&mesh,const std::vector<int>&wallFaces,WallStatus&status,const WallGeometryOptions<R>&options=WallGeometryOptions<R>()){
         status=WallStatus{};
         if(ready_&&version_==mesh.geometryVersion&&wallFaces_==wallFaces
+            &&options_.reconstructMatching==options.reconstructMatching
             &&options_.constructQuadrature==options.constructQuadrature
             &&(!options.constructQuadrature || (options_.profileNodes==options.profileNodes
                 &&(options.profileNodes

@@ -158,3 +158,5 @@ inline auto makeGasStateView(const State& state)
 }
 
 } // namespace ugkwp
+
+#include "GasConservativeWallAccess.H"

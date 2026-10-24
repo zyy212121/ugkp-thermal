@@ -70,6 +70,7 @@
 #include "GpuCouplingMath.H"
 
 #include <algorithm>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
@@ -382,6 +383,7 @@ struct DeviceState
     double* rhoOmega = nullptr;
     double* rhoKInitial = nullptr;
     double* rhoOmegaInitial = nullptr;
+    double* gasCourantSstSnapshot = nullptr;
     double* k = nullptr;
     double* omega = nullptr;
     double* sstWallDistance = nullptr;
@@ -1115,6 +1117,7 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->rhoOmega);
     release(s->rhoKInitial);
     release(s->rhoOmegaInitial);
+    release(s->gasCourantSstSnapshot);
     release(s->k);
     release(s->omega);
     release(s->sstWallDistance);
@@ -1429,6 +1432,7 @@ int allocateFields(DeviceState* s)
         rc |= allocate(s->rhoOmega, nc, "cudaMalloc SST rhoOmega");
         rc |= allocate(s->rhoKInitial, nc, "cudaMalloc SST rhoKInitial");
         rc |= allocate(s->rhoOmegaInitial, nc, "cudaMalloc SST rhoOmegaInitial");
+        rc |= allocate(s->gasCourantSstSnapshot, 2*nc, "cudaMalloc gas Courant SST snapshot");
         rc |= allocate(s->k, nc, "cudaMalloc SST k");
         rc |= allocate(s->omega, nc, "cudaMalloc SST omega");
         rc |= allocate(s->sstWallDistance, nc, "cudaMalloc SST wallDistance");
@@ -2156,6 +2160,7 @@ constexpr double mobilePackingJacobiOmega = 0.8;
 
 #include "../../../common/gasNumerics/GpuPackingProjectionCooperative.cuh"
 
+#include "ConservativeWallProjection.cuh"
 #include "../../../common/GpuGasHostPolicy.cuh"
 
 namespace
@@ -2168,6 +2173,10 @@ template<bool Capture> int launchBoundaryLayer(DeviceState* s)
         if(workers<=0){setLastErrorText("boundaryLayer scratch pool is empty");return 1;}
         if(analytic)
             evaluateGasBoundaryLayerKernel<Capture><<<(workers+block-1)/block,block,0,s->gasCaptureStream>>>(s->deviceState);
+        else if(s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::EquilibriumOde
+            &&s->gasBoundaryLayerModel.config.nodes==8&&s->gasBoundaryLayerModel.workspaceCapacity==24
+            &&!s->gasBoundaryLayerModel.conservative.enabled)
+            evaluateGasBoundaryLayerTile8Kernel<Capture><<<(workers+3)/4,32,0,s->gasCaptureStream>>>(s->deviceState);
         else
         {
 #define LAUNCH_WALL_CAPACITY(N) case N: evaluateGasBoundaryLayerTeamKernel<Capture,N><<<workers,ugkwp::gaswall::detail::wallWarpWidth,0,s->gasCaptureStream>>>(s->deviceState);break
@@ -2182,16 +2191,42 @@ template<bool Capture> int launchBoundaryLayer(DeviceState* s)
         }
         const auto error=cudaGetLastError();
         if(error!=cudaSuccess){setLastError("prepare sparse boundaryLayer profiles",error);return 1;}
+        if(s->gasBoundaryLayerModel.conservative.enabled){
+#define RECONSTRUCT_WALL_CAPACITY(N) case N: reconstructConservativeWallPool<N><<<workers,32,0,s->gasCaptureStream>>>(s->deviceState);break
+            switch(s->gasBoundaryLayerModel.workspaceCapacity){RECONSTRUCT_WALL_CAPACITY(24);RECONSTRUCT_WALL_CAPACITY(48);RECONSTRUCT_WALL_CAPACITY(128);}
+#undef RECONSTRUCT_WALL_CAPACITY
+            const auto reconstructionError=cudaGetLastError();if(reconstructionError!=cudaSuccess){setLastError("reconstruct conservative wall profiles",reconstructionError);return 1;}
+        }
         return 0;
 }
 } // namespace
 
 struct GasHostPolicy:GasHostWithoutWallEnergy<double,double>
 {
+    template<class HostState> static int applyFaceSources(HostState*s,double,double){
+        if(!s->gasBoundaryLayerModel.conservative.enabled)return 0;
+        if(prepareConservativeProjection(s))return 1;
+        int b=s->fixedFaceBlockThreads;assembleConservativeWallFlux<<<(s->nFaces+b-1)/b,b,0,s->gasCaptureStream>>>(s->deviceState);
+        auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("assemble conservative wall flux",error);return 1;}return 0;
+    }
+    template<class HostState> static int applySstFaceSources(HostState*s,double dt){
+        if(!s->gasBoundaryLayerModel.conservative.enabled)return 0;
+        int b=s->fixedFaceBlockThreads;
+        int cb=s->fixedCellBlockThreads;conservativeKFluxBudget<<<(s->nCells+cb-1)/cb,cb,0,s->gasCaptureStream>>>(s->deviceState,dt);
+        applyConservativeKFluxBudget<<<(s->nFaces+b-1)/b,b,0,s->gasCaptureStream>>>(s->deviceState);
+        auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("assemble conservative wall SST flux",error);return 1;}return 0;
+    }
+
     template<class HostState> static int prepareBoundaryLayer(HostState* s,double,double stageTime)
     {
         if(!s->gasBoundaryLayer.enabled)return 0;
         s->gasBoundaryLayerStageTime=stageTime;
+        if(s->gasBoundaryLayerModel.conservative.enabled){
+            int block=s->fixedCellBlockThreads,grid=(s->nCells+block-1)/block;
+            computeGasGradientLimiterKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
+            computeSstGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
+            prepareConservativeWallMatching<<<(s->gasBoundaryLayer.count+63)/64,64,0,s->gasCaptureStream>>>(s->deviceState);
+        }
         return s->gasBoundaryLayerLaunch(s);
     }
 };
@@ -3899,6 +3934,36 @@ extern "C" int ugkwpGpuResidentStrictCreate
         return 1;
     }
 
+    // Fast-compile builds outline thermo/wall calls. CUDA's default thread
+    // stack can then overflow before the first timestep. Keep the default
+    // unchanged unless the caller explicitly requests a larger stack.
+    if (const char* requestedStack = std::getenv("GAS_UGKP_CUDA_STACK_BYTES"))
+    {
+        char* end = nullptr;
+        errno = 0;
+        const auto bytes = std::strtoull(requestedStack, &end, 10);
+        if (errno || end == requestedStack || *end || requestedStack[0] == '-'
+            || requestedStack[0] < '0' || requestedStack[0] > '9'
+            || bytes == 0 || bytes > std::numeric_limits<std::size_t>::max())
+        {
+            setLastErrorText("invalid GAS_UGKP_CUDA_STACK_BYTES (expected positive byte count)");
+            return 1;
+        }
+        std::size_t stackBytes = 0;
+        err = cudaDeviceGetLimit(&stackBytes, cudaLimitStackSize);
+        if (err == cudaSuccess && bytes > stackBytes)
+            err = cudaDeviceSetLimit(cudaLimitStackSize, static_cast<std::size_t>(bytes));
+        if (err == cudaSuccess)
+            err = cudaDeviceGetLimit(&stackBytes, cudaLimitStackSize);
+        if (err != cudaSuccess)
+        {
+            setLastError("configure CUDA thread stack", err);
+            return 1;
+        }
+        std::fprintf(stderr, "[cuda-runtime] stackLimitBytes=%zu requested=%llu\n",
+            stackBytes, bytes);
+    }
+
     DeviceState* s = new DeviceState;
     s->diagnosticOwner = new ugkp::diagnostics::GpuOwner;
     const auto diagnosticAllocation=s->diagnosticOwner->initialise();
@@ -4882,6 +4947,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
 
 #include "../../../common/GpuGasCourantReduction.cuh"
 #include "../../../common/GpuGasCourant.cuh"
+#include "../../../common/gasTransport/GasCourantBoundaryLayer.H"
 extern "C" int ugkwpGpuResidentStrictComputeGasCourant
 (
     void* handle, double dt, double targetMaxCo, double scheduleTime, double* maxCo
@@ -4906,16 +4972,55 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         if(error!=cudaSuccess){setLastError("gas Courant maximum reduction",error);return 1;}
         return 0;
     };
-    if(computeGasCurrentCourant(s,dt,targetMaxCo,scheduleTime,
-        s->fixedCellBlockThreads,s->fixedFaceBlockThreads,nullptr,result,maximum))return 1;
+    const auto prepareWall=[](DeviceState* state,double interval,double time,
+        int grid,int block,cudaStream_t stream)
+    {
+        return ugkwp::prepareGasCourantBoundaryLayer<GasHostPolicy>
+            (state,interval,time,grid,block,stream);
+    };
+    // Wall preparation projects a representative omega into each wall owner.
+    // A timestep query may use that projection, but must leave the caller's
+    // primitive/conservative omega unchanged, including on a failed estimate.
+    // This storage is independent of the RK initial-state arrays.
+    const bool preserveSst=s->hostTurbulenceModel==3 && s->sstConfigured;
+    const std::size_t sstBytes=std::size_t(s->nCells)*sizeof(double);
+    const cudaStream_t courantStream=nullptr;
+    if(preserveSst)
+    {
+        if(!s->gasCourantSstSnapshot || !s->omega || !s->rhoOmega)
+        {setLastErrorText("gas Courant SST snapshot storage unavailable");return 1;}
+        auto error=cudaMemcpyAsync(s->gasCourantSstSnapshot,s->omega,sstBytes,
+            cudaMemcpyDeviceToDevice,courantStream);
+        if(error==cudaSuccess)
+            error=cudaMemcpyAsync(s->gasCourantSstSnapshot+s->nCells,s->rhoOmega,sstBytes,
+                cudaMemcpyDeviceToDevice,courantStream);
+        if(error!=cudaSuccess){setLastError("save gas Courant SST state",error);return 1;}
+    }
+    const int courantStatus=computeGasCurrentCourant(s,dt,targetMaxCo,scheduleTime,
+        s->fixedCellBlockThreads,s->fixedFaceBlockThreads,courantStream,result,maximum,prepareWall);
+    if(preserveSst)
+    {
+        // Queue both restores even if the estimate reported a host-side error.
+        const auto primitiveError=cudaMemcpyAsync(s->omega,s->gasCourantSstSnapshot,sstBytes,
+            cudaMemcpyDeviceToDevice,courantStream);
+        const auto inventoryError=cudaMemcpyAsync(s->rhoOmega,s->gasCourantSstSnapshot+s->nCells,sstBytes,
+            cudaMemcpyDeviceToDevice,courantStream);
+        const auto completionError=cudaStreamSynchronize(courantStream);
+        const auto restoreError=primitiveError!=cudaSuccess?primitiveError:
+            (inventoryError!=cudaSuccess?inventoryError:completionError);
+        if(ugkwp::gasBoundaryLayerEnabled(*s))ugkwp::invalidateGasBoundaryLayerPreparation(*s);
+        if(restoreError!=cudaSuccess){setLastError("restore gas Courant SST state",restoreError);return 1;}
+    }
     if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)
     {
         // validate already observes and dispatches diagnostics at this same
         // completed Courant reduction; no physical work intervenes.
-        if(SharedGasTrialPolicy::validate(s))return 1;
+        const int validationStatus=SharedGasTrialPolicy::validate(s);
+        if(courantStatus || validationStatus)return 1;
         *maxCo=result.maximum;
         return 0;
     }
+    if(courantStatus)return 1;
     *maxCo=result.maximum;
     // Courant's existing reduction has returned its host scalar.
     const auto diagnosticReadback=s->diagnosticOwner->observeCompletedWork();

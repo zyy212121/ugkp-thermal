@@ -158,7 +158,9 @@ __device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue
 {
     const GPU_OPERATOR_REAL rhoSafe = clampMin(riemannFacePrimitiveForGradient(s, owner, f).rho, s.rhoMin);
     const GPU_OPERATOR_REAL nu = s.gasMu/rhoSafe;
-    if (s.sstWallTreatment != 1)
+    if (s.sstWallTreatment != 1
+        && !(ugkwp::gasBoundaryLayerUsesMacroSst(s)
+            && ugkwp::gasBoundaryLayerOwnerSlot(s,owner)>=0))
     {
         // OF10 viscous omegaWallFunction branch: wall nu, cell wall distance.
         // This constrains the adjacent cell, not a wall Dirichlet value.
@@ -287,6 +289,8 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
         {
             if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))
             {if(allowUnprepared)return;if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
+            if(!ugkwp::gasBoundaryLayerUsesMacroSst(s))
+            {
             const GPU_OPERATOR_REAL target=s.gasBoundaryLayer.sst[slot].ownerOmega;
             if(!ugkwp::gasFinite(target) || (nativeRefinement && !(target>GPU_OPERATOR_R(0))))
             {
@@ -296,6 +300,10 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
             s.omega[c]=clampMin(target,s.sstOmegaMin);
             s.rhoOmega[c]=clampMin(s.rho[c],s.rhoMin)*s.omega[c];
             return;
+            }
+            // The macro wall row belongs to the current macro k inventory.
+            // Apply the ordinary viscous/log SST relation below; the BVP
+            // point omega is an auxiliary profile value, not this unknown.
         }
     }
     GPU_OPERATOR_REAL omegaSum = GPU_OPERATOR_R(0.0);

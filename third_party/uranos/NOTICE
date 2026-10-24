@@ -1,0 +1,5 @@
+EquilibriumOdeMath.H adapts the getmuT constitutive expression from URANOS
+commit 9c69c943c437ec8f11e0f70bd4c4deb64c17cd7a, libs/fluid_functions_module.f90.
+https://github.com/uranos-gpu/uranos-gpu
+The coupled species/enthalpy transport solver reuses this project.
+Blowing and suction transport are extensions; URANOS did not validate these extensions.

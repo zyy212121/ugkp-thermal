@@ -2,6 +2,7 @@
 #include <cfloat>
 #include "gasStencilDiagnostics.cuh"
 #include "gasTransport/GasStateView.H"
+#include "gasTransport/GasConservativeWallAccess.H"
 #include "gasTransport/GasCapabilities.H"
 #include "gasTransport/MixtureThermo.H"
 #include "gasTransport/GasGeometryValidation.H"
@@ -72,6 +73,16 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
     if (f >= s.nFaces || s.sstConfigured == 0)
     {
         return;
+    }
+
+    if constexpr(ugkwp::GasConservativeWallCapability<GasState>::value){
+        const auto&d=s.gasBoundaryLayerModel.conservative;
+        if(d.enabled&&d.faceSlot&&d.faceSlot[f]>=0&&d.active[d.faceSlot[f]]&&ugkwp::gasBoundaryLayerSlotReady(s,d.faceSlot[f])){
+            const auto&v=d.face[3*d.faceSlot[f]+d.faceIndex[f]];
+            s.sstPhiRhoK[f]=s.gasPhiRho[f]*v.kUpwind+v.orientation*v.diffusion[5];
+            s.sstPhiRhoOmega[f]=s.gasPhiRho[f]*v.omegaUpwind+v.orientation*v.diffusion[6];
+            return;
+        }
     }
     if(!gasCoupledFaceStorageAvailable(s,f))
     {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return;}
@@ -247,12 +258,51 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
         massFlux*omegaUpwind - rhoDomega*snGradOmega*area;
     if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
     {
+        // Correct a shared internal face once. The BVP supplies total k
+        // transport for its prescribed wall-normal mass. Tangential diffusion
+        // and the remaining ALE advection are retained by both adjacent cells.
+        if(nei>=0&&ugkwp::gasBoundaryLayerEnabled(s)
+            &&(ugkwp::gasBoundaryLayerOwnerSlot(s,own)>=0||ugkwp::gasBoundaryLayerOwnerSlot(s,nei)>=0)){
+            const GPU_OPERATOR_REAL unit[3]={s.Sfx[f]/area,s.Sfy[f]/area,s.Sfz[f]/area};
+            GPU_OPERATOR_REAL grad[3]={ownerWeight*s.gradKX[own]+(GPU_OPERATOR_R(1)-ownerWeight)*s.gradKX[nei],
+                ownerWeight*s.gradKY[own]+(GPU_OPERATOR_R(1)-ownerWeight)*s.gradKY[nei],
+                ownerWeight*s.gradKZ[own]+(GPU_OPERATOR_R(1)-ownerWeight)*s.gradKZ[nei]};
+            GPU_OPERATOR_REAL projection=0;for(int d=0;d<3;++d)projection+=grad[d]*unit[d];
+            for(int d=0;d<3;++d)grad[d]+=(snGradK-projection)*unit[d];
+            GPU_OPERATOR_REAL gradOmega[3]={ownerWeight*s.gradOmegaX[own]+(GPU_OPERATOR_R(1)-ownerWeight)*s.gradOmegaX[nei],
+                ownerWeight*s.gradOmegaY[own]+(GPU_OPERATOR_R(1)-ownerWeight)*s.gradOmegaY[nei],
+                ownerWeight*s.gradOmegaZ[own]+(GPU_OPERATOR_R(1)-ownerWeight)*s.gradOmegaZ[nei]};
+            projection=0;for(int d=0;d<3;++d)projection+=gradOmega[d]*unit[d];
+            for(int d=0;d<3;++d)gradOmega[d]+=(snGradOmega-projection)*unit[d];
+            GPU_OPERATOR_REAL correction=0,omegaCorrection=0;int contributors=0;
+            for(int side=0;side<2;++side){const int cell=side==0?own:nei;
+                const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,cell);
+                if(slot<0||!ugkwp::gasBoundaryLayerSlotReady(s,slot))continue;
+                const auto& closure=s.gasBoundaryLayer.sst[slot];if(closure.kFluxCount<=0)continue;
+                const auto* n=closure.normal;
+                const GPU_OPERATOR_REAL alignment=unit[0]*n[0]+unit[1]*n[1]+unit[2]*n[2];
+                const GPU_OPERATOR_REAL cx=side==0?s.Cx[own]:sstMappedNeiCx,
+                    cy=side==0?s.Cy[own]:sstMappedNeiCy,cz=side==0?s.Cz[own]:sstMappedNeiCz;
+                const GPU_OPERATOR_REAL y=closure.ownerDistance+(s.faceCx[f]-cx)*n[0]+(s.faceCy[f]-cy)*n[1]+(s.faceCz[f]-cz)*n[2];
+                const GPU_OPERATOR_REAL normalGrad=grad[0]*n[0]+grad[1]*n[1]+grad[2]*n[2];
+                correction+=(ugkwp::boundaryLayerSstFlux(closure,y)+rhoDk*normalGrad
+                    -closure.normalMassFlux*kUpwind)*alignment*area;
+                const GPU_OPERATOR_REAL normalOmegaGrad=gradOmega[0]*n[0]+gradOmega[1]*n[1]+gradOmega[2]*n[2];
+                omegaCorrection+=(ugkwp::boundaryLayerSstFlux(closure,y,true)+rhoDomega*normalOmegaGrad)*alignment*area;
+                ++contributors;
+            }
+            if(contributors){s.sstPhiRhoK[f]+=correction/GPU_OPERATOR_REAL(contributors);
+                s.sstPhiRhoOmega[f]+=omegaCorrection/GPU_OPERATOR_REAL(contributors);}
+        }
+    }
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+    {
         const int slot=ugkwp::gasBoundaryLayerFaceSlot(s,f);
         if(slot>=0)
         {
             if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))
             {if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
-            s.sstPhiRhoK[f]=s.gasBoundaryLayer.exchange[slot].k;
+            s.sstPhiRhoK[f]=ugkwp::gasBoundaryLayerWallKFlux(s,slot,s.gasPhiRho[f],s.k[own]);
             // The selected omega row is algebraic. No independent physical
             // wall omega injection or diffusion is imposed on top of it.
             s.sstPhiRhoOmega[f]=GPU_OPERATOR_R(0.0);
@@ -299,13 +349,18 @@ __device__ GPU_OPERATOR_REAL sstKProductionForCell
         const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,c);
         if(slot>=0 && ugkwp::gasBoundaryLayerSlotReady(s,slot))
         {
-            const auto& wall=s.gasBoundaryLayer.sst[slot];
-            // OpenCFD omegaWallFunction: G=(nu+nut)*|dU/dn|*Cmu^1/4
-            // *sqrt(k)/(kappa*y). Numerical traction supplies rho*(nu+nut)
-            // *|dU/dn|; only the actual coarse k enters the inventory source.
-            const GPU_OPERATOR_REAL wallProduction=wall.wallShearStress/s.rho[c]
-                *sqrt(sqrt(s.sstWallCmu))*sqrt(s.k[c])
-                /(s.sstWallKappa*wall.ownerDistance);
+            // The volume closure is applied in sstSourcesForCell. The old
+            // shear*sqrt(k_macro)/(kappa*y) relation belongs to a different
+            // wall function and must not be superimposed on this SST BVP.
+            const auto& closure=s.gasBoundaryLayer.sst[slot];
+            if(closure.kFluxCount>0)return fmin(production,productionLimit);
+            // Boundary-exchange coupling: use the solved wall traction and
+            // the current macro k in the wall production relation. Apply the
+            // macro SST limiter before adding its destruction/compression.
+            // No BVP integral is rescaled to the macro inventory. Analytic
+            // and material-interface adapters retain this existing relation.
+            const GPU_OPERATOR_REAL wallProduction=closure.wallShearStress/s.rho[c]
+                *sqrt(sqrt(s.sstWallCmu))*sqrt(s.k[c])/(s.sstWallKappa*closure.ownerDistance);
             return fmin(wallProduction,productionLimit);
         }
     }
@@ -378,6 +433,13 @@ __device__ bool sstSourcesForCell
     GPU_OPERATOR_REAL& sourceOmega
 )
 {
+    if constexpr(ugkwp::GasConservativeWallCapability<GasState>::value){
+        if(ugkwp::conservativeWallCellReady(s,c)){
+            sourceK=s.gasBoundaryLayerModel.conservative.sourceK[c];
+            sourceOmega=s.gasBoundaryLayerModel.conservative.sourceOmega[c];
+            return true;
+        }
+    }
     GPU_OPERATOR_REAL traceGradU = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL s2 = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL gByNu = GPU_OPERATOR_R(0.0);
@@ -400,6 +462,20 @@ __device__ bool sstSourcesForCell
       - (GPU_OPERATOR_R(2.0)/GPU_OPERATOR_R(3.0))*divU*s.k[c]
       - s.sstCoefficients.betaStar*s.k[c]*s.omega[c]
     );
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+    {
+        const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,c);
+        if(slot>=0&&ugkwp::gasBoundaryLayerSlotReady(s,slot)){
+            const auto& closure=s.gasBoundaryLayer.sst[slot];
+            if(closure.kFluxCount>0){
+                // The BVP combines its normal gradient with this stage's
+                // resolved tangential gradient before limiting production.
+                // Its projected source already contains full compression.
+                sourceK=closure.nonDestructiveKSource
+                    -s.rho[c]*s.k[c]*closure.kDestructionRate;
+            }
+        }
+    }
     sourceOmega = ugkwp::sstOmegaSource
     (
         s.rho[c],
@@ -426,11 +502,29 @@ __device__ GPU_OPERATOR_REAL sstKSourceActivity
     const GPU_OPERATOR_REAL divU
 )
 {
+    if constexpr(ugkwp::GasConservativeWallCapability<GasState>::value){
+        if(ugkwp::conservativeWallCellReady(s,c))return s.gasBoundaryLayerModel.conservative.sourceActivity[c];
+    }
     if(ugkwp::gasBoundaryLayerOwnerSlot(s,c)<0)return fabs(netSource);
     const GPU_OPERATOR_REAL compression=GPU_OPERATOR_R(2.0)/GPU_OPERATOR_R(3.0)
         *s.rho[c]*s.k[c]*divU;
     const GPU_OPERATOR_REAL destruction=s.sstCoefficients.betaStar*s.rho[c]
         *s.k[c]*s.omega[c];
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value){
+        const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,c);
+        if(slot>=0&&ugkwp::gasBoundaryLayerSlotReady(s,slot)){
+            const auto& closure=s.gasBoundaryLayer.sst[slot];
+            if(closure.kFluxCount>0){
+                // The projected BVP term already contains its own normal
+                // compression. Bound the actual constant/profile term, the
+                // resolved correction, and local linear destruction separately.
+                // This is >= |netSource| and cannot turn negative by cancellation.
+                const GPU_OPERATOR_REAL projectedDestruction=s.rho[c]*s.k[c]*closure.kDestructionRate;
+                const GPU_OPERATOR_REAL resolved=netSource+projectedDestruction-closure.nonDestructiveKSource;
+                return fmax(fabs(netSource),fabs(closure.nonDestructiveKSource)+fabs(resolved)+projectedDestruction);
+            }
+        }
+    }
     return netSource+compression+GPU_OPERATOR_R(2.0)*destruction+fabs(compression);
 }
 template<class GasState>
@@ -537,8 +631,8 @@ __global__ void applySstFluxAndSourceKernel
         {
             if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))
             {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
-            // Source remains the inventory-based SST wall-function source.
-            // Never substitute the donor-matched auxiliary profile integral.
+            // The projected normal BVP row and resolved tangential row have
+            // already been assembled by sstSourcesForCell.
         }
     }
     const GPU_OPERATOR_REAL invV = GPU_OPERATOR_R(1.0)/clampMin(s.V[c], OfSmall);
@@ -904,6 +998,56 @@ __global__ void computeGasDiffusionNumberKernel
     if(!ugkwp::gasFinite(equivalentCo))ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
 }
 
+// The selected wall supplies a prescribed normal omega diffusion flux on
+// shared faces. This is an explicit forcing, not a coefficient multiplying the
+// neighbouring macro omega. Reproduce only that forcing contribution here;
+// the existing diffusion bound continues to cover the ordinary coefficients.
+template<class GasState>
+__device__ bool sstPublishedOmegaForcingForFace
+(
+    const GasState& s,const int f,const int own,const int nei,
+    GPU_OPERATOR_REAL& forcing
+)
+{
+    forcing=GPU_OPERATOR_R(0);
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+    {
+        if(nei<0||!ugkwp::gasBoundaryLayerEnabled(s))return true;
+        if constexpr(ugkwp::GasConservativeWallCapability<GasState>::value)
+        {
+            const auto& d=s.gasBoundaryLayerModel.conservative;
+            if(d.enabled&&d.faceSlot&&d.faceSlot[f]>=0&&d.active[d.faceSlot[f]]
+                &&ugkwp::gasBoundaryLayerSlotReady(s,d.faceSlot[f]))return true;
+        }
+        if(ugkwp::gasBoundaryLayerOwnerSlot(s,own)<0
+            &&ugkwp::gasBoundaryLayerOwnerSlot(s,nei)<0)return true;
+        const GPU_OPERATOR_REAL area=s.magSf[f];
+        const GPU_OPERATOR_REAL unit[3]={s.Sfx[f]/area,s.Sfy[f]/area,s.Sfz[f]/area};
+        GPU_OPERATOR_REAL mappedX,mappedY,mappedZ;
+        periodicMappedCellCentre(s,f,nei,mappedX,mappedY,mappedZ);
+        int contributors=0;
+        for(int side=0;side<2;++side)
+        {
+            const int cell=side==0?own:nei;
+            const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,cell);
+            if(slot<0)continue;
+            if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))return false;
+            const auto& closure=s.gasBoundaryLayer.sst[slot];
+            if(closure.kFluxCount<=0)continue;
+            const auto* n=closure.normal;
+            const GPU_OPERATOR_REAL alignment=unit[0]*n[0]+unit[1]*n[1]+unit[2]*n[2];
+            const GPU_OPERATOR_REAL cx=side==0?s.Cx[own]:mappedX,
+                cy=side==0?s.Cy[own]:mappedY,cz=side==0?s.Cz[own]:mappedZ;
+            const GPU_OPERATOR_REAL y=closure.ownerDistance
+                +(s.faceCx[f]-cx)*n[0]+(s.faceCy[f]-cy)*n[1]+(s.faceCz[f]-cz)*n[2];
+            forcing+=ugkwp::boundaryLayerSstFlux(closure,y,true)*alignment*area;
+            ++contributors;
+        }
+        if(contributors)forcing/=GPU_OPERATOR_REAL(contributors);
+    }
+    return true;
+}
+
 // Current-state timestep estimate: the predictor uses fresh pre-positivity
 // Riemann mass flux, while evolution uses the finalized stage flux. Summing
 // negative and positive outward volume flux separately bounds divU after any
@@ -941,6 +1085,7 @@ __global__ void computeSstStabilityNumberKernel
         stabilityVolume=fmin(oldVolume,newVolume);sourceVolume=oldVolume;
     }
     GPU_OPERATOR_REAL diffusionRate = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_REAL publishedOmegaForcingActivity = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL minimumVolumeFlux = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL maximumVolumeFlux = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL meshVolumeFlux = GPU_OPERATOR_R(0.0);
@@ -982,6 +1127,23 @@ __global__ void computeSstStabilityNumberKernel
             (s.sstWallTreatment == 0 || s.sstWallTreatment == 1 || s.sstWallTreatment == 2)
          && f >= s.nInternalFaces && s.riemannBoundaryKind[f] == 2
         );
+        if(requireWallProfile&&!constrainedOmega&&nei>=0)
+        {
+            GPU_OPERATOR_REAL publishedForcing;
+            if(!sstPublishedOmegaForcingForFace(s,f,own,nei,publishedForcing))
+            {
+                s.sstSourceNumber[c]=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();
+                if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
+                return;
+            }
+            if(!ugkwp::gasFinite(publishedForcing))
+            {
+                s.sstSourceNumber[c]=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();
+                ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
+                return;
+            }
+            publishedOmegaForcingActivity+=fabs(publishedForcing);
+        }
         const int other = (f < s.nInternalFaces || isPeriodicFace(s, f))
           ? (s.faceOwner[f] == c ? s.faceNeighbour[f] : s.faceOwner[f])
           : -1;
@@ -1077,11 +1239,21 @@ __global__ void computeSstStabilityNumberKernel
         {
             if(!ugkwp::gasBoundaryLayerSlotReady(s,slot) && requireWallProfile)
             {s.sstSourceNumber[c]=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
-            // Cold outer estimates use coarse SST until the authoritative
-            // preflight publishes current wall stress and owner omega.
-            sourceKBound=fmax(
-                sstKSourceActivity(s,c,sourceKAtZeroDiv-compressionK*minimumDivU,minimumDivU),
-                sstKSourceActivity(s,c,sourceKAtZeroDiv-compressionK*maximumDivU,maximumDivU));
+            if(ugkwp::gasBoundaryLayerSlotReady(s,slot)
+                && s.gasBoundaryLayer.sst[slot].kFluxCount>0)
+            {
+                // The full projected source already includes compression and
+                // is independent of the macro face-divergence estimate.
+                sourceKBound=sstKSourceActivity(s,c,sourceKAtZeroDiv,GPU_OPERATOR_R(0.0));
+            }
+            else
+            {
+                // Cold outer estimates and nonvolume closures still use the
+                // coarse SST source with its resolved compression term.
+                sourceKBound=fmax(
+                    sstKSourceActivity(s,c,sourceKAtZeroDiv-compressionK*minimumDivU,minimumDivU),
+                    sstKSourceActivity(s,c,sourceKAtZeroDiv-compressionK*maximumDivU,maximumDivU));
+            }
         }
     }
     const GPU_OPERATOR_REAL sourceOmegaBound = fmax
@@ -1092,7 +1264,8 @@ __global__ void computeSstStabilityNumberKernel
     const GPU_OPERATOR_REAL sourceNumber = fmax
     (
         GPU_OPERATOR_TIME(sstKSourceNumber(s,c,sourceKBound,dt)),
-        constrainedOmega ? GPU_OPERATOR_R(0.0) : fabs(dt)*sourceOmegaBound
+        constrainedOmega ? GPU_OPERATOR_R(0.0) : fabs(dt)
+          *(sourceOmegaBound+publishedOmegaForcingActivity*invVolume)
        /clampMin(s.rhoOmega[c], s.rho[c]*s.sstOmegaMin)
     );
     const GPU_OPERATOR_REAL equivalentCo = targetMaxCo*fmax
