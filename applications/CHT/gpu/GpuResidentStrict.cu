@@ -174,7 +174,6 @@ struct DeviceState
     int gasReconstruction = 0;
     int gasLimiter = 1;
     int gasTimeIntegrator = 1;
-    int gasRobustFallback = 1;
     int turbulenceModel = 0;
                                                                          
                                                                        
@@ -3170,7 +3169,6 @@ extern "C" int ugkwpGpuResidentStrictCreate
     int gasReconstruction,
     int gasLimiter,
     int gasTimeIntegrator,
-    int gasRobustFallback,
     int turbulenceModel,
     double lesDeltaCoeffWire,
     double turbulentPrandtlWire,
@@ -3270,7 +3268,6 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->gasReconstruction = gasReconstruction;
     s->gasLimiter = gasLimiter;
     s->gasTimeIntegrator = gasTimeIntegrator;
-    s->gasRobustFallback = gasRobustFallback;
     s->turbulenceModel = turbulenceModel;
     s->hostGasFluxScheme = gasFluxScheme;
     s->hostGasTimeIntegrator = gasTimeIntegrator;

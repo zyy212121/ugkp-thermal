@@ -17,7 +17,6 @@ struct GasNumericsConfiguration
     word gasReconstructionName;
     word gasLimiterName;
     word gasTimeIntegratorName;
-    Switch gasRobustFallback;
     label gasFluxScheme;
     label gasReconstruction;
     label gasLimiter;
@@ -26,8 +25,7 @@ struct GasNumericsConfiguration
 
 inline GasNumericsConfiguration readGasNumericsConfiguration
 (
-    const dictionary& fvSchemesDict,
-    const dictionary* gpuSolutionControls = nullptr
+    const dictionary& fvSchemesDict
 )
 {
 
@@ -35,7 +33,6 @@ word gasFluxSchemeName("Kurganov");
 word gasReconstructionName("firstOrder");
 word gasLimiterName("none");
 word gasTimeIntegratorName("Euler");
-Switch gasRobustFallback(true);
 
 {
     fvSchemesDict.readIfPresent("fluxScheme", gasFluxSchemeName);
@@ -229,15 +226,6 @@ Switch gasRobustFallback(true);
             << exit(FatalError);
     }
 
-    if (gpuSolutionControls)
-    {
-        gasRobustFallback =
-            gpuSolutionControls->lookupOrDefault<Switch>
-            (
-                "robustFallback",
-                true
-            );
-    }
 }
 
 label gasFluxScheme = -1;
@@ -376,7 +364,6 @@ else
         gasReconstructionName,
         gasLimiterName,
         gasTimeIntegratorName,
-        gasRobustFallback,
         gasFluxScheme,
         gasReconstruction,
         gasLimiter,

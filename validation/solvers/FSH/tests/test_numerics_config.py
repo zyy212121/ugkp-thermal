@@ -59,7 +59,6 @@ CREATE_FIELDS = (
     ("std::int32_t", "gasReconstruction"),
     ("std::int32_t", "gasLimiter"),
     ("std::int32_t", "gasTimeIntegrator"),
-    ("std::int32_t", "gasRobustFallback"),
     ("std::int32_t", "turbulenceModel"),
     ("double", "lesDeltaCoeff"),
     ("double", "turbulentPrandtl"),
@@ -80,7 +79,6 @@ GAS_NUMERICS_ARGUMENTS = (
     "gasReconstruction",
     "gasLimiter",
     "gasTimeIntegrator",
-    "gasRobustFallback",
     "gasTurbulenceModel",
 )
 
@@ -297,7 +295,7 @@ class UGKPNumericsConfiguration(unittest.TestCase):
         )
         self.assertEqual(actual, list(CREATE_FIELDS))
         self.assertIn(
-            'static_assert(sizeof(CreateArgs) == 352, "unexpected create payload ABI")',
+            'static_assert(sizeof(CreateArgs) == 336, "unexpected create payload ABI")',
             self.protocol,
         )
 
@@ -345,7 +343,6 @@ class UGKPNumericsConfiguration(unittest.TestCase):
             "int(gasReconstruction)",
             "int(gasLimiter)",
             "int(gasTimeIntegrator)",
-            "gasRobustFallback ? 1 : 0",
             "int(gasTurbulenceModel)",
         )
         for call_number in (1, 2):
@@ -406,22 +403,10 @@ class UGKPNumericsConfiguration(unittest.TestCase):
             "gasReconstruction",
             "gasLimiter",
             "gasTimeIntegrator",
-            "gasRobustFallback",
         ):
             for layer, source in layers.items():
                 with self.subTest(field=field, layer=layer):
                     self.assertIn(field, source)
-        for layer, source in (
-            ("IPC client", self.client),
-            ("IPC server", self.server),
-            ("CUDA C ABI", self.cuda),
-        ):
-            with self.subTest(layer=layer):
-                self.assertRegex(
-                    source,
-                    r"gasRobustFallback\s*!=\s*0"
-                    r".*?gasRobustFallback\s*!=\s*1",
-                )
         self.assertNotIn('"entropyFixCoefficient"', self.create)
         self.assertNotIn("gasEntropyFixCoefficient", self.create)
 

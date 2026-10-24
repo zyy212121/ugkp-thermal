@@ -247,7 +247,7 @@ bool handleCreate
         a.pressureKickFraction, a.jammingPressureEnabled,
         a.packingFraction, a.packingProjectionIterations,
         a.gasFluxScheme, a.gasReconstruction,
-        a.gasLimiter, a.gasTimeIntegrator, a.gasRobustFallback,
+        a.gasLimiter, a.gasTimeIntegrator,
         a.turbulenceModel, a.lesDeltaCoeff,
         a.turbulentPrandtl, a.waleCw, a.smagorinskyCs,
         a.csrCellLocalPathEnabled,

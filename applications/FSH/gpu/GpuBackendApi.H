@@ -22,7 +22,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     int jammingPressureEnabled, double packingFraction,
     int packingProjectionIterations,
     int gasFluxScheme, int gasReconstruction, int gasLimiter,
-    int gasTimeIntegrator, int gasRobustFallback, int turbulenceModel,
+    int gasTimeIntegrator, int turbulenceModel,
     double lesDeltaCoeff,
     double turbulentPrandtl, double waleCw, double smagorinskyCs,
     int csrCellLocalPathEnabled,

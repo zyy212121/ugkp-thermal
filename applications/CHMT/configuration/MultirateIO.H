@@ -18,14 +18,9 @@ inline CouplingControls readCouplingControls(const Foam::dictionary& d, Real con
     const auto& m = d.subDict("multirate");
     CouplingControls controls;
     controls.interval = readNumber(m, "couplingInterval");
-    controls.minimumInterval = readNumber(m, "minimumCouplingInterval", controls.interval*1e-6);
     // deltaT is a gas cap only. Neither it nor a material local step limits H.
     controls.gasMaxDt = std::min(controlDeltaT, readNumber(m, "gasMaxDt", controlDeltaT));
     controls.materialMaxSubstep = readNumber(m, "materialMaxSubstep", 0);
-    controls.maxWindowIterations = m.lookupOrDefault<Foam::label>("maxWindowIterations", controls.maxWindowIterations);
-    controls.maxWindowRetries = m.lookupOrDefault<Foam::label>("maxWindowRetries", controls.maxWindowRetries);
-    controls.predictionTolerance = readNumber(m, "predictionTolerance", controls.predictionTolerance);
-    controls.enforcePredictionAccuracy = flag(m, "enforcePredictionAccuracy", controls.enforcePredictionAccuracy);
     return controls;
 }
 

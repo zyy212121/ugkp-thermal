@@ -62,7 +62,6 @@ CREATE_FIELDS = (
     ("std::int32_t", "gasReconstruction"),
     ("std::int32_t", "gasLimiter"),
     ("std::int32_t", "gasTimeIntegrator"),
-    ("std::int32_t", "gasRobustFallback"),
     ("std::int32_t", "turbulenceModel"),
     ("double", "lesDeltaCoeff"),
     ("double", "turbulentPrandtl"),
@@ -92,7 +91,6 @@ GAS_NUMERICS_ARGUMENTS = (
     "gasReconstruction",
     "gasLimiter",
     "gasTimeIntegrator",
-    "gasRobustFallback",
     "gasTurbulenceModel",
 )
 
@@ -310,7 +308,7 @@ class UGKPNumericsConfiguration(unittest.TestCase):
             body,
         )
         self.assertEqual(actual, list(PROTOCOL_CREATE_FIELDS))
-        self.assertEqual(create_payload_size(), 392)
+        self.assertEqual(create_payload_size(), 376)
 
     def test_c_abi_create_signatures_match_protocol_exactly(self) -> None:
         expected = list(CREATE_FIELDS) + [("void**", "handle")]
@@ -355,7 +353,6 @@ class UGKPNumericsConfiguration(unittest.TestCase):
             "gpuHostValue<int>(gasReconstruction)",
             "gpuHostValue<int>(gasLimiter)",
             "gpuHostValue<int>(gasTimeIntegrator)",
-            "gasRobustFallback ? 1 : 0",
             "gpuHostValue<int>(gasTurbulenceModel)",
         )
         for call_number in (1, 2):
@@ -416,19 +413,11 @@ class UGKPNumericsConfiguration(unittest.TestCase):
             "gasReconstruction",
             "gasLimiter",
             "gasTimeIntegrator",
-            "gasRobustFallback",
         ):
             for layer, source in layers.items():
                 with self.subTest(field=field, layer=layer):
                     self.assertIn(field, source)
-        for layer, source in (
-            ("IPC client", self.client),
-            ("IPC server", self.server),
-            ("CUDA C ABI", self.cuda),
-        ):
-            with self.subTest(layer=layer):
-                self.assertNotRegex(source, r"gasRobustFallback\s*!=\s*0.*?gasRobustFallback\s*!=\s*1")
-        self.assertEqual(create_payload_size(), 392)
+        self.assertEqual(create_payload_size(), 376)
         self.assertNotIn('"entropyFixCoefficient"', self.create)
         self.assertNotIn("gasEntropyFixCoefficient", self.create)
 

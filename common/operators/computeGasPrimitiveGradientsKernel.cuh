@@ -345,6 +345,8 @@ __device__ void recoverSstPrimitiveCell(GasState& s, const int c, const bool nat
         ||!gasProducerScalarValid(s,c,s.rhoOmega[c],30118))return;
     const GPU_OPERATOR_REAL rhoKFloor = rhoSafe*s.sstKMin;
     const GPU_OPERATOR_REAL rhoOmegaFloor = rhoSafe*s.sstOmegaMin;
+    gasInventoryFloorWarning(s,c,s.rhoK[c],rhoKFloor,0,2624,26);
+    gasInventoryFloorWarning(s,c,s.rhoOmega[c],rhoOmegaFloor,1,2624,26);
     s.rhoK[c] = clampMin(s.rhoK[c], rhoKFloor);
     s.rhoOmega[c] =
         clampMin(s.rhoOmega[c], rhoOmegaFloor);

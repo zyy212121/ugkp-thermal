@@ -614,12 +614,15 @@ __global__ void applySstFluxAndSourceKernel
             ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
             return;
         }
+        gasInventoryFloorWarning(s,c,nextK,rhoKFloor*oldVolume/newVolume,0,2623,27);
+        gasInventoryFloorWarning(s,c,nextOmega,rhoOmegaFloor*oldVolume/newVolume,1,2623,27);
         s.rhoK[c]=clampMin(nextK,rhoKFloor*oldVolume/newVolume);
         s.rhoOmega[c]=clampMin(nextOmega,rhoOmegaFloor*oldVolume/newVolume);
         return;
     }
     if(!gasProducerScalarValid(s,c,s.rhoK[c]+deltaRhoK,30024)
         ||(!constrainedOmega && !gasProducerScalarValid(s,c,s.rhoOmega[c]+deltaRhoOmega,30100)))return;
+    gasInventoryFloorWarning(s,c,s.rhoK[c]+deltaRhoK,rhoKFloor,0,2623,27);
     s.rhoK[c] =
         clampMin(s.rhoK[c] + deltaRhoK, rhoKFloor);
     // Both wall treatments constrain the adjacent-cell omega equation.
@@ -627,6 +630,7 @@ __global__ void applySstFluxAndSourceKernel
     // target after k and gas density evolve. Other equations remain active.
     if (!constrainedOmega)
     {
+        gasInventoryFloorWarning(s,c,s.rhoOmega[c]+deltaRhoOmega,rhoOmegaFloor,1,2623,27);
         s.rhoOmega[c] = clampMin
         (
             s.rhoOmega[c] + deltaRhoOmega,
@@ -1291,6 +1295,7 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
         s.Ux[c]=ux;s.Uy[c]=uy;s.Uz[c]=uz;s.p[c]=pressure;s.Tgas[c]=temperature;
         return;
     }
+    gasInventoryFloorWarning(s,c,s.rho[c],s.rhoMin,-1,2625,30,ugkp::diagnostics::Quantity::Density);
     const GPU_OPERATOR_REAL rhoSafe =
         clampMin(s.rho[c], s.rhoMin);
     if(!gasProducerScalarValid(s,c,s.rhoUx[c]/rhoSafe,30012)
@@ -1313,6 +1318,7 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
             GPU_OPERATOR_REAL(s.gammaGas), GPU_OPERATOR_REAL(OfSmall)
         )
     );
+    gasInventoryFloorWarning(s,c,s.rhoE[c]-kinetic,minimumInternalEnergy,-1,2626,30,ugkp::diagnostics::Quantity::InternalEnergy);
     const GPU_OPERATOR_REAL internalE = clampMin
     (
         s.rhoE[c] - kinetic,

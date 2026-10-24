@@ -26,7 +26,7 @@ def test_actual_create_distinguishes_required_handle_from_numeric_metadata(tmp_p
         nCellPlanes='4', particleCapacity='0', gasFluxScheme='2',
         gasReconstruction='0', gasLimiter='0', gasTimeIntegrator='1',
         turbulenceModel='0', particleBlockThreads='128', reductionBlockThreads='128',
-        csrHeavyReductionMode='0', dragModel='0', gasRobustFallback='1',
+        csrHeavyReductionMode='0', dragModel='0',
         jammingPressureEnabled='0', gasMu='-3', gasPr='-.7', gammaGas='9',
         Rgas='-287', lesDeltaCoeff='-2',
         turbulentPrandtl='-.9', waleCw='-1', smagorinskyCs='-1',

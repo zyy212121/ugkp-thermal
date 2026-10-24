@@ -20,7 +20,7 @@ int main(){try{
  std::vector<SolidQ> solid(1);solid[0].condensed[0]=.15;std::vector<FilmQ> film;MaterialDonorReserve reserve;
  require(reserve.reset(solid,film,0,e),"reserve reset");require(reserve.apply(r,e),"reserve first");
  auto over=record(.3,.6,2,.1,0);require(reserve.apply(over,e),"negative reserve admitted");require(std::abs(reserve.solid()[0].condensed[0]+.05)<1e-16,"actual negative reserve preserved");
- CouplingControls controls;controls.interval=1;controls.minimumInterval=.01;controls.gasMaxDt=.001;
+ CouplingControls controls;controls.interval=1;controls.gasMaxDt=.001;
  CouplingWindowController control;require(control.begin(0,2,1,controls,e),"controller begin");require(control.interval().end==1,"gas dt constrained macro H");
  WindowAssessment assessment;assessment.predictionError=100;require(control.assess(assessment)==WindowDecision::Accept,"optional accuracy forced replay");
  assessment.geometryMatches=false;require(control.assess(assessment)==WindowDecision::Replay,"geometry mismatch accepted");

@@ -36,14 +36,14 @@ def create_payload_size():
 int main(){
  using namespace ugkwpGpuIpc;
  CreateArgs input{};input.gammaGas=3.125;input.rngSeed=0x0102030405060708ULL;
- input.dragModel=7;input.dragParameter0=-3.5;input.gasRobustFallback=9;
+ input.dragModel=7;input.dragParameter0=-3.5;
  unsigned char bytes[WireCodec<CreateArgs>::size];WireCodec<CreateArgs>::encode(bytes,input);
  const unsigned char seed[]={8,7,6,5,4,3,2,1};
  const unsigned char gamma[]={0,0,0,0,0,0,9,64};
  for(int i=0;i<8;++i){assert(bytes[32+i]==seed[i]);assert(bytes[40+i]==gamma[i]);}
  CreateArgs output{};WireCodec<CreateArgs>::decode(bytes,output);
  assert(output.gammaGas==3.125&&output.rngSeed==input.rngSeed);
- assert(output.dragModel==7&&output.dragParameter0==-3.5&&output.gasRobustFallback==9);
+ assert(output.dragModel==7&&output.dragParameter0==-3.5);
  std::cout<<WireCodec<CreateArgs>::size<<"\n";
 }
 ''')

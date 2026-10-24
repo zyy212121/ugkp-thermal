@@ -14,7 +14,7 @@ namespace ugkwpGpuIpc
 {
 
 static constexpr std::uint32_t magic = 0x47554750U;          
-static constexpr std::uint16_t protocolMajor = 9;
+static constexpr std::uint16_t protocolMajor = 10;
 static constexpr std::uint16_t protocolMinor = 0;
 static constexpr std::uint64_t maxPayloadBytes = 32ULL*1024ULL*1024ULL*1024ULL;
 
@@ -158,7 +158,6 @@ struct CreateArgs
     std::int32_t gasReconstruction;
     std::int32_t gasLimiter;
     std::int32_t gasTimeIntegrator;
-    std::int32_t gasRobustFallback;
     std::int32_t turbulenceModel;
     double lesDeltaCoeff;
     double turbulentPrandtl;
@@ -375,7 +374,7 @@ template<> struct WireCodec<ResponseHeader>
 };
 template<> struct WireCodec<CreateArgs>
 {
-    static constexpr std::size_t size=384;
+    static constexpr std::size_t size=376;
     static constexpr bool nativeLayout=sizeof(CreateArgs)==size
         && offsetof(CreateArgs,nCells)==0
         && offsetof(CreateArgs,nFaces)==4
@@ -415,27 +414,26 @@ template<> struct WireCodec<CreateArgs>
         && offsetof(CreateArgs,gasReconstruction)==240
         && offsetof(CreateArgs,gasLimiter)==244
         && offsetof(CreateArgs,gasTimeIntegrator)==248
-        && offsetof(CreateArgs,gasRobustFallback)==252
-        && offsetof(CreateArgs,turbulenceModel)==256
-        && offsetof(CreateArgs,lesDeltaCoeff)==264
-        && offsetof(CreateArgs,turbulentPrandtl)==272
-        && offsetof(CreateArgs,waleCw)==280
-        && offsetof(CreateArgs,smagorinskyCs)==288
-        && offsetof(CreateArgs,csrCellLocalPathEnabled)==296
-        && offsetof(CreateArgs,csrHeavyReductionMode)==300
-        && offsetof(CreateArgs,csrHeavyAutoInterval)==304
-        && offsetof(CreateArgs,particleBlockThreads)==308
-        && offsetof(CreateArgs,reductionBlockThreads)==312
-        && offsetof(CreateArgs,csrWarpAggregatedBinning)==316
-        && offsetof(CreateArgs,csrSplitPreDirectoryEnabled)==320
-        && offsetof(CreateArgs,dragModel)==324
-        && offsetof(CreateArgs,dragParameter0)==328
-        && offsetof(CreateArgs,dragParameter1)==336
-        && offsetof(CreateArgs,dragParameter2)==344
-        && offsetof(CreateArgs,dragParameter3)==352
-        && offsetof(CreateArgs,gravityX)==360
-        && offsetof(CreateArgs,gravityY)==368
-        && offsetof(CreateArgs,gravityZ)==376;
+        && offsetof(CreateArgs,turbulenceModel)==252
+        && offsetof(CreateArgs,lesDeltaCoeff)==256
+        && offsetof(CreateArgs,turbulentPrandtl)==264
+        && offsetof(CreateArgs,waleCw)==272
+        && offsetof(CreateArgs,smagorinskyCs)==280
+        && offsetof(CreateArgs,csrCellLocalPathEnabled)==288
+        && offsetof(CreateArgs,csrHeavyReductionMode)==292
+        && offsetof(CreateArgs,csrHeavyAutoInterval)==296
+        && offsetof(CreateArgs,particleBlockThreads)==300
+        && offsetof(CreateArgs,reductionBlockThreads)==304
+        && offsetof(CreateArgs,csrWarpAggregatedBinning)==308
+        && offsetof(CreateArgs,csrSplitPreDirectoryEnabled)==312
+        && offsetof(CreateArgs,dragModel)==316
+        && offsetof(CreateArgs,dragParameter0)==320
+        && offsetof(CreateArgs,dragParameter1)==328
+        && offsetof(CreateArgs,dragParameter2)==336
+        && offsetof(CreateArgs,dragParameter3)==344
+        && offsetof(CreateArgs,gravityX)==352
+        && offsetof(CreateArgs,gravityY)==360
+        && offsetof(CreateArgs,gravityZ)==368;
     static void encode(unsigned char* b,const CreateArgs& v)
     {
         std::fill(b,b+size,0);
@@ -477,27 +475,26 @@ template<> struct WireCodec<CreateArgs>
         encodeWireScalar(b+240,v.gasReconstruction);
         encodeWireScalar(b+244,v.gasLimiter);
         encodeWireScalar(b+248,v.gasTimeIntegrator);
-        encodeWireScalar(b+252,v.gasRobustFallback);
-        encodeWireScalar(b+256,v.turbulenceModel);
-        encodeWireScalar(b+264,v.lesDeltaCoeff);
-        encodeWireScalar(b+272,v.turbulentPrandtl);
-        encodeWireScalar(b+280,v.waleCw);
-        encodeWireScalar(b+288,v.smagorinskyCs);
-        encodeWireScalar(b+296,v.csrCellLocalPathEnabled);
-        encodeWireScalar(b+300,v.csrHeavyReductionMode);
-        encodeWireScalar(b+304,v.csrHeavyAutoInterval);
-        encodeWireScalar(b+308,v.particleBlockThreads);
-        encodeWireScalar(b+312,v.reductionBlockThreads);
-        encodeWireScalar(b+316,v.csrWarpAggregatedBinning);
-        encodeWireScalar(b+320,v.csrSplitPreDirectoryEnabled);
-        encodeWireScalar(b+324,v.dragModel);
-        encodeWireScalar(b+328,v.dragParameter0);
-        encodeWireScalar(b+336,v.dragParameter1);
-        encodeWireScalar(b+344,v.dragParameter2);
-        encodeWireScalar(b+352,v.dragParameter3);
-        encodeWireScalar(b+360,v.gravityX);
-        encodeWireScalar(b+368,v.gravityY);
-        encodeWireScalar(b+376,v.gravityZ);
+        encodeWireScalar(b+252,v.turbulenceModel);
+        encodeWireScalar(b+256,v.lesDeltaCoeff);
+        encodeWireScalar(b+264,v.turbulentPrandtl);
+        encodeWireScalar(b+272,v.waleCw);
+        encodeWireScalar(b+280,v.smagorinskyCs);
+        encodeWireScalar(b+288,v.csrCellLocalPathEnabled);
+        encodeWireScalar(b+292,v.csrHeavyReductionMode);
+        encodeWireScalar(b+296,v.csrHeavyAutoInterval);
+        encodeWireScalar(b+300,v.particleBlockThreads);
+        encodeWireScalar(b+304,v.reductionBlockThreads);
+        encodeWireScalar(b+308,v.csrWarpAggregatedBinning);
+        encodeWireScalar(b+312,v.csrSplitPreDirectoryEnabled);
+        encodeWireScalar(b+316,v.dragModel);
+        encodeWireScalar(b+320,v.dragParameter0);
+        encodeWireScalar(b+328,v.dragParameter1);
+        encodeWireScalar(b+336,v.dragParameter2);
+        encodeWireScalar(b+344,v.dragParameter3);
+        encodeWireScalar(b+352,v.gravityX);
+        encodeWireScalar(b+360,v.gravityY);
+        encodeWireScalar(b+368,v.gravityZ);
     }
     static void decode(const unsigned char* b,CreateArgs& v)
     {
@@ -539,27 +536,26 @@ template<> struct WireCodec<CreateArgs>
         decodeWireScalar(b+240,v.gasReconstruction);
         decodeWireScalar(b+244,v.gasLimiter);
         decodeWireScalar(b+248,v.gasTimeIntegrator);
-        decodeWireScalar(b+252,v.gasRobustFallback);
-        decodeWireScalar(b+256,v.turbulenceModel);
-        decodeWireScalar(b+264,v.lesDeltaCoeff);
-        decodeWireScalar(b+272,v.turbulentPrandtl);
-        decodeWireScalar(b+280,v.waleCw);
-        decodeWireScalar(b+288,v.smagorinskyCs);
-        decodeWireScalar(b+296,v.csrCellLocalPathEnabled);
-        decodeWireScalar(b+300,v.csrHeavyReductionMode);
-        decodeWireScalar(b+304,v.csrHeavyAutoInterval);
-        decodeWireScalar(b+308,v.particleBlockThreads);
-        decodeWireScalar(b+312,v.reductionBlockThreads);
-        decodeWireScalar(b+316,v.csrWarpAggregatedBinning);
-        decodeWireScalar(b+320,v.csrSplitPreDirectoryEnabled);
-        decodeWireScalar(b+324,v.dragModel);
-        decodeWireScalar(b+328,v.dragParameter0);
-        decodeWireScalar(b+336,v.dragParameter1);
-        decodeWireScalar(b+344,v.dragParameter2);
-        decodeWireScalar(b+352,v.dragParameter3);
-        decodeWireScalar(b+360,v.gravityX);
-        decodeWireScalar(b+368,v.gravityY);
-        decodeWireScalar(b+376,v.gravityZ);
+        decodeWireScalar(b+252,v.turbulenceModel);
+        decodeWireScalar(b+256,v.lesDeltaCoeff);
+        decodeWireScalar(b+264,v.turbulentPrandtl);
+        decodeWireScalar(b+272,v.waleCw);
+        decodeWireScalar(b+280,v.smagorinskyCs);
+        decodeWireScalar(b+288,v.csrCellLocalPathEnabled);
+        decodeWireScalar(b+292,v.csrHeavyReductionMode);
+        decodeWireScalar(b+296,v.csrHeavyAutoInterval);
+        decodeWireScalar(b+300,v.particleBlockThreads);
+        decodeWireScalar(b+304,v.reductionBlockThreads);
+        decodeWireScalar(b+308,v.csrWarpAggregatedBinning);
+        decodeWireScalar(b+312,v.csrSplitPreDirectoryEnabled);
+        decodeWireScalar(b+316,v.dragModel);
+        decodeWireScalar(b+320,v.dragParameter0);
+        decodeWireScalar(b+328,v.dragParameter1);
+        decodeWireScalar(b+336,v.dragParameter2);
+        decodeWireScalar(b+344,v.dragParameter3);
+        decodeWireScalar(b+352,v.gravityX);
+        decodeWireScalar(b+360,v.gravityY);
+        decodeWireScalar(b+368,v.gravityZ);
     }
 };
 template<> struct WireCodec<CountArgs>

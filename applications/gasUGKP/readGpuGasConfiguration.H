@@ -155,12 +155,11 @@ dimensionedScalar rhoMinG
 dimensionedScalar TgasMinG("TMin", dimTemperature, gasTMinValue);
 
 const GasNumericsConfiguration gasNumerics =
-    readGasNumericsConfiguration(fvSchemesDict, gpuSolutionControls);
+    readGasNumericsConfiguration(fvSchemesDict);
 const word gasFluxSchemeName = gasNumerics.gasFluxSchemeName;
 const word gasReconstructionName = gasNumerics.gasReconstructionName;
 const word gasLimiterName = gasNumerics.gasLimiterName;
 const word gasTimeIntegratorName = gasNumerics.gasTimeIntegratorName;
-const Switch gasRobustFallback = gasNumerics.gasRobustFallback;
 const label gasFluxScheme = gasNumerics.gasFluxScheme;
 const label gasReconstruction = gasNumerics.gasReconstruction;
 const label gasLimiter = gasNumerics.gasLimiter;

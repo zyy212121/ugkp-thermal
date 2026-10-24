@@ -138,7 +138,6 @@ word gasFluxSchemeName("Kurganov");
 word gasReconstructionName("firstOrder");
 word gasLimiterName("none");
 word gasTimeIntegratorName("Euler");
-Switch gasRobustFallback(true);
 
 {
     fvSchemesDict.readIfPresent("fluxScheme", gasFluxSchemeName);
@@ -346,15 +345,6 @@ Switch gasRobustFallback(true);
             << exit(FatalError);
     }
 
-    if (gpuSolutionControls)
-    {
-        gasRobustFallback =
-            gpuSolutionControls->lookupOrDefault<Switch>
-            (
-                "robustFallback",
-                true
-            );
-    }
 }
 
 label gasFluxScheme = -1;

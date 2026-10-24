@@ -185,7 +185,6 @@ struct DeviceState
     int gasReconstruction = 0;
     int gasLimiter = 1;
     int gasTimeIntegrator = 1;
-    int gasRobustFallback = 1;
     int turbulenceModel = 0;
                                                                              
                                                                              
@@ -947,7 +946,6 @@ void scrubHostCalculationScalars(DeviceState* s)
     s->gasReconstruction = 0;
     s->gasLimiter = 0;
     s->gasTimeIntegrator = 0;
-    s->gasRobustFallback = 0;
     s->turbulenceModel = 0;
     s->lesDeltaCoeff = 0.0;
     s->turbulentPrandtl = 0.0;
@@ -3880,7 +3878,6 @@ extern "C" int ugkwpGpuResidentStrictCreate
     int gasReconstruction,
     int gasLimiter,
     int gasTimeIntegrator,
-    int gasRobustFallback,
     int turbulenceModel,
     double lesDeltaCoeff,
     double turbulentPrandtl,
@@ -3997,7 +3994,6 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->gasReconstruction = gasReconstruction;
     s->gasLimiter = gasLimiter;
     s->gasTimeIntegrator = gasTimeIntegrator;
-    s->gasRobustFallback = gasRobustFallback;
     s->turbulenceModel = turbulenceModel;
     s->hostGasFluxScheme = gasFluxScheme;
     s->hostGasReconstruction = gasReconstruction;

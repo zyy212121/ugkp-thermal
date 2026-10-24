@@ -44,9 +44,7 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     }
     candidate.gasMesh.reset(new Foam::fvMesh(Foam::IOobject(Foam::polyMesh::defaultRegion,time.timeName(),time,Foam::IOobject::MUST_READ)));
     candidate.solidMesh.reset(new Foam::fvMesh(Foam::IOobject(text(d,"solidRegion"),time.timeName(),time,Foam::IOobject::MUST_READ)));
-    const auto& solution=candidate.gasMesh->solution().dict();
-    candidate.gasNumerics=Foam::readGasNumericsConfiguration(candidate.gasMesh->schemes().dict(),
-        solution.found("UGKP")?&solution.subDict("UGKP"):nullptr);
+    candidate.gasNumerics=Foam::readGasNumericsConfiguration(candidate.gasMesh->schemes().dict());
     auto& state=candidate.state;state.time=time.value();
     state.gasMesh=importMesh(*candidate.gasMesh,d);
     state.solidMesh=importMesh(*candidate.solidMesh,d.found("solidBoundaries")?d.subDict("solidBoundaries"):d);

@@ -27,7 +27,7 @@ CREATE = dict(
     collisionalRestitution='.8', pressureKickFraction='1',
     jammingPressureEnabled='0', packingFraction='.6', packingProjectionIterations='1',
     gasFluxScheme='2', gasReconstruction='0', gasLimiter='0', gasTimeIntegrator='1',
-    gasRobustFallback='1', turbulenceModel='0', lesDeltaCoeff='1',
+    turbulenceModel='0', lesDeltaCoeff='1',
     turbulentPrandtl='.9', waleCw='.5', smagorinskyCs='.17',
     csrCellLocalPathEnabled='0', csrHeavyReductionMode='0', csrHeavyAutoInterval='100',
     particleBlockThreads='128', reductionBlockThreads='128', csrWarpAggregatedBinning='0',
