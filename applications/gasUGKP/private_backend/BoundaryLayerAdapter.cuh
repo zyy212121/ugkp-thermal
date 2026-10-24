@@ -2,7 +2,7 @@
 #include <new>
 #include "gasTransport/GasBoundaryLayerWorkspace.H"
 extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
-(void* handle,const ugkwpGpuIpc::BoundaryLayerConfigV1* config,const int* faces,
+(void* handle,const ugkwpGpu::BoundaryLayerConfigV1* config,const int* faces,
  const int* qOffsets,const int* mOffsets,const int* mCells,const double* geometry,
  const double* qDistance,const double* qWeight,const double* mWeight,const double* speciesFlux)
 try
@@ -142,7 +142,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
         || copyToHost(faces.data(),s->gasBoundaryLayerModel.faces,walls,"read wall face map")
         || copyToHost(owners.data(),s->faceOwner,owners.size(),"read wall owner map"))return 1;
     if(s->diagnosticOwner->completeReadback(0,walls!=0||!owners.empty()))return 1;
-    const unsigned columns=ugkwpGpuIpc::boundaryLayerDiagnosticScalars+2*species;
+    const unsigned columns=ugkwpGpu::boundaryLayerDiagnosticScalars+2*species;
     std::vector<double> result(std::size_t(walls)*columns);
     for(unsigned slot=0;slot<walls;++slot)
     {

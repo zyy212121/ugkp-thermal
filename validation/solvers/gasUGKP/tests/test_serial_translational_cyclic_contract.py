@@ -22,17 +22,12 @@ def test_frontend_builds_pure_translation_pair_topology():
     assert "kind = 5" in source
 
 
-def test_mesh_payload_crosses_the_separated_boundary():
-    api = read("gpu/GpuBackendApi.H")
-    client = read("gpu/GpuBackendClient.C")
-    server = read("private_backend/GpuBackendServer.C")
-    protocol = read("gpu/GpuBackendProtocol.H")
-    for text in (api, client, server):
-        assert "facePeriodicPair" in text
-        assert "facePeriodicDx" in text
-        assert "facePeriodicDy" in text
-        assert "facePeriodicDz" in text
-    assert "protocolMinor = 0" in protocol
+def test_mesh_topology_crosses_the_typed_resident_api():
+    for relative in ('gpu/GpuBackendApi.H','gpu/GpuResidentStrict.H','private_backend/GpuResidentStrict.cu'):
+        text=(ROOT/relative).read_text()
+        for field in ('facePeriodicPair','facePeriodicDx','facePeriodicDy','facePeriodicDz'):
+            assert field in text
+
 
 
 def test_backend_maps_periodic_gas_and_particle_transport():

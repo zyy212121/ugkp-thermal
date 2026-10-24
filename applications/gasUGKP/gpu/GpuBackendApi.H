@@ -4,19 +4,19 @@
                                                                            
                                                                          
 
-#include "GpuBackendProtocol.H"
+#include "GpuBackendTypes.H"
 
 extern "C" int ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1
-(void* handle, ugkwpGpuIpc::GasModelCapabilitiesV1* capabilities);
+(void* handle, ugkwpGpu::GasModelCapabilitiesV1* capabilities);
 extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
-(void* handle, const ugkwpGpuIpc::GasModelConfigureArgsV1* configuration,
+(void* handle, const ugkwpGpu::GasModelConfigureArgsV1* configuration,
  const char* modelText, const char* mechanismText);
 extern "C" int ugkwpGpuResidentStrictUploadSpeciesV1
-(void* handle, const ugkwpGpuIpc::GasSpeciesIdentityV1* identity, const double* speciesDensity);
+(void* handle, const ugkwpGpu::GasSpeciesIdentityV1* identity, const double* speciesDensity);
 extern "C" int ugkwpGpuResidentStrictDownloadSpeciesV1
-(void* handle, const ugkwpGpuIpc::GasSpeciesIdentityV1* identity, double* speciesDensity);
+(void* handle, const ugkwpGpu::GasSpeciesIdentityV1* identity, double* speciesDensity);
 extern "C" int ugkwpGpuResidentStrictUploadSpeciesBoundaryV1
-(void* handle, const ugkwpGpuIpc::GasSpeciesIdentityV1* identity,
+(void* handle, const ugkwpGpu::GasSpeciesIdentityV1* identity,
  const int* compositionFixed, const double* massFraction);
 
 extern "C" int ugkwpGpuResidentStrictCreate
@@ -227,7 +227,7 @@ extern "C" const char* ugkwpGpuResidentStrictLastError();
 
 // Geometry rows: inward normal xyz, ownerDistance, matchingDistance, volume, firstMoment.
 extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
-(void* handle,const ugkwpGpuIpc::BoundaryLayerConfigV1* config,const int* faces,
+(void* handle,const ugkwpGpu::BoundaryLayerConfigV1* config,const int* faces,
  const int* quadratureOffsets,const int* matchingOffsets,const int* matchingCells,
  const double* geometry,const double* quadratureDistance,const double* quadratureWeight,
  const double* matchingWeight,const double* speciesFlux);

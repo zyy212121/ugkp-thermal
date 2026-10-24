@@ -36,7 +36,7 @@ template<class T>inline int discardSharedGasField(DeviceState* state,T*& owner,T
     rejected=owner;owner=nullptr;state->gasModelPoisoned=true;return 1;
 }
 extern "C" int ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1
-(void* handle,ugkwpGpuIpc::GasModelCapabilitiesV1* capabilities)
+(void* handle,ugkwpGpu::GasModelCapabilitiesV1* capabilities)
 {
     if(validateState(asState(handle),"gas model query") || !capabilities) return 1;
     std::uint32_t modes=1;
@@ -45,17 +45,17 @@ extern "C" int ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1
     if(ugkwp::validateGasCapabilities(request)) modes|=2;
     request.mode=ugkwp::GasMode::MixtureChemistry;
     if(ugkwp::validateGasCapabilities(request)) modes|=4;
-    *capabilities={ugkwpGpuIpc::gasModelApiVersion,ugkwp::compiledGasSpecies,modes,0};
+    *capabilities={ugkwpGpu::gasModelApiVersion,ugkwp::compiledGasSpecies,modes,0};
     return 0;
 }
 extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
-(void* handle,const ugkwpGpuIpc::GasModelConfigureArgsV1* args,
+(void* handle,const ugkwpGpu::GasModelConfigureArgsV1* args,
  const char* modelText,const char* mechanismText)
 {
     DeviceState* state=asState(handle);
-    std::uint64_t bytes=0;
     if(validateState(state,"gas model configuration") || !args || !modelText
-       || !ugkwpGpuIpc::gasModelPayloadBytes(*args,ugkwp::compiledGasSpecies,bytes)
+       || args->modelBytes>std::numeric_limits<std::size_t>::max()
+       || args->mechanismBytes>std::numeric_limits<std::size_t>::max()
        || (args->mechanismBytes && !mechanismText))
     {setLastErrorText("invalid shared gas model payload");return 1;}
     auto accepted=state->gasSpecies;
@@ -161,7 +161,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
     {discardSharedGasSpecies(state,candidate);setLastErrorText(error.what());return 1;}
 }
 extern "C" int ugkwpGpuResidentStrictUploadSpeciesV1
-(void* handle,const ugkwpGpuIpc::GasSpeciesIdentityV1* identity,const double* values)
+(void* handle,const ugkwpGpu::GasSpeciesIdentityV1* identity,const double* values)
 {
     DeviceState* state=asState(handle);
     (void)identity;
@@ -190,7 +190,7 @@ extern "C" int ugkwpGpuResidentStrictUploadSpeciesV1
     return 0;
 }
 extern "C" int ugkwpGpuResidentStrictDownloadSpeciesV1
-(void* handle,const ugkwpGpuIpc::GasSpeciesIdentityV1* identity,double* values)
+(void* handle,const ugkwpGpu::GasSpeciesIdentityV1* identity,double* values)
 {
     DeviceState* state=asState(handle);
     (void)identity;
@@ -202,7 +202,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadSpeciesV1
     return state->diagnosticOwner->completeReadback(0,!staged.empty());
 }
 extern "C" int ugkwpGpuResidentStrictUploadSpeciesBoundaryV1
-(void* handle,const ugkwpGpuIpc::GasSpeciesIdentityV1* identity,const int* fixed,const double* values)
+(void* handle,const ugkwpGpu::GasSpeciesIdentityV1* identity,const int* fixed,const double* values)
 {
     DeviceState* state=asState(handle);
     (void)identity;

@@ -154,7 +154,7 @@ int main(int argc,char**argv){assert(argc==4);const int model=std::atoi(argv[1])
  // then call the public wall configuration ABI. No restoration of scrubbed data.
  scrubHostCalculationScalars(&state);assert(state.gasMu==0&&state.gasPrClamped==0&&state.gasFluxScheme==0);
  residentTarget=&device;residentBytes=sizeof(device);if(failPublication==-2)state.deviceState=nullptr;
- ugkwpGpuIpc::BoundaryLayerConfigV1 cfg;cfg.reservedAudit=audit;cfg.model=model;cfg.nodes=32;cfg.speciesCount=2;cfg.wallCount=1;cfg.quadratureCount=1;cfg.matchingCount=1;cfg.workspaceSlots=1;
+ ugkwpGpu::BoundaryLayerConfigV1 cfg;cfg.reservedAudit=audit;cfg.model=model;cfg.nodes=32;cfg.speciesCount=2;cfg.wallCount=1;cfg.quadratureCount=1;cfg.matchingCount=1;cfg.workspaceSlots=1;
  int faces[]={0},offset[]={0,1},match[]={1};double geometry[]={0,1,0,.004,.01,4e-7,1.6e-9},qd[]={.004},qw[]={4e-7},mw[]={1},flux[]={0,0};
  auto configure=[&](){return ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&state,&cfg,faces,offset,offset,match,geometry,qd,qw,mw,flux);};
  const int rc=configure();checkUnrelated(before,device);
