@@ -90,6 +90,8 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerModelWithTeam(
 {
     if(config.model==gaswall::BoundaryLayerModel::ReactingSst)
         return gaswall::evaluateReactingWallLayerImpl(input,config,workspace,output,status,team);
+    if(config.model==gaswall::BoundaryLayerModel::EquilibriumOde)
+        return gaswall::evaluateEquilibriumOdeWallLayerImpl(input,config,workspace,output,status,team);
     // Preserve the central router for analytic, unsupported and future models.
     return evaluateGasBoundaryLayerModelWithTeam(input,config,workspace,output,status,team,std::true_type{});
 }
@@ -133,7 +135,11 @@ UGKWP_GAS_HD UGKWP_WALL_WORKSPACE_CALL bool evaluateGasBoundaryLayerWorkspace(
                 const bool decoded=available && gaswall::reactingWallProfileNode(input,profileConfig,workspace,node,context,p);
                 Real* row=profile+node*(7+Ns);
                 row[0]=p.y;for(int d=0;d<3;++d)row[1+d]=p.velocity[d];
-                row[4]=p.temperature;row[5]=p.k;row[6]=p.omega;
+                row[4]=p.temperature;
+                // This algebraic eddy-viscosity model has no local k/omega fields.
+                const bool hasSstProfile=config.model!=gaswall::BoundaryLayerModel::EquilibriumOde;
+                row[5]=hasSstProfile?p.k:std::numeric_limits<Real>::quiet_NaN();
+                row[6]=hasSstProfile?p.omega:std::numeric_limits<Real>::quiet_NaN();
                 for(int species=0;species<Ns;++species)row[7+species]=p.massFraction[species];
                 // Diagnostic decoding cannot veto a physical solve. Missing values
                 // remain explicitly unavailable instead of becoming invented zeros.

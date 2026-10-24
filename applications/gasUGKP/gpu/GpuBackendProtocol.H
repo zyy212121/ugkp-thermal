@@ -2,6 +2,7 @@
 #define UGKWP_GPU_BACKEND_PROTOCOL_H
 
 #include <cstddef>
+#include "../../../common/gasWall/WallResolutionDefaults.H"
 #include <cstdint>
 #include <limits>
 #include <array>
@@ -276,9 +277,9 @@ inline bool sameGasSpeciesIdentity(const GasSpeciesIdentityV1& a, const GasSpeci
 
 struct BoundaryLayerConfigV1
 {
-    std::uint32_t version=1,speciesCount=0,model=1,nodes=24,maxIterations=60;
+    std::uint32_t version=1,speciesCount=0,model=1,nodes=ugkwp::gaswall::defaultWallNodes,maxIterations=60;
     std::uint32_t wallCount=0,quadratureCount=0,matchingCount=0,workspaceSlots=0,reservedAudit=0;
-    double relativeTolerance=1e-8,absoluteTolerance=1e-10,stretch=2;
+    double relativeTolerance=1e-8,absoluteTolerance=1e-10,stretch=ugkwp::gaswall::defaultWallStretch;
     double turbulentPrandtl=.9,turbulentSchmidt=.7;
 };
 

@@ -34,7 +34,7 @@ struct GasCapabilityRequest
     bool movingGeometry = false;
     bool particleCoupling = false;
     int sstWallTreatment = 0; // 0 lowRe, 1 wallFunction, 2 boundaryLayer
-    int boundaryLayerModel = 1; // 0 restricted constantTransport, 1 reactingSst
+    int boundaryLayerModel = 1; // 0 restricted constantTransport, 1 reactingSst, 2 equilibriumOde
 };
 struct GasCapabilityResult
 {
@@ -49,7 +49,7 @@ UGKWP_GAS_HD inline GasCapabilityResult validateGasCapabilities(const GasCapabil
     {
         if (r.mode == GasMode::SingleLegacy || r.particleCoupling)
             return {GasTransportCode::UnsupportedConfiguration, "boundaryLayer requires shared mixture thermo and gas-only storage"};
-        if (r.boundaryLayerModel != 0 && r.boundaryLayerModel != 1)
+        if (r.boundaryLayerModel != 0 && r.boundaryLayerModel != 1 && r.boundaryLayerModel != 2)
             return {GasTransportCode::UnsupportedConfiguration, "selected boundaryLayer model has no implementation"};
     }
     if (r.movingGeometry && r.particleCoupling)

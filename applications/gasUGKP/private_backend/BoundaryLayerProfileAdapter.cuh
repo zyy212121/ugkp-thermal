@@ -6,8 +6,10 @@ extern "C" int ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(void* handle)
     DeviceState* s=asState(handle);
     if(validateState(s,"enable boundaryLayer profiles"))return 1;
     auto& model=s->gasBoundaryLayerModel;
-    if(!s->gasBoundaryLayer.enabled || model.config.model!=ugkwp::gaswall::BoundaryLayerModel::ReactingSst)
-    {setLastErrorText("node profiles are available for finiteRate/reactingSst boundary layers");return 1;}
+    if(!s->gasBoundaryLayer.enabled ||
+       (model.config.model!=ugkwp::gaswall::BoundaryLayerModel::ReactingSst
+        &&model.config.model!=ugkwp::gaswall::BoundaryLayerModel::EquilibriumOde))
+    {setLastErrorText("node profiles are available for finiteRate/reactingSst and equilibriumOde boundary layers");return 1;}
     const std::size_t count=std::size_t(s->gasBoundaryLayer.count)*model.config.nodes*(7+ugkwp::compiledGasSpecies);
     double* profile=model.profile;
     if(!profile && allocateSharedGasZero(profile,count))

@@ -21,6 +21,7 @@ template<class S,int N> UGKWP_GAS_HD inline WallInput<WallReal,N,S> wallComputat
 template<class S> UGKWP_GAS_HD inline WallModelConfig<WallReal> wallComputationConfig(const WallModelConfig<S>& src){
     WallModelConfig<WallReal> dst;dst.family=src.family;dst.model=src.model;dst.nodes=src.nodes;dst.maxIterations=src.maxIterations;
     dst.relativeTolerance=src.relativeTolerance;dst.absoluteTolerance=src.absoluteTolerance;dst.stretch=src.stretch;
+    dst.equilibriumKappa=src.equilibriumKappa;dst.equilibriumAPlus=src.equilibriumAPlus;
     dst.turbulentPrandtl=src.turbulentPrandtl;dst.turbulentSchmidt=src.turbulentSchmidt;dst.enableSst=src.enableSst;dst.coherentDiscretization=src.coherentDiscretization;return dst;
 }
 template<class S,int N> UGKWP_GAS_HD inline bool publishWallPrecision(const WallInput<S,N>& in,const WallOutput<WallReal,N>& src,WallOutput<S,N>& output){

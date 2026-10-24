@@ -113,7 +113,7 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
     auto& closure=wall.sst[slot];
     closure={};closure.wallShearStress=shear;closure.ownerOmega=output.ownerOmega;
     closure.volume=input.quadrature.volume;closure.ownerDistance=input.ownerDistance;
-    if(input.volumeSstClosure){
+    if(input.volumeSstClosure && !wall.useMacroSstInventory){
         // At exactly zero profile k the moment ratio is undefined; retain
         // the existing point-omega decay of any nonzero macro inventory.
         closure.kDestructionRate=output.ownerKContent>0
@@ -124,6 +124,9 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
         for(int species=0;species<Ns;++species)closure.normalMassFlux+=input.massFlux[species];
         closure.kFluxCount=output.kFluxCount;closure.kFluxHeight=output.kFluxHeight;closure.kTransportFlux=output.kTransportFlux;closure.omegaDiffusiveFlux=output.omegaDiffusiveFlux;
     }
+    // With macro inventories, these profile quantities remain in WallOutput
+    // for diagnostics. A zero count publishes no replacement internal flux
+    // or volume source. Physical-wall exchange above still comes from the BVP.
     candidate.ready=true;
     candidate.massReady=true;
     wall.exchange[slot]=candidate;

@@ -7,6 +7,14 @@ struct GasCourantMaxima
 {
     double convective=0, diffusion=0, sst=0, maximum=0;
 };
+// Applications which own numerical wall profiles may prepare them before the
+// current-state estimate. Return -1 on failure, 0 when no preparation applies,
+// and 1 after preparing the current wall state and primitive gradients.
+struct GasCourantNoWallPreparation
+{
+    template<class Host,class Time,class Stream>
+    int operator()(Host*,Time,Time,int,int,Stream) const { return 0; }
+};
 // Adapters with backend-specific status handling may retain scalar reductions.
 // The native gas backend supplies the joint overload, with one host readback.
 template<class Reduction,class Real> auto reduceGasCourantFields(Reduction reduce,
@@ -20,12 +28,14 @@ template<class Reduction,class Real> int reduceGasCourantFields(Reduction reduce
     if(reduce(convective,count,stream,result.convective)||reduce(diffusion,count,stream,result.diffusion))return 1;
     return sst?reduce(sst,count,stream,result.sst):0;
 }
-template<class GasHostState,class Time,class Real,class MaximumReduction>
+template<class GasHostState,class Time,class Real,class MaximumReduction,
+    class WallPreparation=GasCourantNoWallPreparation>
 int computeGasCurrentCourant
 (
     GasHostState* s, Time dt, Real targetMaxCo, Time scheduleTime,
     int cellBlock, int faceBlock, cudaStream_t stream,
-    GasCourantMaxima& result, MaximumReduction maximumReduction
+    GasCourantMaxima& result, MaximumReduction maximumReduction,
+    WallPreparation prepareWall=WallPreparation{}
 )
 {
     const int cellGrid = (s->nCells + cellBlock - 1)/cellBlock;
@@ -83,9 +93,13 @@ int computeGasCurrentCourant
         }
     }
 
+    const int wallPreparation=prepareWall(s,dt,scheduleTime,cellGrid,cellBlock,stream);
+    if(wallPreparation<0)return 1;
+
     if (s->hostTurbulenceModel == 3)
     {
-        applySstWallFunctionStateKernel<<<cellGrid, cellBlock, 0, stream>>>(s->deviceState, true);
+        applySstWallFunctionStateKernel<<<cellGrid, cellBlock, 0, stream>>>
+            (s->deviceState,wallPreparation==0);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -98,12 +112,15 @@ int computeGasCurrentCourant
         }
     }
 
-    computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock, 0, stream>>>(s->deviceState, true);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
+    if(wallPreparation==0)
     {
-        setLastError("computeGasPrimitiveGradientsKernel for gas Courant", err);
-        return 1;
+        computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock, 0, stream>>>(s->deviceState, true);
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+        {
+            setLastError("computeGasPrimitiveGradientsKernel for gas Courant", err);
+            return 1;
+        }
     }
     computeGasGradientLimiterKernel<<<cellGrid, cellBlock, 0, stream>>>(s->deviceState);
     err = cudaGetLastError();
@@ -175,7 +192,7 @@ int computeGasCurrentCourant
             s->deviceState,
             dt,
             targetMaxCo,
-            false
+            wallPreparation!=0
         );
         err = cudaGetLastError();
         if (err != cudaSuccess)

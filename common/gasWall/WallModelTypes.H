@@ -1,5 +1,6 @@
 #pragma once
 #include "../GpuPrecisionTypes.H"
+#include "WallResolutionDefaults.H"
 #include "../Diagnostics.H"
 #include <type_traits>
 #include "../gasTransport/MixtureThermo.H"
@@ -9,16 +10,17 @@
 namespace ugkwp { namespace gaswall {
 using WallReal=double;
 enum class WallFamily : int { LowRe=0, WallFunction=1, BoundaryLayer=2 };
-enum class BoundaryLayerModel : int { ConstantTransport=0, ReactingSst=1, FiniteRate=ReactingSst };
+enum class BoundaryLayerModel : int { ConstantTransport=0, ReactingSst=1, FiniteRate=ReactingSst, EquilibriumOde=2 };
 enum class WallCode : int { Success=0, InvalidInput, InvalidThermodynamics, Unsupported,
     InvalidGeometry, ChemistryFailure, NonConvergence, SingularJacobian, InadmissibleState };
 struct WallStatus { WallCode code=WallCode::Success; int node=-1,iteration=0; double residual=std::numeric_limits<double>::quiet_NaN(); };
 template<class R> struct WallModelConfig {
     WallFamily family=WallFamily::BoundaryLayer;
     BoundaryLayerModel model=BoundaryLayerModel::ReactingSst;
-    int nodes=24,maxIterations=60;
-    R relativeTolerance=R(1e-8),absoluteTolerance=R(1e-10),stretch=R(2);
+    int nodes=defaultWallNodes,maxIterations=60;
+    R relativeTolerance=R(1e-8),absoluteTolerance=R(1e-10),stretch=R(defaultWallStretch);
     R turbulentPrandtl=R(.9),turbulentSchmidt=R(.7);
+    R equilibriumKappa=R(.41),equilibriumAPlus=R(17);
     bool enableSst=false;
     // Internal route selection, set only on a coherent solver/profile config copy.
     // Legacy, analytic and unrelated template routes retain their original math.

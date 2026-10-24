@@ -20,7 +20,7 @@ namespace Foam
 // evaluation and physical gas inventories remain in the resident backend.
 class BoundaryLayerInput
 {
-    bool active_=false,prepared_=false;
+    bool active_=false,prepared_=false,hasLocalSst_=false;
     ugkwpGpuIpc::BoundaryLayerConfigV1 config_;
     ugkp::diagnostics::DeviceContext geometryDiagnostics_{};
     ugkwp::gaswall::WallGeometryOptions<double> geometryOptions_;
@@ -47,10 +47,20 @@ class BoundaryLayerInput
         }
         const fileName path=time.timePath()/"uniform"/"gasBoundaryLayerProfiles.csv";
         std::ofstream output(path.c_str());
-        ugkwp::writeGasBoundaryLayerProfiles(output,faces_,profileFaceCentres_,geometry_,
+        const bool flowWritten=ugkwp::writeGasBoundaryLayerProfiles(output,faces_,profileFaceCentres_,geometry_,
             speciesNames_,config_.nodes,profiles.data(),stageTime,time.value());
         output.close();
-        if(!output)WarningInFunction<<"Cannot write boundaryLayer node profiles "<<path<<endl;
+        if(!flowWritten || !output)WarningInFunction<<"Cannot write finite boundaryLayer node profiles "<<path<<endl;
+        // Equilibrium ODE has no local k/omega: do not create that interface/file.
+        if(hasLocalSst_)
+        {
+            const fileName sstPath=time.timePath()/"uniform"/"gasBoundaryLayerSstProfiles.csv";
+            std::ofstream sst(sstPath.c_str());
+            const bool written=ugkwp::writeGasBoundaryLayerSstProfiles(sst,true,faces_,
+                config_.nodes,speciesNames_.size(),profiles.data(),stageTime,time.value());
+            sst.close();
+            if(!written || !sst)WarningInFunction<<"Cannot write finite off-wall SST profiles "<<sstPath<<endl;
+        }
     }
 
     static scalar coefficient(const dictionary& d,const word& name,const word& alias,scalar fallback)
@@ -110,13 +120,15 @@ public:
         const word model=d.lookupOrDefault<word>("model","finiteRate");
         if(model=="constantTransport")config_.model=0;
         else if(model=="finiteRate" || model=="reactingSst")config_.model=1;
+        else if(model=="equilibriumOde")config_.model=2;
         else FatalErrorInFunction<<"Unknown boundaryLayer model '"<<model
-            <<"'; valid models are constantTransport and finiteRate (reactingSst alias)"<<exit(FatalError);
+            <<"'; valid models are constantTransport, finiteRate (reactingSst alias), and equilibriumOde"<<exit(FatalError);
+        hasLocalSst_=turbulenceModel==3 && config_.model==1;
         // Read once. Subsequent timesteps never inspect the option or dictionary.
         if(d.lookupOrDefault<bool>("writeProfiles",false))profileWriter_=&BoundaryLayerInput::writeProfiles;
         speciesNames_=gasModel.speciesNames;
         config_.speciesCount=checkedCount(speciesNames_.size(),"species count");
-        const label nodes=d.lookupOrDefault<label>("nodes",24);
+        const label nodes=d.lookupOrDefault<label>("nodes",ugkwp::gaswall::defaultWallNodes);
         const label iterations=d.lookupOrDefault<label>("maxIterations",60);
         const label slots=d.lookupOrDefault<label>("workspaceSlots",0);
         config_.nodes=nodes;config_.maxIterations=iterations;config_.workspaceSlots=slots;
@@ -125,7 +137,7 @@ public:
         geometryOptions_.profileNodes=nodes;
         config_.relativeTolerance=coefficient(d,"relativeTolerance","rtol",1e-8);
         config_.absoluteTolerance=coefficient(d,"absoluteTolerance","atol",1e-10);
-        config_.stretch=d.lookupOrDefault<scalar>("stretch",2);
+        config_.stretch=d.lookupOrDefault<scalar>("stretch",ugkwp::gaswall::defaultWallStretch);
         geometryOptions_.profileStretch=config_.stretch;
         config_.turbulentPrandtl=coefficient(d,"turbulentPrandtl","Prt",turbulentPrandtl);
         config_.turbulentSchmidt=coefficient(d,"turbulentSchmidt","Sct",gasModel.turbulentSchmidt);
@@ -237,28 +249,10 @@ public:
         mkDir(directory);
         const fileName path=directory/"gasBoundaryLayer.csv";
         std::ofstream output(path.c_str());
-        output<<std::setprecision(std::numeric_limits<double>::max_digits10);
-        output<<"face,owner,matchingDistance,ownerDistance,heatFluxIntoGas,tractionX,tractionY,tractionZ,"
-            <<"wallKFlux,integratedKSource,ownerOmega,residual,iterations,traceDensity,viscosity,stageTime,"
-            <<"heatConduction,heatViscous,heatTransport,heatBalanceResidual,ownerKContent,ownerKDestruction,ownerVolume,ownerKBalanceResidual,volumeSstClosure";
-        for(const auto& species:speciesNames_)output<<",speciesFlux_"<<species;
-        for(const auto& species:speciesNames_)output<<",reactionIntegral_"<<species;
-        output<<'\n';
-        // Stage time is supplied by the accepted resident diagnostic record,
-        // not substituted with the write endpoint or used for a coarse mismatch.
-        for(std::size_t row=0;row<faces_.size();++row)
-        {
-            for(std::size_t col=0;col<columns;++col)
-            {
-
-
-                if(col)output<<',';
-                output<<diagnostics[row*columns+col];
-            }
-            output<<'\n';
-        }
+        const bool written=ugkwp::writeGasBoundaryLayerDiagnostics(output,hasLocalSst_,
+            faces_.size(),speciesNames_,diagnostics.data());
         output.close();
-        if(!output)FatalErrorInFunction<<"Cannot write boundaryLayer diagnostics "<<path<<exit(FatalError);
+        if(!written || !output)FatalErrorInFunction<<"Cannot write finite boundaryLayer diagnostics "<<path<<exit(FatalError);
         (this->*profileWriter_)(time,handle);
     }
 };

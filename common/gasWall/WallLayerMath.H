@@ -95,8 +95,35 @@ template<class R> UGKWP_GAS_HD inline R omegaGradientFit(R left,R right){
     if(left<=0||right<=0)return R(1);
     const R mid=(left+right)/R(2),ratio=left*right/(mid*mid);return ratio*ratio;
 }
+// On positive-y intervals use omega_h = c0 + c1/y^2. Its midpoint
+// derivative is omegaGradientFit(ya,yb)*(b-a)/(yb-ya): the coefficient
+// is positive and independent of the states, even across a steep drop.
+// These positive interpolation weights avoid subtracting large c0/c1 terms.
+template<class R> UGKWP_GAS_HD inline R omegaInverseSquareValue(R a,R b,R ya,R yb,R y){
+    if(y==ya||a==b)return a;
+    if(y==yb)return b;
+    const R wa=(ya/y)*(ya/y)*((yb-y)/(yb-ya))*((yb+y)/(yb+ya));
+    const R wb=(yb/y)*(yb/y)*((y-ya)/(yb-ya))*((y+ya)/(yb+ya));
+    return wa*a+wb*b;
+}
+// Exact integral of omega_h^2 on [lo,hi], written with positive endpoint
+// weights. q<=1 avoids large ratios and cancellation in nearly flat data.
+template<class R> UGKWP_GAS_HD inline R omegaInverseSquareIntegral(R a,R b,R ya,R yb,R lo,R hi){
+    if(hi==lo)return R(0);
+    const R left=omegaInverseSquareValue(a,b,ya,yb,lo);
+    const R right=omegaInverseSquareValue(a,b,ya,yb,hi),q=lo/hi;
+    const R mean=(q*(R(1)+R(3)*q)*left*left+R(4)*q*left*right
+        +(R(3)+q)*right*right)/(R(3)*(R(1)+q)*(R(1)+q));
+    return (hi-lo)*mean;
+}
+template<class R> UGKWP_GAS_HD inline R omegaInverseSquareAverage(R a,R b,R c,R ya,R yb,R yc){
+    const R lo=(ya+yb)/R(2),hi=(yb+yc)/R(2);
+    return (omegaInverseSquareIntegral(a,b,ya,yb,lo,yb)
+        +omegaInverseSquareIntegral(b,c,yb,yc,yb,hi))/(hi-lo);
+}
 template<class R> UGKWP_GAS_HD inline R omegaDestructionFit(R y,R faceLeft,R faceRight){
-    return y*y*y*y*(R(1)/(faceLeft*faceLeft*faceLeft)-R(1)/(faceRight*faceRight*faceRight))/(R(3)*(faceRight-faceLeft));
+    const R a=y/faceLeft,b=y/faceRight;
+    return a*a*b*b*(faceRight/faceLeft+R(1)+faceLeft/faceRight)/R(3);
 }
 // Leading near-wall solution of mu*k''-m*k'-rho*betaStar*k/omegaZ^2=0,
 // with omegaZ=a*(y+ell). Removing convection gives the exponential factor;

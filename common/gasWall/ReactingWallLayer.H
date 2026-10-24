@@ -3,6 +3,7 @@
 #include "WallExecution.H"
 #include "WallLayerMath.H"
 #include "WallThermoMath.H"
+#include "EquilibriumOdeMath.H"
 #include "../gasTransport/SpeciesDiffusion.H"
 // Keep repeated SST/thermochemistry leaves out of each capacity-specialized
 // device body. This bounds nvcc optimization memory; host calls remain inline.
@@ -18,11 +19,93 @@ template<class R,int N> struct LayerContext {
     R tangent[2][3]{},wallU[2]{},edgeU[2]{},mass=0,wallNormal=0,energyReference=0,wallEnthalpy[N]{},enthalpyJump[N]{},scale[N+4]{};
     int dependent=0,independent[N]{};
     bool trialStorageComplete=false;
+    R equilibriumWallStress=0; // fixed constitutive parameter during one transport Newton solve
 };
 template<class R,int N> struct LayerPoint {
     R T=0,theta=0,normalCoefficient=0,Y[N]{},rho=0,cp=0,h[N]{},u[2]{},normalVelocity=0,k=0,z=0,omega=0;
-    R nut=0,f1=0,f2=0,sourceK=0,sourceOmega=0,source[N]{};
+    R nut=0,f1=0,f2=0,sourceK=0,sourceOmega=0,sourceOmegaWithoutCrossDiffusion=0,source[N]{};
 };
+// The same closure is used by nodal diagnostics and every conservative
+// interval flux, including final publication and numerical Jacobian probes.
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool applyEquilibriumViscosity(
+ const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
+ const LayerContext<R,N>& ctx,R y,LayerPoint<R,N>& p){
+    if(c.model!=BoundaryLayerModel::EquilibriumOde)return true;
+    p.nut=equilibriumDynamicViscosity(p.rho,ctx.equilibriumWallStress,y,
+        in.model.viscosity,c.equilibriumKappa,c.equilibriumAPlus)/p.rho;
+    return gasFinite(p.nut)&&p.nut>=0;
+}
+// log(b/a) without overflowing b/a or losing a small positive-state jump.
+template<class R> UGKWP_GAS_HD inline R wallPositiveLogRatio(R b,R a){
+    const R difference=b-a;
+    if(abs(difference)<=a/R(2))return ::log1p(difference/a);
+    return ::log(b)-::log(a);
+}
+// Integral of k'_h * (log omega_h)' on part of one interpolation interval.
+// k_h uses the same physical secant as pointSst. Away from the wall omega_h
+// is the positive c0+c1/y^2 reconstruction used by its diffusion flux
+// and destruction integral. The y=0 interval instead retains pointSst's
+// linear-z asymptote, z=1/sqrt(omega); its outer half remains finite when
+// z_wall=0. No encoded wall omega=0 is treated as a physical value.
+template<class R,int N> UGKWP_GAS_HD inline R omegaCrossDiffusionIntegral(
+ const LayerPoint<R,N>& a,const LayerPoint<R,N>& b,R ya,R yb,R lo,R hi){
+    const R invalid=std::numeric_limits<R>::quiet_NaN();
+    if(!(yb>ya&&ya>=0&&lo>=ya&&hi<=yb&&hi>=lo))return invalid;
+    if(a.k==b.k||hi==lo)return R(0);
+    const R slope=(b.k-a.k)/(yb-ya);
+    if(ya>0){
+        if(!(a.omega>0&&b.omega>0))return invalid;
+        if(a.omega==b.omega)return R(0);
+        const R omegaLo=omegaInverseSquareValue(a.omega,b.omega,ya,yb,lo);
+        const R omegaHi=omegaInverseSquareValue(a.omega,b.omega,ya,yb,hi);
+        return slope*wallPositiveLogRatio(omegaHi,omegaLo);
+    }
+    if(!(a.z>=0&&b.z>0))return invalid;
+    const R tLo=(lo-ya)/(yb-ya),tHi=(hi-ya)/(yb-ya);
+    const R zLo=(R(1)-tLo)*a.z+tLo*b.z,zHi=(R(1)-tHi)*a.z+tHi*b.z;
+    // A wall-touching integral of this linear-k source diverges for z_wall=0.
+    // No omega PDE row uses it: the first interior row is the wall asymptote,
+    // and two-node matching publication integrates only [y1/2,y1].
+    if(!(zLo>0&&zHi>0))return invalid;
+    return -R(2)*slope*wallPositiveLogRatio(zHi,zLo);
+}
+// Nodal SST coefficients remain frozen over this control volume, as in the
+// existing omega^2 integration. Both residual and matching publication use
+// this source: the integrated cross diffusion replaces its nodal counterpart.
+template<class R,int N> UGKWP_GAS_HD inline R omegaSourceWithCrossDiffusionIntegral(
+ const LayerPoint<R,N>& p,const SstCoefficientsT<R>& coefficients,
+ R width,R omegaSquareMean,R crossIntegral){
+    return p.sourceOmegaWithoutCrossDiffusion
+        +p.rho*sstBeta(p.f1,coefficients)*(p.omega*p.omega-omegaSquareMean)
+        +(R(2)*p.rho*coefficients.alphaOmega2*(R(1)-p.f1))*(crossIntegral/width);
+}
+// In the omega residual, -C*k'*(log omega)' is directed transport with
+// velocity sign -k' (C>=0). A centred half-interval source can overturn the
+// diffusion off-diagonal at large local Peclet number. Use the incoming
+// logarithmic difference with the physical centred k gradient. No source
+// coefficient, matching value, physical timestep or state is adjusted.
+template<class R,int N> UGKWP_GAS_HD inline R omegaDirectedCrossIntegral(
+ const LayerPoint<R,N>& a,const LayerPoint<R,N>& p,const LayerPoint<R,N>& b,
+ R ya,R y,R yb,R width){
+    const R left=y-ya,right=yb-y;
+    const R dk=centeredDerivative(a.k,p.k,b.k,left,right);
+    if(dk<0)return width*dk*wallPositiveLogRatio(p.omega,a.omega)/left;
+    if(dk>0)return width*dk*wallPositiveLogRatio(b.omega,p.omega)/right;
+    return R(0);
+}
+// The prescribed matching endpoint has a half CV and a one-sided derivative.
+template<class R,int N> UGKWP_GAS_HD inline R omegaMatchingCrossIntegral(
+ const LayerPoint<R,N>& a,const LayerPoint<R,N>& b,R ya,R yb,R width){
+    if(a.k==b.k||a.omega==b.omega)return R(0);
+    const R h=yb-ya;
+    return width*((b.k-a.k)/h)*wallPositiveLogRatio(b.omega,a.omega)/h;
+}
+// Local destruction keeps the scalar reaction diagonal. The positive,
+// geometry-only factor integrates the singular A/y^2 wall asymptote exactly
+// and tends to one with second-order error on a smooth stretched mesh.
+template<class R> UGKWP_GAS_HD inline R omegaLocalSquareMean(R omega,R y,R lo,R hi){
+    return omega*omega*omegaDestructionFit(y,lo,hi);
+}
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool validatePointDynamics(
  const WallInput<R,N,TableReal>& in,const LayerPoint<R,N>& p){
     if(!gasFinite(p.k)||!gasFinite(p.z)||p.z<0)return wallFatal(in,(gasFinite(p.k)&&gasFinite(p.z)?ugkp::diagnostics::Code::InvalidPhysicalState:ugkp::diagnostics::Code::NonFinite),2411,p.z);
@@ -78,8 +161,19 @@ template<class R,int N,class Rows> struct CachedLayerRows {
     UGKWP_GAS_HD CachedLayerRows(const Rows& values,int node)
         :rows(values),cache(node>1?node-2:0){}
     UGKWP_GAS_HD CachedLayerRow<R,N> operator[](int node)const{return {rows[node],&cache,node};}
-    UGKWP_GAS_HD void invalidate(int node){
-        cache.invalidate(node);
+    UGKWP_GAS_HD void invalidate(int node,bool velocityOnly=false){
+        const int point=node-cache.first;
+        // A velocity-only probe cannot change T, Y, rho, Cp, h or the
+        // mass-prescribed normal velocity. Keep their successfully decoded
+        // values, but refresh BOTH velocity components (the previous probe
+        // may have changed the other one). Failed/empty entries are refilled.
+        if(velocityOnly&&cache.status[point]==1){
+            cache.points[point].u[0]=rows[node][0];
+            cache.points[point].u[1]=rows[node][1];
+            if(!gasFinite(rows[node][0])||!gasFinite(rows[node][1]))cache.invalidate(node);
+        }else cache.invalidate(node);
+        // Even with invariant thermodynamics the incident momentum/energy
+        // fluxes depend on the probe and must always be evaluated again.
         for(int face=node-1;face<=node;++face){const int slot=face-cache.first;
             if(slot>=0&&slot<4)fluxStatus[slot]=0;}
     }
@@ -195,7 +289,14 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline void applySstGradien
     p.f2=sstF2(p.k,p.omega,in.model.viscosity/p.rho,y,a);
     p.nut=sstNut(p.k,p.omega,s2,p.f2,a);
     p.sourceK=sstKSource(p.rho,p.k,p.omega,div,p.nut,g,a);
-    p.sourceOmega=sstOmegaSource(p.rho,p.k,p.omega,div,g,s2,p.f1,p.f2,cd,a);
+    // The same nodal SST expression as sstOmegaSource, factored once so the
+    // CV integral need not subtract a potentially dominant nodal CD source.
+    // Preserve the complete nodal source for the existing Picard initializer.
+    const R gamma=sstGamma(p.f1,a),beta=sstBeta(p.f1,a);
+    const R production=gamma*sstMinimum(g,sstOmegaProductionLimit(p.omega,s2,p.f2,a));
+    const R withoutCross=production-(R(2)/R(3))*gamma*div*p.omega-beta*p.omega*p.omega;
+    p.sourceOmegaWithoutCrossDiffusion=p.rho*withoutCross;
+    p.sourceOmega=p.rho*(withoutCross+(R(1)-p.f1)*cd);
 }
 template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF void pointSst(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
  R y,const LayerPoint<R,N>& left,const LayerPoint<R,N>& right,R length,LayerPoint<R,N>& p,R leftSpacing=R(0)){
@@ -269,7 +370,8 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerFlux(const
 
     if(c.enableSst){const R dw=R(.5)*(in.model.viscosity+a.rho*sstAlphaOmega(a.f1,in.model.sstCoefficients)*a.nut+
         in.model.viscosity+b.rho*sstAlphaOmega(b.f1,in.model.sstCoefficients)*b.nut);
-        f.omega=ctx.mass*(a.omega+b.omega)/R(2)-dw*powerGradient(a.omega,b.omega,ya,yb,(ya+yb)/R(2));}
+        f.omega=ctx.mass*(a.omega+b.omega)/R(2)
+            -dw*omegaGradientFit(ya,yb)*(b.omega-a.omega)/length;}
 
 
     (void)terminalProfile;
@@ -282,7 +384,7 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD inline bool eval
     if(c.enableSst&&index>0){const int l=index-1,r=index+1<c.nodes?index+1:index;LayerPoint<R,N> a,b;
         if(!loadBasePoint(in,c,ctx,x[l],a,terminalProfile)||!loadBasePoint(in,c,ctx,x[r],b,terminalProfile))return false;
         pointSst(in,c,y[index],a,b,y[r]-y[l],p,y[index]-y[l]);}
-    return true;
+    return applyEquilibriumViscosity(in,c,ctx,y[index],p);
 }
 // Flux values at a face depend on endpoint gradients through SST eddy viscosity.
 // Use a two-point strain/gradient consistently, preserving a three-node residual
@@ -292,6 +394,7 @@ template<class R,int N,class TableReal,class RowA,class RowB> UGKWP_GAS_HD UGKWP
     LayerPoint<R,N> a,b;if(!loadBasePoint(in,c,ctx,xa,a,terminalProfile)||!loadBasePoint(in,c,ctx,xb,b,terminalProfile))return false;
     const auto originalA=a,originalB=b;
     pointSst(in,c,ya,originalA,originalB,yb-ya,a);pointSst(in,c,yb,originalA,originalB,yb-ya,b);
+    if(!applyEquilibriumViscosity(in,c,ctx,ya,a)||!applyEquilibriumViscosity(in,c,ctx,yb,b))return false;
     return layerFlux(in,c,ctx,a,b,yb-ya,f,ya,yb,terminalProfile);
 }
 template<class R,int N> UGKWP_GAS_HD inline void storeIntervalFlux(const LayerFlux<R,N>& f,R (*cache)[N+4]){
@@ -361,8 +464,9 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVIC
     else {
       LayerPoint<R,N> a,b;
       if(!loadBasePoint(in,c,ctx,x[i-1],a)||!loadBasePoint(in,c,ctx,x[i+1],b))return false;
-      const R average=omegaSquareAverage(a.omega,p.omega,b.omega,y[i-1],y[i],y[i+1]);
-      const R source=p.sourceOmega+p.rho*sstBeta(p.f1,in.model.sstCoefficients)*(p.omega*p.omega-average);
+      const R average=omegaLocalSquareMean(p.omega,y[i],(y[i-1]+y[i])/R(2),(y[i]+y[i+1])/R(2));
+      const R crossIntegral=omegaDirectedCrossIntegral(a,p,b,y[i-1],y[i],y[i+1],volume);
+      const R source=omegaSourceWithCrossDiffusionIntegral(p,in.model.sstCoefficients,volume,average,crossIntegral);
       row[Z]=-(right.omega-left.omega-volume*source)*p.z*p.z*p.z*p.z/(R(2)*volume*ctx.scale[Z]);}
     for(int j=0;j<N+4;++j)if(!gasFinite(row[j]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2425,row[j],0,j);
     return true;
@@ -557,18 +661,17 @@ UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool applyLayerNewtonUpdate(const WallInput<
         }
         alpha*=R(.5);
     }
-    // A finite residual after exhausting a mathematical iteration budget keeps
-    // the existing accuracy-warning contract. No invalid profile is released:
-    // restore the current residual and retain normal final physical checks.
+    // Restore the current iterate after an exhausted line search. The caller
+    // must still certify convergence before publishing any physical flux.
     return allResidual(in,c,ctx,w.state,w.y,w.residual,norm,team);
 }
-template<class R,int B> UGKWP_GAS_HD inline bool eliminateBlock(R (&a)[B][B],R (&upper)[B][B],R* rhs){
-    for(int col=0;col<B;++col){int pivot=col;for(int row=col+1;row<B;++row)if(abs(a[row][col])>abs(a[pivot][col]))pivot=row;
+template<class R,int B> UGKWP_GAS_HD inline bool eliminateBlock(R (&a)[B][B],R (&upper)[B][B],R* rhs,int active=B){
+    for(int col=0;col<active;++col){int pivot=col;for(int row=col+1;row<active;++row)if(abs(a[row][col])>abs(a[pivot][col]))pivot=row;
         if(!gasFinite(a[pivot][col])||abs(a[pivot][col])<std::numeric_limits<R>::min()*R(100))return false;
-        if(pivot!=col){for(int k=0;k<B;++k){R v=a[col][k];a[col][k]=a[pivot][k];a[pivot][k]=v;v=upper[col][k];upper[col][k]=upper[pivot][k];upper[pivot][k]=v;}
+        if(pivot!=col){for(int k=0;k<active;++k){R v=a[col][k];a[col][k]=a[pivot][k];a[pivot][k]=v;v=upper[col][k];upper[col][k]=upper[pivot][k];upper[pivot][k]=v;}
             R v=rhs[col];rhs[col]=rhs[pivot];rhs[pivot]=v;}
-        const R diagonal=a[col][col];for(int k=0;k<B;++k){a[col][k]/=diagonal;upper[col][k]/=diagonal;}rhs[col]/=diagonal;
-        for(int row=0;row<B;++row)if(row!=col){const R factor=a[row][col];for(int k=0;k<B;++k){a[row][k]-=factor*a[col][k];upper[row][k]-=factor*upper[col][k];}rhs[row]-=factor*rhs[col];}}
+        const R diagonal=a[col][col];for(int k=0;k<active;++k){a[col][k]/=diagonal;upper[col][k]/=diagonal;}rhs[col]/=diagonal;
+        for(int row=0;row<active;++row)if(row!=col){const R factor=a[row][col];for(int k=0;k<active;++k){a[row][k]-=factor*a[col][k];upper[row][k]-=factor*upper[col][k];}rhs[row]-=factor*rhs[col];}}
     return true;
 }
 // A thread owns one perturbed node and its three Jacobian blocks. The view
@@ -590,7 +693,13 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
         R sum=0;for(int k=3;k<N+2;++k)sum+=perturbed.row[k];
         R donorMass=R(1)-sum;int donor=-1;
         for(int k=3;k<N+2;++k)if(perturbed.row[k]>donorMass){donorMass=perturbed.row[k];donor=k;}
-        for(int pass=0;pass<B;++pass){const int col=donor>=3?(pass==3?donor:(pass==donor?3:pass)):pass;
+        // EquilibriumOde's two unused SST rows are exact identity equations.
+        // They do not affect transport; avoid two full thermochemistry/flux
+        // probes per node while preserving the existing block solve/order.
+        const bool algebraicSst=c.model==BoundaryLayerModel::EquilibriumOde&&!c.enableSst;
+        if(algebraicSst){w.diagonal[j][N+2][N+2]=R(1);w.diagonal[j][N+3][N+3]=R(1);}
+        const int columns=algebraicSst?N+2:B;
+        for(int pass=0;pass<columns;++pass){const int col=donor>=3?(pass==3?donor:(pass==donor?3:pass)):pass;
             const bool species=col>=3&&col<N+2,transfer=species&&donor>=3&&col!=donor;
             const R old=perturbed.row[col],oldDonor=transfer?perturbed.row[donor]:R(0);
             const R rootEpsilon=::sqrt(std::numeric_limits<R>::epsilon());
@@ -609,7 +718,7 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
                 if(transfer)perturbed.row[donor]=oldDonor-h;
                 if(!ctx.trialStorageComplete
                     &&!layerTrialStorageAvailable(in,in.temperature+perturbed.row[2],j))return false;
-                cached.invalidate(j);valid=true;
+                cached.invalidate(j,algebraicSst&&col<2);valid=true;
                 for(int i=start;i<=end;++i)
                     if(!layerRow(derivativeInput,c,ctx,cached,w.y,i,rows[i-start])){valid=false;break;}
                 if(!valid){
@@ -663,10 +772,13 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
 template<class R,int N,int M> UGKWP_GAS_HD inline bool solveLayerNewtonSystem(
  const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w){
     constexpr int B=N+4;
-    for(int i=0;i<c.nodes;++i){if(i>0){for(int row=0;row<B;++row){R correction=0;for(int k=0;k<B;++k)correction+=w.lower[i][row][k]*w.delta[i-1][k];w.delta[i][row]-=correction;
-          for(int col=0;col<B;++col){R sum=0;for(int k=0;k<B;++k)sum+=w.lower[i][row][k]*w.upper[i-1][k][col];w.diagonal[i][row][col]-=sum;}}}
-        if(!eliminateBlock(w.diagonal[i],w.upper[i],w.delta[i]))return false;}
-    for(int i=c.nodes-2;i>=0;--i)for(int row=0;row<B;++row){R sum=0;for(int col=0;col<B;++col)sum+=w.upper[i][row][col]*w.delta[i+1][col];w.delta[i][row]-=sum;}
+    // The omitted rows/columns form an uncoupled identity block. Keeping
+    // their initialized zero increments solves the same full system.
+    const int active=c.model==BoundaryLayerModel::EquilibriumOde&&!c.enableSst?N+2:B;
+    for(int i=0;i<c.nodes;++i){if(i>0){for(int row=0;row<active;++row){R correction=0;for(int k=0;k<active;++k)correction+=w.lower[i][row][k]*w.delta[i-1][k];w.delta[i][row]-=correction;
+          for(int col=0;col<active;++col){R sum=0;for(int k=0;k<active;++k)sum+=w.lower[i][row][k]*w.upper[i-1][k][col];w.diagonal[i][row][col]-=sum;}}}
+        if(!eliminateBlock(w.diagonal[i],w.upper[i],w.delta[i],active))return false;}
+    for(int i=c.nodes-2;i>=0;--i)for(int row=0;row<active;++row){R sum=0;for(int col=0;col<active;++col)sum+=w.upper[i][row][col]*w.delta[i+1][col];w.delta[i][row]-=sum;}
     // A zero-species active constraint can acquire a negative step solely from
     // block elimination roundoff. Remove only O(epsilon) outward motion; the
     // Newton globalization preserves the physical domain; finite Y is separately clipped.
@@ -702,11 +814,14 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool makeContext(con
     R gasR=0,cp=0,maxD=0;for(int j=0;j<N;++j){gasR+=in.matching.massFraction[j]*universalGasConstant<R>()/in.model.thermo.species[j].molarMass;bool available=false;const R value=wallProperty<false>(j,in.matching.temperature,in.model.thermo,&available);if(!available)return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10015);cp+=in.matching.massFraction[j]*value;maxD=max(maxD,in.model.diffusivity[j]);}
     if(gasR==0)return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10016,gasR);
     const R rho=in.pressure/(gasR*in.matching.temperature),L=in.matchingDistance;
-    for(int d=0;d<2;++d)ctx.scale[d]=max(R(1e-12),(ctx.mass+in.model.viscosity/L)*max(R(1),abs(ctx.edgeU[d])));
+    // A residual scale measures activity, not signed transport. Suction
+    // must not cancel diffusion and turn roundoff into a large residual.
+    const R massMagnitude=abs(ctx.mass);
+    for(int d=0;d<2;++d)ctx.scale[d]=max(R(1e-12),(massMagnitude+in.model.viscosity/L)*max(R(1),abs(ctx.edgeU[d])));
     const R lambda=in.model.molecularPrandtl>0?in.model.viscosity*cp/in.model.molecularPrandtl:in.model.conductivity;
-    ctx.scale[2]=max(R(1e-12),(ctx.mass*cp+lambda/L)*max(R(1),max(in.temperature,in.matching.temperature)));
-    for(int j=0;j<N-1;++j)ctx.scale[3+j]=max(R(1e-12),ctx.mass+rho*maxD/L);
-    ctx.scale[N+2]=max(R(1e-12),(ctx.mass+in.model.viscosity/L)*max(R(1),in.matching.k));ctx.scale[N+3]=rho;
+    ctx.scale[2]=max(R(1e-12),(massMagnitude*cp+lambda/L)*max(R(1),max(in.temperature,in.matching.temperature)));
+    for(int j=0;j<N-1;++j)ctx.scale[3+j]=max(R(1e-12),massMagnitude+rho*maxD/L);
+    ctx.scale[N+2]=max(R(1e-12),(massMagnitude+in.model.viscosity/L)*max(R(1),in.matching.k));ctx.scale[N+3]=rho;
     ctx.trialStorageComplete=layerAllTrialStorageComplete(in);
     (void)c;return true;
 }
@@ -835,16 +950,32 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
             const R kRest=p.sourceK+p.rho*coefficients.betaStar*p.k*p.omega;
             w.seed[i][3]=max(R(0),kRest);
             w.seed[i][4]=p.rho*coefficients.betaStar*p.omega+(p.k>0?max(R(0),-kRest)/p.k:R(0));
-            const R omegaRest=p.sourceOmega+p.rho*sstBeta(p.f1,coefficients)*p.omega*p.omega;
+            R omegaRest=p.sourceOmega+p.rho*sstBeta(p.f1,coefficients)*p.omega*p.omega;
+            const bool integratedOmega=phase==1&&i>1&&i+1<c.nodes;
+            R omegaSquareMean=0;
+            if(integratedOmega){
+                // Phase 1 seeds the same directed CD as the Newton residual.
+                // Only k/omega enter this integral; reuse the current nodal
+                // states without another thermodynamic or SST evaluation.
+                LayerPoint<R,N> a,b;
+                const R za=w.state[i-1][Z],zb=w.state[i+1][Z];
+                a.k=w.state[i-1][K]*w.state[i-1][K];a.omega=R(1)/(za*za);
+                b.k=w.state[i+1][K]*w.state[i+1][K];b.omega=R(1)/(zb*zb);
+                const R dyL=w.y[i]-w.y[i-1],dyR=w.y[i+1]-w.y[i],width=(dyL+dyR)/R(2);
+                const R crossIntegral=omegaDirectedCrossIntegral(a,p,b,w.y[i-1],w.y[i],w.y[i+1],width);
+                omegaRest=p.sourceOmegaWithoutCrossDiffusion
+                    +p.rho*sstBeta(p.f1,coefficients)*p.omega*p.omega
+                    +(R(2)*p.rho*coefficients.alphaOmega2*(R(1)-p.f1))*(crossIntegral/width);
+                omegaSquareMean=omegaLocalSquareMean(p.omega,w.y[i],
+                    (w.y[i-1]+w.y[i])/R(2),(w.y[i]+w.y[i+1])/R(2));
+            }
             w.seed[i][5]=max(R(0),omegaRest);
             w.seed[i][6]=p.rho*sstBeta(p.f1,coefficients)*p.omega+(p.omega>0?max(R(0),-omegaRest)/p.omega:R(0));
 
             // The omega equation integrates destruction over its dual cell;
             // retaining pointwise omega^2 here changes its near-wall balance.
-            if(phase==1&&i>1&&i+1<c.nodes){
-                const R za=w.state[i-1][Z],zb=w.state[i+1][Z];
-                const R average=omegaSquareAverage(R(1)/(za*za),p.omega,R(1)/(zb*zb),w.y[i-1],w.y[i],w.y[i+1]);
-                w.seed[i][6]+=p.rho*sstBeta(p.f1,coefficients)*(average/p.omega-p.omega);
+            if(integratedOmega){
+                w.seed[i][6]+=p.rho*sstBeta(p.f1,coefficients)*(omegaSquareMean/p.omega-p.omega);
             }
             w.seed[i][7]=p.omega;}
 
@@ -853,7 +984,7 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
         const SeedThermoRows<R,N,decltype(w.state)> faceBase(w.state,w.lower,reuseThermo);
         // Newton's diagonal scratch is idle during initialization. Freeze
         // the same face diffusivities used by the physical residual, including
-        // the first k interval and the positive power-fit omega conductance.
+        // the first k interval and the positive geometry-only omega conductance.
         // A nodal arithmetic approximation seeds a different discrete problem
         // and leaves Newton to repair its mesh-dependent near-wall defect.
         for(int face=team.rank();face<c.nodes-1;face+=team.size()){
@@ -868,8 +999,7 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
               const R power=(R(1)+::sqrt(R(1)+R(24)*coefficients.betaStar/coefficients.beta1))/R(2);
               faceD[1]*=dy*nearWallKDerivative(dy/R(2),dy,ell,power,ctx.mass/(R(2)*in.model.viscosity));}
             faceD[2]=(R(2)*in.model.viscosity+a.rho*sstAlphaOmega(a.f1,coefficients)*a.nut+b.rho*sstAlphaOmega(b.f1,coefficients)*b.nut)/R(2);
-            if(a.omega>0&&b.omega>0&&a.omega!=b.omega)
-                faceD[2]*=powerGradient(a.omega,b.omega,ya,yb,(ya+yb)/R(2))*dy/(b.omega-a.omega);
+            faceD[2]*=omegaGradientFit(ya,yb);
         }
         if(!team.all(valid))return false;
         // Boundary physics is uniform for this wall: evaluate it once, then
@@ -991,9 +1121,12 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
                 // its positive outer half; omega at the wall is not sampled.
                 const R a=R(2)/(previous.z+edge.z),b=R(1)/edge.z;
                 average=a*b*(a*a+a*b+b*b)/R(3);
-            }else average=powerIntegral(previous.omega*previous.omega,edge.omega*edge.omega,
-                w.y[end-1],w.y[end],(w.y[end-1]+w.y[end])/R(2),w.y[end])/matchingHalf;
-            const R omegaSource=edge.sourceOmega+edge.rho*sstBeta(edge.f1,in.model.sstCoefficients)*(edge.omega*edge.omega-average);
+            }else average=omegaLocalSquareMean(edge.omega,w.y[end],
+                (w.y[end-1]+w.y[end])/R(2),w.y[end]);
+            const R crossIntegral=end==1?omegaCrossDiffusionIntegral(previous,edge,w.y[end-1],w.y[end],
+                (w.y[end-1]+w.y[end])/R(2),w.y[end]):omegaMatchingCrossIntegral(previous,edge,w.y[end-1],w.y[end],matchingHalf);
+            const R omegaSource=omegaSourceWithCrossDiffusionIntegral(edge,in.model.sstCoefficients,
+                matchingHalf,average,crossIntegral);
             out.kFluxHeight[c.nodes]=w.y[end];
             out.kTransportFlux[c.nodes]=matchingKFlux;
             out.omegaDiffusiveFlux[c.nodes]=last.omega+matchingHalf*omegaSource-ctx.mass*edge.omega;
@@ -1129,10 +1262,20 @@ template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> 
         if(!applyLayerNewtonUpdate(in,c,ctx,w,norm,alpha,team))return false;
         if(alpha==0)break;
     }
-    if(team.leader()&&norm>tolerance)wallWarning(in,ugkp::diagnostics::Code::AccuracyResidual,2422,norm,tolerance);
     if(team.leader()){status.iteration=iteration;status.residual=double(norm);}
-
-
+    // A finite, admissible iterate is not a solved wall boundary condition.
+    // In particular, its extrapolated matching flux can be arbitrarily large.
+    // Keep output untouched on failure so it cannot become a ready closure.
+    if(!gasFinite(norm)||norm>tolerance){
+        if(team.leader()){
+            fail(status,WallCode::NonConvergence);
+            using namespace ugkp::diagnostics;
+            if(in.diagnostics)recordFatal(in.diagnostics,makeRecord(
+                gasFinite(norm)?Code::InvalidPhysicalState:Code::NonFinite,2422,23,in.diagnosticNode,
+                EntityKind::Face,in.diagnosticEntity,-1,double(norm),double(tolerance),0,Quantity::Accuracy));
+        }
+        return false;
+    }
     const bool terminalProfile=false;
     bool published=false;
     if(team.leader()){published=publishLayer(in,c,ctx,w,iteration,norm,output,terminalProfile);

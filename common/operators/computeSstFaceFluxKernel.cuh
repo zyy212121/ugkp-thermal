@@ -302,7 +302,7 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
         {
             if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))
             {if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
-            s.sstPhiRhoK[f]=s.gasBoundaryLayer.exchange[slot].k;
+            s.sstPhiRhoK[f]=ugkwp::gasBoundaryLayerWallKFlux(s,slot,s.gasPhiRho[f],s.k[own]);
             // The selected omega row is algebraic. No independent physical
             // wall omega injection or diffusion is imposed on top of it.
             s.sstPhiRhoOmega[f]=GPU_OPERATOR_R(0.0);
@@ -354,10 +354,11 @@ __device__ GPU_OPERATOR_REAL sstKProductionForCell
             // wall function and must not be superimposed on this SST BVP.
             const auto& closure=s.gasBoundaryLayer.sst[slot];
             if(closure.kFluxCount>0)return fmin(production,productionLimit);
-            // The analytic wall model and material-interface adapter retain
-            // their existing point-omega wall-function contract. This is not
-            // selected after a failed volume solve; the gas adapter always
-            // requires its geometry and volume profile before publication.
+            // Boundary-exchange coupling: use the solved wall traction and
+            // the current macro k in the wall production relation. Apply the
+            // macro SST limiter before adding its destruction/compression.
+            // No BVP integral is rescaled to the macro inventory. Analytic
+            // and material-interface adapters retain this existing relation.
             const GPU_OPERATOR_REAL wallProduction=closure.wallShearStress/s.rho[c]
                 *sqrt(sqrt(s.sstWallCmu))*sqrt(s.k[c])/(s.sstWallKappa*closure.ownerDistance);
             return fmin(wallProduction,productionLimit);
@@ -997,6 +998,56 @@ __global__ void computeGasDiffusionNumberKernel
     if(!ugkwp::gasFinite(equivalentCo))ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
 }
 
+// The selected wall supplies a prescribed normal omega diffusion flux on
+// shared faces. This is an explicit forcing, not a coefficient multiplying the
+// neighbouring macro omega. Reproduce only that forcing contribution here;
+// the existing diffusion bound continues to cover the ordinary coefficients.
+template<class GasState>
+__device__ bool sstPublishedOmegaForcingForFace
+(
+    const GasState& s,const int f,const int own,const int nei,
+    GPU_OPERATOR_REAL& forcing
+)
+{
+    forcing=GPU_OPERATOR_R(0);
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+    {
+        if(nei<0||!ugkwp::gasBoundaryLayerEnabled(s))return true;
+        if constexpr(ugkwp::GasConservativeWallCapability<GasState>::value)
+        {
+            const auto& d=s.gasBoundaryLayerModel.conservative;
+            if(d.enabled&&d.faceSlot&&d.faceSlot[f]>=0&&d.active[d.faceSlot[f]]
+                &&ugkwp::gasBoundaryLayerSlotReady(s,d.faceSlot[f]))return true;
+        }
+        if(ugkwp::gasBoundaryLayerOwnerSlot(s,own)<0
+            &&ugkwp::gasBoundaryLayerOwnerSlot(s,nei)<0)return true;
+        const GPU_OPERATOR_REAL area=s.magSf[f];
+        const GPU_OPERATOR_REAL unit[3]={s.Sfx[f]/area,s.Sfy[f]/area,s.Sfz[f]/area};
+        GPU_OPERATOR_REAL mappedX,mappedY,mappedZ;
+        periodicMappedCellCentre(s,f,nei,mappedX,mappedY,mappedZ);
+        int contributors=0;
+        for(int side=0;side<2;++side)
+        {
+            const int cell=side==0?own:nei;
+            const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,cell);
+            if(slot<0)continue;
+            if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))return false;
+            const auto& closure=s.gasBoundaryLayer.sst[slot];
+            if(closure.kFluxCount<=0)continue;
+            const auto* n=closure.normal;
+            const GPU_OPERATOR_REAL alignment=unit[0]*n[0]+unit[1]*n[1]+unit[2]*n[2];
+            const GPU_OPERATOR_REAL cx=side==0?s.Cx[own]:mappedX,
+                cy=side==0?s.Cy[own]:mappedY,cz=side==0?s.Cz[own]:mappedZ;
+            const GPU_OPERATOR_REAL y=closure.ownerDistance
+                +(s.faceCx[f]-cx)*n[0]+(s.faceCy[f]-cy)*n[1]+(s.faceCz[f]-cz)*n[2];
+            forcing+=ugkwp::boundaryLayerSstFlux(closure,y,true)*alignment*area;
+            ++contributors;
+        }
+        if(contributors)forcing/=GPU_OPERATOR_REAL(contributors);
+    }
+    return true;
+}
+
 // Current-state timestep estimate: the predictor uses fresh pre-positivity
 // Riemann mass flux, while evolution uses the finalized stage flux. Summing
 // negative and positive outward volume flux separately bounds divU after any
@@ -1034,6 +1085,7 @@ __global__ void computeSstStabilityNumberKernel
         stabilityVolume=fmin(oldVolume,newVolume);sourceVolume=oldVolume;
     }
     GPU_OPERATOR_REAL diffusionRate = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_REAL publishedOmegaForcingActivity = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL minimumVolumeFlux = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL maximumVolumeFlux = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL meshVolumeFlux = GPU_OPERATOR_R(0.0);
@@ -1075,6 +1127,23 @@ __global__ void computeSstStabilityNumberKernel
             (s.sstWallTreatment == 0 || s.sstWallTreatment == 1 || s.sstWallTreatment == 2)
          && f >= s.nInternalFaces && s.riemannBoundaryKind[f] == 2
         );
+        if(requireWallProfile&&!constrainedOmega&&nei>=0)
+        {
+            GPU_OPERATOR_REAL publishedForcing;
+            if(!sstPublishedOmegaForcingForFace(s,f,own,nei,publishedForcing))
+            {
+                s.sstSourceNumber[c]=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();
+                if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
+                return;
+            }
+            if(!ugkwp::gasFinite(publishedForcing))
+            {
+                s.sstSourceNumber[c]=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();
+                ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
+                return;
+            }
+            publishedOmegaForcingActivity+=fabs(publishedForcing);
+        }
         const int other = (f < s.nInternalFaces || isPeriodicFace(s, f))
           ? (s.faceOwner[f] == c ? s.faceNeighbour[f] : s.faceOwner[f])
           : -1;
@@ -1195,7 +1264,8 @@ __global__ void computeSstStabilityNumberKernel
     const GPU_OPERATOR_REAL sourceNumber = fmax
     (
         GPU_OPERATOR_TIME(sstKSourceNumber(s,c,sourceKBound,dt)),
-        constrainedOmega ? GPU_OPERATOR_R(0.0) : fabs(dt)*sourceOmegaBound
+        constrainedOmega ? GPU_OPERATOR_R(0.0) : fabs(dt)
+          *(sourceOmegaBound+publishedOmegaForcingActivity*invVolume)
        /clampMin(s.rhoOmega[c], s.rho[c]*s.sstOmegaMin)
     );
     const GPU_OPERATOR_REAL equivalentCo = targetMaxCo*fmax

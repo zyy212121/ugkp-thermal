@@ -1,4 +1,5 @@
 #pragma once
+#include "WallResolutionDefaults.H"
 #include "WallModelTypes.H"
 #include <algorithm>
 #include <array>
@@ -26,7 +27,7 @@ template<class R> struct WallGeometryOptions {
     // When requested, zero uses a purely geometric rule. Direct SST research
     // supplies BVP nodes/stretch to integrate its source reconstruction.
     int profileNodes=0,firstSegmentGaussOrder=8;
-    R profileStretch=R(2);
+    R profileStretch=R(defaultWallStretch);
 };
 template<class R> struct WallGeometryDescriptor {
     int ownerCell=-1,wallFace=-1;
