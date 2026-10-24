@@ -800,9 +800,9 @@ struct Profile {
     for(const auto&seg:segments){auto q=averageTeam(seg,scratch,team);if(team.leader())for(int j=0;j<9;++j)if(j!=6||!seg.algebraicOmega)maxResidual=d::max(maxResidual,::fabs(q[j]-seg.target[j])/d::max(1.,::fabs(seg.target[j])));}maxResidual=team.broadcast(maxResidual);return true;
   }
   template <class Team>
-  UGKWP_GAS_HD Array<double, 3> sourceTeam(int cell, const Team &team,
+  UGKWP_GAS_HD Array<double, 2> sourceTeam(int cell, const Team &team,
                                            int subdivisions = 4) const {
-    double k = 0, omega = 0, activity = 0;
+    double k = 0, omega = 0;
     int index = 0;
     const auto &s = segments[cell];
     quadrature(
@@ -815,12 +815,11 @@ struct Profile {
           physical::Source<double, 2> src;
           physical::evaluatePrimitive(in, cfg, p, y, in.normal, 0., f, src);
           k += weight * src.k;
-          activity += weight * src.kActivity;
           if (!s.algebraicOmega)
             omega += weight * src.omega;
         },
         subdivisions);
-    return {team.sum(k), team.sum(omega), team.sum(activity)};
+    return {team.sum(k), team.sum(omega)};
   }
 
   // One-sided micro derivatives, recovered symmetrically at shared macro faces.

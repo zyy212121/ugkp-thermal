@@ -29,7 +29,6 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
         return false;
     }
     wall.exchange[slot].ready=false;
-    wall.exchange[slot].massReady=false;
     const auto failure=[&](std::uint32_t site,Real value,int component,
         ugkp::diagnostics::Code code=ugkp::diagnostics::Code::NonFinite) {
         auto record=ugkp::diagnostics::makeRecord(code,site,25,0,
@@ -128,7 +127,6 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
     // for diagnostics. A zero count publishes no replacement internal flux
     // or volume source. Physical-wall exchange above still comes from the BVP.
     candidate.ready=true;
-    candidate.massReady=true;
     wall.exchange[slot]=candidate;
     wall.status[slot]=0;
     return true;

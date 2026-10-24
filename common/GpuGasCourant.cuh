@@ -1,41 +1,15 @@
 #pragma once
-#include <cmath>
-
-
 
 struct GasCourantMaxima
 {
-    double convective=0, diffusion=0, sst=0, maximum=0;
+    double convective=0, maximum=0;
 };
-// Applications which own numerical wall profiles may prepare them before the
-// current-state estimate. Return -1 on failure, 0 when no preparation applies,
-// and 1 after preparing the current wall state and primitive gradients.
-struct GasCourantNoWallPreparation
-{
-    template<class Host,class Time,class Stream>
-    int operator()(Host*,Time,Time,int,int,Stream) const { return 0; }
-};
-// Adapters with backend-specific status handling may retain scalar reductions.
-// The native gas backend supplies the joint overload, with one host readback.
-template<class Reduction,class Real> auto reduceGasCourantFields(Reduction reduce,
- const Real* convective,const Real* diffusion,const Real* sst,int count,cudaStream_t stream,
- GasCourantMaxima& result,int)->decltype(reduce(convective,diffusion,sst,count,stream,result)){
-    return reduce(convective,diffusion,sst,count,stream,result);
-}
-template<class Reduction,class Real> int reduceGasCourantFields(Reduction reduce,
- const Real* convective,const Real* diffusion,const Real* sst,int count,cudaStream_t stream,
- GasCourantMaxima& result,long){
-    if(reduce(convective,count,stream,result.convective)||reduce(diffusion,count,stream,result.diffusion))return 1;
-    return sst?reduce(sst,count,stream,result.sst):0;
-}
-template<class GasHostState,class Time,class Real,class MaximumReduction,
-    class WallPreparation=GasCourantNoWallPreparation>
+template<class GasHostState,class Time,class MaximumReduction>
 int computeGasCurrentCourant
 (
-    GasHostState* s, Time dt, Real targetMaxCo, Time scheduleTime,
+    GasHostState* s, Time dt, Time scheduleTime,
     int cellBlock, int faceBlock, cudaStream_t stream,
-    GasCourantMaxima& result, MaximumReduction maximumReduction,
-    WallPreparation prepareWall=WallPreparation{}
+    GasCourantMaxima& result, MaximumReduction maximumReduction
 )
 {
     const int cellGrid = (s->nCells + cellBlock - 1)/cellBlock;
@@ -48,16 +22,6 @@ int computeGasCurrentCourant
     {
         setLastError("recoverGasPrimitivesKernel launch for gas Courant", err);
         return 1;
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, stream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("recoverSstPrimitivesKernel for gas Courant", err);
-            return 1;
-        }
     }
 
     if (allFaceGrid > 0)
@@ -93,50 +57,6 @@ int computeGasCurrentCourant
         }
     }
 
-    const int wallPreparation=prepareWall(s,dt,scheduleTime,cellGrid,cellBlock,stream);
-    if(wallPreparation<0)return 1;
-
-    if (s->hostTurbulenceModel == 3)
-    {
-        applySstWallFunctionStateKernel<<<cellGrid, cellBlock, 0, stream>>>
-            (s->deviceState,wallPreparation==0);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError
-            (
-                "applySstWallFunctionStateKernel for gas Courant",
-                err
-            );
-            return 1;
-        }
-    }
-
-    if(wallPreparation==0)
-    {
-        computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock, 0, stream>>>(s->deviceState, true);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeGasPrimitiveGradientsKernel for gas Courant", err);
-            return 1;
-        }
-    }
-    computeGasGradientLimiterKernel<<<cellGrid, cellBlock, 0, stream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasGradientLimiterKernel for gas Courant", err);
-        return 1;
-    }
-    computeGasEddyViscosityKernel<<<cellGrid, cellBlock, 0, stream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasEddyViscosityKernel for gas Courant", err);
-        return 1;
-    }
-
     if (faceGrid > 0)
     {
         computeGasCourantFieldKernel<<<faceGrid, faceBlock, 0, stream>>>(s->deviceState, dt);
@@ -147,16 +67,7 @@ int computeGasCurrentCourant
             return 1;
         }
     }
-    if (s->hostTurbulenceModel == 3)
-    {
-        computeSstGradientsKernel<<<cellGrid, cellBlock, 0, stream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeSstGradientsKernel for gas Courant", err);
-            return 1;
-        }
-    }
+
     computeGasConvectiveCourantByCellKernel<<<cellGrid, cellBlock, 0, stream>>>
     (
         s->deviceState,
@@ -173,41 +84,9 @@ int computeGasCurrentCourant
         return 1;
     }
 
-    computeGasDiffusionNumberKernel<<<cellGrid, cellBlock, 0, stream>>>
-    (
-        s->deviceState,
-        dt,
-        targetMaxCo
-    );
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasDiffusionNumberKernel launch", err);
-        return 1;
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        computeSstStabilityNumberKernel<<<cellGrid, cellBlock, 0, stream>>>
-        (
-            s->deviceState,
-            dt,
-            targetMaxCo,
-            wallPreparation!=0
-        );
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeSstStabilityNumberKernel launch", err);
-            return 1;
-        }
-    }
-
-
     GasCourantMaxima computed;
-    if(reduceGasCourantFields(maximumReduction,s->gasFluxPositivityScale,s->gasDiffusionNumber,
-        s->hostTurbulenceModel==3?s->sstSourceNumber:nullptr,s->nCells,stream,computed,0))return 1;
-    computed.maximum=std::fmax(computed.convective,computed.diffusion);
-    if(s->hostTurbulenceModel==3)computed.maximum=std::fmax(computed.maximum,computed.sst);
+    if(maximumReduction(s->gasFluxPositivityScale,s->nCells,stream,computed.convective))return 1;
+    computed.maximum=computed.convective;
     result=computed;
     return 0;
 }

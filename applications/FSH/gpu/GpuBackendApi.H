@@ -25,7 +25,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     int gasTimeIntegrator, int gasRobustFallback, int turbulenceModel,
     double lesDeltaCoeff,
     double turbulentPrandtl, double waleCw, double smagorinskyCs,
-    double maxDiffusionNumber, int csrCellLocalPathEnabled,
+    int csrCellLocalPathEnabled,
     int csrHeavyReductionMode, int csrHeavyAutoInterval,
     int particleBlockThreads, int reductionBlockThreads,
     int csrWarpAggregatedBinning,
@@ -137,7 +137,6 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     double c1,
     double kMin,
     double omegaMin,
-    double maxSourceNumber,
     int wallTreatment,
     double wallKappa,
     double wallE,
@@ -161,7 +160,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadSst
 
 extern "C" int ugkwpGpuResidentStrictComputeGasCourant
 (
-    void* handle, double dt, double targetMaxCo, double scheduleTime,
+    void* handle, double dt, double scheduleTime,
     double* maxCo
 );
 

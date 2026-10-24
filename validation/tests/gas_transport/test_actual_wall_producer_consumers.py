@@ -96,14 +96,5 @@ sink[1]=902;s.gasSpecies.faceStatus[1]=0;applyGasFluxPositivityScaleKernel(&s,tr
 ck(!ugkp::diagnostics::hasFatal(&diagnostic)&&s.gasSpecies.faceStatus[1]==0&&sink[1]==s.gasPhiRhoE[1],"finite limiter audit rejected physical exchange");
 ck(diagnostic.warnings[1].count>0,"limiter warning missing");
 s.gasSpecies.faceStatus[1]=0;s.gasSpecies.cellStatus[0]=0;
-// Outer estimation can use the accepted physical closure without solving a
-// fresh BVP. A real requested trial still requires its actual profile.
-const Real previousTemperature=wall.output.traceTemperature,previousOmega=s.gasBoundaryLayer.sst[0].ownerOmega;
-s.gasBoundaryLayer.exchange[0].ready=false;threadIdx.x=0;
-computeSstStabilityNumberKernel(&s,Real(.001),Real(.5),false);
-ck(s.gasSpecies.cellStatus[0]==0,"outer estimate demanded fresh profile");
-ck(wall.output.traceTemperature==previousTemperature&&s.gasBoundaryLayer.sst[0].ownerOmega==previousOmega,"outer estimate changed accepted wall product");
-computeSstStabilityNumberKernel(&s,Real(.001),Real(.5),true);
-ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage),"missing actual trial profile was treated ready");
 }
 ''')

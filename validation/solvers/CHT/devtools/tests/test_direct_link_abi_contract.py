@@ -1,9 +1,9 @@
-                                                                 
 
-                                                                            
-                                                                             
-                                                                          
-   
+
+
+
+
+
 
 from __future__ import annotations
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
@@ -65,7 +65,6 @@ CREATE_FIELDS = (
     ("double", "turbulentPrandtl"),
     ("double", "waleCw"),
     ("double", "smagorinskyCs"),
-    ("double", "maxDiffusionNumber"),
     ("std::int32_t", "csrCellLocalPathEnabled"),
     ("std::int32_t", "csrHeavyReductionMode"),
     ("std::int32_t", "csrHeavyAutoInterval"),
@@ -124,7 +123,6 @@ TWO_PHASE_CREATE_ARGUMENTS = (
     "turbulentPrandtl",
     "waleCw",
     "smagorinskyCs",
-    "maxDiffusionNumber",
     "csrCellLocalPathEnabled ? 1 : 0",
     "csrHeavyReductionMode",
     "int(scheduling.heavyReductionAutoInterval)",
@@ -183,7 +181,6 @@ PURE_GAS_CREATE_ARGUMENTS = (
     "turbulentPrandtl",
     "waleCw",
     "smagorinskyCs",
-    "maxDiffusionNumber",
     "scheduling.csrCellLocalPath ? 1 : 0",
     "int(scheduling.heavyReductionMode)",
     "int(scheduling.heavyReductionAutoInterval)",

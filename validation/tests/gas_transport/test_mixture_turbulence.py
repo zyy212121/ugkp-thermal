@@ -21,7 +21,7 @@ b.turbulenceModel=3;b.sstWallTreatment=0;mu=kappa=99;gasFaceSubgridTransportProp
 
 def test_low_re_sst_runs_the_actual_mixture_transport_chain(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
-int main(){State s;initialise(s);s.turbulenceModel=3;s.sstConfigured=1;s.sstWallTreatment=0;s.sstCoefficients=ugkwp::defaultSstCoefficients();s.gasMu=.001;s.turbulentPrandtl=.9;s.sstKMin=1e-12;s.sstOmegaMin=1e-8;s.sstMaxSourceNumber=.25;s.sstWallKappa=.41;s.sstWallE=9.8;s.sstWallCmu=.09;
+int main(){State s;initialise(s);s.turbulenceModel=3;s.sstConfigured=1;s.sstWallTreatment=0;s.sstCoefficients=ugkwp::defaultSstCoefficients();s.gasMu=.001;s.turbulentPrandtl=.9;s.sstKMin=1e-12;s.sstOmegaMin=1e-8;s.sstWallKappa=.41;s.sstWallE=9.8;s.sstWallCmu=.09;
 for(int c=0;c<2;++c){s.k[c]=.1+.02*c;s.omega[c]=10;s.sstWallDistance[c]=.5;threadIdx.x=c;initialiseSstConservativeStateKernel(&s);recoverSstPrimitivesKernel(&s);}
 const Real initialE=s.rhoE[0]+s.rhoE[1];
 for(int step=0;step<20;++step){

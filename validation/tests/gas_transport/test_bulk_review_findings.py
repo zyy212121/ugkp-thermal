@@ -136,13 +136,12 @@ def test_fixed_mixture_does_not_evaluate_unused_legacy_volume_floor(tmp_path):
 int main(){State s;initialise(s);s.V[0]=-1;s.rhoMin=0;s.gasPhiRho[0]=.2;s.gasSpecies.flux[0]=.18;s.gasSpecies.flux[3]=.02;feenableexcept(FE_DIVBYZERO|FE_INVALID);threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,.5);ck(s.gasSpecies.cellStatus[0]==0&&s.rho[0]==Real(1)+Real(.5)*Real(.2),"unused legacy floor arithmetic blocked finite mixture update");}
 ''')
 
-@pytest.mark.parametrize('operation',['volumes','divergence','courant','diffusion','positivity','frame'])
+@pytest.mark.parametrize('operation',['volumes','divergence','courant','positivity','frame'])
 def test_zero_geometry_interval_only_fails_at_real_frame_division(tmp_path,operation):
     bodies={
       'volumes':r'''Real a=-77,b=-77;ck(ugkwp::gasGeometryCellVolumes(s,0,0.,a,b)&&a==1&&b==1,"unused zero interval blocked volume publication");''',
       'divergence':r'''s.gasPhiRho[0]=.2;s.gasSpecies.flux[0]=.18;s.gasSpecies.flux[3]=.02;s.gasPhiRhoE[0]=4;const Real E=s.rhoE[0];applyGasFluxDivergenceByCellKernel(&s,0.);ck(s.gasSpecies.cellStatus[0]==0&&s.rho[0]==1&&s.rhoUx[0]==0&&s.rhoUy[0]==0&&s.rhoUz[0]==0&&s.rhoE[0]==E&&s.gasSpecies.rho[0]==Real(.9)&&s.gasSpecies.rho[2]==Real(.1),"zero-time divergence identity incomplete");''',
       'courant':r'''s.gasPhiRhoE[0]=4;s.gasFluxPositivityScale[0]=-77;computeGasConvectiveCourantByCellKernel(&s,0.);ck(s.gasSpecies.cellStatus[0]==0&&s.gasFluxPositivityScale[0]==0,"zero-time Courant volume arithmetic refused");''',
-      'diffusion':r'''s.maxDiffusionNumber=.25;s.gasDiffusionNumber[0]=-77;computeGasDiffusionNumberKernel(&s,0.,.5);ck(s.gasSpecies.cellStatus[0]==0&&s.gasDiffusionNumber[0]==0,"zero-time diffusion volume arithmetic refused");''',
       'positivity':r'''s.gasPhiRho[0]=2;s.gasSpecies.flux[0]=Real(1.8);s.gasSpecies.flux[3]=Real(.2);computeGasFluxPositivityScaleKernel(&s,0.);ck(s.gasSpecies.cellStatus[0]==0&&s.gasFluxPositivityScale[0]==1&&s.gasSpecies.positivityScale[0]==1&&s.gasSpecies.positivityScale[2]==1,"zero-time limiter branch changed");''',
       'frame':r'''ugkwp::GasFaceFrame<Real> frame;frame.area=-77;bool evaluated=false;
 ck(!ugkwp::gasGeometryFaceFrame(s,0,0.,frame,&evaluated)&&evaluated,"zero interval did not report an evaluated invalid frame");

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-                                                      
+
 
 from __future__ import annotations
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
@@ -70,7 +70,6 @@ class SourceContracts(unittest.TestCase):
         for token in (
             "fluxScheme", "SLAU2.2", "turbulence", "laminar",
             "WALE", "Smagorinsky", "lesDeltaCoeff", "turbulentPrandtl",
-            "maxDiffusionNumber",
         ):
             self.assertIn(token, fields)
         for token in (

@@ -39,7 +39,7 @@ PRINT=r'''
 template<class S>void output(const S&s){
  for(int c=0;c<s.nCells;++c){
   std::printf("%d ",s.gasSpecies.cellStatus[c]);
-  for(double v:{double(s.rho[c]),double(s.rhoUx[c]),double(s.rhoUy[c]),double(s.rhoUz[c]),double(s.rhoE[c]),double(s.Ux[c]),double(s.Uy[c]),double(s.Uz[c]),double(s.p[c]),double(s.Tgas[c]),double(s.rhoK[c]),double(s.rhoOmega[c]),double(s.gasFluxPositivityScale[c]),double(s.gasDiffusionNumber[c]),double(s.sstSourceNumber[c])})std::printf("%a ",v);
+  for(double v:{double(s.rho[c]),double(s.rhoUx[c]),double(s.rhoUy[c]),double(s.rhoUz[c]),double(s.rhoE[c]),double(s.Ux[c]),double(s.Uy[c]),double(s.Uz[c]),double(s.p[c]),double(s.Tgas[c]),double(s.rhoK[c]),double(s.rhoOmega[c]),double(s.gasFluxPositivityScale[c])})std::printf("%a ",v);
  }
  for(int f=0;f<s.nFaces;++f)std::printf("%d %a ",s.gasSpecies.faceStatus[f],double(s.gasPhiRhoE[f]));
  std::puts("");
@@ -70,12 +70,10 @@ s.gravityX=1;applyGasGravityCell<true>(s,0,1.);output(s);}}
 '''
     assert build_run(tmp_path,'current-gravity',ROOT,body)==build_run(tmp_path,'original-gravity',original_root,body)
 
-@pytest.mark.parametrize('kernel',['positivity','convective','diffusion','sst','sst_update','divergence'])
+@pytest.mark.parametrize('kernel',['positivity','convective','sst_update','divergence'])
 def test_exact_skipped_face_and_zero_trip_loops(tmp_path,original_root,kernel):
     action={'positivity':'computeGasFluxPositivityScaleKernel(&s,.001);',
             'convective':'computeGasConvectiveCourantByCellKernel(&s,.001);',
-            'diffusion':'computeGasDiffusionNumberKernel(&s,.001,Real(.5));',
-            'sst':'computeSstStabilityNumberKernel(&s,.001,Real(.5));',
             'sst_update':'applySstFluxAndSourceKernel(&s,.001);',
             'divergence':'applyGasFluxDivergenceByCellKernel(&s,.001);'}[kernel]
     body=fixture()+PRINT+r'''
@@ -94,19 +92,17 @@ int main(){for(int mode:{0,1,2,3}){State s;initialise(s);s.sstConfigured=1;
 def test_exact_courant_fallback_arithmetic(tmp_path,original_root):
     body=fixture()+PRINT+r'''
 int main(){for(double value:{1e301,double(INFINITY),double(NAN),2.}){State s;initialise(s);s.cellPlaneCount[0]=1;s.gasPhiRhoE[0]=Real(value);computeGasConvectiveCourantByCellKernel(&s,1e-300);output(s);}
- for(int mode:{0,1,2,3}){State s;initialise(s);s.sstConfigured=mode==3;s.gasMu=1;
+ for(int mode:{0,1}){State s;initialise(s);s.sstConfigured=0;s.gasMu=1;
  if(mode==0)s.faceOwner[0]=-1;
  if(mode==1)s.faceNeighbour[0]=s.nCells;
  if(mode<2)computeGasCourantFieldKernel(&s,1.);
- if(mode==2)computeGasDiffusionNumberKernel(&s,1e300,Real(.5));
- if(mode==3)computeSstStabilityNumberKernel(&s,1e300,Real(.5));
  output(s);}}
 '''
     expected=build_run(tmp_path,'original',original_root,body)
-    strict=body.replace('computeGasConvectiveCourantByCellKernel(&s,1e-300)', 'computeGasConvectiveCourantByCellKernel(&s,1e-300,true)').replace('computeGasCourantFieldKernel(&s,1.)','computeGasCourantFieldKernel(&s,1.,true)').replace('computeGasDiffusionNumberKernel(&s,1e300,Real(.5))','computeGasDiffusionNumberKernel(&s,1e300,Real(.5),true)').replace('computeSstStabilityNumberKernel(&s,1e300,Real(.5))','computeSstStabilityNumberKernel(&s,1e300,Real(.5),true,true)')
+    strict=body.replace('computeGasConvectiveCourantByCellKernel(&s,1e-300)', 'computeGasConvectiveCourantByCellKernel(&s,1e-300,true)').replace('computeGasCourantFieldKernel(&s,1.)','computeGasCourantFieldKernel(&s,1.,true)')
     actual=build_run(tmp_path,'corrected',ROOT,strict)
     rows=expected.splitlines(keepends=True)
-    for i in [6,7]:
+    for i in []:
         assert rows[i].startswith('0 ')
         rows[i]='6 '+rows[i][2:]
     assert actual==''.join(rows)

@@ -18,7 +18,6 @@ template<class Real> struct GasBoundaryLayerExchange
     // operator replaces only this mechanical contribution with local pressure.
     Real matchingPressure=0;
     bool ready=false;
-    bool massReady=false; // prescribed physical Js are available before thermal solve
 };
 template<class Real> struct GasBoundaryLayerSstClosure
 {
@@ -74,10 +73,6 @@ template<class Real> struct GasBoundaryLayerState
 template<class State,class=void> struct GasBoundaryLayerCapability:std::false_type{};
 template<class State> struct GasBoundaryLayerCapability<State,
     std::void_t<decltype(std::declval<State>().gasBoundaryLayer)>>:std::true_type{};
-template<class State,class=void> struct GasSuppliedWallInputCapability:std::false_type{};
-template<class State> struct GasSuppliedWallInputCapability<State,
-    std::void_t<decltype(std::declval<State>().gasBoundaryLayerModel.useSuppliedWallState),
-        decltype(std::declval<State>().gasBoundaryLayerModel.input)>>:std::true_type{};
 template<class State> UGKWP_GAS_HD inline bool gasBoundaryLayerEnabled(const State& s)
 {
     if constexpr(GasBoundaryLayerCapability<State>::value)return s.gasBoundaryLayer.enabled;

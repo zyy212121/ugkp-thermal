@@ -270,8 +270,8 @@ __device__ void gasFaceSubgridTransportProperties
                         wallP=ugkpwall::jayatillekeSmoothP(ratio);
                         thermalYPlus=ugkpwall::jayatillekeThermalYPlus(ratio,s.sstWallKappa,s.sstWallE,s.diagnostics,f);
                     }
-                    // Both face flux and diffusion timestep add owner-mixture
-                    // molecular conductivity. Return exactly their correction,
+                    // The face flux adds owner-mixture molecular conductivity.
+                    // Return exactly its correction,
                     // even when Cp(Twall) differs from Cp(Towner).
                     if(!ugkwp::gasHasDirectConductivity(s))
                         molecularBaseline=s.gasMu*s.gasSpecies.heatCapacity[own]/s.gasPrClamped;

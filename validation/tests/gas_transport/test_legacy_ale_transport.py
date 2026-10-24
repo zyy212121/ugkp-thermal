@@ -18,9 +18,9 @@ void ck(bool a,const char*m){if(!a){std::fprintf(stderr,"%s\n",m);std::abort();}
 void near(Real a,Real b,const char*m){if(std::abs(a-b)>Real(128)*std::numeric_limits<Real>::epsilon()*std::max(Real(1),std::abs(b))){std::fprintf(stderr,"%s: %.17g != %.17g\n",m,double(a),double(b));std::abort();}}
 void initialise(State&s){
 ALLOCATE
-s.nCells=2;s.nFaces=3;s.nInternalFaces=1;s.gasFluxScheme=1;s.gasReconstruction=0;s.gasLimiter=0;s.gammaGas=1.4;s.Rgas=287;s.gasCp=1004.5;s.gasMu=0;s.gasPrClamped=.7;s.rhoMin=1e-12;s.TgasMin=1e-9;s.maxDiffusionNumber=.25;
+s.nCells=2;s.nFaces=3;s.nInternalFaces=1;s.gasFluxScheme=1;s.gasReconstruction=0;s.gasLimiter=0;s.gammaGas=1.4;s.Rgas=287;s.gasCp=1004.5;s.gasMu=0;s.gasPrClamped=.7;s.rhoMin=1e-12;s.TgasMin=1e-9;
 s.gasSpecies.cellStatus=new int[2]{};s.gasSpecies.faceStatus=new int[3]{};
-s.sstCoefficients=ugkwp::defaultSstCoefficients();s.sstKMin=1e-12;s.sstOmegaMin=1e-9;s.sstMaxSourceNumber=.25;s.turbulentPrandtl=.9;
+s.sstCoefficients=ugkwp::defaultSstCoefficients();s.sstKMin=1e-12;s.sstOmegaMin=1e-9;s.turbulentPrandtl=.9;
 for(int c=0;c<2;++c){s.V[c]=1;s.Cx[c]=c;s.cellLength[c]=1;s.rho[c]=2;s.p[c]=100000;s.Tgas[c]=s.p[c]/(s.rho[c]*s.Rgas);s.rhoE[c]=s.p[c]/(s.gammaGas-1);s.cellPlaneStart[c]=2*c;s.cellPlaneCount[c]=2;s.k[c]=3;s.omega[c]=4;s.rhoK[c]=6;s.rhoOmega[c]=8;s.sstWallDistance[c]=.5;}
 s.cellFaceId[0]=0;s.cellFaceId[1]=1;s.cellFaceId[2]=0;s.cellFaceId[3]=2;
 for(int f=0;f<3;++f){s.faceOwner[f]=f==2?1:0;s.faceNeighbour[f]=f==0?1:-1;s.facePeriodicPair[f]=-1;s.magSf[f]=1;s.Sfx[f]=f==1?-1:1;s.faceCx[f]=f==0?.5:f==1?-.5:1.5;s.faceWeight[f]=.5;s.deltaCoeffs[f]=f==0?1:2;s.gasBoundaryKind[f]=s.riemannBoundaryKind[f]=f==0?0:1;s.gasHllcAdcSensor[f]=1;}
@@ -47,7 +47,7 @@ Real oldV[2]={1,1},newV[2]={Real(1.1),Real(.9)},sweeps[3]={Real(.1),0,0};const R
 a.sstPhiRhoK[0]=b.sstPhiRhoK[0]=Real(-600);a.sstPhiRhoOmega[0]=b.sstPhiRhoOmega[0]=Real(-800);
 // Identical stationary fluid: the moving mesh has relative mass phi=-rho*w.A.
 b.gasPhiRho[0]=-b.rho[0]*sweeps[0]/dt;
-for(int c=0;c<2;++c){threadIdx.x=c;applySstFluxAndSourceKernel(&a,dt);applySstFluxAndSourceKernel(&b,dt);near(b.rhoK[c]*newV[c],a.rhoK[c]*oldV[c],"SST k inventory diluted incorrectly");near(b.rhoOmega[c]*newV[c],a.rhoOmega[c]*oldV[c],"SST omega inventory diluted incorrectly");near(b.sstSourceNumber[c],a.sstSourceNumber[c],"SST physical source stability changed with geometric dilution");}}
+for(int c=0;c<2;++c){threadIdx.x=c;applySstFluxAndSourceKernel(&a,dt);applySstFluxAndSourceKernel(&b,dt);near(b.rhoK[c]*newV[c],a.rhoK[c]*oldV[c],"SST k inventory diluted incorrectly");near(b.rhoOmega[c]*newV[c],a.rhoOmega[c]*oldV[c],"SST omega inventory diluted incorrectly");}}
 ''')
 
 
@@ -88,7 +88,6 @@ struct LegacyHost:IndependentHost{SpeciesTag gasSpecies;double*V=nullptr;};
 template<class S,class T>void advanceGasChemistryKernel(S*,T,const double*,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("unexpected-chemistry");}
 template<class S>void computeGasCourantFieldKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("wave-speed");}
 template<class S>void computeGasConvectiveCourantByCellKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("courant");}
-template<class S>void computeGasDiffusionNumberKernel(S*,double,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("diffusion-bound");}
 struct Policy {
  static const double*stageVolumes(LegacyHost*h,bool){return h->V;}
  static int captureChemistryAudit(LegacyHost*,bool){return 1;}

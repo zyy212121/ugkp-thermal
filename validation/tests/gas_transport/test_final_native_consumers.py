@@ -74,8 +74,8 @@ int main(){for(int inputKind:{0,1,2})for(int boundaryKind:{1,2}){
  native.gasBoundaryKind[1]=native.riemannBoundaryKind[1]=boundaryKind;
  direct.gasBoundaryKind[1]=direct.riemannBoundaryKind[1]=boundaryKind;
  assert(ugkwp::evaluateGasBoundaryLayerSlot(native,0));
- assert(a.exchange[0].ready&&a.exchange[0].massReady);
- double face[5];const bool strict=computeRiemannGasFaceFluxDevice<false,true>(native,1,face[0],face[1],face[2],face[3],face[4],true);
+ assert(a.exchange[0].ready);
+ double face[5];const bool strict=computeRiemannGasFaceFluxDevice<false>(native,1,face[0],face[1],face[2],face[3],face[4],true);
  if(inputKind||boundaryKind!=2){
   assert(!strict&&native.gasSpecies.faceStatus[1]!=int(ugkwp::GasTransportCode::InvalidStorage));
   assert(SharedGasTrialPolicy::validate(&native,true)!=0&&SharedGasTrialPolicy::continueTerminal(&native));
@@ -103,7 +103,7 @@ int main(){DeviceState actual,reference;setupNative(actual,0,0);setupNative(refe
  auto* owners=actual.faceOwner;actual.faceOwner=nullptr;
  assert(ugkwp::evaluateGasBoundaryLayerSlot(actual,0));
  assert(ugkwp::evaluateGasBoundaryLayerSlot(reference,0));
- assert(a.exchange[0].ready&&a.exchange[0].massReady&&a.status[0]==0);
+ assert(a.exchange[0].ready&&a.status[0]==0);
  const double* fieldsA[]={&a.exchange[0].mass,&a.exchange[0].momentumX,&a.exchange[0].momentumY,&a.exchange[0].momentumZ,&a.exchange[0].energy,a.species};
  const double* fieldsB[]={&b.exchange[0].mass,&b.exchange[0].momentumX,&b.exchange[0].momentumY,&b.exchange[0].momentumZ,&b.exchange[0].energy,b.species};
  for(int k=0;k<6;++k)assert(std::memcmp(fieldsA[k],fieldsB[k],(k==5?2:1)*sizeof(double))==0);

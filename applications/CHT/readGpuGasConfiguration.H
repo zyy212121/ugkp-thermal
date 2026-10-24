@@ -506,7 +506,6 @@ scalar sstB1 = scalar(1.0);
 scalar sstC1 = scalar(10.0);
 scalar sstKMin = scalar(1.0e-12);
 scalar sstOmegaMin = scalar(1.0e-6);
-scalar sstMaxSourceNumber = scalar(0.25);
 word sstWallTreatmentName("lowRe");
 label sstWallTreatment = 0;
 scalar sstWallKappa = scalar(0.41);
@@ -574,7 +573,6 @@ if (!momentumTransportProperties.empty())
             sstC1 = modelCoeffs.lookupOrDefault<scalar>("c1", scalar(10.0));
             sstKMin = modelCoeffs.lookupOrDefault<scalar>("kMin", scalar(1.0e-12));
             sstOmegaMin = modelCoeffs.lookupOrDefault<scalar>("omegaMin", scalar(1.0e-6));
-            sstMaxSourceNumber = modelCoeffs.lookupOrDefault<scalar>("maxSourceNumber", scalar(0.25));
             sstWallTreatmentName =
                 modelCoeffs.lookupOrDefault<word>("wallTreatment", "lowRe");
             sstWallKappa =
@@ -602,14 +600,6 @@ if (!momentumTransportProperties.empty())
             << exit(FatalError);
     }
 }
-const scalar maxDiffusionNumber =
-    gpuSolutionControls
-  ? gpuSolutionControls->lookupOrDefault<scalar>
-    (
-        "maxDiffusionNumber",
-        scalar(0.25)
-    )
-  : scalar(0.25);
 
 label gasTurbulenceModel = -1;
 if (gasTurbulenceModelName == "laminar")

@@ -9,8 +9,8 @@ def wall_fixture():
 void wall(State& s){
  initialise(s);s.turbulenceModel=3;s.sstConfigured=1;s.sstWallTreatment=1;
  s.gasMu=.001;s.turbulentPrandtl=.9;s.sstCoefficients=ugkwp::defaultSstCoefficients();
- s.sstKMin=1e-12;s.sstOmegaMin=1e-8;s.sstMaxSourceNumber=.25;
- s.sstWallKappa=.41;s.sstWallE=9.8;s.sstWallCmu=.09;s.maxDiffusionNumber=.25;
+ s.sstKMin=1e-12;s.sstOmegaMin=1e-8;
+ s.sstWallKappa=.41;s.sstWallE=9.8;s.sstWallCmu=.09;
  auto* meta=const_cast<ugkwp::SpeciesThermoData<Real>*>(s.gasSpecies.thermo.species);
  auto* coeff=const_cast<Real*>(s.gasSpecies.thermo.coefficients);
  meta[1].molarMass=.04;coeff[0]=1000;coeff[1]=.2;coeff[3]=1500;coeff[4]=.2;
@@ -46,13 +46,6 @@ def test_wall_thermo_flux_and_diffusion_use_same_mixture_properties(tmp_path,dir
  const Real baseline=ugkwp::gasHasDirectConductivity(s)?s.gasThermalConductivity:s.gasMu*s.gasSpecies.heatCapacity[0]/s.gasPrClamped;
  near(baseline+conductivity,expected.conductivity,"flux/stability conductivity inconsistent with wall closure");
  s.cellPlaneCount[0]=1;s.cellPlaneStart[0]=1;
- threadIdx.x=0;computeGasDiffusionNumberKernel(&s,1e-6,.5);
- const Real cv=s.gasSpecies.heatCapacity[0]-s.gasSpecies.gasConstant[0];
- const Real alpha=expected.conductivity/(s.rho[0]*cv);
- const Real nu=(s.gasMu+mu)/s.rho[0];
- // This ordinary impermeable wall has heat/traction but no species channel.
- const Real expectedDiffusion=Real(.5/.25*1e-6*2)*std::max(nu,alpha);
- ck(std::abs(s.gasDiffusionNumber[0]-expectedDiffusion)<Real(3e-5)*std::abs(expectedDiffusion),"wall timestep conductivity mismatch");
  // Direct physical wall flux carries heat and work once; species/mass remain zero.
  Real mass,mx,my,mz,energy;
  ck(computeRiemannGasFaceFluxDevice<true>(s,1,mass,mx,my,mz,energy),"mixture wall flux rejected");

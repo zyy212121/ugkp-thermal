@@ -86,8 +86,7 @@ int main(int argc, char *argv[])
             << " wallE=" << sstWallE
             << " wallCmu=" << sstWallCmu
             << "; kMin=" << sstKMin
-            << " omegaMin=" << sstOmegaMin
-            << " maxSourceNumber=" << sstMaxSourceNumber << nl;
+            << " omegaMin=" << sstOmegaMin << nl;
     }
 
     constexpr bool gpuResidentStrict = true;
@@ -310,7 +309,6 @@ int main(int argc, char *argv[])
                 sstC1,
                 sstKMin,
                 sstOmegaMin,
-                sstMaxSourceNumber,
                 sstWallTreatment,
                 sstWallKappa,
                 sstWallE,
@@ -356,7 +354,6 @@ int main(int argc, char *argv[])
                 turbulentPrandtl,
                 waleCw,
                 smagorinskyCs,
-                maxDiffusionNumber,
                 rhoMinStrict,
                 TgasMinStrict,
                 gpuScheduling
@@ -381,7 +378,6 @@ int main(int argc, char *argv[])
                     lastMeasuredCo = resident.computeGasCourant
                     (
                         oldDt,
-                        maxCo,
                         runTime.value() + oldDt
                     );
                     if (lastMeasuredCo > SMALL)
@@ -505,7 +501,6 @@ int main(int argc, char *argv[])
             turbulentPrandtl,
             waleCw,
             smagorinskyCs,
-            maxDiffusionNumber,
             dS.value(),
             dMinStrict,
             dMaxStrict,
@@ -541,7 +536,6 @@ int main(int argc, char *argv[])
                 lastMeasuredCo = resident.computeGasCourant
                 (
                     oldDt,
-                    maxCo,
                     runTime.value() + oldDt
                 );
                 if (lastMeasuredCo > SMALL)

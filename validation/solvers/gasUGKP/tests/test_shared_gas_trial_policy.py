@@ -9,7 +9,7 @@ ROOT=SOURCE_ROOT
 
 @pytest.mark.parametrize("profiles",[False,True])
 def test_trial_and_requested_interval_rollback_restore_accepted_state(tmp_path,profiles):
-    scalar_fields="rho rhoUx rhoUy rhoUz rhoE Ux Uy Uz p Tgas gasFluxPositivityScale gasDiffusionNumber sstSourceNumber rhoK rhoOmega k omega nut gasBoundaryRho gasBoundaryUx gasBoundaryUy gasBoundaryUz gasBoundaryP gasBoundaryT V".split()
+    scalar_fields="rho rhoUx rhoUy rhoUz rhoE Ux Uy Uz p Tgas gasFluxPositivityScale rhoK rhoOmega k omega nut gasBoundaryRho gasBoundaryUx gasBoundaryUy gasBoundaryUz gasBoundaryP gasBoundaryT V".split()
     declarations="\n".join("double* "+name+"=nullptr;" for name in scalar_fields)
     assignments="\n".join(f"double {name}[2]={{1,1}};state.{name}={name};" for name in scalar_fields)
     code=r'''
@@ -104,7 +104,7 @@ int main(){
  assert(state.rho[0]==1 && partial[0]==.4 && state.gasBoundaryP[0]==1);
  assert(cellStatus[0]==0 && faceStatus[0]==0);
  assert(SharedGasTrialPolicy::begin(&state)==0);
- state.gasFluxPositivityScale[0]=2;state.gasDiffusionNumber[0]=1e300;state.sstSourceNumber[0]=NAN;
+ state.gasFluxPositivityScale[0]=2;
  assert(SharedGasTrialPolicy::validateTimeStep(&state,.1)!=0);
  assert(SharedGasTrialPolicy::retryable(&state));
  cellStatus[0]=int(ugkwp::GasTransportCode::ChemistryFailure);
@@ -162,7 +162,7 @@ def test_real_server_error_response_keeps_restored_handle_downloadable(tmp_path)
     pre=re.search("code=r'''(.*?)'''",own,re.S).group(1).split('int main(){')[0]
     gas='rho rhoUx rhoUy rhoUz rhoE Ux Uy Uz p Tgas'.split()
     solids='epsS rhoUsx rhoUsy rhoUsz rhoEs rhoDs rhoHp Usx Usy Usz theta Tp dMeanCell'.split()
-    other='gasFluxPositivityScale gasDiffusionNumber sstSourceNumber rhoK rhoOmega k omega nut gasBoundaryRho gasBoundaryUx gasBoundaryUy gasBoundaryUz gasBoundaryP gasBoundaryT V'.split()
+    other='gasFluxPositivityScale rhoK rhoOmega k omega nut gasBoundaryRho gasBoundaryUx gasBoundaryUy gasBoundaryUz gasBoundaryP gasBoundaryT V'.split()
     fields=gas+solids+other
     pre=pre.replace('__DECLARATIONS__','\n'.join('double* '+x+'=nullptr;' for x in fields))
     pre+='\nDeviceState*asState(void*p){return static_cast<DeviceState*>(p);}\nint validateState(DeviceState*s,const char*){return s->gasModelPoisoned?1:0;}\n'

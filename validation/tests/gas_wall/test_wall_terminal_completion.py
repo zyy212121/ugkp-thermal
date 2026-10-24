@@ -132,7 +132,7 @@ MUTATION
 exchange[1].mass=901;exchange[1].energy=902;sst[1].ownerOmega=903;
 bool ok=publishGasBoundaryLayerOutput(state,1,m.in,out,area,sweep);
 if(MISSING){assert(!ok&&!exchange[1].ready);assert(exchange[1].mass==901&&species[1]==812);return 0;}
-assert(ok&&exchange[1].ready&&exchange[1].massReady&&gasBoundaryLayerSlotReady(state,1));
+assert(ok&&exchange[1].ready&&gasBoundaryLayerSlotReady(state,1));
 auto same=[](double a,double b){return a==b||(std::isnan(a)&&std::isnan(b));};
 const double mass=out.wallSpeciesFlux[0]+out.wallSpeciesFlux[1];double speed=0,work=0,h=0;
 for(int d=0;d<3;++d){speed+=out.traceVelocity[d]*out.traceVelocity[d];work+=out.traction[d]*out.traceVelocity[d];}

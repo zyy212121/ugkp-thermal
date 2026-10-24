@@ -82,7 +82,6 @@ extern "C" int ugkwpGpuResidentStrictCreate
     double turbulentPrandtl,
     double waleCw,
     double smagorinskyCs,
-    double maxDiffusionNumber,
     int csrCellLocalPathEnabled,
     int csrHeavyReductionMode,
     int csrHeavyAutoInterval,
@@ -250,7 +249,6 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
 (
     void* handle,
     double dt,
-    double targetMaxCo,
     double scheduleTime,
     double* maxCo
 );
@@ -534,7 +532,6 @@ protected:
         const scalar turbulentPrandtl,
         const scalar waleCw,
         const scalar smagorinskyCs,
-        const scalar maxDiffusionNumber,
         const scalar particleDiameterFallback,
         const scalar particleDiameterMin,
         const scalar particleDiameterMax,
@@ -698,7 +695,6 @@ protected:
             turbulentPrandtl,
             waleCw,
             smagorinskyCs,
-            maxDiffusionNumber,
             csrCellLocalPathEnabled ? 1 : 0,
             csrHeavyReductionMode,
             int(scheduling.heavyReductionAutoInterval),
@@ -875,7 +871,6 @@ protected:
         const scalar turbulentPrandtl,
         const scalar waleCw,
         const scalar smagorinskyCs,
-        const scalar maxDiffusionNumber,
         const scalar rhoMin,
         const scalar TgasMin,
         const GpuSchedulingConfiguration& scheduling
@@ -948,7 +943,6 @@ protected:
             turbulentPrandtl,
             waleCw,
             smagorinskyCs,
-            maxDiffusionNumber,
             scheduling.csrCellLocalPath ? 1 : 0,
             int(scheduling.heavyReductionMode),
             int(scheduling.heavyReductionAutoInterval),
@@ -1000,7 +994,6 @@ public:
         const scalar c1,
         const scalar kMin,
         const scalar omegaMin,
-        const scalar maxSourceNumber,
         const label wallTreatment,
         const scalar wallKappa,
         const scalar wallE,
@@ -1097,7 +1090,6 @@ public:
                 c1,
                 kMin,
                 omegaMin,
-                maxSourceNumber,
                 int(wallTreatment),
                 wallKappa,
                 wallE,
@@ -1146,7 +1138,6 @@ public:
     scalar computeGasCourant
     (
         const scalar dt,
-        const scalar targetMaxCo,
         const scalar scheduleTime
     ) const
     {
@@ -1160,7 +1151,6 @@ public:
             (
                 handle_,
                 dt,
-                targetMaxCo,
                 scheduleTime,
                 &maxCo
             ),
@@ -3711,7 +3701,6 @@ public:
         const scalar turbulentPrandtl,
         const scalar waleCw,
         const scalar smagorinskyCs,
-        const scalar maxDiffusionNumber,
         const scalar rhoMin,
         const scalar TgasMin,
         const GpuSchedulingConfiguration& scheduling
@@ -3748,7 +3737,6 @@ public:
             turbulentPrandtl,
             waleCw,
             smagorinskyCs,
-            maxDiffusionNumber,
             rhoMin,
             TgasMin,
             scheduling
@@ -3879,7 +3867,6 @@ public:
         const scalar turbulentPrandtl,
         const scalar waleCw,
         const scalar smagorinskyCs,
-        const scalar maxDiffusionNumber,
         const scalar particleDiameterFallback,
         const scalar particleDiameterMin,
         const scalar particleDiameterMax,
@@ -3943,7 +3930,6 @@ public:
             turbulentPrandtl,
             waleCw,
             smagorinskyCs,
-            maxDiffusionNumber,
             particleDiameterFallback,
             particleDiameterMin,
             particleDiameterMax,
