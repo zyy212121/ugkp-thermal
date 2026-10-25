@@ -12,8 +12,8 @@ CHMT_HD inline bool interfaceFailure(const PhysicsConfig& p,unsigned site,Real v
     return false;
 }
 
-// Shared producer sites for legacy device and host dry constitutive paths.
-// Callers retain the original conditions and diagnostic values.
+
+
 CHMT_HD inline bool surfacePressureFailure(const PhysicsConfig& p,Real pressure) {
     return interfaceFailure(p,3844,pressure);
 }
@@ -696,8 +696,8 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     if ((!finite(result.thermalResidual) || !finite(result.phaseEnergy))) return surfaceEnergyFailure(p,result.thermalResidual,result.phaseEnergy);
     out=result; return true;
 }
-// The host dry material adapter supplies another constitutive evaluator. The
-// default retains the existing device evaluator and identical root arithmetic.
+
+
 struct LegacySurfaceEvaluation {
     CHMT_HD static bool evaluate(const SurfacePhysicsInput& in,const PhysicsConfig& p,
         const MaterialPrimitive& material,Real filmT,Real topT,bool birth,

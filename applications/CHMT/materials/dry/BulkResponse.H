@@ -191,8 +191,8 @@ void applyExtent(MaterialState<Nc,Ns>& q,
     for(std::size_t s=0;s<Ns;++s)q.poreMass[s]+=extent*production.gas[s];
 }
 
-// Nonblocking balance evidence for configured reactions. The caller/test can
-// inspect all residuals; these helpers impose no new runtime admission policy.
+
+
 template<std::size_t Nc, std::size_t Ns>
 double massResidual(const Stoichiometry<Nc,Ns>& reaction)
 {

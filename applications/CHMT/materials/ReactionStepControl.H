@@ -30,8 +30,8 @@ CHMT_HD inline Real reactionMassDerivative(const Reaction& reaction,int componen
         derivative*=::pow(q.condensed[k]/volume,reaction.order[k]);
     return derivative;
 }
-// The unchanged device policy uses legacy callable wrappers. CPU dry material
-// injects verified constitutive rates into the same numerical controller.
+
+
 struct MaterialReactionRates {
     CHMT_HD Real rate(const Reaction& r,const SolidQ& q,Real V,Real T)const {
         return reactionRate<false>(r,q.condensed,V,T);
