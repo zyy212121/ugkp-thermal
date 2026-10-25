@@ -1,0 +1,5 @@
+EXE_INC = -std=c++17 \
+    -I$(LIB_SRC)/finiteVolume/lnInclude \
+    -I$(LIB_SRC)/meshTools/lnInclude \
+    -I$(DRY_CORE_ROOT)/applications/CHMT
+EXE_LIBS = -lfiniteVolume -lmeshTools

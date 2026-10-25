@@ -8,12 +8,10 @@ struct MaterialTransportResult {
     std::vector<Vec3> poreVelocity;
     Real dtLimit=std::numeric_limits<Real>::max();
 };
-bool filmThicknessFromMass(Real mass,Real area,Real density,Real& thickness);
-bool filmSweepsCompatible(Real oldMass,Real newMass,Real density,Real gasOutwardSweep,Real solidOutwardSweep,Real sideSweep,const Tolerances&);
 bool applyMaterialPacketBatch(const std::vector<SolidQ>&,const std::vector<ExchangePacket>&,std::vector<SolidQ>&,std::string&,bool* numericalFailure=nullptr);
 bool materialPointsClose(const HostMesh&,const std::vector<Vec3>&,const Tolerances&);
 bool materialSweepsCompatible(const HostMesh&,const SurfaceMesh&,const std::vector<Real>& targets,const std::vector<Real>& actual,const Tolerances&);
-// Conservative physical Darcy + ALE transport only. Conduction is exclusively
+// Conservative physical Darcy + corrected species diffusion + ALE transport. Conduction is exclusively
 // the OpenFOAM implicit operator; reactions have their independent local clock.
 bool evaluateMaterialTransport(const HostMesh&,const std::vector<SolidQ>&,
     const PhysicsConfig&,const std::vector<Real>& sweptVolumes,Real geometryInterval,

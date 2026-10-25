@@ -1,0 +1,29 @@
+{
+  "repository": "https://github.com/nasa/pato",
+  "commit": "33d895885ceb1b61e71e2d2f2cf5327339205570",
+  "required_inputs": [
+    {
+      "path": "pato/data/Materials/Composites/TACOT/constantProperties",
+      "sha256": "d6a3234188f4fb1b6d27f802732749c2255239e6a4e8929bd046cefbf99a6475",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/data/Materials/Composites/TACOT/constantProperties"
+    },
+    {
+      "path": "pato/tutorials/0D/purePyrolysis/FIAT/constant/porousMat/porousMatProperties",
+      "sha256": "91b1453c49708cd957cf4ae36cf9473022c7c1e79e3cf8b151097ee16292bfc4",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/tutorials/0D/purePyrolysis/FIAT/constant/porousMat/porousMatProperties"
+    },
+    {
+      "path": "pato/tutorials/0D/purePyrolysis/PATO/Temperature.txt",
+      "sha256": "655aea3f315c64b7fbbeea09adac87bff76b3ad7dd5b1b295e6b8993f17417b5",
+      "url": "https://raw.githubusercontent.com/nasa/pato/33d895885ceb1b61e71e2d2f2cf5327339205570/tutorials/0D/purePyrolysis/PATO/Temperature.txt"
+    },
+    {
+      "path": "zeroD_PATO_reference.csv",
+      "sha256": "0f58321cc8ccb6ae839ba4c107452a254632ce712057b6c239fe138843db4baf"
+    },
+    {
+      "path": "zeroD_FIAT_reference.csv",
+      "sha256": "4a36369ef0f7e7a4942d7a6efda792a94b1dc867fe4a35f2a9923b6ff3c4a6dd"
+    }
+  ]
+}

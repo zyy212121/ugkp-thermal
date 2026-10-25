@@ -1,5 +1,5 @@
 #include "materials/MaterialTransport.H"
-#include "materials/ReactionStepControl.H"
+#include "materials/DryMaterialAdapter.H"
 #include "materials/DarcyGradient.H"
 #include "materials/MaterialReconstruction.H"
 #include "materials/StencilMath.H"
@@ -49,18 +49,6 @@ bool reconstruct(const HostMesh& m,const std::vector<SolidQ>& q,const PhysicsCon
     candidate.porosity=state.porosity;out=candidate;return true;
 }
 } // namespace
-bool filmThicknessFromMassImpl(Real mass,Real area,Real density,Real& thickness){
-    if((!finite(mass)||mass<0||!finite(area)||area<=0||!finite(density)||density<=0))return false;
-    const Real value=mass/(density*area);if(!finite(value))return false;thickness=value;return true;
-}
-bool filmThicknessFromMass(Real mass,Real area,Real density,Real& thickness){return filmThicknessFromMassImpl(mass,area,density,thickness);}
-
-bool filmSweepsCompatible(Real oldMass,Real newMass,Real density,Real gasOutwardSweep,Real solidOutwardSweep,Real sideSweep,const Tolerances& tol){
-    if(!finite(oldMass)||oldMass<0||!finite(newMass)||newMass<0||!finite(density)||density<=0)return false;
-    const Real expected=(newMass-oldMass)/density,actual=-gasOutwardSweep-solidOutwardSweep+sideSweep;
-    const Real roundoff=64*std::numeric_limits<Real>::epsilon()*maxValue(oldMass/density,absValue(expected));
-    return finite(actual)&&absValue(actual-expected)<=tol.absoluteGeometry+tol.relativeGeometry*maxValue(absValue(actual),absValue(expected))+roundoff;
-}
 bool applyMaterialPacketBatchImpl(const std::vector<SolidQ>& base,const std::vector<ExchangePacket>& packets,std::vector<SolidQ>& output,std::string& error,bool* numericalFailure){
     if(numericalFailure)*numericalFailure=false;
     std::vector<SolidQ> next=base;
@@ -118,7 +106,10 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
 
     MaterialTransportResult result;result.rates.resize(q.size());result.poreVelocity.resize(q.size());result.faceFlux.resize(m.owner.size());
     std::vector<MaterialPrimitive> primitive(q.size());std::vector<SolidQ> outgoing(q.size());
-    std::vector<Vec3> pressureGradient(q.size());std::vector<Real> gradientSensitivity(q.size());
+    std::vector<Vec3> pressureGradient(q.size());std::vector<Real> gradientSensitivity(q.size()),stabilityRate(q.size());
+    for(int species=0;species<Ns;++species)if(!finite(p.poreEffectiveDiffusivity[species])||p.poreEffectiveDiffusivity[species]<0){
+        error="invalid material effective pore diffusivity";return false;
+    }
     for(std::size_t c=0;c<q.size();++c)if(!recoverMaterial<false>(q[c],m.volumes[c],p,primitive[c])){error="material transport EOS recovery failed in cell "+std::to_string(c);return false;}
     for(std::size_t c=0;c<q.size();++c){Symmetric3 matrix;Vec3 rhs{};
         for(int e=m.cellFaceOffsets[c];e<m.cellFaceOffsets[c+1];++e){const int f=m.cellFaces[e],other=otherCell(m,c,f);
@@ -150,7 +141,7 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
             if(storage>0)pressureRate+=darcyPressureRelaxation(storage,p.permeability,p.poreViscosity,
                 maxValue(primitive[c].poreDensity,primitive[other].poreDensity),area,1/inverseLength);
         }
-        if(pressureRate+sweepRate>0)result.dtLimit=minValue(result.dtLimit,cfl/(pressureRate+sweepRate));
+        stabilityRate[c]=pressureRate+sweepRate;
     }
     for(std::size_t f=0;f<m.owner.size();++f){const auto kind=m.boundaryKind[f];const int left=m.owner[f];int right=m.neighbour[f];
         if(kind==BoundaryKind::Interface||kind==BoundaryKind::Empty)continue;
@@ -160,16 +151,58 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
         SolidQ density;if(!reconstruct(m,q,p,meshRate<=0||right<0?left:right,f,density)){error="material ALE reconstruction failed";return false;}
         SolidQ flux=materialAleFlux(density,1,meshRate);
         if(right>=0){const Vec3 dx=displacement(m,left,f,right);const Real distance=dot(dx,normal);MaterialPrimitive a=primitive[left],b=primitive[right];
-            a.conductivity=b.conductivity=0;SolidQ physical;
+            SolidQ physical;
             Real normalPressureGradient=0;
             if(!darcyNormalPressureGradient<false>(dx,normal,b.pressure-a.pressure,
-                pressureGradient[left],pressureGradient[right],normalPressureGradient)||!darcyConductionFluxWithGradient<false>(q[left],q[right],a,b,m.volumes[left],m.volumes[right],area,distance,normal,normalPressureGradient,p,physical)){error="invalid material Darcy face";return false;}
-            if(p.spatialOrder==2&&p.permeability>0){const Real volumeRate=-area*p.permeability/p.poreViscosity*(normalPressureGradient-.5*(a.poreDensity+b.poreDensity)*dot(p.gravity,normal));
+                pressureGradient[left],pressureGradient[right],normalPressureGradient)){
+                error="invalid material Darcy face";return false;}
+            Real velocity=0;
+            if(p.permeability>0)velocity=dry::darcyVelocity(p.permeability,p.poreViscosity,
+                normalPressureGradient,.5*(a.poreDensity+b.poreDensity),dot(p.gravity,normal));
+            auto poreLeft=dryAdapter::poreState(q[left],a),poreRight=dryAdapter::poreState(q[right],b);
+            dryAdapter::completePorePair(poreLeft,poreRight);
+            // Diffusion uses original cell gradients. Reconstruct only the
+            // advective donor; otherwise second-order advection would alter J.
+            std::array<double,Ns> diffusivity{};
+            for(int species=0;species<Ns;++species)diffusivity[species]=p.poreEffectiveDiffusivity[species];
+            struct FaceCalorics {
+                const PhysicsConfig& p;
+                const dry::PoreFaceState<Ns>& a;
+                const dry::PoreFaceState<Ns>& b;
+                double enthalpy(std::size_t species,double T)const {
+                    // Inactive historical tables need not be configured.
+                    return (a.density==0&&b.density==0)||(a.massFraction[species]==0&&b.massFraction[species]==0)
+                        ? 0 : speciesH(p.species[species],T);
+                }
+            } calorics{p,poreLeft,poreRight};
+            // Native implicit fvScalarMatrix conduction owns the conductive
+            // channel; passing k=0 avoids counting the same heat flux twice.
+            auto poreFlux=dry::poreFaceFlux(poreLeft,poreRight,distance,velocity,diffusivity,0,calorics);
+            // Bound the explicit operator, not just current net mass outflow:
+            // at almost uniform composition, q/outflow misses diffusion stiffness.
+            // Total pore inventory is the storage for the mass fractions. Sum
+            // face losses before combining with Darcy/ALE stiffness above.
+            Real leftMass=0,rightMass=0;
+            for(int species=0;species<Ns;++species){leftMass+=q[left].pore[species];rightMass+=q[right].pore[species];}
+            if(leftMass>0)stabilityRate[left]+=area*poreFlux.diffusionLossLeft/leftMass;
+            if(rightMass>0)stabilityRate[right]+=area*poreFlux.diffusionLossRight/rightMass;
+            if(p.spatialOrder==2&&velocity!=0){
                 SolidQ reconstructed;MaterialPrimitive recovered;
-                if(!reconstruct(m,q,p,volumeRate>=0?left:right,f,reconstructed)||!recoverMaterial<false>(reconstructed,1,p,recovered)){error="material Darcy reconstruction failed";return false;}
-                physical.energy=0;for(int s=0;s<Ns;++s){physical.pore[s]=recovered.porosity>0?volumeRate*reconstructed.pore[s]/recovered.porosity:0;Real enthalpy=speciesH(p.species[s],recovered.temperature);
-
-                    physical.energy+=physical.pore[s]*enthalpy;}}
+                if(!reconstruct(m,q,p,velocity>=0?left:right,f,reconstructed)||!recoverMaterial<false>(reconstructed,1,p,recovered)){
+                    error="material Darcy reconstruction failed";return false;}
+                const auto donor=dryAdapter::poreState(reconstructed,recovered);
+                const std::array<double,Ns> noDiffusion{};
+                const FaceCalorics donorCalorics{p,donor,donor};
+                const auto advective=dry::poreFaceFlux(donor,donor,distance,velocity,noDiffusion,0,donorCalorics);
+                for(int species=0;species<Ns;++species){
+                    const Real oldEnergy=poreFlux.advection[species]==0?0:poreFlux.advection[species]*calorics.enthalpy(species,velocity>=0?a.temperature:b.temperature);
+                    poreFlux.energy+=advective.speciesEnergy[species]-oldEnergy;
+                    poreFlux.species[species]=advective.advection[species]+poreFlux.diffusion[species];
+                }
+            }
+            for(int species=0;species<Ns;++species)physical.pore[species]=area*poreFlux.species[species];
+            physical.energy=area*poreFlux.energy;
+            if(!finite(physical.energy)){error="invalid material Darcy face";return false;}
             flux=addSolid(flux,physical);
         }
         result.faceFlux[f]=flux;if(kind==BoundaryKind::Periodic)result.faceFlux[m.periodicPartner[f]]=addSolid(SolidQ{},flux,-1);
@@ -178,6 +211,7 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
             result.rates[c]=addSolid(result.rates[c],flux,-sign);
             for(int k=0;k<Nc;++k)outgoing[c].condensed[k]+=maxValue(0,sign*flux.condensed[k]);
             for(int s=0;s<Ns;++s)outgoing[c].pore[s]+=maxValue(0,sign*flux.pore[s]);}
+        if(stabilityRate[c]>0)result.dtLimit=minValue(result.dtLimit,cfl/stabilityRate[c]);
         Real poreMass=0;for(int s=0;s<Ns;++s)poreMass+=q[c].pore[s];const Real power=poreMass*dot(p.gravity,result.poreVelocity[c]);
         result.rates[c].energy+=power;
         for(int k=0;k<Nc;++k)if(outgoing[c].condensed[k]>0)result.dtLimit=minValue(result.dtLimit,cfl*q[c].condensed[k]/outgoing[c].condensed[k]);
@@ -197,13 +231,19 @@ bool advanceMaterialReactionsImpl(const SolidQ& base,Real volume,const PhysicsCo
     if((!(interval>0)||!finite(interval)||maxStep<0||!finite(maxStep)||!(finite(cfl)&&cfl>0)||maximum<=0)){error="invalid reaction local control";return false;}
     SolidQ state=base;MaterialPrimitive material;if(!recoverMaterial<false>(state,volume,p,material,nullptr,-1,numericalFailure)){error="reaction base EOS invalid";return false;}
     if(!p.enableReactions){out=base;accepted=0;error.clear();return true;}
+    // Run the existing material controller before reading mechanism entries;
+    // its historical count/domain diagnostics must precede adapter allocation.
+    ReactionStepControl initialControl;
+    if(!reactionStepControl(state,volume,p,cfl,initialControl,numericalFailure,dryAdapter::CoreReactionRates{})){
+        error="reaction local EOS/admissibility failure";return false;}
+    const auto network=dryAdapter::mechanism(p);
     Real elapsed=0;std::uint64_t count=0;
     while(elapsed<interval){
         if(count==static_cast<std::uint64_t>(maximum))reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,30900,count,maximum,count);
         if(count==std::numeric_limits<std::uint64_t>::max()){error="reaction local substep counter overflow";return false;}
         const Real maximumStep=minValue(interval-elapsed,maxStep>0?maxStep:interval);
         SolidQ trial;Real dt=0;bool active=false;
-        if(!reactionStepCandidate(state,volume,p,maximumStep,cfl,trial,dt,active,numericalFailure)){
+        if(!dryAdapter::reactionStep(state,volume,p,network,maximumStep,cfl,trial,dt,active,numericalFailure)){
             error="reaction local EOS/admissibility failure";return false;}
         if(!active){out=state;accepted=count;error.clear();return true;}
         if(!finite(dt)||!(dt>0)||!finite(elapsed+dt)||elapsed+dt==elapsed){

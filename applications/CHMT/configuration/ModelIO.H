@@ -50,14 +50,11 @@ namespace chmt {
             p.nElements = elementNames.size();
             for (int e = 0; e<Ne&&e<p.nElements; ++e)m.elementNames[e] = elementNames[e];
             p.enableGas = flag(d, "enableGas", true);
-            p.enableFilm = flag(d, "enableFilm");
+            // Dry CPU material model: legacy film ABI fields remain inactive.
             p.enableReactions = flag(d, "enableReactions");
             p.enableParticles = flag(d, "enableParticles");
             p.enableSst = flag(d, "enableSst");
             p.enableRadiation = flag(d, "enableRadiation");
-            const auto thermal = text(d, "filmThermalMode", "ThicknessAveraged");
-
-            p.filmThermalMode = thermal == "ResolvedNormal"?FilmThermalMode::ResolvedNormal:FilmThermalMode::ThicknessAveraged;
             const auto recon = text(d, "materialReconstruction", "LimitedLinear");
 
             p.reconstruction = recon == "SmoothVerification"?ReconstructionMode::SmoothVerification:ReconstructionMode::LimitedLinear;
@@ -71,13 +68,10 @@ namespace chmt {
 
             p.permeability = readNumber(d, "permeability", 0);
             p.poreViscosity = readNumber(d, "poreViscosity", 0);
+            array(d, "poreEffectiveDiffusivity", p.poreEffectiveDiffusivity, true);
             p.emissivity = readNumber(d, "emissivity", 0);
             p.ambientTemperature = readNumber(d, "ambientTemperature", 0);
             if (d.found("condensedThermo"))for (int c = 0; c<Nc; ++c)p.condensed[c] = condensed(d.subDict("condensedThermo").subDict(m.condensedNames[c]), p.nElements);
-            if (d.found("liquid"))p.liquid = condensed(d.subDict("liquid"), p.nElements);
-            p.liquidViscosity = readNumber(d, "liquidViscosity", 0);
-            p.liquidReferencePressure = readNumber(d, "liquidReferencePressure", 0);
-            p.meltTemperature = readNumber(d, "meltTemperature", 0);
             if (d.found("reactions")) {
                 const auto& r = d.subDict("reactions");
                 const Foam::wordList keys = r.toc();
@@ -91,18 +85,10 @@ namespace chmt {
                 t.minimumPorosity = readNumber(a, "minimumPorosity", 0);
                 t.maximumPorosity = readNumber(a, "maximumPorosity", 1);
                 t.phaseCondensed = a.lookupOrDefault<Foam::label>("phaseCondensed", -1);
-                t.enableMelting = flag(a, "enableMelting");
                 t.enableSurfaceReactions = flag(a, "enableSurfaceReactions");
                 t.enablePoreOutflow = flag(a, "enablePoreOutflow");
-                array(a, "phaseFilmY", t.phaseFilmY, true);
                 t.gasContactResistance = readNumber(a, "gasContactResistance", 0);
                 t.solidContactResistance = readNumber(a, "solidContactResistance", 0);
-                const auto law = text(a, "evaporation", "Disabled");
-
-                t.evaporation = law == "HertzKnudsen"?EvaporationLaw::HertzKnudsen:EvaporationLaw::Disabled;
-                array(a, "evaporationAccommodation", t.evaporationAccommodation, true);
-                array(a, "saturationPressureScale", t.saturationPressureScale, true);
-                array(a, "saturationTemperature", t.saturationTemperature, true);
                 if (a.found("surfaceReactions")) {
                     const auto& r = a.subDict("surfaceReactions");
                     const Foam::wordList keys = r.toc();
