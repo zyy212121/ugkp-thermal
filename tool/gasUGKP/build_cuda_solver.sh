@@ -7,6 +7,11 @@ cuda_home="${CUDA_HOME:-/usr/local/cuda}"
 cuda_arch="${UGKWP_CUDA_ARCH:-sm_89}"
 gas_species="${UGKWP_GAS_SPECIES-2}"
 build="${GAS_UGKP_BUILD:-$solver_root/private_backend/build/$WM_OPTIONS}"
+# Keep caller-relative output paths stable when wmake changes to the solver.
+case "$build" in
+  /*) ;;
+  *) build="$PWD/$build";;
+esac
 mkdir -p "$build" "$FOAM_USER_APPBIN"
 probe_flags=()
 case "${UGKP_DEVELOPMENT_PROBES:-0}" in
