@@ -4,7 +4,7 @@
 #include <cstddef>
 
 namespace chmt { namespace dry {
-// CPU-only material mathematics. No gas solver, device ABI, film, or CHT state.
+
 // Masses are extensive [kg], energy [J] includes formation energies of ALL
 // constituents. Darcy kinetic energy is neglected in this LTE material model.
 template<std::size_t Nc, std::size_t Ns>

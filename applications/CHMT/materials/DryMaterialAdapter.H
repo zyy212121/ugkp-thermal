@@ -5,8 +5,8 @@
 #include "materials/dry/PoreTransport.H"
 
 namespace chmt { namespace dryAdapter {
-// Host-only translation of the existing extensive inventories and calibrated
-// mass-concentration kinetics. No new state, EOS, or gas numerical operator.
+
+
 // Host Nc is unchanged (currently two condensed inventories); this is not a
 // projection/truncation adapter for higher-dimensional benchmark mechanisms.
 using State = dry::MaterialState<Nc,Ns>;
@@ -58,8 +58,8 @@ struct CoreReactionRates {
 inline bool reactionStep(const SolidQ& base,Real volume,const PhysicsConfig& p,
     const std::vector<dry::Reaction<Nc,Ns>>& network,Real maximumStep,Real cfl,
     SolidQ& output,Real& step,bool& active,bool* numericalFailure) {
-    // Retain the existing local material accuracy controller; only the
-    // constitutive source/extent update comes from the verified dry core.
+
+
     ReactionStepControl control;
     if(!reactionStepControl(base,volume,p,cfl,control,numericalFailure,CoreReactionRates{}))return false;
     active=control.active;step=active?minValue(maximumStep,control.dtLimit):maximumStep;
