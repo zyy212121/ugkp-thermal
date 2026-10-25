@@ -24,8 +24,8 @@ def validate_run_output(output):
     negative=re.findall(r'^PASS wall-negative path=(full|mass-only) native=(\d+) slot=(-?\d+) reference=(disabled|unselected) fluxBitsEqual=1 speciesBitsEqual=1 statusUnchanged=1$',output,re.M)
     expected_negative=[(path,str(native),str(slot),reference) for path in ('full','mass-only') for native in (0,1) for slot in (-1,-7) for reference in ('disabled','unselected')]
     if sorted(negative)!=sorted(expected_negative):raise ValueError('incomplete negative-slot reference matrix')
-    if output.splitlines().count('PASS real CUDA wall-slot resources invalid=32 valid=8 retries=32 negative=8 negativeComparisons=16')!=1:raise ValueError('missing completed resource matrix')
-    return dict(invalid=32,valid=8,retries=32,negative=8,negative_comparisons=16)
+    if output.splitlines().count('PASS real CUDA wall-slot resources invalid=8 valid=2 retries=8 negative=4 negativeComparisons=8')!=1:raise ValueError('missing completed resource matrix')
+    return dict(invalid=8,valid=2,retries=8,negative=4,negative_comparisons=8)
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)

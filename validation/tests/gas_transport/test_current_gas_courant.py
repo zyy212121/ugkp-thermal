@@ -40,21 +40,19 @@ def test_complete_current_state_maxima_and_launch_errors(tmp_path,mode):
     helper=launches((ROOT/'common/GpuGasCourant.cuh').read_text())
     main=r'''
 int main(){Host s;initialise(s);s.sstConfigured=MODE_SST;s.hostTurbulenceModel=MODE_SST?3:0;
-if(MODE_SST)s.sstMaxSourceNumber=Real(1e-12);
 s.gasMu=MODE_DIFFUSION?Real(1e5):Real(0);s.Ux[0]=s.Ux[1]=100;s.rhoUx[0]=s.rhoUx[1]=200;
 for(int c=0;c<2;++c)s.rhoE[c]+=Real(10000);
 const double dt=MODE_ZERO?0.:MODE_LARGE?1e16:1e-3;
-GasCourantMaxima out;out.convective=out.diffusion=out.sst=out.maximum=-777;
-ck(computeGasCurrentCourant(&s,dt,Real(.5),2.,4,4,nullptr,out,Maximum{})==0,"current-state estimator failed");
+GasCourantMaxima out;out.convective=out.maximum=-777;
+ck(computeGasCurrentCourant(&s,dt,2.,4,4,nullptr,out,Maximum{})==0,"current-state estimator failed");
 ck(out.convective==std::max(double(s.gasFluxPositivityScale[0]),double(s.gasFluxPositivityScale[1])),"convective maximum incomplete");
-ck(out.diffusion==std::max(double(s.gasDiffusionNumber[0]),double(s.gasDiffusionNumber[1])),"diffusion maximum incomplete");
-ck(out.maximum==std::max(out.convective,std::max(out.diffusion,out.sst)),"complete maximum wrong");
-ck(reductions==(MODE_SST?3:2),"unexpected reduction pass");
+ck(out.maximum==out.convective,"acoustic result differs");
+ck(reductions==1,"unexpected reduction pass");
 if(MODE_ZERO)ck(out.maximum==0,"zero Co changed");if(MODE_LARGE)ck(out.maximum>.5*OfGreat,"large finite Co not exercised");
-if(MODE_SST)ck(out.sst>out.convective&&out.sst>out.diffusion,"SST dominance not exercised");
-if(MODE_DIFFUSION)ck(out.diffusion>out.convective,"diffusion dominance not exercised");
+const double acoustic=out.maximum;s.gasMu=Real(1e200);s.omega[0]=s.omega[1]=Real(1e200);s.rhoOmega[0]=s.rhoOmega[1]=Real(1e200);
+ck(computeGasCurrentCourant(&s,dt,2.,4,4,nullptr,out,Maximum{})==0&&out.maximum==acoustic,"diffusion/source or target CFL contaminated acoustic estimate");
 GasCourantMaxima sentinel;sentinel.maximum=-888;failLaunch=launches+1;
-ck(computeGasCurrentCourant(&s,dt,Real(.5),2.,4,4,nullptr,sentinel,Maximum{})!=0&&sentinel.maximum==-888,"real launch failure hidden");
+ck(computeGasCurrentCourant(&s,dt,2.,4,4,nullptr,sentinel,Maximum{})!=0&&sentinel.maximum==-888,"real launch failure hidden");
 }
 '''
     for name in ['SST','DIFFUSION','ZERO','LARGE']:

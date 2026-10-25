@@ -39,7 +39,6 @@ near(e,-area*(h+kinetic+50+local.p*speed-viscous),"same-face pressure work, spec
 near(e-published.energy,-area*(local.p-input.pressure)*speed,"mechanical correction is not exactly delta-p times sweep");
 for(int k=0;k<2;++k)near(s.gasSpecies.flux[k*s.nFaces+1],-area*output.wallSpeciesFlux[k],"species changed");
 ck(input.pressure==Real(.7)*s.p[0]&&exchange[0].energy==published.energy,"flux evaluation mutated BVP thermodynamics/publication");
-exchange[0].ready=false;ck(computeRiemannGasFaceFluxDevice<false,true>(s,1,m,x,y,z,e),"mass predictor forced profile");near(m,published.mass,"mass-only predictor changed");
 }
 '''.replace('MOVING', str(int(moving))).replace('BLOWING', str(int(blowing)))
     compile_probe(tmp_path, fixture()+body)
@@ -95,8 +94,7 @@ s.gasBoundaryLayer.exchange[0].matchingPressure=std::numeric_limits<Real>::quiet
 ck(!computeRiemannGasFaceFluxDevice<false>(s,1,m,x,y,z,e),"nonfinite thermodynamic diagnostic lost");
 ck(s.gasSpecies.faceStatus[1]==int(ugkwp::GasTransportCode::NonFiniteState),"nonfinite pressure diagnostic lost");
 ck(std::isnan(x)&&std::isnan(y)&&std::isnan(z)&&std::isnan(e)&&m==Real(-.4),"actual terminal pressure expressions missing");
-s.gasSpecies.faceStatus[1]=0;s.gasBoundaryLayer.exchange[0].ready=false;
-ck(computeRiemannGasFaceFluxDevice<false,true>(s,1,m,x,y,z,e),"known mass needs no pressure/profile solve");near(m,Real(-.4),"mass predictor changed");}
+}
 ''')
 
 

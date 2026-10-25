@@ -111,7 +111,7 @@ int main(int argc,char**argv){
  if(action=="extra_storage") {rho.primitiveFieldRef().setSize(mesh.nCells()+1);rho[mesh.nCells()]=99;resident.ensureInternalSize(mesh,rho,"rho");std::cout<<"EXTRA "<<rho[mesh.nCells()]<<"\n";}
  if(action=="initialise") {
  resident.initialiseBase(runTime,mesh,rho,rhoU,rhoE,U,p,Tgas,epsS,rhoUs,rhoEs,rhoDs,rhoHp,Us,theta,Tp,dMeanCell,
- injectionParcelMass.value(),legacyRestartParcelMass.value(),10,0,7,gammaG.value(),Rgas.value(),true,rhoS.value(),false,0,0,0,muG.value(),PrG.value(),gasFluxScheme,gasReconstruction,gasLimiter,gasTimeIntegrator,gasRobustFallback,gasTurbulenceModel,lesDeltaCoeff,turbulentPrandtl,waleCw,smagorinskyCs,maxDiffusionNumber,dS.value(),dS.value(),dS.value(),0,0,300,rhoMinG.value(),TgasMinG.value(),0,0,1,5000,gpuDragModel->modelId(),gpuDragModel->parameters(),g.value(),true,gpuScheduling,&ugkwpProps);
+ injectionParcelMass.value(),legacyRestartParcelMass.value(),10,0,7,gammaG.value(),Rgas.value(),true,rhoS.value(),false,0,0,0,muG.value(),PrG.value(),gasFluxScheme,gasReconstruction,gasLimiter,gasTimeIntegrator,gasTurbulenceModel,lesDeltaCoeff,turbulentPrandtl,waleCw,smagorinskyCs,dS.value(),dS.value(),dS.value(),0,0,300,rhoMinG.value(),TgasMinG.value(),0,0,1,5000,gpuDragModel->modelId(),gpuDragModel->parameters(),g.value(),true,gpuScheduling,&ugkwpProps);
  }
  std::cout<<"FIELDS "<<rho[0]<<" "<<rhoE[0]<<" k="<<k[0]<<" omega="<<omega[0]<<" gamma="<<gammaG.value()<<"\n";
  return 0;

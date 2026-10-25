@@ -13,7 +13,7 @@ namespace ugkwpGpuIpc
 {
 
 static constexpr std::uint32_t magic = 0x46534842U;          
-static constexpr std::uint16_t protocolMajor = 7;
+static constexpr std::uint16_t protocolMajor = 9;
 static constexpr std::uint16_t protocolMinor = 0;
 static constexpr std::uint64_t maxPayloadBytes = 32ULL*1024ULL*1024ULL*1024ULL;
 
@@ -155,13 +155,11 @@ struct CreateArgs
     std::int32_t gasReconstruction;
     std::int32_t gasLimiter;
     std::int32_t gasTimeIntegrator;
-    std::int32_t gasRobustFallback;
     std::int32_t turbulenceModel;
     double lesDeltaCoeff;
     double turbulentPrandtl;
     double waleCw;
     double smagorinskyCs;
-    double maxDiffusionNumber;
     std::int32_t csrCellLocalPathEnabled;
     std::int32_t csrHeavyReductionMode;
     std::int32_t csrHeavyAutoInterval;
@@ -222,7 +220,6 @@ struct ScalarArgs
 struct CourantArgs
 {
     double dt;
-    double targetMaxCo;
     double scheduleTime;
 };
 
@@ -242,7 +239,6 @@ struct SstConfigArgs
     double c1;
     double kMin;
     double omegaMin;
-    double maxSourceNumber;
     std::int32_t wallTreatment;
     double wallKappa;
     double wallE;
@@ -345,7 +341,7 @@ template<> struct WireCodec<ResponseHeader>
 };
 template<> struct WireCodec<CreateArgs>
 {
-    static constexpr std::size_t size=352;
+    static constexpr std::size_t size=336;
     static constexpr bool nativeLayout=sizeof(CreateArgs)==size
         && offsetof(CreateArgs,nCells)==0
         && offsetof(CreateArgs,nFaces)==4
@@ -388,19 +384,17 @@ template<> struct WireCodec<CreateArgs>
         && offsetof(CreateArgs,gasReconstruction)==264
         && offsetof(CreateArgs,gasLimiter)==268
         && offsetof(CreateArgs,gasTimeIntegrator)==272
-        && offsetof(CreateArgs,gasRobustFallback)==276
-        && offsetof(CreateArgs,turbulenceModel)==280
-        && offsetof(CreateArgs,lesDeltaCoeff)==288
-        && offsetof(CreateArgs,turbulentPrandtl)==296
-        && offsetof(CreateArgs,waleCw)==304
-        && offsetof(CreateArgs,smagorinskyCs)==312
-        && offsetof(CreateArgs,maxDiffusionNumber)==320
-        && offsetof(CreateArgs,csrCellLocalPathEnabled)==328
-        && offsetof(CreateArgs,csrHeavyReductionMode)==332
-        && offsetof(CreateArgs,csrHeavyAutoInterval)==336
-        && offsetof(CreateArgs,particleBlockThreads)==340
-        && offsetof(CreateArgs,reductionBlockThreads)==344
-        && offsetof(CreateArgs,csrWarpAggregatedBinning)==348;
+        && offsetof(CreateArgs,turbulenceModel)==276
+        && offsetof(CreateArgs,lesDeltaCoeff)==280
+        && offsetof(CreateArgs,turbulentPrandtl)==288
+        && offsetof(CreateArgs,waleCw)==296
+        && offsetof(CreateArgs,smagorinskyCs)==304
+        && offsetof(CreateArgs,csrCellLocalPathEnabled)==312
+        && offsetof(CreateArgs,csrHeavyReductionMode)==316
+        && offsetof(CreateArgs,csrHeavyAutoInterval)==320
+        && offsetof(CreateArgs,particleBlockThreads)==324
+        && offsetof(CreateArgs,reductionBlockThreads)==328
+        && offsetof(CreateArgs,csrWarpAggregatedBinning)==332;
     static void encode(unsigned char* b,const CreateArgs& v)
     {
         std::fill(b,b+size,0);
@@ -445,19 +439,17 @@ template<> struct WireCodec<CreateArgs>
         encodeWireScalar(b+264,v.gasReconstruction);
         encodeWireScalar(b+268,v.gasLimiter);
         encodeWireScalar(b+272,v.gasTimeIntegrator);
-        encodeWireScalar(b+276,v.gasRobustFallback);
-        encodeWireScalar(b+280,v.turbulenceModel);
-        encodeWireScalar(b+288,v.lesDeltaCoeff);
-        encodeWireScalar(b+296,v.turbulentPrandtl);
-        encodeWireScalar(b+304,v.waleCw);
-        encodeWireScalar(b+312,v.smagorinskyCs);
-        encodeWireScalar(b+320,v.maxDiffusionNumber);
-        encodeWireScalar(b+328,v.csrCellLocalPathEnabled);
-        encodeWireScalar(b+332,v.csrHeavyReductionMode);
-        encodeWireScalar(b+336,v.csrHeavyAutoInterval);
-        encodeWireScalar(b+340,v.particleBlockThreads);
-        encodeWireScalar(b+344,v.reductionBlockThreads);
-        encodeWireScalar(b+348,v.csrWarpAggregatedBinning);
+        encodeWireScalar(b+276,v.turbulenceModel);
+        encodeWireScalar(b+280,v.lesDeltaCoeff);
+        encodeWireScalar(b+288,v.turbulentPrandtl);
+        encodeWireScalar(b+296,v.waleCw);
+        encodeWireScalar(b+304,v.smagorinskyCs);
+        encodeWireScalar(b+312,v.csrCellLocalPathEnabled);
+        encodeWireScalar(b+316,v.csrHeavyReductionMode);
+        encodeWireScalar(b+320,v.csrHeavyAutoInterval);
+        encodeWireScalar(b+324,v.particleBlockThreads);
+        encodeWireScalar(b+328,v.reductionBlockThreads);
+        encodeWireScalar(b+332,v.csrWarpAggregatedBinning);
     }
     static void decode(const unsigned char* b,CreateArgs& v)
     {
@@ -502,19 +494,17 @@ template<> struct WireCodec<CreateArgs>
         decodeWireScalar(b+264,v.gasReconstruction);
         decodeWireScalar(b+268,v.gasLimiter);
         decodeWireScalar(b+272,v.gasTimeIntegrator);
-        decodeWireScalar(b+276,v.gasRobustFallback);
-        decodeWireScalar(b+280,v.turbulenceModel);
-        decodeWireScalar(b+288,v.lesDeltaCoeff);
-        decodeWireScalar(b+296,v.turbulentPrandtl);
-        decodeWireScalar(b+304,v.waleCw);
-        decodeWireScalar(b+312,v.smagorinskyCs);
-        decodeWireScalar(b+320,v.maxDiffusionNumber);
-        decodeWireScalar(b+328,v.csrCellLocalPathEnabled);
-        decodeWireScalar(b+332,v.csrHeavyReductionMode);
-        decodeWireScalar(b+336,v.csrHeavyAutoInterval);
-        decodeWireScalar(b+340,v.particleBlockThreads);
-        decodeWireScalar(b+344,v.reductionBlockThreads);
-        decodeWireScalar(b+348,v.csrWarpAggregatedBinning);
+        decodeWireScalar(b+276,v.turbulenceModel);
+        decodeWireScalar(b+280,v.lesDeltaCoeff);
+        decodeWireScalar(b+288,v.turbulentPrandtl);
+        decodeWireScalar(b+296,v.waleCw);
+        decodeWireScalar(b+304,v.smagorinskyCs);
+        decodeWireScalar(b+312,v.csrCellLocalPathEnabled);
+        decodeWireScalar(b+316,v.csrHeavyReductionMode);
+        decodeWireScalar(b+320,v.csrHeavyAutoInterval);
+        decodeWireScalar(b+324,v.particleBlockThreads);
+        decodeWireScalar(b+328,v.reductionBlockThreads);
+        decodeWireScalar(b+332,v.csrWarpAggregatedBinning);
     }
 };
 template<> struct WireCodec<CountArgs>
@@ -666,28 +656,25 @@ template<> struct WireCodec<ScalarArgs>
 };
 template<> struct WireCodec<CourantArgs>
 {
-    static constexpr std::size_t size=24;
+    static constexpr std::size_t size=16;
     static constexpr bool nativeLayout=sizeof(CourantArgs)==size
         && offsetof(CourantArgs,dt)==0
-        && offsetof(CourantArgs,targetMaxCo)==8
-        && offsetof(CourantArgs,scheduleTime)==16;
+        && offsetof(CourantArgs,scheduleTime)==8;
     static void encode(unsigned char* b,const CourantArgs& v)
     {
         std::fill(b,b+size,0);
         encodeWireScalar(b+0,v.dt);
-        encodeWireScalar(b+8,v.targetMaxCo);
-        encodeWireScalar(b+16,v.scheduleTime);
+        encodeWireScalar(b+8,v.scheduleTime);
     }
     static void decode(const unsigned char* b,CourantArgs& v)
     {
         decodeWireScalar(b+0,v.dt);
-        decodeWireScalar(b+8,v.targetMaxCo);
-        decodeWireScalar(b+16,v.scheduleTime);
+        decodeWireScalar(b+8,v.scheduleTime);
     }
 };
 template<> struct WireCodec<SstConfigArgs>
 {
-    static constexpr std::size_t size=152;
+    static constexpr std::size_t size=144;
     static constexpr bool nativeLayout=sizeof(SstConfigArgs)==size
         && offsetof(SstConfigArgs,alphaK1)==0
         && offsetof(SstConfigArgs,alphaK2)==8
@@ -703,11 +690,10 @@ template<> struct WireCodec<SstConfigArgs>
         && offsetof(SstConfigArgs,c1)==88
         && offsetof(SstConfigArgs,kMin)==96
         && offsetof(SstConfigArgs,omegaMin)==104
-        && offsetof(SstConfigArgs,maxSourceNumber)==112
-        && offsetof(SstConfigArgs,wallTreatment)==120
-        && offsetof(SstConfigArgs,wallKappa)==128
-        && offsetof(SstConfigArgs,wallE)==136
-        && offsetof(SstConfigArgs,wallCmu)==144;
+        && offsetof(SstConfigArgs,wallTreatment)==112
+        && offsetof(SstConfigArgs,wallKappa)==120
+        && offsetof(SstConfigArgs,wallE)==128
+        && offsetof(SstConfigArgs,wallCmu)==136;
     static void encode(unsigned char* b,const SstConfigArgs& v)
     {
         std::fill(b,b+size,0);
@@ -725,11 +711,10 @@ template<> struct WireCodec<SstConfigArgs>
         encodeWireScalar(b+88,v.c1);
         encodeWireScalar(b+96,v.kMin);
         encodeWireScalar(b+104,v.omegaMin);
-        encodeWireScalar(b+112,v.maxSourceNumber);
-        encodeWireScalar(b+120,v.wallTreatment);
-        encodeWireScalar(b+128,v.wallKappa);
-        encodeWireScalar(b+136,v.wallE);
-        encodeWireScalar(b+144,v.wallCmu);
+        encodeWireScalar(b+112,v.wallTreatment);
+        encodeWireScalar(b+120,v.wallKappa);
+        encodeWireScalar(b+128,v.wallE);
+        encodeWireScalar(b+136,v.wallCmu);
     }
     static void decode(const unsigned char* b,SstConfigArgs& v)
     {
@@ -747,11 +732,10 @@ template<> struct WireCodec<SstConfigArgs>
         decodeWireScalar(b+88,v.c1);
         decodeWireScalar(b+96,v.kMin);
         decodeWireScalar(b+104,v.omegaMin);
-        decodeWireScalar(b+112,v.maxSourceNumber);
-        decodeWireScalar(b+120,v.wallTreatment);
-        decodeWireScalar(b+128,v.wallKappa);
-        decodeWireScalar(b+136,v.wallE);
-        decodeWireScalar(b+144,v.wallCmu);
+        decodeWireScalar(b+112,v.wallTreatment);
+        decodeWireScalar(b+120,v.wallKappa);
+        decodeWireScalar(b+128,v.wallE);
+        decodeWireScalar(b+136,v.wallCmu);
     }
 };
 template<class T> constexpr std::size_t wireBytes(const T&) { return WireCodec<T>::size; }

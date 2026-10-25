@@ -338,7 +338,7 @@ def _actual_trial_code():
     import re
     text=((VALIDATION_ROOT / 'solvers/gasUGKP/tests/test_shared_gas_trial_policy.py')).read_text()
     c=re.search("code=r'''(.*?)'''",text,re.S).group(1).split('int main(){')[0]
-    names='rho rhoUx rhoUy rhoUz rhoE Ux Uy Uz p Tgas gasFluxPositivityScale gasDiffusionNumber sstSourceNumber rhoK rhoOmega k omega nut gasBoundaryRho gasBoundaryUx gasBoundaryUy gasBoundaryUz gasBoundaryP gasBoundaryT V'.split()
+    names='rho rhoUx rhoUy rhoUz rhoE Ux Uy Uz p Tgas gasFluxPositivityScale rhoK rhoOmega k omega nut gasBoundaryRho gasBoundaryUx gasBoundaryUy gasBoundaryUz gasBoundaryP gasBoundaryT V'.split()
     c=c.replace('__DECLARATIONS__','\n'.join('double* '+n+'=nullptr;' for n in names))
     marker='int allocations=0,'
     assert marker in c

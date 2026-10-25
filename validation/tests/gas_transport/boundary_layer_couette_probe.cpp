@@ -3,7 +3,7 @@
 // rejects Euler step 1378, cell 0 (InvalidThermodynamics), normal velocity
 // 415.2714529614 m/s. SSPRK3 also rejects step 1378: changing integrators does
 // not repair the nonlocal matching-pressure force. Restoring only local p*n
-// reaches t=.05 with the original N128/.4 Co/.25 diffusion/growth1.05 settings.
+// reaches t=.05 with the original N128/.4 Co/growth1.05 settings.
 // BVP matching pressure remains the second-cell donor pressure in walls().
 #include "gasWall/WallModel.H"
 #include "gasTransport/GasBoundaryLayerEvaluation.H"
@@ -11,7 +11,7 @@ void check(State&s,const char*stage,int step){
  for(int c=0;c<s.nCells;c++)if(s.gasSpecies.cellStatus[c]){fprintf(stderr,"FAIL stage=%s step=%d cell=%d code=%d rho=%.17g T=%.17g p=%.17g U=%.17g,%.17g E=%.17g\n",stage,step,c,s.gasSpecies.cellStatus[c],s.rho[c],s.Tgas[c],s.p[c],s.Ux[c],s.Uy[c],s.rhoE[c]);exit(3);}
  for(int f=0;f<s.nFaces;f++)if(s.gasSpecies.faceStatus[f]){fprintf(stderr,"FAIL stage=%s step=%d face=%d own=%d nei=%d kind=%d code=%d\n",stage,step,f,s.faceOwner[f],s.faceNeighbour[f],s.riemannBoundaryKind[f],s.gasSpecies.faceStatus[f]);exit(4);}
 }
-void setup(State&s,int n){initialise(s);s.nCells=n;s.nInternalFaces=n-1;s.nFaces=5*n+1;s.gasMu=.1;s.gasPrClamped=.72;s.gasThermalConductivity=-1;s.maxDiffusionNumber=.25;
+void setup(State&s,int n){initialise(s);s.nCells=n;s.nInternalFaces=n-1;s.nFaces=5*n+1;s.gasMu=.1;s.gasPrClamped=.72;s.gasThermalConductivity=-1;
  auto*m=const_cast<ugkwp::SpeciesThermoData<Real>*>(s.gasSpecies.thermo.species);auto*a=const_cast<Real*>(s.gasSpecies.thermo.coefficients);
  for(int k=0;k<2;++k){m[k].molarMass=.0289702530249;m[k].maxTemperature=4000;a[3*k]=1004.5;a[3*k+1]=a[3*k+2]=0;}
  const double h=1./n,A=1e-4;
@@ -41,11 +41,11 @@ void euler(State&s,double dt,int step){
  for(int c=0;c<s.nCells;c++){threadIdx.x=c;applyGasFluxDivergenceByCellKernel(&s,dt);recoverGasPrimitivesKernel(&s);}check(s,"update",step);
 }
 int main(int argc,char**argv){State s;setup(s,128);s.gasSpecies.thermoControls={};s.gasFluxScheme=2;s.gasReconstruction=1;s.gasLimiter=0;
- int rk=argc>1?atoi(argv[1]):1,step=0;double dt=1e-5,time=0,minDt=1e9,maxDt=0,maxCo=0,maxDiff=0;
+ int rk=argc>1?atoi(argv[1]):1,step=0;double dt=1e-5,time=0,minDt=1e9,maxDt=0,maxCo=0;
  while(time<.05){
   for(int f=0;f<s.nFaces;f++){threadIdx.x=f;computeGasCourantFieldKernel(&s,dt);}check(s,"courant",step);
-  double co=0,diff=0;for(int c=0;c<s.nCells;c++){threadIdx.x=c;computeGasConvectiveCourantByCellKernel(&s,dt);computeGasDiffusionNumberKernel(&s,dt,.4);co=fmax(co,s.gasFluxPositivityScale[c]);diff=fmax(diff,s.gasDiffusionNumber[c]);}
-  double next=fmin(dt*.4/fmax(co,diff),fmin(1e-4,dt*1.05));next=fmin(next,.05-time);maxCo=fmax(maxCo,co*next/dt);maxDiff=fmax(maxDiff,diff*next/dt*.25/.4);dt=next;minDt=fmin(minDt,dt);maxDt=fmax(maxDt,dt);
+  double co=0;for(int c=0;c<s.nCells;c++){threadIdx.x=c;computeGasConvectiveCourantByCellKernel(&s,dt);co=fmax(co,s.gasFluxPositivityScale[c]);}
+  double next=fmin(dt*.4/co,fmin(1e-4,dt*1.05));next=fmin(next,.05-time);maxCo=fmax(maxCo,co*next/dt);dt=next;minDt=fmin(minDt,dt);maxDt=fmax(maxDt,dt);
   if(step%1000==0){double maxV=0,loP=1e300,hiP=0;for(int c=0;c<s.nCells;c++){maxV=fmax(maxV,fabs(s.Uy[c]));loP=fmin(loP,s.p[c]);hiP=fmax(hiP,s.p[c]);}fprintf(stderr,"TRACE rk=%d step=%d time=%.12g dt=%.12g maxV=%.12g pRange=%.12g,%.12g\n",rk,step,time,dt,maxV,loP,hiP);}
   if(rk>1)for(int c=0;c<s.nCells;c++){threadIdx.x=c;saveGasConservativeStateKernel(&s);}
   euler(s,dt,step);
@@ -53,6 +53,6 @@ int main(int argc,char**argv){State s;setup(s,128);s.gasSpecies.thermoControls={
   if(rk==3){euler(s,dt,step);for(int c=0;c<s.nCells;c++){threadIdx.x=c;blendGasConservativeStateKernel(&s,1./3.,2./3.);recoverGasPrimitivesKernel(&s);}check(s,"blend3",step);}
   time+=dt;step++;if(step>200000){fprintf(stderr,"TOO MANY time=%g\n",time);return 5;}
  }
- printf("PASS rk=%d steps=%d time=%.17g dtRange=%.12g,%.12g maxCo=%.12g maxDiff=%.12g\n",rk,step,time,minDt,maxDt,maxCo,maxDiff);
+ printf("PASS rk=%d steps=%d time=%.17g dtRange=%.12g,%.12g maxCo=%.12g\n",rk,step,time,minDt,maxDt,maxCo);
  for(int c=0;c<s.nCells;c++)printf("DATA %.17g %.17g %.17g %.17g\n",s.Cy[c],s.Ux[c],s.Uy[c],s.p[c]);
 }

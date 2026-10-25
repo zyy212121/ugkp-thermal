@@ -20,7 +20,7 @@ struct DeviceState {
  ugkwp::SstCoefficients sstCoefficients;DeviceState*deviceState=this;
  int hostTurbulenceModel=3,nCells=2,nFaces=2,fixedCellBlockThreads=128,hostGasFluxScheme=1,hostGasReconstruction=0,hostGasLimiter=0,hostGasTimeIntegrator=1,particleCapacity=0;
  int sstWallTreatment=2,sstConfigured=0;
- double sstKMin=1e-12,sstOmegaMin=1e-12,sstMaxSourceNumber=.25,sstWallKappa=.41,sstWallE=9.8,sstWallCmu=.09;
+ double sstKMin=1e-12,sstOmegaMin=1e-12,sstWallKappa=.41,sstWallE=9.8,sstWallCmu=.09;
  double k[2]{},omega[2]{},sstWallDistance[2]{},sstBoundaryK[2]{},sstBoundaryOmega[2]{};int sstBoundaryKMode[2]{},sstBoundaryOmegaMode[2]{};
 };
 DeviceState*asState(void*p){return static_cast<DeviceState*>(p);}int validateState(DeviceState*,const char*){return 0;}
@@ -147,8 +147,8 @@ int main(int argc,char**argv){assert(argc==4);const int model=std::atoi(argv[1])
  reaction.reactantCount=reaction.productCount=1;reaction.highRate.preExponential=2;reactant.species=0;reactant.coefficient=1;product.species=1;product.coefficient=1;
  auto&mech=state.gasSpecies.mechanism;mech.reactions=&reaction;mech.reactionCount=1;mech.reactants=&reactant;mech.reactantTermCount=1;mech.products=&product;mech.productTermCount=1;mech.referencePressure=101325;mech.speciesOrderHash=1;mech.stoichiometricBasis=basis;mech.independentRank=1;
  state.gasMu=2e-5;state.gasPr=state.gasPrClamped=.5;state.gasFluxScheme=2;state.gasReconstruction=1;state.gasTimeIntegrator=3;
- state.gammaGas=1.4;state.Rgas=287;state.gasCp=1000;state.maxDiffusionNumber=.125;state.rhoMin=1e-12;state.TgasMin=1e-9;
- state.sstCoefficients=ugkwp::defaultSstCoefficients();state.sstKMin=state.sstOmegaMin=1e-12;state.sstMaxSourceNumber=.25;
+ state.gammaGas=1.4;state.Rgas=287;state.gasCp=1000;state.rhoMin=1e-12;state.TgasMin=1e-9;
+ state.sstCoefficients=ugkwp::defaultSstCoefficients();state.sstKMin=state.sstOmegaMin=1e-12;
  state.hostTurbulenceModel=model?3:0;device=state;const DeviceState before=device;
  // Actual production lifecycle: upload valid device state, scrub the host copy,
  // then call the public wall configuration ABI. No restoration of scrubbed data.

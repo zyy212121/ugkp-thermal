@@ -68,7 +68,7 @@ void hashBytes(std::uint64_t&h,const void*p,std::size_t n){auto b=static_cast<co
 template<class State>void run(State&s,int scheme,int reconstruction,int limiter,int turbulence){
  s.nCells=2;s.nFaces=3;s.nInternalFaces=1;s.gammaGas=Real(1.4);s.Rgas=287;s.gasCp=1004.5;s.gasMu=1.8e-5;s.gasPrClamped=.71;s.rhoMin=1e-10;s.TgasMin=1e-6;
  s.gasFluxScheme=scheme;s.gasReconstruction=reconstruction;s.gasLimiter=limiter;s.turbulenceModel=turbulence;s.sstConfigured=turbulence==3;
- s.sstCoefficients=ugkwp::defaultSstCoefficients();s.sstKMin=1e-12;s.sstOmegaMin=1e-6;s.sstMaxSourceNumber=.25;s.sstWallKappa=.41;s.sstWallE=9.8;s.sstWallCmu=.09;s.maxDiffusionNumber=.25;s.turbulentPrandtl=.9;s.lesDeltaCoeff=1;s.waleCw=.325;s.smagorinskyCs=.17;
+ s.sstCoefficients=ugkwp::defaultSstCoefficients();s.sstKMin=1e-12;s.sstOmegaMin=1e-6;s.sstWallKappa=.41;s.sstWallE=9.8;s.sstWallCmu=.09;s.turbulentPrandtl=.9;s.lesDeltaCoeff=1;s.waleCw=.325;s.smagorinskyCs=.17;
  for(int c=0;c<2;++c){s.V[c]=1;s.Cx[c]=c;s.cellLength[c]=1;s.rho[c]=1+.125*c;s.Ux[c]=.25-.125*c;s.Uy[c]=.02*c;s.Uz[c]=.03;s.Tgas[c]=300+2*c;s.p[c]=s.rho[c]*s.Rgas*s.Tgas[c];s.rhoUx[c]=s.rho[c]*s.Ux[c];s.rhoUy[c]=s.rho[c]*s.Uy[c];s.rhoUz[c]=s.rho[c]*s.Uz[c];s.rhoE[c]=s.p[c]/(s.gammaGas-1)+.5*s.rho[c]*(s.Ux[c]*s.Ux[c]+s.Uy[c]*s.Uy[c]+s.Uz[c]*s.Uz[c]);s.cellPlaneStart[c]=2*c;s.cellPlaneCount[c]=2;s.sstWallDistance[c]=.5;s.k[c]=.1+.01*c;s.omega[c]=3+.1*c;}
  s.cellFaceId[0]=0;s.cellFaceId[1]=1;s.cellFaceId[2]=0;s.cellFaceId[3]=2;
  for(int f=0;f<3;++f){s.faceOwner[f]=f==2?1:0;s.faceNeighbour[f]=f==0?1:-1;s.facePeriodicPair[f]=-1;s.magSf[f]=1;s.Sfx[f]=f==1?-1:1;s.faceWeight[f]=.5;s.deltaCoeffs[f]=f==0?1:2;s.faceCx[f]=f==0?.5:f==1?-.5:1.5;s.riemannBoundaryKind[f]=s.gasBoundaryKind[f]=f==0?0:1;}
@@ -79,7 +79,7 @@ template<class State>void run(State&s,int scheme,int reconstruction,int limiter,
  for(int f=0;f<3;++f){threadIdx.x=f;if(turbulence)computeGasInternalFaceFluxKernel<true>(&s,1e-6);else computeGasInternalFaceFluxKernel<false>(&s,1e-6);enforcePeriodicGasFluxAntisymmetryKernel(&s);}
  for(int c=0;c<2;++c){threadIdx.x=c;computeGasFluxPositivityScaleKernel(&s,1e-6);}
  for(int f=0;f<3;++f){threadIdx.x=f;applyGasFluxPositivityScaleKernel(&s);computeSstFaceFluxKernel(&s);enforcePeriodicSstFluxAntisymmetryKernel(&s);}
- for(int c=0;c<2;++c){threadIdx.x=c;applySstFluxAndSourceKernel(&s,1e-6);applyGasFluxDivergenceByCellKernel(&s,1e-6);blendGasConservativeStateKernel(&s,Real(.75),Real(.25));recoverGasPrimitivesKernel(&s);recoverSstPrimitivesKernel(&s);computeGasDiffusionNumberKernel(&s,1e-6,.5);computeSstStabilityNumberKernel(&s,1e-6,.5);}
+ for(int c=0;c<2;++c){threadIdx.x=c;applySstFluxAndSourceKernel(&s,1e-6);applyGasFluxDivergenceByCellKernel(&s,1e-6);blendGasConservativeStateKernel(&s,Real(.75),Real(.25));recoverGasPrimitivesKernel(&s);recoverSstPrimitivesKernel(&s);}
  for(int f=0;f<3;++f){threadIdx.x=f;computeGasCourantFieldKernel(&s,1e-6);}
  for(int c=0;c<2;++c){threadIdx.x=c;computeGasConvectiveCourantByCellKernel(&s,1e-6);if(!(s.rho[c]>0&&s.Tgas[c]>0&&std::isfinite(s.rhoE[c])))std::abort();}
 }
@@ -127,7 +127,6 @@ int main(){
     s.gasBoundaryUx=new Real[8]{};
     s.gasBoundaryUy=new Real[8]{};
     s.gasBoundaryUz=new Real[8]{};
-    s.gasDiffusionNumber=new Real[8]{};
     s.gasFluxPositivityScale=new Real[8]{};
     s.gasGradientLimiterP=new Real[8]{};
     s.gasGradientLimiterRho=new Real[8]{};
@@ -207,7 +206,6 @@ int main(){
     s.sstF2=new Real[8]{};
     s.sstPhiRhoK=new Real[8]{};
     s.sstPhiRhoOmega=new Real[8]{};
-    s.sstSourceNumber=new Real[8]{};
     s.sstWallDistance=new Real[8]{};
 #ifdef LEGACY_REFERENCE
  s.Rgas = Real(1.25);
@@ -220,7 +218,7 @@ int main(){
  s.gasPrClamped = Real(1.25);
  s.gasReconstruction = 23;
  s.lesDeltaCoeff = Real(1.25);
- s.maxDiffusionNumber = Real(1.25);
+
  s.nCells = 23;
  s.nFaces = 23;
  s.nInternalFaces = 23;
@@ -233,7 +231,7 @@ int main(){
  s.sstConfigured = 23;
  s.sstJayatillekeP = Real(1.25);
  s.sstKMin = Real(1.25);
- s.sstMaxSourceNumber = Real(1.25);
+
  s.sstOmegaMin = Real(1.25);
  s.sstThermalYPlus = Real(1.25);
  s.sstWallCmu = Real(1.25);
@@ -255,7 +253,7 @@ int main(){
  s.gasPrClamped = Real(1.25);
  s.gasReconstruction = 23;
  s.lesDeltaCoeff = Real(1.25);
- s.maxDiffusionNumber = Real(1.25);
+
  s.nCells = 23;
  s.nFaces = 23;
  s.nInternalFaces = 23;
@@ -268,7 +266,7 @@ int main(){
  s.sstConfigured = 23;
  s.sstJayatillekeP = Real(1.25);
  s.sstKMin = Real(1.25);
- s.sstMaxSourceNumber = Real(1.25);
+
  s.sstOmegaMin = Real(1.25);
  s.sstThermalYPlus = Real(1.25);
  s.sstWallCmu = Real(1.25);
@@ -324,7 +322,6 @@ int main(){
  if(std::memcmp(&gas.gasBoundaryUy,&s.gasBoundaryUy,sizeof(s.gasBoundaryUy)))std::abort();
  if(std::memcmp(&gas.gasBoundaryUz,&s.gasBoundaryUz,sizeof(s.gasBoundaryUz)))std::abort();
  if(std::memcmp(&gas.gasCp,&s.gasCp,sizeof(s.gasCp)))std::abort();
- if(std::memcmp(&gas.gasDiffusionNumber,&s.gasDiffusionNumber,sizeof(s.gasDiffusionNumber)))std::abort();
  if(std::memcmp(&gas.gasFluxPositivityScale,&s.gasFluxPositivityScale,sizeof(s.gasFluxPositivityScale)))std::abort();
  if(std::memcmp(&gas.gasFluxScheme,&s.gasFluxScheme,sizeof(s.gasFluxScheme)))std::abort();
  if(std::memcmp(&gas.gasGradientLimiterP,&s.gasGradientLimiterP,sizeof(s.gasGradientLimiterP)))std::abort();
@@ -370,7 +367,6 @@ int main(){
  if(std::memcmp(&gas.k,&s.k,sizeof(s.k)))std::abort();
  if(std::memcmp(&gas.lesDeltaCoeff,&s.lesDeltaCoeff,sizeof(s.lesDeltaCoeff)))std::abort();
  if(std::memcmp(&gas.magSf,&s.magSf,sizeof(s.magSf)))std::abort();
- if(std::memcmp(&gas.maxDiffusionNumber,&s.maxDiffusionNumber,sizeof(s.maxDiffusionNumber)))std::abort();
  if(std::memcmp(&gas.nCells,&s.nCells,sizeof(s.nCells)))std::abort();
  if(std::memcmp(&gas.nFaces,&s.nFaces,sizeof(s.nFaces)))std::abort();
  if(std::memcmp(&gas.nInternalFaces,&s.nInternalFaces,sizeof(s.nInternalFaces)))std::abort();
@@ -421,11 +417,9 @@ int main(){
  if(std::memcmp(&gas.sstF2,&s.sstF2,sizeof(s.sstF2)))std::abort();
  if(std::memcmp(&gas.sstJayatillekeP,&s.sstJayatillekeP,sizeof(s.sstJayatillekeP)))std::abort();
  if(std::memcmp(&gas.sstKMin,&s.sstKMin,sizeof(s.sstKMin)))std::abort();
- if(std::memcmp(&gas.sstMaxSourceNumber,&s.sstMaxSourceNumber,sizeof(s.sstMaxSourceNumber)))std::abort();
  if(std::memcmp(&gas.sstOmegaMin,&s.sstOmegaMin,sizeof(s.sstOmegaMin)))std::abort();
  if(std::memcmp(&gas.sstPhiRhoK,&s.sstPhiRhoK,sizeof(s.sstPhiRhoK)))std::abort();
  if(std::memcmp(&gas.sstPhiRhoOmega,&s.sstPhiRhoOmega,sizeof(s.sstPhiRhoOmega)))std::abort();
- if(std::memcmp(&gas.sstSourceNumber,&s.sstSourceNumber,sizeof(s.sstSourceNumber)))std::abort();
  if(std::memcmp(&gas.sstThermalYPlus,&s.sstThermalYPlus,sizeof(s.sstThermalYPlus)))std::abort();
  if(std::memcmp(&gas.sstWallCmu,&s.sstWallCmu,sizeof(s.sstWallCmu)))std::abort();
  if(std::memcmp(&gas.sstWallDistance,&s.sstWallDistance,sizeof(s.sstWallDistance)))std::abort();
@@ -482,7 +476,6 @@ int main(){
     hashBytes(h,s.gasBoundaryUx,8*sizeof(*s.gasBoundaryUx));
     hashBytes(h,s.gasBoundaryUy,8*sizeof(*s.gasBoundaryUy));
     hashBytes(h,s.gasBoundaryUz,8*sizeof(*s.gasBoundaryUz));
-    hashBytes(h,s.gasDiffusionNumber,8*sizeof(*s.gasDiffusionNumber));
     hashBytes(h,s.gasFluxPositivityScale,8*sizeof(*s.gasFluxPositivityScale));
     hashBytes(h,s.gasGradientLimiterP,8*sizeof(*s.gasGradientLimiterP));
     hashBytes(h,s.gasGradientLimiterRho,8*sizeof(*s.gasGradientLimiterRho));
@@ -562,7 +555,6 @@ int main(){
     hashBytes(h,s.sstF2,8*sizeof(*s.sstF2));
     hashBytes(h,s.sstPhiRhoK,8*sizeof(*s.sstPhiRhoK));
     hashBytes(h,s.sstPhiRhoOmega,8*sizeof(*s.sstPhiRhoOmega));
-    hashBytes(h,s.sstSourceNumber,8*sizeof(*s.sstSourceNumber));
     hashBytes(h,s.sstWallDistance,8*sizeof(*s.sstWallDistance));
  std::printf("%d %d %d %d %llu\n",scheme,reconstruction,limiter,turbulence,static_cast<unsigned long long>(h));
     delete[] s.Cx;
@@ -606,7 +598,6 @@ int main(){
     delete[] s.gasBoundaryUx;
     delete[] s.gasBoundaryUy;
     delete[] s.gasBoundaryUz;
-    delete[] s.gasDiffusionNumber;
     delete[] s.gasFluxPositivityScale;
     delete[] s.gasGradientLimiterP;
     delete[] s.gasGradientLimiterRho;
@@ -686,7 +677,6 @@ int main(){
     delete[] s.sstF2;
     delete[] s.sstPhiRhoK;
     delete[] s.sstPhiRhoOmega;
-    delete[] s.sstSourceNumber;
     delete[] s.sstWallDistance;
  }
 }

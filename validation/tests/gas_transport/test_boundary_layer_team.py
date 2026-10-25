@@ -55,7 +55,7 @@ int main(int argc,char**argv){
 #endif
  std::cout<<std::hexfloat;
  for(int slot=0;slot<2;++slot){auto&e=exchange[slot];auto&o=output[slot];auto&st=modelStatus[slot];
- std::cout<<result[0][slot]<<' '<<status[slot]<<' '<<e.ready<<' '<<e.massReady<<' '<<int(st.code)<<' '<<st.node<<' '<<st.iteration<<' '<<st.residual<<' ';
+ std::cout<<result[0][slot]<<' '<<status[slot]<<' '<<e.ready<<' '<<int(st.code)<<' '<<st.node<<' '<<st.iteration<<' '<<st.residual<<' ';
  for(double value:{e.mass,e.momentumX,e.momentumY,e.momentumZ,e.energy,e.k,e.matchingPressure,closure[slot].wallShearStress,closure[slot].ownerOmega,closure[slot].volume,closure[slot].ownerDistance,o.conductiveHeatFlux,o.residual})std::cout<<value<<' ';
  }
  for(int i=0;i<4;++i)std::cout<<speciesFlux[i]<<' ';

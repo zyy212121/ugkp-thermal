@@ -112,7 +112,7 @@ int main(){Fixture f;f.model.physics.enableSst=true;f.h.sst={{1,10}};
  std::unique_ptr<Backend,void(*)(Backend*)> b(createBackend(f.model,f.gas,{},options,f.h,f.error),destroyBackend);assert(b);
  auto&v=b->storage.hostView();
  static_assert(!HasDeviceSstAudit<SharedGasDeviceView>::value);
- assert(v.sstConfigured&&v.rhoK&&v.rhoOmega&&v.sstSourceNumber);
+ assert(v.sstConfigured&&v.rhoK&&v.rhoOmega);
  static_assert(!HasPublishedChemistryAudit<decltype(v.gasSpecies)>::value);
  assert(beginGasWindow(*b,f.program,f.error));GasMicroReport report;assert(advanceGasMicrostep(*b,1e-5,report,f.error));
  assert(report.acceptedDt>0&&std::isfinite(b->trial.sst[0].rhoK)&&std::isfinite(b->trial.sst[0].rhoOmega));

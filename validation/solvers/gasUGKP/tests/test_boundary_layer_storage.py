@@ -65,8 +65,8 @@ failAfter=5;assert(configure()!=0);assert(!state.gasBoundaryLayer.enabled&&alloc
 assert(configure()==0);assert(state.gasBoundaryLayer.enabled&&device.gasBoundaryLayer.enabled);
 assert(state.gasBoundaryLayerModel.workspaceCount==0&&!state.gasBoundaryLayerModel.workspace&&deviceQueries==0);assert(state.gasBoundaryLayer.faceSlot[0]==0&&state.gasBoundaryLayer.faceSlot[1]==-1);
 assert(state.gasBoundaryLayer.ownerSlot[0]==0&&state.gasBoundaryLayer.ownerSlot[1]==-1);
-assert(state.gasBoundaryLayer.exchange[0].massReady&&!state.gasBoundaryLayer.exchange[0].ready);
-assert(std::abs(state.gasBoundaryLayer.exchange[0].mass+.3)<1e-14);
+assert(!state.gasBoundaryLayer.exchange[0].ready);
+assert(state.gasBoundaryLayer.exchange[0].mass==0);
 const int live=allocations;assert(configure()==0&&allocations==live);
 releaseBoundaryLayerStorage(state);assert(allocations==0);
 a.model=1;a.nodes=96;a.workspaceSlots=0;state.hostTurbulenceModel=3;assert(configure()==0);

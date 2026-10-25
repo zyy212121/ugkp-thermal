@@ -30,7 +30,7 @@ def test_rounded_endpoint_and_supplied_history_are_not_refused(tmp_path):
 #include "coupling/IntervalAudit.H"
 #include <cassert>
 using namespace chmt;
-int main(){std::string e;double origin=1099511627776.;CouplingControls controls;controls.interval=1e-6;controls.minimumInterval=1e-12;
+int main(){std::string e;double origin=1099511627776.;CouplingControls controls;controls.interval=1e-6;
  CouplingWindowController c;assert(c.begin(origin,origin+1,1,controls,e));assert(c.interval().end==origin);
  controls.interval=1;assert(c.begin(origin,origin+1,1,controls,e));assert(c.shorten(1e-6,e));assert(c.interval().end==origin);
  // Only admission and the original addition are exercised: no falsely progressing evolution loop.

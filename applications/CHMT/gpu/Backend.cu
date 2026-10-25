@@ -125,7 +125,6 @@ struct CoupledTrialPolicy {
         return 0;
     }
     static const Real* stageVolumes(Backend* b,bool after){const auto& g=b->storage.hostView().gasGeometry;return g.enabled?(after?g.newVolume:g.oldVolume):b->storage.hostView().V;}
-    static Real targetMaxCo(Backend* b){return b->model.physics.cfl;}
 
     static int validateTimeStep(Backend*,Real){return 0;}
     static int applySources(Backend* b,Real){return finishCoupledGeometry(b); }
@@ -364,13 +363,6 @@ struct CoupledCourantRead {
         return {field[cell],status&&status[cell]==int(ugkwp::GasTransportCode::InvalidStorage)};
     }
 };
-struct CoupledScalarRead {
-    const double* field;const ugkp::diagnostics::DeviceContext* diagnostics;
-    __host__ __device__ double operator()(int cell)const{
-        if(ugkp::diagnostics::hasFatal(diagnostics))return -std::numeric_limits<double>::infinity();
-        return field[cell];
-    }
-};
 struct CoupledCourantReduce {
     __host__ __device__ CoupledCourantValue operator()(CoupledCourantValue a,CoupledCourantValue b)const{
         return {CoupledCourantMaximum{}(a.value,b.value),a.unavailable||b.unavailable};
@@ -379,42 +371,23 @@ struct CoupledCourantReduce {
 static bool currentGasCourant(Backend& b,Real referenceDt,transport::GasCourantMaxima& result){
     const auto& v=b.storage.hostView();
     struct View {
-        int nCells,nFaces,nInternalFaces,hostTurbulenceModel;SharedGasDeviceView* deviceState;
-        Real *gasFluxPositivityScale,*gasDiffusionNumber,*sstSourceNumber;
-    } view{b.nCells,b.nFaces,b.nInternalFaces,b.hostTurbulenceModel,b.deviceState,v.gasFluxPositivityScale,v.gasDiffusionNumber,v.sstSourceNumber};
-    auto copy=[&](Real* to,const Real* from){const auto code=cudaMemcpy(to,from,b.nCells*sizeof(Real),cudaMemcpyDeviceToDevice);if(code!=cudaSuccess){transport::setLastError("current Co SST scratch copy",code);return false;}return true;};
-    const bool sst=b.hostTurbulenceModel==3;
-    if(sst&&b.gasBoundaryLayer.enabled&&!b.storage.wallMassPublished()){
-        WallKnot wall;if(!sampleGasWallProgramLocal(b.program,b.elapsed,wall,b.error,false)
-            ||!b.storage.prepareWallBoundary(wall,b.trial.surface,b.error))return false;
-    }
-    if(sst&&(!copy(v.rhoKInitial,v.rhoK)||!copy(v.rhoOmegaInitial,v.rhoOmega)))return false;
+        int nCells,nFaces,nInternalFaces;SharedGasDeviceView* deviceState;
+        Real* gasFluxPositivityScale;
+    } view{b.nCells,b.nFaces,b.nInternalFaces,b.deviceState,v.gasFluxPositivityScale};
     const auto maximum=[&](const double* field,int count,cudaStream_t stream,double& value){
         try {
-            if(field==v.gasFluxPositivityScale){
-
-
-                const auto first=thrust::make_counting_iterator(0);
-                const auto reduced=thrust::transform_reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),first,first+count,
-                    CoupledCourantRead{field,v.gasSpecies.cellStatus,b.diagnostics.device()},
-                    CoupledCourantValue{-std::numeric_limits<double>::infinity(),false},CoupledCourantReduce{});
-                if(!b.storage.observeDiagnostics())return 1;
-                if(reduced.unavailable){transport::setLastErrorText("current Co consumed input unavailable");return 1;}
-                value=reduced.value;
-            }else {
-                const auto first=thrust::make_counting_iterator(0);
-                value=thrust::transform_reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),first,first+count,
-                    CoupledScalarRead{field,b.diagnostics.device()},-std::numeric_limits<double>::infinity(),CoupledCourantMaximum{});
-                if(!b.storage.observeDiagnostics())return 1;
-            }
+            const auto first=thrust::make_counting_iterator(0);
+            const auto reduced=thrust::transform_reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),first,first+count,
+                CoupledCourantRead{field,v.gasSpecies.cellStatus,b.diagnostics.device()},
+                CoupledCourantValue{-std::numeric_limits<double>::infinity(),false},CoupledCourantReduce{});
+            if(!b.storage.observeDiagnostics())return 1;
+            if(reduced.unavailable){transport::setLastErrorText("current Co consumed input unavailable");return 1;}
+            value=reduced.value;
         }
         catch(const std::exception& e){transport::setLastErrorText(e.what());return 1;}
         const auto code=cudaGetLastError();if(code!=cudaSuccess){transport::setLastError("gas Courant maximum reduction",code);return 1;}return 0;
     };
-    const int status=transport::computeGasCurrentCourant(&view,referenceDt,b.model.physics.cfl,b.microTime,b.fixedCellBlockThreads,b.fixedFaceBlockThreads,b.gasCaptureStream,result,maximum);
-
-    bool restored=true;if(sst){restored=copy(v.rhoK,v.rhoKInitial);restored=copy(v.rhoOmega,v.rhoOmegaInitial)&&restored;}
-    return status==0&&restored;
+    return transport::computeGasCurrentCourant(&view,referenceDt,b.microTime,b.fixedCellBlockThreads,b.fixedFaceBlockThreads,b.gasCaptureStream,result,maximum)==0;
 }
 static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,std::string& error){
     report={};report.recoverable=false;

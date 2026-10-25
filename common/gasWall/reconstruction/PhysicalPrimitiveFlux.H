@@ -18,7 +18,7 @@ template <class R, int N> struct Primitive
 };
 template <class R, int N> struct Source
 {
-    R species[N]{}, k = 0, omega = 0, kActivity = 0, nut = 0, f1 = 0, f2 = 0, pressure = 0,
+    R species[N]{}, k = 0, omega = 0, nut = 0, f1 = 0, f2 = 0, pressure = 0,
                     divergence = 0;
 };
 // Continuum physical constitutive evaluation on an arbitrary non-equilibrium
@@ -62,13 +62,6 @@ evaluatePrimitive(const ugkwp::gaswall::WallInput<R, N, T> &in,
         R g = s2 - R(2) / R(3) * div * div;
         src.k = sstKSource(p.rho, p.k, p.omega, div, nut, g, co);
         src.omega = sstOmegaSource(p.rho, p.k, p.omega, div, g, s2, src.f1, src.f2, cd, co);
-    }
-    if (cfg.enableSst && wallDistance > 0)
-    {
-        R destruction = p.rho * co.betaStar * p.k * p.omega,
-          compression = R(2) / R(3) * p.rho * p.k * div;
-        src.kActivity =
-            ::fabs(src.k + destruction + compression) + destruction + ::fabs(compression);
     }
     src.nut = nut;
     src.divergence = div;

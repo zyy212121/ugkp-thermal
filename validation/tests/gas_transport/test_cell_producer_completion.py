@@ -55,12 +55,10 @@ def test_terminal_selected_omega_numeric_target_keeps_real_projection(tmp_path):
 int main(){State s;initialise(s);wall(s);audit(s);s.gasBoundaryLayer.sst[0].ownerOmega=std::numeric_limits<Real>::infinity();threadIdx.x=0;applySstWallFunctionStateKernel(&s);ck(std::isinf(s.omega[0])&&std::isinf(s.rhoOmega[0])&&std::isinf(observed.constraintOmega[0]),"terminal wall omega actual projection missing");}
 ''')
 
-@pytest.mark.parametrize('kernel',['convective','diffusion','sst','face'])
+@pytest.mark.parametrize('kernel',['convective','face'])
 def test_current_co_numeric_geometry_is_evaluated_not_placeholder(tmp_path,kernel):
     calls={
         'convective':r'''s.gasPhiRhoE[0]=4;s.gasPhiRhoE[1]=2;computeGasConvectiveCourantByCellKernel(&s,.1);ck(s.gasFluxPositivityScale[0]==Real(.5)*Real(.1)*Real(6)/Real(2),"numeric geometry used placeholder instead of actual Co");''',
-        'diffusion':r'''s.gasMu=.01;s.maxDiffusionNumber=.5;s.gasDiffusionNumber[0]=-77;computeGasDiffusionNumberKernel(&s,.1,Real(.5));ck(std::isfinite(s.gasDiffusionNumber[0])&&s.gasDiffusionNumber[0]>0,"diffusion actual geometry tail missing");''',
-        'sst':r'''s.sstSourceNumber[0]=-77;computeSstStabilityNumberKernel(&s,.1,Real(.5),false);ck(std::isfinite(s.sstSourceNumber[0])&&s.sstSourceNumber[0]!=-77,"SST actual geometry stability tail missing");''',
         'face':r'''oldV[0]=1;sweep[0]=std::numeric_limits<Real>::quiet_NaN();s.gasPhiRhoE[0]=-77;s.gasPhiRho[0]=-77;computeGasCourantFieldKernel(&s,.1);ck(std::isnan(s.gasPhiRhoE[0])&&std::isnan(s.gasPhiRho[0])&&s.gasSpecies.faceStatus[0]!=0,"nonfinite geometry arithmetic or its failure diagnostic was hidden");''',
     }
     compile_probe(tmp_path,legacy_fixture()+r'''
@@ -83,12 +81,10 @@ def test_missing_consumed_species_storage_remains_actual_error(tmp_path,field):
     action='blendGasConservativeStateKernel(&s,.5,.5);' if field=='initial' else 'applyGasFluxDivergenceByCellKernel(&s,.1);'
     compile_probe(tmp_path,fixture()+'\nint main(){State s;initialise(s);threadIdx.x=0;saveGasConservativeStateKernel(&s);const Real before=s.rho[0];s.gasSpecies.cellStatus[0]=3;s.gasSpecies.'+field+'=nullptr;'+action+r'''ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage)&&s.rho[0]==before,"missing consumed species backing hidden by terminal status routing");}''')
 
-@pytest.mark.parametrize('kernel',['convective','diffusion','sst','face','divergence','sst_update'])
+@pytest.mark.parametrize('kernel',['convective','face','divergence','sst_update'])
 def test_missing_geometry_backing_remains_error(tmp_path,kernel):
     calls={
         'convective':'computeGasConvectiveCourantByCellKernel(&s,.1);ck(std::isnan(s.gasFluxPositivityScale[0]),"missing volume Co placeholder lost");',
-        'diffusion':'computeGasDiffusionNumberKernel(&s,.1,Real(.5));ck(std::isnan(s.gasDiffusionNumber[0]),"missing diffusion volume placeholder lost");',
-        'sst':'computeSstStabilityNumberKernel(&s,.1,Real(.5),false);ck(std::isnan(s.sstSourceNumber[0]),"missing SST volume placeholder lost");',
         'face':'s.gasGeometry.faceSweptVolume=nullptr;computeGasCourantFieldKernel(&s,.1);ck(std::isnan(s.gasPhiRhoE[0])&&s.gasPhiRho[0]==0,"missing face storage placeholder lost");',
         'divergence':'applyGasFluxDivergenceByCellKernel(&s,.1);ck(s.rho[0]==2,"missing volume published old/default inventory");',
         'sst_update':'applySstFluxAndSourceKernel(&s,.1);ck(s.rhoK[0]==6&&s.rhoOmega[0]==8,"missing volume published old/default SST inventory");',
@@ -97,12 +93,10 @@ def test_missing_geometry_backing_remains_error(tmp_path,kernel):
 int main(){State s;initialise(s);s.sstConfigured=1;Real oldV[2]={1,1},newV[2]={2,2},sweep[3]={0,0,0};moving(s,oldV,newV,sweep,Real(.1));s.gasGeometry.newVolume=nullptr;threadIdx.x=0;
 '''+calls[kernel]+r'''ck((s.gasSpecies.cellStatus[0]!=0||s.gasSpecies.faceStatus[0]!=0),"missing geometry failure hidden");}''')
 
-@pytest.mark.parametrize('kernel',['convective','diffusion','sst'])
+@pytest.mark.parametrize('kernel',['convective'])
 def test_post_source_strict_numeric_geometry_still_retries(tmp_path,kernel):
     calls={
         'convective':'computeGasConvectiveCourantByCellKernel(&s,.1,true);ck(std::isnan(s.gasFluxPositivityScale[0]),"strict Co geometry changed");',
-        'diffusion':'computeGasDiffusionNumberKernel(&s,.1,Real(.5),true);ck(std::isnan(s.gasDiffusionNumber[0]),"strict diffusion geometry changed");',
-        'sst':'computeSstStabilityNumberKernel(&s,.1,Real(.5),true,true);ck(std::isnan(s.sstSourceNumber[0]),"strict SST geometry changed");',
     }
     compile_probe(tmp_path,legacy_fixture()+r'''
 int main(){State s;initialise(s);s.sstConfigured=1;Real oldV[2]={std::numeric_limits<Real>::quiet_NaN(),1},newV[2]={2,2},sweep[3]={0,0,0};moving(s,oldV,newV,sweep,Real(.1));threadIdx.x=0;
@@ -191,14 +185,12 @@ if(mode==5)ck(!okay&&copies==1&&launches==0&&s.rhoK[0]==-3&&s.rhoOmega[0]==-5,"a
 '''
     compile_probe(tmp_path,legacy_fixture()+shim+helper+'namespace transport{using ::setLastError;using ::GasCourantMaxima;using ::computeGasCurrentCourant;void setLastErrorText(const char*p){last=p;}}\n'+wrapper+main)
 
-@pytest.mark.parametrize('kernel',['divergence','sst_update','convective','diffusion','sst'])
+@pytest.mark.parametrize('kernel',['divergence','sst_update','convective'])
 def test_supplied_incidence_slice_with_nonnegative_offset_completes(tmp_path,kernel):
     calls={
         'divergence':'s.gasPhiRho[1]=-2;applyGasFluxDivergenceByCellKernel(&s,.1);ck(s.rho[0]==2.2,"terminal supplied incidence skipped bulk formula");',
         'sst_update':'s.sstPhiRhoK[0]=-6;applySstFluxAndSourceKernel(&s,.1);ck(s.rhoK[0]!=6,"terminal supplied incidence skipped SST formula");',
         'convective':'s.gasPhiRhoE[0]=4;s.gasPhiRhoE[1]=2;computeGasConvectiveCourantByCellKernel(&s,.1);ck(s.gasFluxPositivityScale[0]==Real(.5)*Real(.1)*6,"terminal supplied incidence skipped Co formula");',
-        'diffusion':'s.gasMu=.01;computeGasDiffusionNumberKernel(&s,.1,Real(.5));ck(s.gasDiffusionNumber[0]>0,"terminal supplied incidence skipped diffusion formula");',
-        'sst':'computeSstStabilityNumberKernel(&s,.1,Real(.5),false);ck(s.sstSourceNumber[0]>0,"terminal supplied incidence skipped stability formula");',
     }
     compile_probe(tmp_path,legacy_fixture()+r'''
 int main(){State s;initialise(s);s.sstConfigured=1;int* backing=s.cellFaceId;s.cellFaceId=backing+1;s.cellPlaneStart[0]=0;s.cellPlaneCount[0]=2;s.cellFaceId[0]=0;s.cellFaceId[1]=1;threadIdx.x=0;
@@ -208,8 +200,8 @@ int main(){State s;initialise(s);s.sstConfigured=1;int* backing=s.cellFaceId;s.c
 def test_selected_wall_strict_numeric_retry_is_retained(tmp_path,case):
     from test_boundary_layer_operators import SETUP
     bodies={
-        'omega':r'''s.gasBoundaryLayer.sst[0].ownerOmega=std::numeric_limits<Real>::infinity();const Real before=s.rhoOmega[0],primitive=s.omega[0];applySstWallFunctionStateKernel(&s,false,true);ck(s.rhoOmega[0]==before&&s.omega[0]==primitive&&s.gasSpecies.cellStatus[0]!=0,"strict selected omega numeric retry lost");''',
-        'source':r'''s.k[0]=.001;s.rhoK[0]=.002;s.omega[0]=1000;const Real before=s.rhoK[0];applySstFluxAndSourceKernel(&s,.1,true);ck(s.rhoK[0]==before&&s.sstSourceNumber[0]>s.sstMaxSourceNumber&&s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::SourceStepLimit),"strict selected source retry lost");''',
+        'omega':r'''s.gasBoundaryLayer.sst[0].ownerOmega=std::numeric_limits<Real>::infinity();const Real before=s.rhoOmega[0],primitive=s.omega[0];applySstWallFunctionStateKernel(&s,true);ck(s.rhoOmega[0]==before&&s.omega[0]==primitive&&s.gasSpecies.cellStatus[0]!=0,"strict selected omega numeric retry lost");''',
+        'source':r'''s.k[0]=.001;s.rhoK[0]=.002;s.omega[0]=1000;const Real before=s.rhoK[0];applySstFluxAndSourceKernel(&s,.1,true);ck(s.rhoK[0]==before&&s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::SourceStepLimit),"strict selected source retry lost");''',
     }
     compile_probe(tmp_path,legacy_fixture()+SETUP+'\nint main(){State s;initialise(s);wall(s);threadIdx.x=0;'+bodies[case]+'}')
 
@@ -249,15 +241,13 @@ const Real after[]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0]};ck(s.ga
 
 
 @pytest.mark.parametrize('native', [False, True])
-@pytest.mark.parametrize('kernel', ['divergence','sst_update','convective','diffusion','sst'])
+@pytest.mark.parametrize('kernel', ['divergence','sst_update','convective'])
 def test_incidence_before_logical_array_origin_is_resource_error(tmp_path,kernel,native):
     mode='true' if native else 'false'
     calls={
         'divergence':'applyGasFluxDivergenceByCellKernel(&s,.1,MODE);',
         'sst_update':'applySstFluxAndSourceKernel(&s,.1,MODE);',
         'convective':'computeGasConvectiveCourantByCellKernel(&s,.1,MODE);',
-        'diffusion':'computeGasDiffusionNumberKernel(&s,.1,Real(.5),MODE);',
-        'sst':'computeSstStabilityNumberKernel(&s,.1,Real(.5),false,MODE);',
     }
     body=r'''
 int main(){State s;initialise(s);s.sstConfigured=1;

@@ -65,3 +65,18 @@ __device__ bool gasStencilRangeValid(const GasState& s,int c,int start,int count
     {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage);return false;}
     return true;
 }
+
+// Report actual finite inventory flooring, not a predicted timestep bound.
+// Recording never changes the inventory, floor, or transport status.
+template<class GasState,class Scalar,class Floor>
+__device__ void gasInventoryFloorWarning(const GasState& s,int c,Scalar value,
+    Floor floor,int component,unsigned site,unsigned op,
+    unsigned quantity=ugkp::diagnostics::Quantity::Accuracy)
+{
+    if(s.diagnostics && ugkwp::gasFinite(value) && value<floor)
+    {
+        using namespace ugkp::diagnostics;
+        recordWarning(s.diagnostics,makeRecord(Code::AccuracyResidual,site,op,0,
+            EntityKind::Cell,c,component,double(value),double(floor),double(floor),quantity));
+    }
+}

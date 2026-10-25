@@ -49,16 +49,6 @@ int main(){State s;initialise(s);ugkp::diagnostics::DeviceContext d{};s.diagnost
 """.replace('BOUNDARY',str(boundary)))
 
 
-@pytest.mark.parametrize('boundary', [1,3,4])
-def test_disabled_diffusion_channel_needs_no_cell_topology(tmp_path,boundary):
-    compile_run(tmp_path, mixture_fixture() + r"""
-int main(){State s;initialise(s);ugkp::diagnostics::DeviceContext d{};s.diagnostics=&d;
- s.cellPlaneCount[0]=1;s.cellFaceId[0]=1;s.riemannBoundaryKind[1]=BOUNDARY;s.riemannBoundaryTFix[1]=0;
- s.faceOwner=nullptr;s.faceNeighbour=nullptr;
- threadIdx.x=0;computeGasDiffusionNumberKernel(&s,.1,.7);
- ck(!ugkp::diagnostics::hasFatal(&d)&&s.gasSpecies.cellStatus[0]==0,"disabled diffusion channel read unrelated topology");
- ck(s.gasDiffusionNumber[0]==0,"disabled channel contributed diffusion");}
-""".replace('BOUNDARY',str(boundary)))
 
 
 def test_enabled_cell_read_still_rejects_bad_neighbour(tmp_path):
@@ -82,17 +72,6 @@ int main(){State s;initialise(s);ugkp::diagnostics::DeviceContext d{};s.diagnost
 """.replace("LIMITER",str(limiter)))
 
 
-@pytest.mark.parametrize('boundary',[3,4])
-def test_disabled_sst_stability_face_needs_no_cell_topology(tmp_path,boundary):
-    compile_run(tmp_path, mixture_fixture() + r"""
-int main(){State s;initialise(s);ugkp::diagnostics::DeviceContext d{};s.diagnostics=&d;
- s.cellPlaneCount[0]=1;s.cellFaceId[0]=1;s.riemannBoundaryKind[1]=BOUNDARY;
- s.sstConfigured=1;s.sstCoefficients=ugkwp::defaultSstCoefficients();s.k[0]=.1;s.omega[0]=3;s.rhoK[0]=.1;s.rhoOmega[0]=3;s.sstKMin=1e-12;s.sstOmegaMin=1e-6;s.sstMaxSourceNumber=.25;
- s.faceOwner=nullptr;s.faceNeighbour=nullptr;
- threadIdx.x=0;computeSstStabilityNumberKernel(&s,.1,.7);
- ck(!ugkp::diagnostics::hasFatal(&d)&&s.gasSpecies.cellStatus[0]==0,"disabled stability face read unrelated topology");
- ck(std::isfinite(s.sstSourceNumber[0]),"valid source stability not published");}
-""".replace('BOUNDARY',str(boundary)))
 
 
 def test_wall_classification_ignores_nonwall_cell_topology(tmp_path):
@@ -104,15 +83,4 @@ int main(){State s;initialise(s);ugkp::diagnostics::DeviceContext d{};s.diagnost
  threadIdx.x=0;applySstWallFunctionStateKernel(&s);
  ck(!ugkp::diagnostics::hasFatal(&d)&&s.gasSpecies.cellStatus[0]==0,"nonwall classification read unrelated topology");
  ck(s.omega[0]==3,"nonwall classification changed omega");}
-""")
-
-
-def test_active_local_diffusion_needs_no_unused_owner_neighbour(tmp_path):
-    compile_run(tmp_path, mixture_fixture() + r"""
-int main(){State s;initialise(s);ugkp::diagnostics::DeviceContext d{};s.diagnostics=&d;
- s.cellPlaneCount[0]=1;s.cellFaceId[0]=1;s.riemannBoundaryKind[1]=0;s.gasMu=.01;s.maxDiffusionNumber=.25;
- s.faceOwner=nullptr;s.faceNeighbour=nullptr;
- threadIdx.x=0;computeGasDiffusionNumberKernel(&s,.1,.7);
- ck(!ugkp::diagnostics::hasFatal(&d)&&s.gasSpecies.cellStatus[0]==0,"local active diffusion read unused topology");
- ck(std::isfinite(s.gasDiffusionNumber[0])&&s.gasDiffusionNumber[0]>0,"active diffusion lost bound");}
 """)

@@ -16,10 +16,7 @@ namespace chmt {
 struct IntervalIdentity { std::uint64_t sequence=0,epoch=0; };
 struct CouplingInterval { IntervalIdentity identity{}; Real begin=0,end=0; };
 struct CouplingControls {
-    Real interval=0,minimumInterval=0,gasMaxDt=0,materialMaxSubstep=0;
-    Real predictionTolerance=1;
-    int maxWindowIterations=8,maxWindowRetries=12;
-    bool enforcePredictionAccuracy=false;
+    Real interval=0,gasMaxDt=0,materialMaxSubstep=0;
 };
 struct WallFaceSample {
     Real temperature=0; Vec3 velocity{};

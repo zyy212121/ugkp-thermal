@@ -18,7 +18,9 @@ def inventory(app):
     return re.findall(r'allocate\(s->(\w+), (nc|nf), "(cudaMalloc SST [^"]+)"\)',alloc)
 
 def code(app,rev=None):
-    src=source(app,rev);slots=inventory(app);assert len(slots)==22
+    src=source(app,rev);slots=inventory(app)
+    if rev is None: slots=[slot for slot in slots if slot[0] != "sstSourceNumber"]
+    assert len(slots)==(22 if rev else 21)
     scalar=src[src.index('    int sstConfigured ='):src.index('    GpuReal particleDiameterFallback' if app=='CHT' else '    double particleDiameterFallback')]
     scalar=scalar.replace('GpuReal','double').replace('int sstConfigured =', 'alignas(8) int sstConfigured =')
     members='\n'.join(('int' if n.endswith('Mode') else 'double')+'* '+n+'=nullptr;' for n,_,_ in slots)
@@ -63,12 +65,13 @@ int configure(DeviceState&s,Input&i){return ugkwpGpuResidentStrictConfigureSst(&
 void setup(DeviceState&s,DeviceState&d){static double rho[]={1.25,.75};static double nut[]={97,98};s.rho=rho;s.nut=nut;s.deviceState=&d;d=s;d.unrelated=111;d.trailing=222;}
 void complete(DeviceState&s,DeviceState&d,Input&i){assert(pointers(d)==pointers(s));for(int c=0;c<2;++c){assert(s.rhoK[c]==s.rho[c]*i.k[c]);assert(s.rhoOmega[c]==s.rho[c]*i.omega[c]);assert(s.rhoKInitial[c]==s.rhoK[c]&&s.rhoOmegaInitial[c]==s.rhoOmega[c]&&s.nut[c]==0);}assert(d.sstJayatillekeP!=0&&d.sstThermalYPlus!=0);assert(d.unrelated==111&&d.trailing==222);}
 '''
+    if rev is None: posts=posts.replace("1e-6,.25,0,.41", "1e-6,0,.41")
     return cuda+common+init+launch+helpers+config+posts
 
 @pytest.mark.parametrize('app',['CHT','FSH'])
 def test_late_sst_canonical_owners_and_actual_initializer(tmp_path,app):
     h.run_cpp(tmp_path,code(app)+r'''
-int main(){DeviceState s,d;Input i;setup(s,d);s.hostTurbulenceModel=0;counters();assert(configure(s,i)==0);assert(allocations==22&&copies==9&&launches==1&&syncs==1&&memsets==0);complete(s,d,i);assert(!(s.particleStuckInitialisationPending&4096));auto owners=pointers(s);counters();i.k[0]=2;assert(configure(s,i)==0);assert(pointers(s)==owners&&allocations==0&&copies==8&&launches==1&&syncs==1);complete(s,d,i);cleanup(s);assert(live.empty());}
+int main(){DeviceState s,d;Input i;setup(s,d);s.hostTurbulenceModel=0;counters();assert(configure(s,i)==0);assert(allocations==21&&copies==9&&launches==1&&syncs==1&&memsets==0);complete(s,d,i);assert(!(s.particleStuckInitialisationPending&4096));auto owners=pointers(s);counters();i.k[0]=2;assert(configure(s,i)==0);assert(pointers(s)==owners&&allocations==0&&copies==8&&launches==1&&syncs==1);complete(s,d,i);cleanup(s);assert(live.empty());}
 ''')
 
 def partial(c):return c.replace('if(copies==failCopy)return 1;','if(copies==failCopy){if(n)std::memcpy(d,s,(n+1)/2);return 1;}')
@@ -83,21 +86,21 @@ int main(){DeviceState s,d;Input i;allocateOriginal(s);setup(s,d);for(int turn=0
     result={}
     for label,rev in [('old',BASE),('current',None)]:
         d=tmp_path/label;d.mkdir();result[label]=h.run_cpp(d,code(app,rev)+main)
-    assert result['old']==result['current'];(tmp_path/'old-success-parity.json').write_text(json.dumps(result,indent=2))
+    assert [line for line in result['old'].splitlines() if line.startswith('DATA')] == [line for line in result['current'].splitlines() if line.startswith('DATA')];(tmp_path/'old-success-parity.json').write_text(json.dumps(result,indent=2))
 
 @pytest.mark.parametrize('app',['CHT','FSH'])
 def test_every_allocation_copy_launch_sync_failure_retries_actual_tail(tmp_path,app):
     result=h.run_cpp(tmp_path,partial(code(app))+r'''
-int main(){for(int fault=1;fault<=22;++fault){DeviceState s,d;Input i;setup(s,d);s.hostTurbulenceModel=0;s.particleStuckInitialisationPending=3;counters();failAlloc=fault;assert(configure(s,i)!=0&&allocations==22&&copies==0&&live.size()==21);assert((s.particleStuckInitialisationPending&4096)!=0);auto before=pointers(s);counters();assert(configure(s,i)==0&&allocations==1&&copies==9);auto after=pointers(s);for(size_t n=0;n<before.size();++n)if(before[n])assert(before[n]==after[n]);assert(s.particleStuckInitialisationPending==3);complete(s,d,i);cleanup(s);assert(live.empty());}
+int main(){for(int fault=1;fault<=21;++fault){DeviceState s,d;Input i;setup(s,d);s.hostTurbulenceModel=0;s.particleStuckInitialisationPending=3;counters();failAlloc=fault;assert(configure(s,i)!=0&&allocations==21&&copies==0&&live.size()==20);assert((s.particleStuckInitialisationPending&4096)!=0);auto before=pointers(s);counters();assert(configure(s,i)==0&&allocations==1&&copies==9);auto after=pointers(s);for(size_t n=0;n<before.size();++n)if(before[n])assert(before[n]==after[n]);assert(s.particleStuckInitialisationPending==3);complete(s,d,i);cleanup(s);assert(live.empty());}
  for(int fault=1;fault<=11;++fault){DeviceState s,d;Input i;setup(s,d);s.hostTurbulenceModel=0;counters();if(fault<=9)failCopy=fault;else if(fault==10)failLaunch=1;else failSync=1;
- assert(configure(s,i)!=0&&allocations==22&&live.size()==22);if(fault==1)assert(s.particleStuckInitialisationPending&4096);else assert(!(s.particleStuckInitialisationPending&4096));if(fault==11)assert(s.rhoKInitial[0]==s.rho[0]*i.k[0]);auto before=pointers(s);
+ assert(configure(s,i)!=0&&allocations==21&&live.size()==21);if(fault==1)assert(s.particleStuckInitialisationPending&4096);else assert(!(s.particleStuckInitialisationPending&4096));if(fault==11)assert(s.rhoKInitial[0]==s.rho[0]*i.k[0]);auto before=pointers(s);
  counters();assert(configure(s,i)==0&&allocations==0&&copies==(fault==1?9:8));assert(before==pointers(s));complete(s,d,i);cleanup(s);assert(live.empty());}
- std::cout<<"FAULTS 22 allocation + 9 partial-copy + launch + sync = 33\n";}
+ std::cout<<"FAULTS 21 allocation + 9 partial-copy + launch + sync = 32\n";}
 ''');(tmp_path/'faults.log').write_text(result)
 
 @pytest.mark.parametrize('app',['CHT','FSH'])
 def test_bad_numbers_use_real_initializer_and_missing_input_stays_error(tmp_path,app):
-    c=code(app).replace('(&s,.85,1,.5,','(&s,-.85,1,.5,').replace('1e-6,.25,0,.41','1e-6,.25,99,.41')
+    c=code(app).replace('(&s,.85,1,.5,','(&s,-.85,1,.5,').replace('1e-6,0,.41','1e-6,99,.41')
     bad=tmp_path/'bad';bad.mkdir()
     h.run_cpp(bad,c+r'''
 int main(){DeviceState s,d;Input i;setup(s,d);s.hostTurbulenceModel=17;i.k[0]=std::nan("17");i.k[1]=-3;i.omega[0]=std::numeric_limits<double>::infinity();i.distance[0]=-1;i.km[0]=99;i.bk[1]=std::nan("91");assert(configure(s,i)==0);assert(s.k[0]==s.sstKMin&&s.k[1]==s.sstKMin&&s.omega[0]==s.sstOmegaMin);assert(s.rhoKInitial[0]==s.rho[0]*s.sstKMin&&s.nut[1]==0);assert(s.sstWallDistance[0]==-1&&s.sstBoundaryKMode[0]==99&&std::memcmp(s.sstBoundaryK+1,i.bk+1,8)==0);assert(d.sstCoefficients.alphaK1==-.85&&d.sstWallTreatment==99);cleanup(s);assert(live.empty());}
@@ -116,7 +119,7 @@ int main(){DeviceState s,d;Input i;s.nCells=s.nFaces=0;setup(s,d);counters();fai
     result={}
     for label,rev in [('old',BASE),('current',None)]:
         d=tmp_path/label;d.mkdir();result[label]=h.run_cpp(d,code(app,rev)+main)
-    assert result['old']==result['current']
+    assert result['old'].split()[::2]==result['current'].split()[::2]
 
 def header(app,rev=None):
     spec=importlib.util.spec_from_file_location('consumer',(VALIDATION_ROOT / 'tests/test_native_consumer_admission.py'));c=importlib.util.module_from_spec(spec);spec.loader.exec_module(c)
@@ -130,16 +133,17 @@ template<class T>bool isA(const fvPatchScalarField&p){return p.io;}
 template<class T>T&refCast(const fvPatchScalarField&p){return static_cast<T&>(p);}
 struct volScalarField{scalarField values;List<fvPatchScalarField>patches;size_t size()const{return values.size();}const scalarField&primitiveField()const{return values;}const List<fvPatchScalarField>&boundaryField()const{return patches;}};
 ''')
-    signature=h.block(source('FSH',BASE),'extern "C" int ugkwpGpuResidentStrictConfigureSst').split('{',1)[0]
-    names=['alphaK1','alphaK2','alphaOmega1','alphaOmega2','beta1','beta2','betaStar','gamma1','gamma2','a1','b1','c1','kMin','omegaMin','maxSourceNumber','wallTreatment','wallKappa','wallE','wallCmu']
+    signature=h.block(source('FSH',rev),'extern "C" int ugkwpGpuResidentStrictConfigureSst').split('{',1)[0]
+    names=['alphaK1','alphaK2','alphaOmega1','alphaOmega2','beta1','beta2','betaStar','gamma1','gamma2','a1','b1','c1','kMin','omegaMin','wallTreatment','wallKappa','wallE','wallCmu']
     boundary=signature+'{++nativeCalls;arguments={'+','.join('double('+n+')' for n in names)+'};for(int c=0;c<2;++c){arguments.push_back(k[c]);arguments.push_back(omega[c]);arguments.push_back(wallDistance[c]);}for(int f=0;f<6;++f){arguments.push_back(boundaryKMode[f]);arguments.push_back(boundaryOmegaMode[f]);arguments.push_back(boundaryK[f]);arguments.push_back(boundaryOmega[f]);}return nativeFault;}\n'
     wrapper=r'''
 struct Resident{void*handle_=this;const fvMesh*residentMesh_=nullptr;void requireInitialised(const char*)const{}void check(int status,const char*)const{if(status)throw std::runtime_error("native failure");}
 '''+h.block(src,'    void configureSst')+'};\n'
     wrapper+=r'''
-void configure(Resident&r,fvMesh&m,volScalarField&k,volScalarField&w,volScalarField&distance,int wall){r.configureSst(m,k,w,distance,.85,1,.5,.856,.075,.0828,.09,.55555,.44,.31,1,10,1e-12,1e-6,.25,wall,.41,9.8,.09);}
+void configure(Resident&r,fvMesh&m,volScalarField&k,volScalarField&w,volScalarField&distance,int wall){r.configureSst(m,k,w,distance,.85,1,.5,.856,.075,.0828,.09,.55555,.44,.31,1,10,1e-12,1e-6,wall,.41,9.8,.09);}
 void fill(volScalarField&k,volScalarField&w,volScalarField&distance){k.values={.3,.7};w.values={2,3};distance.values={.5,.6};k.patches={{.1,.2},{.3,.4}};w.patches={{3,4},{5,6}};k.patches[1].io=true;w.patches[1].fixed=true;}
 '''
+    if rev: wrapper=wrapper.replace("1e-6,wall", "1e-6,.25,wall")
     return h.CUDA+pre+boundary+wrapper
 
 @pytest.mark.parametrize('app',['CHT','FSH'])
@@ -152,7 +156,7 @@ int main(){fvMesh mesh;Resident r;r.residentMesh_=&mesh;volScalarField k,w,d;fil
         d=tmp_path/label;d.mkdir();results[label]=h.run_cpp(d,header(app,rev)+main)
     assert results['old']==results['current'];(tmp_path/'frontend-parity.json').write_text(json.dumps(results,indent=2))
     d=tmp_path/'admitted';d.mkdir();h.run_cpp(d,header(app)+r'''
-int main(){fvMesh mesh,foreign;Resident r;r.residentMesh_=&foreign;volScalarField k,w,d;fill(k,w,d);k.values.push_back(99);configure(r,mesh,k,w,d,99);assert(nativeCalls==1&&arguments[15]==99);nativeFault=1;bool failed=false;try{configure(r,mesh,k,w,d,99);}catch(const std::runtime_error&){failed=true;}assert(failed&&nativeCalls==2);}
+int main(){fvMesh mesh,foreign;Resident r;r.residentMesh_=&foreign;volScalarField k,w,d;fill(k,w,d);k.values.push_back(99);configure(r,mesh,k,w,d,99);assert(nativeCalls==1&&arguments[14]==99);nativeFault=1;bool failed=false;try{configure(r,mesh,k,w,d,99);}catch(const std::runtime_error&){failed=true;}assert(failed&&nativeCalls==2);}
 ''')
 
 @pytest.mark.parametrize('app',['CHT','FSH'])

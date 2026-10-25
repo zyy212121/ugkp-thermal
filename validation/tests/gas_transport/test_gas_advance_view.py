@@ -76,7 +76,7 @@ using IndependentHost=DeviceState;
 OWNED_KERNEL(recoverGasPrimitivesKernel)
 OWNED_KERNEL(recoverSstPrimitivesKernel)
 SIMPLE_KERNEL(updateRiemannBoundaryMirrorKernel)
-STATE_TEMPLATE void applySstWallFunctionStateKernel(STATE*,bool=false,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("applySstWallFunctionStateKernel");}
+STATE_TEMPLATE void applySstWallFunctionStateKernel(STATE*,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("applySstWallFunctionStateKernel");}
 SIMPLE_KERNEL(computeGasHllcAdcSensorKernel)
 GRADIENT_KERNEL(computeGasPrimitiveGradientsKernel)
 SIMPLE_KERNEL(computeSstGradientsKernel)
@@ -202,7 +202,6 @@ struct MixedHost:IndependentHost{SpeciesTag gasSpecies;double*V=nullptr;};
 template<class S,class T>void advanceGasChemistryKernel(S*,T dt,const double*,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back(dt==.05?"half-chemistry":"BAD-INTERVAL");}
 template<class S>void computeGasCourantFieldKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("wave-speed");}
 int convectiveModeChecks=0;template<class S>void computeGasConvectiveCourantByCellKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);++convectiveModeChecks;trace.push_back("courant");}
-template<class S>void computeGasDiffusionNumberKernel(S*,double,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("diffusion-bound");}
 struct Policy {
  static int begin(MixedHost*){trace.push_back("begin");return 0;}
  static int applySources(MixedHost*,double){trace.push_back("sources");return 0;}
@@ -236,7 +235,7 @@ def test_shared_preparation_does_not_compute_dead_sst_admission_predictor(tmp_pa
     """Execute the production preflight; SST may not consume stale face scratch."""
     source = re.sub(r'<<<[\s\S]*?>>>', '', (ROOT/'common/GpuGasAdvance.cuh').read_text())
     preamble = PREAMBLE.replace('GRADIENT_KERNEL(computeGasPrimitiveGradientsKernel)',
-        'template<class S>void computeGasPrimitiveGradientsKernel(S*,bool=false,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("gas-gradients");}')
+        'template<class S>void computeGasPrimitiveGradientsKernel(S*,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("gas-gradients");}')
     extras = r'''
 #include "gasTransport/GasStateView.H"
 struct SpeciesTag{static constexpr int speciesCount=2;ugkwp::GasMode mode=ugkwp::GasMode::MixtureFrozen;};
@@ -245,8 +244,7 @@ struct MixedHost:IndependentHost{SpeciesTag gasSpecies;MixedDevice*deviceState;}
 template<class S,class T>void advanceGasChemistryKernel(S*,T,const double*,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);}
 template<class S>void computeGasCourantFieldKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("fresh-mass");}
 int convectiveModeChecks=0;template<class S>void computeGasConvectiveCourantByCellKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);++convectiveModeChecks;}
-template<class S>void computeGasDiffusionNumberKernel(S*,double,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);}
-int sstModeChecks=0;template<class S>void computeSstStabilityNumberKernel(S*,double,double,bool requireWallProfile=true,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);if(!requireWallProfile)std::abort();++sstModeChecks;trace.push_back("sst-bound");}
+
 struct Policy{
  static int validate(MixedHost*){return 0;}static int validateTimeStep(MixedHost*,double){return 0;}
  static double targetMaxCo(MixedHost*){return .5;}static const double*stageVolumes(MixedHost*,bool){return nullptr;}
@@ -262,10 +260,10 @@ for(const auto& line:trace)std::puts(line.c_str());
 if(position("fresh-mass")!=trace.size()||position("sst-bound")!=trace.size())return 2;
 if(position("recoverGasPrimitivesKernel")==trace.size())return 3;
 // Strict post-source launches forward their actual owner/profile mode.
-trace.clear();expectedNativeOwner=true;convectiveModeChecks=sstModeChecks=0;
+trace.clear();expectedNativeOwner=true;convectiveModeChecks=0;
 if(prepareGasTrialTransport<Policy>(&h,.01,0.,true)!=0)return 4;
-if(position("fresh-mass")==trace.size()||position("sst-bound")==trace.size()
-    ||convectiveModeChecks!=1||sstModeChecks!=1)return 5;
+if(position("fresh-mass")!=trace.size()||position("sst-bound")!=trace.size()
+    ||convectiveModeChecks!=0)return 5;
 }
 '''
     cpp = tmp_path/'preflight.cpp';cpp.write_text(preamble+extras+source+main)

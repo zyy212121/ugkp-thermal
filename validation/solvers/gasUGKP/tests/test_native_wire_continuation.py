@@ -213,9 +213,9 @@ def test_fixed_field_codec_matches_ordinary_bytes_and_packed_host_layout(tmp_pat
     run_cpp(tmp_path,prefix+r'''
 #include <cassert>
 int main(){using namespace ugkwpGpuIpc;CreateArgs a{};a.nCells=17;a.nFaces=29;a.rngSeed=0xfedcba9876543210ULL;a.gammaGas=-1.25;a.Rgas=287.25;a.gravityZ=-9.5;
-a.gasRobustFallback=2;a.particleBlockThreads=37;
+a.particleBlockThreads=37;
 const auto bytes=encodeWire(a);CreateArgs restored{};WireCodec<CreateArgs>::decode(bytes.data(),restored);
-assert(restored.nCells==17&&restored.nFaces==29&&restored.rngSeed==a.rngSeed&&restored.gammaGas==-1.25&&restored.Rgas==287.25&&restored.gravityZ==-9.5&&restored.gasRobustFallback==2&&restored.particleBlockThreads==37);
+assert(restored.nCells==17&&restored.nFaces==29&&restored.rngSeed==a.rngSeed&&restored.gammaGas==-1.25&&restored.Rgas==287.25&&restored.gravityZ==-9.5&&restored.particleBlockThreads==37);
 assert(bytes[0]==17&&bytes[4]==29&&bytes[32]==0x10&&bytes[39]==0xfe);
 if constexpr (WireCodec<CreateArgs>::nativeLayout) assert(std::memcmp(bytes.data(),&a,bytes.size())==0);
 else assert(sizeof(a)!=bytes.size());

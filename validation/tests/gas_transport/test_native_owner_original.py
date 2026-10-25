@@ -37,7 +37,7 @@ def test_original_retry_status_and_unpublished_values(tmp_path,original_native_r
             elif case=='wall_omega':
                 setup+='s.gasBoundaryLayer.sst[0].ownerOmega=0;'+owner_call(root,'applySstWallFunctionStateCell','s,0,false')
             else:
-                setup+='s.sstMaxSourceNumber=0;'+owner_call(root,'applySstFluxAndSourceKernel','&s,.1')
+                setup+=''+owner_call(root,'applySstFluxAndSourceKernel','&s,.1')
         elif case=='reconstruction':
             setup='s.gasReconstruction=1;s.p[0]=-100;GasPrimDevice result{11,12,13,14,15,16};Real y[2]={17,18};auto ok='+owner_call(root,'reconstructGasMixtureFace','s,0,1,result,y')+'std::printf("RECON %d %a %a %a %a\\n",ok,result.rho,result.T,y[0],y[1]);'
         elif case in ('boundary_eos','boundary_temperature'):

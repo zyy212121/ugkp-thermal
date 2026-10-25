@@ -67,13 +67,11 @@ int main(){for(Real rho:{Real(.2),Real(2),Real(20)})for(Real k:{Real(1e-8),Real(
 State s;initialise(s);s.rho[0]=rho;s.k[0]=k;s.rhoK[0]=rho*k;wall(s,Real(4),Real(100));threadIdx.x=0;applySstWallFunctionStateKernel(&s);
 const Real p=std::min(Real(4)*std::pow(Real(.09),Real(.25))*std::sqrt(k)/(rho*Real(.41)*Real(.5)),Real(10)*Real(.09)*k*Real(100));
 for(Real div:{Real(-3),Real(0),Real(3)}){Real sk,so;sstSourcesForCell(s,0,div,sk,so);near(sk,rho*(p-Real(2)/3*div*k-Real(.09)*k*100),"wall stress production units/scaling");
-near(sstKSourceActivity(s,0,sk,div),rho*(p+Real(.09)*k*100+Real(2)/3*std::abs(div)*k),"source activity cancellation");}
+}
 }
 State s;initialise(s);const Real k=s.k[0],omega=100;
 const Real tau=s.rho[0]*Real(.09)*k*omega*Real(.41)*Real(.5)/(std::pow(Real(.09),Real(.25))*std::sqrt(k));wall(s,tau,omega);threadIdx.x=0;applySstWallFunctionStateKernel(&s);
 Real sk,so;sstSourcesForCell(s,0,Real(0),sk,so);near(sk,Real(0),"manufactured equilibrium source");
-computeSstStabilityNumberKernel(&s,Real(.1),Real(.5));
-near(s.sstSourceNumber[0],Real(.5)/Real(.25)*Real(.1)*Real(2)*Real(.09)*omega,"equilibrium hid source stiffness");
 Real before=s.rhoK[0];applySstFluxAndSourceKernel(&s,Real(.1));ck(s.gasSpecies.cellStatus[0]==0,"finite large source activity refused");near(s.rhoK[0],before+Real(.1)*sk,"actual equilibrium source was not applied");
 }
 ''')
@@ -97,12 +95,6 @@ int main(){
  moving(s,oldV,newV,sweeps,dt);audit(s);const Real initialOmega=s.rhoOmega[0];threadIdx.x=0;applySstWallFunctionStateKernel(&s);
  s.gasPhiRho[0]=-s.rho[0]*sweeps[0]/dt;
  s.sstPhiRhoK[0]=s.gasPhiRho[0]*s.k[0];s.sstPhiRhoOmega[0]=s.gasPhiRho[0]*s.omega[0];
- computeSstStabilityNumberKernel(&s,dt,Real(.5));Real bound=s.sstSourceNumber[0]*Real(.25)/Real(.5);
- for(Real scale:{Real(0),Real(.2),Real(.8),Real(1)}){
-  Real div=(1-scale)*sweeps[0]/dt,sk,so;sstSourcesForCell(s,0,div,sk,so);
-  Real actual=sstKSourceNumber(s,0,sstKSourceActivity(s,0,sk,div),dt);
-  ck(bound+Real(1e-6)>=actual,"selected wall gross source ALE envelope missed scaled mass flux");
- }
  Real expected,unused;sstSourcesForCell(s,0,Real(0),expected,unused);
  const Real k0=s.rhoK[0],o0=initialOmega;applySstFluxAndSourceKernel(&s,dt);
  ck(s.gasSpecies.cellStatus[0]==0,"selected ALE source rejected legal dt");

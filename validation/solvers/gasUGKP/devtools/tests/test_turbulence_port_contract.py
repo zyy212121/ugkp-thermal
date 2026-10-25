@@ -41,7 +41,6 @@ def test_explicit_gpu_sst_path_is_available_to_pure_gas_and_two_phase() -> None:
         "computeSstGradientsKernel",
         "computeSstFaceFluxKernel",
         "applySstFluxAndSourceKernel",
-        "computeSstStabilityNumberKernel",
         "recoverSstPrimitivesKernel",
         "applySstWallFunctionStateKernel",
         "sstJayatillekeThermalTransport",
