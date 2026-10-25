@@ -243,7 +243,7 @@ CHMT_HD inline bool evaluateInterfaceGasClosure(const GasPrimitive& bulk,const G
         Real elements[Ns*Ne]{};input.model.thermo.elementCount=p.nElements;input.model.thermo.elementComposition=elements;
         for(int s=0;s<Ns;++s)for(int e=0;e<p.nElements;++e)elements[s*p.nElements+e]=p.species[s].element[e]*thermo.data[s].molarMass;
         input.model.mechanism=context.mechanism;input.model.mode=p.gasMode;
-        input.model.viscosity=p.gasViscosity;input.model.conductivity=p.gasConductivity;
+        input.model.molecularViscosity=molecularTransportView(p);input.model.viscosity=p.gasViscosity;input.model.conductivity=p.gasConductivity;
         auto& coefficients=input.model.sstCoefficients;const auto& sst=p.sst;
         coefficients.a1=sst.a1;coefficients.betaStar=sst.betaStar;coefficients.beta1=sst.beta1;coefficients.beta2=sst.beta2;
         coefficients.gamma1=sst.gamma1;coefficients.gamma2=sst.gamma2;coefficients.alphaK1=sst.sigmaK1;coefficients.alphaK2=sst.sigmaK2;
@@ -280,7 +280,7 @@ CHMT_HD inline bool evaluateInterfaceGasClosure(const GasPrimitive& bulk,const G
         gradient.velocity[0]+=normal*(difference.x/distance-dot(gradient.velocity[0],normal));
         gradient.velocity[1]+=normal*(difference.y/distance-dot(gradient.velocity[1],normal));
         gradient.velocity[2]+=normal*(difference.z/distance-dot(gradient.velocity[2],normal));
-        result.traction=viscousTraction(gradient,normal,p.gasViscosity,0);
+        result.traction=viscousTraction(gradient,normal,gasMolecularViscosity(p,result.trace.temperature,result.trace.Y),0);
         const Real conductance=p.gasConductivity>0?1/(distance/p.gasConductivity+p.material.gasContactResistance):0;
         result.conductiveHeatFlux=conductance*(temperature-bulk.temperature);
     }
@@ -641,7 +641,7 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     gradient.velocity[2]+=in.gasNormal*(difference.z/in.gasDistance-dot(gradient.velocity[2],in.gasNormal));
     // Physical low-Re wall: molecular stress only, no owner nut or k stress.
     result.traction=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
-        ?wallClosure.traction:viscousTraction(gradient,in.gasNormal,p.gasViscosity,0);
+        ?wallClosure.traction:viscousTraction(gradient,in.gasNormal,gasMolecularViscosity(p,result.gasState.temperature,result.gasState.Y),0);
     result.gasShear=result.traction-in.gasNormal*dot(result.traction,in.gasNormal);
     result.shear=(result.gasShear-in.normal*dot(result.gasShear,in.normal))*gasRatio;
     Real primaryJ=0, poreJ=0, poreDonorEnergy=0, solidDonorEnergy=0;

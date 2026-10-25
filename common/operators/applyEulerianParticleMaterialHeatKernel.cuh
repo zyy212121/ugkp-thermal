@@ -105,11 +105,11 @@ __global__ void applyEulerianParticleMaterialHeatKernel
     const GPU_OPERATOR_REAL urz = finiteOr(s.couplingUzOld[c], GPU_OPERATOR_R(0.0)) - usz;
     const GPU_OPERATOR_REAL urMag = sqrt(sqr3(urx, ury, urz));
 
-    const GPU_OPERATOR_REAL mu = clampMin(s.gasMu, GPU_OPERATOR_R(1.0e-30));
+    const GPU_OPERATOR_REAL mu = clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]), GPU_OPERATOR_R(1.0e-30));
     const GPU_OPERATOR_REAL re = rhoG*dLocal*urMag/mu;
 
     const GPU_OPERATOR_REAL pr = s.gasPrClamped;
-    const GPU_OPERATOR_REAL gasConductivity = molecularGasConductivity(s);
+    const GPU_OPERATOR_REAL gasConductivity = molecularGasConductivity(s,c,s.couplingTgasOld[c]);
 
     const GPU_OPERATOR_REAL nu = ugkwp::ranzMarshallNuFromPr
     (

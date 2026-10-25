@@ -24,7 +24,7 @@ UGKWP_GAS_HD Terms<R> terms(const ugkwp::gaswall::WallInput<R,N,T>&in,
  kinetic=normal*normal/R(2);
  for(int d=0;d<2;++d){R u=-ctx.wallU[d];for(int a=0;a<3;++a)u+=v.U[a]*ctx.tangent[d][a];kinetic+=u*u/R(2);out.stress-=(ctx.mass*u-momentum[d])*u;}
  out.advective+=ctx.mass*kinetic;
- out.conductivity=(in.model.molecularPrandtl>0?in.model.viscosity*cp/in.model.molecularPrandtl:in.model.conductivity)+v.rho*nut*cp/cfg.turbulentPrandtl;
+ out.conductivity=(in.model.molecularPrandtl>0?wallMolecularViscosity(in,v.T,v.Y)*cp/in.model.molecularPrandtl:in.model.conductivity)+v.rho*nut*cp/cfg.turbulentPrandtl;
  return out;
 }
 // Optional pointwise physical species flux, using exactly the existing corrected

@@ -381,6 +381,7 @@ int main(int argc, char *argv[])
         if (gpuResidentPureGasOnly && !gpuResidentSolidThermalCoupling)
         {
             GpuGasResidentSolver resident;
+            resident.useSharedGasModel(sharedGasModel);
             resident.initialise
             (
                 mesh,
@@ -420,6 +421,8 @@ int main(int argc, char *argv[])
             configureScheduledBoundary(resident);
 
             scalar lastMeasuredCo = scalar(0);
+            resident.configureMolecularTransport(molecularTransport.config());
+            resident.configureBoundaryLayer(boundaryLayerInput,runTime,mesh,Tgas);
             label stepsSinceCourant = gpuResidentCourantUpdateInterval;
 
             while (runTime.run())
@@ -504,6 +507,7 @@ int main(int argc, char *argv[])
                         resident.downloadNutToHostMirror(runTime, nut);
                     }
 
+                    resident.downloadSharedGasSpecies(rho);
                     if (!runTime.write())
                     {
                         FatalIOErrorInFunction(runTime.controlDict())
@@ -517,6 +521,7 @@ int main(int argc, char *argv[])
         }
 
         GpuParticleResidentSolver resident;
+        resident.useSharedGasModel(sharedGasModel);
         autoPtr<gpuThermal::GpuSolidThermalCoupler> solidThermalCoupler;
         gpuThermal::ThermalExchangeRestartState validatedThermalRestartState;
         dictionary resolvedSolidThermalConfiguration;
@@ -692,6 +697,8 @@ int main(int argc, char *argv[])
         }
 
         scalar lastMeasuredCo = scalar(0);
+        resident.configureMolecularTransport(molecularTransport.config());
+        resident.configureBoundaryLayer(boundaryLayerInput,runTime,mesh,Tgas);
         label stepsSinceCourant = gpuResidentCourantUpdateInterval;
 
         while (runTime.run())
@@ -874,6 +881,7 @@ int main(int argc, char *argv[])
                         dMeanCell
                     );
 
+                    resident.downloadSharedGasSpecies(rho);
                     if (!runTime.write())
                     {
                         FatalIOErrorInFunction(runTime.controlDict())

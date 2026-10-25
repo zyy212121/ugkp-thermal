@@ -12,6 +12,7 @@ template<class S,int N> UGKWP_GAS_HD inline WallInput<WallReal,N,S> wallComputat
     for(int d=0;d<3;++d){dst.velocity[d]=src.velocity[d];dst.normal[d]=src.normal[d];dst.matching.velocity[d]=src.matching.velocity[d];}
     for(int j=0;j<N;++j){dst.massFlux[j]=src.massFlux[j];dst.matching.massFraction[j]=src.matching.massFraction[j];dst.model.diffusivity[j]=src.model.diffusivity[j];}
     dst.model.thermo=src.model.thermo;dst.model.mechanism=src.model.mechanism;dst.model.mode=src.model.mode;
+    dst.model.molecularViscosity=src.model.molecularViscosity;
     dst.model.viscosity=src.model.viscosity;dst.model.conductivity=src.model.conductivity;dst.model.molecularPrandtl=src.model.molecularPrandtl;
     dst.model.sstCoefficients=src.model.sstCoefficients;dst.quadrature=src.quadrature;dst.coarseReactionIntegral=src.coarseReactionIntegral;
     dst.integrateOwnerKSource=src.integrateOwnerKSource;dst.volumeSstClosure=src.volumeSstClosure;

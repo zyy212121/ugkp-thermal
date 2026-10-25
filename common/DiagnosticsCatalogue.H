@@ -7,6 +7,9 @@ namespace ugkp { namespace diagnostics {
 inline const std::vector<SourceDescriptor>& sourceCatalogue() {
     // Immutable for the process lifetime; successful readbacks allocate no catalogue.
     static const std::vector<SourceDescriptor> catalogue{
+        {2700,"common/gasTransport/GasStateView.H","checkedMolecularViscosity",113,"cell molecular viscosity"},
+        {2701,"common/gasTransport/GasStateView.H","checkedMolecularViscosity",113,"face molecular viscosity"},
+        {2702,"common/gasWall/ReactingWallLayer.H","pointState",141,"local molecular viscosity"},
         {1,"common/GpuDiagnosticsOwner.cuh","recordCudaFailure",94,"CUDA diagnostic transfer at an existing completion boundary"},
         {2101,"common/operators/reconstructGasMixtureFace.cuh","reconstructGasMixtureFace",46,"finite face mass fraction clipped to [0,1]"},
         {2102,"common/operators/reconstructGasMixtureFace.cuh","reconstructGasMixtureFace",41,"nonfinite face mass fraction"},
@@ -74,7 +77,7 @@ inline const std::vector<SourceDescriptor>& sourceCatalogue() {
         {2604,"common/operators/makeGasPrimDevice.cuh","riemannBoundaryState",225,"boundary density conservation residual"},
         {2605,"common/operators/makeGasPrimDevice.cuh","riemannBoundaryState",174,"boundary finite mass fraction clipping"},
         {2606,"common/operators/computeRiemannGasFaceFluxDevice.cuh","computeRiemannGasFaceFluxDevice",351,"missing selected mixture operator"},
-        {2607,"applications/gasUGKP/private_backend/SharedGasAdapter.cuh","ugkwpGpuResidentStrictConfigureGasModelV1",76,"diagnostic at ugkwpGpuResidentStrictConfigureGasModelV1"},
+        {2607,"common/gasTransport/ResidentSpeciesAdapter.cuh","ugkwpGpuResidentStrictConfigureGasModelV1",76,"diagnostic at ugkwpGpuResidentStrictConfigureGasModelV1"},
         {2610,"common/operators/makeGasPrimDevice.cuh","gasRecordEvaluatedFaceFailure",9,"evaluated gas face failure"},
         {2613,"common/operators/computeSstFaceFluxKernel.cuh","applySstFluxAndSourceKernel",615,"diagnostic at applySstFluxAndSourceKernel"},
         {2620,"common/operators/computeSstFaceFluxKernel.cuh","gasCellPhysicalDiagnostic",20,"diagnostic at gasCellPhysicalDiagnostic"},

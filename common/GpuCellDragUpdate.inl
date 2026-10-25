@@ -63,7 +63,7 @@
     const GPU_OPERATOR_REAL urMag = sqrt(sqr3(urx, ury, urz));
     const GPU_OPERATOR_REAL beta = cellDragInverseTime<DragModel>
     (
-        s,
+        s, c,
         rhoG,
         epsG,
         dLocal,

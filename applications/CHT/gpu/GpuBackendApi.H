@@ -1,3 +1,5 @@
+#include "gasTransport/GasWallApi.H"
+#include "gasTransport/GasSpeciesApi.H"
 #ifndef UGKWP_GPU_BACKEND_API_H
 #define UGKWP_GPU_BACKEND_API_H
 

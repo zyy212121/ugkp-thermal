@@ -1,3 +1,5 @@
+#include "gasTransport/MolecularTransportApi.H"
+#include "gasTransport/FoamMolecularTransportInput.H"
 #ifndef GpuResidentStrict_H
 #define GpuResidentStrict_H
 
@@ -364,6 +366,8 @@ class GpuHostReadView
     Field<To> converted_;
     const To* values_;
 public:
+
+
     template<class From> explicit GpuHostReadView(const UList<From>& values)
     {
         if (std::is_same<To,From>::value)
@@ -390,6 +394,10 @@ protected:
     scalar legacyRestartParcelMass_;
 
 public:
+    void configureMolecularTransport(const ugkwp::MolecularTransportConfiguration& config){
+        if(ugkwpGpuResidentStrictConfigureMolecularTransport(handle_,&config))
+            FatalErrorInFunction << "configure molecular transport: " << ugkwpGpuResidentStrictLastError() << exit(FatalError);
+    }
     GpuResidentStrictBase()
     :
         handle_(nullptr),

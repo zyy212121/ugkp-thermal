@@ -68,7 +68,7 @@ __global__ void computeSstGradientsKernel(GasState* sp)
     s.gradOmegaZ[c] = goz*invV;
     // F1/CD follow these same-stage SST gradients; F2/nut remain upstream
     // of the gas Riemann flux and depend only on the gas velocity gradient.
-    const GPU_OPERATOR_REAL nu = s.gasMu/clampMin(s.rho[c], s.rhoMin);
+    const GPU_OPERATOR_REAL nu = ugkwp::gasCellMolecularViscosity(s,c)/clampMin(s.rho[c], s.rhoMin);
         const GPU_OPERATOR_REAL gradDot =
             s.gradKX[c]*s.gradOmegaX[c]
           + s.gradKY[c]*s.gradOmegaY[c]

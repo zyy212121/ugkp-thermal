@@ -116,11 +116,11 @@ struct Profile {
       for (int j = 0; j < 3; ++j)
         tau += out.traction[j] * ctx.tangent[t][j];
       wallSlopeDelta[t] =
-          tau / in.model.viscosity - (w.state[1][t] - w.state[0][t]) / dy;
+          tau / wall.mu - (w.state[1][t] - w.state[0][t]) / dy;
     }
     double conductivity =
         in.model.molecularPrandtl > 0
-            ? in.model.viscosity * wall.cp / in.model.molecularPrandtl
+            ? wall.mu * wall.cp / in.model.molecularPrandtl
             : in.model.conductivity;
     wallSlopeDelta[2] = -out.conductiveHeatFlux / conductivity -
                         (w.state[1][2] - w.state[0][2]) / dy;
@@ -135,7 +135,7 @@ struct Profile {
   // Snapshot only coefficients independent of auxiliary q/traction. The caller
   // owns its lifetime and must rebuild it when the input or workspace changes.
   struct WallFluxBasis {
-    double tangentSlope[2], temperatureSlope, conductivity, speciesSlope = 0;
+    double tangentSlope[2], temperatureSlope, conductivity, viscosity, speciesSlope = 0;
     bool correctSpecies = false;
   };
   UGKWP_GAS_HD WallFluxBasis wallFluxBasis() const {
@@ -145,8 +145,9 @@ struct Profile {
     const double dy = w.y[1] - w.y[0];
     for (int t = 0; t < 2; ++t)
       basis.tangentSlope[t] = (w.state[1][t] - w.state[0][t]) / dy;
+    basis.viscosity = wall.mu;
     basis.conductivity = in.model.molecularPrandtl > 0
-        ? in.model.viscosity * wall.cp / in.model.molecularPrandtl
+        ? wall.mu * wall.cp / in.model.molecularPrandtl
         : in.model.conductivity;
     basis.temperatureSlope = (w.state[1][2] - w.state[0][2]) / dy;
     d::pointState(in, cfg, ctx, w.state[1], edge);
@@ -164,7 +165,7 @@ struct Profile {
       double tau = 0;
       for (int j = 0; j < 3; ++j)
         tau += out.traction[j] * ctx.tangent[t][j];
-      wallSlopeDelta[t] = tau / in.model.viscosity - basis.tangentSlope[t];
+      wallSlopeDelta[t] = tau / basis.viscosity - basis.tangentSlope[t];
     }
     wallSlopeDelta[2] = -out.conductiveHeatFlux / basis.conductivity -
                         basis.temperatureSlope;
@@ -216,7 +217,7 @@ struct Profile {
       d::LayerPoint<double, 2> wall;
       d::pointState(in, cfg, ctx, w.state[0], wall);
       double slope = std::sqrt(wall.rho * in.model.sstCoefficients.beta1 /
-                               (6 * in.model.viscosity)),
+                               (6 * wall.mu)),
              ell = w.state[0][5] / slope,
              power = (1 + std::sqrt(1 + 24 * in.model.sstCoefficients.betaStar /
                                             in.model.sstCoefficients.beta1)) /
@@ -225,7 +226,7 @@ struct Profile {
         state[4] =
             std::sqrt(w.state[1][4] * w.state[1][4] *
                       d::nearWallKShape(y, w.y[1], ell, power,
-                                        ctx.mass / (2 * in.model.viscosity)));
+                                        ctx.mass / (2 * wall.mu)));
     }
     d::LayerPoint<double, 2> p;
     d::pointState(in, cfg, ctx, state, p);
@@ -854,7 +855,7 @@ struct Profile {
               ctx.tangent[a][j];
       }
       double slope = std::sqrt(p.rho * in.model.sstCoefficients.beta1 /
-                               (6 * in.model.viscosity)),
+                               (6 * wallMolecularViscosity(in,p.T,p.Y))),
              ell = w.state[0][5] / slope,
              power = (1 + std::sqrt(1 + 24 * in.model.sstCoefficients.betaStar /
                                             in.model.sstCoefficients.beta1)) /
@@ -862,7 +863,7 @@ struct Profile {
       g.k = cfg.enableSst ? w.state[1][4] * w.state[1][4] *
                                 d::nearWallKDerivativeAtWall(
                                     micro, ell, power,
-                                    ctx.mass / (2 * in.model.viscosity))
+                                    ctx.mass / (2 * wallMolecularViscosity(in,p.T,p.Y)))
                           : 0;
       g.omega = 0;
       if (s.endpointOverride) {
@@ -936,7 +937,7 @@ struct Profile {
       if (cfg.enableSst && l == 0) {
         auto wall = base(0);
         double slope = std::sqrt(wall.rho * in.model.sstCoefficients.beta1 /
-                                 (6 * in.model.viscosity)),
+                                 (6 * wallMolecularViscosity(in,wall.T,wall.Y))),
                ell = w.state[0][5] / slope,
                power =
                    (1 + std::sqrt(1 + 24 * in.model.sstCoefficients.betaStar /
@@ -944,7 +945,7 @@ struct Profile {
                    2;
         dk = w.state[1][4] * w.state[1][4] *
              d::nearWallKDerivative(y, w.y[1], ell, power,
-                                    ctx.mass / (2 * in.model.viscosity));
+                                    ctx.mass / (2 * wallMolecularViscosity(in,wall.T,wall.Y)));
       }
       g.k = std::exp(s.aK * b) *
             (dk + s.seedK * dby + (p.k + s.seedK * by) * s.aK * db);

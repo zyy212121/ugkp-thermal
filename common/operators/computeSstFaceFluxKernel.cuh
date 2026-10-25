@@ -51,8 +51,8 @@ __device__ void sstInternalRhoDiffusivities
     (
         s.faceWeight[f], GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0)
     );
-    const GPU_OPERATOR_REAL nuOwn = s.gasMu/clampMin(s.rho[own], s.rhoMin);
-    const GPU_OPERATOR_REAL nuNei = s.gasMu/clampMin(s.rho[nei], s.rhoMin);
+    const GPU_OPERATOR_REAL nuOwn = ugkwp::gasCellMolecularViscosity(s,own)/clampMin(s.rho[own], s.rhoMin);
+    const GPU_OPERATOR_REAL nuNei = ugkwp::gasCellMolecularViscosity(s,nei)/clampMin(s.rho[nei], s.rhoMin);
     rhoDk =
         weight*s.rho[own]
        *(nuOwn + ugkwp::sstAlphaK(s.sstF1[own], s.sstCoefficients)*s.nut[own])
@@ -138,7 +138,7 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
     const GPU_OPERATOR_REAL f1Face = nei >= 0
       ? ownerWeight*s.sstF1[own] + (GPU_OPERATOR_R(1.0) - ownerWeight)*s.sstF1[nei]
       : s.sstF1[own];
-    const GPU_OPERATOR_REAL nuFace = s.gasMu/clampMin(rhoFace, s.rhoMin);
+    const GPU_OPERATOR_REAL nuFace = ugkwp::gasFaceMolecularViscosity(s,f,own,nei)/clampMin(rhoFace, s.rhoMin);
     GPU_OPERATOR_REAL nutFace = nei >= 0
       ? ownerWeight*s.nut[own] + (GPU_OPERATOR_R(1.0) - ownerWeight)*s.nut[nei]
       : s.nut[own];
@@ -405,7 +405,7 @@ __device__ GPU_OPERATOR_REAL sstKProductionForCell
             s.k[c],
             magGradU,
             y,
-            s.gasMu/clampMin(riemannFacePrimitiveForGradient(s, c, f).rho, s.rhoMin),
+            ugkwp::gasFaceMolecularViscosity(s,f,c,-1)/clampMin(riemannFacePrimitiveForGradient(s, c, f).rho, s.rhoMin),
             s.sstCoefficients.beta1,
             s.sstWallCmu,
             s.sstWallKappa,

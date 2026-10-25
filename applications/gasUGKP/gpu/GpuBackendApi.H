@@ -1,3 +1,4 @@
+#include "gasTransport/GasSpeciesApi.H"
 #ifndef UGKWP_GPU_BACKEND_API_H
 #define UGKWP_GPU_BACKEND_API_H
 
@@ -5,19 +6,6 @@
                                                                          
 
 #include "GpuBackendTypes.H"
-
-extern "C" int ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1
-(void* handle, ugkwpGpu::GasModelCapabilitiesV1* capabilities);
-extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
-(void* handle, const ugkwpGpu::GasModelConfigureArgsV1* configuration,
- const char* modelText, const char* mechanismText);
-extern "C" int ugkwpGpuResidentStrictUploadSpeciesV1
-(void* handle, const ugkwpGpu::GasSpeciesIdentityV1* identity, const double* speciesDensity);
-extern "C" int ugkwpGpuResidentStrictDownloadSpeciesV1
-(void* handle, const ugkwpGpu::GasSpeciesIdentityV1* identity, double* speciesDensity);
-extern "C" int ugkwpGpuResidentStrictUploadSpeciesBoundaryV1
-(void* handle, const ugkwpGpu::GasSpeciesIdentityV1* identity,
- const int* compositionFixed, const double* massFraction);
 
 extern "C" int ugkwpGpuResidentStrictCreate
 (
@@ -226,18 +214,7 @@ extern "C" void ugkwpGpuResidentStrictRelease(void* handle);
 extern "C" const char* ugkwpGpuResidentStrictLastError();
 
 // Geometry rows: inward normal xyz, ownerDistance, matchingDistance, volume, firstMoment.
-extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
-(void* handle,const ugkwpGpu::BoundaryLayerConfigV1* config,const int* faces,
- const int* quadratureOffsets,const int* matchingOffsets,const int* matchingCells,
- const double* geometry,const double* quadratureDistance,const double* quadratureWeight,
- const double* matchingWeight,const double* speciesFlux);
-extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
-(void* handle,std::uint32_t wallCount,std::uint32_t speciesCount,double* diagnostics);
 
-// Startup-only opt-in; downloaded rows are face-major, node-major y,U[3],T,k,omega,Y[Ns].
-extern "C" int ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(void* handle);
-extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1
-(void* handle,std::uint32_t walls,std::uint32_t nodes,std::uint32_t species,double* profiles,double* stageTime);
 
 #include "../../../common/DiagnosticsHost.H"
 extern "C" int ugkwpGpuResidentStrictSetDiagnosticOperation(void*,std::uint64_t,std::int64_t,double);

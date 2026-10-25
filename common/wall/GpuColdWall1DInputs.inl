@@ -49,11 +49,11 @@
             const GpuReal ugy = finiteOr(s.couplingUyOld[c], GPU_R(0.0));
             const GpuReal ugz = finiteOr(s.couplingUzOld[c], GPU_R(0.0));
             const GpuReal relMag = sqrt(ugx*ugx + ugy*ugy + ugz*ugz);
-            const GpuReal re = rhoG*dPart*relMag/clampMin(s.gasMu, GPU_R(1.0e-30));
+            const GpuReal re = rhoG*dPart*relMag/clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,gasTemperatureK), GPU_R(1.0e-30));
             const GpuReal nu = GPU_R(2.0)
               + GPU_R(0.6)*sqrt(clampMin(re, GPU_R(0.0)))*s.gasPrOneThird;
             const GpuReal particleCp = particleSpecificHeatDevice(tpOld);
-            const GpuReal rate = GPU_R(6.0)*nu*molecularGasConductivity(s)
+            const GpuReal rate = GPU_R(6.0)*nu*molecularGasConductivity(s,c,gasTemperatureK)
               /(s.rhoSolid*particleCp*dPart*dPart + GPU_TINY(1.0e-300));
             gasConductanceWK = rate*physicalMass*particleCp;
         }

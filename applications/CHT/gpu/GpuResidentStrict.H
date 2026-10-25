@@ -1,3 +1,7 @@
+#include "gasTransport/FoamBoundaryLayerInput.H"
+#include "gasTransport/FoamGasModelInput.H"
+#include "gasTransport/MolecularTransportApi.H"
+#include "gasTransport/FoamMolecularTransportInput.H"
 #ifndef GpuResidentStrict_H
 #define GpuResidentStrict_H
 
@@ -497,6 +501,7 @@ struct GpuThermalRestartMirrorMetadata
 class GpuResidentStrictBase
 {
 protected:
+    SharedGasModelInput* sharedGasModel_=nullptr;
     void* handle_;
     const Time* diagnosticTime_=nullptr;
     mutable std::uint64_t diagnosticSequence_=0;
@@ -521,6 +526,29 @@ protected:
     bool particleStateCellLocalPacked_;
 
 public:
+    void configureBoundaryLayer(BoundaryLayerInput& input,const Time& time,
+        const fvMesh& mesh,const volScalarField& temperature)
+    {
+        requireInitialised("configure boundaryLayer");
+        input.prepare(time,mesh,temperature);
+        input.configureResident(handle_);
+    }
+
+    void writeBoundaryLayerDiagnostics(const BoundaryLayerInput& input,const Time& time)
+    {
+        requireInitialised("write boundaryLayer diagnostics");
+        input.writeDiagnostics(time,handle_);
+    }
+
+
+    void useSharedGasModel(SharedGasModelInput& model){sharedGasModel_=&model;}
+    void downloadSharedGasSpecies(const volScalarField& rho){if(sharedGasModel_)sharedGasModel_->downloadSpecies(handle_,rho);}
+
+    void configureMolecularTransport(const ugkwp::MolecularTransportConfiguration& config){
+        if(ugkwpGpuResidentStrictConfigureMolecularTransport(handle_,&config))
+            FatalErrorInFunction << "configure molecular transport: " << ugkwpGpuResidentStrictLastError() << exit(FatalError);
+    }
+
     GpuResidentStrictBase()
     :
         handle_(nullptr),
@@ -1319,6 +1347,7 @@ protected:
         const auto diagnosticSink=ugkp::diagnostics::makeFoamSink();
         ugkwpGpuResidentStrictSetDiagnosticSink(handle_,&diagnosticSink);
         updateDiagnosticOperation(mesh.time().value());
+        if(sharedGasModel_)sharedGasModel_->configureResident(handle_);
 
         uploadMesh(mesh, nCellPlanes, particleWallProps);
         if (enableParticleModule)
@@ -1437,6 +1466,7 @@ protected:
         }
 
         uploadFields(rho, rhoU, rhoE, U, p, Tgas);
+        if(sharedGasModel_)sharedGasModel_->uploadInitialSpecies(handle_);
 
         if (enableParticleModule)
         {
@@ -1566,6 +1596,7 @@ protected:
         const auto diagnosticSink=ugkp::diagnostics::makeFoamSink();
         ugkwpGpuResidentStrictSetDiagnosticSink(handle_,&diagnosticSink);
         updateDiagnosticOperation(mesh.time().value());
+        if(sharedGasModel_)sharedGasModel_->configureResident(handle_);
 
         uploadMesh(mesh, nCellPlanes, nullptr);
         uploadGasBoundaryFields
@@ -1579,6 +1610,7 @@ protected:
             strictOpenFoamGasBoundaries
         );
         uploadGasOnlyFields(rho, rhoU, rhoE, U, p, Tgas);
+        if(sharedGasModel_)sharedGasModel_->uploadInitialSpecies(handle_);
     }
 
 public:
