@@ -21,7 +21,7 @@ namespace Foam
 class BoundaryLayerInput
 {
     bool active_=false,prepared_=false,hasLocalSst_=false;
-    ugkwpGpuIpc::BoundaryLayerConfigV1 config_;
+    ugkwpGpu::BoundaryLayerConfigV1 config_;
     ugkp::diagnostics::DeviceContext geometryDiagnostics_{};
     ugkwp::gaswall::WallGeometryOptions<double> geometryOptions_;
     ugkwp::gaswall::WallGeometryCache<double> geometryCache_;
@@ -241,7 +241,7 @@ public:
         if(!active_)return;
         if(!prepared_)
             FatalErrorInFunction<<"boundaryLayer diagnostics require prepared geometry"<<exit(FatalError);
-        const std::size_t columns=ugkwpGpuIpc::boundaryLayerDiagnosticScalars+2*config_.speciesCount;
+        const std::size_t columns=ugkwpGpu::boundaryLayerDiagnosticScalars+2*config_.speciesCount;
         std::vector<double> diagnostics(faces_.size()*columns);
         check(ugkwpGpuResidentStrictDownloadBoundaryLayerV1(handle,config_.wallCount,config_.speciesCount,
             diagnostics.data()),"download resident boundaryLayer diagnostics");

@@ -55,10 +55,13 @@ __global__ void initializeWallProjectionView(State *state) {
   auto &s = *state;
   auto &d = s.gasBoundaryLayerModel.conservative;
   auto &v = *static_cast<WallProjectionView *>(d.projectedState);
+  // This metadata must exist even when a prior stage failed: subsequent shared
+  // kernels read the projected view's diagnostic pointer before any arrays.
+  v.diagnostics = s.diagnostics;
+  if(ugkp::diagnostics::hasFatal(s.diagnostics))return;
 #define UGKWP_GAS_STATE_FIELD(Type, Name) v.Name = s.Name;
 #include "gasTransport/GasStateFields.inc"
 #undef UGKWP_GAS_STATE_FIELD
-  v.diagnostics = s.diagnostics;
   if constexpr (ugkwp::GasGeometryCapability<State>::value)
     v.gasGeometry = s.gasGeometry;
   else
@@ -99,6 +102,7 @@ __global__ void initializeWallProjectionView(State *state) {
   v.gasSpecies.flux = d.projectedFaces + 6 * s.nFaces;
 }
 template <class State> __global__ void populateWallProjection(State *state) {
+  if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
   auto &s = *state;
   auto &d = s.gasBoundaryLayerModel.conservative;
   auto &v = *static_cast<WallProjectionView *>(d.projectedState);
@@ -136,6 +140,7 @@ template <class State> __global__ void populateWallProjection(State *state) {
 }
 template <class State>
 __global__ void prepareConservativeWallMatching(State *state) {
+  if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
   auto &s = *state;
   auto &d = s.gasBoundaryLayerModel.conservative;
   int slot = blockIdx.x * blockDim.x + threadIdx.x;
@@ -168,6 +173,7 @@ __global__ void prepareConservativeWallMatching(State *state) {
 }
 template <class State>
 __global__ void assembleConservativeWallFlux(State *state) {
+  if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
   auto &s = *state;
   auto &d = s.gasBoundaryLayerModel.conservative;
   int f = blockIdx.x * blockDim.x + threadIdx.x;
@@ -220,6 +226,7 @@ __global__ void assembleConservativeWallFlux(State *state) {
 }
 template <class State>
 __global__ void conservativeKFluxBudget(State *state, double dt) {
+  if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
   auto &s = *state;
   int c = blockIdx.x * blockDim.x + threadIdx.x;
   if (c >= s.nCells)
@@ -261,6 +268,7 @@ __global__ void conservativeKFluxBudget(State *state, double dt) {
 }
 template <class State>
 __global__ void applyConservativeKFluxBudget(State *state) {
+  if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
   auto &s = *state;
   int f = blockIdx.x * blockDim.x + threadIdx.x;
   if (f >= s.nFaces)

@@ -11,7 +11,7 @@ esac
 build=${CHMT_BUILD:-$app/.build/native}
 if $frontend; then build=${CHMT_FRONTEND_BUILD:-$app/.build/frontend};fi
 mkdir -p "$build/generated"
-flags=(-std=c++17 -O2 -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -I"$app" -I"$app/../../common" -I"$build/generated"
+flags=(-std=c++17 -O2 -fopenmp -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -I"$app" -I"$app/../../common" -I"$build/generated"
  -I"$WM_PROJECT_DIR/src/OpenFOAM/lnInclude" -I"$WM_PROJECT_DIR/src/finiteVolume/lnInclude" -I"$WM_PROJECT_DIR/src/meshTools/lnInclude" -I"$WM_PROJECT_DIR/src/OSspecific/POSIX/lnInclude")
 libs=(-L"$FOAM_LIBBIN" -lfiniteVolume -lmeshTools -lOpenFOAM -L"$FOAM_LIBBIN/$FOAM_MPI" -lPstream)
 if $frontend; then

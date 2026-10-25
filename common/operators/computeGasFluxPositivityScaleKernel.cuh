@@ -6,6 +6,7 @@
 template<class GasState>
 __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPERATOR_TIME dt)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)
@@ -131,6 +132,7 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
 template<class GasState>
 __global__ void applyGasFluxPositivityScaleKernel(GasState* sp, const bool nativeRefinement=false)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int f = blockIdx.x*blockDim.x + threadIdx.x;
     if (f >= s.nFaces)

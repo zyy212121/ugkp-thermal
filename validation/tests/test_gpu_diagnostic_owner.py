@@ -11,11 +11,13 @@ class GpuDiagnosticOwner(unittest.TestCase):
             (folder/'cuda_runtime.h').write_text('''#pragma once
 #include <cstdlib>
 #include <cstring>
-typedef int cudaError_t;constexpr int cudaSuccess=0,cudaMemcpyHostToDevice=1,cudaMemcpyDeviceToHost=2;
+typedef void* cudaStream_t;typedef int cudaError_t;constexpr int cudaSuccess=0,cudaMemcpyHostToDevice=1,cudaMemcpyDeviceToHost=2;
 static unsigned hostReads=0;
 inline int cudaMalloc(void** p,size_t n){*p=std::malloc(n);return *p?0:1;}
 inline int cudaFree(void* p){std::free(p);return 0;}
 inline int cudaMemcpy(void* d,const void* s,size_t n,int direction){if(direction==2)++hostReads;std::memcpy(d,s,n);return 0;}
+inline int cudaMemcpyAsync(void* d,const void* s,size_t n,int direction,cudaStream_t){return cudaMemcpy(d,s,n,direction);}
+inline int cudaStreamSynchronize(cudaStream_t){return 0;}
 ''')
             source=folder/'test.cpp';source.write_text('''#include "common/GpuDiagnosticsOwner.cuh"
 #include <cassert>

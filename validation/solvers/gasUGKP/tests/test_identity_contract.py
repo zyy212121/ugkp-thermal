@@ -1,112 +1,13 @@
-#!/usr/bin/env python3
-from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
-
-                                                                 
-
-from pathlib import Path
-import unittest
-
-
-ROOT = (SOURCE_ROOT / 'applications/gasUGKP')
-
-
-def read(relative_path: str) -> str:
-    return (ROOT / relative_path).read_text(encoding="utf-8")
-
-
-class UGKPIdentityContractTests(unittest.TestCase):
-    def test_public_frontend_identity(self) -> None:
-        make_files = read("Make/files")
-        build_script = read('../../tool/gasUGKP/build_public_frontend.sh')
-        solver = read("diluteUgkwpFoam.C")
-
-        self.assertIn(
-            "EXE = $(FOAM_USER_APPBIN)/gasUGKP",
-            make_files,
-        )
-        self.assertIn(
-            'frontend="${FOAM_USER_APPBIN}/gasUGKP"',
-            build_script,
-        )
-        self.assertIn('test -x "${frontend}"', build_script)
-        self.assertIn(
-            "#error gasUGKP must be built with UGKWP_USE_CUDA",
-            solver,
-        )
-
-    def test_private_backend_identity(self) -> None:
-        build_script = read('../../tool/gasUGKP/build_private_backend.sh')
-
-        self.assertIn('fmad_mode="${GAS_UGKP_FMAD:-1}"', build_script)
-        self.assertIn(
-            'backend_bin="${FOAM_USER_APPBIN}/gasUGKPCudaBackend"',
-            build_script,
-        )
-        self.assertIn(
-            'frontend_bin="${FOAM_USER_APPBIN}/gasUGKP"',
-            build_script,
-        )
-        self.assertIn("ERROR: GAS_UGKP_FMAD must be 0 or 1", build_script)
-
-    def test_runtime_backend_selection_identity(self) -> None:
-        client = read("gpu/GpuBackendClient.C")
-
-        self.assertIn('std::getenv("GAS_UGKP_CUDA_BACKEND")', client)
-        self.assertEqual(client.count('"gasUGKPCudaBackend"'), 2)
-
-    def test_ipc_protocol_identity(self) -> None:
-        protocol = read("gpu/GpuBackendProtocol.H")
-
-        self.assertIn(
-            "static constexpr std::uint32_t magic = 0x47554750U;",
-            protocol,
-        )
-        self.assertIn(
-            "static constexpr std::uint16_t protocolMajor = 7;",
-            protocol,
-        )
-        self.assertIn(
-            "static constexpr std::uint16_t protocolMinor = 0;",
-            protocol,
-        )
-        for operation, number in (
-            ("create", 1),
-            ("uploadFields", 8),
-            ("release", 19),
-            ("downloadSst", 21),
-        ):
-            self.assertIn(f"{operation} = {number}", protocol)
-        client = read("gpu/GpuBackendClient.C")
-        server = read("private_backend/GpuBackendServer.C")
-        self.assertIn("magic, protocolMajor, protocolMinor,", client)
-        self.assertIn("magic, protocolMajor, protocolMinor, status,", server)
-        self.assertIn("receiveObject(state->fd, response)", client)
-        self.assertIn("WireCodec<CreateArgs>::size", server)
-        self.assertNotRegex(client, r"response\.(major|minor|magicValue)\s*!=")
-        self.assertNotRegex(server, r"request\.(major|minor|magicValue)\s*!=")
-
-    def test_active_identity_files_do_not_reference_legacy_names(self) -> None:
-        active_files = (
-            "Make/files",
-            '../../tool/gasUGKP/build_public_frontend.sh',
-            '../../tool/gasUGKP/build_private_backend.sh',
-            "gpu/GpuBackendClient.C",
-            "gpu/GpuBackendProtocol.H",
-            "diluteUgkwpFoam.C",
-        )
-        legacy_tokens = (
-            "ugkpCudaBackend",
-            "legacySolverName",
-            "0x47553235",
-            '"GU25"',
-        )
-
-        for relative_path in active_files:
-            contents = read(relative_path)
-            for token in legacy_tokens:
-                with self.subTest(file=relative_path, token=token):
-                    self.assertNotIn(token, contents)
-
-
-if __name__ == "__main__":
-    unittest.main()
+from validation.tools.paths import SOURCE_ROOT
+ROOT=SOURCE_ROOT/'applications/gasUGKP'
+def test_resident_solver_build_and_identity():
+    build=(ROOT/'../../tool/gasUGKP/build_cuda_solver.sh').read_text()
+    assert 'EXE = $(FOAM_USER_APPBIN)/gasUGKP' in (ROOT/'Make/files').read_text()
+    assert '$(UGKWP_CUDA_EXE_LIBS)' in (ROOT/'Make/options').read_text()
+    assert 'libugkwp_cuda_backend.a' in build and '-lcudart' in build
+    assert 'GAS_UGKP_FMAD must be 0 or 1' in build
+    assert '#error gasUGKP must be built with UGKWP_USE_CUDA' in (ROOT/'diluteUgkwpFoam.C').read_text()
+    for f in ('gpu/GpuBackendClient.C','gpu/GpuBackendProtocol.H','private_backend/GpuBackendServer.C'):
+        assert not (ROOT/f).exists()
+    for wrapper in ('build_public_frontend.sh','build_private_backend.sh'):
+        assert 'build_cuda_solver.sh' in (ROOT/'../../tool/gasUGKP'/wrapper).read_text()

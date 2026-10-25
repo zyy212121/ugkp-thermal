@@ -64,7 +64,7 @@ echo ""
 
 SOLVERS=(gasUGKP FSH CHT CHMT)
 BUILD_SCRIPTS=(
-    tool/gasUGKP/build_private_backend.sh
+    tool/gasUGKP/build_cuda_solver.sh
     tool/FSH/build_private_backend.sh
     tool/CHT/build_cuda_solver.sh
     applications/CHMT/Allwmake
@@ -101,7 +101,7 @@ if [ ${#FAILED[@]} -eq 0 ]; then
             echo "  $(sha256sum "$EXE")"
         fi
     done
-    for backend in gasUGKPCudaBackend FSHCudaBackend; do
+    for backend in FSHCudaBackend; do
         EXE="$FOAM_USER_APPBIN/$backend"
         if [ -f "$EXE" ]; then
             echo "  $(sha256sum "$EXE")"

@@ -121,7 +121,7 @@ def test_cuda_transfer_catalogue_points_to_record_producer():
     match=re.search(r'\{1,"([^"]+)","([^"]+)",(\d+),"',catalogue)
     assert match is not None
     assert (match[1],int(match[3]))==production_diagnostic_callsites()[1]
-    assert match[2]=='observeCompletedWork'
+    assert match[2]=='recordCudaFailure'
 
 
 def test_chmt_reduction_does_not_read_fields_after_fatal(tmp_path):

@@ -36,7 +36,7 @@ class SharedGasModelInput
     {
         if(result) FatalErrorInFunction<<operation<<": "<<ugkwpGpuResidentStrictLastError()<<exit(FatalError);
     }
-    ugkwpGpuIpc::GasSpeciesIdentityV1 identity() const
+    ugkwpGpu::GasSpeciesIdentityV1 identity() const
     {
         return {1,static_cast<std::uint32_t>(ugkwp::compiledGasSpecies),model_.speciesOrderHash,
                 model_.thermoHash,mechanism_.mechanismHash};
@@ -171,7 +171,7 @@ public:
     void configureResident(void* handle) const
     {
         if(!active()) return;
-        const ugkwpGpuIpc::GasModelConfigureArgsV1 config{1,static_cast<std::uint32_t>(model_.mode),
+        const ugkwpGpu::GasModelConfigureArgsV1 config{1,static_cast<std::uint32_t>(model_.mode),
             ugkwp::compiledGasSpecies,0,model_.speciesOrderHash,model_.thermoHash,mechanism_.mechanismHash,
             modelText_.size(),mechanismText_.size()};
         checkResult(ugkwpGpuResidentStrictConfigureGasModelV1(handle,&config,modelText_.data(),mechanismText_.data()),"configure shared gas model");

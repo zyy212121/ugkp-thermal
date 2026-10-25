@@ -148,8 +148,11 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
         if(kind==BoundaryKind::Periodic){if(static_cast<int>(f)>m.periodicPartner[f])continue;right=m.owner[m.periodicPartner[f]];}
         const Real area=mag(m.areaVectors[f]),meshRate=swept.empty()?0:swept[f]/interval;const Vec3 normal=m.areaVectors[f]/area;
         if(!finite(meshRate)){error="nonfinite material ALE sweep";return false;}
-        SolidQ density;if(!reconstruct(m,q,p,meshRate<=0||right<0?left:right,f,density)){error="material ALE reconstruction failed";return false;}
-        SolidQ flux=materialAleFlux(density,1,meshRate);
+        SolidQ flux;
+        if(meshRate!=0){
+            SolidQ density;if(!reconstruct(m,q,p,meshRate<=0||right<0?left:right,f,density)){error="material ALE reconstruction failed";return false;}
+            flux=materialAleFlux(density,1,meshRate);
+        }
         if(right>=0){const Vec3 dx=displacement(m,left,f,right);const Real distance=dot(dx,normal);MaterialPrimitive a=primitive[left],b=primitive[right];
             SolidQ physical;
             Real normalPressureGradient=0;

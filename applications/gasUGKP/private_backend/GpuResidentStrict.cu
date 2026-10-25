@@ -1,5 +1,6 @@
 #include "gasTransport/GasMeshUploadValidation.H"
 #include "../../../common/GpuDiagnosticsOwner.cuh"
+#include "../../../common/gasTransport/GasStatusCompletion.cuh"
 #define GPU_POOL_THETA_AFTER_REJECTION 1
 #define GPU_POOL_PARTICLE_THETA(s, i) clampMin(finiteOr(s.pTheta[i], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0))
 #define GPU_POOL_MASS_FALLBACK GPU_OPERATOR_R(0.0)
@@ -144,6 +145,7 @@ struct DeviceState
     bool gasInitialFieldsUploaded = false;
     bool gasSpeciesUploaded = false;
     SharedGasTrialStorage gasTrial;
+    unsigned long long* gasStatusFirstUnavailable = nullptr;
 
     int nCells = 0;
     int nFaces = 0;
@@ -984,6 +986,7 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     }
 
     releaseSharedGasTrialStorage(s->gasTrial);
+    release(s->gasStatusFirstUnavailable);
     releaseBoundaryLayerStorage(*s);
     releaseSharedGasSpecies(s->gasSpecies);
     releaseSharedGasSpecies(s->gasRejectedView);
@@ -1830,6 +1833,7 @@ struct GasPrimDevice
 #include "GpuGravityUpdate.cuh"
 __global__ void applyGasGravitySourceKernel(DeviceState* sp, const double dt)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if(c<sp->nCells) applyGasGravityCell<false>(*sp,c,dt);
 }
@@ -1849,7 +1853,7 @@ int applyGasGravitySource
         return 0;
     }
 
-    applyGasGravitySourceKernel<<<grid, block>>>(s->deviceState, dt);
+    applyGasGravitySourceKernel<<<grid, block, 0, s->gasCaptureStream>>>(s->deviceState, dt);
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -1859,7 +1863,7 @@ int applyGasGravitySource
 
                                                                              
                                                                        
-    recoverGasPrimitivesKernel<<<grid, block>>>(s->deviceState,nativeRefinement);
+    recoverGasPrimitivesKernel<<<grid, block, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -3955,6 +3959,9 @@ extern "C" int ugkwpGpuResidentStrictCreate
         delete s->diagnosticOwner;delete s;return 1;
     }
     s->diagnostics=s->diagnosticOwner->device();
+    if(allocate(s->gasStatusFirstUnavailable,1,"allocate gas status completion")!=0) {
+        releaseState(s);return 1;
+    }
     s->nCells = nCells;
     s->nFaces = nFaces;
     s->nInternalFaces = nInternalFaces;
@@ -4949,20 +4956,25 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         return 0;
     };
     if(computeGasCurrentCourant(s,dt,scheduleTime,
-        s->fixedCellBlockThreads,s->fixedFaceBlockThreads,nullptr,result,maximum))return 1;
+        s->fixedCellBlockThreads,s->fixedFaceBlockThreads,s->gasCaptureStream,result,maximum))
+    {
+        if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)SharedGasTrialPolicy::complete(s);
+        return 1;
+    }
     if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)
     {
-        // validate already observes and dispatches diagnostics at this same
-        // completed Courant reduction; no physical work intervenes.
-        if(SharedGasTrialPolicy::validate(s))return 1;
+        // Publish the timestep candidate only after queued status checks finish.
+        const int status=SharedGasTrialPolicy::validate(s);
+        const int completion=SharedGasTrialPolicy::complete(s);
+        if(status||completion)return 1;
         *maxCo=result.maximum;
         return 0;
     }
-    *maxCo=result.maximum;
     // Courant's existing reduction has returned its host scalar.
     const auto diagnosticReadback=s->diagnosticOwner->observeCompletedWork();
     if(diagnosticReadback!=cudaSuccess) {setLastError("diagnostics at Courant readback",diagnosticReadback);return 1;}
     if(s->diagnosticOwner->dispatchPending())return 1;
+    *maxCo=result.maximum;
     return 0;
 }
 
@@ -5555,7 +5567,11 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
             return 1;
         }
         const GasRequestedIntervalControls<double> controls;
-        return advanceGasRequestedInterval<SharedGasTrialPolicy>(s, dt, simulationTime, controls);
+        const int result=advanceGasRequestedInterval<SharedGasTrialPolicy>(s,dt,simulationTime,controls);
+        // Complete both successful and failed intervals before the frontend can
+        // publish its physical clock. Guarded history commits are included.
+        const int completion=SharedGasTrialPolicy::complete(s);
+        return result||completion;
     }
 #ifndef UGKP_DEVELOPMENT_PROBES
     if (s->gasGraphMode < 0)

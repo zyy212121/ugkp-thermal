@@ -4,6 +4,7 @@
 template<class GasState>
 __global__ void computeGasHllcAdcSensorKernel(GasState* sp)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)

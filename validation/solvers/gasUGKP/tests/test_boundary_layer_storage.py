@@ -54,7 +54,7 @@ int main(){DeviceState state,device;state.deviceState=&device;
 int owner[]={0,1},neighbour[]={-1,-1},kind[]={2,0};double volume[]={1,1},area[]={1,1},diffusion[]={.1,.1};
 state.faceOwner=owner;state.faceNeighbour=neighbour;state.gasBoundaryKind=kind;state.V=volume;state.magSf=area;
 state.gasSpecies.mode=ugkwp::GasMode::MixtureFrozen;state.gasSpecies.diffusivity=diffusion;state.gasSpeciesUploaded=true;
-ugkwpGpuIpc::BoundaryLayerConfigV1 a;a.model=0;a.speciesCount=2;a.wallCount=1;a.quadratureCount=1;a.matchingCount=1;a.workspaceSlots=64;
+ugkwpGpu::BoundaryLayerConfigV1 a;a.model=0;a.speciesCount=2;a.wallCount=1;a.quadratureCount=1;a.matchingCount=1;a.workspaceSlots=64;
 int faces[]={0},offset[]={0,1},match[]={1};double geometry[]={1,0,0,.5,1.5,1,.5},qd[]={.5},qw[]={1},mw[]={1},flux[]={.2,.1};
 auto configure=[&](){return ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&state,&a,faces,offset,offset,match,geometry,qd,qw,mw,flux);};
 // Existing transaction storage is replaced when the wall layout changes.
@@ -75,9 +75,9 @@ const int unauditedAllocations=allocations;
 releaseBoundaryLayerStorage(state);assert(allocations==0);
 assert(configure()==0&&allocations==unauditedAllocations);state.gasBoundaryLayer.exchange[0].ready=true;
 state.gasBoundaryLayerModel.output[0].wallSpeciesFlux[0]=7;state.gasBoundaryLayerModel.output[0].reactionIntegral[1]=11;
-double diagnostics[ugkwpGpuIpc::boundaryLayerDiagnosticScalars+4];
+double diagnostics[ugkwpGpu::boundaryLayerDiagnosticScalars+4];
 assert(ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&state,1,2,diagnostics)==0);
-assert(ugkwpGpuIpc::boundaryLayerDiagnosticScalars==25&&diagnostics[25]==7&&diagnostics[28]==11);
+assert(ugkwpGpu::boundaryLayerDiagnosticScalars==25&&diagnostics[25]==7&&diagnostics[28]==11);
 for(int j=16;j<25;++j)assert(diagnostics[j]==0);
 releaseBoundaryLayerStorage(state);assert(allocations==0);
 // Production requests no auxiliary source points or cell-wide audit arrays.

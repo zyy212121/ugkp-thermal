@@ -35,6 +35,12 @@ public:
         reset(staging_,0,instance_);
         return cudaMemcpy(device_,&staging_,sizeof(staging_),cudaMemcpyHostToDevice);
     }
+    cudaError_t initialise(cudaStream_t stream) {
+        auto rc=cudaMalloc(reinterpret_cast<void**>(&device_),sizeof(DeviceContext));
+        if(rc!=cudaSuccess)return rc;
+        reset(staging_,0,instance_);
+        return cudaMemcpyAsync(device_,&staging_,sizeof(staging_),cudaMemcpyHostToDevice,stream);
+    }
     DeviceContext* device() const{return device_;}
     std::uint64_t instanceId() const noexcept{return instance_;}
     bool terminal() const{return snapshot_.hasFatal;}
@@ -48,9 +54,15 @@ public:
     cudaError_t observeCompletedWork() {
         const auto rc=cudaMemcpy(&staging_,device_,sizeof(staging_),cudaMemcpyDeviceToHost);
         if(rc!=cudaSuccess) {
-            recordFatal(&staging_,withOperation(makeRecord(Code::CudaRuntime,1,0,0,EntityKind::None,-1,-1,static_cast<double>(rc)),sequence_,step_,time_));
+            recordCudaFailure(rc);
         }
-        auto next=takeSnapshot(staging_,{},"ugkp-diagnostics-v1");
+        consumeCompletedSnapshot(staging_);
+        return rc;
+    }
+    // The caller has completed this snapshot on its own stream. No copy or
+    // synchronization is performed here, allowing one batched host boundary.
+    void consumeCompletedSnapshot(const DeviceContext& completed) {
+        auto next=takeSnapshot(completed,{},"ugkp-diagnostics-v1");
         for(auto& warning:next.warnings) {
             const auto index=static_cast<std::uint32_t>(warning.sample.code)-101u;
             const auto total=warning.count;warning.count=total-seen_[index];seen_[index]=total;
@@ -67,7 +79,19 @@ public:
         }
         selectSnapshotSources(next,sourceCatalogue());
         snapshot_=std::move(next);
+    }
+    cudaError_t observeCompletedWork(cudaStream_t stream) {
+        auto rc=cudaMemcpyAsync(&staging_,device_,sizeof(staging_),cudaMemcpyDeviceToHost,stream);
+        const auto completion=cudaStreamSynchronize(stream);
+        if(rc==cudaSuccess)rc=completion;
+        if(rc!=cudaSuccess)
+            recordCudaFailure(rc);
+        consumeCompletedSnapshot(staging_);
         return rc;
+    }
+
+    void recordCudaFailure(cudaError_t rc) {
+        recordHostFatal(withOperation(makeRecord(Code::CudaRuntime,1,0,0,EntityKind::None,-1,-1,static_cast<double>(rc)),sequence_,step_,time_));
     }
     void recordHostFatal(Record record) {
         if(snapshot_.hasFatal)return;

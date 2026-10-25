@@ -249,18 +249,13 @@ class NumericalContractTests(unittest.TestCase):
 
 
 class SourceContractTests(unittest.TestCase):
-    def test_versioned_executable_and_backend_names(self) -> None:
-        make_files = read("Make/files")
-        private_build = read('../../tool/gasUGKP/build_private_backend.sh')
-        public_build = read('../../tool/gasUGKP/build_public_frontend.sh')
-        protocol = read("gpu/GpuBackendProtocol.H")
+    def test_resident_executable_identity(self):
+        make_files=(ROOT/'Make/files').read_text()
+        build=(ROOT/'../../tool/gasUGKP/build_cuda_solver.sh').read_text()
+        self.assertIn('$(FOAM_USER_APPBIN)/gasUGKP',make_files)
+        self.assertIn('libugkwp_cuda_backend.a',build)
+        self.assertNotIn('GpuBackendClient.C',make_files)
 
-        self.assertIn("$(FOAM_USER_APPBIN)/gasUGKP", make_files)
-        self.assertIn("gasUGKPCudaBackend", private_build)
-        self.assertIn("gasUGKP", private_build)
-        self.assertIn("gasUGKP", public_build)
-        self.assertIn('frontend="${FOAM_USER_APPBIN}/gasUGKP"', public_build)
-        self.assertRegex(protocol, r'0x47554750U\s*;')
 
     def test_exact_case_configuration_names_are_parsed(self) -> None:
         create_fields = (

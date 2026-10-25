@@ -1,10 +1,11 @@
 #pragma once
-// One requested interval, one physical execution. Storage is never snapshotted
-// or replayed. The existing stage-completion synchronization also publishes
-// structured diagnostics; it does not introduce another synchronization point.
+// One requested interval, one physical execution. Stage checks stay on device;
+// the public interval/Courant completion boundary publishes diagnostics before
+// the host can advance its physical clock or consume its timestep selection.
 inline int releaseSharedGasTrialStorage(SharedGasTrialStorage&) { return 0; }
 
 __global__ void commitAcceptedWallHistory(DeviceState*state){
+ if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
  auto&m=state->gasBoundaryLayerModel;const int slot=blockIdx.x*blockDim.x+threadIdx.x;
  if(slot>=state->gasBoundaryLayer.count||!m.acceptedHistory||!m.candidateHistory||!m.candidateFrame||!m.acceptedFrame||!m.candidateFrame[slot].valid)return;
  constexpr int B=ugkwp::compiledGasSpecies+4;const std::size_t offset=std::size_t(slot)*m.config.nodes*B;
@@ -23,36 +24,22 @@ struct SharedGasTrialPolicy
     static int validate(DeviceState* s,bool=false)
     {
         if(s->gasModelPoisoned)return 1;
-        const auto error=cudaDeviceSynchronize();
-        if(error!=cudaSuccess){setLastError("complete shared gas stage",error);return 1;}
-        if(s->diagnosticOwner){
-            const auto observed=s->diagnosticOwner->observeCompletedWork();
-            if(observed!=cudaSuccess){setLastError("read shared gas diagnostics",observed);return 1;}
-        }
-        std::vector<int> cells(s->nCells),faces(s->nFaces);
-        if(copyToHost(cells.data(),s->gasSpecies.cellStatus,cells.size(),"read mixture cell diagnostics")
-           ||copyToHost(faces.data(),s->gasSpecies.faceStatus,faces.size(),"read mixture face diagnostics"))return 1;
-        for(int location=0;location<2;++location)
-        {
-            const auto& values=location?faces:cells;
-            for(std::size_t index=0;index<values.size();++index)
-            {
-                // Preserve the existing non-refinement failure check while
-                // producer-specific diagnostics supply the precise cause.
-                if(values[index]!=int(ugkwp::GasTransportCode::InvalidStorage))continue;
-                if(s->diagnosticOwner && !s->diagnosticOwner->terminal())
-                    s->diagnosticOwner->recordHostFatal(ugkp::diagnostics::makeRecord(
-                        ugkp::diagnostics::Code::MissingOperator,2509,23,0,
-                        location?ugkp::diagnostics::EntityKind::Face:ugkp::diagnostics::EntityKind::Cell,
-                        index,-1,values[index]));
-                else if(!s->diagnosticOwner) {setLastErrorText("shared gas operator/storage unavailable");return 1;}
-            }
-        }
-        if(s->diagnosticOwner)
-        {
-            if(s->diagnosticOwner->dispatchPending())return 1;
-        }
+        const auto error=ugkwp::enqueueGasStatusCheck(s->gasSpecies.cellStatus,s->nCells,
+            s->gasSpecies.faceStatus,s->nFaces,s->diagnostics,s->gasStatusFirstUnavailable,
+            2509,23,s->gasCaptureStream);
+        if(error!=cudaSuccess){setLastError("check shared gas stage status",error);return 1;}
         return 0;
+    }
+    static int complete(DeviceState* s)
+    {
+        // Pair the bounded diagnostic readback with this stream's single wait.
+        // Error paths also drain queued work before the public API returns.
+        const auto error=s->diagnosticOwner
+            ?s->diagnosticOwner->observeCompletedWork(s->gasCaptureStream)
+            :cudaStreamSynchronize(s->gasCaptureStream);
+        if(error!=cudaSuccess){setLastError("complete shared gas stage",error);return 1;}
+        if(s->diagnosticOwner&&s->diagnosticOwner->dispatchPending())return 1;
+        return s->gasModelPoisoned?1:0;
     }
     static int commit(DeviceState* s) { return s->gasModelPoisoned?1:0; }
     static int commitInterval(DeviceState* s) {

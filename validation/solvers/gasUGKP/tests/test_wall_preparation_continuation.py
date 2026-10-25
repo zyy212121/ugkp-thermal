@@ -10,7 +10,7 @@ PROBE = r'''
 #include "gpu/BoundaryLayerInput.H"
 using namespace Foam;
 extern "C" const char* ugkwpGpuResidentStrictLastError(){return "recording backend";}
-extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1(void*,const ugkwpGpuIpc::BoundaryLayerConfigV1* c,
+extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1(void*,const ugkwpGpu::BoundaryLayerConfigV1* c,
  const int* f,const int* qo,const int* mo,const int* mc,const double* g,const double* qd,
  const double* qw,const double* mw,const double* js){
  Info<<"UPLOAD walls="<<c->wallCount<<" quadrature="<<c->quadratureCount

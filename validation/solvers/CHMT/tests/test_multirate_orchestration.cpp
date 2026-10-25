@@ -5,6 +5,7 @@
 #include "gpu/GasWindowProgram.H"
 #include <cassert>
 #include <iostream>
+#include <stdexcept>
 
 namespace chmt {
 struct Backend {
@@ -79,8 +80,8 @@ bool advanceGasMicrostep(Backend& b,Real maxDt,GasMicroReport& report,std::strin
     report.acceptedDt=end-start;report.nextGasDt=maxDt;report.time=end;report.localTime=b.history.localEnd();report.microSequence=record.microSequence;
     return true;
 }
-bool gasWindowHistory(const Backend& b,IntervalHistory& out,std::string& error){if(b.failInput==1){error="history transfer failed";return false;}out=b.history;error.clear();return true;}
-bool downloadGasWindow(const Backend& b,HostState& out,std::string& error){if(b.failInput==2){error="endpoint transfer failed";return false;}out=b.trial;error.clear();return true;}
+const IntervalHistory& gasWindowHistory(const Backend& b){if(b.failInput==1)throw std::runtime_error("history access failed");return b.history;}
+bool downloadGasWindow(Backend& b,HostState& out,std::string& error){if(b.failInput==2){error="endpoint transfer failed";return false;}out=b.trial;error.clear();return true;}
 bool gasWindowStageGeometry(const Backend& b,std::array<HostStageGeometry,2>&,std::array<HostStageGeometry,2>&,std::string& error){if(b.failInput==3){error="stage transfer failed";return false;}error.clear();return true;}
 bool rollbackGasWindow(Backend& b,std::string& error){if(b.failRollback){error="actual rollback copy failure";return false;}if(b.pending)++b.rollbacks;b.pending=false;error.clear();return true;}
 bool commitGasWindow(Backend& b,const HostState& candidate,std::string& error){if(b.failCommit){error="actual commit copy failure";return false;}assert(b.pending);b.accepted=candidate;b.pending=false;++b.commits;error.clear();return true;}

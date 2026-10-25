@@ -4,6 +4,7 @@
 template<bool IncludeTurbulence, class GasState>
 __global__ void computeGasInternalFaceFluxKernel(GasState* sp, const GPU_OPERATOR_TIME dt, const bool nativeRefinement=false)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int f = blockIdx.x*blockDim.x + threadIdx.x;
     if (f >= s.nFaces)
@@ -39,6 +40,7 @@ __global__ void computeGasInternalFaceFluxKernel(GasState* sp, const GPU_OPERATO
 template<class GasState>
 __global__ void enforcePeriodicGasFluxAntisymmetryKernel(GasState* sp, const bool nativeRefinement=false)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int f = blockIdx.x*blockDim.x + threadIdx.x;
     if(f<s.nInternalFaces || f>=s.nFaces)return;

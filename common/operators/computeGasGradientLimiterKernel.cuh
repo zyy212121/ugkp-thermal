@@ -5,6 +5,7 @@
 template<class GasState>
 __global__ void computeGasGradientLimiterKernel(GasState* sp, const bool nativeRefinement=false)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)

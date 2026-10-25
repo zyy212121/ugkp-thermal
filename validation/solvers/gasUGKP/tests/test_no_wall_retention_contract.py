@@ -12,9 +12,6 @@ ROOT = (SOURCE_ROOT / 'applications/gasUGKP')
 ACTIVE = (
     ROOT / "gpu" / "GpuResidentStrict.H",
     ROOT / "gpu" / "GpuBackendApi.H",
-    ROOT / "gpu" / "GpuBackendClient.C",
-    ROOT / "gpu" / "GpuBackendProtocol.H",
-    ROOT / "private_backend" / "GpuBackendServer.C",
     ROOT / "private_backend" / "GpuResidentStrict.cu",
 )
 

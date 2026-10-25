@@ -8,8 +8,8 @@
 #include <vector>
 namespace chmt {
 struct CudaFault {
-    std::string message;bool runtimeFailure=false;
-    bool check(cudaError_t code,const char* operation){if(code==cudaSuccess)return true;runtimeFailure=true;
+    std::string message;bool runtimeFailure=false;cudaError_t lastCode=cudaSuccess;
+    bool check(cudaError_t code,const char* operation){if(code==cudaSuccess)return true;runtimeFailure=true;lastCode=code;
         if(message.empty()){message=std::string(operation)+": "+cudaGetErrorString(code);}
         std::fprintf(stderr,"CHMT CUDA error during %s: %s\n",operation,cudaGetErrorString(code));
         // OOM is a checked, recoverable allocation failure. Its error remains
