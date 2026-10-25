@@ -9,7 +9,7 @@ from test_shared_device_storage import APP, SOURCE, STUB
 COUNTERS = STUB.replace('#include <cstring>', '#include <cstring>\n#include <map>\n#include <cassert>')
 COUNTERS = COUNTERS.replace('inline int cudaMalloc(void**p,size_t n){*p=std::malloc(n);return *p?0:2;}', '''
 inline std::map<void*,size_t> live;
-inline int allocs=0,frees=0,zeros=0,syncs=0,viewCopies=0,failAlloc=-1,failCopy=-1,failZero=-1;
+inline int streamSyncs=0;inline int allocs=0,frees=0,zeros=0,syncs=0,viewCopies=0,failAlloc=-1,failCopy=-1,failZero=-1;
 inline size_t zeroBytes=0,h2d=0,d2h=0,d2d=0;inline void* viewTarget=nullptr;
 inline int cudaMalloc(void**p,size_t n){if(failAlloc==0){failAlloc=-1;return 2;}if(failAlloc>0)--failAlloc;*p=std::malloc(n);if(*p){live[*p]=n;++allocs;}return *p?0:2;}
 ''')
@@ -21,7 +21,7 @@ COUNTERS = COUNTERS.replace('inline int cudaMemcpy(void*d,const void*s,size_t n,
  std::memcpy(d,s,n);return 0;}
 ''')
 COUNTERS = COUNTERS.replace('inline int cudaMemsetAsync(void*p,int value,size_t n,void*){std::memset(p,value,n);return 0;}', 'inline int cudaMemsetAsync(void*p,int value,size_t n,void*){++zeros;zeroBytes+=n;if(failZero==0){failZero=-1;return 3;}if(failZero>0)--failZero;std::memset(p,value,n);return 0;}')
-COUNTERS = COUNTERS.replace('inline int cudaDeviceSynchronize(){return 0;}', 'inline int cudaDeviceSynchronize(){++syncs;return 0;}').replace('inline int cudaStreamSynchronize(void*){return 0;}', 'inline int cudaStreamSynchronize(void*){++syncs;return 0;}')
+COUNTERS = COUNTERS.replace('inline int cudaDeviceSynchronize(){return 0;}', 'inline int cudaDeviceSynchronize(){++syncs;return 0;}').replace('inline int cudaStreamSynchronize(void*){return 0;}', 'inline int cudaStreamSynchronize(void*){++streamSyncs;return 0;}')
 
 PREFIX = r'''
 #include <vector>
@@ -220,10 +220,10 @@ def test_rebound_fault_owner_reports_download_and_sync_failures_without_partial_
  }
  for(int failure=0;failure<2;++failure){failCopy=failure;assert(!storage.checkStatus(error)&&!error.empty());failCopy=-1;assert(storage.checkStatus(error));}
  failSync=0;assert(!storage.checkStatus(error)&&!error.empty());failSync=-1;assert(storage.checkStatus(error));
- const int beforeSync=syncs;assert(storage.checkStatus(error));assert(syncs==beforeSync+1);
+ const int beforeSync=streamSyncs;assert(storage.checkStatus(error));assert(streamSyncs==beforeSync+1&&syncs==0);
  }assert(live.empty());std::puts("8 D2H failure positions preserve host candidate; 2 status D2H failures and 1 device sync failure retain report and retry; no redundant download sync");}
 '''
-    stub=COUNTERS.replace('inline int allocs=0,','inline int failSync=-1;inline int allocs=0,').replace('++syncs;return 0;', '++syncs;if(failSync==0){failSync=-1;return 3;}if(failSync>0)--failSync;return 0;')
+    stub=COUNTERS.replace('inline int allocs=0,','inline int failSync=-1;inline int allocs=0,').replace('++streamSyncs;return 0;', '++streamSyncs;if(failSync==0){failSync=-1;return 3;}if(failSync>0)--failSync;return 0;')
     _run_source(tmp_path,source,stub)
 
 

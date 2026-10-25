@@ -7,6 +7,7 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
     const GPU_OPERATOR_TIME simulationTime
 )
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int f = s.nInternalFaces + blockIdx.x*blockDim.x + threadIdx.x;
     if (f >= s.nFaces)
@@ -72,6 +73,7 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
 template<class GasState>
 __global__ void updateRiemannBoundaryMirrorKernel(GasState* sp)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int f = s.nInternalFaces + blockIdx.x*blockDim.x + threadIdx.x;
     if (f >= s.nFaces)

@@ -1,5 +1,8 @@
 # Resident execution review and measurements (PR25)
 
+For the follow-up measured against path-corrected PR25 `6315814`, see
+[ROUND2.md](ROUND2.md). The timings below retain their original PR24 baseline.
+
 Stacked on corrected PR24. gasUGKP remains the pure-flow application; CHT remains
 conjugate heat transfer; CHMT remains conjugate heat/mass transfer and ablation.
 No case-specific numerical operator, no alternate CHT application, no FSH or

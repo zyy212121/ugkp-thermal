@@ -13,6 +13,8 @@ constexpr int cudaSuccess=0,cudaErrorMemoryAllocation=2,cudaStreamNonBlocking=1;
 constexpr int cudaMemcpyHostToDevice=1,cudaMemcpyDeviceToHost=2,cudaMemcpyDeviceToDevice=3;
 inline int cudaMalloc(void**p,size_t n){*p=std::malloc(n);return *p?0:2;}
 inline int cudaFree(void*p){std::free(p);return 0;}
+inline int cudaMallocHost(void**p,size_t n){*p=std::malloc(n);return *p?0:2;}
+inline int cudaFreeHost(void*p){std::free(p);return 0;}
 inline int cudaMemcpy(void*d,const void*s,size_t n,int){std::memcpy(d,s,n);return 0;}
 inline int cudaMemcpyAsync(void*d,const void*s,size_t n,int kind,void*){return cudaMemcpy(d,s,n,kind);}
 inline int cudaMemsetAsync(void*p,int value,size_t n,void*){std::memset(p,value,n);return 0;}

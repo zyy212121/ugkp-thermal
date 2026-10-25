@@ -339,6 +339,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
         std::vector<IntervalDonorSum> physicalSweepSum(base.surface.area.size()),actualSweepSum(base.surface.area.size());
         std::vector<SolidQ> gasSolidChange(base.solid.size());
         auto cursor=history.cursor();const Real interval=window.end-window.begin;
+        MaterialDriveCursor driveCursor(history),endpointCursor(history);
         WindowTime elapsed{};const WindowTime windowEnd=intervalDuration(window);
         while(elapsed<windowEnd){
             if(p.diagnostics)ugkp::diagnostics::beginOperation(*p.diagnostics,window.identity.sequence,base.acceptedSteps,state.time);
@@ -347,19 +348,19 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
             Real dt=std::min(boundedWindowDuration(windowEnd,elapsed),controls.maxSubstep>0?controls.maxSubstep:interval);
             // Only a real regime change forces alignment with a gas-history knot.
             // Ordinary gas micro boundaries do not determine the material clock.
-            const GasIntervalRecord* driveRecord=nullptr;
-            for(const auto& r:history.records())if(elapsed<r.localEnd){driveRecord=&r;break;}
+            const GasIntervalRecord* driveRecord=driveCursor.at(elapsed);
             if(!driveRecord){error="CPU material driving history exhausted";return false;}
             WindowTime boundedEnd=elapsed+dt;
-            if(!materialDriveSlabEndLocal(history,elapsed,boundedEnd,controls.driveRelativeTolerance,controls.driveTractionScale,boundedEnd,error)){
+            if(!driveCursor.slabEndLocal(elapsed,boundedEnd,controls.driveRelativeTolerance,controls.driveTractionScale,boundedEnd,error)){
                 {report=accumulated;report.failureOrigin=MaterialFailureOrigin::OwnerNumerical;return false;}
 
             }
             dt=boundedWindowDuration(boundedEnd,elapsed);
             if(executedProgram)for(const auto& knot:executedProgram->knots)if(knotOffset(window,knot)>elapsed&&knotOffset(window,knot)<elapsed+dt)dt=boundedWindowDuration(knotOffset(window,knot),elapsed);
-            std::vector<GasPrimitive> bulk=driveRecord->gasTrace;std::vector<Vec3> traction=driveRecord->gasTraction;
-            if((bulk.size()!=state.surface.area.size()||traction.size()!=state.surface.area.size())){
-                if(state.surface.area.empty()){bulk.clear();traction.clear();}else{report.failureOrigin=MaterialFailureOrigin::OwnerNumerical;report.recoverable=false;error="CPU material requires actual face-ordered gas drive history";return false;}}
+            if((driveRecord->gasTrace.size()!=state.surface.area.size()||driveRecord->gasTraction.size()!=state.surface.area.size())&&!state.surface.area.empty()){
+                report.failureOrigin=MaterialFailureOrigin::OwnerNumerical;report.recoverable=false;error="CPU material requires actual face-ordered gas drive history";return false;}
+            const std::vector<GasPrimitive> emptyBulk;
+            const auto& bulk=state.surface.area.empty()?emptyBulk:driveRecord->gasTrace;
 
             HostState trial;WallKnot beginning;CpuSurfaceResult surface;MaterialTransportResult transport;
             std::vector<ExchangePacket> packets;std::vector<Real> radiation;
@@ -379,13 +380,15 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 error.clear();trial=state;trialElapsed=elapsed+dt;trial.time=windowAbsolute(window.begin,trialElapsed);trialCursor=cursor;
                 if(!trialCursor.takeThroughLocal(trialElapsed,packets,radiation,error))break;
 
-                std::vector<GasPrimitive> endpointBulk;std::vector<Vec3> endpointTraction;const GasIntervalRecord* endpointRecord=nullptr;
+                std::vector<GasPrimitive> terminalBulk;
+                const std::vector<GasPrimitive>* endpointBulk=&terminalBulk;
+                const GasIntervalRecord* endpointRecord=nullptr;
                 if(trialElapsed==windowEnd){bool numerical=false;
-                    if(!(baseTrace(geometryEndpoint,p,endpointBulk,error,&numerical))){lastFailure=numerical?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;break;}}
+                    if(!(baseTrace(geometryEndpoint,p,terminalBulk,error,&numerical))){lastFailure=numerical?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;break;}}
                 else{
-                    if(!history.sampleGasDriveLocal(trialElapsed,endpointBulk,endpointTraction,error))break;
-                    for(const auto& r:history.records())if(trialElapsed<r.localEnd){endpointRecord=&r;break;}
-                    if(!endpointRecord){error="missing endpoint gas driving record";break;}
+                    endpointRecord=endpointCursor.at(trialElapsed);
+                    if(!endpointRecord){error="gas driving history has a gap";break;}
+                    endpointBulk=&endpointRecord->gasTrace;
                 }
                 if(radiation.size()!=state.surface.area.size()&&!radiation.empty()){lastFailure=MaterialFailureOrigin::LocalSourceNumerical;error="CPU radiation face layout mismatch";break;}
                 // Build the imposed endpoint/ALE geometry once before the interface RHS.
@@ -404,8 +407,10 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     if(!prepareImposedGeometry())break;
                 }
                 bool stageSweepsReady=p.meshMotion.policy!=MeshMotionPolicy::CoupledRecession;
-                HostState evaluation=state;
-                evaluation.surface.sweptEdgeArea.assign(state.surface.edgeOwner.size(),0);
+                // The dry surface path reads inventories, face geometry and
+                // matching gas data; it does not consume a film edge sweep.
+                // Its immutable view needs no duplicate mesh/field inventory.
+                const HostState& evaluation=state;
                 std::vector<FilmAux> aux;std::vector<Real> target;
                 sideVolume.assign(state.surface.area.size(),0);
                 if(!data_->evaluate(evaluation,p,bulk,driveRecord->gasGradient,transport.rates,{},dt,window.identity.sequence,surface,error,&sideVolume,&driveRecord->gasWallMatching)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
@@ -523,7 +528,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 if(program.knots.empty())program.knots.push_back(beginning);
                 WallKnot ending=beginning;ending.time=trial.time;ending.localTime=trialElapsed;ending.gasPoints=trial.gasMesh.points;ending.solidPoints=trial.solidMesh.points;
                 if(trialElapsed<windowEnd){CpuSurfaceResult endpointProposal;
-                    if(!endpointRecord){error="missing endpoint wall matching record";break;}if(!data_->evaluate(trial,p,endpointBulk,endpointRecord->gasGradient,{},{},dt,window.identity.sequence,endpointProposal,error,nullptr,&endpointRecord->gasWallMatching)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
+                    if(!endpointRecord){error="missing endpoint wall matching record";break;}if(!data_->evaluate(trial,p,*endpointBulk,endpointRecord->gasGradient,{},{},dt,window.identity.sequence,endpointProposal,error,nullptr,&endpointRecord->gasWallMatching)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
                     ending.faces=endpointProposal.wall;for(std::size_t f=0;f<ending.faces.size();++f)ending.faces[f].primaryKind=beginning.faces[f].primaryKind;}
                 for(std::size_t f=0;f<ending.faces.size();++f){ending.faces[f].solidNormalVelocity=aux[f].solidNormalVelocity;ending.faces[f].normalVelocity=aux[f].normalVelocity;}
                 program.knots.push_back(ending);

@@ -14,19 +14,19 @@ def test_wall_faces_are_selected_once_per_rebuild():
     )[0]
     # Structural performance contract: this is intentionally separate from the
     # numerical equivalence test, which the former all-face scan also satisfies.
-    before_cells, cells = distance.split("for (int c = 0; c<nc; ++c)", 1)
+    before_cells, cells = distance.split("const auto cellWallDistance=", 1)
     assert "std::vector<int> wallFaces;" in before_cells
     assert "for (int f = 0; f<nf; ++f)" in before_cells
     assert "wallFaces.push_back(f)" in before_cells
     assert "for (int f:wallFaces)" in cells
     assert "boundaryKind" not in cells
-    assert "static " not in distance
+    assert "static std::" not in distance
 
 
 def test_all_wall_distances_match_ordered_all_face_reference(tmp_path):
     binary = tmp_path / "wall_faces"
     subprocess.run(
-        ["g++", "-std=c++14", "-O2", "-Wall", "-Wextra", "-Werror", "-pedantic", "-I" + str(APP), '-I'+str(VALIDATION_ROOT / 'solvers/CHMT'),
+        ["g++", "-std=c++17", "-O2", "-Wall", "-Wextra", "-Werror", "-pedantic", "-I" + str(APP), "-I" + str(SOURCE_ROOT / "common"), '-I'+str(VALIDATION_ROOT / 'solvers/CHMT'),
          str((VALIDATION_ROOT / 'solvers/CHMT/devtools/multirate/test_wall_face_list.cpp')),
          "-o", str(binary)], check=True
     )

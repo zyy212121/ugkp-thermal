@@ -11,6 +11,11 @@
 #include <set>
 #include <sstream>
 #include <cfenv>
+#include <cerrno>
+#include <cstring>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 namespace chmt {
     namespace {
         bool errorAt(std::string& e, const char* what, int index) {
@@ -73,6 +78,17 @@ namespace chmt {
             const long double abDistance=segment(a,b),bcDistance=segment(b,c),caDistance=segment(c,a);
             if(!std::isfinite(abDistance)||!std::isfinite(bcDistance)||!std::isfinite(caDistance))return undefinedValue();
             return static_cast<Real>(std::min(abDistance,std::min(bcDistance,caDistance)));
+        }
+
+        // Compare coordinate representations, including signed zero. Equal
+        // values alone do not justify reusing a floating-point geometry result.
+        bool identicalPoints(const std::vector<Vec3>& a,const std::vector<Vec3>& b) {
+            if(a.size()!=b.size())return false;
+            for(std::size_t p=0;p<a.size();++p)
+                if(std::memcmp(&a[p].x,&b[p].x,sizeof(Real))
+                    || std::memcmp(&a[p].y,&b[p].y,sizeof(Real))
+                    || std::memcmp(&a[p].z,&b[p].z,sizeof(Real)))return false;
+            return true;
         }
 
         bool periodicGeometry(const HostMesh& m, std::string& error) {
@@ -256,19 +272,92 @@ namespace chmt {
                 if(!(empty_detail::build(m,representation,error)))return false;
                 if(extrusion)*extrusion=std::move(representation);
             }
-            if (!wallFaces.empty())for (int c = 0; c<nc; ++c) {
-                Real distance = std::numeric_limits<Real>::max();
+            struct WallDistanceResult {
+                Real distance=std::numeric_limits<Real>::max();
+                int invalidFace=-1;
+            };
+            // Cells are independent; retain the ordered face/triangle minimum
+            // within each cell so serial and parallel distances have identical bits.
+            const auto cellWallDistance=[&](int c) {
+                WallDistanceResult result;
                 for (int f:wallFaces) {
                     int begin = m.faceOffsets[f], end = m.faceOffsets[f+1];
                     for (int j = begin+1; j+1<end; ++j) {
                         const Real triangle=triangleDistance(m.cellCentres[c], m.points[m.facePoints[begin]],
                             m.points[m.facePoints[j]], m.points[m.facePoints[j+1]]);
-                        if(!finite(triangle))return errorAt(error,"nonfinite wall triangle distance",f);
-                        distance=std::min(distance,triangle);
+                        if(!finite(triangle)){result.invalidFace=f;return result;}
+                        result.distance=std::min(result.distance,triangle);
                     }
                 }
-                if ((!(distance>0) || !finite(distance)))return errorAt(error, "invalid wall distance", c);
-                m.wallDistance[c] = distance;
+                return result;
+            };
+            bool distancesReady=false;
+#ifdef _OPENMP
+            std::size_t triangleCount=0;
+            for(int f:wallFaces)triangleCount+=m.faceOffsets[f+1]-m.faceOffsets[f]-2;
+            // Amortize thread startup over triangle queries, without selecting
+            // a solver mode or a case. Nested callers keep their own parallelism.
+            if(nc>=32 && triangleCount>=(65536+std::size_t(nc)-1)/std::size_t(nc)
+                && omp_get_max_threads()>1 && !omp_in_parallel()) {
+                std::fenv_t callerEnvironment;
+                const int callerErrno=errno;
+                if(std::fegetenv(&callerEnvironment)==0) {
+                    const int callerExceptions=std::fetestexcept(FE_ALL_EXCEPT);
+                    std::vector<WallDistanceResult> results(nc);
+                    struct WorkerResult {int lastCell=-1,error=0;};
+                    std::vector<WorkerResult> workers(omp_get_max_threads());
+                    int environmentFailures=0,exceptions=0;
+#pragma omp parallel reduction(|:exceptions)
+                    {
+                        std::fenv_t workerEnvironment;
+                        const int workerErrno=errno;
+                        const bool saved=std::fegetenv(&workerEnvironment)==0;
+                        const bool ready=saved && std::fesetenv(&callerEnvironment)==0;
+                        if(!ready) {
+#pragma omp atomic update
+                            ++environmentFailures;
+                        }
+#pragma omp barrier
+                        if(environmentFailures==0) {
+                            errno=callerErrno;
+                            auto& worker=workers[omp_get_thread_num()];
+#pragma omp for schedule(static)
+                            for(int c=0;c<nc;++c) {
+                                results[c]=cellWallDistance(c);
+                                worker.lastCell=c;
+                            }
+                            worker.error=errno;
+                            exceptions|=std::fetestexcept(FE_ALL_EXCEPT);
+                        }
+                        if(saved)std::fesetenv(&workerEnvironment);
+                        errno=workerErrno;
+                    }
+                    // A failing cell is replayed in serial order below. This
+                    // preserves the first error and the caller's exception/errno
+                    // state even when later cells had already been evaluated.
+                    distancesReady=environmentFailures==0;
+                    for(int c=0;c<nc && distancesReady;++c)
+                        distancesReady=results[c].invalidFace<0
+                            && results[c].distance>0 && finite(results[c].distance);
+                    std::fesetenv(&callerEnvironment);
+                    errno=callerErrno;
+                    if(distancesReady) {
+                        std::feraiseexcept(exceptions & ~callerExceptions);
+                        int lastChangedCell=-1;
+                        for(const auto& worker:workers)
+                            if(worker.lastCell>lastChangedCell && worker.error!=callerErrno) {
+                                lastChangedCell=worker.lastCell;errno=worker.error;
+                            }
+                        for(int c=0;c<nc;++c)m.wallDistance[c]=results[c].distance;
+                    }
+                }
+            }
+#endif
+            if (!wallFaces.empty() && !distancesReady)for (int c = 0; c<nc; ++c) {
+                const auto result=cellWallDistance(c);
+                if(result.invalidFace>=0)return errorAt(error,"nonfinite wall triangle distance",result.invalidFace);
+                if ((!(result.distance>0) || !finite(result.distance)))return errorAt(error, "invalid wall distance", c);
+                m.wallDistance[c] = result.distance;
             }
             std::uint64_t h = 14695981039346656037ULL;
             auto mix = [&](std::uint64_t v) {
@@ -492,17 +581,22 @@ namespace chmt {
         HostMesh old = accepted;
         empty_detail::Extrusion extrusion;
         if (!geometryInPlace(old, error,&extrusion,numericalFailure,tol.diagnostics) || (!empty_detail::trajectory(old,extrusion,endpoint,error)))return false;
+        const bool stationary=identicalPoints(old.points,endpoint);
         HostMesh candidate = old;
         candidate.points = endpoint;
-        if (!geometryInPlace(candidate, error,nullptr,numericalFailure,tol.diagnostics))return false;
+        if (!stationary && !geometryInPlace(candidate, error,nullptr,numericalFailure,tol.diagnostics))return false;
         if ((candidate.topologyHash != old.topologyHash))return errorAt(error, "topology change unsupported", -1);
         {
-        if (!certifyLinearTrajectory(old, endpoint, error,tol.diagnostics))return false;
+        if (!stationary && !certifyLinearTrajectory(old, endpoint, error,tol.diagnostics))return false;
         // Reject a crossed/inverted path even if endpoint orientation recovered.
         HostMesh mid = old;
         for (std::size_t p = 0; p<endpoint.size(); ++p)mid.points[p] = extrusion.axis<0?
             (old.points[p]+endpoint[p])*.5:old.points[p]+(endpoint[p]-old.points[p])*.5;
-        if (!geometryInPlace(mid, error,nullptr,numericalFailure,tol.diagnostics))return false;
+        // Preserve the original interpolation arithmetic: even a stationary
+        // trajectory can round to different sampled coordinates. Reuse only
+        // exactly identical samples; all other geometry checks remain necessary.
+        if ((!stationary || !identicalPoints(old.points,mid.points))
+            && !geometryInPlace(mid, error,nullptr,numericalFailure,tol.diagnostics))return false;
         // Cell volume is a cubic polynomial along linear vertex trajectories.
         // Check its interior extrema as well as endpoints, so two inversions
         // between sampling times cannot escape an endpoint/midpoint-only test.
@@ -513,7 +607,10 @@ namespace chmt {
             twoThird.points[p] = extrusion.axis<0?old.points[p]/3+endpoint[p]*(2.0/3):
                 old.points[p]+(endpoint[p]-old.points[p])*(2.0/3);
         }
-        if (!geometryInPlace(oneThird, error,nullptr,numericalFailure,tol.diagnostics) || !geometryInPlace(twoThird, error,nullptr,numericalFailure,tol.diagnostics))return false;
+        if (((!stationary || !identicalPoints(old.points,oneThird.points))
+                && !geometryInPlace(oneThird, error,nullptr,numericalFailure,tol.diagnostics))
+            || ((!stationary || !identicalPoints(old.points,twoThird.points))
+                && !geometryInPlace(twoThird, error,nullptr,numericalFailure,tol.diagnostics)))return false;
         for (int c = 0; c<static_cast<int>(old.volumes.size()); ++c) {
             Real v0 = old.volumes[c], v1 = oneThird.volumes[c], v2 = twoThird.volumes[c],
                 v3 = candidate.volumes[c];

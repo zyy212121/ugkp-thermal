@@ -34,8 +34,11 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
             }
             gasTime=micro.time;gasElapsed=micro.localTime;nextGasCap=std::min(controls.gasMaxDt,micro.nextGasDt);
         }
-        IntervalHistory history;HostState gasEndpoint;
-        if(!gasWindowHistory(backend,history,error)||!downloadGasWindow(backend,gasEndpoint,error))return false;
+        // The backend owns the completed immutable history until the next
+        // window begins. All material/ledger consumers finish before then.
+        const IntervalHistory& history=gasWindowHistory(backend);
+        HostState gasEndpoint;
+        if(!downloadGasWindow(backend,gasEndpoint,error))return false;
         HostState candidate;WallProgram corrected;CpuMaterialReport cpu;
         ++report.materialSolves;
         if(!material.advanceCandidate(base,gasEndpoint,history,materialControls,candidate,corrected,cpu,error,&program))return false;

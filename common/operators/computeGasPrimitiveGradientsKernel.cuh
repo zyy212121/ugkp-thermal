@@ -10,6 +10,7 @@ __global__ void computeGasPrimitiveGradientsKernel
     const bool nativeRefinement=false
 )
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)
@@ -288,6 +289,7 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
 template<class GasState>
 __global__ void applySstWallFunctionStateKernel(GasState* sp, const bool nativeRefinement=false)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     applySstWallFunctionStateCell
     (
         *sp, blockIdx.x*blockDim.x + threadIdx.x, nativeRefinement
@@ -367,5 +369,6 @@ __device__ void recoverSstPrimitiveCell(GasState& s, const int c, const bool nat
 template<class GasState>
 __global__ void recoverSstPrimitivesKernel(GasState* sp, const bool nativeRefinement=false)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     recoverSstPrimitiveCell(*sp, blockIdx.x*blockDim.x + threadIdx.x,nativeRefinement);
 }

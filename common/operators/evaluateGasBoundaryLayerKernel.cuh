@@ -5,6 +5,7 @@
 template<bool Capture=false,class GasState>
 __global__ void evaluateGasBoundaryLayerKernel(GasState* state)
 {
+    if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
     if constexpr(ugkwp::GasBoundaryLayerModelCapability<GasState>::value)
     {
         const int worker=blockIdx.x*blockDim.x+threadIdx.x;
@@ -36,6 +37,7 @@ __device__ inline void evaluateGasBoundaryLayerTeamWorker(GasState* state,
 template<bool Capture=false,int Capacity=0,class GasState>
 __global__ __launch_bounds__(ugkwp::gaswall::detail::wallWarpWidth) void evaluateGasBoundaryLayerTeamKernel(GasState* state)
 {
+    if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
     evaluateGasBoundaryLayerTeamWorker<Capture,Capacity>(state,
         typename ugkwp::GasBoundaryLayerModelCapability<GasState>::type{});
 }
@@ -44,6 +46,7 @@ __global__ __launch_bounds__(ugkwp::gaswall::detail::wallWarpWidth) void evaluat
 template<bool Capture=false,class GasState>
 __global__ __launch_bounds__(32) void evaluateGasBoundaryLayerTile8Kernel(GasState* state)
 {
+    if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
     if constexpr(ugkwp::GasBoundaryLayerModelCapability<GasState>::value){
         const int worker=4*blockIdx.x+threadIdx.x/8;
         const int workers=state->gasBoundaryLayerModel.workspaceCount;

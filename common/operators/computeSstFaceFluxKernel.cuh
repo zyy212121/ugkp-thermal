@@ -68,6 +68,7 @@ __device__ void sstInternalRhoDiffusivities
 template<class GasState>
 __global__ void computeSstFaceFluxKernel(GasState* sp)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int f = blockIdx.x*blockDim.x + threadIdx.x;
     if (f >= s.nFaces || s.sstConfigured == 0)
@@ -313,6 +314,7 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
 template<class GasState>
 __global__ void enforcePeriodicSstFluxAntisymmetryKernel(GasState* sp)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int f = blockIdx.x*blockDim.x + threadIdx.x;
     if (!isPeriodicFace(s, f))
@@ -500,6 +502,7 @@ __global__ void applySstFluxAndSourceKernel
     const bool nativeRefinement=false
 )
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     // A prior producer already diagnosed the fatal; retain its evidence until completion.
     if(ugkp::diagnostics::hasFatal(s.diagnostics))return;
@@ -641,6 +644,7 @@ __global__ void applySstFluxAndSourceKernel
 template<class GasState>
 __global__ void computeGasCourantFieldKernel(GasState* sp, const GPU_OPERATOR_TIME dt, const bool nativeRefinement=false)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     (void)dt;
     const int f = blockIdx.x*blockDim.x + threadIdx.x;
@@ -762,6 +766,7 @@ __global__ void computeGasConvectiveCourantByCellKernel
     const bool nativeRefinement=false
 )
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)
@@ -807,6 +812,7 @@ __global__ void computeGasConvectiveCourantByCellKernel
 template<class GasState>
 __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERATOR_TIME dt, const bool nativeRefinement=false)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     // A prior producer already diagnosed the fatal; retain its evidence until completion.
     if(ugkp::diagnostics::hasFatal(s.diagnostics))return;
@@ -1031,6 +1037,7 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
 template<class GasState>
 __global__ void saveGasConservativeStateKernel(GasState* sp)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)
@@ -1062,6 +1069,7 @@ __global__ void blendGasConservativeStateKernel
     const bool nativeRefinement=false
 )
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     // A prior producer already diagnosed the fatal; retain its evidence until completion.
     if(ugkp::diagnostics::hasFatal(s.diagnostics))return;
@@ -1354,6 +1362,7 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
 template<class GasState>
 __global__ void recoverGasPrimitivesKernel(GasState* sp, const bool nativeRefinement=false)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)

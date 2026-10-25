@@ -30,10 +30,12 @@
 #include <vector>
 namespace chmt {
 struct Backend {
+    CudaFault executionFault;
+    DeviceStream executionStream;
     ugkp::diagnostics::GpuOwner diagnostics;
     ugkp::diagnostics::DeviceContext hostDiagnostics{};
     ugkp::diagnostics::HostSink diagnosticSink;
-    ModelConfig model;GasExecutionOptions options;HostState accepted,trial,microBase;
+    ModelConfig model;GasExecutionOptions options;HostState accepted,trial;
     HostMesh endpointGas,endpointSolid;SurfaceMesh endpointSurface;HostStageGeometry gasStage,solidStage;
     SharedGasDeviceStorage storage;WallProgram program;IntervalHistory history;MaterialDonorReserve reserve;
     CoupledCourantStorage courantReductionStorage;
@@ -54,6 +56,7 @@ struct Backend {
     std::vector<GasWallMatchingSample> preparedMatching;
     Real preparedWallTime=0,preparedWallDt=0;bool preparedWallReady=false,terminalWallFailure=false;
     SharedGasDeviceView* deviceState=nullptr;cudaStream_t gasCaptureStream=nullptr;
+    ~Backend(){if(gasCaptureStream)executionStream.sync();}
 };
 inline void bindSharedGasStorage(Backend& b){
     const auto& view=b.storage.hostView();
@@ -123,7 +126,7 @@ struct GasHostPolicy:GasHostWithWallEnergy<Real,Real,&accountCoupledFaces> {
 struct CoupledTrialPolicy {
     static int begin(Backend* b){
         b->preparedWallReady=false;b->terminalWallFailure=false;ugkwp::invalidateGasBoundaryLayerPreparation(*b);
-        if(!b->microGeometryPrepared)b->microBase=b->trial;b->gasStageIndex=0;b->record={};b->record.microSequence=b->history.records().size()+1;
+        b->gasStageIndex=0;b->record={};b->record.microSequence=b->history.records().size()+1;
         b->record.begin=b->microTime;b->record.actualDt=b->microDt;b->record.localBegin=b->elapsed;b->record.localEnd=b->elapsed+b->microDt;b->record.end=windowAbsolute(b->program.interval.begin,b->record.localEnd);b->record.gasGeometry=b->trial.gasMesh.geometryVersion;b->record.solidGeometry=b->trial.solidMesh.geometryVersion;
         if(!b->storage.clearTrialStatus())return 1;
         if(!b->microGeometryPrepared&&prepareCoupledGeometry(b)!=0)return 1;
@@ -140,6 +143,7 @@ struct CoupledTrialPolicy {
         return 0;
     }
     static int commit(Backend* b){
+        if(!b->storage.observeDiagnostics()){b->error=b->storage.error();return 1;}
         // Conserved gas stays on device across microsteps. Material consumes
         // the complete gas endpoint only at downloadGasWindow. Stage history
         // already owns the sparse interface traces and accepted packets.
@@ -157,24 +161,26 @@ bool readSurface(Backend& b,std::vector<GasPrimitive>& primitive,std::vector<Gas
     gatherCoupledSurface<<<(count+127)/128,128,0,b.gasCaptureStream>>>(b.deviceState,b.interfaceFaces.data(),count,b.model.physics.singleGasSpecies,b.interfaceSamples.data());
     if(!b.surfaceTransferFault.check(cudaGetLastError(),"gather coupled surface"))return false;
     std::vector<CoupledSurfaceSample> samples;
-    if(!b.interfaceSamples.download(samples,b.gasCaptureStream)||!b.storage.observeDiagnostics())return false;
+    if(!b.storage.enqueueRead(b.interfaceSamples.data(),count,samples)||!b.storage.observeDiagnostics())return false;
     for(int slot=0;slot<count;++slot){primitive[slot]=samples[slot].primitive;gradient[slot]=samples[slot].gradient;flux[slot]=samples[slot].flux;}
     return true;
 }
 bool surfaceFluxes(Backend& b,std::vector<GasQ>& values,bool writing){
     const int count=b.interfaceFaces.size();if(!count){values.clear();return true;}
     if(writing){
-        if(!b.interfaceFlux.upload(values,b.surfaceTransferFault))return false;
+        if(values.size()!=b.interfaceFlux.size()||!b.storage.write(b.interfaceFlux.data(),values))return false;
         scatterCoupledFlux<<<(count+127)/128,128,0,b.gasCaptureStream>>>(b.deviceState,b.interfaceFaces.data(),count,b.interfaceFlux.data());
         return b.surfaceTransferFault.check(cudaGetLastError(),"scatter coupled flux");
     }
     gatherCoupledFlux<<<(count+127)/128,128,0,b.gasCaptureStream>>>(b.deviceState,b.interfaceFaces.data(),count,b.model.physics.singleGasSpecies,b.interfaceFlux.data());
     return b.surfaceTransferFault.check(cudaGetLastError(),"gather accepted coupled flux")
-        &&b.interfaceFlux.download(values,b.gasCaptureStream)&&b.storage.observeDiagnostics();
+        &&b.storage.read(b.interfaceFlux.data(),count,values);
 }
 }
 int prepareCoupledGeometry(Backend* b){
-    const auto& base=b->microBase;const bool moving=b->model.physics.meshMotion.policy!=MeshMotionPolicy::Static;
+    // CFL and RK stages leave host geometry unchanged until finishCoupledGeometry.
+    // Consume that pre-step view directly; endpoint outputs have separate owners.
+    const auto& base=b->trial;const bool moving=b->model.physics.meshMotion.policy!=MeshMotionPolicy::Static;
     b->endpointGas=base.gasMesh;b->endpointSolid=base.solidMesh;b->endpointSurface=base.surface;
     std::vector<Real> gasSweep(base.gasMesh.owner.size(),0),solidSweep(base.solidMesh.owner.size(),0);
     if(moving){
@@ -325,7 +331,9 @@ Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati
         if(code!=cudaSuccess){error=std::string("configure CHMT CUDA stack: ")+cudaGetErrorString(code);return nullptr;}
     }
     std::unique_ptr<Backend> b(new Backend);b->model=model;b->options=options;b->accepted=b->trial=state;
-    const auto diagnosticInit=b->diagnostics.initialise();
+    if(!b->executionStream.create(b->executionFault)){error=b->executionFault.message;return nullptr;}
+    b->gasCaptureStream=b->executionStream.get();b->storage.bindStream(b->gasCaptureStream);
+    const auto diagnosticInit=b->diagnostics.initialise(b->gasCaptureStream);
     if(diagnosticInit!=cudaSuccess){error=std::string("allocate gas diagnostics: ")+cudaGetErrorString(diagnosticInit);return nullptr;}
     ugkp::diagnostics::reset(b->hostDiagnostics,state.commitSequence,b->diagnostics.instanceId(),state.acceptedSteps,state.time);
     b->model.physics.diagnostics=&b->hostDiagnostics;
@@ -333,7 +341,8 @@ Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati
     b->storage.bindDiagnostics(b->diagnostics);
     b->model.physics.enableSst=options.turbulenceModel==3;
     if(!b->storage.configure(b->model,gas,mechanism,state,error))return nullptr;
-    if(!b->interfaceFaces.upload(state.surface.gasFace,b->surfaceTransferFault)
+    if(!b->interfaceFaces.resize(state.surface.gasFace.size(),b->surfaceTransferFault)
+        ||!b->storage.write(b->interfaceFaces.data(),state.surface.gasFace)
         ||!b->interfaceSamples.resize(state.surface.gasFace.size(),b->surfaceTransferFault)
         ||!b->interfaceFlux.resize(state.surface.gasFace.size(),b->surfaceTransferFault)){
         error=b->surfaceTransferFault.message;return nullptr;
@@ -438,7 +447,7 @@ static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,s
     Real referenceDt=minValue(cap,minValue(b.model.physics.maxDt,remaining));
     if(b.nextGasSeed>0)referenceDt=minValue(referenceDt,b.nextGasSeed);
     if(!finite(referenceDt)||!(referenceDt>0)||b.elapsed+referenceDt==b.elapsed){error="gas reference timestep is nonfinite, nonpositive or nonadvancing";return false;}
-    b.microBase=b.trial;b.microDt=referenceDt;b.error.clear();transport::lastError.clear();
+    b.microDt=referenceDt;b.error.clear();transport::lastError.clear();
     if(prepareCoupledGeometry(&b)!=0){error=b.error;return false;}
     transport::GasCourantMaxima co;
     if(!currentGasCourant(b,referenceDt,co)){
@@ -473,7 +482,7 @@ bool advanceGasMicrostep(Backend& b,Real cap,GasMicroReport& report,std::string&
     if(!hostHealthy && error.empty())error="fatal host gas diagnostic";
     return success&&hostHealthy;
 }
-bool gasWindowHistory(const Backend& b,IntervalHistory& out,std::string& error){out=b.history;error.clear();return true;}
+const IntervalHistory& gasWindowHistory(const Backend& b){return b.history;}
 bool gasWindowStageGeometry(const Backend& b,std::array<HostStageGeometry,2>& gas,std::array<HostStageGeometry,2>& solid,std::string& error){gas=b.trial.gasStages;solid=b.trial.solidStages;error.clear();return true;}
 bool downloadGasWindow(Backend& b,HostState& out,std::string& error){
     if(!b.storage.downloadState(b.trial,error))return false;

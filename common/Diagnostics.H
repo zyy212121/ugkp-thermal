@@ -185,6 +185,8 @@ __device__ inline bool blockMayProceed(const DeviceContext* context) {
     __syncthreads();
     return stopped == 0u;
 }
+#else
+inline bool blockMayProceed(const DeviceContext* context) { return !hasFatal(context); }
 #endif
 
 }} // namespace ugkp::diagnostics

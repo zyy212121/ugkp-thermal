@@ -9,7 +9,7 @@ def test_geometry_single_pass_diagnostics(tmp_path):
     source = VALIDATION_ROOT / "tests/fixtures/geometry_single_pass/probe.cpp"
     executable = tmp_path / "geometry-single-pass"
     command = [
-        "g++", "-std=c++14", "-O2", "-Wall", "-Wextra", "-Werror",
+        "g++", "-std=c++17", "-O2", "-Wall", "-Wextra", "-Werror",
         "-Wno-misleading-indentation", "-Wno-mismatched-new-delete",
         "-I" + str(app), "-I" + str(SOURCE_ROOT / "common"),
         str(source), str(app / "mesh/Geometry.C"), "-o", str(executable),

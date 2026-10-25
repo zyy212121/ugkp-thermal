@@ -14,6 +14,7 @@ __device__ bool gasEddyFinite(const GasState& s, int c, GPU_OPERATOR_REAL value,
 template<class GasState>
 __global__ void computeGasEddyViscosityKernel(GasState* sp)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)
