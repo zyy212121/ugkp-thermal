@@ -6,7 +6,7 @@
 namespace chmt {
 // One owner's stream and reusable pinned staging. Upload callers may release
 // their source immediately; download destinations must live through finish().
-// No numerical operation or cross-owner/device synchronization is introduced.
+
 class HostTransferQueue {
     struct Slot {void* data=nullptr;std::size_t capacity=0;};
     struct Readback {void* destination;const void* staging;std::size_t bytes;};

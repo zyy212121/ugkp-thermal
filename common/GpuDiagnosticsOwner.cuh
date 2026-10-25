@@ -89,7 +89,7 @@ public:
         consumeCompletedSnapshot(staging_);
         return rc;
     }
-    // One catalogue producer shared by synchronous and owner-stream transfers.
+
     void recordCudaFailure(cudaError_t rc) {
         recordHostFatal(withOperation(makeRecord(Code::CudaRuntime,1,0,0,EntityKind::None,-1,-1,static_cast<double>(rc)),sequence_,step_,time_));
     }

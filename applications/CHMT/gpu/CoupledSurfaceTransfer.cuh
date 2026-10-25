@@ -1,6 +1,6 @@
 #ifndef CHMT_COUPLED_SURFACE_TRANSFER_CUH
 #define CHMT_COUPLED_SURFACE_TRANSFER_CUH
-// Marshaling only: common gas operators still own every numerical stage.
+
 namespace chmt {
 struct CoupledSurfaceSample {
     GasPrimitive primitive;
