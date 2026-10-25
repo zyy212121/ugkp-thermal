@@ -4,16 +4,22 @@ GPU-Riemann-UGKP is an open-source GPU-resident solver package for
 compressible gas-particle flows and multiscale heat-transfer simulations. It
 is implemented as a set of OpenFOAM 10 applications with CUDA backends.
 
-The package contains three maintained solvers:
+The package contains the following applications:
 
 | Solver | Purpose |
 | --- | --- |
 | `gasUGKP` | Compressible gas flow, UGKP particle transport, statistical particle collisions, and two-way gas-particle momentum and sensible-heat coupling |
 | `FSH` | Extends `gasUGKP` with finite-duration particle-wall contact, spreading and retraction, rebound or deposition, particle internal heat conduction, solidification, and wall heat transfer |
 | `CHT` | Flow and finite-contact particle-wall heat transfer with two-way solid coupling, transient solid conduction, and particle radiation |
+| `CHMT` | Conjugate gas/material heat and mass transfer, pyrolysis, pore transport, and ablation |
 
-The three solvers share the numerical and physical implementations under
-`common/`.
+The applications share numerical and physical implementations under `common/`.
+`gasUGKP`, `CHT`, and `CHMT` share optional GPU Sutherland/Wilke molecular
+viscosity; absent configuration retains constant transport. See the
+[configuration and reproduction guide](validation/molecular_transport/README.md)
+and [native validation results and limitations](validation/molecular_transport/RESULTS.md).
+`CHMT` has a separate build entry point: `bash applications/CHMT/Allwmake`
+after loading the OpenFOAM/CUDA environment.
 
 ## Requirements
 

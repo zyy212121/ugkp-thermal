@@ -1,0 +1,859 @@
+{
+  "gas-wave": {
+    "sutherland_wall_seconds": 2.3048783400154207,
+    "restart": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_B": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "Y_A": 0.0,
+      "theta": 0.0,
+      "rhoY_A": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_B": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "p": 0.0
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 0.3914408450073097,
+    "baseline_wall_seconds": 0.4084548150131013,
+    "const_parity": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_B": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "Y_A": 0.0,
+      "theta": 0.0,
+      "rhoY_A": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_B": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "p": 0.0
+    },
+    "transport_response": {
+      "rhoU": 7.90898830694984e-22,
+      "rhoE": 0.0,
+      "T": 0.0,
+      "omega": 0.0
+    }
+  },
+  "gas-sst": {
+    "sutherland_wall_seconds": 0.5009212819859385,
+    "restart": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_B": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 2.710505431213761e-20,
+      "omega": 4.4380481493833544e-16,
+      "rho": 0.0,
+      "Y_A": 0.0,
+      "theta": 0.0,
+      "rhoY_A": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_B": 0.0,
+      "Us": 0.0,
+      "U": 3.115060029679062e-37,
+      "nut": 4.0657581468206416e-20,
+      "rhoU": 3.5264830524668625e-37,
+      "p": 0.0
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 0.45050502198864706,
+    "baseline_wall_seconds": 0.5427275999973062,
+    "const_parity": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_B": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "Y_A": 0.0,
+      "theta": 0.0,
+      "rhoY_A": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_B": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "p": 0.0
+    },
+    "transport_response": {
+      "rhoU": 0.0001127929079700607,
+      "rhoE": 0.0004749645886477083,
+      "T": 9.037611107487464e-06,
+      "omega": 24.179716110561102
+    }
+  },
+  "gas-wall": {
+    "sutherland_wall_seconds": 1.8512916369945742,
+    "restart": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_B": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 2.710505431213761e-20,
+      "omega": 4.4407907572754637e-16,
+      "rho": 0.0,
+      "Y_A": 0.0,
+      "theta": 0.0,
+      "rhoY_A": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_B": 0.0,
+      "Us": 0.0,
+      "U": 9.4039548065783e-38,
+      "nut": 5.421010862427522e-20,
+      "rhoU": 9.4039548065783e-38,
+      "p": 0.0
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 1.8966496160137467,
+    "baseline_wall_seconds": 1.8016198459954467,
+    "const_parity": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_B": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "Y_A": 0.0,
+      "theta": 0.0,
+      "rhoY_A": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_B": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "p": 0.0
+    },
+    "transport_response": {
+      "rhoU": 0.00015313319266851977,
+      "rhoE": 0.0055782887793611735,
+      "T": 6.1827881268072815e-06,
+      "omega": 6.823300055344053
+    }
+  },
+  "gas-ode": {
+    "sutherland_wall_seconds": 1.6688278230139986,
+    "restart": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_B": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 1.3552527156068805e-20,
+      "omega": 0.0,
+      "rho": 0.0,
+      "Y_A": 0.0,
+      "theta": 0.0,
+      "rhoY_A": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_B": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "p": 0.0
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 1.5826578559936024,
+    "baseline_wall_seconds": 1.6082907090021763,
+    "const_parity": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_B": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "Y_A": 0.0,
+      "theta": 0.0,
+      "rhoY_A": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_B": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "p": 0.0
+    },
+    "transport_response": {
+      "rhoU": 0.00032126001028132123,
+      "rhoE": 0.012162720900960267,
+      "T": 1.2424861495219375e-05,
+      "omega": 6.823297948088307
+    }
+  },
+  "cht-contact": {
+    "sutherland_wall_seconds": 0.5225643409939948,
+    "restart": {
+      "dMeanCell": 0.0002,
+      "rhoDs": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "particleStuckWallHeatFlux": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "theta": 0.0,
+      "particleReflectedWallHeatFlux": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoHp": 0.0,
+      "rhoUs": 0.0,
+      "particleRadiationWallHeatFlux": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "gasConvectiveWallHeatFlux": 0.0,
+      "p": 0.0,
+      "Tp": 1.0,
+      "solid/T": 0.0
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 0.5471956410037819,
+    "baseline_wall_seconds": 0.5602623099985067,
+    "const_parity": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "particleStuckWallHeatFlux": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "theta": 0.0,
+      "particleReflectedWallHeatFlux": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoHp": 0.0,
+      "rhoUs": 0.0,
+      "particleRadiationWallHeatFlux": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "gasConvectiveWallHeatFlux": 0.0,
+      "p": 0.0,
+      "Tp": 0.0,
+      "solid/T": 0.0
+    },
+    "transport_response": {
+      "rhoU": 1.2232046516146533e-07,
+      "rhoE": 0.006645508459769189,
+      "T": 0.1458728655508139,
+      "omega": 0.0,
+      "solid/T": 0.5834914890032792,
+      "gasConvectiveWallHeatFlux": 5.834914890032678
+    }
+  },
+  "cht-mixture": {
+    "sutherland_wall_seconds": 0.5352332209877204,
+    "restart": {
+      "dMeanCell": 0.0002,
+      "rhoDs": 0.0,
+      "rhoEs": 0.0,
+      "Y_S1": 0.0,
+      "Y_S0": 0.0,
+      "epsilonS": 0.0,
+      "particleStuckWallHeatFlux": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "theta": 0.0,
+      "particleReflectedWallHeatFlux": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoHp": 0.0,
+      "rhoUs": 0.0,
+      "particleRadiationWallHeatFlux": 0.0,
+      "rhoY_S1": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "gasConvectiveWallHeatFlux": 0.0,
+      "p": 0.0,
+      "rhoY_S0": 0.0,
+      "Tp": 1.0,
+      "solid/T": 0.0
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 0.4889366769930348,
+    "transport_response": {
+      "rhoU": 2.649925536105983e-07,
+      "rhoE": 0.027154476614668965,
+      "T": 10.101102005246503,
+      "omega": 0.0,
+      "solid/T": 40.40440791187885,
+      "gasConvectiveWallHeatFlux": 404.04407911878843
+    }
+  },
+  "cht-pure": {
+    "sutherland_wall_seconds": 0.43071526498533785,
+    "restart": {
+      "dMeanCell": 0.0002,
+      "rhoDs": 0.0,
+      "rhoEs": 0.0,
+      "Y_S1": 0.0,
+      "Y_S0": 0.0,
+      "epsilonS": 0.0,
+      "particleStuckWallHeatFlux": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "theta": 0.0,
+      "particleReflectedWallHeatFlux": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoHp": 0.0,
+      "rhoUs": 0.0,
+      "particleRadiationWallHeatFlux": 0.0,
+      "rhoY_S1": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "gasConvectiveWallHeatFlux": 0.0,
+      "p": 0.0,
+      "rhoY_S0": 0.0,
+      "Tp": 1.0,
+      "solid/T": 0.0
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 0.45095544299692847,
+    "transport_response": {
+      "rhoU": 1.2232064240379246e-07,
+      "rhoE": 0.006645511253736913,
+      "T": 0.14587884745037627,
+      "omega": 0.0,
+      "solid/T": 0.5835154166013012,
+      "gasConvectiveWallHeatFlux": 5.835154166012899
+    }
+  },
+  "cht-wall": {
+    "sutherland_wall_seconds": 1.174967951985309,
+    "restart": {
+      "dMeanCell": 0.0002,
+      "rhoDs": 0.0,
+      "rhoEs": 0.0,
+      "Y_S1": 0.0,
+      "Y_S0": 0.0,
+      "epsilonS": 0.0,
+      "particleStuckWallHeatFlux": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "theta": 0.0,
+      "particleReflectedWallHeatFlux": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoHp": 0.0,
+      "rhoUs": 0.0,
+      "particleRadiationWallHeatFlux": 0.0,
+      "rhoY_S1": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "gasConvectiveWallHeatFlux": 0.0,
+      "p": 0.0,
+      "rhoY_S0": 0.0,
+      "Tp": 1.0,
+      "solid/T": 0.0
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 1.6695874209981412,
+    "transport_response": {
+      "rhoU": 4.0067831636406486e-07,
+      "rhoE": 0.03603053349070251,
+      "T": 10.61822565465286,
+      "omega": 0.19666348499039188,
+      "solid/T": 42.472902473755,
+      "gasConvectiveWallHeatFlux": 424.72902473755016
+    }
+  },
+  "cht-ode": {
+    "sutherland_wall_seconds": 0.6405641690071207,
+    "restart": {
+      "dMeanCell": 0.0002,
+      "rhoDs": 0.0,
+      "rhoEs": 0.0,
+      "Y_S1": 0.0,
+      "Y_S0": 0.0,
+      "epsilonS": 0.0,
+      "particleStuckWallHeatFlux": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "theta": 0.0,
+      "particleReflectedWallHeatFlux": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoHp": 0.0,
+      "rhoUs": 0.0,
+      "particleRadiationWallHeatFlux": 0.0,
+      "rhoY_S1": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "gasConvectiveWallHeatFlux": 0.0,
+      "p": 0.0,
+      "rhoY_S0": 0.0,
+      "Tp": 1.0,
+      "solid/T": 0.0
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 0.49640109500614926,
+    "transport_response": {
+      "rhoU": 4.0449699212331317e-07,
+      "rhoE": 0.03639867954188958,
+      "T": 10.742734900643882,
+      "omega": 0.19561819750043008,
+      "solid/T": 42.97093945623975,
+      "gasConvectiveWallHeatFlux": 429.7093945623975
+    }
+  },
+  "chmt-single": {
+    "sutherland_wall_seconds": 2.205947381997248,
+    "restart": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 2
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 0.7696770429902244,
+    "baseline_wall_seconds": 0.5989392570045311,
+    "const_parity": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 2
+    },
+    "schema8_const_restart": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 2
+    },
+    "transport_response": {
+      "physical_state_changed": true
+    }
+  },
+  "chmt-mixture": {
+    "sutherland_wall_seconds": 0.7598949869861826,
+    "restart": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 2
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 0.6883210359956138,
+    "baseline_wall_seconds": 0.6676948170061223,
+    "const_parity": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 2
+    },
+    "schema8_const_restart": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 2
+    },
+    "transport_response": {
+      "physical_state_changed": true
+    }
+  },
+  "chmt-diffusion": {
+    "sutherland_wall_seconds": 0.6571892589854542,
+    "restart": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 2
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 1.2856543789966963,
+    "baseline_wall_seconds": 0.765248005016474,
+    "const_parity": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 2
+    },
+    "schema8_const_restart": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 2
+    },
+    "transport_response": {
+      "physical_state_changed": true
+    }
+  },
+  "chmt-moving": {
+    "sutherland_wall_seconds": 13.470242406998295,
+    "restart": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 10
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 11.836390234995633,
+    "baseline_wall_seconds": 11.875517616019351,
+    "const_parity": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 10
+    },
+    "schema8_const_restart": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 10
+    },
+    "transport_response": {
+      "physical_state_changed": true
+    }
+  },
+  "gas-pure": {
+    "sutherland_wall_seconds": 0.3722885680035688,
+    "restart": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_B": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 2.710505431213761e-20,
+      "omega": 0.0,
+      "rho": 0.0,
+      "Y_A": 0.0,
+      "theta": 0.0,
+      "rhoY_A": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_B": 0.0,
+      "Us": 0.0,
+      "U": 4.114230227878006e-37,
+      "nut": 2.710505431213761e-20,
+      "rhoU": 4.70197740328915e-37,
+      "p": 0.0
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 0.36886371800210327,
+    "baseline_wall_seconds": 0.33442043798277155,
+    "const_parity": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_B": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "Y_A": 0.0,
+      "theta": 0.0,
+      "rhoY_A": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_B": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "p": 0.0
+    },
+    "transport_response": {
+      "rhoU": 4.965748864486702e-13,
+      "rhoE": 5.820766091346741e-11,
+      "T": 5.684341886080802e-14,
+      "omega": 5.970557381829167e-12
+    }
+  },
+  "gas-single": {
+    "sutherland_wall_seconds": 0.46088227798463777,
+    "restart": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 2.710505431213761e-20,
+      "omega": 0.0,
+      "rho": 0.0,
+      "theta": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 2.710505431213761e-20,
+      "rhoU": 0.0,
+      "p": 0.0
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 0.45996976699098013,
+    "baseline_wall_seconds": 0.4843806409917306,
+    "const_parity": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "theta": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "p": 0.0
+    },
+    "transport_response": {
+      "rhoU": 3.205165179556821e-12,
+      "rhoE": 5.238689482212067e-10,
+      "T": 1.7053025658242404e-13,
+      "omega": 6.089617698989969e-11
+    }
+  },
+  "gas-unequal-mass": {
+    "sutherland_wall_seconds": 0.4237337940139696,
+    "restart": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_B": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 0.0,
+      "omega": 4.4388138031199747e-16,
+      "rho": 0.0,
+      "Y_A": 0.0,
+      "theta": 0.0,
+      "rhoY_A": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_B": 0.0,
+      "Us": 0.0,
+      "U": 3.76158192263132e-37,
+      "nut": 5.421010862427522e-20,
+      "rhoU": 7.52316384526264e-37,
+      "p": 0.0
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 0.47775154301780276,
+    "baseline_wall_seconds": 0.3412118720007129,
+    "const_parity": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_B": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "Y_A": 0.0,
+      "theta": 0.0,
+      "rhoY_A": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_B": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "p": 0.0
+    },
+    "transport_response": {
+      "rhoU": 0.00010562864096641533,
+      "rhoE": 0.000383983482606709,
+      "T": 6.478571549450862e-06,
+      "omega": 18.3888359310954
+    }
+  },
+  "gas-wallfunction": {
+    "sutherland_wall_seconds": 1.9868879280111287,
+    "restart": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_B": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 1.3552527156068805e-20,
+      "omega": 2.2158138995541527e-16,
+      "rho": 0.0,
+      "Y_A": 0.0,
+      "theta": 0.0,
+      "rhoY_A": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_B": 0.0,
+      "Us": 0.0,
+      "U": 3.76158192263132e-37,
+      "nut": 2.710505431213761e-20,
+      "rhoU": 3.76158192263132e-37,
+      "p": 0.0
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 0.4891102179826703,
+    "transport_response": {
+      "rhoU": 0.0016624466238681634,
+      "rhoE": 2.837404619815061,
+      "T": 0.00354174292664311,
+      "omega": 210.84151228093296
+    },
+    "baseline_wall_seconds": 0.33764036701177247,
+    "const_parity": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_B": 0.0,
+      "rhoEs": 0.0,
+      "epsilonS": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "Y_A": 0.0,
+      "theta": 0.0,
+      "rhoY_A": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_B": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "p": 0.0
+    }
+  },
+  "cht-wallfunction": {
+    "sutherland_wall_seconds": 0.46778300500591286,
+    "restart": {
+      "dMeanCell": 0.0002,
+      "rhoDs": 0.0,
+      "rhoEs": 0.0,
+      "Y_S1": 0.0,
+      "Y_S0": 0.0,
+      "epsilonS": 0.0,
+      "particleStuckWallHeatFlux": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "theta": 0.0,
+      "particleReflectedWallHeatFlux": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoHp": 0.0,
+      "rhoUs": 0.0,
+      "particleRadiationWallHeatFlux": 0.0,
+      "rhoY_S1": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "gasConvectiveWallHeatFlux": 0.0,
+      "p": 0.0,
+      "rhoY_S0": 0.0,
+      "Tp": 1.0,
+      "solid/T": 0.0
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 0.37245116199483164,
+    "transport_response": {
+      "rhoU": 2.657515119062736e-07,
+      "rhoE": 0.027155438787303865,
+      "T": 10.101102005189489,
+      "omega": 0.22650461488965412,
+      "solid/T": 40.40440791165108,
+      "gasConvectiveWallHeatFlux": 404.04407911651083
+    }
+  },
+  "chmt-moving-short": {
+    "sutherland_wall_seconds": 11.938811444008024,
+    "restart": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 8
+    },
+    "identity": {
+      "changed_coefficients_rejected": true
+    },
+    "const_wall_seconds": 9.096115293999901,
+    "transport_response": {
+      "physical_state_changed": true
+    },
+    "baseline_wall_seconds": 9.201726016006432,
+    "const_parity": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 8
+    },
+    "schema8_const_restart": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 8
+    }
+  }
+}

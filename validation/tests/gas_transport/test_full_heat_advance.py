@@ -68,10 +68,10 @@ def cache_path_fixture():
         "Real particleSpecificHeatDevice(Real){return Real(1000);}":
             '#include "operators/particleSpecificHeatDevice.cuh"',
         "Real particleSpecificEnthalpyDevice(Real t){return Real(1000)*t;}": "",
-        "template<int Model>Real cellDragInverseTime(DeviceState&,Real,Real,Real,Real,int){return Real(1);}":
-            "template<int Model>Real cellDragInverseTime(DeviceState&,Real,Real,Real,Real,int){std::abort();}",
-        "template<class Model>Real dragInverseTimeDevice(const DeviceState&,Real,Real,Real,Real,Model){return Real(1);}":
-            "template<class Model>Real dragInverseTimeDevice(const DeviceState&,Real,Real,Real,Real,Model){std::abort();}",
+        "template<int Model>Real cellDragInverseTime(DeviceState&,int,Real,Real,Real,Real,int){return Real(1);}":
+            "template<int Model>Real cellDragInverseTime(DeviceState&,int,Real,Real,Real,Real,int){std::abort();}",
+        "template<class Model>Real dragInverseTimeDevice(const DeviceState&,int,Real,Real,Real,Real,Model){return Real(1);}":
+            "template<class Model>Real dragInverseTimeDevice(const DeviceState&,int,Real,Real,Real,Real,Model){std::abort();}",
         "struct DeviceState:State{": """struct DeviceState:State{
  Real epsS[2]={},rhoUsx[2]={},rhoUsy[2]={},rhoUsz[2]={},rhoEs[2]={},rhoDs[2]={},rhoHp[2]={};
  Real Usx[2]={},Usy[2]={},Usz[2]={},theta[2]={},Tp[2]={},dMeanCell[2]={};
@@ -120,9 +120,9 @@ int main(int argc,char**argv){
  recoverPrimitivesKernel(&s);std::printf(",");record("pre_relax",s);
  const Real oldT=s.pT[0];
  const Real oldGas=s.couplingTgasOld[0],newGas=s.Tgas[0];
- const Real full=particleTemperatureAfterGasRelaxation(s,oldT,oldGas,Real(0),s.pd[0],
+ const Real full=particleTemperatureAfterGasRelaxation(s,0,oldT,oldGas,Real(0),s.pd[0],
                    s.rhoSolid*particleSpecificHeatDevice(oldT),dt);
- const Real half=particleTemperatureAfterGasRelaxation(s,oldT,oldGas,Real(0),s.pd[0],
+ const Real half=particleTemperatureAfterGasRelaxation(s,0,oldT,oldGas,Real(0),s.pd[0],
                    s.rhoSolid*particleSpecificHeatDevice(oldT),dt/2);
  DeviceState fresh=s;fresh.couplingTgasOld[0]=newGas;
  relaxOneParticleToResidentGas(fresh,0,dt,0);

@@ -1,0 +1,140 @@
+{
+  "gas-wave": {
+    "solver": "gasUGKP",
+    "baseline": true,
+    "wall_geometry": false,
+    "three_dimensional_sides": false
+  },
+  "gas-sst": {
+    "solver": "gasUGKP",
+    "baseline": true,
+    "wall_geometry": false,
+    "three_dimensional_sides": false,
+    "inherits": "gas-wave"
+  },
+  "gas-wall": {
+    "solver": "gasUGKP",
+    "baseline": true,
+    "wall_geometry": false,
+    "three_dimensional_sides": false,
+    "inherits": "gas-sst"
+  },
+  "gas-ode": {
+    "solver": "gasUGKP",
+    "baseline": true,
+    "wall_geometry": false,
+    "three_dimensional_sides": false,
+    "inherits": "gas-wall"
+  },
+  "cht-contact": {
+    "solver": "CHT",
+    "baseline": true,
+    "wall_geometry": false,
+    "three_dimensional_sides": false
+  },
+  "cht-mixture": {
+    "solver": "CHT",
+    "baseline": false,
+    "wall_geometry": false,
+    "three_dimensional_sides": false,
+    "inherits": "cht-contact"
+  },
+  "cht-pure": {
+    "solver": "CHT",
+    "baseline": false,
+    "wall_geometry": false,
+    "three_dimensional_sides": false,
+    "inherits": "cht-mixture"
+  },
+  "cht-wall": {
+    "solver": "CHT",
+    "baseline": false,
+    "wall_geometry": true,
+    "three_dimensional_sides": false,
+    "inherits": "cht-mixture"
+  },
+  "cht-ode": {
+    "solver": "CHT",
+    "baseline": false,
+    "wall_geometry": true,
+    "three_dimensional_sides": false,
+    "inherits": "cht-wall"
+  },
+  "chmt-single": {
+    "solver": "CHMT",
+    "baseline": true,
+    "wall_geometry": false,
+    "three_dimensional_sides": false
+  },
+  "chmt-mixture": {
+    "solver": "CHMT",
+    "baseline": true,
+    "wall_geometry": false,
+    "three_dimensional_sides": false,
+    "inherits": "chmt-single",
+    "remove": [
+      "constant/materialGasProperties"
+    ]
+  },
+  "chmt-diffusion": {
+    "solver": "CHMT",
+    "baseline": true,
+    "wall_geometry": false,
+    "three_dimensional_sides": false,
+    "inherits": "chmt-mixture"
+  },
+  "chmt-moving": {
+    "solver": "CHMT",
+    "baseline": true,
+    "wall_geometry": false,
+    "three_dimensional_sides": true,
+    "inherits": "chmt-mixture"
+  },
+  "gas-pure": {
+    "solver": "gasUGKP",
+    "baseline": true,
+    "wall_geometry": false,
+    "three_dimensional_sides": false,
+    "inherits": "gas-sst"
+  },
+  "gas-single": {
+    "solver": "gasUGKP",
+    "baseline": true,
+    "wall_geometry": false,
+    "three_dimensional_sides": false,
+    "inherits": "gas-sst",
+    "remove": [
+      "0/Y_A",
+      "0/Y_B",
+      "constant/gasModelProperties"
+    ]
+  },
+  "gas-unequal-mass": {
+    "solver": "gasUGKP",
+    "baseline": true,
+    "wall_geometry": false,
+    "three_dimensional_sides": false,
+    "inherits": "gas-sst"
+  },
+  "gas-wallfunction": {
+    "solver": "gasUGKP",
+    "baseline": true,
+    "wall_geometry": false,
+    "three_dimensional_sides": false,
+    "inherits": "gas-sst"
+  },
+  "cht-wallfunction": {
+    "solver": "CHT",
+    "baseline": false,
+    "wall_geometry": true,
+    "three_dimensional_sides": false,
+    "inherits": "cht-wall"
+  },
+  "chmt-moving-short": {
+    "solver": "CHMT",
+    "baseline": true,
+    "wall_geometry": false,
+    "three_dimensional_sides": true,
+    "inherits": "chmt-moving"
+  }
+}

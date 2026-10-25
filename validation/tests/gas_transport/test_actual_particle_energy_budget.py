@@ -46,7 +46,7 @@ struct DeviceState:State{
 #define GPU_RESET_CONTACT_AGE(s,i) s.pContactAge[i]=0;
 ThreadIndex gridDim{1};
 bool gasDragModelActive(int model){return model!=0;}
-template<class Model>Real dragInverseTimeDevice(const DeviceState&,Real,Real,Real,Real,Model){return Real(1);}
+template<class Model>Real dragInverseTimeDevice(const DeviceState&,int,Real,Real,Real,Real,Model){return Real(1);}
 void atomicAddParticleWallEnergyByFace(DeviceState&,double*,int,Real){std::abort();}
 void clearColdWallParticleState(DeviceState&,int){std::abort();}
 void clearColdWall2DParticleState(DeviceState&,int){std::abort();}

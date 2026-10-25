@@ -34,7 +34,7 @@ struct DeviceState{
  Real couplingRhoOld[1]={-99},couplingUxOld[1]={-99},couplingUyOld[1]={-99},couplingUzOld[1]={-99},couplingTgasOld[1]={-99},thetaDragAlpha[1]={-99};
  Real momRhoP[1]={1},momRhoUPx[1]={1},momRhoUPy[1]={},momRhoUPz[1]={},momRhoEP[1]={Real(.5)},momRhoPD[1]={.001};};
 Real solidEpsFromMomentDevice(const DeviceState&s,int){return s.momRhoP[0]/s.rhoSolid;}
-template<int M>Real cellDragInverseTime(DeviceState&,Real,Real,Real,Real,int){return 1;}
+template<int M>Real cellDragInverseTime(DeviceState&,int,Real,Real,Real,Real,int){return 1;}
 template<int DragModel>void drag(DeviceState*sp,double dt,int dragModel){
 #include "GpuCellDragUpdate.inl"
 }

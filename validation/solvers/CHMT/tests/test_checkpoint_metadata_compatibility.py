@@ -64,4 +64,4 @@ def test_schema6_physical_payload_roundtrip(tmp_path):
         assert old_state == new_state
         assert old_raw[:8] == new_raw[:8] and old_raw[16:40] == new_raw[16:40]
         assert struct.unpack_from('<Q',old_raw,8)[0] == 6
-        assert struct.unpack_from('<Q',new_raw,8)[0] == 7
+        assert struct.unpack_from('<Q',new_raw,8)[0] == 9

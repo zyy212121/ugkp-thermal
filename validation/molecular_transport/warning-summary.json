@@ -1,0 +1,87 @@
+{
+  "chmt-moving-sutherland": {
+    "warning_count": 16,
+    "max_scaled_wall_waveform_mismatch": 1068.4077937063626
+  },
+  "chmt-moving-baseline": {
+    "warning_count": 15,
+    "max_scaled_wall_waveform_mismatch": 1606.2561855274512
+  },
+  "cht-ode-const": {
+    "warning_count": 1,
+    "max_abs_solid_energy_residual_J": 1.5645021143179116e-08
+  },
+  "cht-mixture-sutherland": {
+    "warning_count": 1,
+    "max_abs_solid_energy_residual_J": 1.650743337161531e-08
+  },
+  "chmt-mixture-const": {
+    "warning_count": 2,
+    "max_scaled_wall_waveform_mismatch": 653302.3431324037
+  },
+  "chmt-single-const": {
+    "warning_count": 2,
+    "max_scaled_wall_waveform_mismatch": 653302.3431324037
+  },
+  "cht-contact-const": {
+    "warning_count": 1,
+    "max_abs_solid_energy_residual_J": 1.352260334264166e-08
+  },
+  "chmt-moving-const": {
+    "warning_count": 15,
+    "max_scaled_wall_waveform_mismatch": 1606.2561855274512
+  },
+  "cht-ode-sutherland": {
+    "warning_count": 1,
+    "max_abs_solid_energy_residual_J": 1.828162137298972e-08
+  },
+  "chmt-diffusion-const": {
+    "warning_count": 2,
+    "max_scaled_wall_waveform_mismatch": 653302.3431324037
+  },
+  "chmt-diffusion-sutherland": {
+    "warning_count": 2,
+    "max_scaled_wall_waveform_mismatch": 653302.3431324037
+  },
+  "chmt-mixture-sutherland": {
+    "warning_count": 2,
+    "max_scaled_wall_waveform_mismatch": 653302.3431324037
+  },
+  "cht-contact-baseline": {
+    "warning_count": 1,
+    "max_abs_solid_energy_residual_J": 1.352260334264166e-08
+  },
+  "chmt-single-baseline": {
+    "warning_count": 2,
+    "max_scaled_wall_waveform_mismatch": 653302.3431324037
+  },
+  "chmt-single-sutherland": {
+    "warning_count": 2,
+    "max_scaled_wall_waveform_mismatch": 653302.3431324037
+  },
+  "chmt-diffusion-baseline": {
+    "warning_count": 2,
+    "max_scaled_wall_waveform_mismatch": 653302.3431324037
+  },
+  "cht-wall-sutherland": {
+    "warning_count": 1,
+    "max_abs_solid_energy_residual_J": 1.34595378384339e-08
+  },
+  "chmt-mixture-baseline": {
+    "warning_count": 2,
+    "max_scaled_wall_waveform_mismatch": 653302.3431324037
+  },
+  "cht-wallfunction-sutherland": {
+    "warning_count": 1,
+    "max_abs_solid_energy_residual_J": 1.650742978420716e-08
+  },
+  "chmt-moving-short-sutherland": {
+    "warning_count": 4
+  },
+  "chmt-moving-short-const": {
+    "warning_count": 4
+  },
+  "chmt-moving-short-baseline": {
+    "warning_count": 4
+  }
+}

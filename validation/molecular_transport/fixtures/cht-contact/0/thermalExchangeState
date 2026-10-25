@@ -1,0 +1,2 @@
+FoamFile {version 2.0; format ascii; class dictionary; object thermalExchangeState;}
+formatVersion 1; initialState true; exchangeSequence "0"; completedSimulationTimeS 0;
