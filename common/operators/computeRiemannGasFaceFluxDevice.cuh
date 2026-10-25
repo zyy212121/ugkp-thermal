@@ -15,7 +15,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
     GPU_OPERATOR_REAL& momFluxYArea,
     GPU_OPERATOR_REAL& momFluxZArea,
     GPU_OPERATOR_REAL& energyFluxArea,
-    const bool nativeRefinement=false
+    const bool nativeRefinement=false,
+    const bool ordinaryInviscid=false
 )
 {
     bool numericalSuccess=true;
@@ -70,10 +71,17 @@ __device__ bool computeRiemannGasFaceFluxDevice
 
         }
     }
+    // The inviscid impermeable wall has no species transport. Clear the
+    // complete returned operator, including a buffer used by a prior wall solve.
+    if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
+        if (ordinaryInviscid && ugkwp::mixtureGasActive(s) && (boundaryKind==1 || boundaryKind==2)) {
+            if(!s.gasSpecies.flux){ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return false;}
+            for(int j=0;j<ugkwp::GasStateTraits<GasState>::speciesCount;++j)s.gasSpecies.flux[j*s.nFaces+f]=0;
+        }
     if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
     {
         const int slot=ugkwp::gasBoundaryLayerFaceSlot(s,f);
-        if(slot>=0)
+        if(slot>=0&&!ordinaryInviscid)
         {
             const auto& wall=s.gasBoundaryLayer;
             if(slot>=wall.count)
@@ -382,7 +390,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
         {
             if (ugkwp::mixtureGasActive(s))
             {
-                if((s.gasFluxScheme!=1 && s.gasFluxScheme!=2)
+                if(!ugkwp::mixtureGasFluxImplemented(s.gasFluxScheme)
                     || (s.gasReconstruction!=0 && s.gasReconstruction!=1))
                 {
                     using namespace ugkp::diagnostics;
@@ -391,8 +399,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::UnsupportedConfiguration);
                     return false;
                 }
-                // A composition contact carries formation energy through the
-                // very same Rusanov dissipation applied to partial densities.
+                // The same reconstructed composition supplies EOS, full energy,
+                // acoustic speed and the selected conservative species flux.
                 // Derived Real flux input only: never feeds back into rhoE storage.
                 ugkpriemann::Conservative leftConserved
                 {{s.rho[own],s.rhoUx[own],s.rhoUy[own],s.rhoUz[own],GPU_OPERATOR_REAL(s.rhoE[own])}};
@@ -513,7 +521,13 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     if(!leftShift || !rightShift)
                     {gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry);return false;}
                 }
-                if(s.gasFluxScheme==2)
+                if(s.gasFluxScheme==4)
+                    result=ugkpriemann::hllcFluxUnitNormal
+                    (leftRiemann,leftConserved,leftSound,rightRiemann,rightConserved,rightSound,nx,ny,nz);
+                else if(s.gasFluxScheme==8)
+                    result=ugkpriemann::slau2FluxUnitNormal
+                    (leftRiemann,leftConserved,leftSound,rightRiemann,rightConserved,rightSound,nx,ny,nz);
+                else if(s.gasFluxScheme==2)
                     result=ugkpriemann::hllKurganovFluxUnitNormal
                     (leftRiemann,leftConserved,leftSound,rightRiemann,rightConserved,rightSound,nx,ny,nz,false);
                 else
@@ -530,20 +544,31 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 }
                 const GPU_OPERATOR_REAL unLeft=leftRiemann.ux*nx+leftRiemann.uy*ny+leftRiemann.uz*nz;
                 const GPU_OPERATOR_REAL unRight=rightRiemann.ux*nx+rightRiemann.uy*ny+rightRiemann.uz*nz;
+                const bool upwindSpecies=result.evaluatedScheme==ugkpriemann::Scheme::HLLC
+                    || result.evaluatedScheme==ugkpriemann::Scheme::SLAU2;
+                const GPU_OPERATOR_REAL* donorSpecies=result.flux[0]>=GPU_OPERATOR_R(0.0)?leftSpecies:rightSpecies;
                 for(int k=0;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)
                 {
                     const GPU_OPERATOR_REAL l=leftSpecies[k];
                     const GPU_OPERATOR_REAL r=rightSpecies[k];
-                    s.gasSpecies.flux[k*s.nFaces+f]=area*(result.evaluatedScheme==ugkpriemann::Scheme::HllKurganov
-                        ?ugkpriemann::hllConservativeComponentFlux(unLeft*l,unRight*r,l,r,unLeft,unRight,leftSound,rightSound)
-                        :ugkpriemann::rusanovConservativeComponentFlux(unLeft*l,unRight*r,l,r,result.maxSignalSpeed));
+                    s.gasSpecies.flux[k*s.nFaces+f]=area*(upwindSpecies
+                        ?result.flux[0]*(result.flux[0]>=GPU_OPERATOR_R(0.0)?l/leftRiemann.rho:r/rightRiemann.rho)
+                        :result.evaluatedScheme==ugkpriemann::Scheme::HllKurganov
+                            ?ugkpriemann::hllConservativeComponentFlux(unLeft*l,unRight*r,l,r,unLeft,unRight,leftSound,rightSound)
+                            :ugkpriemann::rusanovConservativeComponentFlux(unLeft*l,unRight*r,l,r,result.maxSignalSpeed));
                 }
                 if(moving && !ugkwp::restoreGasFluxFromFaceFrame(result,meshFrame,result))
                 {gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry);return false;}
                 int massCarrier=Ns-1;
-                // Redirect closure only when the last species is absent on
-                // both sides. One-sided inventory can carry physical inflow.
-                if(leftSpecies[massCarrier]==GPU_OPERATOR_R(0.0) && rightSpecies[massCarrier]==GPU_OPERATOR_R(0.0))
+                // Upwind contact fluxes must close on a species present in
+                // the actual (face-frame) donor. Downwind inventory cannot
+                // supply even roundoff outflow from an absent donor species.
+                // The largest donor fraction is least sensitive to closure.
+                if(upwindSpecies)
+                    for(int k=0;k<Ns;++k)
+                        if(donorSpecies[k]>donorSpecies[massCarrier])massCarrier=k;
+                // Diffusive schemes can transport species in both directions.
+                else if(leftSpecies[massCarrier]==GPU_OPERATOR_R(0.0) && rightSpecies[massCarrier]==GPU_OPERATOR_R(0.0))
                     for(int k=0;k<Ns;++k)
                         if(leftSpecies[k]+rightSpecies[k]>leftSpecies[massCarrier]+rightSpecies[massCarrier])massCarrier=k;
                 GPU_OPERATOR_REAL speciesSum=GPU_OPERATOR_R(0.0);
@@ -755,7 +780,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
 
                                                                        
     // A fixed-temperature slip wall conducts heat while remaining stress-free.
-    if (boundaryKind != 1 || s.riemannBoundaryTFix[f] != 0)
+    if (!ordinaryInviscid && (boundaryKind != 1 || s.riemannBoundaryTFix[f] != 0))
     {
                                                                 
                                                                           
@@ -1085,7 +1110,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
 
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
     {
-        if (ugkwp::mixtureGasActive(s) && (s.gasSpecies.diffusivity || (IncludeTurbulence && s.turbulenceModel!=0))
+        if (!ordinaryInviscid && ugkwp::mixtureGasActive(s) && (s.gasSpecies.diffusivity || (IncludeTurbulence && s.turbulenceModel!=0))
             && (nei>=0 || (boundaryKind==0 && s.gasSpecies.compositionBoundaryFixed[f]!=0)))
         {
             constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;

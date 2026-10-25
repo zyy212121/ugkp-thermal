@@ -25,7 +25,7 @@ try
         || (a.quadratureCount&&(!qDistance||!qWeight)) || !s->faceOwner || !s->magSf
         || !s->gasSpecies.diffusivity)
     {setLastErrorText("missing consumed boundaryLayer arrays or species values");return 1;}
-    if(a.model>1){setLastErrorText("missing selected boundaryLayer model");return 1;}
+    if(a.model>2){setLastErrorText("missing selected boundaryLayer model");return 1;}
     std::vector<int> owners(s->nFaces);
     std::vector<double> areas(s->nFaces);
     if(copyToHost(owners.data(),s->faceOwner,owners.size(),"read wall owners")
@@ -99,11 +99,17 @@ try
     rc|=copyToDevice(model.input,inputs.data(),inputs.size(),"upload wall input descriptors");
     rc|=copyToDevice(w.exchange,exchanges.data(),exchanges.size(),"upload known wall mass flux");
     if(rc){discardBoundaryLayerCandidate(s,candidate);return 1;}
+    // Retain the converged profile's volume diagnostics, but do not identify
+    // that steady inventory with the independently advanced macro SST state.
+    model.volumeSstClosure=a.model==1;
+    w.useMacroSstInventory=true;
     model.config.model=static_cast<ugkwp::gaswall::BoundaryLayerModel>(a.model);
     model.config.nodes=a.nodes;model.config.maxIterations=a.maxIterations;
     model.config.relativeTolerance=a.relativeTolerance;model.config.absoluteTolerance=a.absoluteTolerance;
     model.config.stretch=a.stretch;model.config.turbulentPrandtl=a.turbulentPrandtl;
-    model.config.turbulentSchmidt=a.turbulentSchmidt;model.config.enableSst=s->hostTurbulenceModel==3;
+    model.config.turbulentSchmidt=a.turbulentSchmidt;
+    // equilibriumOde closes eddy viscosity directly; macro SST remains active.
+    model.config.enableSst=s->hostTurbulenceModel==3&&a.model!=2;
 
 
     if(releaseSharedGasTrialStorage(s->gasTrial)){discardBoundaryLayerCandidate(s,candidate);return 1;}
@@ -151,6 +157,14 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
         r[0]=faces[slot];r[1]=owners[faces[slot]];r[2]=i.matchingDistance;r[3]=i.ownerDistance;r[4]=o.conductiveHeatFlux;
         r[5]=o.traction[0];r[6]=o.traction[1];r[7]=o.traction[2];r[8]=o.wallKFlux;r[9]=o.integratedKSource;
         r[10]=o.ownerOmega;r[11]=o.residual;r[12]=o.iterations;r[13]=o.traceDensity;r[14]=i.model.viscosity;r[15]=s->gasBoundaryLayerStageTime;
+        r[16]=o.heatConduction;r[17]=o.heatViscous;r[18]=o.heatTransport;r[19]=o.heatBalanceResidual;
+        r[20]=o.ownerKContent;r[21]=o.ownerKDestruction;
+        r[22]=i.quadrature.volume;r[23]=o.ownerKBalanceResidual;r[24]=i.volumeSstClosure?1:0;
+        if(s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::EquilibriumOde){
+            // These are absent local-model diagnostics, not physical zero k/omega.
+            const double unavailable=std::numeric_limits<double>::quiet_NaN();
+            r[8]=r[9]=r[10]=r[20]=r[21]=r[23]=unavailable;
+        }
 
         for(unsigned k=0;k<species;++k){r[25+k]=o.wallSpeciesFlux[k];r[25+species+k]=o.reactionIntegral[k];}
     }

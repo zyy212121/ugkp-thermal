@@ -1,6 +1,7 @@
 #pragma once
 #include "ConstantTransportWall.H"
 #include "ReactingWallLayer.H"
+#include "EquilibriumOdeWallLayer.H"
 #include "WallPrecision.H"
 namespace ugkwp { namespace gaswall {
 // Valid after a successful ReactingSst solve, for 0 <= node < config.nodes.
@@ -43,6 +44,7 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool evaluateWallModel(
  WallOutput<R,N>& output,WallStatus& status){
     if(config.model==BoundaryLayerModel::ConstantTransport)return evaluateConstantTransportWall(input,config,output,status);
     if(config.model==BoundaryLayerModel::ReactingSst)return evaluateReactingWallLayer(input,config,workspace,output,status);
+    if(config.model==BoundaryLayerModel::EquilibriumOde)return evaluateEquilibriumOdeWallLayer(input,config,workspace,output,status);
     detail::fail(status,WallCode::Unsupported);
     return detail::wallFatal(input,ugkp::diagnostics::Code::MissingOperator,10025);
 }

@@ -12,6 +12,8 @@ struct SerialWallTeam {
     UGKWP_GAS_HD bool leader()const{return true;}
     UGKWP_GAS_HD void sync()const{}
     UGKWP_GAS_HD bool all(bool value)const{return value;}
+    template<class T> UGKWP_GAS_HD T sum(T value)const{return value;}
+    template<class T> UGKWP_GAS_HD T maximum(T value)const{return value;}
     template<class T> UGKWP_GAS_HD T broadcast(T value)const{return value;}
 };
 }}}

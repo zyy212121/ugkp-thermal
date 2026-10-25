@@ -39,4 +39,19 @@ __global__ __launch_bounds__(ugkwp::gaswall::detail::wallWarpWidth) void evaluat
     evaluateGasBoundaryLayerTeamWorker<Capture,Capacity>(state,
         typename ugkwp::GasBoundaryLayerModelCapability<GasState>::type{});
 }
+// Nodes 0..7 occupy a tile; each tile owns a distinct scratch slot. A partial
+// final block returns entire tiles only, never individual participating lanes.
+template<bool Capture=false,class GasState>
+__global__ __launch_bounds__(32) void evaluateGasBoundaryLayerTile8Kernel(GasState* state)
+{
+    if constexpr(ugkwp::GasBoundaryLayerModelCapability<GasState>::value){
+        const int worker=4*blockIdx.x+threadIdx.x/8;
+        const int workers=state->gasBoundaryLayerModel.workspaceCount;
+        if(worker>=workers||!ugkwp::gasBoundaryLayerEnabled(*state))return;
+        const ugkwp::gaswall::detail::CudaWallTile8 team{};
+        for(int slot=worker;slot<state->gasBoundaryLayer.count;slot+=workers)
+            ugkwp::evaluateGasBoundaryLayerSlot<Capture,24>(*state,slot,worker,team);
+    }
+}
+
 #endif

@@ -50,6 +50,33 @@ __device__ void gasFaceSubgridTransportProperties
         if(evaluated)*evaluated=true;
         return;
     }
+    if(nei>=0)
+    {
+        GPU_OPERATOR_REAL cpOwner=s.gasCp,cpNeighbour=s.gasCp;
+        if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
+            if(ugkwp::mixtureGasActive(s))
+            {
+                cpOwner=s.gasSpecies.heatCapacity[own];
+                cpNeighbour=s.gasSpecies.heatCapacity[nei];
+            }
+        const GPU_OPERATOR_REAL inputs[]={s.rho[own],s.rho[nei],s.nut[own],s.nut[nei],
+            cpOwner,cpNeighbour,s.turbulentPrandtl,s.faceWeight[f]};
+        for(int component=0;component<8;++component)
+            if(!ugkwp::gasFinite(inputs[component]))
+            {failure(Code::NonFinite,2668,inputs[component],Quantity::Unspecified,component);return;}
+        const GPU_OPERATOR_REAL ownerWeight=clampRange(s.faceWeight[f],GPU_OPERATOR_R(0),GPU_OPERATOR_R(1));
+        // The cell-wise timestep caller visits the same face from both cells.
+        const GPU_OPERATOR_REAL w=own==s.faceOwner[f]?ownerWeight:GPU_OPERATOR_R(1)-ownerWeight;
+        // Interpolate the coefficients multiplying the physical gradients.
+        // Averaging nut first (or using reconstructed Riemann density) loses
+        // rho/nut/Cp correlations and the location of a non-midpoint face.
+        const GPU_OPERATOR_REAL muOwner=clampMin(s.rho[own],s.rhoMin)*fmax(s.nut[own],GPU_OPERATOR_R(0.0));
+        const GPU_OPERATOR_REAL muNeighbour=clampMin(s.rho[nei],s.rhoMin)*fmax(s.nut[nei],GPU_OPERATOR_R(0.0));
+        publishTransport(w*muOwner+(GPU_OPERATOR_R(1)-w)*muNeighbour,
+            (w*cpOwner*muOwner+(GPU_OPERATOR_R(1)-w)*cpNeighbour*muNeighbour)
+            /clampMin(s.turbulentPrandtl,OfSmall));
+        return;
+    }
     GPU_OPERATOR_REAL turbulentCp=s.gasCp;
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
         if(ugkwp::mixtureGasActive(s))

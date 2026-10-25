@@ -19,6 +19,10 @@ enum class GasTransportCode : int
     SourceStepLimit,
     BoundaryLayerFailure // terminal wall BVP failure; independent of bulk chemistry
 };
+// One producer/host contract for implemented conservative mixture fluxes.
+UGKWP_GAS_HD inline bool mixtureGasFluxImplemented(int createCode)
+{ return createCode==1 || createCode==2 || createCode==4 || createCode==8; }
+
 struct GasCapabilityRequest
 {
     GasMode mode = GasMode::SingleLegacy;
@@ -30,7 +34,7 @@ struct GasCapabilityRequest
     bool movingGeometry = false;
     bool particleCoupling = false;
     int sstWallTreatment = 0; // 0 lowRe, 1 wallFunction, 2 boundaryLayer
-    int boundaryLayerModel = 1; // 0 restricted constantTransport, 1 reactingSst
+    int boundaryLayerModel = 1; // 0 restricted constantTransport, 1 reactingSst, 2 equilibriumOde
 };
 struct GasCapabilityResult
 {
@@ -45,7 +49,7 @@ UGKWP_GAS_HD inline GasCapabilityResult validateGasCapabilities(const GasCapabil
     {
         if (r.mode == GasMode::SingleLegacy || r.particleCoupling)
             return {GasTransportCode::UnsupportedConfiguration, "boundaryLayer requires shared mixture thermo and gas-only storage"};
-        if (r.boundaryLayerModel != 0 && r.boundaryLayerModel != 1)
+        if (r.boundaryLayerModel != 0 && r.boundaryLayerModel != 1 && r.boundaryLayerModel != 2)
             return {GasTransportCode::UnsupportedConfiguration, "selected boundaryLayer model has no implementation"};
     }
     if (r.movingGeometry && r.particleCoupling)
@@ -54,7 +58,7 @@ UGKWP_GAS_HD inline GasCapabilityResult validateGasCapabilities(const GasCapabil
         return {GasTransportCode::Success, "legacy gas capabilities"};
     if (r.particleCoupling)
         return {GasTransportCode::UnsupportedConfiguration, "mixture particle thermal and void-fraction closure is not enabled"};
-    return {GasTransportCode::Success, "mixture shared Rusanov or Kurganov/HLL with firstOrder or MUSCL"};
+    return {GasTransportCode::Success, "mixture shared Rusanov, Kurganov/HLL, HLLC or SLAU2 with firstOrder or MUSCL"};
 }
 
 } // namespace ugkwp

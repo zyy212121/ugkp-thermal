@@ -1,5 +1,6 @@
 #pragma once
 #include "../GpuPrecisionTypes.H"
+#include "WallResolutionDefaults.H"
 #include "../Diagnostics.H"
 #include <type_traits>
 #include "../gasTransport/MixtureThermo.H"
@@ -9,17 +10,21 @@
 namespace ugkwp { namespace gaswall {
 using WallReal=double;
 enum class WallFamily : int { LowRe=0, WallFunction=1, BoundaryLayer=2 };
-enum class BoundaryLayerModel : int { ConstantTransport=0, ReactingSst=1, FiniteRate=ReactingSst };
+enum class BoundaryLayerModel : int { ConstantTransport=0, ReactingSst=1, FiniteRate=ReactingSst, EquilibriumOde=2 };
 enum class WallCode : int { Success=0, InvalidInput, InvalidThermodynamics, Unsupported,
     InvalidGeometry, ChemistryFailure, NonConvergence, SingularJacobian, InadmissibleState };
 struct WallStatus { WallCode code=WallCode::Success; int node=-1,iteration=0; double residual=std::numeric_limits<double>::quiet_NaN(); };
 template<class R> struct WallModelConfig {
     WallFamily family=WallFamily::BoundaryLayer;
     BoundaryLayerModel model=BoundaryLayerModel::ReactingSst;
-    int nodes=24,maxIterations=60;
-    R relativeTolerance=R(1e-8),absoluteTolerance=R(1e-10),stretch=R(2);
+    int nodes=defaultWallNodes,maxIterations=60;
+    R relativeTolerance=R(1e-8),absoluteTolerance=R(1e-10),stretch=R(defaultWallStretch);
     R turbulentPrandtl=R(.9),turbulentSchmidt=R(.7);
+    R equilibriumKappa=R(.41),equilibriumAPlus=R(17);
     bool enableSst=false;
+    // Internal route selection, set only on a coherent solver/profile config copy.
+    // Legacy, analytic and unrelated template routes retain their original math.
+    bool coherentDiscretization=false;
 };
 template<class R,int N> struct WallMatchingState {
     R temperature=0,velocity[3]{},massFraction[N]{},k=0,omega=0;
@@ -47,9 +52,13 @@ template<class R,int N,class TableReal=R> struct WallInput {
     WallMatchingState<R,N> matching;
     WallGasModel<R,N,TableReal> model;
     WallOwnerQuadrature<TableReal> quadrature;
-    // Optional auxiliary diagnostic; never a coarse SST source. No point
-    // access or owner-volume quadrature traversal when disabled.
+    // Optional quadrature publication; volumeSstClosure promotes its conservative
+    // projection into the gas owner operator. Standalone diagnostics stay optional.
     bool integrateOwnerKSource=false;
+    bool volumeSstClosure=false; // actual owner volume only, not the matching extension
+    // Frozen resolved tangential derivatives in the orthonormal (t0,t1,n)
+    // frame. Columns 0/1 are tangential directions; the BVP supplies column 2.
+    R sstTangentialGradient[3][2]{};
     // Optional coarse chemistry integrated per wall area over the same domain.
     // Absence sets chemistryMismatchAvailable=false and mismatch values to NaN.
     const TableReal* coarseReactionIntegral=nullptr;
@@ -59,6 +68,12 @@ template<class R,int N> struct WallOutput {
     R conductiveHeatFlux=0,traction[3]{},wallSpeciesFlux[N]{},matchingSpeciesFlux[N]{};
     R reactionIntegral[N]{},chemistryMismatch[N]{},speciesBalanceResidual[N]{};
     R integratedKSource=0,ownerOmega=0,wallKFlux=0;
+    R ownerKContent=0,ownerKDestruction=0,ownerKBalanceResidual=0; // integral rho*k and betaStar*rho*k*omega
+    // Persistent total normal k transport and omega diffusion; workspace is pooled.
+    // Faces interpolate these shared fluxes, preserving owner/neighbour antisymmetry.
+    R kFluxHeight[129]{},kTransportFlux[129]{},omegaDiffusiveFlux[129]{};
+    int kFluxCount=0;
+    R heatConduction=0,heatViscous=0,heatTransport=0,heatBalanceResidual=0;
     bool chemistryMismatchAvailable=false;
     int iterations=0;
     R residual=0;
@@ -83,6 +98,15 @@ template<class R> UGKWP_GAS_HD inline R max(R x,R y){return x>y?x:y;}
 template<class R> UGKWP_GAS_HD inline R min(R x,R y){return x<y?x:y;}
 UGKWP_GAS_HD inline bool fail(WallStatus& s,WallCode c,int node=-1){s.code=c;s.node=node;return false;}
 template<class R> UGKWP_GAS_HD inline R dot(const R* a,const R* b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
+template<class R> UGKWP_GAS_HD inline bool wallTangentBasis(const R* normal,R tangent[2][3]){
+    int axis=0;if(abs(normal[1])<abs(normal[axis]))axis=1;if(abs(normal[2])<abs(normal[axis]))axis=2;
+    R norm=0;for(int d=0;d<3;++d){tangent[0][d]=(d==axis?R(1):R(0))-normal[axis]*normal[d];norm+=tangent[0][d]*tangent[0][d];}
+    if(!gasFinite(norm)||norm==0)return false;
+    for(int d=0;d<3;++d)tangent[0][d]/=::sqrt(norm);
+    tangent[1][0]=normal[1]*tangent[0][2]-normal[2]*tangent[0][1];
+    tangent[1][1]=normal[2]*tangent[0][0]-normal[0]*tangent[0][2];
+    tangent[1][2]=normal[0]*tangent[0][1]-normal[1]*tangent[0][0];return true;
+}
 template<class R> UGKWP_GAS_HD inline R expRatio(R x){return abs(x)<R(1e-5)?R(1)-x/R(2)+x*x/R(12)-x*x*x*x/R(720):x/::expm1(x);}
 
 
