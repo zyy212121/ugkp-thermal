@@ -55,7 +55,12 @@ log="${log_dir}/cuda_solver_build_$(date +%Y%m%d_%H%M%S).log"
         -arch="${cuda_arch}" -Xcompiler -fPIC \
         -c "${source_root}/common/gpu/ThermalFieldOperators.cu" \
         -o "${obj_dir}/ThermalFieldOperators.o"
-    ar rcs "${lib_path}" "${obj_dir}/GpuResidentStrict.o" "${obj_dir}/GpuWallEnergy64.o" "${obj_dir}/SparseConjugateGradient.o" "${obj_dir}/SolidThermalProperties.o" "${obj_dir}/ImplicitDiffusion.o" "${obj_dir}/ThermalFieldOperators.o"
+    for unit in MieOpticalProperties DiscreteOrdinateRadiation ParticleRadiationMaterial; do
+        "${NVCC:-$cuda_home/bin/nvcc}" -std=c++17 -O2 --fmad=false \
+            -arch="${cuda_arch}" -Xcompiler -fPIC \
+            -c "${source_root}/common/gpu/${unit}.cu" -o "${obj_dir}/${unit}.o"
+    done
+    ar rcs "${lib_path}" "${obj_dir}/GpuResidentStrict.o" "${obj_dir}/GpuWallEnergy64.o" "${obj_dir}/SparseConjugateGradient.o" "${obj_dir}/SolidThermalProperties.o" "${obj_dir}/ImplicitDiffusion.o" "${obj_dir}/ThermalFieldOperators.o" "${obj_dir}/MieOpticalProperties.o" "${obj_dir}/DiscreteOrdinateRadiation.o" "${obj_dir}/ParticleRadiationMaterial.o"
 
     rm -f \
         "${solver_root}/Make/${WM_OPTIONS}/diluteUgkwpFoam.o" \

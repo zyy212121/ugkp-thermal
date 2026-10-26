@@ -34,7 +34,7 @@ if [[ "$material_mode" == standard ]]; then
 fi
 if [[ "$thermal_mode" == standard ]]; then
  for source_file in "\$@"; do
-  case "\$source_file" in */gpu/SparseConjugateGradient.cu|*/gpu/SolidThermalProperties.cu|*/gpu/ImplicitDiffusion.cu|*/gpu/ThermalFieldOperators.cu|*/gpu/MaterialThermalBackend.cu) exec "$CUDA_HOME/bin/nvcc" "\$@" ;; esac
+  case "\$source_file" in */gpu/SparseConjugateGradient.cu|*/gpu/SolidThermalProperties.cu|*/gpu/ImplicitDiffusion.cu|*/gpu/ThermalFieldOperators.cu|*/gpu/MaterialThermalBackend.cu|*/gpu/MieOpticalProperties.cu|*/gpu/DiscreteOrdinateRadiation.cu|*/gpu/ParticleRadiationMaterial.cu) exec "$CUDA_HOME/bin/nvcc" "\$@" ;; esac
  done
 fi
 exec "$CUDA_HOME/bin/nvcc" --Ofast-compile=$fast_level -Xcompiler=-fno-tree-fre "\$@"

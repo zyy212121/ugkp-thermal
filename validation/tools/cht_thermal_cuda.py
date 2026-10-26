@@ -25,7 +25,8 @@ def link_thermal_cuda(build, source_root=SOURCE_ROOT):
     except OSError:
         pytest.skip('native CUDA runtime unavailable')
     objects=[]
-    for name in ('SparseConjugateGradient','SolidThermalProperties','ImplicitDiffusion','ThermalFieldOperators'):
+    for name in ('SparseConjugateGradient','SolidThermalProperties','ImplicitDiffusion','ThermalFieldOperators','MieOpticalProperties','DiscreteOrdinateRadiation','ParticleRadiationMaterial'):
+        if not (source_root/'common/gpu'/(name+'.cu')).exists():continue
         obj=build/(name+'.o');objects.append(str(obj))
         command=[nvcc,'-std=c++17','-O2','--fmad=false','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),
             '-c',str(source_root/'common/gpu'/(name+'.cu')),'-o',str(obj)]

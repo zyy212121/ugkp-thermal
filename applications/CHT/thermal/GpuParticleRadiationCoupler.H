@@ -3,6 +3,7 @@
 
 #include "MieDoRadiationSolver.H"
 #include "ParticleRadiationImplicitMath.H"
+#include "../../../common/gpu/ParticleRadiationMaterial.H"
 #include "fvMesh.H"
 #include "labelList.H"
 #include "scalarField.H"
@@ -57,6 +58,7 @@ struct ParticleRadiationTransactionContext
     scalar particleTemperatureMinK;
     scalar particleTemperatureMaxK;
     scalar radiationActiveEpsilonMin;
+    ugkp::gpu::ParticleRadiationMaterial* materialDevice = nullptr;
 };
 
 scalar particleCellCapacityJPerK
@@ -175,6 +177,7 @@ class GpuParticleRadiationCoupler
     const scalar particleTemperatureMinK_;
     const scalar particleTemperatureMaxK_;
     mutable MieDoRadiationWorkspace radiationWorkspace_;
+    std::unique_ptr<ugkp::gpu::ParticleRadiationMaterial> materialDevice_;
 
 public:
     GpuParticleRadiationCoupler

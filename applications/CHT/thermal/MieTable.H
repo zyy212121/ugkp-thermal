@@ -2,6 +2,7 @@
 #define GPU_THERMAL_MIE_TABLE_H
 
 #include "fileName.H"
+#include "../../../common/gpu/MieOpticalProperties.H"
 #include "scalar.H"
 #include "scalarField.H"
 
@@ -40,6 +41,8 @@ public:
     scalar phase(scalar diameterM, scalar temperatureK, scalar mu) const;
     scalar planckBandFraction(scalar temperatureK) const;
     bool sharesDataWith(const MieTable& other) const noexcept;
+
+    ugkp::gpu::MieOpticalTable exportGpuTable() const;
 
     scalar minDiameterM() const;
     scalar maxDiameterM() const;

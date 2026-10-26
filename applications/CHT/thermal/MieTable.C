@@ -251,6 +251,20 @@ scalar MieTable::planckBandFraction(const scalar temperature) const
     return blend(data_->band[t.lo], data_->band[t.lo+1], t.w);
 }
 
+ugkp::gpu::MieOpticalTable MieTable::exportGpuTable() const
+{
+    ugkp::gpu::MieOpticalTable table;
+    table.temperature.assign(data_->T.begin(),data_->T.end());
+    table.diameter.assign(data_->D.begin(),data_->D.end());
+    table.mu.assign(data_->mu.begin(),data_->mu.end());
+    table.band.assign(data_->band.begin(),data_->band.end());
+    for(const auto& node:data_->nodes){
+        table.absorption.push_back(node.Qabs);table.scattering.push_back(node.Qsca);table.extinction.push_back(node.Qext);
+        table.phase.insert(table.phase.end(),node.phi.begin(),node.phi.end());
+    }
+    return table;
+}
+
 bool MieTable::sharesDataWith(const MieTable& other) const noexcept { return data_.get()==other.data_.get(); }
 scalar MieTable::minDiameterM() const { return data_->D[0]; }
 scalar MieTable::maxDiameterM() const { return data_->D[data_->D.size()-1]; }
