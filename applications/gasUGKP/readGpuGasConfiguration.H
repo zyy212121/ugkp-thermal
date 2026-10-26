@@ -345,7 +345,14 @@ if (boundaryLayerInput.active())
 sharedGasModel.validateNumerics
 (
     gasFluxScheme, gasReconstruction, gasLimiter, gasTimeIntegrator,
-    gasTurbulenceModel, !gpuScheduling.pureGasOnly, sstWallTreatment,
+    gasTurbulenceModel,
+#ifdef UGKWP_STEADY_APPLICATION
+    sharedGasModel.model().mode==ugkwp::GasMode::MixtureFrozen
+        ?false:!gpuScheduling.pureGasOnly,
+#else
+    !gpuScheduling.pureGasOnly,
+#endif
+    sstWallTreatment,
     boundaryLayerInput.model()
 );
 

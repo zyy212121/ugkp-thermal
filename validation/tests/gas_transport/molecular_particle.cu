@@ -1,6 +1,6 @@
 #include "gasTransport/MolecularTransportDevice.cuh"
 #include "gasTransport/GasStateView.H"
-#include "../../../../applications/gasUGKP/private_backend/GpuDragModels.cuh"
+#include "../../../applications/gasUGKP/private_backend/GpuDragModels.cuh"
 #include "gasNumerics/GpuParticlePhysicsAlgebra.cuh"
 #include <cstdio>
 #define GPU_OPERATOR_REAL double

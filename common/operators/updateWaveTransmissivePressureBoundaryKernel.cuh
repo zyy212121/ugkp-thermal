@@ -1,9 +1,10 @@
 #pragma once
+#include "gasTransport/GasPseudoTime.H"
 template<class GasState>
 __global__ void updateWaveTransmissivePressureBoundaryKernel
 (
     GasState* sp,
-    const GPU_OPERATOR_TIME dt
+    const GPU_OPERATOR_TIME stepDt
 )
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
@@ -19,6 +20,8 @@ __global__ void updateWaveTransmissivePressureBoundaryKernel
     {
         return;
     }
+
+    const GPU_OPERATOR_TIME dt = ugkwp::gasCellTimeStep(s, own, stepDt);
 
     const GPU_OPERATOR_REAL area = clampMin(s.magSf[f], GPU_OPERATOR_TINY(1.0e-300));
     GPU_OPERATOR_REAL boundaryUx = s.gasBoundaryUx[f];

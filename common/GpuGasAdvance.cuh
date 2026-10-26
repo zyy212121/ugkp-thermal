@@ -1,5 +1,6 @@
 #pragma once
 #include <type_traits>
+#include "gasTransport/GasPseudoTime.H"
 #include "gasTransport/GasStateView.H"
 #include "gasTransport/GasBoundaryLayerHost.H"
 #include "operators/advanceGasChemistryKernel.cuh"
@@ -12,8 +13,9 @@
 // launches, streams, error checks and their ordering are owned here.
 
 template<class GasHostState>
-int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time ledgerDt, const GasHostPolicy::Time stageTime, const bool nativeRefinement=false)
+int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time ledgerDt, const GasHostPolicy::Time requestedTime, const bool nativeRefinement=false)
 {
+    const GasHostPolicy::Time stageTime = ugkwp::gasStageTime(*s, requestedTime);
     const int cellBlock = s->fixedCellBlockThreads;
     const int faceBlock = s->fixedFaceBlockThreads;
     const int cellGrid = (s->nCells + cellBlock - 1)/cellBlock;
@@ -288,8 +290,9 @@ int blendGasRungeKuttaStage
 }
 
 template<class GasHostState>
-int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time simulationTime, const bool nativeRefinement=false)
+int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time requestedTime, const bool nativeRefinement=false)
 {
+    const GasHostPolicy::Time simulationTime = ugkwp::gasStageTime(*s, requestedTime);
 
     const int preparationCellBlock = s->fixedCellBlockThreads;
     const int preparationFaceBlock = s->fixedFaceBlockThreads;
@@ -381,8 +384,9 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
 }
 
 template<class GasHostState>
-int finaliseGasBoundaryStage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time simulationTime)
+int finaliseGasBoundaryStage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time requestedTime)
 {
+    const GasHostPolicy::Time simulationTime = ugkwp::gasStageTime(*s, requestedTime);
     const int block = s->fixedFaceBlockThreads;
     const int allFaceGrid = (s->nFaces - s->nInternalFaces + block - 1)/block;
     if (allFaceGrid <= 0)
@@ -440,8 +444,9 @@ int finaliseGasBoundaryStage(GasHostState* s, const GasHostPolicy::Time dt, cons
 }
 
 template<class GasHostState>
-int advancePureGasGraph(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time simulationTime)
+int advancePureGasGraph(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time requestedTime)
 {
+    const GasHostPolicy::Time simulationTime = ugkwp::gasStageTime(*s, requestedTime);
     if (s->gasGraphExec == nullptr || s->gasGraphDt != dt)
     {
         cudaError_t err = cudaSuccess;
@@ -550,9 +555,10 @@ int applyGasTrialSources(State* s,Time dt,bool,long)
 // Shared source composition: chemistry always uses explicit stage volumes.
 template<class TrialPolicy,class GasHostState>
 int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
-    const GasHostPolicy::Time simulationTime=GasHostPolicy::Time(0),
+    const GasHostPolicy::Time requestedTime=GasHostPolicy::Time(0),
     const bool nativeRefinement=false)
 {
+    const GasHostPolicy::Time simulationTime = ugkwp::gasStageTime(*s, requestedTime);
     if constexpr (ugkwp::GasStateTraits<GasHostState>::speciesCount > 0)
     {
         {

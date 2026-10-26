@@ -1,10 +1,11 @@
 #pragma once
+#include "gasTransport/GasPseudoTime.H"
 #include "GpuWallEnergySink.cuh"
 #include "gasTransport/GasGeometryValidation.H"
 
 // One operator implementation; scalar/time adapters are compile-time only.
 template<class GasState>
-__global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPERATOR_TIME dt)
+__global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPERATOR_TIME stepDt)
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
@@ -15,6 +16,8 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
     }
 
 
+
+    const GPU_OPERATOR_TIME dt = ugkwp::gasCellTimeStep(s, c, stepDt);
 
     if(dt<=GPU_OPERATOR_R(0.0))
     {

@@ -222,4 +222,18 @@ extern "C" void ugkwpGpuResidentStrictReleaseDiagnostics(void*,ugkp::diagnostics
 extern "C" int ugkwpGpuResidentStrictCollectDiagnostics(void*,ugkp::diagnostics::Snapshot*);
 extern "C" void ugkwpGpuResidentStrictSetDiagnosticSink(void*,const ugkp::diagnostics::HostSink*);
 
+#ifdef UGKWP_STEADY_APPLICATION
+#include "../../gasUGKPSteady/gpu/GpuSteadySampling.H"
+extern "C" int ugkwpGpuResidentStrictConfigureSteadySampling(void*, double);
+extern "C" int ugkwpGpuResidentStrictBeginSamplingWindow(void*);
+extern "C" int ugkwpGpuResidentStrictAccumulateSamplingWindow(void*,double);
+extern "C" int ugkwpGpuResidentStrictFinishSamplingWindow(void*,double,GpuSteadySamplingReport*);
+extern "C" int ugkwpGpuResidentStrictDownloadSamplingMean(void*,double*);
+
+// Steady-only driving API. Existing transient entry points are unchanged.
+extern "C" int ugkwpGpuResidentStrictConfigureSteady(void*, double);
+extern "C" int ugkwpGpuResidentStrictPrepareSteadyStep(void*, double, double);
+extern "C" int ugkwpGpuResidentStrictSteadyResidual(void*, double*);
+#endif
+
 #endif

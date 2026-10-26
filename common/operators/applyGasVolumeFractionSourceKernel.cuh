@@ -97,6 +97,9 @@ __global__ void applyGasVolumeFractionSourceKernel
         s.rhoK[c] = rhoKCandidate;
         s.rhoOmega[c] = rhoOmegaCandidate;
     }
+#ifdef GPU_GAS_POROSITY_SPECIES
+    GPU_GAS_POROSITY_SPECIES(s,c,massScale);
+#endif
     s.rho[c] = mgCandidate;
     s.rhoUx[c] = momGXCandidate;
     s.rhoUy[c] = momGYCandidate;

@@ -481,6 +481,9 @@ protected:
         const bool enableParticleModule,
         const GpuSchedulingConfiguration& scheduling,
         const dictionary* particleWallProps
+#ifdef UGKWP_STEADY_APPLICATION
+        , SharedGasModelInput* gasModel = nullptr
+#endif
     )
     {
         ensureFieldSizes(mesh, rho, rhoU, rhoE, U, p, Tgas, epsS, rhoUs, rhoEs, rhoDs, rhoHp, Us, theta, Tp, dMeanCell);
@@ -647,6 +650,9 @@ protected:
         ugkwpGpuResidentStrictSetDiagnosticSink(handle_,&diagnosticSink);
         updateDiagnosticOperation(mesh.time().value());
 
+#ifdef UGKWP_STEADY_APPLICATION
+        if(gasModel)gasModel->configureResident(handle_);
+#endif
         uploadMesh(mesh, nCellPlanes, particleWallProps, rhoSolid);
         uploadGasBoundaryFields
         (
@@ -657,6 +663,9 @@ protected:
             Tgas,
             RgasValue,
             strictOpenFoamGasBoundaries
+#ifdef UGKWP_STEADY_APPLICATION
+            , gasModel && gasModel->active()
+#endif
         );
         if (enableParticleModule)
         {
@@ -677,6 +686,9 @@ protected:
             );
         }
         uploadFields(rho, rhoU, rhoE, U, p, Tgas);
+#ifdef UGKWP_STEADY_APPLICATION
+        if(gasModel)gasModel->uploadInitialSpecies(handle_);
+#endif
 
         if (enableParticleModule)
         {
@@ -2890,6 +2902,27 @@ class GpuGasResidentSolver
     public GpuResidentStrictBase
 {
 public:
+#ifdef UGKWP_STEADY_APPLICATION
+    static constexpr int steadyResidualCount = 7 + ugkwp::compiledGasSpecies;
+
+    void configureSteady(const scalar boundaryTime)
+    {
+        check(ugkwpGpuResidentStrictConfigureSteady(handle_, boundaryTime),
+            "configure steady pseudo-time driver");
+    }
+    void prepareSteadyStep(const scalar courant, const scalar maxDeltaT)
+    {
+        check(ugkwpGpuResidentStrictPrepareSteadyStep(handle_, courant, maxDeltaT),
+            "prepare local pseudo-time step");
+    }
+    void steadyResidual(scalarField& values)
+    {
+        values.setSize(steadyResidualCount);
+        check(ugkwpGpuResidentStrictSteadyResidual(handle_, values.begin()),
+            "evaluate steady spatial residual");
+    }
+
+#endif
     void advanceOneStep
     (
         const scalar dt,
@@ -3071,6 +3104,27 @@ class GpuParticleResidentSolver
     public GpuResidentStrictBase
 {
 public:
+#ifdef UGKWP_STEADY_APPLICATION
+    void downloadSharedGasSpecies(SharedGasModelInput& model,const volScalarField& rho)
+    { model.downloadSpecies(handle_,rho); }
+    void configureSteadySampling(scalar time)
+    { check(ugkwpGpuResidentStrictConfigureSteadySampling(handle_,time),"configure particle steady sampling"); }
+    void beginSamplingWindow()
+    { check(ugkwpGpuResidentStrictBeginSamplingWindow(handle_),"begin steady sampling window"); }
+    void accumulateSamplingWindow(scalar dt)
+    { check(ugkwpGpuResidentStrictAccumulateSamplingWindow(handle_,dt),"accumulate steady sampling window"); }
+    GpuSteadySamplingReport finishSamplingWindow(scalar duration)
+    {
+        GpuSteadySamplingReport result;
+        check(ugkwpGpuResidentStrictFinishSamplingWindow(handle_,duration,&result),"finish steady sampling window");
+        return result;
+    }
+    void downloadSamplingMean(scalarField& values)
+    {
+        values.setSize(GpuSteadySamplingReport::fields*hostMirrorCells_);
+        check(ugkwpGpuResidentStrictDownloadSamplingMean(handle_,values.begin()),"download steady window mean");
+    }
+#endif
     void initialise
     (
         const Time& runTime,
@@ -3131,6 +3185,9 @@ public:
         const vector& gravity,
         const GpuSchedulingConfiguration& scheduling,
         const dictionary& ugkwpProps
+#ifdef UGKWP_STEADY_APPLICATION
+        , SharedGasModelInput* gasModel = nullptr
+#endif
     )
     {
         initialiseBase
@@ -3194,6 +3251,9 @@ public:
             true,
             scheduling,
             &ugkwpProps
+#ifdef UGKWP_STEADY_APPLICATION
+            , gasModel
+#endif
         );
     }
 };
