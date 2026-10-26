@@ -1,4 +1,5 @@
 #pragma once
+#include "gasTransport/GasPseudoTime.H"
 #include "gasTransport/GasConservativeMatching.H"
 // Separate primitive/gradient/limiter buffers for PB. No writes to Q while
 // evaluating its reference operator; shared geometry and property tables are
@@ -226,12 +227,14 @@ __global__ void assembleConservativeWallFlux(State *state) {
   s.gasPhiRhoE[f] = result[4];
 }
 template <class State>
-__global__ void conservativeKFluxBudget(State *state, double dt) {
+__global__ void conservativeKFluxBudget(State *state, double stepDt) {
   if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
   auto &s = *state;
   int c = blockIdx.x * blockDim.x + threadIdx.x;
   if (c >= s.nCells)
     return;
+  const double dt = ugkwp::gasCellTimeStep(s, c, stepDt);
+
   auto &d = s.gasBoundaryLayerModel.conservative;
   double oldVolume = s.V[c], newVolume = s.V[c];
   const bool moving = ugkwp::gasMovingGeometry(s);

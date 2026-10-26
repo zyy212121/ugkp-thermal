@@ -1,14 +1,16 @@
 #pragma once
+#include "gasTransport/GasPseudoTime.H"
 #include "gasTransport/GasEnergy.H"
 #include "Diagnostics.H"
 template<bool ApplyDensityFloor, bool Diagnose = true>
 __device__ __forceinline__ void applyGasGravityCell
-(DeviceState& s, const int c, const GPU_OPERATOR_TIME dt)
+(DeviceState& s, const int c, const GPU_OPERATOR_TIME stepDt)
 {
     if constexpr (Diagnose)
     {
         if(ugkp::diagnostics::hasFatal(s.diagnostics)) return;
     }
+    const GPU_OPERATOR_TIME dt = ugkwp::gasCellTimeStep(s, c, stepDt);
     using Energy = ugkwp::GasEnergyScalar<DeviceState>;
     GPU_OPERATOR_REAL rho=s.rho[c], mx=s.rhoUx[c], my=s.rhoUy[c], mz=s.rhoUz[c];
     Energy energy=s.rhoE[c];

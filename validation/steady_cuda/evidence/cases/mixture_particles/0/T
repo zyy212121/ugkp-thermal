@@ -1,0 +1,43 @@
+FoamFile { version 2.0; format ascii; class volScalarField; object T; }
+dimensions [0 0 0 1 0 0 0];
+internalField nonuniform List<scalar>
+32
+(
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700
+700);
+boundaryField
+{
+left { type fixedValue; value uniform 700; }
+right { type fixedValue; value uniform 700; }
+sides { type empty; }
+}

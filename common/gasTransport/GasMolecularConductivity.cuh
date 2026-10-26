@@ -11,7 +11,10 @@ __device__ GPU_OPERATOR_REAL molecularGasConductivity(const GasState& s)
 template<class GasState>
 __device__ GPU_OPERATOR_REAL molecularGasConductivity(const GasState& s,int c,GPU_OPERATOR_REAL temperature)
 {
-    if(!ugkwp::gasVariableViscosity(s))return molecularGasConductivity(s);
+    // A constant viscosity does not imply a homogeneous caloric model.
+    // Active mixtures use physical species Cp(T,Y), never bootstrap gasCp.
+    if(!ugkwp::gasVariableViscosity(s) && !ugkwp::mixtureGasActive(s))
+        return molecularGasConductivity(s);
     if constexpr(ugkwp::GasDirectConductivity<GasState>::value)
         if(ugkwp::gasHasDirectConductivity(s))return s.gasThermalConductivity;
     GPU_OPERATOR_REAL cp=s.gasCp;
