@@ -1,5 +1,6 @@
 #ifndef CHMT_DRY_MATERIAL_TYPES_H
 #define CHMT_DRY_MATERIAL_TYPES_H
+#include "Portability.H"
 #include <array>
 #include <cstddef>
 
@@ -29,10 +30,10 @@ struct CondensedThermo {
     double cp0=0, cp1=0;              // e(T)=e0+cp0*T+cp1*T*T/2
     double formationEnergy=0;         // J/kg; same reference convention as gas
     double conductivity=0;           // W/(m K)
-    double internalEnergy(double T) const {
+    CHMT_DRY_HD double internalEnergy(double T) const {
         return formationEnergy+cp0*T+0.5*cp1*T*T;
     }
-    double heatCapacity(double T) const {return cp0+cp1*T;}
+    CHMT_DRY_HD double heatCapacity(double T) const {return cp0+cp1*T;}
 };
 
 // Gas calorics are borrowed through a caller-supplied functor with methods

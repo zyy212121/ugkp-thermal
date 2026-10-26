@@ -1,14 +1,15 @@
 #ifndef CHMT_ABLATION_DRYSURFACEINTERFACEMATH_H
 #define CHMT_ABLATION_DRYSURFACEINTERFACEMATH_H
 #include "ablation/InterfaceMath.H"
+#include "coupling/IntervalContracts.H"
 #include "materials/dry/DrySurfaceResponse.H"
 #include "materials/DryMaterialAdapter.H"
 #include "materials/dry/PoreTransport.H"
 namespace chmt {
-// Host-only material adapter: proposals retain WallFaceSample reference-area
+// Shared material adapter: proposals retain WallFaceSample reference-area
 // units. The validated dry kernels always see current physical material area.
 // No accepted gas ExchangePacket is constructed, changed, or applied here.
-inline dry::SurfaceProduction<Nc,Ns> drySurfaceProduction(const SurfacePhysicsInput& in,
+CHMT_HD inline dry::SurfaceProduction<Nc,Ns> drySurfaceProduction(const SurfacePhysicsInput& in,
     const GasPrimitive& gas,Real T,const PhysicsConfig& p) {
     std::array<dry::SurfaceMassAction<Nc,Ns>,Nr> reactions{};
     std::array<double,Nc> condensed{};std::array<double,Ns> partial{};
@@ -25,7 +26,7 @@ inline dry::SurfaceProduction<Nc,Ns> drySurfaceProduction(const SurfacePhysicsIn
 // Sharp recession represents one exposed effective phase or a congruent mixture.
 // Bulk pyrolysis may contain independent condensed constituents; it does not by
 // itself imply their selective surface loss is a closed sharp-front model.
-inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
+CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
     const PhysicsConfig& p, const MaterialPrimitive& material, Real filmT, Real topT,
     bool birth, SurfacePhysicsResult& out,bool* numericalFailure=nullptr) {
     if(numericalFailure)*numericalFailure=true;
@@ -240,13 +241,13 @@ inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
     out=result; return true;
 }
 struct DrySurfaceEvaluation {
-    static bool evaluate(const SurfacePhysicsInput& in,const PhysicsConfig& p,
+    CHMT_HD static bool evaluate(const SurfacePhysicsInput& in,const PhysicsConfig& p,
         const MaterialPrimitive& material,Real filmT,Real topT,bool birth,
         SurfacePhysicsResult& out,bool* numericalFailure) {
         return evaluateDrySurfaceTemperature(in,p,material,filmT,topT,birth,out,numericalFailure);
     }
 };
-inline bool solveDrySurfaceInterface(const SurfacePhysicsInput& in,const PhysicsConfig& p,
+CHMT_HD inline bool solveDrySurfaceInterface(const SurfacePhysicsInput& in,const PhysicsConfig& p,
     SurfacePhysicsResult& out,DeviceStatus* status=nullptr,bool* numericalFailure=nullptr) {
     if(numericalFailure)*numericalFailure=true;
     if ((!(in.area>0 && in.gasArea>0 && in.gasDistance>0) || !finite(in.normal) || !finite(in.gasNormal)
@@ -290,5 +291,16 @@ inline bool solveDrySurfaceInterface(const SurfacePhysicsInput& in,const Physics
         return failStatus(status,ErrorCode::Unsupported,-1,candidate.filmVolumeResidual,ErrorLocation::Face);
     out=candidate;return true;
 }
+// The proposal adapter uses the same reference-area units on CPU and GPU.
+CHMT_HD inline WallFaceSample dryWallFaceSample(const SurfacePhysicsInput& input,
+    const SurfacePhysicsResult& physics) {
+    WallFaceSample wall;wall.temperature=physics.topTemperature;wall.primaryKind=ExchangeKind::GasSolid;
+    wall.velocity=physics.gasState.velocity-input.gasNormal*dot(physics.gasState.velocity,input.gasNormal);
+    for(int s=0;s<Ns;++s){wall.speciesRate[s]=physics.gasSpecies[s];wall.poreRate[s]=physics.poreSpecies[s];wall.poreSweepRate[s]=physics.poreSweep[s];}
+    for(int c=0;c<Nc;++c)wall.condensedRate[c]=physics.condensed[c];
+    wall.radiationFlux=physics.radiationFlux;wall.solidNormalVelocity=physics.solidSpeed;wall.normalVelocity=physics.topSpeed;
+    return wall;
+}
+
 }
 #endif

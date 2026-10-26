@@ -28,7 +28,7 @@ struct PoreFlux {
 // Darcy volume flux on a face, g projected along the same left->right normal.
 // Permeability and viscosity are configured material closures, not inferred
 // universally from porosity. For zero g this is pressure-driven Darcy flow.
-inline double darcyVelocity(double permeability, double viscosity,
+CHMT_DRY_HD inline double darcyVelocity(double permeability, double viscosity,
     double pressureGradient, double density, double gravityNormal=0)
 {
     return -permeability/viscosity*(pressureGradient-density*gravityNormal);
@@ -41,7 +41,7 @@ inline double darcyVelocity(double permeability, double viscosity,
 // No Soret, barodiffusion, Knudsen, or secondary gas kinetics is implied.
 // Cf. PATO volume-averaged species transport and Cantera mass-averaged fluxes.
 template<std::size_t Ns>
-std::array<double,Ns> correctedDiffusion(double density,
+CHMT_DRY_HD std::array<double,Ns> correctedDiffusion(double density,
     const std::array<double,Ns>& massFraction,
     const std::array<double,Ns>& gradient,
     const std::array<double,Ns>& effectiveDiffusivity)
@@ -56,7 +56,7 @@ std::array<double,Ns> correctedDiffusion(double density,
 }
 
 template<std::size_t Ns, class GasThermo>
-PoreFlux<Ns> poreFaceFlux(const PoreFaceState<Ns>& left,
+CHMT_DRY_HD PoreFlux<Ns> poreFaceFlux(const PoreFaceState<Ns>& left,
     const PoreFaceState<Ns>& right, double distance,
     double superficialVelocity, const std::array<double,Ns>& effectiveDiffusivity,
     double effectiveConductivity, const GasThermo& gas)
@@ -105,7 +105,7 @@ PoreFlux<Ns> poreFaceFlux(const PoreFaceState<Ns>& left,
 // Boundary recession sweep is a separate INTERNAL-energy channel, not this
 // pressure-work-bearing Darcy/relative-diffusion enthalpy channel.
 template<std::size_t Nc, std::size_t Ns>
-void exchangePoreFlux(MaterialState<Nc,Ns>& left, MaterialState<Nc,Ns>& right,
+CHMT_DRY_HD void exchangePoreFlux(MaterialState<Nc,Ns>& left, MaterialState<Nc,Ns>& right,
     const PoreFlux<Ns>& flux, double area, double dt)
 {
     const double weight=area*dt;

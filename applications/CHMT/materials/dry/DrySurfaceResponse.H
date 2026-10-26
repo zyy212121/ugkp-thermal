@@ -32,7 +32,7 @@ struct SurfaceMassAction {
 };
 
 template<std::size_t Nc, std::size_t Ns>
-double surfaceExtentRate
+CHMT_DRY_HD double surfaceExtentRate
 (
     const SurfaceMassAction<Nc, Ns>& reaction,
     double temperature,
@@ -67,7 +67,7 @@ struct SurfaceProduction {
 };
 
 template<std::size_t Nc, std::size_t Ns, std::size_t Nr>
-SurfaceProduction<Nc, Ns> surfaceProduction
+CHMT_DRY_HD SurfaceProduction<Nc, Ns> surfaceProduction
 (
     const std::array<SurfaceMassAction<Nc, Ns>, Nr>& reactions,
     double temperature,
@@ -117,7 +117,7 @@ struct DryInterfaceFlux {
 };
 
 template<std::size_t Nc, std::size_t Ns>
-DryInterfaceFlux<Nc, Ns> congruentDryInterfaceFlux
+CHMT_DRY_HD DryInterfaceFlux<Nc, Ns> congruentDryInterfaceFlux
 (
     const SurfaceProduction<Nc, Ns>& production,
     const PoreSurfaceFlux<Ns>& pore,
@@ -151,7 +151,7 @@ DryInterfaceFlux<Nc, Ns> congruentDryInterfaceFlux
 }
 
 template<std::size_t Ns>
-std::array<double, Ns> surfaceSpeciesResidual
+CHMT_DRY_HD std::array<double, Ns> surfaceSpeciesResidual
 (
     const std::array<double, Ns>& gasSpeciesFlux,
     const std::array<double, Ns>& wallMassFraction,
@@ -190,7 +190,7 @@ struct DryEnergyBalance {
 };
 
 template<std::size_t Nc, std::size_t Ns, class GasThermo>
-DryEnergyBalance dryEnergyBalance
+CHMT_DRY_HD DryEnergyBalance dryEnergyBalance
 (
     const DryInterfaceFlux<Nc, Ns>& flux,
     const PoreSurfaceFlux<Ns>& pore,
