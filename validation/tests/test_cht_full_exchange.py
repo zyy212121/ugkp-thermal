@@ -26,7 +26,7 @@ def observe_restart(source):
 def exchange_probe(tmp_path_factory):
     if not shutil.which('wmake'):pytest.skip('Foundation OpenFOAM required')
     build=tmp_path_factory.mktemp('exchange_native');(build/'Make').mkdir()
-    for n in ['exchange.C','RecordingResident.H']:shutil.copy((VALIDATION_ROOT / 'tests/fixtures/cht_thermal')/n,build/n)
+    for n in ['exchange.C','RecordingResident.H','InterfaceExchangeResident.inc']:shutil.copy((VALIDATION_ROOT / 'tests/fixtures/cht_thermal')/n,build/n)
     names=['GpuSolidThermalCoupler','GpuSolidThermalProperties','GpuSolidPatchMapper','GpuThermalExchangeState','GpuParticleRadiationCoupler','MieDoRadiationSolver','MieTable']
     for n in names:
         source=(THERMAL/(n+'.C')).read_text()

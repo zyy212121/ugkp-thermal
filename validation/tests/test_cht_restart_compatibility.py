@@ -42,7 +42,7 @@ def build(revision):
             archive = subprocess.check_output(['git', 'archive', revision, 'applications/CHT/thermal', 'applications/CHT/gpu', 'common'], cwd=ROOT)
             with tarfile.open(fileobj=io.BytesIO(archive)) as t: t.extractall(tree, filter="data")
     thermal = tree/'applications/CHT/thermal'
-    for n in ['compatibility.C', 'CompatibilityResident.H']:
+    for n in ['compatibility.C', 'CompatibilityResident.H', 'InterfaceExchangeResident.inc']:
         write_changed(p/n, ((VALIDATION_ROOT / 'tests/fixtures/cht_thermal')/n).read_text())
     for n in NAMES:
         text = (thermal/(n+'.C')).read_text()
@@ -59,7 +59,7 @@ def build(revision):
     for subtree in ['applications/CHT/thermal','applications/CHT/gpu','common']:
         for f in sorted((tree/subtree).rglob('*')):
             if f.is_file(): dependencies[str(f.relative_to(tree))] = sha(f)
-    for n in ['compatibility.C','CompatibilityResident.H','Make/files','Make/options']:
+    for n in ['compatibility.C','CompatibilityResident.H','InterfaceExchangeResident.inc','Make/files','Make/options']:
         dependencies['fixture/'+n] = sha(p/n)
     signature = hashlib.sha256(json.dumps(dependencies, sort_keys=True).encode()).hexdigest()
     receipt_path = p/'receipt.json'

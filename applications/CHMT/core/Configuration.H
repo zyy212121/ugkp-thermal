@@ -89,10 +89,10 @@ CHMT_HD inline bool clipPhysicsMassFraction(const PhysicsConfig& p,Real& value,u
     if(bounded!=value)reportPhysicsWarning(p,ugkp::diagnostics::Code::FiniteYClip,site,value,0,bounded,component);
     value=bounded;return true;
 }
-inline ugkwp::MolecularViscosityView<Real> molecularTransportView(const PhysicsConfig& p){
+CHMT_HD inline ugkwp::MolecularViscosityView<Real> molecularTransportView(const PhysicsConfig& p){
     return {p.gasViscosityModel,p.gasViscositySpecies,p.gasSutherland,p.gasMassRatioQuarter,p.gasWilkeDenominator};
 }
-inline Real gasMolecularViscosity(const PhysicsConfig& p,Real T,const Real* Y){
+CHMT_HD inline Real gasMolecularViscosity(const PhysicsConfig& p,Real T,const Real* Y){
     return ugkwp::molecularViscosity<Ns>(molecularTransportView(p),p.gasViscosity,T,Y);
 }
 inline bool validateWallModelConfig(const PhysicsConfig& p,std::string& error) {

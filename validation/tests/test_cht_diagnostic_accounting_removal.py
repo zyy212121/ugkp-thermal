@@ -21,5 +21,6 @@ def test_contact_energy_has_no_reporting_only_accumulator_or_restart_slot():
              "GpuThermalExchangeState.H"]
     source = "\n".join((THERMAL / name).read_text() for name in files)
     assert "particleContactEnergyJ" not in source
-    assert "particleContactPreview += particleReflectedPreview;" in source
-    assert "combined[faceI] += particleContactPreview" in source
+    backend = (SOURCE_ROOT / "applications/CHT/gpu/GpuWallEnergy64.cu").read_text()
+    assert "combined+=deposited+reflected" in backend
+    assert "previewInterfaceExchange" in source

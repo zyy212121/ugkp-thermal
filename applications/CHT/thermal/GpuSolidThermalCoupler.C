@@ -1310,6 +1310,24 @@ public:
             );
         }
         resident.configureGasWallEnergyLedger(fluidMesh, mapper->fluidPatchIds());
+        labelList interfaceSolidSizes(mapper->size());
+        List<labelList> interfaceDestinations(mapper->size());
+        scalarField interfaceAreas(resident.configuredGasWallEnergyFaceIds().size());
+        label interfaceOffset = 0;
+        forAll(interfaceSolidSizes, pairI)
+        {
+            interfaceSolidSizes[pairI] =
+                solidMesh->boundary()[mapper->solidPatchIds()[pairI]].size();
+            interfaceDestinations[pairI] = mapper->solidFaceForFluidFace(pairI);
+            const scalarField& area =
+                fluidMesh.magSf().boundaryField()[mapper->fluidPatchIds()[pairI]];
+            forAll(area, faceI) interfaceAreas[interfaceOffset++] = area[faceI];
+        }
+        resident.configureInterfaceExchange
+        (
+            interfaceSolidSizes, interfaceDestinations, interfaceAreas
+        );
+
         gasConvectiveWallHeatFlux.reset
         (
             new surfaceScalarField
@@ -1885,42 +1903,31 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
                 radiation().asymmetryFactor;
         }
 
-        const List<scalarField> gasPreview =
-            data_->resident.peekGasWallEnergy();
-        scalarField particleDepositedPreview;
-        scalarField particleReflectedPreview;
-        data_->resident.peekParticleWallHeatLedgers
-        (
-            particleDepositedPreview, particleReflectedPreview
-        );
-        scalarField particleContactPreview(particleDepositedPreview);
-        particleContactPreview += particleReflectedPreview;
-        List<scalarField> solidEnergy(data_->mapper->size());
-        forAll(solidEnergy, pairI)
+        scalarField compactRadiationEnergy;
+        if (radiationDue)
         {
-            const label fluidPatchI = data_->mapper->fluidPatchIds()[pairI];
-            const polyPatch& fluidPatch =
-                data_->fluidMesh.boundaryMesh()[fluidPatchI];
-            scalarField combined(gasPreview[pairI]);
-            forAll(combined, faceI)
+            compactRadiationEnergy.setSize
+            (
+                data_->resident.configuredGasWallEnergyFaceIds().size()
+            );
+            label offset = 0;
+            forAll(data_->mapper->fluidPatchIds(), pairI)
             {
-                if (radiationDue)
-                {
-                    combined[faceI] +=
-                        radiation().solidWallRadiationEnergyJ
-                        [fluidPatchI][faceI];
-                }
-                if (!particleContactPreview.empty())
-                {
-                    combined[faceI] += particleContactPreview
-                    [
-                        fluidPatch.start() + faceI
-                    ];
-                }
+                const label patchI = data_->mapper->fluidPatchIds()[pairI];
+                const scalarField& energy =
+                    radiation().solidWallRadiationEnergyJ[patchI];
+                forAll(energy, faceI) compactRadiationEnergy[offset++] = energy[faceI];
             }
-            solidEnergy[pairI] =
-                data_->mapper->mapIntegratedFaceEnergyToSolid(pairI, combined);
         }
+        List<scalarField> solidEnergy;
+        List<scalarField> gasHeatFlux;
+        List<scalarField> depositedHeatFlux;
+        List<scalarField> reflectedHeatFlux;
+        data_->resident.previewInterfaceExchange
+        (
+            deltaTExchange, compactRadiationEnergy, solidEnergy,
+            gasHeatFlux, depositedHeatFlux, reflectedHeatFlux
+        );
         autoPtr<GpuSolidThermalCandidate> solidCandidate;
         autoPtr<GpuSolidThermalCandidate> auxiliaryCandidate;
         if (!data_->threeRegion)
@@ -2143,13 +2150,7 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
             const label patchI = data_->mapper->fluidPatchIds()[pairI];
             auto& flux =
                 data_->gasConvectiveWallHeatFlux->boundaryFieldRef()[patchI];
-            const scalarField& energy = gasPreview[pairI];
-            const scalarField& area =
-                data_->fluidMesh.magSf().boundaryField()[patchI];
-            forAll(flux, faceI)
-            {
-                flux[faceI] = energy[faceI]/(area[faceI]*deltaTExchange);
-            }
+            flux = gasHeatFlux[pairI];
         }
         data_->particleStuckWallHeatFlux->primitiveFieldRef() = scalar(0);
         data_->particleReflectedWallHeatFlux->primitiveFieldRef() = scalar(0);
@@ -2163,24 +2164,10 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
         forAll(data_->mapper->fluidPatchIds(), pairI)
         {
             const label patchI = data_->mapper->fluidPatchIds()[pairI];
-            const polyPatch& patch = data_->fluidMesh.boundaryMesh()[patchI];
-            auto& depositedFlux =
-                data_->particleStuckWallHeatFlux->boundaryFieldRef()[patchI];
-            auto& reflectedFlux =
-                data_->particleReflectedWallHeatFlux->boundaryFieldRef()[patchI];
-            const scalarField& area =
-                data_->fluidMesh.magSf().boundaryField()[patchI];
-            forAll(depositedFlux, faceI)
-            {
-                const label globalFaceI = patch.start() + faceI;
-                if (!particleDepositedPreview.empty())
-                {
-                    depositedFlux[faceI] = particleDepositedPreview[globalFaceI]
-                        /(area[faceI]*deltaTExchange);
-                    reflectedFlux[faceI] = particleReflectedPreview[globalFaceI]
-                        /(area[faceI]*deltaTExchange);
-                }
-            }
+            data_->particleStuckWallHeatFlux->boundaryFieldRef()[patchI] =
+                depositedHeatFlux[pairI];
+            data_->particleReflectedWallHeatFlux->boundaryFieldRef()[patchI] =
+                reflectedHeatFlux[pairI];
         }
         if (radiationDue)
         {

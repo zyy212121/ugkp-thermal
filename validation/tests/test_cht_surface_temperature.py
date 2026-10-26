@@ -29,8 +29,19 @@ def candidate_executable(tmp_path_factory):
     (build / "Make").mkdir()
     shutil.copy((VALIDATION_ROOT / 'tests/fixtures/cht_surface/candidate.cpp'), build / "candidate.C")
     production = (THERMAL / "GpuSolidThermalCoupler.C").read_text()
-    accumulation = production.split("scalarField combined(gasPreview[pairI]);", 1)[1].split("solidEnergy[pairI] =", 1)[0]
-    (build / "CompletedIntervalEnergy.inc").write_text("scalarField combined(gasPreview[pairI]);" + accumulation)
+    # Retain the original completed-interval CPU expression as the thermal
+    # candidate input oracle. Production exchange now executes it on CUDA;
+    # test_cht_interface_exchange exercises that backend against this order.
+    (build / "CompletedIntervalEnergy.inc").write_text("""
+        scalarField combined(gasPreview[pairI]);
+        forAll(combined, faceI)
+        {
+            if (radiationDue)
+                combined[faceI] += radiation().solidWallRadiationEnergyJ[fluidPatchI][faceI];
+            if (!particleContactPreview.empty())
+                combined[faceI] += particleContactPreview[fluidPatch.start() + faceI];
+        }
+    """)
 
     # Runtime observers live only in the generated test translation unit.
     # They count real field materializations in the production solve, without
@@ -200,17 +211,16 @@ def test_startup_rejects_missing_gradient(candidate_executable, tmp_path):
 def test_explicit_completed_interval_ledger_and_restart_guards_are_retained():
     source = (THERMAL / "GpuSolidThermalCoupler.C").read_text()
     exchange = source.split("GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue", 1)[1]
-    order = ["peekGasWallEnergy()", "scalarField combined(gasPreview[pairI]);",
-             "combined[faceI] +=", "mapIntegratedFaceEnergyToSolid(pairI, combined)",
-             "solveTemporarySolidCandidate", "commitPhaseStarted = true;",
+    order = ["previewInterfaceExchange", "solveTemporarySolidCandidate", "commitPhaseStarted = true;",
              "resetGasWallEnergy()",
              "publishSolidCandidate", "mapSolidWallTemperatureToFluid(Tgas)"]
     positions = [exchange.index(item) for item in order]
     assert positions == sorted(positions)
-    accumulation = exchange.split("scalarField combined(gasPreview[pairI]);", 1)[1].split("autoPtr<GpuSolidThermalCandidate>", 1)[0]
+    accumulation = exchange.split("scalarField compactRadiationEnergy;", 1)[1].split("autoPtr<GpuSolidThermalCandidate>", 1)[0]
     assert "radiation().solidWallRadiationEnergyJ" in accumulation
-    assert "combined[faceI] += particleContactPreview" in accumulation
-    assert "particleContactPreview += particleReflectedPreview;" in exchange
+    assert "deltaTExchange, compactRadiationEnergy, solidEnergy" in accumulation
+    assert "peekGasWallEnergy()" not in exchange
+    assert "peekParticleWallHeatLedgers" not in exchange
     assert "requireBitwiseGasWallPreviewMatch" not in source
     assert "canonicalWallTemperatureSha1" not in source
     assert "ThermalRestartPreflight::fileSha1" not in source

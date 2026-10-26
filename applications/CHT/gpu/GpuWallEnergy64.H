@@ -16,6 +16,15 @@ struct GpuWallEnergyState
     int* enabledFaceIds = nullptr;
     size_t enabledFaceCapacity = 0;
 
+    // Persistent compact fluid/solid interface map and exchange workspace.
+    int nInterfaceSolidFaces = 0;
+    int* interfaceRowOffsets = nullptr;
+    int* interfaceSourceIndices = nullptr;
+    double* interfaceAreas = nullptr;
+    double* interfaceRadiationEnergy = nullptr;
+    double* interfaceCombinedEnergy = nullptr;
+    double* interfacePreview = nullptr;
+
     int* retiredFaceIds = nullptr;
     double* particleWallDepositedEnergy = nullptr;
     double* particleWallReflectedEnergy = nullptr;

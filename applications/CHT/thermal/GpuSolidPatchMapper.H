@@ -40,6 +40,9 @@ public:
     virtual const labelList& fluidPatchIds() const = 0;
     virtual const labelList& solidPatchIds() const = 0;
 
+    // Local solid destination for each fluid face, in fluid face order.
+    virtual labelList solidFaceForFluidFace(label pairI) const = 0;
+
     virtual scalarField mapIntegratedFaceEnergyToSolid
     (
         label pairI,
@@ -79,6 +82,8 @@ public:
     const labelList& fluidPatchIds() const override;
     const labelList& solidPatchIds() const override;
 
+    labelList solidFaceForFluidFace(label pairI) const override;
+
     scalarField mapIntegratedFaceEnergyToSolid
     (
         label pairI,
@@ -117,6 +122,8 @@ public:
     const List<SolidPatchPair>& patchPairs() const override;
     const labelList& fluidPatchIds() const override;
     const labelList& solidPatchIds() const override;
+
+    labelList solidFaceForFluidFace(label pairI) const override;
 
     scalarField mapIntegratedFaceEnergyToSolid
     (
