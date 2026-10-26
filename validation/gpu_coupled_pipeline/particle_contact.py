@@ -158,6 +158,8 @@ def audit(case,grid):
                    total_energy=ge+se+ep,mass=gm+mp)
         qg=patch_flux(snapshot,"gasConvectiveWallHeatFlux",grid)
         qp=patch_flux(snapshot,"particleStuckWallHeatFlux",grid)+patch_flux(snapshot,"particleReflectedWallHeatFlux",grid)
+        assert all(math.isfinite(v) for v in state.values()),(case,state)
+        assert math.isfinite(qg) and math.isfinite(qp),(snapshot,qg,qp)
         particle_flux.append(qp)
         if states:
             previous=states[-1];dt=state["time"]-previous["time"]

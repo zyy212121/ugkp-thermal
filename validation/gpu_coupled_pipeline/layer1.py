@@ -68,11 +68,15 @@ def compare_chmt(left,right):
 
 def field(path,count=8):
     text=path.read_text();match=re.search(r'internalField\s+uniform\s+([^;]+);',text)
-    if match:return [float(match[1])]*count
+    if match:
+        value=float(match[1]);assert math.isfinite(value),(path,value)
+        return [value]*count
     match=re.search(r'internalField\s+nonuniform\s+List<scalar>\s+(\d+)\s*\((.*?)\)\s*;',text,re.S)
     assert match,(path,'expected scalar field')
     values=[float(x) for x in re.findall(NUMBER,match[2])]
-    assert len(values)==int(match[1])==count;return values
+    assert len(values)==int(match[1])==count
+    assert all(math.isfinite(value) for value in values),path
+    return values
 
 
 def scalar_sum(path,count=8):return math.fsum(field(path,count))/count
