@@ -84,6 +84,53 @@ int main(){
             for(int k=0;k<Ns;++k)require(a.gasSpecies[k]==v.gasSpecies[k]&&a.poreSpecies[k]==v.poreSpecies[k],"history species");
         }
     }
+    // Conduction consumes the committed source inventory but anchors its
+    // caloric secant at the beginning of the material window.
+    for(int variant=0;variant<3;++variant){
+        PhysicsConfig thermalPhysics;auto initial=fixture(thermalPhysics);
+        if(variant){for(auto& t:thermalPhysics.condensed)t.cp1=.17;
+            for(auto& t:thermalPhysics.species)t.cp1=.12;}
+        if(variant==2){auto& t=thermalPhysics.species[0];
+            t.model=ugkwp::SpeciesThermoModel::NASA7;t.Tmid=1000;
+            double low[]={3.5,.001,0,0,0,-10000,2},high[]={4,.0005,0,0,0,-10250,2};
+            for(int k=0;k<7;++k){t.nasa7[k]=low[k];t.nasa7[k+7]=high[k];}}
+        for(int c=0;c<2;++c){MaterialCaloric caloric;
+            require(materialCaloric(initial.solid[c],thermalPhysics,caloric,error),error);
+            initial.solid[c].energy=caloric.energy(600+500*c);}
+        require(beginMaterialWindow(*b,initial,thermalPhysics,error),error);
+        require(evaluateResidentMaterialTransport(*b,initial.solidMesh,{},.001,.4,dtLimit,error,numerical),error);
+        require(advanceResidentMaterialSources(*b,initial.solidMesh,initial.surface,{good},{},{},.001,
+            controls,true,shadow,donor,error,numerical),error);
+        commitResidentMaterialStep(*b,.001);const auto sourceState=shadow;
+        std::vector<MaterialThermalInput> input;
+        const std::vector<Real> nativeVolumes{1.+2e-16,1.-2e-16};
+        require(prepareResidentMaterialConduction(*b,initial.solidMesh,nativeVolumes,input,error,numerical),error);
+        std::vector<Real> endpoint{950,1050};std::vector<MaterialThermalCoefficients> coefficients;
+        require(evaluateResidentMaterialConduction(*b,endpoint,.001,coefficients,error),error);
+        std::vector<SolidQ> wanted=sourceState;
+        for(int c=0;c<2;++c){MaterialPrimitive oldPrimitive;MaterialCaloric caloric;
+            require(recoverMaterial(initial.solid[c],1,thermalPhysics,oldPrimitive),"old thermal EOS");
+            require(materialCaloric(sourceState[c],thermalPhysics,caloric,error),error);
+            require(std::abs(input[c].anchor-oldPrimitive.temperature)<1e-10,"resident initial anchor");
+            require(input[c].target==sourceState[c].energy,"resident source target");
+            require(input[c].nativeVolume==nativeVolumes[c]&&input[c].materialVolume==1,"distinct conduction volumes");
+            const double expectedCapacity=caloric.secant(endpoint[c],oldPrimitive.temperature)/nativeVolumes[c];
+            require(std::abs(coefficients[c].capacity-expectedCapacity)<2e-14*expectedCapacity,"resident nonlinear capacity");
+            wanted[c].energy=caloric.energy(endpoint[c]);MaterialPrimitive primitive;
+            require(recoverMaterial(wanted[c],1,thermalPhysics,primitive),"endpoint reference EOS");
+            wanted[c].porosity=primitive.porosity;
+        }
+        const auto before=shadow;
+        require(!finishResidentMaterialConduction(*b,{950,-100000},shadow,error,numerical),"inadmissible endpoint rejected");
+        equal(shadow,before);
+        require(prepareResidentMaterialConduction(*b,initial.solidMesh,nativeVolumes,input,error,numerical),error);
+        require(input[0].target==sourceState[0].energy&&input[1].target==sourceState[1].energy,"failed endpoint did not commit any cell");
+        require(finishResidentMaterialConduction(*b,endpoint,shadow,error,numerical),error);
+        equal(shadow,wanted);
+        require(prepareResidentMaterialConduction(*b,initial.solidMesh,nativeVolumes,input,error,numerical),error);
+        require(input[0].target==wanted[0].energy&&input[1].target==wanted[1].energy,"endpoint retained on device");
+    }
+    std::puts("PASS: resident conduction anchors, constant/polynomial/NASA7 calorics, distinct volumes and atomic endpoint publication");
     std::puts("PASS: independent history batching equals sequential surface evaluation, including an inactive first face");
     std::puts("PASS: failed and uncommitted steps preserve current inventory, donor sums and caller outputs; commit advances once");
 }

@@ -100,6 +100,7 @@ def audit(case, scenario, material):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--baseline', type=Path, required=True)
+    parser.add_argument('--baseline-role',default='Accepted layer-one GPU-interface executable, with material still on CPU.')
     parser.add_argument('--candidate', type=Path)
     parser.add_argument('--source', type=Path, required=True, help='Frozen source containing original validation runner')
     parser.add_argument('--cases-root', type=Path, required=True)
@@ -125,7 +126,7 @@ def main():
     runner.run = run_with_schema9
     report = {
         'status': 'running', 'grid': args.grid,
-        'baseline_role': 'Accepted layer-one GPU-interface executable, with material still on CPU.',
+        'baseline_role': args.baseline_role,
         'binaries': {k: {'path': str(v), 'sha256': layer1.digest(v)} for k, v in paths.items()},
         'runner_source': {'path': str(original), 'sha256': layer1.digest(original)},
         'inspector_sha256': layer1.digest(args.inspector),

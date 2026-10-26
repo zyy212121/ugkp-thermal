@@ -80,10 +80,10 @@ int main(int argc, char** argv)
     fixedGradientFvPatchScalarField& startingPatch=refCast<fixedGradientFvPatchScalarField>(T.boundaryFieldRef()[left]);
     const scalar savedGradient=startingPatch.gradient()[0];
     startingPatch.gradient()[0]=std::numeric_limits<scalar>::quiet_NaN();
-    bool invalidGradientRejected=false;
-    try { coupledPatchSurfaceTemperature(T,left); }
-    catch (const GpuSolidThermalSolveError&) { invalidGradientRejected=true; }
-    if (!invalidGradientRejected) throw std::runtime_error("nonfinite surface gradient was accepted");
+    // The accessor returns the stored patch surface without re-evaluating or
+    // validating an unused gradient. Physical consumers own their diagnostics.
+    const scalarField unchangedSurface=coupledPatchSurfaceTemperature(T,left);
+    forAll(unchangedSurface,f)near("surface accessor is read-only",unchangedSurface[f],startingPatch[f],0);
     startingPatch.gradient()[0]=savedGradient;
     T.correctBoundaryConditions();
     chtSurfaceMaterializations=0;

@@ -1,4 +1,5 @@
 """Execute the actual OpenFOAM thermal owners; no CUDA device is emulated here."""
+from validation.tools.cht_thermal_cuda import link_thermal_cuda
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
 
 from pathlib import Path
@@ -31,12 +32,13 @@ def thermal_probe(tmp_path_factory):
     owners=['GpuSolidThermalProperties','GpuSolidThermalCoupler','GpuSolidPatchMapper','GpuThermalExchangeState']
     for name in owners:
         if name=='GpuSolidThermalCoupler':
-            source=(THERMAL/(name+'.C')).read_text().replace('linearPerformance = equation.solve();','linearPerformance = equation.solve(); if (std::getenv("UGKP_TEST_LINEAR_NAN")) linearPerformance.finalResidual() = std::numeric_limits<scalar>::quiet_NaN(); t14LinearResidual=linearPerformance.finalResidual(); t14LinearIterations=linearPerformance.nIterations(); t14LinearConverged=linearPerformance.converged();')
+            source=(THERMAL/(name+'.C')).read_text().replace('linearPerformance = ugkp::gpu::solveFoamScalarMatrix(equation, linearControls, *sparse_);','linearPerformance = ugkp::gpu::solveFoamScalarMatrix(equation, linearControls, *sparse_); if (std::getenv("UGKP_TEST_LINEAR_NAN")) linearPerformance.finalResidual() = std::numeric_limits<scalar>::quiet_NaN(); t14LinearResidual=linearPerformance.finalResidual(); t14LinearIterations=linearPerformance.nIterations(); t14LinearConverged=linearPerformance.converged();')
             (build/f'{name}.C').write_text('double t14LinearResidual=0; int t14LinearIterations=0; bool t14LinearConverged=false;\n'+source)
         elif name=='GpuThermalExchangeState':(build/f'{name}.C').write_text(observe_restart((THERMAL/(name+'.C')).read_text()))
         else:(build/f'{name}.C').write_text(f'#include "{THERMAL/name}.C"\n')
     (build/'Make/files').write_text('probe.C\n'+'\n'.join(n+'.C' for n in owners)+f'\nEXE = {build}/probe\n')
     (build/'Make/options').write_text(f'EXE_INC = -I{THERMAL} -I$(LIB_SRC)/finiteVolume/lnInclude -I$(LIB_SRC)/meshTools/lnInclude\nEXE_LIBS = -lfiniteVolume -lmeshTools -lOpenFOAM\n')
+    link_thermal_cuda(build, THERMAL.parents[2])
     p=subprocess.run(['wmake'],cwd=build,text=True,capture_output=True)
     (build/'build.log').write_text(p.stdout+p.stderr)
     assert p.returncode==0,p.stdout+p.stderr

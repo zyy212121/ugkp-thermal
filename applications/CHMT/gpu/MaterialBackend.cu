@@ -12,6 +12,42 @@
 namespace chmt {
 namespace {
 struct MaterialStepResult {int phase=0,code=0,entity=-1;bool numerical=true;};
+// All conduction kernels use the accepted material owner's stream and inventory.
+// Candidate energy/EOS results are published only after every cell succeeds.
+__global__ void prepareConductionKernel(int count,const SolidQ* initial,const Real* initialVolumes,
+    const SolidQ* current,const Real* volumes,const Real* nativeVolumes,const PhysicsConfig* physics,
+    MaterialThermalInput* input,MaterialStepResult* status){
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=count)return;
+    status[c]={};MaterialThermalInput value;bool numerical=true;
+    const auto code=makeMaterialCaloric(current[c],*physics,value.caloric,numerical);
+    if(code!=MaterialCaloricCode::Success){status[c]={1,int(code),c,numerical};return;}
+    MaterialPrimitive primitive;
+    if(!recoverMaterial<false>(initial[c],initialVolumes[c],*physics,primitive,nullptr,-1,&numerical)){
+        status[c]={2,0,c,numerical};return;
+    }
+    value.inventory=current[c];value.anchor=primitive.temperature;value.target=current[c].energy;
+    value.nativeVolume=nativeVolumes[c];value.materialVolume=volumes[c];input[c]=value;
+}
+__global__ void conductionCoefficientsKernel(int count,const MaterialThermalInput* input,
+    const Real* temperature,Real dt,const PhysicsConfig* physics,MaterialThermalCoefficients* output){
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;
+    if(c<count)output[c]=materialThermalCoefficients(input[c],temperature[c],dt,*physics);
+}
+__global__ void finishConductionKernel(int count,const SolidQ* current,const Real* volumes,
+    const MaterialThermalInput* input,const Real* temperature,const PhysicsConfig* physics,
+    SolidQ* next,MaterialStepResult* status){
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=count)return;
+    status[c]={};SolidQ value=current[c];value.energy=input[c].caloric.energy<false>(temperature[c]);
+    MaterialPrimitive primitive;bool numerical=false;
+    if(!recoverMaterial<false>(value,volumes[c],*physics,primitive,nullptr,-1,&numerical)){
+        status[c]={3,0,c,numerical};return;
+    }
+    value.porosity=primitive.porosity;next[c]=value;
+}
+__global__ void selectConductionFailure(const MaterialStepResult* status,int count,MaterialStepResult* result){
+    if(blockIdx.x||threadIdx.x)return;
+    *result={};for(int c=0;c<count;++c)if(status[c].phase){*result=status[c];return;}
+}
 __global__ void selectReactionFailure(const MaterialReactionStatus* status,int count,MaterialStepResult* result){
     if(blockIdx.x||threadIdx.x)return;
     *result={};
@@ -64,6 +100,9 @@ struct MaterialBackend {
     std::uint64_t sequence=0,step=0;Real time=0;
     Buffer<PhysicsConfig> devicePhysics;
     Buffer<SolidQ> current,next,initial,reacted,gasChange,candidateGasChange,donor;
+    Buffer<Real> initialVolumes,conductionVolumes,conductionTemperature;
+    Buffer<MaterialThermalInput> conductionInput;
+    Buffer<MaterialThermalCoefficients> conductionCoefficients;
     Buffer<Real> volumes,nextVolumes,sweeps,gradientSensitivity,stabilityRate,lossLeft,lossRight,cellDt;
     Buffer<Vec3> centres,areas,faceCentres,pressureGradient,poreVelocity;
     Buffer<int> owner,neighbour,periodic,cellOffsets,cellFaces,cellSigns;
@@ -195,14 +234,58 @@ bool beginMaterialWindow(MaterialBackend& b,const HostState& state,const Physics
         ||!b.allocate(b.candidateGasChange,state.solid.size())
         ||!b.allocate(b.donor,state.solid.size())||!b.allocate(b.reactionStatus,state.solid.size())
         ||!b.allocate(b.sourceStatus,state.solid.size())||!b.allocate(b.stepResult,1)
-        ||!b.uploadRaw(b.devicePhysics,&devicePhysics,1)||!b.upload(b.nextVolumes,state.solidMesh.volumes))return b.failure(error);
+        ||!b.uploadRaw(b.devicePhysics,&devicePhysics,1)||!b.upload(b.initialVolumes,state.solidMesh.volumes)
+        ||!b.upload(b.nextVolumes,state.solidMesh.volumes))return b.failure(error);
     if(!b.configureMesh(state.solidMesh,error))return false;
     b.operation(state.time);
     return b.finish(error);
 }
-bool uploadMaterialConductionEndpoint(MaterialBackend& b,const HostState& state,std::string& error){
-    if(!b.upload(b.current,state.solid)||!b.configureMesh(state.solidMesh,error))return b.failure(error);
-    return b.finish(error);
+bool prepareResidentMaterialConduction(MaterialBackend& b,const HostMesh& mesh,
+    const std::vector<Real>& nativeVolumes,std::vector<MaterialThermalInput>& input,
+    std::string& error,bool& numerical){
+    numerical=true;
+    if(!b.configureMesh(mesh,error))return false;
+    if(!b.upload(b.conductionVolumes,nativeVolumes)||!b.allocate(b.conductionInput,b.current.size())
+        ||!b.allocate(b.conductionCoefficients,b.current.size()))return b.failure(error);
+    b.operation(b.time);
+    if(b.cells)prepareConductionKernel<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,
+        b.initial.data(),b.initialVolumes.data(),b.current.data(),b.volumes.data(),b.conductionVolumes.data(),
+        b.devicePhysics.data(),b.conductionInput.data(),b.sourceStatus.data());
+    selectConductionFailure<<<1,1,0,b.stream.get()>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
+    MaterialStepResult result;
+    if(!b.fault.check(cudaGetLastError(),"prepare resident material conduction")
+        ||!b.transfers.download(&result,b.stepResult.data(),1)||!b.finish(error))return b.failure(error);
+    if(result.phase){numerical=result.numerical;error=result.phase==1
+        ?materialCaloricError(MaterialCaloricCode(result.code)):"CPU conduction old EOS recovery failed";return false;}
+    if(!b.read(b.conductionInput,input)||!b.finish(error))return b.failure(error);
+    error.clear();return true;
+}
+bool evaluateResidentMaterialConduction(MaterialBackend& b,const std::vector<Real>& temperature,
+    Real dt,std::vector<MaterialThermalCoefficients>& coefficients,std::string& error){
+    if(!b.upload(b.conductionTemperature,temperature))return b.failure(error);
+    b.operation(b.time);
+    if(b.cells)conductionCoefficientsKernel<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,
+        b.conductionInput.data(),b.conductionTemperature.data(),dt,b.devicePhysics.data(),b.conductionCoefficients.data());
+    if(!b.fault.check(cudaGetLastError(),"evaluate resident material conduction")
+        ||!b.read(b.conductionCoefficients,coefficients)||!b.finish(error))return b.failure(error);
+    error.clear();return true;
+}
+bool finishResidentMaterialConduction(MaterialBackend& b,const std::vector<Real>& temperature,
+    std::vector<SolidQ>& hostMirror,std::string& error,bool& numerical){
+    numerical=true;
+    if(!b.upload(b.conductionTemperature,temperature))return b.failure(error);
+    b.operation(b.time);
+    if(b.cells)finishConductionKernel<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,b.current.data(),
+        b.volumes.data(),b.conductionInput.data(),b.conductionTemperature.data(),b.devicePhysics.data(),
+        b.next.data(),b.sourceStatus.data());
+    selectConductionFailure<<<1,1,0,b.stream.get()>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
+    MaterialStepResult result;
+    if(!b.fault.check(cudaGetLastError(),"finish resident material conduction")
+        ||!b.transfers.download(&result,b.stepResult.data(),1)||!b.finish(error))return b.failure(error);
+    if(result.phase){numerical=result.numerical;error="implicit material endpoint EOS invalid";return false;}
+    std::vector<SolidQ> candidate;
+    if(!b.read(b.next,candidate)||!b.finish(error))return b.failure(error);
+    b.current.swap(b.next);hostMirror.swap(candidate);error.clear();return true;
 }
 bool evaluateResidentMaterialTransport(MaterialBackend& b,const HostMesh& mesh,
     const std::vector<Real>& swept,Real interval,Real cfl,Real& dtLimit,std::string& error,bool& numerical){

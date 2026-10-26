@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "layer": 3,
+  "environment": "Source /opt/openfoam10/etc/bashrc; CUDA 13.1 was used, UGKWP_CUDA_ARCH=sm_89. Execute GPU work serially. Keep fresh output directories.",
+  "variables": {
+    "R": "candidate repository",
+    "B": "preserved 88bc5434ee7199ec0bd7b986bbf121d693022245 checkout",
+    "E": "evidence root outside the repository",
+    "C": "case repository root",
+    "CHMT_BASE": "accepted layer-two CHMT binary (CPU solid conduction)",
+    "CHT_BASE": "directory containing accepted layer-one CHT binary (CPU solid conduction)",
+    "CAND": "directory containing candidate CHMT and CHT binaries",
+    "ARCHIVE": "CUDA archive from candidate CHT build"
+  },
+  "commands": [
+    "bash $R/validation/gpu_coupled_pipeline/layer3_kernels.sh $R $B $E/kernels",
+    "python3 $R/validation/gpu_coupled_pipeline/layer3_mesh.py --template $E/layer2-performance-inputs/dry-grid8 --binaries $E/kernels --work $E/meshes --mpi",
+    "bash $R/validation/gpu_coupled_pipeline/layer3_conduction_build.sh $R $B $ARCHIVE $E/conduction-binaries",
+    "python3 $R/validation/gpu_coupled_pipeline/layer3_conduction.py --meshes $E/meshes --binaries $E/conduction-binaries --work $E/conduction --repeats 5",
+    "python3 $R/validation/gpu_coupled_pipeline/layer3_mesh.py --template $E/layer2-performance-inputs/dry-grid8 --binaries $E/kernels --work $E/meshes64 --grids 64",
+    "python3 $R/validation/gpu_coupled_pipeline/layer3_conduction.py --meshes $E/meshes64 --grids 64 --binaries $E/conduction-binaries --work $E/conduction64 --repeats 5",
+    "python3 $R/validation/gpu_coupled_pipeline/layer2_native.py --baseline $CHMT_BASE --baseline-role 'Accepted layer two; CPU solid conduction' --candidate $CAND/CHMT --source $B --cases-root $C --inspector $E/layer2-cpu-baseline/bin/checkpoint_material --work $E/native --scenarios thermal single diffusion dry receding",
+    "python3 $R/validation/gpu_coupled_pipeline/layer1.py --baseline $CHT_BASE --candidate $CAND --work $E/cht --cases cht-contact cht-mixture cht-pure cht-wall cht-ode cht-wallfunction",
+    "bash $R/validation/gpu_coupled_pipeline/time_material_case.sh $E/layer2-performance-inputs/dry-grid8 $CHMT_BASE $CAND/CHMT $E/timing8 5",
+    "python3 $R/validation/gpu_coupled_pipeline/audit_material_timing.py --cohort $E/timing8 --inspector $E/layer2-cpu-baseline/bin/checkpoint_material",
+    "bash $R/validation/gpu_coupled_pipeline/time_material_case.sh $E/layer2-performance-inputs/dry-grid16 $CHMT_BASE $CAND/CHMT $E/timing16 5",
+    "python3 $R/validation/gpu_coupled_pipeline/audit_material_timing.py --cohort $E/timing16 --inspector $E/layer2-cpu-baseline/bin/checkpoint_material",
+    "python3 $R/validation/gpu_coupled_pipeline/layer1.py --baseline $CHT_BASE --candidate $CAND --work $E/cht-timing8 --cases cht-contact --grid 8 --benchmark --repeats 5",
+    "python3 $R/validation/gpu_coupled_pipeline/layer2_restart.py --reference $E/native/dry-candidate-0/dry-0 --binary $CAND/CHMT --inspector $E/layer2-cpu-baseline/bin/checkpoint_material --work $E/chmt-restart",
+    "python3 $R/validation/gpu_coupled_pipeline/layer3_cht_restart.py --reference $E/cht/cht-contact-candidate-0 --binary $CAND/CHT --work $E/cht-contact-restart",
+    "C05_ORIGINAL=88bc5434ee7199ec0bd7b986bbf121d693022245 C05_ORIGINAL_TREE=$B C05_BUILD_ROOT=$E/restart-build C05_EVIDENCE=$E/restart-evidence python3 -m pytest -q validation/tests/test_cht_solid_continuation.py validation/tests/test_cht_surface_temperature.py validation/tests/test_cht_full_exchange.py validation/tests/test_cht_restart_compatibility.py --basetemp $E/thermal-probes"
+  ],
+  "additional_checks": [
+    "Run compute-sanitizer --tool memcheck --leak-check full --error-exitcode 99 on sparse-test, material_backend_transaction and fresh native CHT/CHMT cases. Check numerical parity after sanitizer execution.",
+    "Run layer3_cht_restart.py on baseline and candidate contact, mixture and wall cases, then compare the restarted output fields strictly with layer1.compare_fields.",
+    "Build material_backend_transaction with the production MaterialBackend object and UGKWP_GAS_SPECIES=2; layer3_kernels.sh independently checks thermal constitutive math for Ns=2 and Ns=3."
+  ],
+  "timing_scope": "Native process timing includes startup and normal output, with one warmup plus five alternating pairs. Strong conduction timing includes properties, assembly and nonlinear iteration in a resident owner, with one warmup plus five repeated solves per binary. The latter is not an alternating full-application benchmark.",
+  "production_scope": "Shared operators for the existing CHT and CHMT applications. Verification fixtures do not introduce production dispatch by case or mesh. gasUGKP remains a distinct pure-flow application."
+}

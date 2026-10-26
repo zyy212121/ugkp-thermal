@@ -1,6 +1,7 @@
 #ifndef CHMT_GPU_MATERIALBACKEND_H
 #define CHMT_GPU_MATERIALBACKEND_H
 #include "materials/MaterialTransport.H"
+#include "gpu/MaterialThermalBackend.H"
 #include "ablation/CpuSurfaceInterface.H"
 #include "../../../common/DiagnosticsHost.H"
 namespace chmt {
@@ -12,7 +13,13 @@ void setMaterialDiagnosticsSink(MaterialBackend&,const ugkp::diagnostics::HostSi
 // Upload the accepted inventory once. Subsequent source steps retain both
 // current/candidate inventories, transport work and donor changes on device.
 bool beginMaterialWindow(MaterialBackend&,const HostState&,const PhysicsConfig&,std::string&);
-bool uploadMaterialConductionEndpoint(MaterialBackend&,const HostState&,std::string&);
+bool prepareResidentMaterialConduction(MaterialBackend&,const HostMesh&,
+    const std::vector<Real>& nativeVolumes,std::vector<MaterialThermalInput>&,
+    std::string&,bool& numericalFailure);
+bool evaluateResidentMaterialConduction(MaterialBackend&,const std::vector<Real>& temperature,
+    Real dt,std::vector<MaterialThermalCoefficients>&,std::string&);
+bool finishResidentMaterialConduction(MaterialBackend&,const std::vector<Real>& temperature,
+    std::vector<SolidQ>& hostMirror,std::string&,bool& numericalFailure);
 bool evaluateResidentMaterialTransport(MaterialBackend&,const HostMesh&,
     const std::vector<Real>& sweeps,Real interval,Real cfl,Real& dtLimit,
     std::string&,bool& numericalFailure);

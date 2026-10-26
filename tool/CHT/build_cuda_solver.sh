@@ -39,7 +39,23 @@ log="${log_dir}/cuda_solver_build_$(date +%Y%m%d_%H%M%S).log"
         -arch="${cuda_arch}" -Xcompiler -fPIC \
         -c "${solver_root}/gpu/GpuWallEnergy64.cu" \
         -o "${obj_dir}/GpuWallEnergy64.o"
-    ar rcs "${lib_path}" "${obj_dir}/GpuResidentStrict.o" "${obj_dir}/GpuWallEnergy64.o"
+    "${NVCC:-$cuda_home/bin/nvcc}" -std=c++17 -O2 --fmad=false \
+        -arch="${cuda_arch}" -Xcompiler -fPIC \
+        -c "${source_root}/common/gpu/SparseConjugateGradient.cu" \
+        -o "${obj_dir}/SparseConjugateGradient.o"
+    "${NVCC:-$cuda_home/bin/nvcc}" -std=c++17 -O2 --fmad=false \
+        -arch="${cuda_arch}" -Xcompiler -fPIC \
+        -c "${source_root}/common/gpu/SolidThermalProperties.cu" \
+        -o "${obj_dir}/SolidThermalProperties.o"
+    "${NVCC:-$cuda_home/bin/nvcc}" -std=c++17 -O2 --fmad=false \
+        -arch="${cuda_arch}" -Xcompiler -fPIC \
+        -c "${source_root}/common/gpu/ImplicitDiffusion.cu" \
+        -o "${obj_dir}/ImplicitDiffusion.o"
+    "${NVCC:-$cuda_home/bin/nvcc}" -std=c++17 -O2 --fmad=false \
+        -arch="${cuda_arch}" -Xcompiler -fPIC \
+        -c "${source_root}/common/gpu/ThermalFieldOperators.cu" \
+        -o "${obj_dir}/ThermalFieldOperators.o"
+    ar rcs "${lib_path}" "${obj_dir}/GpuResidentStrict.o" "${obj_dir}/GpuWallEnergy64.o" "${obj_dir}/SparseConjugateGradient.o" "${obj_dir}/SolidThermalProperties.o" "${obj_dir}/ImplicitDiffusion.o" "${obj_dir}/ThermalFieldOperators.o"
 
     rm -f \
         "${solver_root}/Make/${WM_OPTIONS}/diluteUgkwpFoam.o" \
