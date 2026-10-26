@@ -6,7 +6,7 @@
 #include "../../../common/gasTransport/GasNumericsIO.H"
 #include "../../../common/gasTransport/GasMechanismIO.H"
 #include "OStringStream.H"
-#include "../../../common/gasTransport/MolecularTransportIO.H"
+#include "../../../common/gasTransport/FoamMolecularTransportIO.H"
 #include <memory>
 namespace chmt { namespace io {
 struct CoupledCaseInput {
@@ -40,8 +40,7 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
         auto names=candidate.gasModel.speciesNames;
         if(candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy)
             names={candidate.model.speciesNames[candidate.model.physics.singleGasSpecies]};
-        const auto transport=ugkwp::readMolecularTransport(
-            std::string(time.path()/time.constant()/"gasTransportProperties"),names);
+        const auto transport=Foam::readFoamMolecularTransport(time,time,names);
         auto masses=candidate.gasModel.species;
         if(candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy)
             masses={masses[candidate.model.physics.singleGasSpecies]};

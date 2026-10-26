@@ -1,6 +1,5 @@
 #pragma once
-#include "fvCFD.H"
-#include "MolecularTransportIO.H"
+#include "FoamMolecularTransportIO.H"
 namespace Foam {
 class MolecularTransportInput {
     ugkwp::MolecularTransportConfiguration config_;
@@ -8,15 +7,9 @@ class MolecularTransportInput {
 public:
     MolecularTransportInput(const Time& time,const fvMesh& mesh,const ugkwp::GasModelConfiguration& gasModel){
         try{
-            IOobject object("gasTransportProperties",time.constant(),mesh,IOobject::READ_IF_PRESENT,IOobject::NO_WRITE,false);
-            if(isFile(object.objectPath(false))){
-                IOdictionary dict(object);OStringStream output;
-                output.precision(std::numeric_limits<double>::max_digits10);
-                static_cast<const Foam::dictionary&>(dict).write(output,false);
-                config_=ugkwp::parseMolecularTransport(output.str(),gasModel.speciesNames);
-                if(gasModel.mode!=ugkwp::GasMode::SingleLegacy)
-                    ugkwp::validateTransportMolarMasses(config_,gasModel.species);
-            }
+            config_=readFoamMolecularTransport(time,mesh,gasModel.speciesNames);
+            if(gasModel.mode!=ugkwp::GasMode::SingleLegacy)
+                ugkwp::validateTransportMolarMasses(config_,gasModel.species);
             IOobject saved("gasTransportIdentity",time.timeName(),mesh,IOobject::READ_IF_PRESENT,IOobject::NO_WRITE,false);
             if(isFile(saved.objectPath(false))){
                 IOdictionary previous(saved);

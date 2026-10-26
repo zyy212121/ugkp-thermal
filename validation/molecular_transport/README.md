@@ -17,7 +17,7 @@ sutherland
 }
 ```
 
-以上系数仅用于演示格式，不代表真实 A/B 物种的拟合数据。单位分别为 Pa·s、K、K、kg/mol。所有参数须有限，`muRef`、`TRef`、`molarMass` 必须为正，`S >= 0`。组分名称及顺序须与 `gasModelProperties` 一致，分子量须与热力学表一致。单气体 legacy 模式只配置一个物种；CHMT 使用其选定的 `singleGasSpecies` 名称。CHMT 的文件由共享字典解析器直接读取，当前应使用展开后的字面值；gasUGKP/CHT 通过 OpenFOAM 字典读取并展开。
+以上系数仅用于演示格式，不代表真实 A/B 物种的拟合数据。单位分别为 Pa·s、K、K、kg/mol。所有参数须有限，`muRef`、`TRef`、`molarMass` 必须为正，`S >= 0`。组分名称及顺序须与 `gasModelProperties` 一致，分子量须与热力学表一致。单气体 legacy 模式只配置一个物种；CHMT 使用其选定的 `singleGasSpecies` 名称。三个应用均先经过同一个 OpenFOAM 字典读取入口，支持相对路径 `#include` 和 `$变量` 替换，再交给共享物性解析器。
 
 各组分使用
 
@@ -104,3 +104,14 @@ export NVCC="$out/nvcc-validation"
 `benchmark.py` 使用相同输入，预热一轮后交替运行 baseline / const / Sutherland 五轮，保存全部时间和常黏度物理场对照。计时包含进程启动和正常输出，不含网格生成。应在没有其它计算负载时运行；不能据短小验证网格推断大型生产案例的加速比。
 
 参考：[Wilke 定义与质量/摩尔分数转换](https://idaes-pse.readthedocs.io/en/stable/explanations/components/property_package/general/transport_properties/viscosity_wilke.html)，[Cantera 气体输运实现](https://www.cantera.org/3.1/cxx/d8/d58/classCantera_1_1GasTransport.html)。实测记录见 [RESULTS.md](RESULTS.md)。
+
+## 字典引用与 CHT 壁层输出回归
+
+`io_regressions.py` 运行实际三个应用，比较嵌套相对路径 `#include` / `$变量` 与展开字面值的结果及重启；检查 CHT 的 ordinary/thermal-coupling 输出、独立气体输出分支、reacting/ODE 节点、关闭 profile 和未启用壁层的行为。输出目录中 `gasBoundaryLayer.csv` 为汇总，`gasBoundaryLayerProfiles.csv` 为节点流动/组分，局部 SST 模型另有 `gasBoundaryLayerSstProfiles.csv`（不导出壁面奇异 omega）。诊断下载只在选定写出时刻发生。
+
+```bash
+python3 validation/molecular_transport/io_regressions.py \
+  --bin-dir /absolute/path/to/native/bin --work /absolute/path/to/new-io-results
+```
+
+可用 `--old-bin-dir` 指向修复前 PR26 二进制，重现 CHMT 引用配置启动失败和 CHT 未输出 CSV。

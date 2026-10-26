@@ -508,6 +508,7 @@ int main(int argc, char *argv[])
                     }
 
                     resident.downloadSharedGasSpecies(rho);
+                    resident.writeBoundaryLayerDiagnostics(boundaryLayerInput, runTime);
                     if (!runTime.write())
                     {
                         FatalIOErrorInFunction(runTime.controlDict())
@@ -890,6 +891,7 @@ int main(int argc, char *argv[])
                     }
                     (void)resident.writeParticleRestartMirror(runTime);
                 }
+                resident.writeBoundaryLayerDiagnostics(boundaryLayerInput, runTime);
             }
         }
 

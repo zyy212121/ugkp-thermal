@@ -55,3 +55,15 @@ gas 用例覆盖 legacy 单气体、两组分纯端点、不同分子量混合�
 gas-wave 执行 100 个最大时间步，gas-wall 40 个，CHT 40 个，CHMT 10 个耦合窗口。延长计时后的 const 物理结果再次与基线一致。**没有证据支持普遍加速或“已达到最大性能”**：const 中位变化约 -8% 到 +1.3%，有明显噪声；CHMT 变黏度中位耗时比候选 const 高约 18%，但范围有重叠。物性增加了必要的局部计算，性能评价需在常规优化构建及代表性大网格上继续做。
 
 构建参数及检查摘要见 [environment.json](environment.json)，配置、公式和复现步骤见 [README.md](README.md)。
+
+## 字典引用与 CHT 壁层输出修复验证
+
+针对配置/输出审查补充真实运行回归（`io_regressions.py`）：
+
+- 修复前 CHMT 对嵌套 include + 变量配置退出码 2；共享 OpenFOAM 字典入口修复后，三个应用都成功读取，相对路径的二级 include 也正常。引用与字面值输出相同，CHMT 完整终态检查点逐字节相同；引用配置的重启通过。
+- 修复前 CHT 启用 `writeProfiles true` 后没有任何壁层 CSV。接上普通和热耦合写出分支后，每个验证输出时刻都有 4 行壁面汇总、32 行流动/组分节点；reacting SST 另有 28 行有限的离壁 SST 节点，ODE 不输出不存在的局部 SST 数据。
+- 新增输出检查发现 CHT 将步末时间传给了要求步初时间的共用 RK 阶段。已在 CHT 共用阶段适配层换算，剖面 `stageTime` 与实际输出时刻对齐，不通过改 CSV 时间戳掩盖阶段错误。
+- 覆盖 `writeInterval=-1` 的热耦合触发输出及未启用固体耦合的现有输出分支。仅有 2e-5、4e-5 两次输出，没有每步诊断输出。关闭 profile 后只有汇总 CSV；不启用壁层则没有这些文件。CSV 数值、节点顺序、温度、组分和时间戳均有断言；关闭 profile 前后物理场不变。
+- gasUGKP/CHMT 重新编译并链接主机入口，CHT 重新完成原生 CUDA 编译和链接。完整应用仍使用前述快速编译模式。本轮只修改配置解析、输出连接及 CHT 的时间约定适配，没有新增每步物性搬运。
+
+详细结果见 [io-regression-results.json](io-regression-results.json)，另以既有矩阵复查全部 6 组 CHT、gas 单气体及 CHMT 单气体的 const/重启路径。

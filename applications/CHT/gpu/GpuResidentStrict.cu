@@ -3189,7 +3189,9 @@ struct ChtSpeciesTrialPolicy {
 
 int advanceChtSharedGas(DeviceState* s,double dt,double simulationTime){
     if(s->particlesMayBePresent){setLastErrorText("mixture particle inventory coupling is not implemented");return 1;}
-    const int rc=advanceGasRequestedInterval<ChtSpeciesTrialPolicy>(s,dt,simulationTime,GasRequestedIntervalControls<double>{});
+    // The CHT resident API receives the accepted interval's end time.
+    // Shared RK stages use its beginning, as in gasUGKP's mixture path.
+    const int rc=advanceGasRequestedInterval<ChtSpeciesTrialPolicy>(s,dt,simulationTime-dt,GasRequestedIntervalControls<double>{});
     const auto e=s->diagnosticOwner->observeCompletedWork(s->gasCaptureStream);
     if(e!=cudaSuccess){setLastError("complete CHT species transport",e);return 1;}
     return s->diagnosticOwner->dispatchPending()||rc;
