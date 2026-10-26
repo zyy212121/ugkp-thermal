@@ -15,12 +15,21 @@ export CUDA_HOME=${CUDA_HOME:-/usr/local/cuda}
 # Fast mode is confined to validation builds on memory-constrained hosts.
 mode=${GPU_COUPLED_BUILD_MODE:-fast}
 fast_level=${GPU_COUPLED_FAST_LEVEL:-max}
+# The separate material TU can retain production optimization with fast gas builds.
+material_mode=${GPU_COUPLED_MATERIAL_BUILD_MODE:-$mode}
+case "$material_mode" in fast|standard) ;; *) echo "GPU_COUPLED_MATERIAL_BUILD_MODE must be fast or standard" >&2; exit 2 ;; esac
+if [[ "$mode" == standard && "$material_mode" != standard ]]; then echo "standard builds require standard material mode" >&2; exit 2; fi
 case "$mode" in
  fast)
   case "$fast_level" in min|mid|max) ;; *) echo "GPU_COUPLED_FAST_LEVEL must be min, mid or max" >&2; exit 2 ;; esac
   cat > "$out/nvcc-fast" <<NVCC
 #!/usr/bin/env bash
-exec /usr/local/cuda/bin/nvcc --Ofast-compile=$fast_level -Xcompiler=-fno-tree-fre "\$@"
+if [[ "$material_mode" == standard ]]; then
+ for source_file in "\$@"; do
+  case "\$source_file" in */gpu/MaterialBackend.cu) exec "$CUDA_HOME/bin/nvcc" "\$@" ;; esac
+ done
+fi
+exec "$CUDA_HOME/bin/nvcc" --Ofast-compile=$fast_level -Xcompiler=-fno-tree-fre "\$@"
 NVCC
   chmod +x "$out/nvcc-fast"
   export NVCC="$out/nvcc-fast"
@@ -28,10 +37,10 @@ NVCC
  standard) export NVCC="$CUDA_HOME/bin/nvcc" ;;
  *) echo "GPU_COUPLED_BUILD_MODE must be fast or standard" >&2; exit 2 ;;
 esac
-python3 - "$source_root" "$out" "$mode" "$fast_level" <<'PY'
+python3 - "$source_root" "$out" "$mode" "$fast_level" "$material_mode" <<'PY'
 import hashlib,json,subprocess,sys
 from pathlib import Path
-root,out=map(Path,sys.argv[1:3]);mode=sys.argv[3];level=sys.argv[4]
+root,out=map(Path,sys.argv[1:3]);mode=sys.argv[3];level=sys.argv[4];material_mode=sys.argv[5]
 def command(*args):return subprocess.check_output(args,cwd=root,text=True).strip()
 tracked=command('git','ls-files','--cached','--others','--exclude-standard').splitlines()
 h=hashlib.sha256()
@@ -41,6 +50,7 @@ for name in sorted(tracked):
 metadata=dict(source_commit=command('git','rev-parse','HEAD'),source_status=command('git','status','--porcelain'),
     source_sha256=h.hexdigest(),source_root=str(root),arch='sm_89',Ns=2,precision='FP64',
     nvcc=command('/usr/local/cuda/bin/nvcc','--version'),
+    material_build_mode=material_mode,material_additional_nvcc_flags=[] if material_mode=="standard" else [f"--Ofast-compile={level}","-Xcompiler=-fno-tree-fre"],
     build_mode=mode,fast_compile_level=level if mode=='fast' else None,additional_nvcc_flags=[f'--Ofast-compile={level}','-Xcompiler=-fno-tree-fre'] if mode=='fast' else [],
     performance_scope='fast compile native executable; not production optimization performance' if mode=='fast' else 'repository production optimization flags')
 (out/'build-provenance.json').write_text(json.dumps(metadata,indent=2)+'\n')
