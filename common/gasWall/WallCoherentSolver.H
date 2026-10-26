@@ -60,7 +60,7 @@ UGKWP_GAS_HD void copyActive(const Config&cfg,W&dest,const W&src){for(int i=0;i<
 UGKWP_GAS_HD physical::Face<double,2> resistanceFace(Profile&p,int l,const double*speciesFlux,double*resistance=nullptr,double*stressIntegral=nullptr,bool*valid=nullptr,double*advectiveIntegral=nullptr){
  const auto&in=p.in;const auto&cfg=p.cfg;double ya=p.w.y[l],yb=p.w.y[l+1],y=(ya+yb)/2;
  auto v=basePhysical(p,y);physical::Face<double,2>f;physical::Source<double,2>src;bool pointOk=trackedEvaluate(in,cfg,v,y,in.normal,p.ctx.wallNormal,f,src);if(valid)*valid=pointOk&&*valid;
- double mu=in.model.viscosity+v.rho*src.nut,momentum[2]{},F[2]={speciesFlux[0],speciesFlux[1]};
+ double mu=wallMolecularViscosity(in,v.T,v.Y)+v.rho*src.nut,momentum[2]{},F[2]={speciesFlux[0],speciesFlux[1]};
  for(int d=0;d<2;++d){double cross=0;for(int a=0;a<3;++a)for(int b=0;b<3;++b)cross+=v.gradU[b][a]*in.normal[b]*p.ctx.tangent[d][a];for(int a=0;a<3;++a)f.momentum[a]+=mu*cross*p.ctx.tangent[d][a];momentum[d]=-p.ctx.mass*p.ctx.wallU[d];for(int a=0;a<3;++a)momentum[d]+=f.momentum[a]*p.ctx.tangent[d][a];}
  coherent_energy::Integral<double> integral;
  for(double g:{-.57735026918962576451,.57735026918962576451}){double yy=(ya+yb)/2+(yb-ya)/2*g;auto vv=basePhysical(p,yy);physical::Face<double,2>ff;physical::Source<double,2>ss;pointOk=trackedEvaluate(in,cfg,vv,yy,in.normal,p.ctx.wallNormal,ff,ss);if(valid)*valid=pointOk&&*valid;integral.add((yb-ya)/2,coherent_energy::terms(in,cfg,p.ctx,vv,ss.nut,momentum,F));}
@@ -105,14 +105,14 @@ UGKWP_GAS_HD bool refresh(const Input&in,const Config&cfg,W&w,const Ctx&ctx,doub
  for(int i=0;i<cfg.nodes-1;++i){auto p=points[i];if(!detail::pointReaction(in,p))return false;double volume=i==0?w.y[1]/2:(w.y[i+1]-w.y[i-1])/2;int sp=ctx.independent[0];low[i][3]=(oldFlux[i].species[sp]-(i==0?in.massFlux[sp]:oldFlux[i-1].species[sp])-volume*p.source[sp])/ctx.scale[3];}
  for(int j:{0,1,2,4,5})low[0][j]=w.state[0][j];if(!cfg.enableSst)low[0][5]-=1;
  int edge=cfg.nodes-1;low[edge][0]=w.state[edge][0]-ctx.edgeU[0];low[edge][1]=w.state[edge][1]-ctx.edgeU[1];low[edge][2]=w.state[edge][2]-(in.matching.temperature-in.temperature);low[edge][3]=w.state[edge][3]-in.matching.massFraction[ctx.independent[0]];low[edge][4]=w.state[edge][4]-(cfg.enableSst?std::sqrt(in.matching.k):0);low[edge][5]=w.state[edge][5]-(cfg.enableSst?1/std::sqrt(in.matching.omega):1);
- if(cfg.nodes>2&&cfg.enableSst)low[1][5]=points[1].z-points[0].z-w.y[1]*std::sqrt(points[0].rho*in.model.sstCoefficients.beta1/(6*in.model.viscosity));
+ if(cfg.nodes>2&&cfg.enableSst)low[1][5]=points[1].z-points[0].z-w.y[1]*std::sqrt(points[0].rho*in.model.sstCoefficients.beta1/(6*points[0].mu));
  double wallEnergy=coherent_energy::wallTransport(in,ctx,points[0].normalVelocity);out={};out.conductiveHeatFlux=oldFlux[0].energy-wallEnergy;for(int d=0;d<2;++d)for(int a=0;a<3;++a)out.traction[a]-=oldFlux[0].momentum[d]*ctx.tangent[d][a];
  Profile p(in,cfg,w,s.transformSlope);for(int i=1;i<cfg.nodes;++i)for(int j=0;j<2;++j)cachedUslopes[i][j]=p.nodeSlope(i,j);p.setWallFlux(out);Segment seg;seg.lo=0;seg.hi=w.y[cfg.nodes-1];p.segments.push_back(seg);auto& faces=s.faces;
  // Zero-blowing/constant-composition diagnostic only. Derived first flux and wall gradient share a fixed point.
  double closure=0,scaledClosure=0;bool physicalValid=closeFirstFace(p,oldFlux[0].species,wallEnergy,out,closure,scaledClosure);
  nutBranchPhase=true;for(int i=0;i<cfg.nodes-1;++i)faces[i]=resistanceFace(p,i,oldFlux[i].species,nullptr,nullptr,&physicalValid);
 
- if(cfg.enableSst&&ctx.mass>0){double tau2=0;for(int d=0;d<2;++d){double tau=ctx.mass*ctx.wallU[d];for(int a=0;a<3;++a)tau-=faces[0].momentum[a]*ctx.tangent[d][a];tau2+=tau*tau;}double uTau=std::sqrt(std::sqrt(tau2)/points[0].rho),v=ctx.mass/points[0].rho;if(!(uTau>0))return detail::wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10012,uTau);double vp=v/uTau;low[0][5]=w.state[0][5]-std::sqrt((in.model.viscosity/points[0].rho)/(uTau*uTau)*vp*(1+5*vp)/25);}
+ if(cfg.enableSst&&ctx.mass>0){double tau2=0;for(int d=0;d<2;++d){double tau=ctx.mass*ctx.wallU[d];for(int a=0;a<3;++a)tau-=faces[0].momentum[a]*ctx.tangent[d][a];tau2+=tau*tau;}double uTau=std::sqrt(std::sqrt(tau2)/points[0].rho),v=ctx.mass/points[0].rho;if(!(uTau>0))return detail::wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10012,uTau);double vp=v/uTau;low[0][5]=w.state[0][5]-std::sqrt((points[0].mu/points[0].rho)/(uTau*uTau)*vp*(1+5*vp)/25);}
  norm=scaledClosure;for(int i=0;i<cfg.nodes;++i){double high[6];for(int j=0;j<6;++j)high[j]=low[i][j];if(i>0&&i<cfg.nodes-1){double integralK=0,integralO=0;for(int side=0;side<2;++side){int l=i-1+side;double lo=side?w.y[i]:(w.y[i-1]+w.y[i])/2,hi=side?(w.y[i]+w.y[i+1])/2:w.y[i];const double g[2]={-.57735026918962576451,.57735026918962576451},wt[2]={1,1};for(int q=0;q<2;++q){double y=(hi+lo)/2+(hi-lo)/2*g[q];auto v=basePhysical(p,y);physical::Face<double,2>f;physical::Source<double,2>s;if(!trackedEvaluate(in,cfg,v,y,in.normal,ctx.wallNormal,f,s))return false;integralK+=(hi-lo)/2*wt[q]*s.k;integralO+=(hi-lo)/2*wt[q]*s.omega;}}
  auto&a=faces[i-1];auto&b=faces[i];double mom[2]{};for(int d=0;d<2;++d){for(int k=0;k<3;++k)mom[d]+=(b.momentum[k]-a.momentum[k])*ctx.tangent[d][k];high[d]=mom[d]/ctx.scale[d];}double energy=b.energy-a.energy;high[2]=energy/ctx.scale[2];high[4]=(b.k-a.k-integralK)/ctx.scale[4];if(i>1){double volume=(w.y[i+1]-w.y[i-1])/2,z=w.state[i][5];high[5]=-(b.omega-a.omega-integralO)*z*z*z*z/(2*volume*ctx.scale[5]);}}
  if(!cfg.enableSst){high[4]=w.state[i][4];high[5]=w.state[i][5]-1;}for(int j=0;j<6;++j){w.residual[i][j]=high[j];norm=std::max(norm,std::abs(high[j]));}}
@@ -270,7 +270,7 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
   if(team.leader()){
    for(int j:{0,1,2,4,5})low[0][j]=w.state[0][j];if(!cfg.enableSst)low[0][5]-=1;
    low[edge][0]=w.state[edge][0]-ctx.edgeU[0];low[edge][1]=w.state[edge][1]-ctx.edgeU[1];low[edge][2]=w.state[edge][2]-(in.matching.temperature-in.temperature);low[edge][3]=w.state[edge][3]-in.matching.massFraction[ctx.independent[0]];low[edge][4]=w.state[edge][4]-(cfg.enableSst?std::sqrt(in.matching.k):0);low[edge][5]=w.state[edge][5]-(cfg.enableSst?1/std::sqrt(in.matching.omega):1);
-   if(nodes>2&&cfg.enableSst)low[1][5]=points[1].z-points[0].z-w.y[1]*std::sqrt(points[0].rho*in.model.sstCoefficients.beta1/(6*in.model.viscosity));
+   if(nodes>2&&cfg.enableSst)low[1][5]=points[1].z-points[0].z-w.y[1]*std::sqrt(points[0].rho*in.model.sstCoefficients.beta1/(6*points[0].mu));
    out={};out.conductiveHeatFlux=oldFlux[0].energy-wallEnergy;for(int d=0;d<2;++d)for(int a=0;a<3;++a)out.traction[a]-=oldFlux[0].momentum[d]*ctx.tangent[d][a];
   }
   team.sync();Profile p(in,cfg,w,s.transformSlope,team);
@@ -284,7 +284,7 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
   for(int i=team.rank();i<edge;i+=team.size()){observerSlot=2*edge+3*i;faces[i]=resistanceFace(p,i,oldFlux[i].species,nullptr,nullptr,&physicalValid);}
   physicalValid=team.all(physicalValid);
   bool wallValid=true;
-  if(team.leader()&&cfg.enableSst&&ctx.mass>0){double tau2=0;for(int d=0;d<2;++d){double tau=ctx.mass*ctx.wallU[d];for(int a=0;a<3;++a)tau-=faces[0].momentum[a]*ctx.tangent[d][a];tau2+=tau*tau;}double uTau=std::sqrt(std::sqrt(tau2)/points[0].rho),v=ctx.mass/points[0].rho;if(!(uTau>0))wallValid=detail::wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10012,uTau);else{double vp=v/uTau;low[0][5]=w.state[0][5]-std::sqrt((in.model.viscosity/points[0].rho)/(uTau*uTau)*vp*(1+5*vp)/25);}}
+  if(team.leader()&&cfg.enableSst&&ctx.mass>0){double tau2=0;for(int d=0;d<2;++d){double tau=ctx.mass*ctx.wallU[d];for(int a=0;a<3;++a)tau-=faces[0].momentum[a]*ctx.tangent[d][a];tau2+=tau*tau;}double uTau=std::sqrt(std::sqrt(tau2)/points[0].rho),v=ctx.mass/points[0].rho;if(!(uTau>0))wallValid=detail::wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10012,uTau);else{double vp=v/uTau;low[0][5]=w.state[0][5]-std::sqrt((points[0].mu/points[0].rho)/(uTau*uTau)*vp*(1+5*vp)/25);}}
   if(!team.broadcast(wallValid))return false;
   valid=true;
   for(int i=team.rank();i<nodes;i+=team.size()){

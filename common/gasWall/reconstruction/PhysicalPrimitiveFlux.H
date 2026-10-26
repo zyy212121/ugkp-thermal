@@ -33,6 +33,7 @@ evaluatePrimitive(const ugkwp::gaswall::WallInput<R, N, T> &in,
     namespace d = ugkwp::gaswall::detail;
     f = {};
     src = {};
+    const R molecularMu=wallMolecularViscosity(in,p.T,p.Y);
     R cp = 0, gasR = 0, h[N], normalU = 0, speed2 = 0, div = 0, s2 = 0, cross = 0;
     for (int j = 0; j < N; ++j)
     {
@@ -56,8 +57,8 @@ evaluatePrimitive(const ugkwp::gaswall::WallInput<R, N, T> &in,
     if (cfg.enableSst && wallDistance > 0)
     {
         R cd = sstCrossDiffusion(p.omega, cross, co);
-        src.f1 = sstF1(p.k, p.omega, in.model.viscosity / p.rho, wallDistance, cd, co);
-        src.f2 = sstF2(p.k, p.omega, in.model.viscosity / p.rho, wallDistance, co);
+        src.f1 = sstF1(p.k, p.omega, molecularMu / p.rho, wallDistance, cd, co);
+        src.f2 = sstF2(p.k, p.omega, molecularMu / p.rho, wallDistance, co);
         nut = sstNut(p.k, p.omega, s2, src.f2, co);
         R g = s2 - R(2) / R(3) * div * div;
         src.k = sstKSource(p.rho, p.k, p.omega, div, nut, g, co);
@@ -66,7 +67,7 @@ evaluatePrimitive(const ugkwp::gaswall::WallInput<R, N, T> &in,
     src.nut = nut;
     src.divergence = div;
     src.pressure = p.rho * gasR * p.T;
-    R mu = in.model.viscosity + p.rho * nut, traction[3]{}, gradTn = 0, gradKn = 0, gradOn = 0,
+    R mu = molecularMu + p.rho * nut, traction[3]{}, gradTn = 0, gradKn = 0, gradOn = 0,
       gradYn[N];
     for (int a = 0; a < 3; ++a)
     {
@@ -92,7 +93,7 @@ evaluatePrimitive(const ugkwp::gaswall::WallInput<R, N, T> &in,
         !available)
         return false;
     R conductivity =
-        (in.model.molecularPrandtl > 0 ? in.model.viscosity * cp / in.model.molecularPrandtl
+        (in.model.molecularPrandtl > 0 ? molecularMu * cp / in.model.molecularPrandtl
                                        : in.model.conductivity) +
         p.rho * nut * cp / cfg.turbulentPrandtl;
     f.mass = p.rho * (normalU - meshNormal);
@@ -108,9 +109,9 @@ evaluatePrimitive(const ugkwp::gaswall::WallInput<R, N, T> &in,
                src.pressure * normalU - work - conductivity * gradTn + diffH;
     for (int j = 0; j < N; ++j)
         f.species[j] = f.mass * p.Y[j] + diffusion[j];
-    f.k = f.mass * p.k - (in.model.viscosity + p.rho * sstAlphaK(src.f1, co) * nut) * gradKn;
+    f.k = f.mass * p.k - (molecularMu + p.rho * sstAlphaK(src.f1, co) * nut) * gradKn;
     f.omega =
-        f.mass * p.omega - (in.model.viscosity + p.rho * sstAlphaOmega(src.f1, co) * nut) * gradOn;
+        f.mass * p.omega - (molecularMu + p.rho * sstAlphaOmega(src.f1, co) * nut) * gradOn;
     d::LayerPoint<R, N> rp;
     rp.rho = p.rho;
     rp.T = p.T;

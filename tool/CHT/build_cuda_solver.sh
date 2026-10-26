@@ -30,12 +30,12 @@ log="${log_dir}/cuda_solver_build_$(date +%Y%m%d_%H%M%S).log"
         probe_flags=(-DUGKP_DEVELOPMENT_PROBES=1)
     fi
     echo "[cuda-build] physical=64 time=64"
-    "${cuda_home}/bin/nvcc" -std=c++17 -O3 -lineinfo --fmad=false \
+    "${NVCC:-$cuda_home/bin/nvcc}" -std=c++17 -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -O3 -lineinfo --fmad=false \
         -arch="${cuda_arch}" -Xcompiler -fPIC "${probe_flags[@]}" \
         -I"${solver_root}/thermal" -I"${solver_root}/../../common" \
         -c "${solver_root}/gpu/GpuResidentStrict.cu" \
         -o "${obj_dir}/GpuResidentStrict.o"
-    "${cuda_home}/bin/nvcc" -std=c++17 -O3 -lineinfo --fmad=false \
+    "${NVCC:-$cuda_home/bin/nvcc}" -std=c++17 -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -O3 -lineinfo --fmad=false \
         -arch="${cuda_arch}" -Xcompiler -fPIC \
         -c "${solver_root}/gpu/GpuWallEnergy64.cu" \
         -o "${obj_dir}/GpuWallEnergy64.o"
@@ -47,7 +47,7 @@ log="${log_dir}/cuda_solver_build_$(date +%Y%m%d_%H%M%S).log"
         "${solver_root}/Make/${WM_OPTIONS}/thermal/"*.o \
         "${solver_root}/Make/${WM_OPTIONS}/thermal/"*.dep
 
-    UGKWP_CUDA_EXE_INC="-DUGKWP_USE_CUDA" \
+    UGKWP_CUDA_EXE_INC="-DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=${UGKWP_GAS_SPECIES:-2}" \
     UGKWP_CUDA_EXE_LIBS="${lib_path} -L${cuda_home}/lib64 -lcudart" \
         wmake
 

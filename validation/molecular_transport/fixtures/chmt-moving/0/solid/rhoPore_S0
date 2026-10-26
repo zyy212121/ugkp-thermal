@@ -1,0 +1,10 @@
+FoamFile { version 2.0; format ascii; class volScalarField; object rhoPore_S0; }
+dimensions [1 -3 0 0 0 0 0];
+internalField uniform 0;
+boundaryField {
+ solidInlet { type zeroGradient; }
+ solidOutlet { type zeroGradient; }
+ back { type zeroGradient; }
+ interface { type zeroGradient; }
+ sides { type zeroGradient; }
+}

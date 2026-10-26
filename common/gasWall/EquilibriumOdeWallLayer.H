@@ -20,7 +20,7 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
     if(!prepareReactingWallInput<M>(in,c,status,team))return false;
     const bool parameters=gasFinite(c.equilibriumKappa)&&c.equilibriumKappa>=0
         &&gasFinite(c.equilibriumAPlus)&&c.equilibriumAPlus>0
-        &&in.model.viscosity>0&&in.matchingDistance>0
+        &&wallMolecularViscosity(in,in.matching.temperature,in.matching.massFraction)>0&&in.matchingDistance>0
         &&c.maxIterations>0&&c.relativeTolerance>=0&&c.absoluteTolerance>=0;
     if(!team.all(parameters)){
         if(team.leader())fail(status,WallCode::InvalidInput);
@@ -32,7 +32,7 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
         return false;
     }
     const R speed=::sqrt(ctx.edgeU[0]*ctx.edgeU[0]+ctx.edgeU[1]*ctx.edgeU[1]);
-    const R laminarStress=in.model.viscosity*speed/in.matchingDistance;
+    const R laminarStress=wallMolecularViscosity(in,in.matching.temperature,in.matching.massFraction)*speed/in.matchingDistance;
     ctx.equilibriumWallStress=laminarStress;
     for(int i=team.rank();i<c.nodes;i+=team.size()){
         const R fraction=::pow(R(i)/R(c.nodes-1),c.stretch);

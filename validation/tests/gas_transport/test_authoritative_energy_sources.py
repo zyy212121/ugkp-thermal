@@ -20,7 +20,7 @@ Real sqr3(Real x,Real y,Real z){return x*x+y*y+z*z;}
 Real solidEpsFromMomentDevice(const DeviceState&s,int c){return s.momRhoP[c]/s.rhoSolid;}
 Real particleTemperatureFromSpecificEnthalpyDevice(Real hp){return hp/Real(1000);}
 Real particleSpecificHeatDevice(Real){return Real(1000);}
-template<int Model>Real cellDragInverseTime(DeviceState&,Real,Real,Real,Real,int){return Real(1);}
+template<int Model>Real cellDragInverseTime(DeviceState&,int,Real,Real,Real,Real,int){return Real(1);}
 #include "GpuGravityUpdate.cuh"
 #include "operators/applyGasVolumeFractionSourceKernel.cuh"
 #include "operators/applyEulerianParticleMaterialHeatKernel.cuh"

@@ -6,6 +6,7 @@
 #include "../../../common/gasTransport/GasNumericsIO.H"
 #include "../../../common/gasTransport/GasMechanismIO.H"
 #include "OStringStream.H"
+#include "../../../common/gasTransport/FoamMolecularTransportIO.H"
 #include <memory>
 namespace chmt { namespace io {
 struct CoupledCaseInput {
@@ -35,6 +36,24 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
             candidate.gasModel.mode=ugkwp::GasMode::SingleLegacy;
     }
     candidate.model=readModel(d,candidate.gasModel);
+    {
+        auto names=candidate.gasModel.speciesNames;
+        if(candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy)
+            names={candidate.model.speciesNames[candidate.model.physics.singleGasSpecies]};
+        const auto transport=Foam::readFoamMolecularTransport(time,time,names);
+        auto masses=candidate.gasModel.species;
+        if(candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy)
+            masses={masses[candidate.model.physics.singleGasSpecies]};
+        ugkwp::validateTransportMolarMasses(transport,masses);
+        auto& p=candidate.model.physics;
+        p.gasViscosityModel=transport.model;p.gasTransportFingerprint=transport.hash;
+        p.gasViscositySpecies=int(transport.species.size());
+        if(p.gasViscositySpecies>Ns)throw std::runtime_error("transport species exceed CHMT species count");
+        for(int s=0;s<p.gasViscositySpecies;++s)p.gasSutherland[s]=transport.species[s];
+        for(std::size_t i=0;i<transport.massRatioQuarter.size();++i){
+            p.gasMassRatioQuarter[i]=transport.massRatioQuarter[i];p.gasWilkeDenominator[i]=transport.wilkeDenominator[i];
+        }
+    }
     if(candidate.gasModel.mode==ugkwp::GasMode::MixtureChemistry){
         const auto mechanism=ugkwp::resolveGasMechanismPath(candidate.gasModel,std::string(time.path()/time.constant()));
         candidate.gasMechanism=ugkwp::readGasMechanismProperties<Ns>(mechanism,

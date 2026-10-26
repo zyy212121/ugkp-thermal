@@ -83,13 +83,13 @@ __device__ void relaxOneParticleToResidentGas
             GPU_OPERATOR_R(1.0e-12)
         );
 #endif
-    const GPU_OPERATOR_REAL mu = clampMin(s.gasMu, GPU_OPERATOR_R(1.0e-30));
+    const GPU_OPERATOR_REAL mu = clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]), GPU_OPERATOR_R(1.0e-30));
     const GPU_OPERATOR_REAL re = rhoG*dPart*relMag/mu;
     if (gasDragModelActive(s.dragModelId))
     {
     const GPU_OPERATOR_REAL invTauDrag = dragInverseTimeDevice
     (
-        s,
+        s, c,
         rhoG,
         clampRange(GPU_OPERATOR_R(1.0) - solidEpsFromMomentDevice(s, c), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0)),
         dPart,
@@ -142,7 +142,7 @@ __device__ void relaxOneParticleToResidentGas
         const GPU_OPERATOR_REAL gasTemperatureK = clampRange
             (finiteOr(s.couplingTgasOld[c], s.TgasMin), s.TgasMin, GPU_OPERATOR_R(1.0e30));
         s.pT[i] = particleTemperatureAfterGasRelaxation
-            (s, tpOld, gasTemperatureK, re, dPart, s.rhoSolid*particleCp, dt);
+            (s, c, tpOld, gasTemperatureK, re, dPart, s.rhoSolid*particleCp, dt);
     }
 
 #endif

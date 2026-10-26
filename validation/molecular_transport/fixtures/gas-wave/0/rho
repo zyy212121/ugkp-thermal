@@ -1,0 +1,9 @@
+FoamFile { version 2.0; format ascii; class volScalarField; object rho; }
+dimensions [1 -3 0 0 0 0 0];
+internalField uniform 1.1374156616390603;
+boundaryField
+{
+ left { type cyclic; }
+ right { type cyclic; }
+ sides { type empty; }
+}

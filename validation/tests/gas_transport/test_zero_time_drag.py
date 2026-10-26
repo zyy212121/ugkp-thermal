@@ -13,7 +13,7 @@ struct DeviceState:State{
 };
 Real sqr3(Real x,Real y,Real z){return x*x+y*y+z*z;}
 Real solidEpsFromMomentDevice(const DeviceState&s,int c){return s.momRhoP[c]/s.rhoSolid;}
-template<int Model>Real cellDragInverseTime(DeviceState&,Real,Real,Real,Real,int){return Real(1);}
+template<int Model>Real cellDragInverseTime(DeviceState&,int,Real,Real,Real,Real,int){return Real(1);}
 template<int DragModel>void drag(DeviceState*sp,double dt,int dragModel){
 #include "GpuCellDragUpdate.inl"
 }

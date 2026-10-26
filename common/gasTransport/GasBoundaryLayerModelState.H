@@ -282,6 +282,7 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
     in.model.mechanism=state.gasSpecies.mechanism;
     in.model.mode=state.gasSpecies.mode;
     in.model.viscosity=state.gasMu;
+    if constexpr(GasViscosityCapability<State>::value)in.model.molecularViscosity=state.gasViscosity;
     if(!in.model.thermo.species||!in.model.thermo.coefficients)return fail(GasTransportCode::InvalidStorage);
     Real matchingCp=0;
     for(int species=0;species<Ns;++species){bool available=false;

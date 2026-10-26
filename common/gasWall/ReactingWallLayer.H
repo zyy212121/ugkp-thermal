@@ -22,7 +22,7 @@ template<class R,int N> struct LayerContext {
     R equilibriumWallStress=0; // fixed constitutive parameter during one transport Newton solve
 };
 template<class R,int N> struct LayerPoint {
-    R T=0,theta=0,normalCoefficient=0,Y[N]{},rho=0,cp=0,h[N]{},u[2]{},normalVelocity=0,k=0,z=0,omega=0;
+    R mu=0,T=0,theta=0,normalCoefficient=0,Y[N]{},rho=0,cp=0,h[N]{},u[2]{},normalVelocity=0,k=0,z=0,omega=0;
     R nut=0,f1=0,f2=0,sourceK=0,sourceOmega=0,sourceOmegaWithoutCrossDiffusion=0,source[N]{};
 };
 // The same closure is used by nodal diagnostics and every conservative
@@ -30,9 +30,10 @@ template<class R,int N> struct LayerPoint {
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool applyEquilibriumViscosity(
  const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
  const LayerContext<R,N>& ctx,R y,LayerPoint<R,N>& p){
+    (void)in;
     if(c.model!=BoundaryLayerModel::EquilibriumOde)return true;
     p.nut=equilibriumDynamicViscosity(p.rho,ctx.equilibriumWallStress,y,
-        in.model.viscosity,c.equilibriumKappa,c.equilibriumAPlus)/p.rho;
+        p.mu,c.equilibriumKappa,c.equilibriumAPlus)/p.rho;
     return gasFinite(p.nut)&&p.nut>=0;
 }
 // log(b/a) without overflowing b/a or losing a small positive-state jump.
@@ -136,6 +137,8 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_POINT_INLINE boo
     if(gasR==0||in.pressure==0)return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10007,gasR);
     p.rho=in.pressure/(gasR*p.T);p.normalCoefficient=ctx.mass*gasR/in.pressure;p.normalVelocity=ctx.wallNormal+p.normalCoefficient*p.T;
     if(!gasFinite(p.rho)||p.rho<=0||!gasFinite(p.normalVelocity))return wallFatal(in,(gasFinite(p.rho)&&gasFinite(p.normalVelocity)?ugkp::diagnostics::Code::InvalidPhysicalState:ugkp::diagnostics::Code::NonFinite),2414,p.rho,ugkp::diagnostics::Quantity::Density);
+    p.mu=wallMolecularViscosity(in,p.T,p.Y);
+    if(in.model.molecularViscosity.model!=MolecularViscosityModel::Constant&&(!gasFinite(p.mu)||!(p.mu>0)))return wallFatal(in,ugkp::diagnostics::Code::InvalidPhysicalState,2702,p.mu);
     if(c.enableSst&&p.z>0)p.omega=R(1)/(p.z*p.z);
     return true;
 }
@@ -238,7 +241,7 @@ template<class R,int N,class Rows> struct SeedThermoRows {
 };
 template<class R,int N> UGKWP_GAS_HD inline void storeSeedThermo(const LayerPoint<R,N>& p,R (*cache)[N+4]){
     cache[0][0]=p.T;cache[0][1]=p.theta;cache[0][2]=p.rho;cache[0][3]=p.cp;cache[0][4]=p.normalCoefficient;
-    cache[1][0]=p.normalVelocity;
+    cache[1][0]=p.normalVelocity;cache[1][1]=p.mu;
     for(int j=0;j<N;++j){cache[2][j]=p.Y[j];cache[3][j]=p.h[j];}
 }
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool loadBasePoint(
@@ -250,7 +253,7 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool loadBasePoint(
     // Keep the changing-state validation even though the thermodynamics is fixed.
     if(!validatePointDynamics(in,point))return false;
     point.T=cache[0][0];point.theta=cache[0][1];point.rho=cache[0][2];point.cp=cache[0][3];point.normalCoefficient=cache[0][4];
-    point.normalVelocity=cache[1][0];
+    point.normalVelocity=cache[1][0];point.mu=cache[1][1];
     for(int j=0;j<N;++j){point.Y[j]=cache[2][j];point.h[j]=cache[3][j];}
     if(c.enableSst&&point.z>0)point.omega=R(1)/(point.z*point.z);
     return true;
@@ -285,8 +288,8 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline void applySstGradien
         +(t[0][1]+t[1][0])*(t[0][1]+t[1][0])
         +(du0+t[2][0])*(du0+t[2][0])+(du1+t[2][1])*(du1+t[2][1]);
     const R g=s2-R(2)/R(3)*div*div;
-    p.f1=sstF1(p.k,p.omega,in.model.viscosity/p.rho,y,cd,a);
-    p.f2=sstF2(p.k,p.omega,in.model.viscosity/p.rho,y,a);
+    p.f1=sstF1(p.k,p.omega,p.mu/p.rho,y,cd,a);
+    p.f2=sstF2(p.k,p.omega,p.mu/p.rho,y,a);
     p.nut=sstNut(p.k,p.omega,s2,p.f2,a);
     p.sourceK=sstKSource(p.rho,p.k,p.omega,div,p.nut,g,a);
     // The same nodal SST expression as sstOmegaSource, factored once so the
@@ -335,16 +338,16 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerFlux(const
     bool diffusionAvailable=false;
     const bool diffusionValid=correctedSpeciesDiffusion(Y,grad,rho,in.model.diffusivity,nut,c.turbulentSchmidt,T,in.model.thermo,diff,diffEnthalpy,true,&diffusionAvailable);
     if(!diffusionAvailable||!diffusionValid)return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2416,diffEnthalpy);
-    const R muA=in.model.viscosity+a.rho*a.nut,muB=in.model.viscosity+b.rho*b.nut;
+    const R muA=a.mu+a.rho*a.nut,muB=b.mu+b.rho*b.nut;
     const R mu=transportConductance(muA,muB),temperatureJump=b.theta-a.theta;
     R enthalpyJump=0;
     for(int j=0;j<N;++j)enthalpyJump+=Y[j]*speciesEnthalpyIncrement(j,a.T,temperatureJump,in.model.thermo,ctx.enthalpyJump[j]);
     // Integrate Cp exactly in T; formation offsets never enter the difference.
     const R cpSecant=temperatureJump!=0?enthalpyJump/temperatureJump:(a.cp+b.cp)/R(2);
-    const R molecularMobility=in.model.molecularPrandtl>0?in.model.viscosity/in.model.molecularPrandtl:
+    const R molecularMobility=in.model.molecularPrandtl>0?a.mu/in.model.molecularPrandtl:
         (cpSecant!=0?in.model.conductivity/cpSecant:R(0));
     const R mobilityA=molecularMobility+a.rho*a.nut/c.turbulentPrandtl;
-    const R mobilityB=molecularMobility+b.rho*b.nut/c.turbulentPrandtl;
+    const R mobilityB=(in.model.molecularPrandtl>0?b.mu/in.model.molecularPrandtl:molecularMobility)+b.rho*b.nut/c.turbulentPrandtl;
     const R mobility=transportConductance(mobilityA,mobilityB);
     f.conductivity=mobility*cpSecant;f.thermal=-mobility*enthalpyJump/length;
     const R thermalWeight=thermalWorkVelocityWeight(muA,muB,mobilityA,mobilityB);
@@ -354,22 +357,22 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerFlux(const
         f.momentum[d]=ctx.mass*u-tau;
         f.stressWork-=tau*(a.u[d]+thermalWeight*(b.u[d]-a.u[d]));kinetic+=R(.5)*u*u;}
     f.advectiveEnergy+=ctx.mass*kinetic;f.energy=f.advectiveEnergy+f.stressWork+f.thermal;
-    const R dk=R(.5)*(in.model.viscosity+a.rho*sstAlphaK(a.f1,in.model.sstCoefficients)*a.nut+
-        in.model.viscosity+b.rho*sstAlphaK(b.f1,in.model.sstCoefficients)*b.nut);
+    const R dk=R(.5)*(a.mu+a.rho*sstAlphaK(a.f1,in.model.sstCoefficients)*a.nut+
+        b.mu+b.rho*sstAlphaK(b.f1,in.model.sstCoefficients)*b.nut);
     R faceK=(a.k+b.k)/R(2),gradientK=(b.k-a.k)/length;
     if(c.enableSst&&ya==0&&yb>0){
-        const R slope=::sqrt(a.rho*in.model.sstCoefficients.beta1/(R(6)*in.model.viscosity));
+        const R slope=::sqrt(a.rho*in.model.sstCoefficients.beta1/(R(6)*a.mu));
         const R ell=a.z/slope;
         const R power=(R(1)+::sqrt(R(1)+R(24)*in.model.sstCoefficients.betaStar/in.model.sstCoefficients.beta1))/R(2);
-        const R advection=ctx.mass/(R(2)*in.model.viscosity);
+        const R advection=ctx.mass/(R(2)*a.mu);
         faceK=b.k*nearWallKShape(yb/R(2),yb,ell,power,advection);
         gradientK=b.k*nearWallKDerivative(yb/R(2),yb,ell,power,advection);
     }
     f.kAdvection=ctx.mass*faceK;f.k=f.kAdvection-dk*gradientK;
 
 
-    if(c.enableSst){const R dw=R(.5)*(in.model.viscosity+a.rho*sstAlphaOmega(a.f1,in.model.sstCoefficients)*a.nut+
-        in.model.viscosity+b.rho*sstAlphaOmega(b.f1,in.model.sstCoefficients)*b.nut);
+    if(c.enableSst){const R dw=R(.5)*(a.mu+a.rho*sstAlphaOmega(a.f1,in.model.sstCoefficients)*a.nut+
+        b.mu+b.rho*sstAlphaOmega(b.f1,in.model.sstCoefficients)*b.nut);
         f.omega=ctx.mass*(a.omega+b.omega)/R(2)
             -dw*omegaGradientFit(ya,yb)*(b.omega-a.omega)/length;}
 
@@ -448,7 +451,7 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVIC
             const R uTau=::sqrt(::sqrt(tau2)/p.rho),v=ctx.mass/p.rho;
             if(!(uTau>0))return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10012,uTau);
             const R vp=v/uTau;
-            wallZ=::sqrt((in.model.viscosity/p.rho)/(uTau*uTau)*vp*(R(1)+R(5)*vp)/R(25));}
+            wallZ=::sqrt((p.mu/p.rho)/(uTau*uTau)*vp*(R(1)+R(5)*vp)/R(25));}
         row[Z]=x[0][Z]-(c.enableSst?wallZ:R(1));
         return true;}
     LayerFlux<R,N> left;if(fluxes)loadIntervalFlux(fluxes[i-1],left);
@@ -460,7 +463,7 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVIC
     if(!c.enableSst){row[K]=x[i][K];row[Z]=x[i][Z]-R(1);return true;}
     row[K]=(right.k-left.k-volume*p.sourceK)/ctx.scale[K];
     if(i==1){LayerPoint<R,N> a;if(!loadBasePoint(in,c,ctx,x[i-1],a))return false;
-        row[Z]=p.z-a.z-y[1]*::sqrt(a.rho*in.model.sstCoefficients.beta1/(R(6)*in.model.viscosity));}
+        row[Z]=p.z-a.z-y[1]*::sqrt(a.rho*in.model.sstCoefficients.beta1/(R(6)*a.mu));}
     else {
       LayerPoint<R,N> a,b;
       if(!loadBasePoint(in,c,ctx,x[i-1],a)||!loadBasePoint(in,c,ctx,x[i+1],b))return false;
@@ -816,12 +819,13 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool makeContext(con
     const R rho=in.pressure/(gasR*in.matching.temperature),L=in.matchingDistance;
     // A residual scale measures activity, not signed transport. Suction
     // must not cancel diffusion and turn roundoff into a large residual.
+    const R matchingMu=wallMolecularViscosity(in,in.matching.temperature,in.matching.massFraction);
     const R massMagnitude=abs(ctx.mass);
-    for(int d=0;d<2;++d)ctx.scale[d]=max(R(1e-12),(massMagnitude+in.model.viscosity/L)*max(R(1),abs(ctx.edgeU[d])));
-    const R lambda=in.model.molecularPrandtl>0?in.model.viscosity*cp/in.model.molecularPrandtl:in.model.conductivity;
+    for(int d=0;d<2;++d)ctx.scale[d]=max(R(1e-12),(massMagnitude+matchingMu/L)*max(R(1),abs(ctx.edgeU[d])));
+    const R lambda=in.model.molecularPrandtl>0?matchingMu*cp/in.model.molecularPrandtl:in.model.conductivity;
     ctx.scale[2]=max(R(1e-12),(massMagnitude*cp+lambda/L)*max(R(1),max(in.temperature,in.matching.temperature)));
     for(int j=0;j<N-1;++j)ctx.scale[3+j]=max(R(1e-12),massMagnitude+rho*maxD/L);
-    ctx.scale[N+2]=max(R(1e-12),(massMagnitude+in.model.viscosity/L)*max(R(1),in.matching.k));ctx.scale[N+3]=rho;
+    ctx.scale[N+2]=max(R(1e-12),(massMagnitude+matchingMu/L)*max(R(1),in.matching.k));ctx.scale[N+3]=rho;
     ctx.trialStorageComplete=layerAllTrialStorageComplete(in);
     (void)c;return true;
 }
@@ -912,13 +916,13 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,const Team& team=Team{}){
     if(!c.enableSst)return true;
     const int K=N+2,Z=N+3;const auto& coefficients=in.model.sstCoefficients;
-    R wallRho=0,slope=0;bool wallValid=false;
+    R wallRho=0,wallMu=0,slope=0;bool wallValid=false;
     if(team.leader()){
         LayerPoint<R,N> wall;wallValid=pointState(in,c,ctx,w.state[0],wall);
-        if(wallValid){wallRho=wall.rho;slope=::sqrt(wallRho*coefficients.beta1/(R(6)*in.model.viscosity));}
+        if(wallValid){wallRho=wall.rho;wallMu=wall.mu;slope=::sqrt(wallRho*coefficients.beta1/(R(6)*wallMu));}
     }
     if(!team.broadcast(wallValid))return false;
-    slope=team.broadcast(slope);
+    slope=team.broadcast(slope);wallMu=team.broadcast(wallMu);
     for(int i=1+team.rank();i<c.nodes;i+=team.size()){const R omega=R(1)/(slope*slope*w.y[i]*w.y[i])+in.matching.omega;
         w.state[i][Z]=R(1)/::sqrt(omega);}
     team.sync();
@@ -944,9 +948,9 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
                 // Clipping warnings must retain their original multiplicity.
                 reusable=reusable&&sum<=1;
             }
-            w.seed[i][0]=in.model.viscosity+p.rho*p.nut;
-            w.seed[i][1]=in.model.viscosity+p.rho*sstAlphaK(p.f1,coefficients)*p.nut;
-            w.seed[i][2]=in.model.viscosity+p.rho*sstAlphaOmega(p.f1,coefficients)*p.nut;
+            w.seed[i][0]=p.mu+p.rho*p.nut;
+            w.seed[i][1]=p.mu+p.rho*sstAlphaK(p.f1,coefficients)*p.nut;
+            w.seed[i][2]=p.mu+p.rho*sstAlphaOmega(p.f1,coefficients)*p.nut;
             const R kRest=p.sourceK+p.rho*coefficients.betaStar*p.k*p.omega;
             w.seed[i][3]=max(R(0),kRest);
             w.seed[i][4]=p.rho*coefficients.betaStar*p.omega+(p.k>0?max(R(0),-kRest)/p.k:R(0));
@@ -993,12 +997,12 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
             const auto aa=a,bb=b;const R ya=w.y[face],yb=w.y[face+1],dy=yb-ya;
             pointSst(in,c,ya,aa,bb,dy,a);pointSst(in,c,yb,aa,bb,dy,b);
             auto* faceD=w.diagonal[face][0];
-            faceD[0]=transportConductance(in.model.viscosity+a.rho*a.nut,in.model.viscosity+b.rho*b.nut);
-            faceD[1]=(R(2)*in.model.viscosity+a.rho*sstAlphaK(a.f1,coefficients)*a.nut+b.rho*sstAlphaK(b.f1,coefficients)*b.nut)/R(2);
+            faceD[0]=transportConductance(a.mu+a.rho*a.nut,b.mu+b.rho*b.nut);
+            faceD[1]=((a.mu+b.mu)+a.rho*sstAlphaK(a.f1,coefficients)*a.nut+b.rho*sstAlphaK(b.f1,coefficients)*b.nut)/R(2);
             if(face==0){const R ell=a.z/slope;
               const R power=(R(1)+::sqrt(R(1)+R(24)*coefficients.betaStar/coefficients.beta1))/R(2);
-              faceD[1]*=dy*nearWallKDerivative(dy/R(2),dy,ell,power,ctx.mass/(R(2)*in.model.viscosity));}
-            faceD[2]=(R(2)*in.model.viscosity+a.rho*sstAlphaOmega(a.f1,coefficients)*a.nut+b.rho*sstAlphaOmega(b.f1,coefficients)*b.nut)/R(2);
+              faceD[1]*=dy*nearWallKDerivative(dy/R(2),dy,ell,power,ctx.mass/(R(2)*a.mu));}
+            faceD[2]=((a.mu+b.mu)+a.rho*sstAlphaOmega(a.f1,coefficients)*a.nut+b.rho*sstAlphaOmega(b.f1,coefficients)*b.nut)/R(2);
             faceD[2]*=omegaGradientFit(ya,yb);
         }
         if(!team.all(valid))return false;
@@ -1011,7 +1015,7 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
                 if(ctx.mass>0){R tau2=0;for(int d=0;d<2;++d){const R tau=-first.momentum[d];tau2+=tau*tau;}
                     const R ut=::sqrt(::sqrt(tau2)/wallRho);boundaryValid=ut>0;
                     if(boundaryValid){const R vp=ctx.mass/(wallRho*ut);
-                        wallZ=::sqrt(in.model.viscosity/wallRho/(ut*ut)*vp*(R(1)+R(5)*vp)/R(25));}}
+                        wallZ=::sqrt(wallMu/wallRho/(ut*ut)*vp*(R(1)+R(5)*vp)/R(25));}}
                 if(boundaryValid){firstZ=wallZ+w.y[1]*slope;firstOmega=R(1)/(firstZ*firstZ);}
             }
         }
@@ -1100,11 +1104,11 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
     out.chemistryMismatchAvailable=in.coarseReactionIntegral!=nullptr;
     out.wallKFlux=first.k;
     if(c.enableSst){const auto& q=in.quadrature;
-        const R slope=::sqrt(wall.rho*in.model.sstCoefficients.beta1/(R(6)*in.model.viscosity));
+        const R slope=::sqrt(wall.rho*in.model.sstCoefficients.beta1/(R(6)*wall.mu));
         const R ell=w.state[0][N+3]/slope;
         const R power=(R(1)+::sqrt(R(1)+R(24)*in.model.sstCoefficients.betaStar/in.model.sstCoefficients.beta1))/R(2);
-        const R advection=ctx.mass/(R(2)*in.model.viscosity),firstK=w.state[1][N+2]*w.state[1][N+2];
-        out.wallKFlux=-in.model.viscosity*firstK*nearWallKDerivativeAtWall(w.y[1],ell,power,advection);
+        const R advection=ctx.mass/(R(2)*wall.mu),firstK=w.state[1][N+2]*w.state[1][N+2];
+        out.wallKFlux=-wall.mu*firstK*nearWallKDerivativeAtWall(w.y[1],ell,power,advection);
         const R matchingHalf=(w.y[c.nodes-1]-w.y[c.nodes-2])/R(2);
         const R matchingKFlux=last.k+(in.volumeSstClosure?matchingHalf*w.seed[c.nodes-1][0]:R(0));
         if(in.volumeSstClosure){out.kFluxCount=c.nodes+1;

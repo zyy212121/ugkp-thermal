@@ -1,11 +1,11 @@
 #pragma once
 __device__ __forceinline__ GPU_OPERATOR_REAL particleTemperatureAfterGasRelaxation
-(const DeviceState& s, const GPU_OPERATOR_REAL oldTemperature,
+(const DeviceState& s, const int c, const GPU_OPERATOR_REAL oldTemperature,
  const GPU_OPERATOR_REAL gasTemperature, const GPU_OPERATOR_REAL reynolds,
  const GPU_OPERATOR_REAL diameter, const GPU_OPERATOR_REAL volumetricHeatCapacity,
  const GPU_OPERATOR_TIME dt)
 {
-    const GPU_OPERATOR_REAL conductivity = molecularGasConductivity(s);
+    const GPU_OPERATOR_REAL conductivity = molecularGasConductivity(s,c,gasTemperature);
     const GPU_OPERATOR_REAL nu = ugkwp::ranzMarshallNuFromPrOneThird
         (clampMin(reynolds, GPU_OPERATOR_R(0.0)), s.gasPrOneThird);
     const GPU_OPERATOR_REAL rate = GPU_OPERATOR_R(6.0)*nu*conductivity

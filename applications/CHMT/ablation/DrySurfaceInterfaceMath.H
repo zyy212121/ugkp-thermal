@@ -210,7 +210,7 @@ inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
     gradient.velocity[2]+=in.gasNormal*(difference.z/in.gasDistance-dot(gradient.velocity[2],in.gasNormal));
     // Physical low-Re wall: molecular stress only, no owner nut or k stress.
     result.traction=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
-        ?wallClosure.traction:viscousTraction(gradient,in.gasNormal,p.gasViscosity,0);
+        ?wallClosure.traction:viscousTraction(gradient,in.gasNormal,gasMolecularViscosity(p,result.gasState.temperature,result.gasState.Y),0);
     result.gasShear=result.traction-in.gasNormal*dot(result.traction,in.gasNormal);
     result.shear=(result.gasShear-in.normal*dot(result.gasShear,in.normal))*gasRatio;
     Real primaryJ=0, poreJ=0, poreDonorEnergy=0, solidDonorEnergy=0;

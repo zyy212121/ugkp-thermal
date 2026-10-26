@@ -4,6 +4,7 @@
 #include "../Diagnostics.H"
 #include <type_traits>
 #include "../gasTransport/MixtureThermo.H"
+#include "../gasTransport/MolecularViscosity.H"
 #include "../chemistry/GasRates.H"
 #include "../gasNumerics/GpuSstAlgebra.cuh"
 
@@ -30,6 +31,7 @@ template<class R,int N> struct WallMatchingState {
     R temperature=0,velocity[3]{},massFraction[N]{},k=0,omega=0;
 };
 template<class R,int N,class TableReal=R> struct WallGasModel {
+    MolecularViscosityView<TableReal> molecularViscosity;
     SpeciesThermoView<TableReal,N> thermo;
     GasMechanismView<TableReal,N> mechanism;
     GasMode mode=GasMode::MixtureFrozen;
@@ -92,6 +94,10 @@ template<int N,int MaxNodes> struct WallWorkspaceStorage {
     R lower[MaxNodes][blockSize][blockSize]{},diagonal[MaxNodes][blockSize][blockSize]{},upper[MaxNodes][blockSize][blockSize]{};
 };
 template<class StateReal,int N,int MaxNodes=48> using WallWorkspace=WallWorkspaceStorage<N,MaxNodes>;
+template<class R,int N,class T> UGKWP_GAS_HD inline R wallMolecularViscosity(
+ const WallInput<R,N,T>& in,R temperature,const R* Y){
+ return ugkwp::molecularViscosity<N>(in.model.molecularViscosity,in.model.viscosity,temperature,Y);
+}
 namespace detail {
 template<class R> UGKWP_GAS_HD inline R abs(R x){return x<0?-x:x;}
 template<class R> UGKWP_GAS_HD inline R max(R x,R y){return x>y?x:y;}

@@ -113,7 +113,7 @@ __device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue
 )
 {
     const GPU_OPERATOR_REAL rhoSafe = clampMin(riemannFacePrimitiveForGradient(s, owner, f).rho, s.rhoMin);
-    const GPU_OPERATOR_REAL nu = s.gasMu/rhoSafe;
+    const GPU_OPERATOR_REAL nu = ugkwp::gasFaceMolecularViscosity(s,f,owner,-1)/rhoSafe;
     if (s.sstWallTreatment != 1
         && !(ugkwp::gasBoundaryLayerUsesMacroSst(s)
             && ugkwp::gasBoundaryLayerOwnerSlot(s,owner)>=0))

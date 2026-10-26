@@ -4,6 +4,7 @@
 #include <limits>
 #include <utility>
 #include "GasModel.H"
+#include "MolecularViscosity.H"
 #include "GasEnergy.H"
 #include "GasGeometryPolicy.H"
 #include "GasBoundaryLayerState.H"
@@ -29,6 +30,7 @@ struct GasStateView
     using SstCoefficientsType = SstCoefficients;
     static constexpr int speciesCount = 0;
     ugkp::diagnostics::DeviceContext* diagnostics = nullptr;
+    MolecularViscosityView<Real> gasViscosity;
     GasGeometryState<Real> gasGeometry;
     GasBoundaryLayerState<Real> gasBoundaryLayer;
     bool gasThermalConductivityConfigured = false;
@@ -94,6 +96,99 @@ UGKWP_GAS_HD inline bool mixtureGasActive(const State& state)
     return false;
 }
 
+template<class State,class=void> struct GasViscosityCapability : std::false_type {};
+template<class State> struct GasViscosityCapability<State,
+    std::void_t<decltype(std::declval<State>().gasViscosity)>> : std::true_type {};
+template<class State> UGKWP_GAS_HD inline bool gasVariableViscosity(const State& s) {
+    if constexpr(GasViscosityCapability<State>::value)
+        return s.gasViscosity.model!=MolecularViscosityModel::Constant;
+    return false;
+}
+template<class State,class R> UGKWP_GAS_HD inline R checkedMolecularViscosity(
+    const State& s,R mu,int entity,bool face) {
+    if(!gasFinite(mu)||!(mu>0)) {
+        using namespace ugkp::diagnostics;
+        if(s.diagnostics)recordFatal(s.diagnostics,makeRecord(
+            gasFinite(mu)?Code::InvalidPhysicalState:Code::NonFinite,
+            face?2701:2700,26,0,face?EntityKind::Face:EntityKind::Cell,entity,-1,
+            mu,0,0,Quantity::Unspecified));
+    }
+    return mu;
+}
+template<class State> UGKWP_GAS_HD inline auto gasCellMolecularViscosityAt(const State& s,int c,typename std::remove_cv<typename std::remove_reference<decltype(s.gasMu)>::type>::type temperature) {
+    using R=typename std::remove_cv<typename std::remove_reference<decltype(s.gasMu)>::type>::type;
+    if constexpr(GasViscosityCapability<State>::value){
+        if(gasVariableViscosity(s)){
+            R mu;
+            constexpr int N=GasStateTraits<State>::speciesCount;
+            if constexpr(N>0){if(mixtureGasActive(s)){
+                R mass[N];for(int j=0;j<N;++j)mass[j]=s.gasSpecies.rho[j*s.nCells+c];
+                mu=molecularViscosity<N>(s.gasViscosity,s.gasMu,temperature,mass);
+            }else mu=molecularViscosity<1>(s.gasViscosity,s.gasMu,temperature,static_cast<const R*>(nullptr));}
+            else mu=molecularViscosity<1>(s.gasViscosity,s.gasMu,temperature,static_cast<const R*>(nullptr));
+            return checkedMolecularViscosity(s,mu,c,false);
+        }
+    }
+    return s.gasMu;
+}
+template<class State> UGKWP_GAS_HD inline auto gasCellMolecularViscosity(const State& s,int c){
+    if(!gasVariableViscosity(s))return s.gasMu;
+    return gasCellMolecularViscosityAt(s,c,s.Tgas[c]);
+}
+template<class State> UGKWP_GAS_HD inline auto gasTransportFaceWeight(const State& s,int f,int own,int nei){
+    using R=std::remove_cv_t<std::remove_reference_t<decltype(s.gasMu)>>;
+    if(nei<0)return R(1);
+    const R w=s.faceWeight[f]<0?R(0):(s.faceWeight[f]>1?R(1):s.faceWeight[f]);
+    return own==s.faceOwner[f]?w:R(1)-w;
+}
+template<class State> UGKWP_GAS_HD inline auto gasTransportFaceTemperature(const State& s,int f,int own,int nei){
+    const auto w=gasTransportFaceWeight(s,f,own,nei);
+    return nei>=0?w*s.Tgas[own]+(1-w)*s.Tgas[nei]
+        :(s.riemannBoundaryTFix&&s.riemannBoundaryTFix[f]?s.riemannBoundaryT[f]:s.Tgas[own]);
+}
+template<class State,class R> UGKWP_GAS_HD inline void gasTransportFaceComposition(const State& s,int f,int own,int nei,R* Y){
+    const R w=gasTransportFaceWeight(s,f,own,nei);
+    for(int j=0;j<GasStateTraits<State>::speciesCount;++j){
+        const R a=s.gasSpecies.rho[j*s.nCells+own]/s.rho[own];
+        Y[j]=nei>=0?w*a+(1-w)*s.gasSpecies.rho[j*s.nCells+nei]/s.rho[nei]
+            :(s.gasSpecies.compositionBoundaryFixed&&s.gasSpecies.compositionBoundaryFixed[f]
+                ?s.gasSpecies.boundaryMassFraction[j*s.nFaces+f]:a);
+    }
+}
+// Diffusive coefficients share local T,Y. Const retains its original Cp interpolation.
+template<class State> UGKWP_GAS_HD inline auto gasFaceMolecularHeatCapacity(const State& s,int f,int own,int nei){
+    using R=std::remove_cv_t<std::remove_reference_t<decltype(s.gasMu)>>;
+    constexpr int N=GasStateTraits<State>::speciesCount;
+    if constexpr(N>0)if(mixtureGasActive(s)){
+        if(gasVariableViscosity(s)){
+            R Y[N];gasTransportFaceComposition(s,f,own,nei,Y);
+            const R T=gasTransportFaceTemperature(s,f,own,nei);
+            R cp=0;for(int j=0;j<N;++j)cp+=Y[j]*speciesCp(j,T,s.gasSpecies.thermo);
+            return cp;
+        }
+        const R w=nei>=0?(s.faceWeight[f]<0?R(0):(s.faceWeight[f]>1?R(1):s.faceWeight[f])):R(1);
+        return w*s.gasSpecies.heatCapacity[own]+(1-w)*s.gasSpecies.heatCapacity[nei>=0?nei:own];
+    }
+    return s.gasCp;
+}
+template<class State> UGKWP_GAS_HD inline auto gasFaceMolecularViscosity(const State& s,int f,int own,int nei) {
+    using R=std::remove_cv_t<std::remove_reference_t<decltype(s.gasMu)>>;
+    if constexpr(GasViscosityCapability<State>::value){
+        if(gasVariableViscosity(s)){
+            const R T=gasTransportFaceTemperature(s,f,own,nei);
+            R mu;
+            constexpr int N=GasStateTraits<State>::speciesCount;
+            if constexpr(N>0){if(mixtureGasActive(s)){
+                R Y[N];gasTransportFaceComposition(s,f,own,nei,Y);
+                mu=molecularViscosity<N>(s.gasViscosity,s.gasMu,T,Y);
+            }else mu=molecularViscosity<1>(s.gasViscosity,s.gasMu,T,static_cast<const R*>(nullptr));}
+            else mu=molecularViscosity<1>(s.gasViscosity,s.gasMu,T,static_cast<const R*>(nullptr));
+            return checkedMolecularViscosity(s,mu,f,true);
+        }
+    }
+    return s.gasMu;
+}
+
 template<class State,class=void> struct GasDirectConductivity : std::false_type {};
 template<class State> struct GasDirectConductivity<State,
     std::void_t<decltype(std::declval<State>().gasThermalConductivity)>> : std::true_type {};
@@ -145,6 +240,7 @@ inline auto makeGasStateView(const State& state)
         "live and RK gas energy must have identical storage types");
     GasStateView<Real, Time, SstCoefficients, Energy> view{};
     view.diagnostics = state.diagnostics;
+    if constexpr(GasViscosityCapability<State>::value) view.gasViscosity=state.gasViscosity;
 #define UGKWP_GAS_STATE_FIELD(Type, Name) view.Name = state.Name;
 #include "GasStateFields.inc"
 #undef UGKWP_GAS_STATE_FIELD

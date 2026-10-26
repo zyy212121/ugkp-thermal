@@ -49,6 +49,8 @@ class SharedGasDeviceStorage {
 #undef UGKWP_GAS_STATE_FIELD
     Buffer<Real> speciesRho_,speciesInitial_,speciesFlux_,speciesGX_,speciesGY_,speciesGZ_,speciesLimiter_,speciesBoundary_,speciesScale_,diffusivity_,sound_,cp_,r_,thermoCoeff_,elements_,basis_;
     Buffer<int> compositionFixed_,cellStatus_,faceStatus_;
+    Buffer<ugkwp::SutherlandSpecies<Real>> viscosityData_;
+    Buffer<Real> viscosityQuarter_,viscosityDenominator_;
     Buffer<ugkwp::SpeciesThermoData<Real>> thermoData_;
     Buffer<ugkwp::GasReactionData<Real>> reactions_;
     Buffer<ugkwp::GasStoichTerm<Real>> reactants_,products_;
@@ -121,7 +123,7 @@ class SharedGasDeviceStorage {
         thermoCoeff_.rebindFault(fault_);
         elements_.rebindFault(fault_);
         basis_.rebindFault(fault_);
-        thermoData_.rebindFault(fault_);
+        thermoData_.rebindFault(fault_);viscosityData_.rebindFault(fault_);viscosityQuarter_.rebindFault(fault_);viscosityDenominator_.rebindFault(fault_);
         reactions_.rebindFault(fault_);
         reactants_.rebindFault(fault_);
         products_.rebindFault(fault_);
@@ -195,7 +197,7 @@ class SharedGasDeviceStorage {
         thermoCoeff_.swap(other.thermoCoeff_);
         elements_.swap(other.elements_);
         basis_.swap(other.basis_);
-        thermoData_.swap(other.thermoData_);
+        thermoData_.swap(other.thermoData_);viscosityData_.swap(other.viscosityData_);viscosityQuarter_.swap(other.viscosityQuarter_);viscosityDenominator_.swap(other.viscosityDenominator_);
         reactions_.swap(other.reactions_);
         reactants_.swap(other.reactants_);
         products_.swap(other.products_);
@@ -243,7 +245,7 @@ class SharedGasDeviceStorage {
         ok=thermoCoeff_.release()&&ok;
         ok=elements_.release()&&ok;
         ok=basis_.release()&&ok;
-        ok=thermoData_.release()&&ok;
+        ok=thermoData_.release()&&ok;ok=viscosityData_.release()&&ok;ok=viscosityQuarter_.release()&&ok;ok=viscosityDenominator_.release()&&ok;
         ok=reactions_.release()&&ok;
         ok=reactants_.release()&&ok;
         ok=products_.release()&&ok;
@@ -461,6 +463,12 @@ private:
         }
         identity_=gas.speciesOrderHash;thermoIdentity_=gas.thermoHash;mechanismIdentity_=mechanism.mechanismHash;
         view_.rhoMin=1e-30;view_.TgasMin=1e-12;view_.gasMu=model.physics.gasViscosity;
+        const auto& transport=model.physics;const int count=transport.gasViscositySpecies;
+        const std::vector<ugkwp::SutherlandSpecies<Real>> data(transport.gasSutherland,transport.gasSutherland+count);
+        const std::vector<Real> quarter(transport.gasMassRatioQuarter,transport.gasMassRatioQuarter+count*count);
+        const std::vector<Real> denominator(transport.gasWilkeDenominator,transport.gasWilkeDenominator+count*count);
+        if(!uploadBuffer(viscosityData_,data)||!uploadBuffer(viscosityQuarter_,quarter)||!uploadBuffer(viscosityDenominator_,denominator)){error=fault_.message;return false;}
+        view_.gasViscosity={transport.gasViscosityModel,count,viscosityData_.data(),viscosityQuarter_.data(),viscosityDenominator_.data()};
         view_.gasPrClamped=1;
         view_.gasThermalConductivity=model.physics.gasConductivity;
         // CHMT uses zero for disabled conduction, never a negative unset sentinel.

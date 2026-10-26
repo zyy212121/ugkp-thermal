@@ -51,6 +51,11 @@ struct PhysicsConfig {
     int wallWorkspaceSlots=0; // zero resolves a bounded pool from the actual device
     bool enableGas=true;
     ugkwp::GasMode gasMode=ugkwp::GasMode::SingleLegacy;
+    ugkwp::MolecularViscosityModel gasViscosityModel=ugkwp::MolecularViscosityModel::Constant;
+    int gasViscositySpecies=0;
+    std::uint64_t gasTransportFingerprint=0;
+    ugkwp::SutherlandSpecies<Real> gasSutherland[Ns]{};
+    Real gasMassRatioQuarter[Ns*Ns]{},gasWilkeDenominator[Ns*Ns]{};
     int singleGasSpecies=-1; // Active physical material species in legacy five-field transport.
     std::uint64_t gasThermoFingerprint=0,gasMechanismFingerprint=0;
     ugkwp::ChemistryControls<Real> gasChemistryControls{};
@@ -84,17 +89,24 @@ CHMT_HD inline bool clipPhysicsMassFraction(const PhysicsConfig& p,Real& value,u
     if(bounded!=value)reportPhysicsWarning(p,ugkp::diagnostics::Code::FiniteYClip,site,value,0,bounded,component);
     value=bounded;return true;
 }
+inline ugkwp::MolecularViscosityView<Real> molecularTransportView(const PhysicsConfig& p){
+    return {p.gasViscosityModel,p.gasViscositySpecies,p.gasSutherland,p.gasMassRatioQuarter,p.gasWilkeDenominator};
+}
+inline Real gasMolecularViscosity(const PhysicsConfig& p,Real T,const Real* Y){
+    return ugkwp::molecularViscosity<Ns>(molecularTransportView(p),p.gasViscosity,T,Y);
+}
 inline bool validateWallModelConfig(const PhysicsConfig& p,std::string& error) {
     const auto& w=p.wallModel;using namespace ugkwp::gaswall;
     if(w.family==WallFamily::LowRe){error.clear();return true;}
     if(w.family!=WallFamily::BoundaryLayer){error="CHMT ordinary wallFunction coupling is not enabled";return false;}
     if(p.material.gasContactResistance!=0){error="boundaryLayer requires zero gas contact resistance";return false;}
-    if(p.gasMode==ugkwp::GasMode::SingleLegacy||!(p.gasViscosity>0)||!(p.gasConductivity>0)){
+    if(p.gasMode==ugkwp::GasMode::SingleLegacy||(p.gasViscosityModel==ugkwp::MolecularViscosityModel::Constant&&!(p.gasViscosity>0))||!(p.gasConductivity>0)){
         error="boundaryLayer requires shared mixture thermo and positive molecular transport";return false;}
     if(p.wallWorkspaceSlots<0||w.nodes<4||w.nodes>128||w.maxIterations<=0
         ||!finite(w.relativeTolerance)||w.relativeTolerance<=0||!finite(w.absoluteTolerance)||w.absoluteTolerance<0
         ||!finite(w.stretch)||w.stretch<1){error="invalid boundaryLayer solver controls";return false;}
     if(w.model==BoundaryLayerModel::ConstantTransport){
+        if(p.gasViscosityModel!=ugkwp::MolecularViscosityModel::Constant){error="constantTransport wall requires const viscosity; select a numerical boundary layer";return false;}
         if(p.enableSst||p.gasMode!=ugkwp::GasMode::MixtureFrozen){error="constantTransport is a frozen laminar analytic limit";return false;}
     }else if(w.model!=BoundaryLayerModel::ReactingSst){
         error="unsupported finite-rate boundaryLayer implementation";return false;}

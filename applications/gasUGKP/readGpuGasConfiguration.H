@@ -67,6 +67,8 @@ const dictionary* gpuSolutionControls =
   ? &fvSolutionDict.subDict("UGKP")
   : nullptr;
 
+MolecularTransportInput molecularTransport(runTime,mesh,sharedGasModel.model());
+
 scalar gammaGasValue = 0;
 scalar specificGasConstantValue = 0;
 scalar gasMuValue = 0;

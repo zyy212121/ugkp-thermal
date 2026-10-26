@@ -1,3 +1,10 @@
+#include "gasTransport/GasBoundaryLayerModelState.H"
+#include "gasTransport/GasBoundaryLayerWorkspace.H"
+#include "gasTransport/ResidentWallFields.H"
+#include "gasTransport/GasBuildConfig.H"
+#include "gasTransport/GasMechanismIO.H"
+#include "gasTransport/GasStatusCompletion.cuh"
+#include "gasTransport/MolecularTransportDevice.cuh"
 #include "gasTransport/GasMeshUploadValidation.H"
 #include "../../../common/GpuDiagnosticsOwner.cuh"
 #include "ContactCapabilityValidation.h"
@@ -131,9 +138,25 @@ struct CsrReductionTask
 };
 
 
+struct DeviceState;
+template<bool Capture> int launchBoundaryLayer(DeviceState*);
 struct DeviceState
 {
     GpuWallEnergyState wallEnergy;
+    ugkwp::GasSpeciesState<double,ugkwp::compiledGasSpecies> gasSpecies,gasRejectedView;
+    ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
+    ugkwp::GasBoundaryLayerModelState<double,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
+    double *gasWallQuadratureDistance=nullptr,*gasWallQuadratureWeight=nullptr;
+    double gasBoundaryLayerStageTime=0;
+    double gasThermalConductivity=-1;
+    int (*gasBoundaryLayerLaunch)(DeviceState*)=&launchBoundaryLayer<false>;
+    SharedGasTrialStorage gasTrial;
+    bool gasInitialFieldsUploaded=false;
+    bool gasModelPoisoned=false,gasSpeciesUploaded=false;
+    int hostGasReconstruction=0,hostGasLimiter=0;
+    unsigned long long* gasStatusFirstUnavailable=nullptr;
+    ugkwp::MolecularViscosityView<double> gasViscosity;
+    ugkwp::MolecularTransportDevice* gasTransportOwner=nullptr;
     ugkp::diagnostics::DeviceContext* diagnostics = nullptr;
     ugkp::diagnostics::GpuOwner* diagnosticOwner = nullptr;
 #include "GpuAutomaticCsrScheduleFields.inl"
@@ -1009,8 +1032,12 @@ int validateState(DeviceState* s, const char* action)
         );
         return 1;
     }
+    if(s->gasModelPoisoned){setLastErrorText("shared gas device view rollback failed; resident must be destroyed");return 1;}
     return 0;
 }
+
+#include "gasTransport/ResidentSpeciesStorage.cuh"
+#include "gasTransport/ResidentWallStorage.cuh"
 
 void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=nullptr)
 {
@@ -1364,6 +1391,10 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
         if(finalDiagnostics)s->diagnosticOwner->finish(*finalDiagnostics);
     }
     delete s->diagnosticOwner;
+    releaseBoundaryLayerStorage(*s);
+    releaseSharedGasSpecies(s->gasSpecies);releaseSharedGasSpecies(s->gasRejectedView);
+    cudaFree(s->gasStatusFirstUnavailable);
+    delete s->gasTransportOwner;
     delete s;
 }
 
@@ -2020,6 +2051,8 @@ struct GasPrimDevice
 
 #include "operators/updateLegacyGasBoundaryMirrorKernel.cuh"
 
+template<class State> __device__ GpuReal gasWallExposedAreaFraction(const State&,int){return GPU_R(1.0);}
+
 __device__ GpuReal gasWallExposedAreaFraction
 (
     const DeviceState& s,
@@ -2172,19 +2205,22 @@ constexpr GpuReal mobilePackingJacobiOmega = GPU_R(0.8);
 
 #include "../../../common/gasNumerics/GpuPackingProjectionCooperative.cuh"
 
+#include "operators/evaluateGasBoundaryLayerKernel.cuh"
+#include "gasTransport/ResidentWallProjection.cuh"
 #include "../../../common/GpuGasHostPolicy.cuh"
+#include "gasTransport/ResidentWallLaunch.inl"
 
 int accumulateGasHostWallEnergy(DeviceState* s, const GpuTime ledgerDt)
 {
     return ugkpAccumulateGasWallEnergy64(&s->wallEnergy, ledgerDt, s->gasCaptureStream);
 }
 
-using GasHostPolicy = GasHostWithWallEnergy
+using GasHostPolicy = ResidentWallGasHostPolicy<GasHostWithWallEnergy
 <
     GpuTime,
     GpuReal,
     accumulateGasHostWallEnergy
->;
+>>;
 
 #include "../../../common/GpuMobilePackingHost.cuh"
 
@@ -3125,6 +3161,41 @@ extern "C" const char* ugkwpGpuResidentStrictLastError
 }
 
 #include "../../../common/GpuGasAdvance.cuh"
+#include "gasTransport/ResidentWallHistory.inl"
+struct ChtSpeciesTrialPolicy {
+    static int beginInterval(DeviceState* s){return s->gasModelPoisoned||!s->gasSpeciesUploaded;}
+    static int begin(DeviceState* s){return s->gasModelPoisoned;}
+    static int commit(DeviceState* s){return s->gasModelPoisoned;}
+    static int commitInterval(DeviceState* s){
+        if(s->gasBoundaryLayer.enabled&&s->gasBoundaryLayerModel.acceptedHistory){
+            commitAcceptedWallHistory<<<(s->gasBoundaryLayer.count+63)/64,64,0,s->gasCaptureStream>>>(s->deviceState);
+            const auto e=cudaGetLastError();if(e!=cudaSuccess){setLastError("commit CHT wall history",e);return 1;}}
+        return s->gasModelPoisoned;
+    }
+    static const double* stageVolumes(DeviceState* s,bool){return s->V;}
+    static int applySources(DeviceState* s,double dt){
+        if(s->gravityEnabled){const int b=s->fixedCellBlockThreads;
+            applyGasGravityKernel<<<(s->nCells+b-1)/b,b,0,s->gasCaptureStream>>>(s->deviceState,dt);
+            const auto e=cudaGetLastError();if(e!=cudaSuccess){setLastError("mixture gravity",e);return 1;}}
+        return 0;
+    }
+    static int validate(DeviceState* s){
+        const auto e=ugkwp::enqueueGasStatusCheck(s->gasSpecies.cellStatus,s->nCells,s->gasSpecies.faceStatus,s->nFaces,
+            s->diagnostics,s->gasStatusFirstUnavailable,2630,26,s->gasCaptureStream);
+        if(e!=cudaSuccess){setLastError("CHT species stage",e);return 1;}return 0;
+    }
+};
+
+
+int advanceChtSharedGas(DeviceState* s,double dt,double simulationTime){
+    if(s->particlesMayBePresent){setLastErrorText("mixture particle inventory coupling is not implemented");return 1;}
+    // The CHT resident API receives the accepted interval's end time.
+    // Shared RK stages use its beginning, as in gasUGKP's mixture path.
+    const int rc=advanceGasRequestedInterval<ChtSpeciesTrialPolicy>(s,dt,simulationTime-dt,GasRequestedIntervalControls<double>{});
+    const auto e=s->diagnosticOwner->observeCompletedWork(s->gasCaptureStream);
+    if(e!=cudaSuccess){setLastError("complete CHT species transport",e);return 1;}
+    return s->diagnosticOwner->dispatchPending()||rc;
+}
 
 extern "C" int ugkwpGpuResidentStrictCreate
 (
@@ -3187,6 +3258,34 @@ extern "C" int ugkwpGpuResidentStrictCreate
     const GpuReal gammaGas = static_cast<GpuReal>(gammaGasWire);
     const GpuReal Rgas = static_cast<GpuReal>(RgasWire);
     const GpuReal rhoSolid = static_cast<GpuReal>(rhoSolidWire);
+    { cudaError_t err=cudaSuccess;
+    if (const char* requestedStack = std::getenv("CHT_CUDA_STACK_BYTES"))
+    {
+        char* end = nullptr;
+        errno = 0;
+        const auto bytes = std::strtoull(requestedStack, &end, 10);
+        if (errno || end == requestedStack || *end || requestedStack[0] == '-'
+            || requestedStack[0] < '0' || requestedStack[0] > '9'
+            || bytes == 0 || bytes > std::numeric_limits<std::size_t>::max())
+        {
+            setLastErrorText("invalid CHT_CUDA_STACK_BYTES (expected positive byte count)");
+            return 1;
+        }
+        std::size_t stackBytes = 0;
+        err = cudaDeviceGetLimit(&stackBytes, cudaLimitStackSize);
+        if (err == cudaSuccess && bytes > stackBytes)
+            err = cudaDeviceSetLimit(cudaLimitStackSize, static_cast<std::size_t>(bytes));
+        if (err == cudaSuccess)
+            err = cudaDeviceGetLimit(&stackBytes, cudaLimitStackSize);
+        if (err != cudaSuccess)
+        {
+            setLastError("configure CUDA thread stack", err);
+            return 1;
+        }
+        std::fprintf(stderr, "[cuda-runtime] stackLimitBytes=%zu requested=%llu\n",
+            stackBytes, bytes);
+    }
+    }
     const GpuReal gasMu = static_cast<GpuReal>(gasMuWire);
     const GpuReal gasPr = static_cast<GpuReal>(gasPrWire);
     const GpuReal dragResidualRe = static_cast<GpuReal>(dragResidualReWire);
@@ -3252,6 +3351,8 @@ extern "C" int ugkwpGpuResidentStrictCreate
         rhoSolid < GPU_TINY(1.0e-300) ? GPU_TINY(1.0e-300) : rhoSolid;
     s->invRhoSolid = GPU_R(1.0)/rhoSolidDenominator;
     s->solveParticleTemperature = solveParticleTemperature;
+    if(cudaMalloc(reinterpret_cast<void**>(&s->gasStatusFirstUnavailable),sizeof(unsigned long long))!=cudaSuccess){releaseState(s);return 1;}
+    s->hostGasReconstruction=gasReconstruction;s->hostGasLimiter=gasLimiter;
     s->gasMu = gasMu;
     s->gasPr = gasPr;
     s->gasPrClamped = gasPr < GPU_R(1.0e-12) ? GPU_R(1.0e-12) : gasPr;
@@ -4072,6 +4173,7 @@ extern "C" int ugkwpGpuResidentStrictUploadFields
         }
     }
 
+    s->gasInitialFieldsUploaded=true;
     return 0;
 }
 
@@ -4246,7 +4348,7 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
     }
     *maxCo = GPU_R(0.0);
 
-    if (tuneFixedWorkBlockThreads(s, dt, scheduleTime) != 0)
+    if (!ugkwp::mixtureGasActive(*s) && tuneFixedWorkBlockThreads(s, dt, scheduleTime) != 0)
     {
         return 1;
     }
@@ -4347,10 +4449,14 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     {
         return 1;
     }
+    // Legacy launch tuning cannot consume a mixture/ODE wall before its
+    // first prepared profile. The shared stage selects its own valid launch.
+    if(ugkwp::mixtureGasActive(*s))return advanceChtSharedGas(s,dt,simulationTime);
     if (tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
     {
         return 1;
     }
+
 
 #ifndef UGKP_DEVELOPMENT_PROBES
     if (s->gasGraphMode < 0)
@@ -5036,6 +5142,9 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
     {
         return 1;
     }
+    // Legacy launch tuning cannot consume a mixture/ODE wall before its
+    // first prepared profile. The shared stage selects its own valid launch.
+    if(ugkwp::mixtureGasActive(*s))return advanceChtSharedGas(s,dt,simulationTime);
     if (tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
     {
         return 1;
@@ -6524,3 +6633,10 @@ extern "C" int ugkwpGpuResidentStrictSetDiagnosticOperation(void* handle,std::ui
     if(rc!=cudaSuccess){setLastError("begin diagnostic metadata",rc);return 1;}
     return 0;
 }
+
+#include "gasTransport/MolecularTransportResident.inl"
+
+#include "gasTransport/ResidentSpeciesAdapter.cuh"
+
+#include "gasTransport/ResidentWallAdapter.cuh"
+#include "gasTransport/ResidentWallProfileAdapter.cuh"

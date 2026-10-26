@@ -2332,6 +2332,7 @@ label GpuSolidThermalCoupler::persistAtWriteTime
         ),
         ThermalRestartPreflight::stateDictionary(completed)
     );
+    data_->resident.downloadSharedGasSpecies(rho);
     const bool fieldWriteSucceeded =
         thermalCouplingWrite && !runTime.writeTime()
       ? runTime.writeNow()

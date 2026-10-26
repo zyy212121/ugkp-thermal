@@ -1003,17 +1003,12 @@ __device__ bool computeRiemannGasFaceFluxDevice
             if(ugkwp::mixtureGasActive(s) && ugkwp::gasFaceFailure(s,f)!=0)
             {return false;}
         }
+        const GPU_OPERATOR_REAL muMolecular=ugkwp::gasFaceMolecularViscosity(s,f,own,nei);
         const GPU_OPERATOR_REAL muEffective = boundaryKind == 1
-          ? GPU_OPERATOR_R(0.0) : s.gasMu + muTurbulent;
+          ? GPU_OPERATOR_R(0.0) : muMolecular + muTurbulent;
         GPU_OPERATOR_REAL kMolecular=molecularGasConductivity(s);
-        if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
-            if(ugkwp::mixtureGasActive(s) && !ugkwp::gasHasDirectConductivity(s))
-            {
-                const GPU_OPERATOR_REAL w=nei>=0?clampRange(s.faceWeight[f],GPU_OPERATOR_R(0.0),GPU_OPERATOR_R(1.0)):GPU_OPERATOR_R(1.0);
-                const GPU_OPERATOR_REAL cp=w*s.gasSpecies.heatCapacity[own]
-                    +(GPU_OPERATOR_R(1.0)-w)*s.gasSpecies.heatCapacity[nei>=0?nei:own];
-                kMolecular=s.gasMu*cp/s.gasPrClamped;
-            }
+        if((ugkwp::gasVariableViscosity(s)||ugkwp::mixtureGasActive(s))&&!ugkwp::gasHasDirectConductivity(s))
+            kMolecular=muMolecular*ugkwp::gasFaceMolecularHeatCapacity(s,f,own,nei)/s.gasPrClamped;
         const GPU_OPERATOR_REAL kEffective = kMolecular + kTurbulent;
         const GPU_OPERATOR_REAL wallThermalAreaFraction =
             GPU_GAS_WALL_EXPOSURE(s, f, nei, boundaryKind);

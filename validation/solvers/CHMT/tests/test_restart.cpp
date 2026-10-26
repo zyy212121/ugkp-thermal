@@ -138,24 +138,30 @@ int main(){
   require(restored.time==999&&sameBits(restored.solidSweepRemainder,sentinel),label+" output unchanged");
   require(writeCheckpoint(survivorDirectory,model,restored,error)&&bytes(survivorFile)==survivorBytes,label+" entire output is bitwise unchanged");
  };
- auto expectReadSuccess=[&](const std::string& data,const std::string& label) {
-  writeBytes(file,data);HostState admitted;require(readCheckpoint(directory,model,admitted,error),label+": "+error);
-  require(admitted.time==h.time&&sameBits(admitted.solidSweepRemainder,h.solidSweepRemainder),label+" actual payload retained");
- };
- auto wrong=model;
- require(readCheckpoint(directory,wrong,restored,error),"different expected fingerprints admitted");
-
+ // A decoded transport configuration requires an intact, supported wire header.
  for(std::size_t offset:{0,8,16,20,24,28,32,36,40,64}) {
-  auto tagged=original;tagged[offset]^=0x31;expectReadSuccess(tagged,"changed header label/digest");
+  auto tagged=original;tagged[offset]^=0x31;
+  const std::string cause=offset==0?"magic":offset==8?"schema":offset<40?"dimensions":offset==40?"field schema":"checksum";
+  expectReadFailure(tagged,cause,"changed header/digest rejected");
  }
- for(unsigned schema:{1,2,3,4,5,999}){auto tagged=original;setInteger(tagged,8,schema);expectReadSuccess(tagged,"same-layout older/newer tag");}
- auto configChanged=original;configChanged[72]^=0x55;expectReadSuccess(configChanged,"saved config is skipped without identity certification");
- auto surplus=original;surplus+="uninterpreted extension";expectReadSuccess(surplus,"surplus bytes admitted");
- auto corrupt=original;corrupt.back()^=1;expectReadSuccess(corrupt,"stale digest does not refuse supplied payload");
+ for(unsigned schema:{1,2,3,4,5,999}){auto tagged=original;setInteger(tagged,8,schema);expectReadFailure(tagged,"schema","unsupported schema rejected");}
+ auto configChanged=original;configChanged[72]^=0x55;expectReadFailure(configChanged,"checksum","damaged configuration rejected");
+ auto surplus=original;surplus+="uninterpreted extension";expectReadFailure(surplus,"length","undeclared bytes rejected");
+ auto corrupt=original;corrupt.back()^=1;expectReadFailure(corrupt,"checksum","damaged physical payload rejected");
+ writeBytes(file,original);
+ for(int change=0;change<4;++change){auto wrong=model;
+  if(change==0)wrong.physics.gasViscosityModel=ugkwp::MolecularViscosityModel::SutherlandWilke;
+  if(change==1)wrong.physics.gasTransportFingerprint=123;
+  if(change==2)wrong.physics.gasSutherland[0].S=110.4;
+  if(change==3)wrong.physics.gasMassRatioQuarter[0]=1;
+  HostState untouched;untouched.time=987;
+  require(!readCheckpoint(directory,wrong,untouched,error)&&error.find("transport identity")!=std::string::npos,"changed molecular transport rejected");
+  require(untouched.time==987,"transport rejection retains caller state");
+ }
 
  restored=changed;restored.time=999;
  expectReadFailure(original.substr(0,original.size()-1),"length","declared payload missing bytes");
- auto shortPayload=original.substr(0,original.size()-8);setInteger(shortPayload,56,getInteger(shortPayload,56)-8);
+ auto shortPayload=original.substr(0,original.size()-8);setInteger(shortPayload,56,getInteger(shortPayload,56)-8);refreshDigest(shortPayload);
  expectReadFailure(shortPayload,"truncated","required final field has no bytes");
  auto shortHeader=original.substr(0,39);expectReadFailure(shortHeader,"truncated","required header bytes absent");
  auto badConfigSize=original;setInteger(badConfigSize,48,std::numeric_limits<std::uint64_t>::max());
@@ -202,8 +208,8 @@ int main(){
  std::string pair(17,0);setReal(pair,0,3);setReal(pair,8,4);
  const auto boolOffset=pendingBytes.find(pair,72+getInteger(pendingBytes,48));
  require(boolOffset!=std::string::npos&&pendingBytes.find(pair,boolOffset+1)==std::string::npos,"unique storage boolean location");
- pendingBytes[boolOffset+16]=2;writeBytes(file,pendingBytes);
+ pendingBytes[boolOffset+16]=2;refreshDigest(pendingBytes);writeBytes(file,pendingBytes);
  require(readCheckpoint(directory,model,restored,error)&&restored.filmStorage[0].consumed,"nonzero boolean retains existing interpretation");
  unlink(file.c_str());rmdir(directory.c_str());unlink(survivorFile.c_str());rmdir(survivorDirectory.c_str());rmdir(root);
- std::cout<<"restart regressions: real 3-D dry/wet state, bounded signed carry, metadata admission, actual truncation, atomicity and fsync failures passed\n";
+ std::cout<<"restart regressions: real 3-D dry/wet state, bounded signed carry, transport identity, wire integrity, actual truncation, atomicity and fsync failures passed\n";
 }

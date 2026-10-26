@@ -196,10 +196,4 @@ __device__ GasPrimDevice reconstructGasCellToFace
     );
 }
 
-template<class GasState>
-__device__ GPU_OPERATOR_REAL molecularGasConductivity(const GasState& s)
-{
-    if constexpr (ugkwp::GasDirectConductivity<GasState>::value)
-        if (ugkwp::gasHasDirectConductivity(s)) return s.gasThermalConductivity;
-    return s.gasMu*s.gasCp/s.gasPrClamped;
-}
+#include "gasTransport/GasMolecularConductivity.cuh"

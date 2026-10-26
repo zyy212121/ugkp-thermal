@@ -1,3 +1,4 @@
+#include "gasTransport/MolecularTransportDevice.cuh"
 #include "gasTransport/GasMeshUploadValidation.H"
 #include "../../../common/GpuDiagnosticsOwner.cuh"
 #include "../../../common/gasTransport/GasStatusCompletion.cuh"
@@ -128,6 +129,8 @@ struct DeviceState;
 template<bool Capture> int launchBoundaryLayer(DeviceState*);
 struct DeviceState
 {
+    ugkwp::MolecularViscosityView<double> gasViscosity;
+    ugkwp::MolecularTransportDevice* gasTransportOwner=nullptr;
     ugkp::diagnostics::DeviceContext* diagnostics = nullptr;
     ugkp::diagnostics::GpuOwner* diagnosticOwner = nullptr;
 #include "GpuAutomaticCsrScheduleFields.inl"
@@ -976,7 +979,7 @@ void scrubHostCalculationScalars(DeviceState* s)
 #include "SharedGasStorage.cuh"
 #include "BoundaryLayerStorage.cuh"
 
-int releaseSharedGasTrialStorage(SharedGasTrialStorage& storage);
+
 
 void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=nullptr)
 {
@@ -1291,6 +1294,7 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
         if(finalDiagnostics)s->diagnosticOwner->finish(*finalDiagnostics);
     }
     delete s->diagnosticOwner;
+    delete s->gasTransportOwner;
     delete s;
 }
 
@@ -2152,73 +2156,8 @@ constexpr double mobilePackingJacobiOmega = 0.8;
 #include "ConservativeWallProjection.cuh"
 #include "../../../common/GpuGasHostPolicy.cuh"
 
-namespace
-{
-// Define the callback in the same internal namespace as its forward declaration.
-template<bool Capture> int launchBoundaryLayer(DeviceState* s)
-{
-        const bool analytic=s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::ConstantTransport;
-        const int workers=analytic?s->gasBoundaryLayer.count:s->gasBoundaryLayerModel.workspaceCount,block=32;
-        if(workers<=0){setLastErrorText("boundaryLayer scratch pool is empty");return 1;}
-        if(analytic)
-            evaluateGasBoundaryLayerKernel<Capture><<<(workers+block-1)/block,block,0,s->gasCaptureStream>>>(s->deviceState);
-        else if(s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::EquilibriumOde
-            &&s->gasBoundaryLayerModel.config.nodes==8&&s->gasBoundaryLayerModel.workspaceCapacity==24
-            &&!s->gasBoundaryLayerModel.conservative.enabled)
-            evaluateGasBoundaryLayerTile8Kernel<Capture><<<(workers+3)/4,32,0,s->gasCaptureStream>>>(s->deviceState);
-        else
-        {
-#define LAUNCH_WALL_CAPACITY(N) case N: evaluateGasBoundaryLayerTeamKernel<Capture,N><<<workers,ugkwp::gaswall::detail::wallWarpWidth,0,s->gasCaptureStream>>>(s->deviceState);break
-            switch(s->gasBoundaryLayerModel.workspaceCapacity)
-            {
-                LAUNCH_WALL_CAPACITY(24);
-                LAUNCH_WALL_CAPACITY(48);
-                LAUNCH_WALL_CAPACITY(128);
-                default:evaluateGasBoundaryLayerTeamKernel<Capture><<<workers,ugkwp::gaswall::detail::wallWarpWidth,0,s->gasCaptureStream>>>(s->deviceState);
-            }
-#undef LAUNCH_WALL_CAPACITY
-        }
-        const auto error=cudaGetLastError();
-        if(error!=cudaSuccess){setLastError("prepare sparse boundaryLayer profiles",error);return 1;}
-        if(s->gasBoundaryLayerModel.conservative.enabled){
-#define RECONSTRUCT_WALL_CAPACITY(N) case N: reconstructConservativeWallPool<N><<<workers,32,0,s->gasCaptureStream>>>(s->deviceState);break
-            switch(s->gasBoundaryLayerModel.workspaceCapacity){RECONSTRUCT_WALL_CAPACITY(24);RECONSTRUCT_WALL_CAPACITY(48);RECONSTRUCT_WALL_CAPACITY(128);}
-#undef RECONSTRUCT_WALL_CAPACITY
-            const auto reconstructionError=cudaGetLastError();if(reconstructionError!=cudaSuccess){setLastError("reconstruct conservative wall profiles",reconstructionError);return 1;}
-        }
-        return 0;
-}
-} // namespace
-
-struct GasHostPolicy:GasHostWithoutWallEnergy<double,double>
-{
-    template<class HostState> static int applyFaceSources(HostState*s,double,double){
-        if(!s->gasBoundaryLayerModel.conservative.enabled)return 0;
-        if(prepareConservativeProjection(s))return 1;
-        int b=s->fixedFaceBlockThreads;assembleConservativeWallFlux<<<(s->nFaces+b-1)/b,b,0,s->gasCaptureStream>>>(s->deviceState);
-        auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("assemble conservative wall flux",error);return 1;}return 0;
-    }
-    template<class HostState> static int applySstFaceSources(HostState*s,double dt){
-        if(!s->gasBoundaryLayerModel.conservative.enabled)return 0;
-        int b=s->fixedFaceBlockThreads;
-        int cb=s->fixedCellBlockThreads;conservativeKFluxBudget<<<(s->nCells+cb-1)/cb,cb,0,s->gasCaptureStream>>>(s->deviceState,dt);
-        applyConservativeKFluxBudget<<<(s->nFaces+b-1)/b,b,0,s->gasCaptureStream>>>(s->deviceState);
-        auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("assemble conservative wall SST flux",error);return 1;}return 0;
-    }
-
-    template<class HostState> static int prepareBoundaryLayer(HostState* s,double,double stageTime)
-    {
-        if(!s->gasBoundaryLayer.enabled)return 0;
-        s->gasBoundaryLayerStageTime=stageTime;
-        if(s->gasBoundaryLayerModel.conservative.enabled){
-            int block=s->fixedCellBlockThreads,grid=(s->nCells+block-1)/block;
-            computeGasGradientLimiterKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
-            computeSstGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
-            prepareConservativeWallMatching<<<(s->gasBoundaryLayer.count+63)/64,64,0,s->gasCaptureStream>>>(s->deviceState);
-        }
-        return s->gasBoundaryLayerLaunch(s);
-    }
-};
+#include "gasTransport/ResidentWallLaunch.inl"
+using GasHostPolicy=ResidentWallGasHostPolicy<GasHostWithoutWallEnergy<double,double>>;
 #include "../../../common/GpuMobilePackingHost.cuh"
 
 #include "operators/granularCollisionTauFromCellDevice.cuh"
@@ -2269,7 +2208,7 @@ __device__ void relaxOneParticleToResidentGas(DeviceState& s, const int i, const
             finiteOr(s.pd[i], s.particleDiameterFallback),
             1.0e-12
         );
-    const double mu = clampMin(s.gasMu, 1.0e-30);
+    const double mu = clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]), 1.0e-30);
     const ugkwpGpuDrag::DragInput dragInput =
     {
         rhoG,
@@ -2311,7 +2250,7 @@ __device__ void relaxOneParticleToResidentGas(DeviceState& s, const int i, const
         const double tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
         const double tgOld = clampRange(finiteOr(s.couplingTgasOld[c], s.TgasMin), s.TgasMin, 1.0e30);
         s.pT[i] = particleTemperatureAfterGasRelaxation
-            (s, tpOld, tgOld, re, dPart, s.particleThermalCapacity, dt);
+            (s, c, tpOld, tgOld, re, dPart, s.particleThermalCapacity, dt);
     }
 }
 
@@ -6038,3 +5977,5 @@ extern "C" int ugkwpGpuResidentStrictSetDiagnosticOperation(void* handle,std::ui
     if(rc!=cudaSuccess){setLastError("begin diagnostic metadata",rc);return 1;}
     return 0;
 }
+
+#include "gasTransport/MolecularTransportResident.inl"

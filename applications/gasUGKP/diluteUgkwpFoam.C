@@ -325,7 +325,8 @@ int main(int argc, char *argv[])
             configureScheduledBoundary(resident);
 
             scalar lastMeasuredCo = scalar(0);
-            label stepsSinceCourant = gpuResidentCourantUpdateInterval;
+            resident.configureMolecularTransport(molecularTransport.config());
+        label stepsSinceCourant = gpuResidentCourantUpdateInterval;
 
             while (runTime.run())
             {
@@ -493,6 +494,7 @@ int main(int argc, char *argv[])
         configureScheduledBoundary(resident);
 
         scalar lastMeasuredCo = scalar(0);
+        resident.configureMolecularTransport(molecularTransport.config());
         label stepsSinceCourant = gpuResidentCourantUpdateInterval;
 
         while (runTime.run())
