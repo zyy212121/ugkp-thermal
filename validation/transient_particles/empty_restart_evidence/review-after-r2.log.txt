@@ -1,0 +1,8 @@
+transient exit PASS
+transient nonempty PASS
+transient empty PASS
+transient heat failure rejected before output
+steady exit PASS
+steady nonempty PASS
+steady empty PASS
+steady heat failure rejected before output
