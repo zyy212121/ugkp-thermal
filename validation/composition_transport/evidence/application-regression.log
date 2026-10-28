@@ -1,6 +1,0 @@
-empty-restart PASS
-coupled PASS
-heat-controls PASS
-fsh PASS
-gasUGKP-mixture-particles PASS
-gasUGKPSteady-mixture-particles PASS
