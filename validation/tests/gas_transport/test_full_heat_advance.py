@@ -31,7 +31,12 @@ def braced_function(text, signature):
 
 
 def test_actual_advance_source_order_and_time_arguments():
-    body = braced_function(OWNER.read_text(), 'extern "C" int ugkwpGpuResidentStrictAdvance')
+    owner=OWNER.read_text()
+    body = braced_function(owner, 'extern "C" int ugkwpGpuResidentStrictAdvance')
+    particle = braced_function(owner, 'int advanceResidentThermalParticles(')
+    call_start=body.index('    if(advanceResidentThermalParticles(')
+    call_end=body.index('    UGKP_DEV_PROBE_ENTER(ProbeBoundary)',call_start)
+    body=body[:call_start]+particle+body[call_end:]
     stages = ["advanceGasFluxStage", "applyGasVolumeFractionSourceKernel",
               "snapshotParticleGasCouplingStateKernel", "applyEulerianParticleMaterialHeatKernel",
               "injectBoundaryParticlesKernel", "prepareParticleDirectoryAndSchedule",

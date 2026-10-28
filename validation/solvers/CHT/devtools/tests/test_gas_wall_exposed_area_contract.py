@@ -43,6 +43,6 @@ def test_contact_area_is_prepared_before_gas_flux_without_duplicate_particle_cal
     )
     preparation = body.index("prepareParticleWallContactAreaScale(s, block)")
     gas_advance = body.index("advanceGasFluxStage(s, dt, simulationTime-dt)")
-    collision = body.index("UGKP_DEV_PROBE_ENTER(ProbeCollisionPool)")
+    collision = body.index("advanceResidentThermalParticles(s,dt,simulationTime")
     assert preparation < gas_advance < collision
     assert body.count("prepareParticleWallContactAreaScale(s, block)") == 1

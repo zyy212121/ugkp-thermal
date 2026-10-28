@@ -6,7 +6,7 @@ ROOT=SOURCE_ROOT
 
 def test_pairing_has_no_new_clear_or_particle_traversal():
     source=(ROOT/'common/thermal/GpuResidentStrict.cu').read_text()
-    begin=source.index('extern "C" int ugkwpGpuResidentStrictAdvance')
+    begin=source.index('int advanceResidentThermalParticles(')
     source=source[begin:source.index('extern "C"',begin+1)]
     assert 'clearPairedParticleHeatKernel<<<' not in source
     assert 'reducePairedParticleHeatKernel<<<' not in source
