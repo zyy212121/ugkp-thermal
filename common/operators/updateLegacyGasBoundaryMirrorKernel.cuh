@@ -1,4 +1,5 @@
 #pragma once
+#include "evaluateResidentBoundary.cuh"
 // One operator implementation; scalar/time adapters are compile-time only.
 template<class GasState>
 __global__ void updateLegacyGasBoundaryMirrorKernel
@@ -37,6 +38,8 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
         return;
     }
 
+    if(evaluateResidentBoundary(s,f,simulationTime))return;
+
     const int kind = s.gasBoundaryKind[f];
     if (kind == 3 || kind == 4)
     {
@@ -71,7 +74,7 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
 }
 
 template<class GasState>
-__global__ void updateRiemannBoundaryMirrorKernel(GasState* sp)
+__global__ void updateRiemannBoundaryMirrorKernel(GasState* sp, const GPU_OPERATOR_TIME simulationTime=GPU_OPERATOR_TIME(0))
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
@@ -80,6 +83,8 @@ __global__ void updateRiemannBoundaryMirrorKernel(GasState* sp)
     {
         return;
     }
+
+    if(evaluateResidentBoundary(s,f,simulationTime))return;
 
     const int kind = s.riemannBoundaryKind[f];
     if (kind == 3 || kind == 4)

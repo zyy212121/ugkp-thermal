@@ -2,6 +2,7 @@
 #define UGKWP_SHARED_GAS_MODEL_INPUT_H
 
 #include "fvCFD.H"
+#include "../gasBoundary/FoamInput.H"
 #include "GpuBackendApi.H"
 #include "gasTransport/GasBuildConfig.H"
 #include "gasTransport/GasCapabilities.H"
@@ -151,7 +152,7 @@ public:
                 IOobject::MUST_READ,IOobject::AUTO_WRITE),mesh));
             massFractions_[species].correctBoundaryConditions();
         }
-        U.correctBoundaryConditions();p.correctBoundaryConditions();temperature.correctBoundaryConditions();
+        ugkp::boundary::foam::initialiseStaticPatches(U);ugkp::boundary::foam::initialiseStaticPatches(p);ugkp::boundary::foam::initialiseStaticPatches(temperature);
         if(!restart_)forAll(rho,cell)
         {
             double y[ugkwp::compiledGasSpecies];

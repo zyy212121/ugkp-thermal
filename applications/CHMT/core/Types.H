@@ -2,6 +2,7 @@
 #define CHMT_CORE_TYPES_H
 
 #include <cmath>
+#include "../../../common/gasBoundary/Definition.H"
 #include <cstdint>
 #include <limits>
 #include <type_traits>
@@ -114,7 +115,7 @@ struct Reaction {
     Real A=0,temperaturePower=0,activationEnergy=0,condensedNu[Nc]{},gasNu[Ns]{},order[Nc]{};
     // nu kg/mol extent; order acts on condensed kg/m^3, fixing A's units.
 };
-enum class BoundaryKind { Internal,Periodic,Slip,NoSlip,Inlet,Outlet,Interface,Empty };
+using BoundaryKind = ugkp::boundary::Kind;
 enum class ThermalBoundaryKind { ZeroGradient,FixedValue };
 CHMT_HD inline bool fixedTemperature(const ThermalBoundaryKind* policy,int face) {
     return policy && policy[face]==ThermalBoundaryKind::FixedValue;

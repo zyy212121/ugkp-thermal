@@ -43,7 +43,8 @@ enum class Op : std::uint32_t
     configureSst = 22,
     downloadSst = 23,
     uploadParticleSavedVelocity = 24,
-    downloadParticleSavedVelocity = 25
+    downloadParticleSavedVelocity = 25,
+    configureBoundary = 26
 };
 
 enum class GasFluxScheme : std::int32_t

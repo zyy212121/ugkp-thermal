@@ -1,0 +1,32 @@
+{
+  "gasUGKP": {
+    "command": [
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/gasUGKP",
+      "-case",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/case/shared-boundary-acceptance/particles/gasUGKP"
+    ],
+    "exit": 0,
+    "seconds": 0.32410485300351866,
+    "log_sha256": "8d2200e8f30a6a81ac794d04d4d89aa1d121bf782b3ad101169dc7947c0daffc",
+    "parcels": 1,
+    "temperature_range": [
+      499.9998910907099,
+      499.9998910907099
+    ]
+  },
+  "gasUGKPSteady": {
+    "command": [
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/gasUGKPSteady",
+      "-case",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/case/shared-boundary-acceptance/particles/gasUGKPSteady"
+    ],
+    "exit": 0,
+    "seconds": 0.4455774539965205,
+    "log_sha256": "f31bec8013c73a2e5e183d80095bcd89e755b34d0c68f03f0620f4e3feb77b30",
+    "parcels": 1,
+    "temperature_range": [
+      499.999891909799,
+      499.999891909799
+    ]
+  }
+}

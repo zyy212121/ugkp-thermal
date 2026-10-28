@@ -120,7 +120,7 @@ __device__ bool useRiemannBoundaryVelocity
     {
         return true;
     }
-    if (mode != 2)
+    if (mode != 2 && mode != 4)
     {
         return false;
     }

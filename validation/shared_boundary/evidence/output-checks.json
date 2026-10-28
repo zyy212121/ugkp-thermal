@@ -1,0 +1,29 @@
+{
+  "gas/gasUGKP-table": {
+    "written_inlet_temperature": 320.0,
+    "max_species_density_closure": 0.0
+  },
+  "gas/gasUGKPSteady-table": {
+    "written_inlet_temperature": 300.0,
+    "max_species_density_closure": 0.0
+  },
+  "extended/SSPRK3": {
+    "written_inlet_temperature": 320.0,
+    "max_species_density_closure": 0.0
+  },
+  "extended/Euler": {
+    "written_inlet_temperature": 320.0,
+    "max_species_density_closure": 0.0
+  },
+  "native_OpenFOAM_reference": {
+    "faces": 4,
+    "max_absolute_error": 0.0,
+    "state_Uxyz_p_T": [
+      70.0,
+      0.0,
+      0.0,
+      101289.4829250097,
+      300.06140045288276
+    ]
+  }
+}

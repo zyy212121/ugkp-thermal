@@ -1,3 +1,5 @@
+#include "gasBoundary/Resident.cuh"
+#include "gasBoundary/Evaluate.H"
 #include "gasTransport/GasBoundaryLayerModelState.H"
 #include "gasTransport/GasBoundaryLayerWorkspace.H"
 #include "gasTransport/ResidentWallFields.H"
@@ -143,6 +145,8 @@ template<bool Capture> int launchBoundaryLayer(DeviceState*);
 struct DeviceState
 {
     GpuWallEnergyState wallEnergy;
+    ugkp::boundary::View gasBoundaryProgram;
+    ugkp::boundary::Resident* gasBoundaryOwner=nullptr;
     ugkwp::GasSpeciesState<double,ugkwp::compiledGasSpecies> gasSpecies,gasRejectedView;
     ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
     ugkwp::GasBoundaryLayerModelState<double,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
@@ -246,6 +250,7 @@ struct DeviceState
     cudaGraphExec_t gasGraphExec = nullptr;
     std::vector<cudaGraphNode_t> gasGraphTimeNodes;
     std::vector<cudaKernelNodeParams> gasGraphTimeParams;
+    std::vector<double> gasGraphTimeOffsets;
     GpuTime gasGraphDt = -1;
     int gasGraphMode = -1;
     int particleBlockThreads = 128;
@@ -1390,6 +1395,7 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
         s->diagnosticOwner->dispatchPending();
         if(finalDiagnostics)s->diagnosticOwner->finish(*finalDiagnostics);
     }
+    delete s->gasBoundaryOwner;
     delete s->diagnosticOwner;
     releaseBoundaryLayerStorage(*s);
     releaseSharedGasSpecies(s->gasSpecies);releaseSharedGasSpecies(s->gasRejectedView);
@@ -3846,90 +3852,7 @@ extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
     );
 }
 
-extern "C" int ugkwpGpuResidentStrictUploadGasBoundaryFields
-(
-    void* handle,
-    const int* gasBoundaryKind,
-    const int* gasBoundaryRhoFix,
-    const int* gasBoundaryUFix,
-    const int* gasBoundaryPFix,
-    const int* gasBoundaryTFix,
-    const int* gasBoundaryPWave,
-    const double* gasBoundaryPWaveGamma,
-    const double* gasBoundaryPWaveFieldInf,
-    const double* gasBoundaryPWaveLInf,
-    const double* gasBoundaryRho,
-    const double* gasBoundaryUx,
-    const double* gasBoundaryUy,
-    const double* gasBoundaryUz,
-    const double* gasBoundaryP,
-    const double* gasBoundaryT
-)
-{
-
-    DeviceState* s = asState(handle);
-    if (validateState(s, "gas boundary upload") != 0)
-    {
-        return 1;
-    }
-
-    if
-    (
-        gasBoundaryKind == nullptr
-     || gasBoundaryRhoFix == nullptr
-     || gasBoundaryUFix == nullptr
-     || gasBoundaryPFix == nullptr
-     || gasBoundaryTFix == nullptr
-     || gasBoundaryPWave == nullptr
-     || gasBoundaryPWaveGamma == nullptr
-     || gasBoundaryPWaveFieldInf == nullptr
-     || gasBoundaryPWaveLInf == nullptr
-     || gasBoundaryRho == nullptr
-     || gasBoundaryUx == nullptr
-     || gasBoundaryUy == nullptr
-     || gasBoundaryUz == nullptr
-     || gasBoundaryP == nullptr
-     || gasBoundaryT == nullptr
-    )
-    {
-        setLastErrorText("null GPU resident gas boundary array");
-        return 1;
-    }
-
-    const size_t nf = static_cast<size_t>(s->nFaces);
-    int rc = 0;
-    rc |= copyToDevice(s->gasBoundaryKind, gasBoundaryKind, nf, "cudaMemcpy strict gasBoundaryKind");
-    rc |= copyToDevice(s->gasBoundaryRhoFix, gasBoundaryRhoFix, nf, "cudaMemcpy strict gasBoundaryRhoFix");
-    rc |= copyToDevice(s->gasBoundaryUFix, gasBoundaryUFix, nf, "cudaMemcpy strict gasBoundaryUFix");
-    rc |= copyToDevice(s->gasBoundaryPFix, gasBoundaryPFix, nf, "cudaMemcpy strict gasBoundaryPFix");
-    rc |= copyToDevice(s->gasBoundaryTFix, gasBoundaryTFix, nf, "cudaMemcpy strict gasBoundaryTFix");
-    rc |= copyToDevice(s->gasBoundaryPWave, gasBoundaryPWave, nf, "cudaMemcpy strict gasBoundaryPWave");
-    rc |= copyToDevice(s->gasBoundaryPWaveGamma, gasBoundaryPWaveGamma, nf, "cudaMemcpy strict gasBoundaryPWaveGamma");
-    rc |= copyToDevice(s->gasBoundaryPWaveFieldInf, gasBoundaryPWaveFieldInf, nf, "cudaMemcpy strict gasBoundaryPWaveFieldInf");
-    rc |= copyToDevice(s->gasBoundaryPWaveLInf, gasBoundaryPWaveLInf, nf, "cudaMemcpy strict gasBoundaryPWaveLInf");
-    rc |= copyToDevice(s->gasBoundaryRho, gasBoundaryRho, nf, "cudaMemcpy strict gasBoundaryRho");
-    rc |= copyToDevice(s->gasBoundaryUx, gasBoundaryUx, nf, "cudaMemcpy strict gasBoundaryUx");
-    rc |= copyToDevice(s->gasBoundaryUy, gasBoundaryUy, nf, "cudaMemcpy strict gasBoundaryUy");
-    rc |= copyToDevice(s->gasBoundaryUz, gasBoundaryUz, nf, "cudaMemcpy strict gasBoundaryUz");
-    rc |= copyToDevice(s->gasBoundaryP, gasBoundaryP, nf, "cudaMemcpy strict gasBoundaryP");
-    rc |= copyToDevice(s->gasBoundaryT, gasBoundaryT, nf, "cudaMemcpy strict gasBoundaryT");
-    rc |= copyToDevice(s->riemannBoundaryKind, gasBoundaryKind, nf, "cudaMemcpy strict riemannBoundaryKind");
-    rc |= copyToDevice(s->riemannBoundaryRhoFix, gasBoundaryRhoFix, nf, "cudaMemcpy strict riemannBoundaryRhoFix");
-    rc |= copyToDevice(s->riemannBoundaryUFix, gasBoundaryUFix, nf, "cudaMemcpy strict riemannBoundaryUFix");
-    rc |= copyToDevice(s->riemannBoundaryPFix, gasBoundaryPFix, nf, "cudaMemcpy strict riemannBoundaryPFix");
-    rc |= copyToDevice(s->riemannBoundaryTFix, gasBoundaryTFix, nf, "cudaMemcpy strict riemannBoundaryTFix");
-    rc |= copyToDevice(s->riemannBoundaryPWave, gasBoundaryPWave, nf, "cudaMemcpy strict riemannBoundaryPWave");
-    rc |= copyToDevice(s->riemannBoundaryPWaveGamma, gasBoundaryPWaveGamma, nf, "cudaMemcpy strict riemannBoundaryPWaveGamma");
-    rc |= copyToDevice(s->riemannBoundaryPWaveFieldInf, gasBoundaryPWaveFieldInf, nf, "cudaMemcpy strict riemannBoundaryPWaveFieldInf");
-    rc |= copyToDevice(s->riemannBoundaryPWaveLInf, gasBoundaryPWaveLInf, nf, "cudaMemcpy strict riemannBoundaryPWaveLInf");
-    rc |= copyToDevice(s->riemannBoundaryRho, gasBoundaryRho, nf, "cudaMemcpy strict riemannBoundaryRho");
-    rc |= copyToDevice(s->riemannBoundaryUx, gasBoundaryUx, nf, "cudaMemcpy strict riemannBoundaryUx");
-    rc |= copyToDevice(s->riemannBoundaryUy, gasBoundaryUy, nf, "cudaMemcpy strict riemannBoundaryUy");
-    rc |= copyToDevice(s->riemannBoundaryUz, gasBoundaryUz, nf, "cudaMemcpy strict riemannBoundaryUz");
-    rc |= copyToDevice(s->riemannBoundaryP, gasBoundaryP, nf, "cudaMemcpy strict riemannBoundaryP");
-    rc |= copyToDevice(s->riemannBoundaryT, gasBoundaryT, nf, "cudaMemcpy strict riemannBoundaryT");
-    return rc == 0 ? 0 : 1;
-}
+#include "gasBoundary/BackendApi.inl"
 
 extern "C" int ugkwpGpuResidentStrictUploadGasBoundaryTemperaturePatch
 (
@@ -4068,6 +3991,8 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleWallEffusivityPatch
         "cudaMemcpy CHT particle-wall effusivity patch"
     );
 }
+
+
 
 extern "C" int ugkwpGpuResidentStrictUploadFields
 (

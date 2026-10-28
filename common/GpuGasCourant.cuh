@@ -43,7 +43,7 @@ int computeGasCurrentCourant
         }
         updateRiemannBoundaryMirrorKernel<<<allFaceGrid, faceBlock, 0, stream>>>
         (
-            s->deviceState
+            s->deviceState,scheduleTime
         );
         err = cudaGetLastError();
         if (err != cudaSuccess)

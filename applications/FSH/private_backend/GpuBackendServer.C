@@ -1,3 +1,4 @@
+#include "gasBoundary/Wire.H"
 #include "../../../common/DiagnosticsCodec.H"
 #include "GpuBackendApi.H"
 #include "GpuBackendProtocol.H"
@@ -410,6 +411,22 @@ bool handleUploadResidual
     const int status=ugkwpGpuResidentStrictUploadSourceResidualMass
     (s.backend,a.count,ptr(faces),ptr(residual));
     return responseHeader(fd,s,status,0);
+}
+
+bool handleBoundaryDefinition(const int fd,const RequestHeader& request,ServerState& s)
+{
+    std::vector<int> counts;if(!readVector(fd,counts,2))return false;
+    if(counts[0]<3||counts[1]<0)return false;
+    const std::uint64_t expected=(2+std::uint64_t(counts[0]))*sizeof(int)+std::uint64_t(counts[1])*sizeof(double);
+    if(!validatePayload(fd,s,request,expected))return false;
+    std::vector<int> iv;std::vector<double> rv;
+    if(!readVector(fd,iv,counts[0])||!readVector(fd,rv,counts[1]))return false;
+    try {
+        const auto d=ugkp::boundary::decode(iv,rv);
+        const int status=ugkwpGpuResidentStrictConfigureBoundary(s.backend,d.faces.size(),d.faces.data(),
+            d.functions.size(),d.functions.data(),d.terms.size(),d.terms.data());
+        return responseHeader(fd,s,status,0);
+    }catch(const std::exception&){return responseHeader(fd,s,1,0);}
 }
 
 bool handleGasBoundary
@@ -870,6 +887,7 @@ bool dispatch
             return handleScheduledInletConfiguration(fd,request,s);
         case Op::downloadSourceResidualMass:return handleDownloadResidual(fd,request,s);
         case Op::uploadSourceResidualMass:return handleUploadResidual(fd,request,s);
+        case Op::configureBoundary:return handleBoundaryDefinition(fd,request,s);
         case Op::uploadGasBoundaryFields:return handleGasBoundary(fd,request,s);
         case Op::uploadFields:return handleUploadFields(fd,request,s);
         case Op::advance:return handleAdvance(fd,request,s);

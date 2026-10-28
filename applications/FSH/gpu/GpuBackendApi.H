@@ -1,3 +1,4 @@
+#include "gasBoundary/Api.H"
 #ifndef UGKWP_GPU_BACKEND_API_H
 #define UGKWP_GPU_BACKEND_API_H
 

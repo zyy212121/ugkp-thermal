@@ -1,0 +1,18 @@
+{
+  "graph_kernel_count": 100,
+  "copies_during_kernel_interval": 0,
+  "bytes_during_kernel_interval": 0,
+  "kernel_total_ns": 2923865,
+  "all_copies_by_kind": [
+    [
+      "Device-to-Host",
+      1,
+      12336
+    ],
+    [
+      "Host-to-Device",
+      3,
+      39192
+    ]
+  ]
+}

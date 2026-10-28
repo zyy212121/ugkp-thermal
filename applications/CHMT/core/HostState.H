@@ -3,8 +3,10 @@
 #include "Configuration.H"
 #include <vector>
 #include <array>
+#include <memory>
 namespace chmt {
 struct HostMesh {
+    std::shared_ptr<const ugkp::boundary::Definition> gasBoundary;
     std::vector<Vec3> referencePoints{}; // immutable prescribed-motion reference, persisted.
     std::vector<Vec3> points{},oldPoints{},cellCentres{},faceCentres{},areaVectors{},meshVelocity{};
     std::vector<Real> volumes{},oldVolumes{},wallDistance{};

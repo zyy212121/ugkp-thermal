@@ -1,3 +1,4 @@
+#include "gasBoundary/Wire.H"
 #include "../../../common/DiagnosticsCodec.H"
 #include "GpuBackendApi.H"
 #include "GpuBackendProtocol.H"
@@ -628,6 +629,23 @@ extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
      || !sendObject(s->fd, CountArgs{count})
      || !sendArray(s->fd, sourceFace, count)
      || !sendArray(s->fd, residualMass, count)) return -1;
+    return finishNoPayload(s);
+}
+
+extern "C" int ugkwpGpuResidentStrictConfigureBoundary(void* handle,int nf,
+    const ugkp::boundary::Face* faces,int nfun,const ugkp::boundary::Function* fun,
+    int nt,const ugkp::boundary::Term* terms)
+{
+    ClientState* s=static_cast<ClientState*>(handle);
+    if(!s||nf!=s->nFaces||nf<0||nfun<0||nt<0||(nf&&!faces)||(nfun&&!fun)||(nt&&!terms))
+        return fail("invalid shared boundary configuration");
+    ugkp::boundary::Definition d;
+    if(nf)d.faces.assign(faces,faces+nf);if(nfun)d.functions.assign(fun,fun+nfun);if(nt)d.terms.assign(terms,terms+nt);
+    std::vector<int> iv;std::vector<double> rv;ugkp::boundary::encode(d,iv,rv);
+    const int counts[]={int(iv.size()),int(rv.size())};
+    const std::uint64_t bytes=(2+iv.size())*sizeof(int)+rv.size()*sizeof(double);
+    if(!startRequest(s,Op::configureBoundary,bytes)||!sendArray(s->fd,counts,2)
+        ||!sendArray(s->fd,iv.data(),iv.size())||!sendArray(s->fd,rv.data(),rv.size()))return -1;
     return finishNoPayload(s);
 }
 

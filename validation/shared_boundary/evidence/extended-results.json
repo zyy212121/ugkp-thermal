@@ -1,0 +1,250 @@
+{
+  "restart": {
+    "gasUGKP": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_Air": 0.0,
+      "rhoEs": 0.0,
+      "Y_CO2": 0.0,
+      "epsilonS": 0.0,
+      "k": 0.0,
+      "omega": 2.2204456104563707e-16,
+      "rho": 0.0,
+      "theta": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_Air": 0.0,
+      "rhoY_CO2": 0.0,
+      "Us": 0.0,
+      "U": 1.4693679385278594e-39,
+      "nut": 4.0657581468206416e-20,
+      "rhoU": 1.4693679385278594e-39,
+      "p": 0.0
+    },
+    "gasUGKPSteady": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_Air": 0.0,
+      "rhoEs": 0.0,
+      "Y_CO2": 0.0,
+      "epsilonS": 0.0,
+      "k": 0.0,
+      "omega": 2.2204455919978672e-16,
+      "rho": 0.0,
+      "theta": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_Air": 0.0,
+      "rhoY_CO2": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 1.3552527156068805e-20,
+      "rhoU": 0.0,
+      "p": 0.0
+    },
+    "CHT": {
+      "dMeanCell": 0.0002,
+      "rhoDs": 0.0,
+      "rhoEs": 0.0,
+      "Y_S1": 0.0,
+      "Y_S0": 0.0,
+      "epsilonS": 0.0,
+      "particleStuckWallHeatFlux": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "theta": 0.0,
+      "particleReflectedWallHeatFlux": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoHp": 0.0,
+      "rhoUs": 0.0,
+      "particleRadiationWallHeatFlux": 0.0,
+      "rhoY_S1": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "gasConvectiveWallHeatFlux": 0.0,
+      "p": 0.0,
+      "rhoY_S0": 0.0,
+      "Tp": 1.0,
+      "solid/T": 0.0
+    },
+    "CHMT": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 2
+    },
+    "gasUGKP-particles": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_Air": 0.0,
+      "rhoEs": 0.0,
+      "Y_CO2": 0.0,
+      "epsilonS": 0.0,
+      "k": 1.3552527156068805e-20,
+      "omega": 2.2204456142672833e-16,
+      "rho": 0.0,
+      "theta": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoUs": 0.0,
+      "rhoY_Air": 0.0,
+      "rhoY_CO2": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 4.0657581468206416e-20,
+      "rhoU": 0.0,
+      "p": 0.0,
+      "Tp": 0.0
+    },
+    "gasUGKP-particle-state": {
+      "count": 1,
+      "max_scaled_error": 0
+    },
+    "gasUGKPSteady-particles": {
+      "dMeanCell": 0.0,
+      "rhoDs": 0.0,
+      "Y_Air": 0.0,
+      "rhoEs": 0.0,
+      "Y_CO2": 0.0,
+      "epsilonS": 0.0,
+      "k": 0.0,
+      "omega": 2.2204456142809365e-16,
+      "rho": 0.0,
+      "theta": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoHp": 0.23999993525718227,
+      "rhoUs": 0.0,
+      "rhoY_Air": 0.0,
+      "rhoY_CO2": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 2.710505431213761e-20,
+      "rhoU": 0.0,
+      "p": 0.0,
+      "Tp": 0.0
+    },
+    "gasUGKPSteady-particle-state": {
+      "count": 1,
+      "max_scaled_error": 0
+    }
+  },
+  "budgets": {
+    "hot_constant": {
+      "initial": [
+        0.7000009996,
+        0.0,
+        492146.43426494696
+      ],
+      "final": [
+        0.7000009996,
+        0.0,
+        492146.434264947
+      ],
+      "absolute_mass_momentum_energy_error": [
+        0.0,
+        0.0,
+        5.820766091346741e-11
+      ]
+    },
+    "hot_nonlinear": {
+      "initial": [
+        0.7000009996,
+        0.0,
+        415146.434308947
+      ],
+      "final": [
+        0.7000009996,
+        0.0,
+        415146.43430894695
+      ],
+      "absolute_mass_momentum_energy_error": [
+        0.0,
+        0.0,
+        5.820766091346741e-11
+      ]
+    },
+    "closed_drag_heat": {
+      "initial": [
+        0.7009996,
+        0.002,
+        500138.15532420634
+      ],
+      "final": [
+        0.7009996,
+        0.002,
+        500138.15532420634
+      ],
+      "absolute_mass_momentum_energy_error": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "timing": {
+    "gasUGKP": {
+      "baseline": [
+        0.826176791000762,
+        0.8264133109987597,
+        0.8141944890012383
+      ],
+      "candidate": [
+        0.8458556859986857,
+        0.8067936959996587,
+        0.7923916319996351
+      ],
+      "median_ratio": 0.976538804754338
+    },
+    "CHT": {
+      "baseline": [
+        1.2041201679967344,
+        1.1793277649994707,
+        1.0518746829984593
+      ],
+      "candidate": [
+        1.2546189540007617,
+        1.2172319769961177,
+        1.209192031994462
+      ],
+      "median_ratio": 1.0321405237132393
+    },
+    "CHMT": {
+      "baseline": [
+        0.674262186003034,
+        0.6758337840001332,
+        0.6629344030006905
+      ],
+      "candidate": [
+        0.6769530649980879,
+        0.6939115319983102,
+        0.7052337230052217
+      ],
+      "median_ratio": 1.0291419961005908
+    }
+  },
+  "SSPRK3": {
+    "command": [
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/gasUGKP",
+      "-case",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/case/shared-boundary-acceptance/extended/SSPRK3"
+    ],
+    "exit": 0,
+    "seconds": 1.1513418510003248,
+    "log_sha256": "caef608889cb9207f6bedca19ad9688a5557a5b6400e367aa6a0763b2cbd6cf1"
+  },
+  "Euler": {
+    "command": [
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/gasUGKP",
+      "-case",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/case/shared-boundary-acceptance/extended/Euler"
+    ],
+    "exit": 0,
+    "seconds": 0.557873847996234,
+    "log_sha256": "b35bdf16a414b7aaa7fc066adc09aab42804da03f4870b541a952d8a236b9620"
+  }
+}

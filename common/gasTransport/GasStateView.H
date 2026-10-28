@@ -1,5 +1,6 @@
 #pragma once
 #include <type_traits>
+#include "../gasBoundary/Evaluate.H"
 #include "../Diagnostics.H"
 #include <limits>
 #include <utility>
@@ -30,6 +31,7 @@ struct GasStateView
     using SstCoefficientsType = SstCoefficients;
     static constexpr int speciesCount = 0;
     ugkp::diagnostics::DeviceContext* diagnostics = nullptr;
+    ugkp::boundary::View gasBoundaryProgram;
     MolecularViscosityView<Real> gasViscosity;
     GasGeometryState<Real> gasGeometry;
     GasBoundaryLayerState<Real> gasBoundaryLayer;
@@ -276,6 +278,7 @@ inline auto makeGasStateView(const State& state)
         "live and RK gas energy must have identical storage types");
     GasStateView<Real, Time, SstCoefficients, Energy> view{};
     view.diagnostics = state.diagnostics;
+    if constexpr(ugkp::boundary::Capability<State>::value)view.gasBoundaryProgram=state.gasBoundaryProgram;
     if constexpr(GasViscosityCapability<State>::value) view.gasViscosity=state.gasViscosity;
 #define UGKWP_GAS_STATE_FIELD(Type, Name) view.Name = state.Name;
 #include "GasStateFields.inc"

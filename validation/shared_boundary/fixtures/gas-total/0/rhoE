@@ -1,0 +1,10 @@
+FoamFile { version 2.0; format ascii; class volScalarField; object rhoE; }
+dimensions [1 -1 -2 0 0 0 0];
+internalField uniform 290431.89581399935;
+boundaryField {
+ inlet { type fixedValue; value uniform 290431.89581399935; }
+ outlet { type zeroGradient; }
+ wall { type zeroGradient; }
+ top { type symmetryPlane; }
+ sides { type empty; }
+}

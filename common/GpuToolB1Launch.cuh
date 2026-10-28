@@ -52,7 +52,7 @@ int launchToolB1FaceBundle
         s->deviceState,
         simulationTime
     );
-    updateRiemannBoundaryMirrorKernel<<<boundaryGrid, block>>>(s->deviceState);
+    updateRiemannBoundaryMirrorKernel<<<boundaryGrid, block>>>(s->deviceState,simulationTime);
     }
     if (s->hostTurbulenceModel == 0)
     {
