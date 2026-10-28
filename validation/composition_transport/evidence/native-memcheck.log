@@ -1,0 +1,43 @@
+========= COMPUTE-SANITIZER
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/gasUGKPSteady -case ../case/composition-transport-validation/memcheck
+Date   : Oct 29 2026
+Time   : 02:39:44
+Host   : "lss"
+PID    : 107870
+I/O    : uncollated
+Case   : ../case/composition-transport-validation/memcheck
+nProcs : 1
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+gasUGKPSteady: gas LTS / physical-step particle statistical steady solver
+Create mesh for time = 0
+
+GPU particle forces: dragModel=SchillerNaumann particleGasHeatTransferModel=RanzMarshall gravity=(0 0 0) m/s^2
+Selecting patchDistMethod meshWave
+Tracking geometry: B2=128 blocksPerSM=7 grid=0
+Launch geometry: B1cell=128 B1face=128 (ToolB1 pending) B2=128 B3=128 SM=24 hardwareMaxThreadsPerBlock=1024 hardwareMaxBlocksPerSM=24 particleBlocksPerSM=7 lightBlocksPerSM=6 heavyBlocksPerSM=0
+boundaryLayer scratch: nodes=16 capacity=24 slots=4 bytes=108288 (auto=yes)
+Gas turbulence: RAS kOmegaSST, explicit resident CUDA; wallTreatment=boundaryLayer wallKappa=0.40999999999999998 wallE=9.8000000000000007 wallCmu=0.089999999999999997; kMin=9.9999999999999998e-13 omegaMin=9.9999999999999995e-07
+Shared gas model: api=1 Ns=2 mode=1 speciesOrderHash=15058184710006340429 thermoHash=15016703097782555885 mechanismHash=0
+Steady local pseudo-time: Co=0.01, fixed boundary time=0; output time labels are iteration counters.
+Spatial residual components: rho, rhoUx, rhoUy, rhoUz, rhoE, species, rhoK, rhoOmega.
+Initial steady spatial Linf residual 9(29.999999999999986 1055.4684330616117 7.2899668103806556 6.5914072834368519e-10 7363313.4998412281 6.5052130349130266e-14 29.999999999999986 5.0395265813556609 1.3900937847776429)
+Steady restart metadata loaded=0; residual normalization restarts from the loaded state.
+Steady iteration 1 spatial Linf 9(29.966815040518988 1054.6269426894492 16.003487957437766 6.5830388500633386e-10 7354546.118526672 0.001163283946696222 29.965651756572267 5.039490026958636 1.7377014183102553) max relative 1.224428071626311
+Steady iteration 2 spatial Linf 9(29.933639345788624 1053.7870915617225 24.696468454477699 6.5746825264989384e-10 7345781.2047147658 0.0022898174527720755 29.931349528335812 5.0394534006264546 2.0852211626351429) max relative 1.4692992134186451
+Steady driver finished: criteriaReached=0; output labels represent pseudo iterations, not physical time.
+End
+========= LEAK SUMMARY: 0 bytes leaked in 0 allocations
+========= ERROR SUMMARY: 0 errors
