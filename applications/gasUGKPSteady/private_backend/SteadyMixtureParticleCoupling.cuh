@@ -1,7 +1,7 @@
 #pragma once
 #include <type_traits>
 #include <utility>
-#include "../../../common/gasTransport/MixtureThermo.H"
+#include "../../../common/gasTransport/MixtureHeatExchange.H"
 #include "../../../common/gasNumerics/GpuParticlePhysicsAlgebra.cuh"
 #include "../../gasUGKP/private_backend/GpuDragModels.cuh"
 
@@ -120,25 +120,27 @@ __global__ void steadyMixtureParticleCouplingKernel
         constexpr int Ns=ugkwp::GasStateTraits<State>::speciesCount;
         double species[Ns];for(int k=0;k<Ns;++k)species[k]=s.gasSpecies.rho[k*s.nCells+c];
         const double kinetic=.5*(s.rhoUx[c]*s.rhoUx[c]+s.rhoUy[c]*s.rhoUy[c]+s.rhoUz[c]*s.rhoUz[c])/s.rho[c];
-        const double oldInternal=volume*(s.rhoE[c]-kinetic);
-        double A=0,B=0,lower=s.Tgas[c],upper=s.Tgas[c];
+        const double oldInternal=s.rhoE[c]-kinetic;
+        const double referenceTemperature=s.Tgas[c];
+        double A=0,B=0;
         for(int pos=begin;pos<end;++pos)
         {
             const int i=steadyMixtureParticles::parcel(s,c,pos,useCsr,useSplit);
             if(!steadyMixtureParticles::member(s,i,c))continue;
             const double w=s.pm[i]*heatFactor*steadyMixtureParticles::heatFraction(s,c,i,dt);
-            A+=w;B+=w*s.pT[i];lower=fmin(lower,s.pT[i]);upper=fmax(upper,s.pT[i]);
+            A+=w;B+=w*(s.pT[i]-referenceTemperature);
         }
-        // Positive physical Cv makes this scalar finite-bath equation monotone.
-        // Formation-inclusive E(T) comes from the same mixture thermodynamics
-        // as EOS recovery. In particular no positive caloric-energy floor is used.
-        for(int iteration=0;iteration<64;++iteration)
+        if(A==0.)return;
+        double target=referenceTemperature;
+        const auto status=ugkwp::invertMixtureHeatExchange
+        (species,oldInternal,A/volume,B/volume,s.gasSpecies.thermo,
+         s.gasSpecies.thermoControls,target);
+        if(status!=ugkwp::ThermoStatus::Success)
         {
-            const double mid=lower+.5*(upper-lower);
-            const double residual=volume*ugkwp::mixtureEnergy(species,mid,s.gasSpecies.thermo)+A*mid-oldInternal-B;
-            if(residual>0)upper=mid;else lower=mid;
+            s.gasSpecies.cellStatus[c]=static_cast<int>(status);
+            return;
         }
-        const double target=lower+.5*(upper-lower);double heat=0;
+        double heat=0;
         for(int pos=begin;pos<end;++pos)
         {
             const int i=steadyMixtureParticles::parcel(s,c,pos,useCsr,useSplit);
