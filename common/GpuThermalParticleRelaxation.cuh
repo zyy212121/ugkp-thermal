@@ -127,6 +127,14 @@ __device__ void relaxOneParticleToResidentGas
 
 #endif
 
+#if defined(GPU_CELL_MEAN_MOBILE_HEAT)
+    if (!stuck && s.solveParticleTemperature != 0 && s.particleGasHeatTransferModelId != 0
+        && (!s.particleStuckModelConfigured || !s.particleContactHeatEpoch[i]))
+    {
+        const auto mu=clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]),GPU_R(1e-30));
+        relaxMobileParticleThermalState(s,i,c,rhoG*dPart*relMag/mu,dPart,dt);
+    }
+#endif
 #if !defined(GPU_PAIRED_PARTICLE_HEAT)
     if
     (

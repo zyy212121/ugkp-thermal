@@ -1,5 +1,6 @@
 #pragma once
 #include "gasTransport/GasEnergy.H"
+#include "GpuParticleHeatMomentView.cuh"
 __global__ void applyEulerianParticleMaterialHeatKernel
 (
     DeviceState* sp,
@@ -20,11 +21,12 @@ __global__ void applyEulerianParticleMaterialHeatKernel
         return;
     }
 
+    const auto heatMoments=particleGasHeatMoments(s,c,0);
 #if !GPU_OPERATOR_THERMAL
     const GPU_OPERATOR_REAL heatFactor = particleHeatFactorDevice(s);
     if (heatFactor <= GPU_OPERATOR_R(0.0)) return;
 #endif
-    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
+    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(heatMoments.mass, GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
     if (rhoP <= s.epsSMin*s.rhoSolid)
     {
         return;
@@ -32,7 +34,7 @@ __global__ void applyEulerianParticleMaterialHeatKernel
     const GPU_OPERATOR_REAL epsG = GPU_OPERATOR_R(1.0) - solidEpsFromMomentDevice(s, c);
     const GPU_OPERATOR_REAL epsGsafe = clampMin(epsG, OfSmall);
 
-    const GPU_OPERATOR_REAL hp = clampMin(finiteOr(s.momRhoHpP[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
+    const GPU_OPERATOR_REAL hp = clampMin(finiteOr(heatMoments.enthalpy, GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
     if (hp <= GPU_OPERATOR_R(0.0))
     {
         return;
@@ -85,9 +87,9 @@ __global__ void applyEulerianParticleMaterialHeatKernel
         );
 
 #if GPU_OPERATOR_THERMAL
-    const GPU_OPERATOR_REAL rhoDP = clampMin(finiteOr(s.momRhoPD[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
+    const GPU_OPERATOR_REAL rhoDP = clampMin(finiteOr(heatMoments.diameter, GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
 #else
-    const GPU_OPERATOR_REAL rhoDP = s.momRhoPD[c];
+    const GPU_OPERATOR_REAL rhoDP = heatMoments.diameter;
 #endif
     const GPU_OPERATOR_REAL dLocal =
         clampMin
@@ -96,9 +98,9 @@ __global__ void applyEulerianParticleMaterialHeatKernel
             GPU_OPERATOR_R(1.0e-12)
         );
 
-    const GPU_OPERATOR_REAL usx = finiteOr(s.momRhoUPx[c], GPU_OPERATOR_R(0.0))/(rhoP + OfSmall);
-    const GPU_OPERATOR_REAL usy = finiteOr(s.momRhoUPy[c], GPU_OPERATOR_R(0.0))/(rhoP + OfSmall);
-    const GPU_OPERATOR_REAL usz = finiteOr(s.momRhoUPz[c], GPU_OPERATOR_R(0.0))/(rhoP + OfSmall);
+    const GPU_OPERATOR_REAL usx = finiteOr(heatMoments.px, GPU_OPERATOR_R(0.0))/(rhoP + OfSmall);
+    const GPU_OPERATOR_REAL usy = finiteOr(heatMoments.py, GPU_OPERATOR_R(0.0))/(rhoP + OfSmall);
+    const GPU_OPERATOR_REAL usz = finiteOr(heatMoments.pz, GPU_OPERATOR_R(0.0))/(rhoP + OfSmall);
 
     const GPU_OPERATOR_REAL urx = finiteOr(s.couplingUxOld[c], GPU_OPERATOR_R(0.0)) - usx;
     const GPU_OPERATOR_REAL ury = finiteOr(s.couplingUyOld[c], GPU_OPERATOR_R(0.0)) - usy;

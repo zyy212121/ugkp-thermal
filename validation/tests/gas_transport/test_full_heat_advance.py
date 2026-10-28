@@ -5,6 +5,7 @@ stubbed full solver. The opt-in CUDA fixture calls the actual resident Advance.
 """
 from decimal import Decimal, localcontext
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -32,7 +33,7 @@ def braced_function(text, signature):
 def test_actual_advance_source_order_and_time_arguments():
     body = braced_function(OWNER.read_text(), 'extern "C" int ugkwpGpuResidentStrictAdvance')
     stages = ["advanceGasFluxStage", "applyGasVolumeFractionSourceKernel",
-              "snapshotParticleGasCouplingStateKernel",
+              "snapshotParticleGasCouplingStateKernel", "applyEulerianParticleMaterialHeatKernel",
               "injectBoundaryParticlesKernel", "prepareParticleDirectoryAndSchedule",
               "applyCollisionalPressureKick<true>", "clearPoissonThermalPoolKernel",
               "correctPoissonThermalizedMobileParticlesKernel", "correctPoissonThermalizedStuckParticlesKernel",
@@ -43,7 +44,7 @@ def test_actual_advance_source_order_and_time_arguments():
     positions = [body.index(name) for name in stages]
     assert positions == sorted(positions)
     stripped = re.sub(r"<<<.*?>>>", "", body, flags=re.S)
-    assert "applyEulerianParticleMaterialHeatKernel" not in body
+    assert body.count("applyEulerianParticleMaterialHeatKernel<<<") == 1
     assert "clearPairedParticleHeatKernel" not in body
     assert "reducePairedParticleHeatKernel" not in body
     for correction in ("Mobile", "Stuck"):
@@ -316,7 +317,7 @@ __global__ void initialiseClosedCube(DeviceState*sp){
  *s.particleCountDevice=1;s.pStatus[0]=1;s.pCellId[0]=0;s.pStuck[0]=0;s.pStuckFaceId[0]=-1;
  s.pm[0]=100;s.pd[0]=GPU_R(.001);s.pT[0]=2800;s.pRng[0]=1234567;s.pOrigId[0]=42;
 }
-template<class T>double readOne(const T*p){double value=0;CHECK(copyToHost(&value,p,1,"fixture read")==0);return value;}
+template<class T>double readOne(const T*p){T value=0;CHECK(copyToHost(&value,p,1,"fixture read")==0);return value;}
 void printState(const char*tag,DeviceState*s){
  const double eps=readOne(s->epsGPrev);
  const double v[]={readOne(s->rhoE),readOne(s->pT),readOne(s->Tgas),readOne(s->couplingTgasOld),eps,
@@ -328,7 +329,10 @@ int main(int argc,char**argv){
  const int scenario=argc>1?std::atoi(argv[1]):0;
  const int csr=argc>2?std::atoi(argv[2]):1, integrator=argc>3?std::atoi(argv[3]):1;
  const double dt=scenario==1?1e-8:1e-4;
+ CUDA_OK(cudaDeviceSetLimit(cudaLimitStackSize,65536));
  DeviceState*s=new DeviceState;
+ s->diagnosticOwner=new ugkp::diagnostics::GpuOwner;
+ CUDA_OK(s->diagnosticOwner->initialise());s->diagnostics=s->diagnosticOwner->device();
  s->nCells=1;s->nFaces=6;s->nInternalFaces=0;s->nCellPlanes=6;s->particleCapacity=1;
  s->particlesMayBePresent=true;s->dragModelId=0;s->gravityEnabled=0;s->collisionalPressureEnabled=0;
  s->jammingPressureEnabled=0;s->nBoundarySources=0;s->solveParticleTemperature=1;
@@ -347,7 +351,7 @@ int main(int argc,char**argv){
  initialiseClosedCube<<<1,1>>>(s->deviceState);CUDA_OK(cudaDeviceSynchronize());
  CHECK(rebuildResidentParticleMomentsFromParticles(s,1)==0);CUDA_OK(cudaDeviceSynchronize());
  CHECK(syncDeviceState(s,"fixture rebuilt state")==0);
- double maxCo=0;CHECK(ugkwpGpuResidentStrictComputeGasCourant(s,dt,.5,dt,&maxCo)==0);
+ double maxCo=0;CHECK(ugkwpGpuResidentStrictComputeGasCourant(s,dt,0.,&maxCo)==0);
  CHECK(maxCo>=0&&maxCo<.5);CUDA_OK(cudaDeviceSynchronize());
  std::printf("{");printState("before",s);
  std::printf(",\"carry_before\":%.17g",readOne(s->pThermalEnthalpyResidual));
@@ -361,6 +365,7 @@ int main(int argc,char**argv){
  CHECK(readOne(s->poissonPoolMass)==0);CHECK(readOne(s->theta)==0);
  std::printf(",");printState("after",s);
  std::printf(",\"carry_after\":%.17g",readOne(s->pThermalEnthalpyResidual));
+ std::printf(",\"parameters\":[%.17g,%.17g,%.17g,%.17g,%.17g]",double(s->Rgas),double(s->gammaGas),double(s->rhoSolid),double(s->gasMu*s->gasCp/s->gasPrClamped),double(s->particleDiameterFallback));
  std::printf(",\"dt\":%.17g,\"caloric\":[%.17g,%.17g,%.17g,%.17g,%.17g]}\n",dt,
  2327.0,4000.0,
  ugkwp::ParticleCaloric::liquidCp(2327.0),
@@ -390,7 +395,7 @@ def test_opt_in_native_cuda_full_heat_advance(tmp_path):
     executable = tmp_path / "full_heat_advance"
     app = ROOT / "applications/CHT/gpu"
     nvcc = str(Path(os.environ.get("CUDA_HOME", "/usr/local/cuda")) / "bin/nvcc")
-    command = [nvcc, "-std=c++17", "-O1", "--fmad=false",
+    command = [nvcc, "-std=c++17", "-O1", "--fmad=false", "--expt-relaxed-constexpr", "--Ofast-compile=min",
                "-arch="+os.environ.get("UGKWP_CUDA_ARCH", "sm_89"), "-I"+str(app), "-I"+str(ROOT/"common"), str(path), str(app/"GpuWallEnergy64.cu"),
                "-o", str(executable)]
     result = subprocess.run(command, text=True, capture_output=True)
@@ -410,7 +415,21 @@ def test_opt_in_native_cuda_full_heat_advance(tmp_path):
             assert delta == 0
         else:
             assert o["after"]["gas_energy"] < o["before"]["gas_energy"]
-            assert abs(delta) < Decimal("0.000002")
+            before,after=o["before"],o["after"]
+            R,gamma,rhos,k,diameter=o["parameters"]
+            low,high,cp0,cp1,slope=o["caloric"]
+            cp=cp0+slope*(min(high,max(low,before["particle_T"]))-low)
+            rate=12*k/(rhos*cp*diameter**2)
+            cg=before["eps"]*before["rho"]*R/(gamma-1)
+            cs=before["mass"]*cp
+            heat=cg*cs/(cg+cs)*(before["gas_T"]-before["particle_T"])*(-math.expm1(-rate*(1+cs/cg)*o["dt"]))
+            expected_gas=before["gas_energy"]-heat/before["eps"]
+            expected_T=before["particle_T"]+(-math.expm1(-rate*o["dt"]))*(before["gas_T"]-before["particle_T"])
+            assert math.isclose(after["gas_energy"],expected_gas,rel_tol=2e-14,abs_tol=1e-9)
+            assert math.isclose(after["particle_T"],expected_T,rel_tol=2e-15,abs_tol=2e-12)
+            expected=dict(after,particle_T=expected_T,gas_energy=expected_gas)
+            expected_delta=caloric_inventory(expected,o["caloric"])-caloric_inventory(before,o["caloric"])
+            assert abs(delta-expected_delta)<Decimal("0.000002")
             assert o["after"]["particle_T"] > o["before"]["particle_T"] or o["carry_after"] > o["carry_before"]
         print(json.dumps({"scope": "actual CUDA full resident Advance", "bits": 64,
                           "scenario": scenario, "dt": o["dt"], "actual_total_delta_J": str(delta)}, sort_keys=True))

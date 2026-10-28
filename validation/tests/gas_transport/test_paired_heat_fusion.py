@@ -25,6 +25,7 @@ def function(source, marker):
 
 
 EXTRA_STATE = r'''
+ double particleContactHeatCandidate[16]{};unsigned char particleContactHeatEpoch[16]{};
  double pThermalEnthalpyResidual[16]{}, heatBudget[16]{}, heatCoefficient[16]{};
  double *particleHeatBudget=heatBudget, *particleHeatCoefficient=heatCoefficient;
  int coldWall2DEnabled=1;
@@ -65,6 +66,7 @@ constexpr GpuReal OfGreat=GPU_R(1.0)/OfSmall;
 #undef molecularGasConductivity
 int thermalEvaluations=0;
 template<class GasState> GpuReal molecularGasConductivity(const GasState& s){++thermalEvaluations;return actualMolecularGasConductivity(s);}
+template<class GasState> GpuReal molecularGasConductivity(const GasState& s,int c,GpuReal t){++thermalEvaluations;return actualMolecularGasConductivity(s,c,t);}
 #include "GpuPairedParticleHeat.cuh"
 #include "paired_heat_reference.cuh"
 #include "operators/clearColdWallParticleState.cuh"
@@ -333,9 +335,7 @@ def fusion_binary( tmp_path_factory):
         + '#include "operators/gasStencilDiagnostics.cuh"\n'
         + recovery[recovery.index('template<class GasState,class Scalar>'):recovery.index('template<class GasState>\n__device__ void sstInternalRhoDiffusivities')]
         + function(recovery, 'template<class GasState>\n__device__ void recoverGasPrimitiveCell'))
-    conductivity = (ROOT/'common/operators/updateLegacyGasBoundaryMirrorKernel.cuh').read_text()
-    (build/'route_conductivity.cuh').write_text('#include "gasTransport/GasStateView.H"\n'
-        + function(conductivity, 'template<class GasState>\n__device__ GPU_OPERATOR_REAL molecularGasConductivity'))
+    (build/'route_conductivity.cuh').write_text('#include "gasTransport/GasMolecularConductivity.cuh"\n')
     two = (ROOT/'common/wall/GpuColdWall2DDevice.cuh').read_text()
     (build/'actual_cold_2d_clear.cuh').write_text(function(two, '__device__ void clearColdWall2DParticleState')
         + function(two, '__device__ void initialiseColdWall2DParticleState'))

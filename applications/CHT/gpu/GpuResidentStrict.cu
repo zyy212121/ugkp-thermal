@@ -12,6 +12,7 @@
 #include "ContactCapabilityValidation.h"
 #define GPU_CONTACT_SEPARATE_AGE 1
 #define GPU_PAIRED_PARTICLE_HEAT 1
+#define GPU_CELL_MEAN_MOBILE_HEAT 1
 #define GPU_THERMAL_RELAX_NATIVE_ORDER 0
 #define GPU_POOL_THETA_AFTER_REJECTION 1
 #define GPU_POOL_PARTICLE_THETA(s, i) particleMomentThetaDevice(s, i)
@@ -443,6 +444,9 @@ struct DeviceState
     GpuReal* couplingTgasOld = nullptr;
     double* particleHeatCoefficient = nullptr;
     double* particleHeatBudget = nullptr;
+    double* particleMobileHeatMoments = nullptr;
+    double* particleContactHeatCandidate = nullptr;
+    unsigned char* particleContactHeatEpoch = nullptr;
 
     GpuReal* epsS = nullptr;
     GpuReal* rhoUsx = nullptr;
@@ -1216,6 +1220,9 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->couplingTgasOld);
     release(s->particleHeatCoefficient);
     release(s->particleHeatBudget);
+    release(s->particleMobileHeatMoments);
+    release(s->particleContactHeatCandidate);
+    release(s->particleContactHeatEpoch);
 
     release(s->epsS);
     release(s->rhoUsx);
@@ -1562,6 +1569,9 @@ int allocateFields(DeviceState* s)
     {
         rc |= allocate(s->particleHeatCoefficient, nc, "cudaMalloc strict particleHeatCoefficient");
         rc |= allocate(s->particleHeatBudget, nc, "cudaMalloc strict particleHeatBudget");
+        rc |= allocate(s->particleMobileHeatMoments, 6*nc, "cudaMalloc mobile particle heat moments");
+        rc |= allocate(s->particleContactHeatCandidate, static_cast<size_t>(s->particleCapacity), "cudaMalloc contact heat candidates");
+        rc |= allocate(s->particleContactHeatEpoch, static_cast<size_t>(s->particleCapacity), "cudaMalloc contact heat epoch");
     }
 
     rc |= allocate(s->epsS, nc, "cudaMalloc strict epsS");
@@ -2212,6 +2222,7 @@ __device__ void initialiseColdWall2DParticleState(DeviceState&, int, GpuReal);
 
 #include "operators/trackParticlesLocalFaceWalkKernel.cuh"
 
+#include "../../../common/GpuMobileParticleHeat.cuh"
 #include "../../../common/GpuThermalParticleRelaxation.cuh"
 
 #include "operators/relaxMobileParticlesToResidentGasKernelStatic.cuh"
@@ -4468,6 +4479,25 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         }
     }
 
+    if (s->solveParticleTemperature && s->particleGasHeatTransferModelId)
+    {
+        if (s->particleStuckModelConfigured)
+        {
+            prepareMobileParticleHeatMomentsKernel<<<grid,block>>>(s->deviceState);
+            err=cudaGetLastError();
+            if(err!=cudaSuccess){setLastError("mobile heat moment preparation",err);return 1;}
+            subtractContactParticleHeatMomentsKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState);
+            err=cudaGetLastError();
+            if(err!=cudaSuccess){setLastError("mobile heat contact subtraction",err);return 1;}
+        }
+        applyEulerianParticleMaterialHeatKernel<<<grid,block>>>(s->deviceState,dt);
+        err=cudaGetLastError();
+        if(err!=cudaSuccess){setLastError("cell mean particle material heat",err);return 1;}
+        recoverPrimitivesKernel<<<grid,block>>>(s->deviceState);
+        err=cudaGetLastError();
+        if(err!=cudaSuccess){setLastError("cell mean heat primitive recovery",err);return 1;}
+    }
+
     UGKP_DEV_PROBE_LEAVE(ProbeEulerianCoupling);
 
     UGKP_DEV_PROBE_ENTER(ProbeInjection);
@@ -4507,7 +4537,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
                                                                         
                                                      
 
-    const bool pairedHeatActive = s->particleHeatCoefficient != nullptr;
+    const bool pairedHeatActive = s->particleHeatCoefficient != nullptr && s->particleStuckModelConfigured != 0;
     UGKP_DEV_PROBE_ENTER(ProbeCollisionPool);
     recoverPrimitivesKernel<<<grid, block>>>(s->deviceState);
     err = cudaGetLastError();

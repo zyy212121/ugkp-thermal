@@ -1,11 +1,11 @@
 #pragma once
-// CHT heat transaction. Coefficients and candidates share the post-collision
+// Contact/profile heat transaction. Coefficients and candidates share the post-collision
 // epoch; no particle field changes between this reduction and its relaxation.
 struct PairedParticleHeatCandidate {double capacity, weightedCapacity, specificHeat;};
 __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandidate
 (const DeviceState& s,int i,GpuTime dt)
 {
- if(!(dt>0.)||s.pStatus[i]==0||!(s.pm[i]>0))return {0.,0.,0.};
+ if(!(dt>0.)||s.pStatus[i]==0||!(s.pm[i]>0)||s.pStuck[i]==Foam::gpuThermal::particleWallMobile)return {0.,0.,0.};
  const int c=s.pCellId[i];if(c<0||c>=s.nCells)return {0.,0.,0.};
  const auto law=particleCaloricDevice(s,i);
  const double base=particleMaterialEnthalpyBaseDevice(s,i),carry=s.pThermalEnthalpyResidual[i];
@@ -77,7 +77,10 @@ __device__ __forceinline__ void accumulatePairedParticleHeatCandidate
 (DeviceState& s,int i,GpuTime dt)
 {
  if(s.particleHeatCoefficient==nullptr||s.particleHeatBudget==nullptr)return;
- const auto p=pairedParticleHeatCandidate(s,i,dt);if(!(p.capacity>0.))return;
+ s.particleContactHeatEpoch[i]=s.pStuck[i]!=Foam::gpuThermal::particleWallMobile;
+ const auto p=pairedParticleHeatCandidate(s,i,dt);
+ s.particleContactHeatCandidate[i]=p.capacity>0.?p.specificHeat:0.;
+ if(!(p.capacity>0.))return;
  const int c=s.pCellId[i];atomicAdd(s.particleHeatCoefficient+c,p.weightedCapacity);
  atomicAdd(s.particleHeatBudget+c,double(s.pm[i])*p.specificHeat);
  atomicAdd(s.rhoENext+c,p.capacity);
@@ -114,9 +117,8 @@ __global__ void acceptPairedParticleHeatKernel(DeviceState*sp)
 __device__ __forceinline__ void publishPairedParticleGasHeat(DeviceState&s,int i,GpuTime dt)
 {
  if(s.particleHeatCoefficient==nullptr||s.particleHeatBudget==nullptr)return;
- if(particleColdProfileNodeCountDevice(s,i)==64)return;
- const auto p=pairedParticleHeatCandidate(s,i,dt);if(!(p.capacity>0.))return;
- const int c=s.pCellId[i];const double dh=s.particleHeatCoefficient[c]*p.specificHeat;
+ if(s.pStuck[i]==Foam::gpuThermal::particleWallMobile || particleColdProfileNodeCountDevice(s,i)==64)return;
+ const int c=s.pCellId[i];const double dh=s.particleHeatCoefficient[c]*s.particleContactHeatCandidate[i];
  if(dh==0.)return;
  double accepted=0.;const int count=particleColdProfileNodeCountDevice(s,i);
  if(count){
