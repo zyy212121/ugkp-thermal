@@ -189,10 +189,10 @@ __device__ void gasFaceSubgridTransportProperties
             if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
                 if(ugkwp::mixtureGasActive(s))
                 {
-                    // The impermeable wall inherits owner composition, but its
-                    // thermodynamic properties are evaluated at wall temperature.
-                    // No legacy bootstrap Cp/R participates in the shared
-                    // mixture closure.
+                    // Local viscosity or Pr uses the fixed boundary composition
+                    // when present: Cp and R must use that same wall state.
+                    // Legacy constant transport retains owner composition.
+                    // Thermodynamic properties are evaluated at wall temperature.
                     constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
                     using TableReal=typename std::remove_reference_t<decltype(s.gasSpecies)>::RealType;
                     GPU_OPERATOR_REAL Y[Ns],sum=GPU_OPERATOR_R(0),clippedSum=GPU_OPERATOR_R(0);
@@ -208,7 +208,7 @@ __device__ void gasFaceSubgridTransportProperties
                         if(!ugkwp::gasFinite(data.molarMass) || data.molarMass==TableReal(0))
                         {failure(!ugkwp::gasFinite(data.molarMass)?Code::NonFinite:Code::ZeroDenominator,
                             2654,GPU_OPERATOR_REAL(data.molarMass),Quantity::Denominator,species);return;}
-                        const GPU_OPERATOR_REAL value=ugkwp::gasVariableViscosity(s)
+                        const GPU_OPERATOR_REAL value=(ugkwp::gasVariableViscosity(s)||ugkwp::gasVariablePrandtl(s))
                             &&s.gasSpecies.compositionBoundaryFixed&&s.gasSpecies.compositionBoundaryFixed[f]
                             ?s.gasSpecies.boundaryMassFraction[species*s.nFaces+f]
                             :s.gasSpecies.rho[species*s.nCells+own]/s.rho[own];
