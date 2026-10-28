@@ -32,12 +32,14 @@ __global__ void multiply(int n,const int* offsets,const int* columns,const doubl
 __global__ void assembleLdu(int n,const int* offsets,const int* entrySource,const int* entryKind,
     const int* boundaryOffsets,const int* boundaryIndices,const int* boundaryNeighbour,
     const double* diagonal,const double* upper,const double* lower,const double* source,
-    const double* boundaryDiagonal,const double* boundarySource,double* values,double* rhs,double* rowSum){
+    const double* boundaryDiagonal,const double* boundarySource,double* values,double* rhs,double* rowSum,
+    const double* boundaryJump=nullptr,double* affine=nullptr){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=n)return;
-    double d=diagonal[i],b=source[i];
+    double d=diagonal[i],b=source[i],jump=0;
     for(int j=boundaryOffsets[i];j<boundaryOffsets[i+1];++j){
         const int f=boundaryIndices[j];d+=boundaryDiagonal[f];
         if(boundaryNeighbour[f]==-1)b+=boundarySource[f];
+        if(boundaryJump)jump+=boundarySource[f]*boundaryJump[f];
     }
     values[offsets[i]]=d;rhs[i]=b;double sum=d;
     for(int j=offsets[i]+1;j<offsets[i+1];++j){
@@ -48,7 +50,13 @@ __global__ void assembleLdu(int n,const int* offsets,const int* entrySource,cons
     for(int j=boundaryOffsets[i];j<boundaryOffsets[i+1];++j){
         const int f=boundaryIndices[j];if(boundaryNeighbour[f]!=-1)sum-=boundarySource[f];
     }
-    rowSum[i]=sum;
+    rowSum[i]=sum;if(affine)affine[i]=jump;
+}
+// Preserve native affine initial-product and normFactor semantics. Subsequent
+// Krylov matvecs remain linear; moving jump into b alone would change the
+// OpenFOAM residual normalization and relative stopping criterion.
+__global__ void addInitialAffine(int n,const double* affine,double* product){
+    const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<n)product[i]+=affine[i];
 }
 __global__ void initialResidual(int n,const double* source,const double* ax,double* r){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<n)r[i]=source[i]-ax[i];
@@ -110,7 +118,7 @@ struct SparseConjugateGradient::Implementation {
     cudaStream_t stream=nullptr;PinnedTransferQueue transfers;
     double* hostRecurrence=nullptr;
     DeviceArray<int> offsets,columns,entrySource,entryKind,boundaryOffsets,boundaryIndices,boundaryNeighbour;
-    DeviceArray<double> diagonal,upper,lower,source,boundaryDiagonal,boundarySource;
+    DeviceArray<double> diagonal,upper,lower,source,boundaryDiagonal,boundarySource,boundaryJump,affine;
     std::vector<int> cachedOwner,cachedNeighbour,cachedBoundaryOwner,cachedBoundaryNeighbour;
     int cachedRows=-1,cachedEntries=0;
     DeviceArray<double> values,rowSum,x,b,r,z,p,ap,partial,result,recurrence;
@@ -170,11 +178,12 @@ ConjugateGradientReport SparseConjugateGradient::solve(const SparseMatrixView& m
     return solvePrepared(n,solution,controls,comm);
 }
 ConjugateGradientReport SparseConjugateGradient::solvePrepared(int n,double* solution,
-    const ConjugateGradientControls& controls,const SparseCommunication& comm){
+    const ConjugateGradientControls& controls,const SparseCommunication& comm,const double* initialAffine){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);const int blocks=(n+threads-1)/threads;
     d.x.upload(solution,n,d.transfers);
     d.r.reserve(n);d.z.reserve(n);d.p.reserve(n);d.ap.reserve(n);
     d.matvec(n,d.x.ptr,d.ap.ptr,comm);
+    if(n&&initialAffine)addInitialAffine<<<blocks,threads,0,d.stream>>>(n,initialAffine,d.ap.ptr);
     if(n)initialResidual<<<blocks,threads,0,d.stream>>>(n,d.b.ptr,d.ap.ptr,d.r.ptr);
     double count=n;if(comm.globalSum)comm.globalSum(comm.context,&count,1);
     const double mean=d.sum(n,0,d.x.ptr,nullptr,comm)/(count?count:1);
@@ -261,11 +270,13 @@ ConjugateGradientReport SparseConjugateGradient::solveLdu(const SparseLduView& m
     }
     d.diagonal.upload(matrix.diagonal,n,d.transfers);d.upper.upload(matrix.upper,nf,d.transfers);d.lower.upload(matrix.lower,nf,d.transfers);
     d.source.upload(matrix.source,n,d.transfers);d.boundaryDiagonal.upload(matrix.boundaryDiagonal,nb,d.transfers);d.boundarySource.upload(matrix.boundarySource,nb,d.transfers);
+    if(matrix.boundaryJump){d.boundaryJump.upload(matrix.boundaryJump,nb,d.transfers);d.affine.reserve(n);}
     d.values.reserve(d.cachedEntries);d.b.reserve(n);d.rowSum.reserve(n);
     if(n)assembleLdu<<<(n+threads-1)/threads,threads,0,d.stream>>>(n,d.offsets.ptr,d.entrySource.ptr,d.entryKind.ptr,
         d.boundaryOffsets.ptr,d.boundaryIndices.ptr,d.boundaryNeighbour.ptr,d.diagonal.ptr,d.upper.ptr,d.lower.ptr,
-        d.source.ptr,d.boundaryDiagonal.ptr,d.boundarySource.ptr,d.values.ptr,d.b.ptr,d.rowSum.ptr);
-    return solvePrepared(n,solution,controls,comm);
+        d.source.ptr,d.boundaryDiagonal.ptr,d.boundarySource.ptr,d.values.ptr,d.b.ptr,d.rowSum.ptr,
+        matrix.boundaryJump?d.boundaryJump.ptr:nullptr,matrix.boundaryJump?d.affine.ptr:nullptr);
+    return solvePrepared(n,solution,controls,comm,matrix.boundaryJump?d.affine.ptr:nullptr);
 }
 
 }}

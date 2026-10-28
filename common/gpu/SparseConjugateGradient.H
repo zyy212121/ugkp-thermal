@@ -25,6 +25,9 @@ struct SparseLduView {
     const double* source=nullptr;
     const double* boundaryDiagonal=nullptr;
     const double* boundarySource=nullptr;
+    // Optional signed coupled jump per boundary face. Its weighted affine
+    // contribution belongs to the initial A*solution, not A*KrylovDirection.
+    const double* boundaryJump=nullptr;
 };
 struct ConjugateGradientControls {
     int maximumIterations=1000, minimumIterations=0;
@@ -47,7 +50,7 @@ struct SparseCommunication {
 class SparseConjugateGradient {
     struct Implementation;
     std::unique_ptr<Implementation> data_;
-    ConjugateGradientReport solvePrepared(int,double*,const ConjugateGradientControls&,const SparseCommunication&);
+    ConjugateGradientReport solvePrepared(int,double*,const ConjugateGradientControls&,const SparseCommunication&,const double* initialAffine=nullptr);
 public:
     SparseConjugateGradient();
     ~SparseConjugateGradient();
