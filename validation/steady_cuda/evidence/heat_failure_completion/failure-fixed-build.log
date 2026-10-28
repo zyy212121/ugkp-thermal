@@ -1,0 +1,56 @@
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/applications/gasUGKPSteady/private_backend/../../gasUGKP/private_backend/GpuResidentStrict.cu(5196): warning #177-D: variable "runBinPre" was declared but never referenced
+      const bool runBinPre = s->csrCellLocalPathEnabled != 0;
+                 ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/applications/gasUGKPSteady/private_backend/../../gasUGKP/private_backend/GpuResidentStrict.cu(5029): warning #177-D: variable "warpCount" was declared but never referenced
+      const int warpCount = (block + 31)/32;
+                ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/common/gasTransport/GasBoundaryLayerModelState.H(314): warning #177-D: variable "Ns" was declared but never referenced
+      constexpr int Ns=GasStateTraits<State>::speciesCount;
+                    ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int) [with Capture=false, State=<unnamed>::DeviceState]" at line 16 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/common/operators/evaluateGasBoundaryLayerKernel.cuh
+            instantiation of "void <unnamed>::evaluateGasBoundaryLayerKernel(GasState *) [with Capture=false, GasState=<unnamed>::DeviceState]" at line 10 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/common/gasTransport/ResidentWallLaunch.inl
+            instantiation of "int <unnamed>::launchBoundaryLayer<Capture>(<unnamed>::DeviceState *) [with Capture=false]" at line 145 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/applications/gasUGKPSteady/private_backend/../../gasUGKP/private_backend/GpuResidentStrict.cu
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/common/gasTransport/../gasWall/WallCoherentSolver.H(116): warning #177-D: variable "l" was declared but never referenced
+   norm=scaledClosure;for(int i=0;i<cfg.nodes;++i){double high[6];for(int j=0;j<6;++j)high[j]=low[i][j];if(i>0&&i<cfg.nodes-1){double integralK=0,integralO=0;for(int side=0;side<2;++side){int l=i-1+side;double lo=side?w.y[i]:(w.y[i-1]+w.y[i])/2,hi=side?(w.y[i]+w.y[i+1])/2:w.y[i];const double g[2]={-.57735026918962576451,.57735026918962576451},wt[2]={1,1};for(int q=0;q<2;++q){double y=(hi+lo)/2+(hi-lo)/2*g[q];auto v=basePhysical(p,y);physical::Face<double,2>f;physical::Source<double,2>s;if(!trackedEvaluate(in,cfg,v,y,in.normal,ctx.wallNormal,f,s))return false;integralK+=(hi-lo)/2*wt[q]*s.k;integralO+=(hi-lo)/2*wt[q]*s.omega;}}
+                                                                                                                                                                                                ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gaswall::coherent::ScalarEngine<M>::solve(const ugkwp::gaswall::reconstruction::Input &, const ugkwp::gaswall::reconstruction::Config &, ugkwp::gaswall::coherent::ScalarEngine<M>::W &, ugkwp::gaswall::coherent::Cache<M> &, ugkwp::gaswall::WallOutput<double, 2> &, Stats &) [with M=24, Stats=ugkwp::gaswall::coherent::SolveStats]" at line 97 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/common/gasTransport/GasCoherentBoundaryLayer.H
+            instantiation of "__nv_bool ugkwp::evaluateGasCoherentWallWorkspace(const ugkwp::gaswall::WallInput<double, 2, double> &, const ugkwp::gaswall::WallModelConfig<ugkwp::gaswall::WallReal> &, ugkwp::gaswall::WallWorkspace<double, 2, M> &, ugkwp::gaswall::coherent::Scratch<M> &, ugkwp::gaswall::coherent::PersistentWallState<M> &, const double *, ugkwp::gaswall::WallOutput<double, 2> &, ugkwp::gaswall::WallStatus &, ugkwp::gaswall::WallReferenceStats &, const Team &) [with M=24, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 116 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerWorkspace(const ugkwp::gaswall::WallInput<Real, Ns, Real> &, const ugkwp::gaswall::WallModelConfig<Real> &, ugkwp::gaswall::WallWorkspace<Real, Ns, Capacity> &, ugkwp::gaswall::WallOutput<Real, Ns> &, ugkwp::gaswall::WallStatus &, Real *, const Team &, ugkwp::gaswall::WallReferenceScratch<Ns, Capacity> *, const Real *, ugkwp::gaswall::WallReferenceStats *, ugkwp::gaswall::coherent::Scratch<Capacity> *, ugkwp::gaswall::coherent::PersistentWallState<Capacity> *) [with Capture=false, Real=double, Ns=2, Capacity=24, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 191 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerHistory<Capture,Capacity,State,Team>(State &, int, int, const Team &) [with Capture=false, Capacity=24, State=<unnamed>::DeviceState, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 342 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int, const Team &) [with Capture=false, Capacity=0, State=<unnamed>::DeviceState, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 361 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int) [with Capture=false, State=<unnamed>::DeviceState]" at line 16 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/common/operators/evaluateGasBoundaryLayerKernel.cuh
+            instantiation of "void <unnamed>::evaluateGasBoundaryLayerKernel(GasState *) [with Capture=false, GasState=<unnamed>::DeviceState]" at line 10 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/common/gasTransport/ResidentWallLaunch.inl
+            instantiation of "int <unnamed>::launchBoundaryLayer<Capture>(<unnamed>::DeviceState *) [with Capture=false]" at line 145 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/applications/gasUGKPSteady/private_backend/../../gasUGKP/private_backend/GpuResidentStrict.cu
+
+Segmentation fault (core dumped)
+Command exited with non-zero status 139
+	Command being timed: "bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/tool/gasUGKPSteady/build_cuda_solver.sh"
+	User time (seconds): 12.72
+	System time (seconds): 1.78
+	Percent of CPU this job got: 65%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:21.98
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 1065472
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 978
+	Minor (reclaiming a frame) page faults: 782363
+	Voluntary context switches: 84209
+	Involuntary context switches: 67
+	Swaps: 0
+	File system inputs: 227720
+	File system outputs: 173032
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 139

@@ -42,7 +42,11 @@ int main(int argc, char *argv[])
 
     const label progressLogInterval =
         ugkwp::logging::progressLogInterval(runTime.controlDict());
+#ifdef UGKWP_STEADY_APPLICATION
+    Info<< "gasUGKPSteady: gas LTS / physical-step particle statistical steady solver" << nl;
+#else
     Info<< "gasUGKP: weighted-parcel configurable-block dynamic-heavy resident CUDA solver" << nl;
+#endif
     #include "createMesh.H"
     #include "createFields.H"
 
@@ -328,6 +332,9 @@ int main(int argc, char *argv[])
             resident.configureMolecularTransport(molecularTransport.config());
         label stepsSinceCourant = gpuResidentCourantUpdateInterval;
 
+#ifdef UGKWP_STEADY_APPLICATION
+            #include "../gasUGKPSteady/steadyGasLoop.H"
+#else
             while (runTime.run())
             {
                 #include "readTimeControls.H"
@@ -424,6 +431,8 @@ int main(int argc, char *argv[])
                 }
             }
 
+#endif
+
             if (sharedGasModel.active()) Info<< "End" << nl;
             return 0;
         }
@@ -489,6 +498,9 @@ int main(int argc, char *argv[])
             g.value(),
             gpuScheduling,
             ugkwpProps
+#ifdef UGKWP_STEADY_APPLICATION
+            , &sharedGasModel
+#endif
         );
         configureResidentSst(resident);
         configureScheduledBoundary(resident);
@@ -497,6 +509,9 @@ int main(int argc, char *argv[])
         resident.configureMolecularTransport(molecularTransport.config());
         label stepsSinceCourant = gpuResidentCourantUpdateInterval;
 
+#ifdef UGKWP_STEADY_APPLICATION
+        #include "../gasUGKPSteady/steadyParticleLoop.H"
+#else
         while (runTime.run())
         {
             #include "readTimeControls.H"
@@ -591,6 +606,8 @@ int main(int argc, char *argv[])
                 (void)resident.writeParticleRestartMirror(runTime);
             }
         }
+
+#endif
 
         return 0;
 #endif

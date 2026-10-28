@@ -1,0 +1,1950 @@
+{
+  "grid": 2,
+  "binaries": {
+    "baseline": {
+      "CHMT": "de44a58c7d43747a2a122e4da9a18a1e3ac166e04f570175c43eb3741dcfdd01",
+      "CHT": "1ee236d30c07ac62dc05cd801e3ecddd3f5001cf46f2be7f1c9b44916c8b27f1",
+      "gasUGKP": "276461ed0eb6d3ea7948b47e37fd5d23c456244f178fd48ee3cf2f28fc676014"
+    },
+    "candidate": {
+      "CHMT": "27cb682a7db83df3827dffb38ea88245bf923ae40337c3955b7a2a9b5ab9ecaa",
+      "CHT": "57f6ba3b2c603a1ba6a6dbeeef9e8b0fe1595abd8c08655c7788a85cf3a5d706",
+      "gasUGKP": "d4dd8fa926d1a276f162d952a96e53308fe3de75969bc76518a29e25e7343d9b"
+    }
+  },
+  "cases": {
+    "gas-wave": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "gas-sst": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "gas-wall": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "gas-ode": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "gas-pure": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "gas-single": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "gas-unequal-mass": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "gas-wallfunction": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "cht-contact": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "cht-mixture": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "cht-pure": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "cht-wall": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "cht-ode": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "cht-wallfunction": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "chmt-single": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "chmt-mixture": {
+      "samples": {},
+      "median_seconds": {}
+    },
+    "chmt-diffusion": {
+      "samples": {},
+      "median_seconds": {}
+    }
+  },
+  "runs": [
+    {
+      "case": "gas-wave",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 2.3072726259999854,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "Y_B": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "Y_A": 0.0,
+          "theta": 0.0,
+          "rhoY_A": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "rhoY_B": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 0.0002,
+        "delta_t": 5e-05,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "gas-wave",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.4170058689999223,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "Y_B": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "Y_A": 0.0,
+          "theta": 0.0,
+          "rhoY_A": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "rhoY_B": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 0.0002,
+        "delta_t": 5e-05,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "gas-sst",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.5274225890000253,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "Y_B": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "Y_A": 0.0,
+          "theta": 0.0,
+          "rhoY_A": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "rhoY_B": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 1e-05,
+        "delta_t": 2.5e-06,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "gas-sst",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.42104566399984833,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "Y_B": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "Y_A": 0.0,
+          "theta": 0.0,
+          "rhoY_A": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "rhoY_B": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 1e-05,
+        "delta_t": 2.5e-06,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "gas-wall",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 1.968823895000014,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "Y_B": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "Y_A": 0.0,
+          "theta": 0.0,
+          "rhoY_A": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "rhoY_B": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 1e-05,
+        "delta_t": 2.5e-06,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "gas-wall",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 2.0571922560000075,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "Y_B": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "Y_A": 0.0,
+          "theta": 0.0,
+          "rhoY_A": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "rhoY_B": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 1e-05,
+        "delta_t": 2.5e-06,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "gas-ode",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 1.7095893740001884,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "Y_B": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "Y_A": 0.0,
+          "theta": 0.0,
+          "rhoY_A": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "rhoY_B": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 1e-05,
+        "delta_t": 2.5e-06,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "gas-ode",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 1.7883548370000426,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "Y_B": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "Y_A": 0.0,
+          "theta": 0.0,
+          "rhoY_A": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "rhoY_B": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 1e-05,
+        "delta_t": 2.5e-06,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "gas-pure",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.38479302000018833,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "Y_B": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "Y_A": 0.0,
+          "theta": 0.0,
+          "rhoY_A": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "rhoY_B": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 1e-05,
+        "delta_t": 2.5e-06,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "gas-pure",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.498580574000016,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "Y_B": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "Y_A": 0.0,
+          "theta": 0.0,
+          "rhoY_A": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "rhoY_B": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 1e-05,
+        "delta_t": 2.5e-06,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "gas-single",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.8132550780001111,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "theta": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 1e-05,
+        "delta_t": 2.5e-06,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "gas-single",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.5388157999998384,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "theta": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 1e-05,
+        "delta_t": 2.5e-06,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "gas-unequal-mass",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.39788337899994985,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "Y_B": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "Y_A": 0.0,
+          "theta": 0.0,
+          "rhoY_A": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "rhoY_B": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 1e-05,
+        "delta_t": 2.5e-06,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "gas-unequal-mass",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.5408800090001478,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "Y_B": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "Y_A": 0.0,
+          "theta": 0.0,
+          "rhoY_A": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "rhoY_B": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 1e-05,
+        "delta_t": 2.5e-06,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "gas-wallfunction",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.37964718700004596,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "Y_B": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "Y_A": 0.0,
+          "theta": 0.0,
+          "rhoY_A": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "rhoY_B": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 1e-05,
+        "delta_t": 2.5e-06,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "gas-wallfunction",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.4328520229998958,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "Y_B": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "Y_A": 0.0,
+          "theta": 0.0,
+          "rhoY_A": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoUs": 0.0,
+          "rhoY_B": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "p": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 1e-05,
+        "delta_t": 2.5e-06,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "cht-contact",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.571299708999959,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "particleStuckWallHeatFlux": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "theta": 0.0,
+          "particleReflectedWallHeatFlux": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoHp": 0.0,
+          "rhoUs": 0.0,
+          "particleRadiationWallHeatFlux": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "gasConvectiveWallHeatFlux": 0.0,
+          "p": 0.0,
+          "Tp": 0.0,
+          "solid/T": 0.0
+        }
+      },
+      "audit": {
+        "states": [
+          {
+            "time": 2e-05,
+            "gas_energy": 445832.35369881976,
+            "solid_energy": 300000000.03119993,
+            "total_energy": 300445832.3848987,
+            "mass": 1.0
+          },
+          {
+            "time": 4e-05,
+            "gas_energy": 445832.32392292994,
+            "solid_energy": 300000000.06097585,
+            "total_energy": 300445832.3848988,
+            "mass": 1.0
+          }
+        ],
+        "max_energy_residual": 5.960464477539063e-08,
+        "max_mass_residual": 0.0,
+        "max_gas_exchange_residual": 8.782002902663066e-12,
+        "max_solid_exchange_residual": 2.7698064591907823e-08,
+        "species_mass_residuals": {},
+        "scope": "between written coupled endpoints"
+      },
+      "configuration": {
+        "end_time": 4e-05,
+        "delta_t": 1e-05,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "cht-contact",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.6400625229998695,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "rhoEs": 0.0,
+          "epsilonS": 0.0,
+          "particleStuckWallHeatFlux": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "theta": 0.0,
+          "particleReflectedWallHeatFlux": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoHp": 0.0,
+          "rhoUs": 0.0,
+          "particleRadiationWallHeatFlux": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "gasConvectiveWallHeatFlux": 0.0,
+          "p": 0.0,
+          "Tp": 0.0,
+          "solid/T": 0.0
+        }
+      },
+      "audit": {
+        "states": [
+          {
+            "time": 2e-05,
+            "gas_energy": 445832.35369881976,
+            "solid_energy": 300000000.03119993,
+            "total_energy": 300445832.3848987,
+            "mass": 1.0
+          },
+          {
+            "time": 4e-05,
+            "gas_energy": 445832.32392292994,
+            "solid_energy": 300000000.06097585,
+            "total_energy": 300445832.3848988,
+            "mass": 1.0
+          }
+        ],
+        "max_energy_residual": 5.960464477539063e-08,
+        "max_mass_residual": 0.0,
+        "max_gas_exchange_residual": 8.782002902663066e-12,
+        "max_solid_exchange_residual": 2.7698064591907823e-08,
+        "species_mass_residuals": {},
+        "scope": "between written coupled endpoints"
+      },
+      "configuration": {
+        "end_time": 4e-05,
+        "delta_t": 1e-05,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "cht-mixture",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.7815714110001863,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "rhoEs": 0.0,
+          "Y_S1": 0.0,
+          "Y_S0": 0.0,
+          "epsilonS": 0.0,
+          "particleStuckWallHeatFlux": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "theta": 0.0,
+          "particleReflectedWallHeatFlux": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoHp": 0.0,
+          "rhoUs": 0.0,
+          "particleRadiationWallHeatFlux": 0.0,
+          "rhoY_S1": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "gasConvectiveWallHeatFlux": 0.0,
+          "p": 0.0,
+          "rhoY_S0": 0.0,
+          "Tp": 0.0,
+          "solid/T": 0.0
+        }
+      },
+      "audit": {
+        "states": [
+          {
+            "time": 2e-05,
+            "gas_energy": 496427.49826712906,
+            "solid_energy": 300000000.0402242,
+            "total_energy": 300496427.5384913,
+            "mass": 1.0810810810810811
+          },
+          {
+            "time": 4e-05,
+            "gas_energy": 496427.4605270013,
+            "solid_energy": 300000000.07796425,
+            "total_energy": 300496427.53849125,
+            "mass": 1.0810810810810811
+          }
+        ],
+        "max_energy_residual": 5.960464477539063e-08,
+        "max_mass_residual": 0.0,
+        "max_gas_exchange_residual": 2.6381799522745553e-11,
+        "max_solid_exchange_residual": 7.599282335346569e-08,
+        "species_mass_residuals": {
+          "rhoY_S1": 0.0,
+          "rhoY_S0": 0.0
+        },
+        "scope": "between written coupled endpoints"
+      },
+      "configuration": {
+        "end_time": 4e-05,
+        "delta_t": 1e-05,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 1,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 1
+      }
+    },
+    {
+      "case": "cht-mixture",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.49026167100009843,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "rhoEs": 0.0,
+          "Y_S1": 0.0,
+          "Y_S0": 0.0,
+          "epsilonS": 0.0,
+          "particleStuckWallHeatFlux": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "theta": 0.0,
+          "particleReflectedWallHeatFlux": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoHp": 0.0,
+          "rhoUs": 0.0,
+          "particleRadiationWallHeatFlux": 0.0,
+          "rhoY_S1": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "gasConvectiveWallHeatFlux": 0.0,
+          "p": 0.0,
+          "rhoY_S0": 0.0,
+          "Tp": 0.0,
+          "solid/T": 0.0
+        }
+      },
+      "audit": {
+        "states": [
+          {
+            "time": 2e-05,
+            "gas_energy": 496427.49826712906,
+            "solid_energy": 300000000.0402242,
+            "total_energy": 300496427.5384913,
+            "mass": 1.0810810810810811
+          },
+          {
+            "time": 4e-05,
+            "gas_energy": 496427.4605270013,
+            "solid_energy": 300000000.07796425,
+            "total_energy": 300496427.53849125,
+            "mass": 1.0810810810810811
+          }
+        ],
+        "max_energy_residual": 5.960464477539063e-08,
+        "max_mass_residual": 0.0,
+        "max_gas_exchange_residual": 2.6381799522745553e-11,
+        "max_solid_exchange_residual": 7.599282335346569e-08,
+        "species_mass_residuals": {
+          "rhoY_S1": 0.0,
+          "rhoY_S0": 0.0
+        },
+        "scope": "between written coupled endpoints"
+      },
+      "configuration": {
+        "end_time": 4e-05,
+        "delta_t": 1e-05,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 1,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 1
+      }
+    },
+    {
+      "case": "cht-pure",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.6079979880000792,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "rhoEs": 0.0,
+          "Y_S1": 0.0,
+          "Y_S0": 0.0,
+          "epsilonS": 0.0,
+          "particleStuckWallHeatFlux": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "theta": 0.0,
+          "particleReflectedWallHeatFlux": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoHp": 0.0,
+          "rhoUs": 0.0,
+          "particleRadiationWallHeatFlux": 0.0,
+          "rhoY_S1": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "gasConvectiveWallHeatFlux": 0.0,
+          "p": 0.0,
+          "rhoY_S0": 0.0,
+          "Tp": 0.0,
+          "solid/T": 0.0
+        }
+      },
+      "audit": {
+        "states": [
+          {
+            "time": 2e-05,
+            "gas_energy": 445832.9126967207,
+            "solid_energy": 300000000.0312,
+            "total_energy": 300445832.9438967,
+            "mass": 1.0000000000000002
+          },
+          {
+            "time": 4e-05,
+            "gas_energy": 445832.8829207729,
+            "solid_energy": 300000000.0609759,
+            "total_energy": 300445832.9438967,
+            "mass": 1.0000000000000002
+          }
+        ],
+        "max_energy_residual": 0.0,
+        "max_mass_residual": 0.0,
+        "max_gas_exchange_residual": 4.123740585115776e-11,
+        "max_solid_exchange_residual": 3.0226746269151894e-08,
+        "species_mass_residuals": {
+          "rhoY_S1": 0.0,
+          "rhoY_S0": 0.0
+        },
+        "scope": "between written coupled endpoints"
+      },
+      "configuration": {
+        "end_time": 4e-05,
+        "delta_t": 1e-05,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "cht-pure",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.5786520739998195,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "rhoEs": 0.0,
+          "Y_S1": 0.0,
+          "Y_S0": 0.0,
+          "epsilonS": 0.0,
+          "particleStuckWallHeatFlux": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "theta": 0.0,
+          "particleReflectedWallHeatFlux": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoHp": 0.0,
+          "rhoUs": 0.0,
+          "particleRadiationWallHeatFlux": 0.0,
+          "rhoY_S1": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "gasConvectiveWallHeatFlux": 0.0,
+          "p": 0.0,
+          "rhoY_S0": 0.0,
+          "Tp": 0.0,
+          "solid/T": 0.0
+        }
+      },
+      "audit": {
+        "states": [
+          {
+            "time": 2e-05,
+            "gas_energy": 445832.9126967207,
+            "solid_energy": 300000000.0312,
+            "total_energy": 300445832.9438967,
+            "mass": 1.0000000000000002
+          },
+          {
+            "time": 4e-05,
+            "gas_energy": 445832.8829207729,
+            "solid_energy": 300000000.0609759,
+            "total_energy": 300445832.9438967,
+            "mass": 1.0000000000000002
+          }
+        ],
+        "max_energy_residual": 0.0,
+        "max_mass_residual": 0.0,
+        "max_gas_exchange_residual": 4.123740585115776e-11,
+        "max_solid_exchange_residual": 3.0226746269151894e-08,
+        "species_mass_residuals": {
+          "rhoY_S1": 0.0,
+          "rhoY_S0": 0.0
+        },
+        "scope": "between written coupled endpoints"
+      },
+      "configuration": {
+        "end_time": 4e-05,
+        "delta_t": 1e-05,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 0,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "cht-wall",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 1.288696770000115,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "rhoEs": 0.0,
+          "Y_S1": 0.0,
+          "Y_S0": 0.0,
+          "epsilonS": 0.0,
+          "particleStuckWallHeatFlux": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "theta": 0.0,
+          "particleReflectedWallHeatFlux": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoHp": 0.0,
+          "rhoUs": 0.0,
+          "particleRadiationWallHeatFlux": 0.0,
+          "rhoY_S1": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "gasConvectiveWallHeatFlux": 0.0,
+          "p": 0.0,
+          "rhoY_S0": 0.0,
+          "Tp": 0.0,
+          "solid/T": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 4e-05,
+        "delta_t": 1e-05,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 1,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 1
+      }
+    },
+    {
+      "case": "cht-wall",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 1.9299886559999777,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "rhoEs": 0.0,
+          "Y_S1": 0.0,
+          "Y_S0": 0.0,
+          "epsilonS": 0.0,
+          "particleStuckWallHeatFlux": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "theta": 0.0,
+          "particleReflectedWallHeatFlux": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoHp": 0.0,
+          "rhoUs": 0.0,
+          "particleRadiationWallHeatFlux": 0.0,
+          "rhoY_S1": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "gasConvectiveWallHeatFlux": 0.0,
+          "p": 0.0,
+          "rhoY_S0": 0.0,
+          "Tp": 0.0,
+          "solid/T": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 4e-05,
+        "delta_t": 1e-05,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 1,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 1
+      }
+    },
+    {
+      "case": "cht-ode",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.8967407919999459,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "rhoEs": 0.0,
+          "Y_S1": 0.0,
+          "Y_S0": 0.0,
+          "epsilonS": 0.0,
+          "particleStuckWallHeatFlux": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "theta": 0.0,
+          "particleReflectedWallHeatFlux": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoHp": 0.0,
+          "rhoUs": 0.0,
+          "particleRadiationWallHeatFlux": 0.0,
+          "rhoY_S1": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "gasConvectiveWallHeatFlux": 0.0,
+          "p": 0.0,
+          "rhoY_S0": 0.0,
+          "Tp": 0.0,
+          "solid/T": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 4e-05,
+        "delta_t": 1e-05,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 1,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 1
+      }
+    },
+    {
+      "case": "cht-ode",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.8469936869998946,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "rhoEs": 0.0,
+          "Y_S1": 0.0,
+          "Y_S0": 0.0,
+          "epsilonS": 0.0,
+          "particleStuckWallHeatFlux": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "theta": 0.0,
+          "particleReflectedWallHeatFlux": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoHp": 0.0,
+          "rhoUs": 0.0,
+          "particleRadiationWallHeatFlux": 0.0,
+          "rhoY_S1": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "gasConvectiveWallHeatFlux": 0.0,
+          "p": 0.0,
+          "rhoY_S0": 0.0,
+          "Tp": 0.0,
+          "solid/T": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 4e-05,
+        "delta_t": 1e-05,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 1,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 1
+      }
+    },
+    {
+      "case": "cht-wallfunction",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.6218207689998962,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "rhoEs": 0.0,
+          "Y_S1": 0.0,
+          "Y_S0": 0.0,
+          "epsilonS": 0.0,
+          "particleStuckWallHeatFlux": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "theta": 0.0,
+          "particleReflectedWallHeatFlux": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoHp": 0.0,
+          "rhoUs": 0.0,
+          "particleRadiationWallHeatFlux": 0.0,
+          "rhoY_S1": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "gasConvectiveWallHeatFlux": 0.0,
+          "p": 0.0,
+          "rhoY_S0": 0.0,
+          "Tp": 0.0,
+          "solid/T": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 4e-05,
+        "delta_t": 1e-05,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 1,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 1
+      }
+    },
+    {
+      "case": "cht-wallfunction",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.7479956290001155,
+      "parity": {
+        "maximum_scaled_field_errors": {
+          "dMeanCell": 0.0,
+          "rhoDs": 0.0,
+          "rhoEs": 0.0,
+          "Y_S1": 0.0,
+          "Y_S0": 0.0,
+          "epsilonS": 0.0,
+          "particleStuckWallHeatFlux": 0.0,
+          "k": 0.0,
+          "omega": 0.0,
+          "rho": 0.0,
+          "theta": 0.0,
+          "particleReflectedWallHeatFlux": 0.0,
+          "T": 0.0,
+          "rhoE": 0.0,
+          "rhoHp": 0.0,
+          "rhoUs": 0.0,
+          "particleRadiationWallHeatFlux": 0.0,
+          "rhoY_S1": 0.0,
+          "Us": 0.0,
+          "U": 0.0,
+          "nut": 0.0,
+          "rhoU": 0.0,
+          "gasConvectiveWallHeatFlux": 0.0,
+          "p": 0.0,
+          "rhoY_S0": 0.0,
+          "Tp": 0.0,
+          "solid/T": 0.0
+        }
+      },
+      "audit": {},
+      "configuration": {
+        "end_time": 4e-05,
+        "delta_t": 1e-05,
+        "grid": 2
+      },
+      "warnings": {
+        "foam_warning_count": 1,
+        "wall_waveform_mismatch": 0,
+        "solid_iteration_budget": 1
+      }
+    },
+    {
+      "case": "chmt-single",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 1.0094482519998564,
+      "parity": {
+        "maximum_scaled_csv_errors": {
+          "time": 0.0,
+          "mass": 0.0,
+          "energy": 0.0,
+          "conductive": 0.0,
+          "advective": 0.0,
+          "pressure_work": 0.0,
+          "viscous_work": 0.0,
+          "radiation": 0.0,
+          "liquid_kinetic_advection": 0.0,
+          "volume": 0.0,
+          "momentum_x": 0.0,
+          "momentum_y": 0.0,
+          "momentum_z": 0.0,
+          "total_energy": 0.0,
+          "temperature": 0.0,
+          "pressure": 0.0,
+          "mass_S0": 0.0,
+          "mass_S1": 0.0,
+          "porosity": 0.0,
+          "mass_C0": 0.0,
+          "mass_C1": 0.0,
+          "mass_pore_S0": 0.0,
+          "mass_pore_S1": 0.0
+        },
+        "checkpoint_payload_bitwise_equal": true
+      },
+      "audit": {
+        "snapshots": 3,
+        "closed_domain": true,
+        "max_mass_residual": 0.0,
+        "max_energy_residual": 0.0,
+        "max_species_sum_residual": 0.0,
+        "max_packet_energy_residual": 0.0,
+        "max_gas_exchange_residual": 7.03227476250845e-11,
+        "max_material_exchange_residual": 2.9811163204662705e-08,
+        "initial_inventory": [
+          1001.0,
+          300445832.9438967,
+          445832.94389671634,
+          300000000.0
+        ],
+        "final_inventory": [
+          1001.0,
+          300445832.9438967,
+          445832.3438987549,
+          300000000.59999794
+        ],
+        "component_mass_residuals": {
+          "mass_pore_S0": 0.0,
+          "mass_C1": 0.0,
+          "mass_S0": 2.220446049250313e-16,
+          "mass_S1": 0.0,
+          "mass_C0": 0.0,
+          "mass_pore_S1": 0.0
+        }
+      },
+      "configuration": {
+        "end_time": 0.001,
+        "delta_t": 1e-05,
+        "grid": 2,
+        "gas_max_dt": 1e-05,
+        "coupling_interval": 0.0005,
+        "accepted_windows": 2
+      },
+      "warnings": {
+        "foam_warning_count": 2,
+        "wall_waveform_mismatch": 2,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "chmt-single",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 1.348255528999971,
+      "parity": {
+        "maximum_scaled_csv_errors": {
+          "time": 0.0,
+          "mass": 0.0,
+          "energy": 0.0,
+          "conductive": 0.0,
+          "advective": 0.0,
+          "pressure_work": 0.0,
+          "viscous_work": 0.0,
+          "radiation": 0.0,
+          "liquid_kinetic_advection": 0.0,
+          "volume": 0.0,
+          "momentum_x": 0.0,
+          "momentum_y": 0.0,
+          "momentum_z": 0.0,
+          "total_energy": 0.0,
+          "temperature": 0.0,
+          "pressure": 0.0,
+          "mass_S0": 0.0,
+          "mass_S1": 0.0,
+          "porosity": 0.0,
+          "mass_C0": 0.0,
+          "mass_C1": 0.0,
+          "mass_pore_S0": 0.0,
+          "mass_pore_S1": 0.0
+        },
+        "checkpoint_payload_bitwise_equal": true
+      },
+      "audit": {
+        "snapshots": 3,
+        "closed_domain": true,
+        "max_mass_residual": 0.0,
+        "max_energy_residual": 0.0,
+        "max_species_sum_residual": 0.0,
+        "max_packet_energy_residual": 0.0,
+        "max_gas_exchange_residual": 7.03227476250845e-11,
+        "max_material_exchange_residual": 2.9811163204662705e-08,
+        "initial_inventory": [
+          1001.0,
+          300445832.9438967,
+          445832.94389671634,
+          300000000.0
+        ],
+        "final_inventory": [
+          1001.0,
+          300445832.9438967,
+          445832.3438987549,
+          300000000.59999794
+        ],
+        "component_mass_residuals": {
+          "mass_pore_S0": 0.0,
+          "mass_C1": 0.0,
+          "mass_S0": 2.220446049250313e-16,
+          "mass_S1": 0.0,
+          "mass_C0": 0.0,
+          "mass_pore_S1": 0.0
+        }
+      },
+      "configuration": {
+        "end_time": 0.001,
+        "delta_t": 1e-05,
+        "grid": 2,
+        "gas_max_dt": 1e-05,
+        "coupling_interval": 0.0005,
+        "accepted_windows": 2
+      },
+      "warnings": {
+        "foam_warning_count": 2,
+        "wall_waveform_mismatch": 2,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "chmt-mixture",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 0.9757723709999482,
+      "parity": {
+        "maximum_scaled_csv_errors": {
+          "time": 0.0,
+          "mass": 0.0,
+          "energy": 0.0,
+          "conductive": 0.0,
+          "advective": 0.0,
+          "pressure_work": 0.0,
+          "viscous_work": 0.0,
+          "radiation": 0.0,
+          "liquid_kinetic_advection": 0.0,
+          "volume": 0.0,
+          "momentum_x": 0.0,
+          "momentum_y": 0.0,
+          "momentum_z": 0.0,
+          "total_energy": 0.0,
+          "temperature": 0.0,
+          "pressure": 0.0,
+          "mass_S0": 0.0,
+          "mass_S1": 0.0,
+          "porosity": 0.0,
+          "mass_C0": 0.0,
+          "mass_C1": 0.0,
+          "mass_pore_S0": 0.0,
+          "mass_pore_S1": 0.0
+        },
+        "checkpoint_payload_bitwise_equal": true
+      },
+      "audit": {
+        "snapshots": 3,
+        "closed_domain": true,
+        "max_mass_residual": 0.0,
+        "max_energy_residual": 0.0,
+        "max_species_sum_residual": 0.0,
+        "max_packet_energy_residual": 0.0,
+        "max_gas_exchange_residual": 7.032252558047958e-11,
+        "max_material_exchange_residual": 2.981116292710695e-08,
+        "initial_inventory": [
+          1001.0,
+          300445832.9438967,
+          445832.94389671634,
+          300000000.0
+        ],
+        "final_inventory": [
+          1001.0,
+          300445832.9438967,
+          445832.3438987549,
+          300000000.59999794
+        ],
+        "component_mass_residuals": {
+          "mass_pore_S0": 0.0,
+          "mass_C1": 0.0,
+          "mass_S0": 2.220446049250313e-16,
+          "mass_S1": 0.0,
+          "mass_C0": 0.0,
+          "mass_pore_S1": 0.0
+        }
+      },
+      "configuration": {
+        "end_time": 0.001,
+        "delta_t": 1e-05,
+        "grid": 2,
+        "gas_max_dt": 1e-05,
+        "coupling_interval": 0.0005,
+        "accepted_windows": 2
+      },
+      "warnings": {
+        "foam_warning_count": 2,
+        "wall_waveform_mismatch": 2,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "chmt-mixture",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 1.4441819099999975,
+      "parity": {
+        "maximum_scaled_csv_errors": {
+          "time": 0.0,
+          "mass": 0.0,
+          "energy": 0.0,
+          "conductive": 0.0,
+          "advective": 0.0,
+          "pressure_work": 0.0,
+          "viscous_work": 0.0,
+          "radiation": 0.0,
+          "liquid_kinetic_advection": 0.0,
+          "volume": 0.0,
+          "momentum_x": 0.0,
+          "momentum_y": 0.0,
+          "momentum_z": 0.0,
+          "total_energy": 0.0,
+          "temperature": 0.0,
+          "pressure": 0.0,
+          "mass_S0": 0.0,
+          "mass_S1": 0.0,
+          "porosity": 0.0,
+          "mass_C0": 0.0,
+          "mass_C1": 0.0,
+          "mass_pore_S0": 0.0,
+          "mass_pore_S1": 0.0
+        },
+        "checkpoint_payload_bitwise_equal": true
+      },
+      "audit": {
+        "snapshots": 3,
+        "closed_domain": true,
+        "max_mass_residual": 0.0,
+        "max_energy_residual": 0.0,
+        "max_species_sum_residual": 0.0,
+        "max_packet_energy_residual": 0.0,
+        "max_gas_exchange_residual": 7.032252558047958e-11,
+        "max_material_exchange_residual": 2.981116292710695e-08,
+        "initial_inventory": [
+          1001.0,
+          300445832.9438967,
+          445832.94389671634,
+          300000000.0
+        ],
+        "final_inventory": [
+          1001.0,
+          300445832.9438967,
+          445832.3438987549,
+          300000000.59999794
+        ],
+        "component_mass_residuals": {
+          "mass_pore_S0": 0.0,
+          "mass_C1": 0.0,
+          "mass_S0": 2.220446049250313e-16,
+          "mass_S1": 0.0,
+          "mass_C0": 0.0,
+          "mass_pore_S1": 0.0
+        }
+      },
+      "configuration": {
+        "end_time": 0.001,
+        "delta_t": 1e-05,
+        "grid": 2,
+        "gas_max_dt": 1e-05,
+        "coupling_interval": 0.0005,
+        "accepted_windows": 2
+      },
+      "warnings": {
+        "foam_warning_count": 2,
+        "wall_waveform_mismatch": 2,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "chmt-diffusion",
+      "kind": "baseline",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 1.0281785439999567,
+      "parity": {
+        "maximum_scaled_csv_errors": {
+          "time": 0.0,
+          "mass": 0.0,
+          "energy": 0.0,
+          "conductive": 0.0,
+          "advective": 0.0,
+          "pressure_work": 0.0,
+          "viscous_work": 0.0,
+          "radiation": 0.0,
+          "liquid_kinetic_advection": 0.0,
+          "volume": 0.0,
+          "momentum_x": 0.0,
+          "momentum_y": 0.0,
+          "momentum_z": 0.0,
+          "total_energy": 0.0,
+          "temperature": 0.0,
+          "pressure": 0.0,
+          "mass_S0": 0.0,
+          "mass_S1": 0.0,
+          "porosity": 0.0,
+          "mass_C0": 0.0,
+          "mass_C1": 0.0,
+          "mass_pore_S0": 0.0,
+          "mass_pore_S1": 0.0
+        },
+        "checkpoint_payload_bitwise_equal": true
+      },
+      "audit": {
+        "snapshots": 3,
+        "closed_domain": true,
+        "max_mass_residual": 0.0,
+        "max_energy_residual": 0.0,
+        "max_species_sum_residual": 1.8041124150158794e-16,
+        "max_packet_energy_residual": 0.0,
+        "max_gas_exchange_residual": 7.032213700242096e-11,
+        "max_material_exchange_residual": 2.9811163204662705e-08,
+        "initial_inventory": [
+          1001.0,
+          300445832.9438967,
+          445832.94389671646,
+          300000000.0
+        ],
+        "final_inventory": [
+          1001.0,
+          300445832.9438967,
+          445832.3438987551,
+          300000000.59999794
+        ],
+        "component_mass_residuals": {
+          "mass_pore_S0": 0.0,
+          "mass_C1": 0.0,
+          "mass_S0": 3.3306690738754696e-16,
+          "mass_S1": 6.661338147750939e-16,
+          "mass_C0": 0.0,
+          "mass_pore_S1": 0.0
+        }
+      },
+      "configuration": {
+        "end_time": 0.001,
+        "delta_t": 1e-05,
+        "grid": 2,
+        "gas_max_dt": 1e-05,
+        "coupling_interval": 0.0005,
+        "accepted_windows": 2
+      },
+      "warnings": {
+        "foam_warning_count": 2,
+        "wall_waveform_mismatch": 2,
+        "solid_iteration_budget": 0
+      }
+    },
+    {
+      "case": "chmt-diffusion",
+      "kind": "candidate",
+      "repeat": 0,
+      "warmup": true,
+      "elapsed_seconds": 1.9438590620000014,
+      "parity": {
+        "maximum_scaled_csv_errors": {
+          "time": 0.0,
+          "mass": 0.0,
+          "energy": 0.0,
+          "conductive": 0.0,
+          "advective": 0.0,
+          "pressure_work": 0.0,
+          "viscous_work": 0.0,
+          "radiation": 0.0,
+          "liquid_kinetic_advection": 0.0,
+          "volume": 0.0,
+          "momentum_x": 0.0,
+          "momentum_y": 0.0,
+          "momentum_z": 0.0,
+          "total_energy": 0.0,
+          "temperature": 0.0,
+          "pressure": 0.0,
+          "mass_S0": 0.0,
+          "mass_S1": 0.0,
+          "porosity": 0.0,
+          "mass_C0": 0.0,
+          "mass_C1": 0.0,
+          "mass_pore_S0": 0.0,
+          "mass_pore_S1": 0.0
+        },
+        "checkpoint_payload_bitwise_equal": true
+      },
+      "audit": {
+        "snapshots": 3,
+        "closed_domain": true,
+        "max_mass_residual": 0.0,
+        "max_energy_residual": 0.0,
+        "max_species_sum_residual": 1.8041124150158794e-16,
+        "max_packet_energy_residual": 0.0,
+        "max_gas_exchange_residual": 7.032213700242096e-11,
+        "max_material_exchange_residual": 2.9811163204662705e-08,
+        "initial_inventory": [
+          1001.0,
+          300445832.9438967,
+          445832.94389671646,
+          300000000.0
+        ],
+        "final_inventory": [
+          1001.0,
+          300445832.9438967,
+          445832.3438987551,
+          300000000.59999794
+        ],
+        "component_mass_residuals": {
+          "mass_pore_S0": 0.0,
+          "mass_C1": 0.0,
+          "mass_S0": 3.3306690738754696e-16,
+          "mass_S1": 6.661338147750939e-16,
+          "mass_C0": 0.0,
+          "mass_pore_S1": 0.0
+        }
+      },
+      "configuration": {
+        "end_time": 0.001,
+        "delta_t": 1e-05,
+        "grid": 2,
+        "gas_max_dt": 1e-05,
+        "coupling_interval": 0.0005,
+        "accepted_windows": 2
+      },
+      "warnings": {
+        "foam_warning_count": 2,
+        "wall_waveform_mismatch": 2,
+        "solid_iteration_budget": 0
+      }
+    }
+  ],
+  "timing_scope": "native process elapsed; mesh excluded; startup and normal output included"
+}

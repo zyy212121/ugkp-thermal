@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../gasTransport/GasStateView.H"
+#include "../gasTransport/GasPseudoTime.H"
 #include "../gasTransport/GasCapabilities.H"
 #include "../gasTransport/GasGeometryValidation.H"
 #include "../chemistry/LocalStiffIntegrator.H"
@@ -287,6 +288,9 @@ __global__ void advanceGasChemistryKernel
     if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
     const int cell = blockIdx.x*blockDim.x + threadIdx.x;
     if (cell >= state->nCells) return;
-    ugkwp::advanceGasChemistryCellWithVolumes(*state, cell, chemicalInterval, stageVolumes, nativeRefinement);
+    // The launch interval can be a Strang half-step. Scale it once here;
+    // direct cell adapters continue to accept an already physical interval.
+    const Time localInterval=ugkwp::gasCellTimeStep(*state,cell,chemicalInterval);
+    ugkwp::advanceGasChemistryCellWithVolumes(*state, cell, localInterval, stageVolumes, nativeRefinement);
 }
 #endif

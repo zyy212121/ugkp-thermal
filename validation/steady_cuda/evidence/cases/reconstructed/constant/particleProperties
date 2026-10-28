@@ -1,0 +1,9 @@
+FoamFile { version 2.0; format ascii; class dictionary; object particleProperties; }
+schemaVersion 1; gpuResidentRandomSeed 12345;
+rhoS 1000; dS 0.001; dMin 0.001; dMax 0.001; dSigma 0;
+parcelMass 1e-05; injectionParcelMass 1e-05;
+epsSMin 1e-12; thetaMin 1e-12; TgasMin 1e-9;
+dragModel SchillerNaumann; particleGasHeatTransferModel RanzMarshall;
+particleTemperatureTransport false; particleRho 1000; particleCp 1000; particleTMin 1; particleTMax 10000;
+gpuResidentInjectionTheta 0.0; gpuResidentInjectionTp 300.0;
+gpuResidentCollisionalPressure false; gpuResidentJammingPressure false;

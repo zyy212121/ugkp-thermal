@@ -2,7 +2,7 @@
 cd "${0%/*}" || exit 1
 
 echo "=== ugkp-thermal Allwmake ==="
-echo "Building four GPU solvers: gasUGKP, FSH, CHT, CHMT"
+echo "Building GPU solvers: gasUGKP, gasUGKPSteady, FSH, CHT, CHMT"
 echo ""
 
 
@@ -62,9 +62,10 @@ echo "CUDA compiler: $CUDA_ROOT/bin/nvcc"
 echo ""
 
 
-SOLVERS=(gasUGKP FSH CHT CHMT)
+SOLVERS=(gasUGKP gasUGKPSteady FSH CHT CHMT)
 BUILD_SCRIPTS=(
     tool/gasUGKP/build_cuda_solver.sh
+    tool/gasUGKPSteady/build_cuda_solver.sh
     tool/FSH/build_private_backend.sh
     tool/CHT/build_cuda_solver.sh
     applications/CHMT/Allwmake
