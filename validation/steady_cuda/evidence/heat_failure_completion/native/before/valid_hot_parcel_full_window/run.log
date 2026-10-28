@@ -1,0 +1,59 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/fixed-bin/gasUGKPSteady -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/pr28-failure-validation-before-final/valid_hot_parcel_full_window
+Date   : Oct 28 2026
+Time   : 20:42:21
+Host   : "lss"
+PID    : 16743
+I/O    : uncollated
+Case   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/pr28-failure-validation-before-final/valid_hot_parcel_full_window
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+gasUGKPSteady: gas LTS / physical-step particle statistical steady solver
+Create mesh for time = 0
+
+GPU particle forces: dragModel=SchillerNaumann particleGasHeatTransferModel=RanzMarshall gravity=(0 0 0) m/s^2
+Particle cell path: csrCellLocalPath=0 heavyReductionMode=0 B2=128 B3=128 heavyAutoInterval=100 warpAggregatedBinning=0 splitPreDirectory=0
+[cuda-runtime] stackLimitBytes=65536 requested=65536
+Tracking geometry: B2=128 blocksPerSM=6 grid=79
+Launch geometry: B1cell=128 B1face=128 (ToolB1 pending) B2=128 B3=128 SM=24 hardwareMaxThreadsPerBlock=1024 hardwareMaxBlocksPerSM=24 particleBlocksPerSM=6 lightBlocksPerSM=5 heavyBlocksPerSM=0
+Shared gas model: api=1 Ns=2 mode=1 speciesOrderHash=12445161613445958710 thermoHash=6100470602013873758 mechanismHash=0
+Particle statistical steady sampling: physical dt=2.0000000000000002e-05, fixed external boundary time=0, samples/window=1
+Gas and particle operators share this physical step; no particle LTS acceleration.
+Time directory labels count samples. Window RMS is reported, not used as a stationarity gate.
+Steady restart metadata loaded=0; samplingTime=0; samples=0; statistics windows start afresh (no convergence history reused).
+Steady sampling window 1 physicalDuration=2.0000000000000002e-05 totalSamplingTime=2.0000000000000002e-05
+  rho meanChange=1 relativeRms=0 inventoryBegin=0.69999999959999981 inventoryEnd=0.69999999959999981 inventoryDrift=0
+  rhoUx meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoE meanChange=2.3676259413032139 relativeRms=0 inventoryBegin=492138.4342649469 inventoryEnd=492138.43428716401 inventoryDrift=1.0688415357243552e-10
+  rhoK meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoOmega meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoSolid meanChange=1 relativeRms=0 inventoryBegin=9.9999999999999995e-07 inventoryEnd=9.9999999999999995e-07 inventoryDrift=0
+  rhoUsx meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUsy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUsz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoEs meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoHp meanChange=1 relativeRms=0 inventoryBegin=7.9999999999999982 inventoryEnd=7.9999777828914196 inventoryDrift=2.7771462848497098e-06
+  rhoDs meanChange=1 relativeRms=0 inventoryBegin=1.0000000000000001e-09 inventoryEnd=1.0000000000000001e-09 inventoryDrift=0
+  rhoY0 meanChange=1 relativeRms=0 inventoryBegin=0.62999999963999986 inventoryEnd=0.62999999963999986 inventoryDrift=0
+  rhoY1 meanChange=1 relativeRms=0 inventoryBegin=0.069999999959999989 inventoryEnd=0.069999999959999989 inventoryDrift=0
+  gasIntrinsicFvBoundaryExchange (not porosity-weighted mixture flux): 0 0 0 0 0 0 0
+  particleInjected mass/momentumXYZ/mechanicalEnergy/materialHeat: 0 0 0 0 0 0
+  particleTrackingBoundaryExchange (outflow plus wall impulse/heat): 0 0 0 0 0 0
+  particleInventoryMinusBoundaryExchange (coupling/collision/internal effects): 0 0 0 0 0 -2.2217108578637124e-05
+  windowStationary=0 consecutive=0 maxMeanChange=2.3676259413032139 maxInventoryDrift=2.7771462848497098e-06
+Particle steady driver finished: criteriaReached=0 physicalSamplingTime=2.0000000000000002e-05 samples=1
