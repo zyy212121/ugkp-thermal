@@ -1,0 +1,79 @@
+TRANSPORT-P2-001 针对性修复复审说明
+
+结论与采纳判断
+审查指出的物性状态混用能够独立复现，接受该 P2。修复只扩展 SST 热壁函数
+选择固定壁面组分的条件：可变黏度或可变 Pr 任一启用时，Cp、R 与 Pr 使用
+同一壁面组分。固定组分检查保留；没有固定组分时继承 owner。旧常黏度、
+常 Pr 路径保留原行为。没有新增模型、案例专用路径、停算门禁或回退机制。
+
+提交身份
+送审版本：da542a1e54c963ee5371f09a905001db743fcb95
+本次工作基线：e2e9b327dce992b59c62d2d15ea611d09c319a97
+生产修复与回归：5cb243d3ad0d21ee2f1fc56e51af93b5aaa67889
+当前基线比送审版多一个已有的边界接口重构提交；该提交没有修改本 P2 所在文件。
+本次 diff 相对 e2e9b327。验证对应的生产源码为 5cb243d3，后续提交仅保存证据。
+
+验证方法
+pr_wall_regression.py 从现有 gas_state_probe.cpp 取得真实生产算子 include 集，
+用 pr_wall_probe.inc 构造物理一致的状态，调用 gasFaceSubgridTransportProperties
+及完整 computeRiemannGasFaceFluxDevice<true>。同一个测试体分别编译为主机
+C++ 和原生 CUDA，CUDA 版本在 GPU 执行，不是主机适配器冒充 CUDA。
+设备内存采用统一内存，仅用于测试夹具；生产实现没有增加分配或传输。
+
+独立 Python 参考不调用 C++ 热壁函数：以给定 LinearCp 组分热容、理想混合气
+R 和 Pr 公式计算物性；热壁函数匹配点使用二分法求解，计算导热系数和热流，
+覆盖黏性区与对数区。在较高 k 的对数区按既有方程保留热壁函数的速度修正项。
+
+六类配置，每类两种正湍动能 k=1e-12、0.1，共 12 个面状态：
+0 常黏度 + 独立 Pr + Ywall_B=0.9、Yowner_B=0.1（缺陷组合）
+1 壁面黏度相同的可变黏度 + 同一独立 Pr（控制）
+2 常黏度 + 独立 Pr + 固定壁面组分等于 owner（控制）
+3 常黏度 + 独立 Pr + zeroGradient 组分（控制）
+4 旧常黏度 + 常 Pr，保留旧 owner 组分行为（控制）
+5 可变黏度 + 常 Pr，保留原可变黏度固定壁面组分行为（控制）
+
+所有状态满足 rhoK=rho*k，总能量包含 rhoK；流体和壁面静止。
+Towner=700 K，Twall=500 K，muwall=1.8e-5 Pa s。
+缺陷组合的 Prwall=0.88，正确 Cpwall=1550，原错用 Cp=1150 J/(kg K)。
+
+修复前后结果
+                          修复前                 修复后/独立参考
+k=1e-12 面能量通量        9.409090909090908        12.681818181818183 W/m2
+k=0.1   面能量通量        2306.2613326618593       4026.500177478585 W/m2
+
+主机和 CUDA 均先在未修复的 e2e9b327 上复现上述错误，且仅配置 0 不符合参考。
+修复后，主机/CUDA 各 12 个状态全部通过，容差为 2e-11 相对或绝对。
+完整面能量通量与实际壁面热流完全相同，质量及两组分通量均为零；
+faceStatus=0，无 fatal 诊断，壁面热通量 active 和面计算成功状态均为 1。
+配置 0 与相同壁面物性的配置 1 输出完全一致。
+五类控制配置的全部输出在修复前后逐值相同。
+本机主机/CUDA 输出逐值相同；这不是跨平台位级一致性的保证。
+原始行的列定义见各 results.json，汇总见 comparison.json。
+
+已有回归与内存检查
+test_mixture_wall_function.py、test_review_sst_wall_audits.py、
+test_configuration.py 合计 20 passed。
+新增 pytest 主机入口 1 passed、CUDA 参数被 -k host 排除；
+原生 CUDA 回归通过独立命令完整执行，不能把被排除参数计为 pytest 通过。
+CUDA compute-sanitizer memcheck：0 errors，0 leaked bytes。
+
+范围与限制
+本轮只做数学、代码、完整面通量及构建正确性验证，没有性能指标对照。
+这是原生 CUDA 生产面通量回归，不是完整 OpenFOAM 稳态收敛或六组 ARC 工况复现。
+局部面能量闭合不替代全域守恒验证；上一轮封闭周期证据维持原范围。
+没有重跑或声称关闭上一版已记录的 25 项基线失败，也不声称仓库测试全绿。
+没有新增主机编译器版本支持承诺，GCC 13 的历史告警范围仍保留。
+本增量不重新审定先前边界接口重构的全部功能。
+未修改 README，未合并 PR。
+
+复现（从修复提交所在完整仓库执行）
+bash validation/composition_transport/run_pr_wall_regression.sh /absolute/new/output
+该入口执行本仓库完整构建、主机/CUDA 专项、相关 20 项测试和 memcheck，
+保存源码提交、工作区 diff 和二进制哈希。输出目录必须不存在。
+复现旧缺陷：在另一个目录导出 e2e9b327 的 common/，再执行：
+python3 validation/composition_transport/pr_wall_regression.py /absolute/new/before \
+  --cuda --include-root /absolute/exported/base --expect-before-defect
+--expect-before-defect 仅属于测试驱动，要求仅配置 0 失败；它不改变生产代码。
+
+构建结果与可执行文件身份见 evidence/pr_wall/build-result.json、
+build.log 和 binaries.sha256；报告不从文件存在性推断构建成功。

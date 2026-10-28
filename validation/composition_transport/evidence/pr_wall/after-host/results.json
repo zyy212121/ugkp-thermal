@@ -1,0 +1,23 @@
+{
+  "nativeCUDA": false,
+  "states": 12,
+  "failures": [],
+  "knownDefectExpected": false,
+  "columns": [
+    "case",
+    "k",
+    "wallHeat",
+    "fullFaceEnergy",
+    "mass",
+    "speciesA",
+    "speciesB",
+    "faceStatus",
+    "active",
+    "success",
+    "fatal",
+    "effectiveConductivity",
+    "mu",
+    "faceCp",
+    "facePr"
+  ]
+}

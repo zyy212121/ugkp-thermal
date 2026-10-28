@@ -1,0 +1,17 @@
+{
+  "base": "e2e9b327dce992b59c62d2d15ea611d09c319a97",
+  "sourceCommit": "5cb243d3ad0d21ee2f1fc56e51af93b5aaa67889",
+  "controlsBeforeAfterExactlyEqual": {
+    "host": true,
+    "cuda": true
+  },
+  "constantAndVariableMuControlExactlyEqual": true,
+  "hostCudaMaxAbsoluteDifference": 0.0,
+  "allFaceEnergyEqualsWallHeat": true,
+  "allMassAndSpeciesFluxesZero": true,
+  "lowKBefore": 9.409090909090908,
+  "lowKAfter": 12.681818181818183,
+  "highKBefore": 2306.2613326618593,
+  "highKAfter": 4026.500177478585,
+  "performanceComparisonPerformed": false
+}

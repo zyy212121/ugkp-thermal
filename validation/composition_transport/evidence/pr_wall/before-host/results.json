@@ -1,0 +1,66 @@
+{
+  "nativeCUDA": false,
+  "states": 12,
+  "failures": [
+    {
+      "case": 0.0,
+      "k": 1e-12,
+      "quantity": "wallHeat",
+      "actual": 9.409090909090908,
+      "expected": 12.681818181818183
+    },
+    {
+      "case": 0.0,
+      "k": 1e-12,
+      "quantity": "fullFaceEnergy",
+      "actual": 9.409090909090908,
+      "expected": 12.681818181818183
+    },
+    {
+      "case": 0.0,
+      "k": 1e-12,
+      "quantity": "effectiveConductivity",
+      "actual": 0.02352272727272727,
+      "expected": 0.03170454545454546
+    },
+    {
+      "case": 0.0,
+      "k": 0.1,
+      "quantity": "wallHeat",
+      "actual": 2306.2613326618593,
+      "expected": 4026.5001774785856
+    },
+    {
+      "case": 0.0,
+      "k": 0.1,
+      "quantity": "fullFaceEnergy",
+      "actual": 2306.2613326618593,
+      "expected": 4026.5001774785856
+    },
+    {
+      "case": 0.0,
+      "k": 0.1,
+      "quantity": "effectiveConductivity",
+      "actual": 5.765654334251952,
+      "expected": 10.066251742405495
+    }
+  ],
+  "knownDefectExpected": true,
+  "columns": [
+    "case",
+    "k",
+    "wallHeat",
+    "fullFaceEnergy",
+    "mass",
+    "speciesA",
+    "speciesB",
+    "faceStatus",
+    "active",
+    "success",
+    "fatal",
+    "effectiveConductivity",
+    "mu",
+    "faceCp",
+    "facePr"
+  ]
+}
