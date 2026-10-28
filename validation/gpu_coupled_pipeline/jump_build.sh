@@ -17,7 +17,8 @@ for kind in before after; do
 done
 g++ -std=c++17 -O2 -I"$R/common" "$R/validation/tests/sparse_conjugate_gradient.cpp" "$O/build/sparse-after.o" -L/usr/local/cuda/lib64 -Wl,-rpath,/usr/local/cuda/lib64 -lcudart -o "$O/build/sparse-unit" > "$O/build/sparse-unit-build.log" 2>&1
 "$O/build/sparse-unit" > "$O/build/sparse-unit.log" 2>&1
-sha256sum "$O/build"/*.o "$O/build/jump-before" "$O/build/jump-after" "$O/build/sparse-unit" > "$O/build/binaries.sha256"/usr/local/cuda/bin/nvcc -std=c++17 -O2 --fmad=false -arch=sm_89 -c "$R/common/gpu/SolidThermalProperties.cu" -o "$O/build/SolidThermalProperties.o" > "$O/build/SolidThermalProperties.log" 2>&1
+sha256sum "$O/build"/*.o "$O/build/jump-before" "$O/build/jump-after" "$O/build/sparse-unit" > "$O/build/binaries.sha256"
+/usr/local/cuda/bin/nvcc -std=c++17 -O2 --fmad=false -arch=sm_89 -c "$R/common/gpu/SolidThermalProperties.cu" -o "$O/build/SolidThermalProperties.o" > "$O/build/SolidThermalProperties.log" 2>&1
 flags=(-std=c++17 -O2 -ffp-contract=off -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 -I"$WM_PROJECT_DIR/src/OpenFOAM/lnInclude" -I"$WM_PROJECT_DIR/src/finiteVolume/lnInclude" -I"$WM_PROJECT_DIR/src/meshTools/lnInclude" -I"$WM_PROJECT_DIR/src/OSspecific/POSIX/lnInclude")
 libs=(-L"$FOAM_LIBBIN" -lfiniteVolume -lmeshTools -lOpenFOAM -L"$FOAM_LIBBIN/$FOAM_MPI" -lPstream)
 for kind in baseline candidate; do
