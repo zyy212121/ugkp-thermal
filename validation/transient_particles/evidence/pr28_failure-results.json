@@ -1,0 +1,241 @@
+{
+  "binary": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/steady-r2-bin/gasUGKPSteady",
+  "binary_sha256": "ff55c6d813e2509bf00d3e2c8243fbd394fa9544d745a9f8eeabe52ae7690226",
+  "runner_sha256": "3e440cd07f0e80ff8da21496199b6feed6f716fdce8e02b6134db182b4e4bbc5",
+  "expect_before": false,
+  "cases": [
+    {
+      "name": "failure_final_partial_window",
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/steady-r2-bin/gasUGKPSteady",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/pr28-failure-regression/failure_final_partial_window"
+      ],
+      "mesh_command": [
+        "blockMesh",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/pr28-failure-regression/failure_final_partial_window"
+      ],
+      "exit": 1,
+      "input_sha256": {
+        "system/blockMeshDict": "fda08191d6ecf4a0a124cf3b2e3ca5f4fd2beaca35e14ff3a7cdaaebdbd0c3f1",
+        "system/controlDict": "0d36ad5e6b9f9cafb684752bc45408d6aa1eac1a2a451bb045738aab87fc868c",
+        "system/fvSolution": "fcb1074d3a9afd937b9ef18102a386e6bf85677c6f168a342808371653d1fb6f",
+        "system/fvSchemes": "fad3d9e9418fc6343aa29e4deff74bb0ec65932ffe728604d963a89bea980872",
+        "constant/schedulingProperties": "2b4e48798d68368e03c3933cd2f9f4ba5bcf13327ca5ed82a038ab78882254bc",
+        "constant/gasModelProperties": "f6e5295b081585027d4bca957609c164e0cfea7357aadef8a334d96fd0ce91ed",
+        "constant/fluidProperties": "11f57b129237e3bf1b5bc2e02fa3c6879674da12d6e1b3b2b078a4fd5acbcfa0",
+        "constant/particleProperties": "666f7900879bdaa8c1dd3b6245614277e26ab29ada7164be49e86e0d62c0a350",
+        "0/dMeanCell": "6b83ad98416e706e9e959eff2996b99b845de3878102bc19b3c64d2da238d2c7",
+        "0/Y_B": "575dc3e597d5948ef8bd2d2e7ef7251fc209a804d91841da51e71ad307e67515",
+        "0/epsilonS": "e8dfb611eb0d9ed0ed19961d5f874cfba7cbcff18723cdbb7c186aa3c83deb94",
+        "0/k": "58ada002ab8838499b12aa93371cacb926de10339da901adef037adec73140d3",
+        "0/omega": "d02656e65decf3a808b07e99e18bd7d3c4099222acf9851251663731a3b940ee",
+        "0/rho": "8f5f570f175fc6e937e7b37cd7b7475194b5c297e1df5a8c407ac8819501dc9a",
+        "0/gpuResidentStrictParticles.dat": "3dba35803aaa8e6426df979b1ae536c4504035c346a6753d78c81109712c92f7",
+        "0/Y_A": "74d514af501507080d22bce170eb97ab9d311f54da6f2a45a91e2f8b7149cd05",
+        "0/theta": "76463262cb8011942fe833371a4a4646ac9030a8fd8509553395b44f213bd35b",
+        "0/T": "7c49cba35fec651cb6f8b76d426faf835c91ceac2c81fbe40ba471027ee90157",
+        "0/rhoE": "1f046dce460bb0773e53fdef17b689379a433bd1b4689393ab7a277bbc5719fc",
+        "0/Us": "f963c8923cf6e8d98add66e3c4a0f15e99b2486ffe64b06ab3e8aed6275ab94b",
+        "0/U": "0523ec5e36c47fd90f303964e89e205be3cd4a4c14dd898d050e4e779d0b7e38",
+        "0/p": "3b6e5ac9b7faaaa0f8fbd0e1f1d357af7973432cefb07329a12975c34df1a6a6",
+        "0/Tp": "90dde39cd82cb393f4eea00fd1b733cd194bdf2532077567faf4db25ce602d19"
+      },
+      "written_times": [],
+      "log_sha256": "a5a0494ecf6fcb2e6195080fe6e2c639197e674474a4b8d53fdbddebf25942e8",
+      "pass": true
+    },
+    {
+      "name": "failure_final_full_window",
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/steady-r2-bin/gasUGKPSteady",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/pr28-failure-regression/failure_final_full_window"
+      ],
+      "mesh_command": [
+        "blockMesh",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/pr28-failure-regression/failure_final_full_window"
+      ],
+      "exit": 1,
+      "input_sha256": {
+        "system/blockMeshDict": "fda08191d6ecf4a0a124cf3b2e3ca5f4fd2beaca35e14ff3a7cdaaebdbd0c3f1",
+        "system/controlDict": "b3b3e71e878220516410ef1961c6dc30e33e224a4c517bb914c25c6682f78889",
+        "system/fvSolution": "fcb1074d3a9afd937b9ef18102a386e6bf85677c6f168a342808371653d1fb6f",
+        "system/fvSchemes": "fad3d9e9418fc6343aa29e4deff74bb0ec65932ffe728604d963a89bea980872",
+        "constant/schedulingProperties": "2b4e48798d68368e03c3933cd2f9f4ba5bcf13327ca5ed82a038ab78882254bc",
+        "constant/gasModelProperties": "f6e5295b081585027d4bca957609c164e0cfea7357aadef8a334d96fd0ce91ed",
+        "constant/fluidProperties": "11f57b129237e3bf1b5bc2e02fa3c6879674da12d6e1b3b2b078a4fd5acbcfa0",
+        "constant/particleProperties": "666f7900879bdaa8c1dd3b6245614277e26ab29ada7164be49e86e0d62c0a350",
+        "0/dMeanCell": "6b83ad98416e706e9e959eff2996b99b845de3878102bc19b3c64d2da238d2c7",
+        "0/Y_B": "575dc3e597d5948ef8bd2d2e7ef7251fc209a804d91841da51e71ad307e67515",
+        "0/epsilonS": "e8dfb611eb0d9ed0ed19961d5f874cfba7cbcff18723cdbb7c186aa3c83deb94",
+        "0/k": "58ada002ab8838499b12aa93371cacb926de10339da901adef037adec73140d3",
+        "0/omega": "d02656e65decf3a808b07e99e18bd7d3c4099222acf9851251663731a3b940ee",
+        "0/rho": "8f5f570f175fc6e937e7b37cd7b7475194b5c297e1df5a8c407ac8819501dc9a",
+        "0/gpuResidentStrictParticles.dat": "3dba35803aaa8e6426df979b1ae536c4504035c346a6753d78c81109712c92f7",
+        "0/Y_A": "74d514af501507080d22bce170eb97ab9d311f54da6f2a45a91e2f8b7149cd05",
+        "0/theta": "76463262cb8011942fe833371a4a4646ac9030a8fd8509553395b44f213bd35b",
+        "0/T": "7c49cba35fec651cb6f8b76d426faf835c91ceac2c81fbe40ba471027ee90157",
+        "0/rhoE": "1f046dce460bb0773e53fdef17b689379a433bd1b4689393ab7a277bbc5719fc",
+        "0/Us": "f963c8923cf6e8d98add66e3c4a0f15e99b2486ffe64b06ab3e8aed6275ab94b",
+        "0/U": "0523ec5e36c47fd90f303964e89e205be3cd4a4c14dd898d050e4e779d0b7e38",
+        "0/p": "3b6e5ac9b7faaaa0f8fbd0e1f1d357af7973432cefb07329a12975c34df1a6a6",
+        "0/Tp": "90dde39cd82cb393f4eea00fd1b733cd194bdf2532077567faf4db25ce602d19"
+      },
+      "written_times": [],
+      "log_sha256": "d115b18cebc59616bcbe6069fb2bcc5966fd7456b0536fe9d2be90f167eb799d",
+      "pass": true
+    },
+    {
+      "name": "failure_before_final_write",
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/steady-r2-bin/gasUGKPSteady",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/pr28-failure-regression/failure_before_final_write"
+      ],
+      "mesh_command": [
+        "blockMesh",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/pr28-failure-regression/failure_before_final_write"
+      ],
+      "exit": 1,
+      "input_sha256": {
+        "system/blockMeshDict": "fda08191d6ecf4a0a124cf3b2e3ca5f4fd2beaca35e14ff3a7cdaaebdbd0c3f1",
+        "system/controlDict": "5e0501cef509a61acffa3b635afa5406ce7d6148cd7e16915e87e8f75986fa60",
+        "system/fvSolution": "fcb1074d3a9afd937b9ef18102a386e6bf85677c6f168a342808371653d1fb6f",
+        "system/fvSchemes": "fad3d9e9418fc6343aa29e4deff74bb0ec65932ffe728604d963a89bea980872",
+        "constant/schedulingProperties": "2b4e48798d68368e03c3933cd2f9f4ba5bcf13327ca5ed82a038ab78882254bc",
+        "constant/gasModelProperties": "f6e5295b081585027d4bca957609c164e0cfea7357aadef8a334d96fd0ce91ed",
+        "constant/fluidProperties": "11f57b129237e3bf1b5bc2e02fa3c6879674da12d6e1b3b2b078a4fd5acbcfa0",
+        "constant/particleProperties": "666f7900879bdaa8c1dd3b6245614277e26ab29ada7164be49e86e0d62c0a350",
+        "0/dMeanCell": "6b83ad98416e706e9e959eff2996b99b845de3878102bc19b3c64d2da238d2c7",
+        "0/Y_B": "575dc3e597d5948ef8bd2d2e7ef7251fc209a804d91841da51e71ad307e67515",
+        "0/epsilonS": "e8dfb611eb0d9ed0ed19961d5f874cfba7cbcff18723cdbb7c186aa3c83deb94",
+        "0/k": "58ada002ab8838499b12aa93371cacb926de10339da901adef037adec73140d3",
+        "0/omega": "d02656e65decf3a808b07e99e18bd7d3c4099222acf9851251663731a3b940ee",
+        "0/rho": "8f5f570f175fc6e937e7b37cd7b7475194b5c297e1df5a8c407ac8819501dc9a",
+        "0/gpuResidentStrictParticles.dat": "3dba35803aaa8e6426df979b1ae536c4504035c346a6753d78c81109712c92f7",
+        "0/Y_A": "74d514af501507080d22bce170eb97ab9d311f54da6f2a45a91e2f8b7149cd05",
+        "0/theta": "76463262cb8011942fe833371a4a4646ac9030a8fd8509553395b44f213bd35b",
+        "0/T": "7c49cba35fec651cb6f8b76d426faf835c91ceac2c81fbe40ba471027ee90157",
+        "0/rhoE": "1f046dce460bb0773e53fdef17b689379a433bd1b4689393ab7a277bbc5719fc",
+        "0/Us": "f963c8923cf6e8d98add66e3c4a0f15e99b2486ffe64b06ab3e8aed6275ab94b",
+        "0/U": "0523ec5e36c47fd90f303964e89e205be3cd4a4c14dd898d050e4e779d0b7e38",
+        "0/p": "3b6e5ac9b7faaaa0f8fbd0e1f1d357af7973432cefb07329a12975c34df1a6a6",
+        "0/Tp": "90dde39cd82cb393f4eea00fd1b733cd194bdf2532077567faf4db25ce602d19"
+      },
+      "written_times": [],
+      "log_sha256": "6dcc227f2767721c805923eedc312eb5cb9c875f60ffaa0c856dc9809538fb6a",
+      "pass": true
+    },
+    {
+      "name": "valid_hot_parcel_partial_window",
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/steady-r2-bin/gasUGKPSteady",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/pr28-failure-regression/valid_hot_parcel_partial_window"
+      ],
+      "mesh_command": [
+        "blockMesh",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/pr28-failure-regression/valid_hot_parcel_partial_window"
+      ],
+      "exit": 0,
+      "input_sha256": {
+        "system/blockMeshDict": "fda08191d6ecf4a0a124cf3b2e3ca5f4fd2beaca35e14ff3a7cdaaebdbd0c3f1",
+        "system/controlDict": "0d36ad5e6b9f9cafb684752bc45408d6aa1eac1a2a451bb045738aab87fc868c",
+        "system/fvSolution": "fcb1074d3a9afd937b9ef18102a386e6bf85677c6f168a342808371653d1fb6f",
+        "system/fvSchemes": "fad3d9e9418fc6343aa29e4deff74bb0ec65932ffe728604d963a89bea980872",
+        "constant/schedulingProperties": "2b4e48798d68368e03c3933cd2f9f4ba5bcf13327ca5ed82a038ab78882254bc",
+        "constant/gasModelProperties": "f6e5295b081585027d4bca957609c164e0cfea7357aadef8a334d96fd0ce91ed",
+        "constant/fluidProperties": "11f57b129237e3bf1b5bc2e02fa3c6879674da12d6e1b3b2b078a4fd5acbcfa0",
+        "constant/particleProperties": "863636aa3d397e588b47fb314dc5158222c7c2601a1d1fd1419ebaa314193cc8",
+        "0/dMeanCell": "0562bf1cf334a508ca4486886354da44b59c91d65575b511b36941e1c305c034",
+        "0/Y_B": "575dc3e597d5948ef8bd2d2e7ef7251fc209a804d91841da51e71ad307e67515",
+        "0/epsilonS": "54cc8c90da38af6e72f811e820cd4af7146e855544ce32432f3fbb1f5246b735",
+        "0/k": "58ada002ab8838499b12aa93371cacb926de10339da901adef037adec73140d3",
+        "0/omega": "d02656e65decf3a808b07e99e18bd7d3c4099222acf9851251663731a3b940ee",
+        "0/rho": "8f5f570f175fc6e937e7b37cd7b7475194b5c297e1df5a8c407ac8819501dc9a",
+        "0/gpuResidentStrictParticles.dat": "fcee43c65030db7718c61a38ee7a75cddc03f7feeedd3f0d1332283719b04056",
+        "0/Y_A": "74d514af501507080d22bce170eb97ab9d311f54da6f2a45a91e2f8b7149cd05",
+        "0/theta": "76463262cb8011942fe833371a4a4646ac9030a8fd8509553395b44f213bd35b",
+        "0/T": "7c49cba35fec651cb6f8b76d426faf835c91ceac2c81fbe40ba471027ee90157",
+        "0/rhoE": "1f046dce460bb0773e53fdef17b689379a433bd1b4689393ab7a277bbc5719fc",
+        "0/Us": "f963c8923cf6e8d98add66e3c4a0f15e99b2486ffe64b06ab3e8aed6275ab94b",
+        "0/U": "0523ec5e36c47fd90f303964e89e205be3cd4a4c14dd898d050e4e779d0b7e38",
+        "0/p": "3b6e5ac9b7faaaa0f8fbd0e1f1d357af7973432cefb07329a12975c34df1a6a6",
+        "0/Tp": "90dde39cd82cb393f4eea00fd1b733cd194bdf2532077567faf4db25ce602d19"
+      },
+      "written_times": [
+        "1"
+      ],
+      "log_sha256": "6b0ebb77090f931fc373da279528fbe4da0ad0c349e77a0bdb46cf6c86c8478d",
+      "numerics": {
+        "gas_temperature": 1000.0,
+        "parcel_temperature": 9999.972228614273,
+        "expected_gas": 1000.000000045144,
+        "expected_parcel": 9999.972228614277,
+        "parcel_heat_J": -2.2217108581389764e-05,
+        "energy_balance_J": 3.380158990773656e-11,
+        "caloric_temperature": 1000.0000000451441
+      },
+      "pass": true
+    },
+    {
+      "name": "valid_hot_parcel_full_window",
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/steady-r2-bin/gasUGKPSteady",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/pr28-failure-regression/valid_hot_parcel_full_window"
+      ],
+      "mesh_command": [
+        "blockMesh",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/pr28-failure-regression/valid_hot_parcel_full_window"
+      ],
+      "exit": 0,
+      "input_sha256": {
+        "system/blockMeshDict": "fda08191d6ecf4a0a124cf3b2e3ca5f4fd2beaca35e14ff3a7cdaaebdbd0c3f1",
+        "system/controlDict": "b3b3e71e878220516410ef1961c6dc30e33e224a4c517bb914c25c6682f78889",
+        "system/fvSolution": "fcb1074d3a9afd937b9ef18102a386e6bf85677c6f168a342808371653d1fb6f",
+        "system/fvSchemes": "fad3d9e9418fc6343aa29e4deff74bb0ec65932ffe728604d963a89bea980872",
+        "constant/schedulingProperties": "2b4e48798d68368e03c3933cd2f9f4ba5bcf13327ca5ed82a038ab78882254bc",
+        "constant/gasModelProperties": "f6e5295b081585027d4bca957609c164e0cfea7357aadef8a334d96fd0ce91ed",
+        "constant/fluidProperties": "11f57b129237e3bf1b5bc2e02fa3c6879674da12d6e1b3b2b078a4fd5acbcfa0",
+        "constant/particleProperties": "863636aa3d397e588b47fb314dc5158222c7c2601a1d1fd1419ebaa314193cc8",
+        "0/dMeanCell": "0562bf1cf334a508ca4486886354da44b59c91d65575b511b36941e1c305c034",
+        "0/Y_B": "575dc3e597d5948ef8bd2d2e7ef7251fc209a804d91841da51e71ad307e67515",
+        "0/epsilonS": "54cc8c90da38af6e72f811e820cd4af7146e855544ce32432f3fbb1f5246b735",
+        "0/k": "58ada002ab8838499b12aa93371cacb926de10339da901adef037adec73140d3",
+        "0/omega": "d02656e65decf3a808b07e99e18bd7d3c4099222acf9851251663731a3b940ee",
+        "0/rho": "8f5f570f175fc6e937e7b37cd7b7475194b5c297e1df5a8c407ac8819501dc9a",
+        "0/gpuResidentStrictParticles.dat": "fcee43c65030db7718c61a38ee7a75cddc03f7feeedd3f0d1332283719b04056",
+        "0/Y_A": "74d514af501507080d22bce170eb97ab9d311f54da6f2a45a91e2f8b7149cd05",
+        "0/theta": "76463262cb8011942fe833371a4a4646ac9030a8fd8509553395b44f213bd35b",
+        "0/T": "7c49cba35fec651cb6f8b76d426faf835c91ceac2c81fbe40ba471027ee90157",
+        "0/rhoE": "1f046dce460bb0773e53fdef17b689379a433bd1b4689393ab7a277bbc5719fc",
+        "0/Us": "f963c8923cf6e8d98add66e3c4a0f15e99b2486ffe64b06ab3e8aed6275ab94b",
+        "0/U": "0523ec5e36c47fd90f303964e89e205be3cd4a4c14dd898d050e4e779d0b7e38",
+        "0/p": "3b6e5ac9b7faaaa0f8fbd0e1f1d357af7973432cefb07329a12975c34df1a6a6",
+        "0/Tp": "90dde39cd82cb393f4eea00fd1b733cd194bdf2532077567faf4db25ce602d19"
+      },
+      "written_times": [
+        "1"
+      ],
+      "log_sha256": "1214c23347fc6ba8c8bbf45f0d8ea104b36cfe2fa1a510d572a5ac3b058f37d3",
+      "numerics": {
+        "gas_temperature": 1000.0,
+        "parcel_temperature": 9999.972228614273,
+        "expected_gas": 1000.000000045144,
+        "expected_parcel": 9999.972228614277,
+        "parcel_heat_J": -2.2217108581389764e-05,
+        "energy_balance_J": 3.380158990773656e-11,
+        "caloric_temperature": 1000.0000000451441
+      },
+      "pass": true
+    }
+  ],
+  "pass": true
+}

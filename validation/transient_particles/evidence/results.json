@@ -1,0 +1,155 @@
+{
+  "source_commit": "5eb94297d9332c66831bcbaba273e81196b32523",
+  "parent_commit": "ad8bc72944264fb64c631aacc7258d12ea49d708",
+  "target_branch": "feature/steady-on-gpu-pipeline-20261028",
+  "status": "PASS: serial PR candidate; not merged",
+  "implementation": [
+    "Shared frozen-mixture paired momentum/heat exchange and species porosity scaling for gasUGKP and gasUGKPSteady.",
+    "Transient particle frontend configures/uploads species and downloads species before output/restart.",
+    "The common physical step consumes diagnostics before return; steady legacy sampling retains its existing completion.",
+    "Gas owner explicitly advertises its paired frozen-mixture capability; other applications retain default capabilities."
+  ],
+  "math": "Exchange algebra and porosity scaling unchanged apart from shared ownership, identifiers/includes. Drag model header is byte-identical to the parent implementation. Existing physical dt, composition diffusion and particle ordering/collision/transport rules retained.",
+  "source_sha256": {
+    "applications/gasUGKP/diluteUgkwpFoam.C": "bf5317438c56e7329e29badf2a647fa396939a0397d0e460c5ce0b0efd3c4af1",
+    "applications/gasUGKP/gpu/GpuResidentStrict.H": "abf62c37823a3ba42cd148a2522ba3042e5cb998174654284e92c85942e64892",
+    "applications/gasUGKP/private_backend/GpuDragModels.cuh": "6245d124a3125bd8dc957487373acea7f71f5b47e118aadc02fa0b4a3736eb3e",
+    "applications/gasUGKP/private_backend/GpuResidentStrict.cu": "692a9d13bd8338ed9b69a5e9e52ccf74a9f47fd410622377f8ee7a1de44eb0f0",
+    "applications/gasUGKP/readGpuGasConfiguration.H": "26b4fe79a304d5fe5eae7224d626125dc89bb67451b408623bdd54c6df5f12b5",
+    "applications/gasUGKPSteady/private_backend/GpuSteadyBackend.cu": "2283c9abc8610adb72818b6e0845293b342705449c3439cc71d45f2fff084401",
+    "applications/gasUGKPSteady/private_backend/SteadyParticleDriver.cuh": "08157d9c69d2fe5f9868fb48a09f34d0c6af0038e612d20a2c84ea59eb7c61cc",
+    "common/gasNumerics/GpuDragModels.cuh": "3c2539351c1d00d30390c232c06d4cbe8c0837d4add82b7730433c77375643e6",
+    "common/gasTransport/FoamGasModelInput.H": "c8b9ddb025014d795aa2463a9311dcc8c1820f1adfb0e6706e451cae321cbe9f",
+    "common/gasTransport/GasCapabilities.H": "389088ae9deb895990051cfc9a57f68d51f6fa994485e1a615a219455997bdaf",
+    "common/gasTransport/MixtureParticleCoupling.cuh": "6f168262d76e8b44dd4c0e8d2892636aef04a6c035d328c575259c0616b8ef76",
+    "common/gasTransport/MixturePorosity.H": "c3827ee9bb733271c2bae02c20c207bded310ed724a423f212a65b4982a56f1b",
+    "tool/gasUGKP/build_cuda_solver.sh": "63f92009391ba848408c2a6b107eed2ce4027eb70db24fb63f6860318991b7aa",
+    "tool/gasUGKPSteady/build_cuda_solver.sh": "c152703821267f2014ebcbad68c060cddc0b3bea6fc81dd437c6cfeaed652b67"
+  },
+  "binaries": {
+    "parent_gas": {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/before-bin/gasUGKP",
+      "sha256": "4b269fd21e40c3feb46a08172738b34130f1a0fbded32f29887337cb0eaf5b8f"
+    },
+    "candidate_gas": {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/candidate-r2-bin/gasUGKP",
+      "sha256": "0e062ebc4c2ccb2c387ef963fd319f5ca4e5eac55444ed5c82a30c24298af309"
+    },
+    "parent_steady": {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/failure-fixed-r3-bin/gasUGKPSteady",
+      "sha256": "b3f7e30627833764739b3c8af378e65a529cd3d567c31cca422fded6efc999e1"
+    },
+    "candidate_steady": {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/steady-r2-bin/gasUGKPSteady",
+      "sha256": "ff55c6d813e2509bf00d3e2c8243fbd394fa9544d745a9f8eeabe52ae7690226"
+    },
+    "cpu_reference": {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/cpu-reference",
+      "sha256": "6f2de46eed075d6ea3ad96387d542a8e42d3c18934d9c54d2173147e4b5985d3"
+    },
+    "heat_control": {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/heat-controls/steady_mixture_heat_domain",
+      "sha256": "a223deeede7be06b3c196afd11867f408f894182df24fa55c2f5b9e629f79321"
+    }
+  },
+  "validation": {
+    "host_tests": 71,
+    "production_cuda_controls": 4,
+    "native_app_runs": 43,
+    "native_reference_pairs": 80,
+    "native_restart_pairs": 4,
+    "native_max_field_scaled_error": 7.156621207726764e-14,
+    "native_max_parcel_scaled_error": 0,
+    "closed_cell_budgets": [
+      {
+        "name": "hot_constant",
+        "initial_budget": [
+          0.7000009996,
+          0.0,
+          492146.43426494696
+        ],
+        "final_budget": [
+          0.7000009996,
+          0.0,
+          492146.434264947
+        ],
+        "absolute_mass_momentum_energy_error": [
+          0.0,
+          0.0,
+          5.820766091346741e-11
+        ],
+        "parcel_temperature": 9999.972228614277
+      },
+      {
+        "name": "hot_nonlinear",
+        "initial_budget": [
+          0.7000009996,
+          0.0,
+          415146.434308947
+        ],
+        "final_budget": [
+          0.7000009996,
+          0.0,
+          415146.43430894695
+        ],
+        "absolute_mass_momentum_energy_error": [
+          0.0,
+          0.0,
+          5.820766091346741e-11
+        ],
+        "parcel_temperature": 9999.978338311783
+      },
+      {
+        "name": "closed_drag_heat",
+        "initial_budget": [
+          0.7009996,
+          0.002,
+          500138.15532420634
+        ],
+        "final_budget": [
+          0.7009996,
+          0.002,
+          500138.15532420634
+        ],
+        "absolute_mass_momentum_energy_error": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "parcel_temperature": 9989.433875562125
+      }
+    ],
+    "cpu_reference": "320 cell/output-time paired records for 12 gas fields and seven parcel moments; serial execution of production headers, not an independent discretization. All pass rtol=1e-8, atol=1e-9.",
+    "coverage": [
+      "L0 atomic and L1 CSR/split directories",
+      "L2 heavy directory with thousands of parcels and Sutherland-Wilke viscosity",
+      "SST k/omega/nut saved-output checks",
+      "Transient half-time restart including weighted parcels and RNG",
+      "Adaptive Courant selection constrained by maxDeltaT, compared with fixed physical dt",
+      "Original pure-gas reservoir, reconstruction, mixture diffusion and single-gas particles against parent gasUGKP",
+      "Original PR28 final-step failure propagation and hot-parcel controls",
+      "6000 physical steps with injection, intercell transport and outflow; final parcel count 99, reference integrated injected mass 0.00119 kg and tracking outflow mass 0.0002 kg"
+    ]
+  },
+  "timing": {
+    "median_seconds": {
+      "candidate": 32.63516734699988,
+      "reference": 33.291965578999225
+    },
+    "steps": 6000,
+    "pairs": 3,
+    "configuration": "same fast NVCC compile flags, includes startup and final output; exclusive GPU, no concurrent builds/tests during the runs",
+    "interpretation": "Reference is PR28 gasUGKPSteady physical stepping, which also collects statistics. Old transient mixture+particle execution was unsupported. This is not a claimed old/new transient speedup."
+  },
+  "limits": [
+    "Serial, two compiled gas species, sm_89 on RTX 4060 Laptop, OpenFOAM 10 / CUDA 13.1.",
+    "Frozen nonreacting gas mixtures with inert particles. Reacting mixture+particles and ALE particles remain unsupported.",
+    "Existing scheduled-pressure mixture boundary and particle boundary-layer restrictions retained. Negative boundary test confirms explicit diagnostic and no output.",
+    "No new full CHT/CHMT or MPI application validation. Other applications retain prior capability defaults.",
+    "Closed-cell budgets validate paired exchange; open flow output equivalence does not certify exact global closure of the existing explicit porosity discretization.",
+    "Long-run logs retain existing conservation-residual warnings (representative density/species discrepancy about 1.4e-14). Diagnostic output is included in timings; no zero-warning claim. Large raw timing logs are losslessly gzip-compressed in evidence."
+  ],
+  "readme_changed": false,
+  "case_specific_production_branches_added": false,
+  "retry_or_fallback_added": false
+}

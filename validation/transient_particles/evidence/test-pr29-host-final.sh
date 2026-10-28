@@ -1,0 +1,4 @@
+set -eo pipefail
+O=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles
+cd "$O/repo"
+python3 -m pytest validation/tests/gas_transport/test_steady_mixture_particle_coupling.py validation/tests/gas_transport/test_steady_sampling_moments.py validation/tests/gas_transport/test_steady_restart_state.py validation/tests/gas_transport/test_gas_pseudo_time.py validation/tests/gas_transport/test_steady_gas_residual.py validation/tests/gas_transport/test_steady_chemistry_time.py validation/tests/gas_transport/test_mixture_heat_exchange.py validation/tests/gas_transport/test_mixture_state.py validation/tests/gas_transport/test_mixture_transport.py validation/tests/gas_transport/test_review_thermo_budget.py validation/steady_cpu/test_of_cases.py -q --junitxml="$O/host-final-tests.xml" --basetemp="$O/host-final-test-tmp" > "$O/host-final-tests.log" 2>&1
