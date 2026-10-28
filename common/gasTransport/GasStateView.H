@@ -104,6 +104,33 @@ template<class State> UGKWP_GAS_HD inline bool gasVariableViscosity(const State&
         return s.gasViscosity.model!=MolecularViscosityModel::Constant;
     return false;
 }
+template<class State> UGKWP_GAS_HD inline bool gasVariablePrandtl(const State& s){
+    if constexpr(GasViscosityCapability<State>::value)return s.gasViscosity.prandtlSpecies>=0;
+    return false;
+}
+template<class State> UGKWP_GAS_HD inline auto gasCellMolecularPrandtl(const State& s,int c){
+    using R=std::remove_cv_t<std::remove_reference_t<decltype(s.gasMu)>>;
+    constexpr int N=GasStateTraits<State>::speciesCount;
+    if constexpr(GasViscosityCapability<State>::value&&N>0)if(mixtureGasActive(s)&&s.gasViscosity.prandtlSpecies>=0){
+        R mass[N];for(int j=0;j<N;++j)mass[j]=s.gasSpecies.rho[j*s.nCells+c];
+        return molecularPrandtl<N>(s.gasViscosity,s.gasPrClamped,mass);
+    }
+    return s.gasPrClamped;
+}
+template<class State> UGKWP_GAS_HD inline auto gasCellPrandtlOneThird(const State& s,int c){
+    using R=std::remove_cv_t<std::remove_reference_t<decltype(s.gasPrOneThird)>>;
+    if(gasVariablePrandtl(s))return R(::cbrt(gasCellMolecularPrandtl(s,c)));
+    return s.gasPrOneThird;
+}
+template<class State> UGKWP_GAS_HD inline bool gasVariableDiffusivity(const State& s){
+    if constexpr(GasViscosityCapability<State>::value)return s.gasViscosity.diffusion!=nullptr;
+    return false;
+}
+template<class State,class R> UGKWP_GAS_HD inline R gasLocalMolecularDiffusivity(const State& s,int j,R T,R p){
+    const R constant=s.gasSpecies.diffusivity?R(s.gasSpecies.diffusivity[j]):R(0);
+    if constexpr(GasViscosityCapability<State>::value)return molecularDiffusivity(s.gasViscosity,j,constant,T,p);
+    return constant;
+}
 template<class State,class R> UGKWP_GAS_HD inline R checkedMolecularViscosity(
     const State& s,R mu,int entity,bool face) {
     if(!gasFinite(mu)||!(mu>0)) {
@@ -155,12 +182,20 @@ template<class State,class R> UGKWP_GAS_HD inline void gasTransportFaceCompositi
                 ?s.gasSpecies.boundaryMassFraction[j*s.nFaces+f]:a);
     }
 }
+template<class State> UGKWP_GAS_HD inline auto gasFaceMolecularPrandtl(const State& s,int f,int own,int nei){
+    using R=std::remove_cv_t<std::remove_reference_t<decltype(s.gasMu)>>;
+    constexpr int N=GasStateTraits<State>::speciesCount;
+    if constexpr(GasViscosityCapability<State>::value&&N>0)if(mixtureGasActive(s)&&s.gasViscosity.prandtlSpecies>=0){
+        R Y[N];gasTransportFaceComposition(s,f,own,nei,Y);return molecularPrandtl<N>(s.gasViscosity,s.gasPrClamped,Y);
+    }
+    return s.gasPrClamped;
+}
 // Diffusive coefficients share local T,Y. Const retains its original Cp interpolation.
 template<class State> UGKWP_GAS_HD inline auto gasFaceMolecularHeatCapacity(const State& s,int f,int own,int nei){
     using R=std::remove_cv_t<std::remove_reference_t<decltype(s.gasMu)>>;
     constexpr int N=GasStateTraits<State>::speciesCount;
     if constexpr(N>0)if(mixtureGasActive(s)){
-        if(gasVariableViscosity(s)){
+        if(gasVariableViscosity(s)||gasVariablePrandtl(s)){
             R Y[N];gasTransportFaceComposition(s,f,own,nei,Y);
             const R T=gasTransportFaceTemperature(s,f,own,nei);
             R cp=0;for(int j=0;j<N;++j)cp+=Y[j]*speciesCp(j,T,s.gasSpecies.thermo);
@@ -200,6 +235,7 @@ template<class State> struct GasConfiguredConductivity<State,
 template<class State>
 UGKWP_GAS_HD inline bool gasHasDirectConductivity(const State& state)
 {
+    if(gasVariablePrandtl(state))return false;
     if constexpr (GasConfiguredConductivity<State>::value)
         if(state.gasThermalConductivityConfigured)return true;
     if constexpr (GasDirectConductivity<State>::value)

@@ -1,0 +1,104 @@
+{
+  "wall": {
+    "impermeable": {
+      "massFluxError": 0.0,
+      "speciesFluxError": 0.0,
+      "heatBalanceAbsolute": 2.2737367544323206e-13,
+      "viscosityRelativeError": 2.220446049250313e-16,
+      "wallResidual": 6.739336457142029e-10,
+      "traceCO2Range": [
+        0.5,
+        0.5
+      ]
+    },
+    "uniform": {
+      "massFluxError": 1.3877787807814457e-17,
+      "speciesFluxError": 0.0,
+      "heatBalanceAbsolute": 6.87805368215777e-12,
+      "viscosityRelativeError": 4.440892098500626e-16,
+      "wallResidual": 7.1687693363677064e-12,
+      "traceCO2Range": [
+        0.5982317052255828,
+        0.5982317440257652
+      ]
+    },
+    "nonuniform": {
+      "massFluxError": 5.551115123125783e-17,
+      "speciesFluxError": 0.0,
+      "heatBalanceAbsolute": 9.060840966412798e-11,
+      "viscosityRelativeError": 4.440892098500626e-16,
+      "wallResidual": 5.624175728592157e-10,
+      "traceCO2Range": [
+        0.5105690275712504,
+        0.8343153881959202
+      ]
+    }
+  },
+  "restartRelativeErrors": {
+    "dMeanCell": 0.0,
+    "rhoDs": 0.0,
+    "Y_Air": 0.0,
+    "rhoEs": 0.0,
+    "Y_CO2": 0.0,
+    "epsilonS": 0.0,
+    "k": 0.0,
+    "omega": 2.220445591997846e-16,
+    "rho": 0.0,
+    "theta": 0.0,
+    "T": 0.0,
+    "rhoE": 0.0,
+    "rhoUs": 0.0,
+    "rhoY_Air": 0.0,
+    "rhoY_CO2": 0.0,
+    "Us": 0.0,
+    "U": 1.1020259538958945e-39,
+    "nut": 2.710505431213761e-20,
+    "rhoU": 1.4693679385278594e-39,
+    "p": 0.0
+  },
+  "changedDCoefficientRejectedOnRestart": true,
+  "diffusionNoneParity": {
+    "dMeanCell": 0.0,
+    "rhoDs": 0.0,
+    "Y_Air": 0.0,
+    "rhoEs": 0.0,
+    "Y_CO2": 0.0,
+    "epsilonS": 0.0,
+    "k": 0.0,
+    "omega": 0.0,
+    "rho": 0.0,
+    "theta": 0.0,
+    "T": 0.0,
+    "rhoE": 0.0,
+    "rhoUs": 0.0,
+    "rhoY_Air": 0.0,
+    "rhoY_CO2": 0.0,
+    "Us": 0.0,
+    "U": 0.0,
+    "nut": 0.0,
+    "rhoU": 0.0,
+    "p": 0.0
+  },
+  "uniformEncodingParity": {
+    "dMeanCell": 0.0,
+    "rhoDs": 0.0,
+    "Y_Air": 0.0,
+    "rhoEs": 0.0,
+    "Y_CO2": 0.0,
+    "epsilonS": 0.0,
+    "k": 0.0,
+    "omega": 0.0,
+    "rho": 0.0,
+    "theta": 0.0,
+    "T": 0.0,
+    "rhoE": 0.0,
+    "rhoUs": 0.0,
+    "rhoY_Air": 0.0,
+    "rhoY_CO2": 0.0,
+    "Us": 0.0,
+    "U": 0.0,
+    "nut": 0.0,
+    "rhoU": 0.0,
+    "p": 0.0
+  }
+}

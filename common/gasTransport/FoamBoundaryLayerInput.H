@@ -97,14 +97,19 @@ class BoundaryLayerInput
             const auto onPatch=[&](int face){return face>=patch.start()&&face<patch.start()+patch.size();};
             const auto first=std::find_if(faces_.begin(),faces_.end(),onPatch);
             if(first==faces_.end())continue;
-            const scalarList flux(values.lookup("speciesFlux"));
+            if(values.found("speciesFlux")&&values.found("speciesFluxFields"))
+                FatalErrorInFunction<<"Specify speciesFlux or speciesFluxFields on "<<name<<exit(FatalError);
+            const bool fields=values.found("speciesFluxFields");
+            const scalarList flux=fields?scalarList():scalarList(values.lookup("speciesFlux"));
+            if(!fields&&std::size_t(flux.size())!=speciesNames_.size())
+                FatalErrorInFunction<<"speciesFlux must contain one value per species on "<<name<<exit(FatalError);
             for(std::size_t species=0;species<speciesNames_.size();++species)
             {
-                if(species>=std::size_t(flux.size()))
-                    FatalErrorInFunction<<"speciesFlux missing species "<<speciesNames_[species]
-                        <<" at index "<<species<<" on patch "<<name<<exit(FatalError);
+                const scalarField local=fields
+                    ?scalarField(word(speciesNames_[species]),values.subDict("speciesFluxFields"),patch.size())
+                    :scalarField(patch.size(),flux[species]);
                 for(auto face=first;face!=faces_.end();++face)
-                    if(onPatch(*face))speciesFlux_[species*faces_.size()+std::size_t(face-faces_.begin())]=flux[species];
+                    if(onPatch(*face))speciesFlux_[species*faces_.size()+std::size_t(face-faces_.begin())]=local[*face-patch.start()];
             }
         }
     }

@@ -23,10 +23,10 @@ try
     }
     if(!faces || !qOffsets || !mOffsets || !mCells || !geometry || !mWeight || !speciesFlux
         || (a.quadratureCount&&(!qDistance||!qWeight)) || !s->faceOwner || !s->magSf
-        || !s->gasSpecies.diffusivity)
+        || (!s->gasSpecies.diffusivity&&!ugkwp::gasVariableDiffusivity(*s)))
     {setLastErrorText("missing consumed boundaryLayer arrays or species values");return 1;}
-    if(a.wallCount&&a.model==0&&ugkwp::gasVariableViscosity(*s))
-    {setLastErrorText("constantTransport wall is an analytic constant-viscosity limit; select equilibriumOde or reactingSst with Sutherland");return 1;}
+    if(a.wallCount&&a.model==0&&(ugkwp::gasVariableViscosity(*s)||ugkwp::gasVariableDiffusivity(*s)||s->gasViscosity.prandtlSpecies>=0))
+    {setLastErrorText("constantTransport wall is an analytic constant-transport limit; select equilibriumOde or reactingSst for variable transport");return 1;}
     if(a.model>2){setLastErrorText("missing selected boundaryLayer model");return 1;}
     std::vector<int> owners(s->nFaces);
     if(copyToHost(owners.data(),s->faceOwner,owners.size(),"read wall owners"))return 1;

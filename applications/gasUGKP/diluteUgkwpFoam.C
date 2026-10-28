@@ -324,13 +324,13 @@ int main(int argc, char *argv[])
                 &sharedGasModel
             );
             configureResidentSst(resident);
+            resident.configureMolecularTransport(molecularTransport.config());
             resident.configureBoundaryLayer(boundaryLayerInput, runTime, mesh, Tgas);
 
             configureScheduledBoundary(resident);
 
             scalar lastMeasuredCo = scalar(0);
-            resident.configureMolecularTransport(molecularTransport.config());
-        label stepsSinceCourant = gpuResidentCourantUpdateInterval;
+            label stepsSinceCourant = gpuResidentCourantUpdateInterval;
 
 #ifdef UGKWP_STEADY_APPLICATION
             #include "../gasUGKPSteady/steadyGasLoop.H"

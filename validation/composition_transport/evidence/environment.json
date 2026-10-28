@@ -1,0 +1,6 @@
+{
+  "nvcc": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2025 NVIDIA Corporation\nBuilt on Tue_Dec_16_07:23:41_PM_PST_2025\nCuda compilation tools, release 13.1, V13.1.115\nBuild cuda_13.1.r13.1/compiler.37061995_0\n",
+  "gcc": "g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+  "gpu": "name, driver_version, memory.total [MiB]\nNVIDIA GeForce RTX 4060 Laptop GPU, 592.00, 8188 MiB\n",
+  "system": "Linux lss 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux\n"
+}

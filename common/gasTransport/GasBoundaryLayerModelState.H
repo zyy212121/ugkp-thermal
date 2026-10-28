@@ -223,7 +223,7 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
         || !state.gasSpecies.rho || !state.magSf
         || (model.config.enableSst&&(!state.rhoK||!state.rhoOmega)))
         return fail(GasTransportCode::InvalidStorage);
-    if(!state.gasSpecies.diffusivity || (!model.useSuppliedWallState &&
+    if((!state.gasSpecies.diffusivity&&!gasVariableDiffusivity(state)) || (!model.useSuppliedWallState &&
         (!state.riemannBoundaryT || !state.riemannBoundaryUFix
          || (state.riemannBoundaryUFix[face] && (!state.riemannBoundaryUx
              || !state.riemannBoundaryUy || !state.riemannBoundaryUz)))))
@@ -293,7 +293,7 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
         :state.gasMu*matchingCp/state.gasPrClamped;
     in.model.molecularPrandtl=gasHasDirectConductivity(state)?Real(0):state.gasPrClamped;
     in.model.sstCoefficients=state.sstCoefficients;
-    for(int species=0;species<Ns;++species)in.model.diffusivity[species]=state.gasSpecies.diffusivity[species];
+    for(int species=0;species<Ns;++species)in.model.diffusivity[species]=state.gasSpecies.diffusivity?state.gasSpecies.diffusivity[species]:Real(0);
     normalSweepRate=0;
     if constexpr(GasGeometryCapability<State>::value)
         if(gasMovingGeometry(state))

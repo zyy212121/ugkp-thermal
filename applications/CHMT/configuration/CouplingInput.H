@@ -40,7 +40,10 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
         auto names=candidate.gasModel.speciesNames;
         if(candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy)
             names={candidate.model.speciesNames[candidate.model.physics.singleGasSpecies]};
-        const auto transport=Foam::readFoamMolecularTransport(time,time,names);
+        const auto transport=Foam::readFoamMolecularTransport(time,time,
+            candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy?std::vector<std::string>{}:names);
+        if(candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy&&!transport.speciesNames.empty()&&transport.speciesNames!=names)
+            throw std::runtime_error("molecular transport species must match the active legacy gas");
         auto masses=candidate.gasModel.species;
         if(candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy)
             masses={masses[candidate.model.physics.singleGasSpecies]};
@@ -48,6 +51,9 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
         auto& p=candidate.model.physics;
         p.gasViscosityModel=transport.model;p.gasTransportFingerprint=transport.hash;
         p.gasViscositySpecies=int(transport.species.size());
+        p.gasTransportCoefficients=transport.coefficients;
+        p.gasPowerLawEnabled=!transport.diffusion.empty();
+        for(std::size_t j=0;j<transport.diffusion.size();++j)p.gasPowerLaw[j]=transport.diffusion[j];
         if(p.gasViscositySpecies>Ns)throw std::runtime_error("transport species exceed CHMT species count");
         for(int s=0;s<p.gasViscositySpecies;++s)p.gasSutherland[s]=transport.species[s];
         for(std::size_t i=0;i<transport.massRatioQuarter.size();++i){

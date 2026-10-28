@@ -1,0 +1,84 @@
+{
+  "cht-mixture": {
+    "seconds": 1.0137223179990542,
+    "restart": {
+      "dMeanCell": 0.0002,
+      "rhoDs": 0.0,
+      "rhoEs": 0.0,
+      "Y_S1": 0.0,
+      "Y_S0": 0.0,
+      "epsilonS": 0.0,
+      "particleStuckWallHeatFlux": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "theta": 0.0,
+      "particleReflectedWallHeatFlux": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoHp": 0.0,
+      "rhoUs": 0.0,
+      "particleRadiationWallHeatFlux": 0.0,
+      "rhoY_S1": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "gasConvectiveWallHeatFlux": 0.0,
+      "p": 0.0,
+      "rhoY_S0": 0.0,
+      "Tp": 1.0,
+      "solid/T": 0.0
+    },
+    "changedCoefficientRejected": true
+  },
+  "cht-wall": {
+    "seconds": 0.7119910799992795,
+    "restart": {
+      "dMeanCell": 0.0002,
+      "rhoDs": 0.0,
+      "rhoEs": 0.0,
+      "Y_S1": 0.0,
+      "Y_S0": 0.0,
+      "epsilonS": 0.0,
+      "particleStuckWallHeatFlux": 0.0,
+      "k": 0.0,
+      "omega": 0.0,
+      "rho": 0.0,
+      "theta": 0.0,
+      "particleReflectedWallHeatFlux": 0.0,
+      "T": 0.0,
+      "rhoE": 0.0,
+      "rhoHp": 0.0,
+      "rhoUs": 0.0,
+      "particleRadiationWallHeatFlux": 0.0,
+      "rhoY_S1": 0.0,
+      "Us": 0.0,
+      "U": 0.0,
+      "nut": 0.0,
+      "rhoU": 0.0,
+      "gasConvectiveWallHeatFlux": 0.0,
+      "p": 0.0,
+      "rhoY_S0": 0.0,
+      "Tp": 1.0,
+      "solid/T": 0.0
+    },
+    "changedCoefficientRejected": true
+  },
+  "chmt-mixture": {
+    "seconds": 0.5014777280011913,
+    "restart": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 2
+    },
+    "changedCoefficientRejected": true
+  },
+  "chmt-diffusion": {
+    "seconds": 0.4643299310009752,
+    "restart": {
+      "state_payload_bitwise_equal": true,
+      "accepted_step": 2
+    },
+    "changedCoefficientRejected": true
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "samples": 126,
+  "maximumRelativeError": {
+    "mu": 4.2188683749791693e-16,
+    "kappa": 4.83200671159568e-16,
+    "D": 2.899555435333248e-16,
+    "diffusive_flux": 4.742761411378229e-16,
+    "enthalpy_flux": 1.4061172239005754e-15,
+    "wall_energy": 1.5684914051923725e-15
+  },
+  "correctedSpeciesSum": 0
+}

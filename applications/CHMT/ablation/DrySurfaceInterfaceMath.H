@@ -40,8 +40,9 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
     const Real solidRatio=in.hasSolid ? in.solidArea/in.area : 0;
     result.wet=false;
     result.topTemperature=topT;
-    const Real gasConductance=p.gasConductivity>0
-        ? 1/(in.gasDistance/p.gasConductivity+p.material.gasContactResistance) : 0;
+    const Real gasConductivity=gasMolecularConductivity(p,topT,in.bulk.Y);
+    const Real gasConductance=gasConductivity>0
+        ? 1/(in.gasDistance/gasConductivity+p.material.gasContactResistance) : 0;
     const Real solidConductance=in.hasSolid && material.conductivity>0
         ? 1/(in.solidDistance/material.conductivity+p.material.solidContactResistance) : 0;
     result.radiationFlux=gasRatio*grayRadiation(topT,p);
@@ -226,7 +227,7 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
     const Real gasKE=0.5*dot(result.gasState.velocity,result.gasState.velocity);
     result.gasAdvective+=primaryJ*gasKE;
     result.poreEnergy+=poreJ*gasKE;
-    result.gasConductive=gasRatio*(p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
+    result.gasConductive=gasRatio*((p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer||p.gasTransportCoefficients.prandtlSpecies>=0)
         ?wallClosure.conductiveHeatFlux:gasConductance*(topT-in.bulk.temperature));
     result.gasPressureWork=gasRatio*mechanicalPressure*result.gasWallSpeed;
     result.gasViscousWork=-gasRatio*dot(result.traction,result.gasState.velocity);

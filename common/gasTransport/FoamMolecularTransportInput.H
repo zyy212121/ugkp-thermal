@@ -16,7 +16,7 @@ public:
                 if(std::string(Foam::word(previous.lookup("transportHash")).c_str())!=("v1_"+std::to_string(config_.hash)))
                     throw std::runtime_error("restart molecular transport model/coefficients differ from saved identity");
             }else if(time.value()!=0&&config_.hash)
-                throw std::runtime_error("Sutherland restart requires gasTransportIdentity in the start-time directory");
+                throw std::runtime_error("Variable molecular transport restart requires gasTransportIdentity in the start-time directory");
             identity_.reset(new IOdictionary(IOobject("gasTransportIdentity",time.timeName(),mesh,IOobject::NO_READ,IOobject::AUTO_WRITE)));
             identity_().set("transportHash",Foam::word(("v1_"+std::to_string(config_.hash))));
         }catch(const std::exception& e){FatalErrorInFunction<<e.what()<<exit(FatalError);}

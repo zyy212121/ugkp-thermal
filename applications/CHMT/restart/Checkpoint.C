@@ -670,8 +670,8 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
         const auto configEnd=decoder.offset+configSize,stateEnd=configEnd+stateSize;
         if(schema<checkpointSchema){
             // Schemas 6--8 predate molecular transport; preserve their physical payloads.
-            if(expected.physics.gasViscosityModel!=ugkwp::MolecularViscosityModel::Constant)
-                throw std::runtime_error("legacy checkpoint has const molecular transport; cannot resume with Sutherland");
+            if(expected.physics.gasTransportFingerprint!=0)
+                throw std::runtime_error("legacy checkpoint has const molecular transport; cannot resume with variable molecular transport");
             decoder.offset=configEnd;
         }else{
             ModelConfig saved;decoder(saved);

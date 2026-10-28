@@ -98,6 +98,13 @@ template<class R,int N,class T> UGKWP_GAS_HD inline R wallMolecularViscosity(
  const WallInput<R,N,T>& in,R temperature,const R* Y){
  return ugkwp::molecularViscosity<N>(in.model.molecularViscosity,in.model.viscosity,temperature,Y);
 }
+template<class R,int N,class T> UGKWP_GAS_HD inline R wallMolecularPrandtl(const WallInput<R,N,T>& in,const R* Y){
+    // An explicitly supplied conductivity retains the existing precedence.
+    return in.model.molecularPrandtl>0?ugkwp::molecularPrandtl<N>(in.model.molecularViscosity,in.model.molecularPrandtl,Y):R(0);
+}
+template<class R,int N,class T> UGKWP_GAS_HD inline R wallMolecularDiffusivity(const WallInput<R,N,T>& in,int j,R temperature,R pressure){
+    return ugkwp::molecularDiffusivity(in.model.molecularViscosity,j,in.model.diffusivity[j],temperature,pressure);
+}
 namespace detail {
 template<class R> UGKWP_GAS_HD inline R abs(R x){return x<0?-x:x;}
 template<class R> UGKWP_GAS_HD inline R max(R x,R y){return x>y?x:y;}

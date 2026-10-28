@@ -1,0 +1,32 @@
+{
+  "baseline": "4769b52e0fb294f3c3398201472d9320e42583b5",
+  "sameFailedTests": true,
+  "failedCount": 25,
+  "failures": [
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[boundary]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[diffusion]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[diffusion_metadata]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[face_count_labels]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[face_diffusion]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[face_metadata]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[face_nan]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[face_status]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[invalid_selector]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[legacy_moving_nan]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[legacy_periodic]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[legacy_positivity]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[muscl]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[partial_face_calorics]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[partial_linear_enthalpy]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[partial_nasa_enthalpy]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[periodic]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[positivity]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_actual_face_producer_completion[subgrid]",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_b2_original_success_bits",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_muscl_keeps_all_65_attempts_and_last_complete_fallback",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_original_cv_only_overflow_success_bytes",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_original_energy_only_capacity_overflow_success_bytes",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_original_nonfinite_transport_skip_bytes",
+    "validation/tests/gas_transport/test_face_producer_completion.py::test_small_actual_cuda_face_compilation_when_available"
+  ]
+}

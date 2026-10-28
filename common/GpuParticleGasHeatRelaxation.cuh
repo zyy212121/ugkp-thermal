@@ -7,7 +7,7 @@ __device__ __forceinline__ GPU_OPERATOR_REAL particleTemperatureAfterGasRelaxati
 {
     const GPU_OPERATOR_REAL conductivity = molecularGasConductivity(s,c,gasTemperature);
     const GPU_OPERATOR_REAL nu = ugkwp::ranzMarshallNuFromPrOneThird
-        (clampMin(reynolds, GPU_OPERATOR_R(0.0)), s.gasPrOneThird);
+        (clampMin(reynolds, GPU_OPERATOR_R(0.0)), ugkwp::gasCellPrandtlOneThird(s,c));
     const GPU_OPERATOR_REAL rate = GPU_OPERATOR_R(6.0)*nu*conductivity
         /(volumetricHeatCapacity*diameter*diameter + GPU_OPERATOR_TINY(1.0e-300));
     const GPU_OPERATOR_REAL decay = exp(-clampMin(rate, GPU_OPERATOR_R(0.0))*dt);

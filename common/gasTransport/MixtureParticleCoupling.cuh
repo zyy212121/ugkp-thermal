@@ -59,7 +59,7 @@ __device__ double heatFraction(const State&s,int c,int i,double dt)
     const double dx=s.Ux[c]-s.pux[i],dy=s.Uy[c]-s.puy[i],dz=s.Uz[c]-s.puz[i];
     const double mu=ugkwp::gasCellMolecularViscosityAt(s,c,s.Tgas[c]);
     const double re=s.rho[c]*s.pd[i]*sqrt(dx*dx+dy*dy+dz*dz)/fmax(mu,1e-30);
-    const double nu=ugkwp::ranzMarshallNuFromPrOneThird(fmax(0.,re),s.gasPrOneThird);
+    const double nu=ugkwp::ranzMarshallNuFromPrOneThird(fmax(0.,re),ugkwp::gasCellPrandtlOneThird(s,c));
     const double rate=6*nu*molecularGasConductivity(s,c,s.Tgas[c])
         /(s.particleThermalCapacity*s.pd[i]*s.pd[i]+1e-300);
     return -expm1(-fmax(0.,rate)*dt);

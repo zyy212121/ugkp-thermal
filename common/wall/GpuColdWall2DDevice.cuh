@@ -836,7 +836,7 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
                     rhoG*particleDiameterM*sqrt(sqr3(ugx, ugy, ugz))
                    /clampMin(ugkwp::gasCellMolecularViscosityAt(s,cellI,gasTemperatureK), GPU_R(1.0e-30));
                 const GpuReal nusselt =
-                    GPU_R(2.0) + GPU_R(0.6)*sqrt(clampMin(re, GPU_R(0.0)))*s.gasPrOneThird;
+                    GPU_R(2.0) + GPU_R(0.6)*sqrt(clampMin(re, GPU_R(0.0)))*ugkwp::gasCellPrandtlOneThird(s,cellI);
                 const GpuReal particleCp =
                     particleSpecificHeatDevice(particleTemperatureK);
                 const GpuReal rate =

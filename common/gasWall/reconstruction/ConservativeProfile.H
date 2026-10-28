@@ -120,14 +120,14 @@ struct Profile {
     }
     double conductivity =
         in.model.molecularPrandtl > 0
-            ? wall.mu * wall.cp / in.model.molecularPrandtl
+            ? wall.mu * wall.cp / wallMolecularPrandtl(in,wall.Y)
             : in.model.conductivity;
     wallSlopeDelta[2] = -out.conductiveHeatFlux / conductivity -
                         (w.state[1][2] - w.state[0][2]) / dy;
     d::LayerPoint<double, 2> edge;
     d::pointState(in, cfg, ctx, w.state[1], edge);
-    double D = wall.rho * (in.model.diffusivity[0] * wall.Y[1] +
-                           in.model.diffusivity[1] * wall.Y[0]);
+    double D = wall.rho * (wallMolecularDiffusivity(in,0,wall.T,in.pressure) * wall.Y[1] +
+                           wallMolecularDiffusivity(in,1,wall.T,in.pressure) * wall.Y[0]);
     if (D > 0)
       wallSpeciesSlopeDelta0 = -(in.massFlux[0] - ctx.mass * wall.Y[0]) / D -
                                (edge.Y[0] - wall.Y[0]) / dy;
@@ -147,12 +147,12 @@ struct Profile {
       basis.tangentSlope[t] = (w.state[1][t] - w.state[0][t]) / dy;
     basis.viscosity = wall.mu;
     basis.conductivity = in.model.molecularPrandtl > 0
-        ? wall.mu * wall.cp / in.model.molecularPrandtl
+        ? wall.mu * wall.cp / wallMolecularPrandtl(in,wall.Y)
         : in.model.conductivity;
     basis.temperatureSlope = (w.state[1][2] - w.state[0][2]) / dy;
     d::pointState(in, cfg, ctx, w.state[1], edge);
-    const double D = wall.rho * (in.model.diffusivity[0] * wall.Y[1] +
-                                in.model.diffusivity[1] * wall.Y[0]);
+    const double D = wall.rho * (wallMolecularDiffusivity(in,0,wall.T,in.pressure) * wall.Y[1] +
+                                wallMolecularDiffusivity(in,1,wall.T,in.pressure) * wall.Y[0]);
     basis.correctSpecies = D > 0;
     if (basis.correctSpecies)
       basis.speciesSlope = -(in.massFlux[0] - ctx.mass * wall.Y[0]) / D -
@@ -763,7 +763,7 @@ struct Profile {
   UGKWP_GAS_HD bool fitTeam(ProfileScratch& scratch,const Team& team) {
     affineHelpersOk=affineRawFinite=true;affineSpeciesMode=0;affineSpeciesA=affineSpeciesB=0;affineMomentEvaluations=affineIterations=affineSamples=0;
     int requested=0;
-    if(cfg.coherentDiscretization&&segments.size()==2&&in.model.mode==ugkwp::GasMode::MixtureFrozen&&in.massFlux[0]==0&&in.massFlux[1]==0&&in.model.diffusivity[0]>0&&in.model.diffusivity[0]==in.model.diffusivity[1]) {
+    if(!in.model.molecularViscosity.diffusion&&cfg.coherentDiscretization&&segments.size()==2&&in.model.mode==ugkwp::GasMode::MixtureFrozen&&in.massFlux[0]==0&&in.massFlux[1]==0&&in.model.diffusivity[0]>0&&in.model.diffusivity[0]==in.model.diffusivity[1]) {
       bool interior=in.matching.massFraction[0]>0&&in.matching.massFraction[1]>0;
       for(const auto& seg:segments)interior=interior&&seg.target[7]>0&&seg.target[8]>0;
       if(interior)requested=1;
