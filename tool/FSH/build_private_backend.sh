@@ -8,6 +8,7 @@ set -euo pipefail
 cd "${solver_root}"
 
 cuda_home="${CUDA_HOME:-/usr/local/cuda}"
+source "$source_root/tool/cuda_build_flags.sh"
 cuda_arch="${UGKWP_CUDA_ARCH:-sm_89}"
 log_phase="${UGKWP_CUDA_LOG_PHASE:-fsh_finite_contact}"
 development_probes="${UGKP_DEVELOPMENT_PROBES:-0}"
@@ -61,7 +62,7 @@ log="${log_dir}/separated_build_$(date +%Y%m%d_%H%M%S).log"
 
     rm -f "${obj_dir}"/*.o "${backend_lib}"
 
-    "${cuda_home}/bin/nvcc" \
+    "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" \
         -std=c++17 \
         -O3 \
         "${probe_nvcc_flags[@]}" \

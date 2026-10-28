@@ -1,0 +1,46 @@
+Local complete build (OpenFOAM 10 + CUDA)
+
+From this solver checkout:
+    bash tool/build_local.sh > build.log 2>&1
+    source env.sh
+    command -v gasUGKP gasUGKPSteady FSH CHT CHMT
+
+The build is sequential and produces bin/gasUGKP, bin/gasUGKPSteady,
+bin/FSH, bin/FSHCudaBackend, bin/CHT and bin/CHMT. Objects/static archives
+stay under each application's directory. It does not reuse another checkout's
+build outputs. env.sh puts these binaries first in PATH and selects ../case
+for validation tools. Keep the complete solver directory, including its common
+sources and relative symlinks. No files under the old work/ directory are needed.
+
+External toolchain dependencies remain necessary: OpenFOAM 10 and its libraries,
+CUDA toolkit/runtime, the NVIDIA driver, a compatible C++ compiler, Python 3,
+and standard build utilities. This workspace uses /opt/openfoam10 and
+/usr/local/cuda. OPENFOAM_BASHRC and CUDA_HOME can select another installation. The local build
+uses CUDA_HOME/bin/nvcc directly, so an old NVCC wrapper export cannot introduce
+a dependency on a previous checkout. env.sh also selects the sibling FSH backend.
+
+Defaults: UGKWP_GAS_SPECIES=2, UGKWP_CUDA_ARCH=sm_89. CHMT follows
+UGKWP_CUDA_ARCH unless CHMT_CUDA_ARCH is explicitly supplied. Species count is
+a compiled storage dimension; rebuild every application when changing it.
+
+CUDA build policy: the default UGKWP_CUDA_FAST_COMPILE=min uses NVIDIA's
+minimal fast-compilation level. Each application's optimization level,
+precision and FMA setting is retained, but some costly compiler optimizations
+are disabled. A toolkit supporting --Ofast-compile is required for this mode;
+CUDA 13.1 is the validated version. Other explicit levels are 0, mid and max.
+Level 0 restores unrestricted compiler optimization and may require far more
+memory. No automatic retry or fallback compiler is used.
+
+On this 16 GB host (WSL memory=12 GB, swap=4 GB), ordinary optimization and a
+separate attempt disabling expensive ptxas optimizations both exhausted memory.
+The min experiment compiled gasUGKP with a measured 1.15 GiB peak RSS. Changing
+compiler optimization policy is not a runtime speedup guarantee; validate the
+numerical output and measure the actual application case.
+NVIDIA option reference:
+https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/#ofast-compile-level-ofc
+
+Direct Allwmake and individual application build scripts remain supported and
+honor FOAM_USER_APPBIN. tool/build_local.sh pins outputs to this checkout and
+uses one host compilation worker by default. Capture its exit status; an
+executable from an earlier successful build is not proof of a new successful
+build. The summary lists hashes only after every application build succeeds.

@@ -56,6 +56,8 @@ if [ ! -x "$CUDA_ROOT/bin/nvcc" ]; then
     exit 1
 fi
 
+export CUDA_HOME="$CUDA_ROOT"
+
 echo "UGKWP_CUDA_EXE_INC=$UGKWP_CUDA_EXE_INC"
 echo "CUDA compiler: $CUDA_ROOT/bin/nvcc"
 "$CUDA_ROOT/bin/nvcc" --version | tail -n 1
