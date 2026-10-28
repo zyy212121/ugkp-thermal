@@ -13,7 +13,12 @@ h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
 
 
 def source(path, revision=None):
-    return subprocess.check_output(['git','show',revision+':'+path],cwd=ROOT,text=True) if revision else (ROOT/path).read_text()
+    if revision:
+        path=path.replace('common/thermal/','applications/CHT/gpu/')
+        return subprocess.check_output(['git','show',revision+':'+path],cwd=ROOT,text=True)
+    if path.startswith('applications/CHT/gpu/') and (ROOT/path.replace('applications/CHT/gpu/','common/thermal/')).exists():
+        path=path.replace('applications/CHT/gpu/','common/thermal/')
+    return (ROOT/path).read_text()
 
 
 def native(revision=None, restore_stub=True):
@@ -126,7 +131,7 @@ void recordAccumulation(double*e,const double*f,const int*ids,int n,double dt){A
 int advanceGasFluxStage(DeviceState*s,double dt,double){return ugkpAccumulateGasWallEnergy64(&s->wallEnergy,dt,s->gasCaptureStream);}
 int finaliseGasBoundaryStage(DeviceState*,double,double){return 0;}
 '''
-    helper=h.block(source('applications/CHT/gpu/GpuResidentStrict.cu'),'extern "C" int ugkpInvalidateGasWallEnergyGraph')
+    helper=h.block(source('common/thermal/GpuResidentStrict.cu'),'extern "C" int ugkpInvalidateGasWallEnergyGraph')
     helper=helper.replace('DeviceState* s = asState(handle);','DeviceState* s = static_cast<DeviceState*>(handle);')
     advance=h.block(source('common/GpuGasAdvance.cuh'),'int advancePureGasGraph')
     return s+graph+helper+'\ntemplate<class GasHostState>\n'+advance

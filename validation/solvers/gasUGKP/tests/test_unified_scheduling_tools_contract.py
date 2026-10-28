@@ -26,7 +26,7 @@ BRANCHES = {
     "CHT": (
         ROOT / "applications/CHT/readGpuGasConfiguration.H",
         ROOT / "applications/CHT/gpu/GpuResidentStrict.H",
-        ROOT / "applications/CHT/gpu/GpuResidentStrict.cu",
+        ROOT / "common/thermal/GpuResidentStrict.cu",
     ),
 }
 

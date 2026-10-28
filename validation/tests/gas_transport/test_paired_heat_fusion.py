@@ -339,7 +339,7 @@ def fusion_binary( tmp_path_factory):
     two = (ROOT/'common/wall/GpuColdWall2DDevice.cuh').read_text()
     (build/'actual_cold_2d_clear.cuh').write_text(function(two, '__device__ void clearColdWall2DParticleState')
         + function(two, '__device__ void initialiseColdWall2DParticleState'))
-    backend = (ROOT/'applications/CHT/gpu/GpuResidentStrict.cu').read_text()
+    backend = (ROOT/'common/thermal/GpuResidentStrict.cu').read_text()
     (build/'actual_mobile_finalizer.cuh').write_text(function(backend, '__device__ void finalizeOneThermalizedMobileParticle'))
     seed = (ROOT/'common/operators/snapshotParticleGasCouplingStateKernel.cuh').read_text()
     (build/'actual_rng.cuh').write_text(function(seed, '__device__ unsigned long long mixSeed')

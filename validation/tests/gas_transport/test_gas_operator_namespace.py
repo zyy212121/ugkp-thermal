@@ -16,7 +16,7 @@ HERE=(VALIDATION_ROOT / 'tests/gas_transport')
 @pytest.mark.parametrize('consumer',[
     'applications/gasUGKP/private_backend/GpuResidentStrict.cu',
     'applications/FSH/private_backend/GpuResidentStrict.cu',
-    'applications/CHT/gpu/GpuResidentStrict.cu',
+    'common/thermal/GpuResidentStrict.cu',
     'applications/CHMT/gpu/Backend.cu',
 ])
 def test_shared_headers_are_global_before_legacy_operator_namespace(tmp_path,consumer):

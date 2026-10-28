@@ -17,7 +17,7 @@ from test_actual_particle_energy_budget import particle_fixture
 from test_mixture_state import HERE, ROOT
 
 
-OWNER = ROOT / "applications/CHT/gpu/GpuResidentStrict.cu"
+OWNER = ROOT / "common/thermal/GpuResidentStrict.cu"
 
 
 def braced_function(text, signature):
@@ -54,7 +54,7 @@ def test_actual_advance_source_order_and_time_arguments():
         assert f"applyCollisionalPressureKick<{half}>(s, GPU_R(0.5)*dt" in body
     assert re.search(r"advanceOneStep\s*\(\s*runTime.deltaTValue\(\),\s*runTime.value\(\)",
                      (ROOT / "applications/CHT/diluteUgkwpFoam.C").read_text())
-    wrapper = braced_function((OWNER.parent/"GpuResidentStrict.H").read_text(), "void advanceOneStep(")
+    wrapper = braced_function((ROOT/"applications/CHT/gpu/GpuResidentStrict.H").read_text(), "void advanceOneStep(")
     assert "ugkwpGpuResidentStrictAdvance(handle_, dt, simulationTime)" in wrapper
     assert 'extern "C" int ugkwpGpuResidentStrictAdvance' in OWNER.read_text()
 
@@ -393,7 +393,7 @@ def test_opt_in_native_cuda_full_heat_advance(tmp_path):
     path = tmp_path / "full_heat_advance.cu"
     path.write_text(native_cuda_fixture())
     executable = tmp_path / "full_heat_advance"
-    app = ROOT / "applications/CHT/gpu"
+    app = OWNER.parent
     nvcc = str(Path(os.environ.get("CUDA_HOME", "/usr/local/cuda")) / "bin/nvcc")
     command = [nvcc, "-std=c++17", "-O1", "--fmad=false", "--expt-relaxed-constexpr", "--Ofast-compile=min",
                "-arch="+os.environ.get("UGKWP_CUDA_ARCH", "sm_89"), "-I"+str(app), "-I"+str(ROOT/"common"), str(path), str(app/"GpuWallEnergy64.cu"),

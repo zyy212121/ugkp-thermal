@@ -1383,6 +1383,31 @@
       "path": "common/gasTransport/WallHeatExposure.H",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/GpuWallEnergy64.cu",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/GpuResidentStrict.cu",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/GpuParticleRadiationMath.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/GpuBackendApi.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/GpuWallEnergy64.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
     }
   ],
   "local_only": {
