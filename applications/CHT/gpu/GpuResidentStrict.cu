@@ -4278,6 +4278,8 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 )
 {
 
+    // Legacy/particle callers pass the committed interval end. Transport RK
+    // stages start at simulationTime-dt; injection and publication retain the end.
     DeviceState* s = asState(handle);
     if (validateState(s, "advance") != 0)
     {
@@ -4286,7 +4288,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     // Legacy launch tuning cannot consume a mixture/ODE wall before its
     // first prepared profile. The shared stage selects its own valid launch.
     if(ugkwp::mixtureGasActive(*s))return advanceChtSharedGas(s,dt,simulationTime);
-    if (tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
+    if (tuneFixedWorkBlockThreads(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -4299,7 +4301,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         s->gasGraphMode = !value || std::strcmp(value, "1") == 0;
     }
     if (s->gasGraphMode && !s->particlesMayBePresent && !s->gravityEnabled)
-        return advancePureGasGraph(s, dt, simulationTime);
+        return advancePureGasGraph(s, dt, simulationTime-dt);
 #endif
 
     const int block = s->reductionBlockThreads;
@@ -4338,7 +4340,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     {
         return 1;
     }
-    if (advanceGasFluxStage(s, dt, simulationTime) != 0)
+    if (advanceGasFluxStage(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -4971,6 +4973,8 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
 )
 {
 
+    // Legacy/particle callers pass the committed interval end. Transport RK
+    // stages start at simulationTime-dt; injection and publication retain the end.
     DeviceState* s = asState(handle);
     if (validateState(s, "pure-gas advance") != 0)
     {
@@ -4979,14 +4983,14 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
     // Legacy launch tuning cannot consume a mixture/ODE wall before its
     // first prepared profile. The shared stage selects its own valid launch.
     if(ugkwp::mixtureGasActive(*s))return advanceChtSharedGas(s,dt,simulationTime);
-    if (tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
+    if (tuneFixedWorkBlockThreads(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
 
 
 
-    if (advanceGasFluxStage(s, dt, simulationTime) != 0)
+    if (advanceGasFluxStage(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }

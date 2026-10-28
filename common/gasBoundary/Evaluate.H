@@ -19,6 +19,11 @@ UGKP_RESIDENT_BOUNDARY_HD inline bool totalState(const Face& f,const double* val
         out.uz=un*nz+values[Uz]-tangentNormal*nz;
     }
     const double kinetic=inflow?.5*(out.ux*out.ux+out.uy*out.uy+out.uz*out.uz):0;
+    // OpenFOAM totalPressure subtracts the prescribed tangentialVelocity's
+    // kinetic energy (the supplied vector, before normal projection). Total
+    // temperature still uses the complete boundary velocity.
+    const double pressureKinetic=kinetic-(inflow&&f.uMode==int(Velocity::PressureInletOutlet)
+        ?.5*(values[Ux]*values[Ux]+values[Uy]*values[Uy]+values[Uz]*values[Uz]):0);
     if(f.tMode==int(Scalar::Fixed))out.T=values[Temperature];
     if(f.tMode==int(Scalar::Total))
         out.T=values[Temperature]-kinetic*(f.temperatureGamma-1)/(f.temperatureGamma*R);
@@ -28,8 +33,8 @@ UGKP_RESIDENT_BOUNDARY_HD inline bool totalState(const Face& f,const double* val
         const double psi=1/(R*out.T);
         if(f.compressiblePressure&&f.pressureGamma>1) {
             const double g=(f.pressureGamma-1)/f.pressureGamma;
-            out.p=values[Pressure]/::pow(1+psi*g*kinetic,1/g);
-        } else out.p=values[Pressure]/(1+psi*kinetic);
+            out.p=values[Pressure]/::pow(1+psi*g*pressureKinetic,1/g);
+        } else out.p=values[Pressure]/(1+psi*pressureKinetic);
     } else if(f.rhoMode&& !f.pMode)out.p=values[Density]*R*out.T;
     out.rho=out.p/(R*out.T);
     return out.p>0&&out.rho>0&&std::isfinite(out.p)&&std::isfinite(out.T)

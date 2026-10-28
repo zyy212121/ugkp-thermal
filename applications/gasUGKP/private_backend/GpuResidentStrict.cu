@@ -4838,6 +4838,9 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     double simulationTime
 )
 {
+    // Legacy/particle callers pass the committed interval end. Transport RK
+    // stages start at simulationTime-dt; injection and publication retain the end.
+    // A pure-mixture requested interval has its own start-time adapter below.
     DeviceState* s = asState(handle);
     if (validateState(s, "advance") != 0)
     {
@@ -4859,7 +4862,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         !s->gasSteadyBoundaryFrozen &&
 #endif
         s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy
-        && tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
+        && tuneFixedWorkBlockThreads(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -4872,7 +4875,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     }
     if (s->gasSpecies.mode == ugkwp::GasMode::SingleLegacy
         && s->gasGraphMode && !s->particlesMayBePresent && !s->hostGravityActive)
-        return advancePureGasGraph(s, dt, simulationTime);
+        return advancePureGasGraph(s, dt, simulationTime-dt);
 #endif
 
     const int block = s->reductionBlockThreads;
@@ -4904,7 +4907,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 #endif
 
     UGKP_DEV_PROBE_ENTER(ProbeGasFlux);
-    if (advanceGasFluxStage(s, dt, simulationTime) != 0)
+    if (advanceGasFluxStage(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -5434,6 +5437,9 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
     double simulationTime
 )
 {
+    // Legacy/particle callers pass the committed interval end. Transport RK
+    // stages start at simulationTime-dt; injection and publication retain the end.
+    // A pure-mixture requested interval has its own start-time adapter below.
     DeviceState* s = asState(handle);
     if (validateState(s, "pure-gas advance") != 0)
     {
@@ -5444,7 +5450,7 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
         !s->gasSteadyBoundaryFrozen &&
 #endif
         s->gasSpecies.mode == ugkwp::GasMode::SingleLegacy
-        && tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
+        && tuneFixedWorkBlockThreads(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -5470,12 +5476,12 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
         s->gasGraphMode = !value || std::strcmp(value, "1") == 0;
     }
     if (s->gasGraphMode && !s->particlesMayBePresent && !s->hostGravityActive)
-        return advancePureGasGraph(s, dt, simulationTime);
+        return advancePureGasGraph(s, dt, simulationTime-dt);
 #endif
 
     if
     (
-        advanceGasFluxStage(s, dt, simulationTime) != 0
+        advanceGasFluxStage(s, dt, simulationTime-dt) != 0
     )
     {
         return 1;
