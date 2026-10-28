@@ -48,6 +48,9 @@ extern "C" int ugkwpGpuResidentStrictAccumulateSamplingWindow(void* handle,doubl
 {
     DeviceState* s=asState(handle);
     const int block=s->fixedCellBlockThreads,grid=(s->nCells+block-1)/block;
+    // Consume the physical step's diagnostics before accepting its sample or
+    // letting the frontend advance sampling time and publish restart fields.
+    if(SharedGasTrialPolicy::complete(s))return 1;
     accumulateSteadySampleWindowKernel<<<grid,block>>>(s->deviceState,dt);
     const auto err=cudaGetLastError();
     if(err!=cudaSuccess){setLastError("accumulate steady sample window",err);return 1;}

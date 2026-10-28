@@ -163,3 +163,36 @@ for(int c=0;c<2;++c){closeValue(full.rhoUx[c],split.rhoUx[c],1e-14,"indexed spli
 for(int i=0;i<3;++i){closeValue(full.pux[i],split.pux[i],1e-14,"indexed split parcel once");closeValue(full.pTheta[i],split.pTheta[i],1e-14,"indexed split theta once");closeValue(full.pT[i],split.pT[i],1e-12,"indexed split heat once");}
 }
 '''.replace('INJECT','true' if injected else 'false'))
+
+
+@pytest.mark.parametrize('directory',['scan','csr','split'])
+def test_heat_failure_publishes_current_step_fatal(tmp_path,directory):
+    compile_probe(tmp_path,paired_fixture()+r"""
+#include "DiagnosticsHost.H"
+int main(){PairedState s;setup(s);
+auto* coeff=const_cast<Real*>(s.gasSpecies.thermo.coefficients);
+coeff[0]=coeff[3]=1000;coeff[1]=coeff[2]=coeff[4]=coeff[5]=0;
+s.count=1;s.pStatus[1]=s.pStatus[2]=0;
+s.cellParticleOffset[1]=s.cellParticleOffset[2]=1;
+s.preBaseCellOffset[1]=s.preBaseCellOffset[2]=1;
+SPLIT_OFFSETS
+s.pm[0]=1;s.pd[0]=1e-6;s.pT[0]=10000;s.TpMax=10000;
+s.pux[0]=s.puy[0]=s.puz[0]=0;s.epsGPrev[0]=1-s.pm[0]/(s.rhoSolid*s.V[0]);
+s.rhoUx[0]=s.rhoUy[0]=s.rhoUz[0]=s.Ux[0]=s.Uy[0]=s.Uz[0]=0;
+Real species[2]={s.gasSpecies.rho[0],s.gasSpecies.rho[2]};
+s.rhoE[0]=ugkwp::mixtureEnergy(species,Real(1000),s.gasSpecies.thermo);s.Tgas[0]=1000;
+ugkp::diagnostics::DeviceContext diagnostics{};s.diagnostics=&diagnostics;s.gasSpecies.thermo.diagnostics=&diagnostics;
+const double oldEnergy=s.rhoE[0];threadIdx.x=0;
+steadyMixtureParticleCouplingKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag>(&s,2e-5,false,CSR,SPLIT);
+ck(s.gasSpecies.cellStatus[0]==int(ugkwp::ThermoStatus::TemperatureOutOfRange),"expected invalid gas root");
+ck(s.rhoE[0]==oldEnergy && s.pT[0]==10000,"failure partially published heat");
+recoverGasPrimitivesKernel(&s);
+const auto snapshot=ugkp::diagnostics::takeSnapshot(diagnostics,{},"paired-heat-test");
+ck(snapshot.hasFatal,"current completion lacks fatal without a subsequent flux");
+const auto& fatal=diagnostics.firstFatal;
+ck(fatal.code==ugkp::diagnostics::Code::InvalidPhysicalState,"wrong failure code");
+ck(fatal.entityKind==ugkp::diagnostics::EntityKind::Cell && fatal.entityIndex==0,"lost failing cell");
+ck(fatal.metadata==unsigned(ugkwp::ThermoStatus::TemperatureOutOfRange),"lost thermo status");
+}
+""".replace('SPLIT_OFFSETS','s.cellParticleOffset[1]=s.cellParticleOffset[2]=0;' if directory=='split' else '')
+       .replace('CSR','false' if directory=='scan' else 'true').replace('SPLIT','true' if directory=='split' else 'false'))

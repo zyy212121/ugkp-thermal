@@ -138,6 +138,13 @@ __global__ void steadyMixtureParticleCouplingKernel
         if(status!=ugkwp::ThermoStatus::Success)
         {
             s.gasSpecies.cellStatus[c]=static_cast<int>(status);
+            // A failed physical exchange must reach this step's completion,
+            // including the final sample, without waiting for another flux.
+            using namespace ugkp::diagnostics;
+            auto failure=makeRecord(Code::InvalidPhysicalState,30700,0,0,
+                EntityKind::Cell,c,-1,static_cast<int>(status));
+            failure.metadata=static_cast<unsigned>(status);
+            recordFatal(s.diagnostics,failure);
             return;
         }
         double heat=0;
