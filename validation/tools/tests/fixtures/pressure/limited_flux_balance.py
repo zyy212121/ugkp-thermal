@@ -8,7 +8,7 @@ src=root/'applications'/branch/folder/'GpuResidentStrict.cu'
 raw=src.read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (root/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (root/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "");a=raw.index('struct DeviceState');b=raw.index('\n};',a);d=raw[a:b]
 ptr=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|unsigned int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',d,re.M)
 ptr=[(t,n) for t,n in ptr if n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount']]
-if branch == 'gasUGKP' and mode == 'unsorted':ptr.append(('PressureProjectionCell','pressureProjectionCache'))
+if branch in ['gasUGKP','CHT'] and mode == 'unsorted':ptr.append(('PressureProjectionCell','pressureProjectionCache'))
 ptr=[(t,n) for t,n in ptr if not n.startswith('flatPressure')]
 txt='#include "GpuResidentStrict.cu"\n#include <cstdio>\n#include <new>\n#include <cstdlib>\n'
 txt+=r'''
@@ -17,7 +17,11 @@ template<class T> void mem(T*&p,int n){if(cudaMallocManaged(&p,sizeof(T)*n)!=cud
 int main(){setvbuf(stdout,nullptr,_IONBF,0);
 DeviceState*s=new DeviceState{};
 '''
-txt+='\n'.join(f'mem(s->{name},129);' for typ,name in ptr)
+# Conditional backend fields (e.g. the steady-only workspace) must be selected
+# by C++ capability detection, not by the unpreprocessed source inventory.
+allocators='\n'.join(f'template<class S> auto allocate_{name}(S*s,int)->decltype(s->{name},void()){{mem(s->{name},129);}}\ntemplate<class S> void allocate_{name}(S*,long){{}}' for typ,name in ptr)
+txt=txt.replace('int main(){',allocators+'\nint main(){')
+txt+='\n'.join(f'allocate_{name}(s,0);' for typ,name in ptr)
 txt+=r'''
 s->deviceState=s;s->nCells=2;s->nFaces=1;s->particleCapacity=129;s->rhoMin=1e-20;
 s->rhoSolid=3000;s->epsSMin=1e-12;s->thetaMin=1e-12;s->pressureKickFraction=.01;
@@ -64,11 +68,11 @@ if mode == 'unsorted':
     txt=txt.replace('PHYSICS::project(s,1.,1,64,64,true,false)', 'PHYSICS::projectUnsorted(s,1.,1,64)')
 
 txt=txt.replace('THERMAL_INIT','s->pStuck[i]=0;' if branch!='gasUGKP' else '')
-txt=txt.replace('PHYSICS','AnalyticPressureLaunch' if branch=='gasUGKP' else 'ConstrainedPressureLaunch<true>')
+txt=txt.replace('PHYSICS','AnalyticPressureLaunch' if branch=='gasUGKP' else 'ContactAwarePressureLaunch<true>' if branch=='CHT' else 'ConstrainedPressureLaunch<true>')
 txt=txt.replace('TOL','2e-12')
 f=p/'tests'/f'pressure_balance_{branch}{64}.cu';f.write_text(txt)
 exe=p/'bin'/f'pressure_balance_{branch}{64}'
-cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if branch=='CHT' else 'true'),'-I'+str(src.parent),'-I'+str(root/'common'),'-I'+str(root/('applications/gasUGKP/gpu' if branch=='gasUGKP' else 'applications/FSH/gpu')),str(f),'-o',str(exe)]
+cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','--expt-relaxed-constexpr','--Ofast-compile=min','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if branch=='CHT' else 'true'),'-I'+str(src.parent),'-I'+str(root/'common'),'-I'+str(root/('applications/gasUGKP/gpu' if branch=='gasUGKP' else 'applications/FSH/gpu')),str(f),'-o',str(exe)]
 if branch=='CHT':cmd.append(str(root/'applications/CHT/gpu/GpuWallEnergy64.cu'))
 log=p/'logs'/f'pressure_balance_{branch}{64}_build.log'
 with log.open('w') as out:q=subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT)

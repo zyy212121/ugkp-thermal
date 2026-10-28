@@ -9,9 +9,9 @@ struct AnalyticPressureLaunch
     }
     static cudaError_t project(DeviceState* s,PressureTime dt,int,int,int threads,bool split,bool compact)
     {
-        if(compact)applyCollisionalPressureProjectionKernel<false,true><<<s->nCells,threads>>>(s->deviceState,dt);
-        else if(split)applyCollisionalPressureProjectionKernel<true><<<s->nCells,threads>>>(s->deviceState,dt);
-        else applyCollisionalPressureProjectionKernel<false><<<s->nCells,threads>>>(s->deviceState,dt);
+        if(compact)applyAnalyticPressureProjectionKernel<false,true><<<s->nCells,threads>>>(s->deviceState,dt);
+        else if(split)applyAnalyticPressureProjectionKernel<true><<<s->nCells,threads>>>(s->deviceState,dt);
+        else applyAnalyticPressureProjectionKernel<false><<<s->nCells,threads>>>(s->deviceState,dt);
         return cudaGetLastError();
     }
     static cudaError_t projectUnsorted(DeviceState* s,PressureTime dt,int grid,int block)

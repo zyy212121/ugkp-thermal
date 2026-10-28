@@ -140,6 +140,8 @@ struct CsrReductionTask
 };
 
 
+#include "GpuPressureProjectionTypes.H"
+
 struct DeviceState;
 template<bool Capture> int launchBoundaryLayer(DeviceState*);
 struct DeviceState
@@ -464,6 +466,8 @@ struct DeviceState
     GpuReal* pressureDeltaEnergy = nullptr;
     GpuReal* pressureParticleMoments = nullptr;
     int* pressureParticleCount = nullptr;
+    int* pressureCellHasContact = nullptr;
+    PressureProjectionCell* pressureProjectionCache = nullptr;
     GpuReal* solidPressurePhiMomX = nullptr;
     GpuReal* solidPressurePhiMomY = nullptr;
     GpuReal* solidPressurePhiMomZ = nullptr;
@@ -1235,6 +1239,8 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->pressureDeltaEnergy);
     release(s->pressureParticleMoments);
     release(s->pressureParticleCount);
+    release(s->pressureCellHasContact);
+    release(s->pressureProjectionCache);
     release(s->solidPressurePhiMomX);
     release(s->solidPressurePhiMomY);
     release(s->solidPressurePhiMomZ);
@@ -1580,6 +1586,8 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->pressureDeltaEnergy, nc, "cudaMalloc strict pressureDeltaEnergy");
     rc |= allocate(s->pressureParticleMoments, nc*7, "cudaMalloc pressure particle moments");
     rc |= allocate(s->pressureParticleCount, nc, "cudaMalloc pressure particle count");
+    rc |= allocate(s->pressureCellHasContact, nc, "cudaMalloc pressure contact flags");
+    rc |= allocate(s->pressureProjectionCache, nc, "cudaMalloc pressure projection cache");
     rc |= allocate(s->solidPressurePhiMomX, nf, "cudaMalloc strict solidPressurePhiMomX");
     rc |= allocate(s->solidPressurePhiMomY, nf, "cudaMalloc strict solidPressurePhiMomY");
     rc |= allocate(s->solidPressurePhiMomZ, nf, "cudaMalloc strict solidPressurePhiMomZ");
@@ -2125,12 +2133,15 @@ using PressureTime = GpuTime;
 
 
 #include "GpuPressureConstrainedLaunch.cuh"
+#include "GpuPressureAnalyticPhysics.cuh"
+#include "GpuPressureContactProjection.cuh"
+#include "GpuPressureContactLaunch.cuh"
 #include "GpuPressurePipeline.cuh"
 template<bool FullMoments>
 int applyCollisionalPressureKick(DeviceState* s,const GpuTime dt,const int block,
     const bool compact=false)
 {
-    return launchCommonPressureKick<ConstrainedPressureLaunch<FullMoments>>
+    return launchCommonPressureKick<ContactAwarePressureLaunch<FullMoments>>
         (s,dt,block,128,s->splitPreDirectoryActive!=0,compact);
 }
 

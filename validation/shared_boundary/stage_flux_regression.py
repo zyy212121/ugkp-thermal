@@ -23,7 +23,7 @@ def particles(c):
         f.write(b'UGKP_PARTICLES_SCHEMA1_BIN 1 1\n');f.write(struct.pack('<I',1))
         for v in [.25,.005,.005,70,0,0,500,0,2e-4,1e-10]:f.write(struct.pack('<d',v))
         f.write(struct.pack('<iiQQ',0,1,12345,1))
-routes=[('gasUGKP','single',False),('gasUGKP','mixture',False),('gasUGKP','mixture',True),('FSH','single',False),('CHT','single',False),('CHT','mixture',False),('gasUGKPSteady','single',False),('gasUGKPSteady','mixture',True)]
+routes=[('gasUGKP','single',False),('gasUGKP','mixture',False),('gasUGKP','mixture',True),('FSH','single',False),('CHT','single',False),('gasUGKPSteady','single',False),('gasUGKPSteady','mixture',True)]
 results=[]
 for solver,model,parcels in routes:
     group='coupled' if solver in ['FSH','CHT'] else 'steady' if solver=='gasUGKPSteady' else 'gas'

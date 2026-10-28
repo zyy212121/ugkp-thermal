@@ -1348,6 +1348,26 @@
       "path": "common/gasTransport/MolecularConductivity.H",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureProjectionTypes.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureAnalyticPhysics.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureContactProjection.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureContactLaunch.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
     }
   ],
   "local_only": {
