@@ -3,6 +3,7 @@
 #include "SparseConjugateGradient.H"
 #include "fvMatrices.H"
 #include "cyclicFvPatchFields.H"
+#include "jumpCyclicFvPatchFields.H"
 #include "cyclicFvPatch.H"
 #include "Residuals.H"
 #include "PstreamReduceOps.H"
@@ -19,7 +20,8 @@ inline Foam::solverPerformance solveFoamScalarMatrix(
     const int count=temperature.size();
     lduInterfaceFieldPtrsList interfaces(temperature.boundaryField().scalarInterfaces());
     std::vector<int> boundaryOwner,boundaryNeighbour;
-    std::vector<double> boundaryDiagonal,boundarySource;
+    std::vector<double> boundaryDiagonal,boundarySource,boundaryJump;
+    bool haveJump=false;
     bool haveInterface=false;
     forAll(equation.internalCoeffs(),patch){
         const auto& cells=equation.lduAddr().patchAddr(patch);
@@ -30,8 +32,20 @@ inline Foam::solverPerformance solveFoamScalarMatrix(
             adjacent=&refCast<const cyclicFvPatch>(temperature.mesh().boundary()[patch]).neighbFvPatch().faceCells();
             interfaces.set(patch,nullptr);
         }
+        // jumpCyclic applies its affine term only to the original solution
+        // field, never to Krylov vectors. Transfer that term explicitly before
+        // removing this native interface; copying psi into a callback loses
+        // the field-identity test used by OpenFOAM's jump implementation.
+        tmp<scalarField> jump;scalar jumpSign=1;
+        const auto& field=temperature.boundaryField()[patch];
+        if(localCyclic && isA<jumpCyclicFvPatchScalarField>(field)){
+            jump=refCast<const jumpCyclicFvPatchScalarField>(field).jump();
+            if(!refCast<const cyclicFvPatch>(temperature.mesh().boundary()[patch]).owner())jumpSign=-1;
+            if(!haveJump){boundaryJump.resize(boundaryOwner.size(),0);haveJump=true;}
+        }
         if(interfaces.set(patch))haveInterface=true;
         forAll(cells,f){
+            if(haveJump)boundaryJump.push_back(jump.valid()?jumpSign*jump()[f]:0);
             boundaryOwner.push_back(cells[f]);boundaryNeighbour.push_back(localCyclic?(*adjacent)[f]:coupled?-2:-1);
             boundaryDiagonal.push_back(equation.internalCoeffs()[patch][f]);boundarySource.push_back(equation.boundaryCoeffs()[patch][f]);
         }
@@ -61,7 +75,7 @@ inline Foam::solverPerformance solveFoamScalarMatrix(
     SparseLduView matrix{count,int(owner.size()),int(boundaryOwner.size()),owner.begin(),neighbour.begin(),
         boundaryOwner.data(),boundaryNeighbour.data(),equation.diag().begin(),
         owner.size()?ldu.upper().begin():nullptr,owner.size()?ldu.lower().begin():nullptr,equation.source().begin(),
-        boundaryDiagonal.data(),boundarySource.data()};
+        boundaryDiagonal.data(),boundarySource.data(),haveJump?boundaryJump.data():nullptr};
     const auto report=solver.solveLdu(matrix,temperature.primitiveFieldRef().begin(),controls,communication);
     solverPerformance performance("CudaDiagonalPCG",temperature.name(),report.initialResidual,
         report.finalResidual,report.iterations,report.converged,report.singular);
