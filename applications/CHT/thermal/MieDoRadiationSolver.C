@@ -1,6 +1,7 @@
 #include "MieDoRadiationSolver.H"
 
 #include "MieDoRadiationMath.H"
+#include "gpu/DiscreteOrdinateRadiation.H"
 #include "ThermalHostDiagnostics.H"
 #include "Pstream.H"
 #include "surfaceFields.H"
@@ -53,69 +54,6 @@ struct PatchRadiationControls
         << "; patch=" << patch
         << "; face=" << face;
     throw MieDoSolveError(message.str());
-}
-
-scalar mieAsymmetryFactor
-(
-    const MieTable& table,
-    const scalar diameterM,
-    const scalar temperatureK
-)
-{
-    const scalarField& mu = table.muValues();
-    if (mu.size() < 2)
-    {
-        solveFailure("Mie phase table has fewer than two angular samples");
-    }
-    scalar denominator = scalar(0);
-    scalar firstMoment = scalar(0);
-    scalar previousPhase = table.phase(diameterM, temperatureK, mu[0]);
-    for (label i = 1; i < mu.size(); ++i)
-    {
-        const scalar currentPhase = table.phase(diameterM, temperatureK, mu[i]);
-        const scalar deltaMu = mu[i] - mu[i - 1];
-        denominator += scalar(0.5)*(previousPhase + currentPhase)*deltaMu;
-        firstMoment += scalar(0.5)
-            *(mu[i - 1]*previousPhase + mu[i]*currentPhase)*deltaMu;
-        previousPhase = currentPhase;
-    }
-
-    const scalar value = firstMoment/denominator;
-
-    return max(scalar(-1), min(scalar(1), value));
-}
-
-scalar radiationIntensityWithRoundoffClamp
-(
-    const scalar value,
-    const scalar referenceMagnitude,
-    const char* location,
-    const label iteration = 0,
-    const label cell = -1,
-    const label patch = -1,
-    const label face = -1
-)
-{
-    if (!std::isfinite(value))
-    {
-        solveFailure(std::string("nonfinite radiation intensity at ") + location,
-            iteration, value, cell, patch, face);
-    }
-    if (value >= scalar(0))
-    {
-        return value;
-    }
-
-    const scalar roundoffTolerance =
-        scalar(256)*std::numeric_limits<scalar>::epsilon()
-       *max(mag(referenceMagnitude), scalar(1));
-    if (value >= -roundoffTolerance)
-    {
-        return scalar(0);
-    }
-
-    solveFailure(std::string("negative radiation intensity beyond roundoff at ") + location,
-        iteration, value, cell, patch, face);
 }
 
 inline bool isSpecularType(const word& type)
@@ -301,22 +239,6 @@ label nearestDirection
         }
     }
     return best;
-}
-
-scalar relativeChange
-(
-    const scalarField& oldValues,
-    const scalarField& newValues
-)
-{
-    scalar maxDifference = 0;
-    scalar maxNew = SMALL;
-    forAll(newValues, cellI)
-    {
-        maxDifference = max(maxDifference, mag(newValues[cellI] - oldValues[cellI]));
-        maxNew = max(maxNew, mag(newValues[cellI]));
-    }
-    return maxDifference/maxNew;
 }
 
 }             
@@ -605,119 +527,6 @@ public:
         return patchControls[patchI].absorptivity;
     }
 
-    scalar incomingIntensity
-    (
-        const MieDoSnapshot& snapshot,
-        const List<scalarField>& intensities,
-        const List<scalarField>& incidentFlux,
-        const label directionI,
-        const label patchI,
-        const label faceI,
-        const label cellI
-    ) const
-    {
-        const word& type = patchControls[patchI].type;
-
-        if (isSpecularType(type))
-        {
-            const vectorField& faceAreas = mesh.Sf().boundaryField()[patchI];
-            const vector normal = faceAreas[faceI]/max(mag(faceAreas[faceI]), VSMALL);
-            vector reflected =
-                directions[directionI]
-              - scalar(2)*(directions[directionI] & normal)*normal;
-            const scalar reflectedMagnitude = mag(reflected);
-            if (reflectedMagnitude > VSMALL)
-            {
-                reflected /= reflectedMagnitude;
-            }
-            return radiationIntensityWithRoundoffClamp
-            (
-                intensities[nearestDirection(reflected, directions)][cellI],
-                intensities[directionI][cellI],
-                "specular boundary reflection",
-                0,
-                cellI,
-                patchI,
-                faceI
-            );
-        }
-        if (type == "zeroIncoming" || type == "zero")
-        {
-            return scalar(0);
-        }
-        if (type == "fixedValue" || type == "fixedI")
-        {
-            return patchControls[patchI].fixedIntensity;
-        }
-
-        const scalar wallTemperature = boundaryTemperature(snapshot, patchI, faceI);
-        const scalar bandFraction = mieTable.planckBandFraction(wallTemperature);
-        const scalar blackIntensity =
-            bandBlackBodyIntensity(wallTemperature, bandFraction);
-
-        if (type == "blackBody" || type == "black")
-        {
-            return blackIntensity;
-        }
-
-        const scalar emissivity = boundaryEmissivity(snapshot, patchI, faceI);
-        return
-            emissivity*blackIntensity
-          + (scalar(1) - emissivity)
-           *radiationIntensityWithRoundoffClamp
-            (
-                incidentFlux[patchI][faceI],
-                incidentFlux[patchI][faceI],
-                "diffuse reflected incident flux",
-                0,
-                cellI,
-                patchI,
-                faceI
-            )
-           /diffuseDenominator[patchI][faceI];
-    }
-
-    void computeIncidentFlux
-    (
-        const List<scalarField>& intensities,
-        List<scalarField>& incidentFlux
-    ) const
-    {
-        forAll(mesh.boundary(), patchI)
-        {
-            incidentFlux[patchI] = scalar(0);
-            const labelUList& faceCells = mesh.boundary()[patchI].faceCells();
-            const vectorField& faceAreas = mesh.Sf().boundaryField()[patchI];
-
-            forAll(faceCells, faceI)
-            {
-                const scalar areaMagnitude = mag(faceAreas[faceI]);
-                const vector normal = faceAreas[faceI]/areaMagnitude;
-                scalar flux = 0;
-                forAll(directions, directionI)
-                {
-                    const scalar cosineOut = directions[directionI] & normal;
-                    if (cosineOut > scalar(0))
-                    {
-                        flux +=
-                            weights[directionI]*cosineOut
-                           *radiationIntensityWithRoundoffClamp
-                            (
-                                intensities[directionI][faceCells[faceI]],
-                                intensities[directionI][faceCells[faceI]],
-                                "incident boundary-flux reconstruction",
-                                0,
-                                faceCells[faceI],
-                                patchI,
-                                faceI
-                            );
-                    }
-                }
-                incidentFlux[patchI][faceI] = flux;
-            }
-        }
-    }
-
     void validateSnapshot(const MieDoSnapshot& snapshot) const
     {
         const label nCells = mesh.nCells();
@@ -758,91 +567,81 @@ public:
     }
 };
 
+namespace
+{
+ugkp::gpu::RadiationGeometry radiationGeometry(const MieDoRadiationSolverData& data)
+{
+    using ugkp::gpu::RadiationBoundary;
+    ugkp::gpu::RadiationGeometry result;
+    const fvMesh& mesh=data.mesh;
+    result.cells=mesh.nCells();result.directions=data.directions.size();
+    forAll(mesh.owner(),face)result.owner.push_back(mesh.owner()[face]);
+    forAll(mesh.neighbour(),face)result.neighbour.push_back(mesh.neighbour()[face]);
+    result.cellOffsets.push_back(0);
+    forAll(mesh.cells(),cellI){for(const label face:mesh.cells()[cellI])if(face<mesh.nInternalFaces())result.cellFaces.push_back(face);
+        result.cellOffsets.push_back(result.cellFaces.size());}
+    forAll(mesh.V(),cellI)result.volume.push_back(mesh.V()[cellI]);
+    for(const scalar weight:data.weights)result.weights.push_back(weight);
+    for(const vector& a:data.directions)for(const vector& b:data.directions)result.directionCosines.push_back(max(scalar(-1),min(scalar(1),a&b)));
+    forAll(mesh.boundary(),patchI){const word& type=data.patchControls[patchI].type;
+        RadiationBoundary kind=RadiationBoundary::Diffuse;
+        if(isSpecularType(type))kind=RadiationBoundary::Specular;
+        else if(type=="zeroIncoming"||type=="zero")kind=RadiationBoundary::Zero;
+        else if(type=="fixedValue"||type=="fixedI")kind=RadiationBoundary::Fixed;
+        else if(type=="blackBody"||type=="black")kind=RadiationBoundary::Black;
+        forAll(mesh.boundary()[patchI],faceI){
+            result.boundaryOwner.push_back(mesh.boundary()[patchI].faceCells()[faceI]);result.boundaryPatch.push_back(patchI);result.boundaryFace.push_back(faceI);
+            result.boundaryType.push_back(kind);result.boundaryArea.push_back(mag(mesh.Sf().boundaryField()[patchI][faceI]));
+            result.diffuseDenominator.push_back(data.diffuseDenominator[patchI][faceI]);result.fixedIntensity.push_back(data.patchControls[patchI].fixedIntensity);
+        }
+    }
+    forAll(data.directions,directionI){
+        for(const scalar flux:data.directionInternalFlux[directionI])result.internalFlux.push_back(flux);
+        for(const scalar diagonal:data.directionTransportDiagonal[directionI])result.transportDiagonal.push_back(diagonal);
+        forAll(mesh.boundary(),patchI)forAll(mesh.boundary()[patchI],faceI){
+            const vector area=mesh.Sf().boundaryField()[patchI][faceI];
+            result.boundaryFlux.push_back(data.directionBoundaryFlux[directionI][patchI][faceI]);
+            result.boundaryCosine.push_back(data.directions[directionI]&(area/mag(area)));
+            const vector normal=area/max(mag(area),VSMALL);
+            vector reflected=data.directions[directionI]-scalar(2)*(data.directions[directionI]&normal)*normal;
+            const scalar magnitude=mag(reflected);if(magnitude>VSMALL)reflected/=magnitude;
+            result.reflectedDirection.push_back(nearestDirection(reflected,data.directions));
+        }
+    }
+    return result;
+}
+ugkp::gpu::RadiationControls radiationControls(const MieDoRadiationSolverData& data)
+{
+    ugkp::gpu::RadiationControls result;
+    result.activeEpsilonMinimum=data.controls.radiationActiveEpsilonMin;result.phaseTolerance=data.controls.phaseBalanceTolerance;
+    result.sourceTolerance=data.controls.sourceRelativeTolerance;result.linearTolerance=data.linearSolverTolerance;
+    result.linearRelativeTolerance=data.linearSolverRelativeTolerance;result.sourceRelaxation=data.sourceRelaxation;result.small=SMALL;
+    result.phaseIterations=data.controls.maxPhaseBalanceIterations;result.sourceIterations=data.controls.maxSourceIterations;result.linearIterations=data.linearSolverMaxIterations;
+    result.parallelAngles=min(max(data.controls.angleParallelThreads,label(1)),max(data.directions.size(),label(1)))>1;
+    return result;
+}
+void copyRadiationField(const std::vector<double>& source,scalarField& target)
+{
+    target.setSize(source.size());forAll(target,i)target[i]=source[i];
+}
+}
 class MieDoRadiationWorkspaceData
 {
 public:
-    scalarField absorption;
-    scalarField scattering;
-    scalarField asymmetryFactor;
-    scalarField emissionIntensity;
-    List<List<scalarField>> phaseProbability;
-    List<scalarField> rawPhaseKernel;
-    scalarField phaseScaling;
-    scalarField nextPhaseScaling;
-    List<scalarField> intensities;
-    List<scalarField> frozenIntensities;
-    List<scalarField> incidentFlux;
-    List<scalarField> diagonal;
-    List<scalarField> source;
-    List<scalarField> solved;
-    List<scalarField> linearResidual;
-    bool intensitiesInitialized;
-
-    explicit MieDoRadiationWorkspaceData
-    (
-        const MieDoRadiationSolver&,
-        const std::shared_ptr<const MieDoRadiationSolverData>&
-    )
-    :
-        intensitiesInitialized(false)
-    {}
-
-    void prepare(const MieDoRadiationSolverData& data)
+    std::shared_ptr<const MieDoRadiationSolverData> owner;
+    std::unique_ptr<ugkp::gpu::DiscreteOrdinateRadiation> gpu;
+    bool intensitiesInitialized=false;
+    explicit MieDoRadiationWorkspaceData(const MieDoRadiationSolver&,const std::shared_ptr<const MieDoRadiationSolverData>&){}
+    void prepare(const std::shared_ptr<const MieDoRadiationSolverData>& data)
     {
-        const label nCells = data.mesh.nCells();
-        const label nDirections = data.directions.size();
-
-        absorption.setSize(nCells);
-        scattering.setSize(nCells);
-        asymmetryFactor.setSize(nCells);
-        emissionIntensity.setSize(nCells);
-        absorption = scalar(0);
-        scattering = scalar(0);
-        asymmetryFactor = scalar(0);
-        emissionIntensity = scalar(0);
-
-        phaseProbability.setSize(nCells);
-        rawPhaseKernel.setSize(nDirections);
-        forAll(rawPhaseKernel, directionI)
-        {
-            rawPhaseKernel[directionI].setSize(nDirections);
-        }
-        phaseScaling.setSize(nDirections);
-        nextPhaseScaling.setSize(nDirections);
-
-        const bool intensityShapeMatches =
-            intensities.size() == nDirections
-         &&
-            (
-                nDirections == 0
-             || intensities[0].size() == nCells
-            );
-        intensities.setSize(nDirections);
-        frozenIntensities.setSize(nDirections);
-        diagonal.setSize(nDirections);
-        source.setSize(nDirections);
-        solved.setSize(nDirections);
-        linearResidual.setSize(nDirections);
-        forAll(intensities, directionI)
-        {
-            intensities[directionI].setSize(nCells);
-            frozenIntensities[directionI].setSize(nCells);
-            diagonal[directionI].setSize(nCells);
-            source[directionI].setSize(nCells);
-            solved[directionI].setSize(nCells);
-            linearResidual[directionI].setSize(nCells);
-        }
-        if (!intensityShapeMatches)
-        {
-            intensitiesInitialized = false;
-        }
-
-        incidentFlux.setSize(data.mesh.boundary().size());
-        forAll(incidentFlux, patchI)
-        {
-            incidentFlux[patchI].setSize(data.mesh.boundary()[patchI].size());
-            incidentFlux[patchI] = scalar(0);
-        }
+        if(owner==data)return;
+        std::vector<double> warm;
+        const bool matching=owner&&owner->mesh.nCells()==data->mesh.nCells()&&owner->directions.size()==data->directions.size();
+        if(matching&&intensitiesInitialized)gpu->downloadIntensities(warm);
+        std::unique_ptr<ugkp::gpu::DiscreteOrdinateRadiation> next(new ugkp::gpu::DiscreteOrdinateRadiation
+            (radiationGeometry(*data),data->mieTable.exportGpuTable(),radiationControls(*data)));
+        if(!warm.empty())next->uploadIntensities(warm);
+        intensitiesInitialized=matching&&intensitiesInitialized;gpu=std::move(next);owner=data;
     }
 };
 
@@ -958,636 +757,51 @@ MieDoResult MieDoRadiationSolver::solve
     const MieDoRadiationSolverData& data = *data_;
     data.validateSnapshot(snapshot);
     MieDoRadiationWorkspaceData& scratch = *workspace.data_;
-    scratch.prepare(data);
-
-    const fvMesh& mesh = data.mesh;
-    const label nCells = mesh.nCells();
-    const label nDirections = data.directions.size();
-    scalarField& absorption = scratch.absorption;
-    scalarField& scattering = scratch.scattering;
-    scalarField& asymmetryFactor = scratch.asymmetryFactor;
-    scalarField& emissionIntensity = scratch.emissionIntensity;
-    List<List<scalarField>>& phaseProbability = scratch.phaseProbability;
-    scalar initialIntensity = 0;
-
-    try
-    {
-        forAll(absorption, cellI)
-        {
-            const scalar epsilon = snapshot.epsilonS[cellI];
-            if (epsilon <= data.controls.radiationActiveEpsilonMin)
-            {
-                continue;
-            }
-
-            const scalar diameter = snapshot.representativeDiameterM[cellI];
-            const scalar temperature = snapshot.particleTemperatureK[cellI];
-            const MieOpticalSample optical = data.mieTable.query(diameter, temperature);
-            absorption[cellI] = scalar(3)*epsilon*optical.Qabs/(scalar(2)*diameter);
-            scattering[cellI] = scalar(3)*epsilon*optical.Qsca/(scalar(2)*diameter);
-            asymmetryFactor[cellI] = mieAsymmetryFactor
-            (
-                data.mieTable,
-                diameter,
-                temperature
-            );
-            emissionIntensity[cellI] =
-                bandBlackBodyIntensity(temperature, optical.planckBandFraction);
-            initialIntensity = max(initialIntensity, emissionIntensity[cellI]);
-
-            if (scattering[cellI] != scalar(0))
-            {
-                List<scalarField>& rawKernel = scratch.rawPhaseKernel;
-                for (label rowI = 0; rowI < nDirections; ++rowI)
-                {
-                    for (label colI = 0; colI < nDirections; ++colI)
-                    {
-                        const scalar mu = max
-                        (
-                            scalar(-1),
-                            min
-                            (
-                                scalar(1),
-                                data.directions[rowI] & data.directions[colI]
-                            )
-                        );
-                        rawKernel[rowI][colI] =
-                            data.mieTable.phase(diameter, temperature, mu)
-                           /fourPiConstant();
-                    }
-                }
-
-                const PhaseBalanceMetrics phaseMetrics = balanceSymmetricPhaseKernelInPlace
-                (
-                    rawKernel,
-                    data.weights,
-                    data.controls.phaseBalanceTolerance,
-                    data.controls.maxPhaseBalanceIterations,
-                    scratch.phaseScaling,
-                    scratch.nextPhaseScaling,
-                    phaseProbability[cellI]
-                );
-                if
-                (
-                    (phaseMetrics.maxRowError > data.controls.phaseBalanceTolerance
-                     || phaseMetrics.maxWeightedColumnRelativeError
-                        > data.controls.phaseBalanceTolerance)
-                 && hostDiagnosticWarningsEnabled()
-                )
-                {
-                    WarningInFunction
-                        << "DO phase balance iteration budget exhausted; time="
-                        << mesh.time().timeName() << "; cell=" << cellI
-                        << "; iterations=" << phaseMetrics.iterations
-                        << "; rowResidual=" << phaseMetrics.maxRowError
-                        << "; columnResidual=" << phaseMetrics.maxWeightedColumnRelativeError
-                        << "; limit=" << data.controls.phaseBalanceTolerance
-                        << "; retaining computed phase probabilities" << endl;
-                }
-
-            }
-        }
-
-        forAll(mesh.boundary(), patchI)
-        {
-            const word& type = data.patchControls[patchI].type;
-            if
-            (
-                isDiffuseType(type)
-             || type == "blackBody"
-             || type == "black"
-            )
-            {
-                forAll(mesh.boundary()[patchI], faceI)
-                {
-                    const scalar wallT = data.boundaryTemperature(snapshot, patchI, faceI);
-                    const scalar wallIb = bandBlackBodyIntensity
-                    (
-                        wallT,
-                        data.mieTable.planckBandFraction(wallT)
-                    );
-                    initialIntensity = max(initialIntensity, wallIb);
-                }
-            }
-            else if (type == "fixedValue" || type == "fixedI")
-            {
-                initialIntensity = max(initialIntensity, data.patchControls[patchI].fixedIntensity);
-            }
-        }
+    scratch.prepare(data_);
+    const fvMesh& mesh=data.mesh;
+    const label nCells=mesh.nCells();
+    ugkp::gpu::RadiationSnapshot input;
+    input.epsilon.assign(snapshot.epsilonS.begin(),snapshot.epsilonS.begin()+nCells);
+    input.temperature.assign(snapshot.particleTemperatureK.begin(),snapshot.particleTemperatureK.begin()+nCells);
+    input.diameter.assign(snapshot.representativeDiameterM.begin(),snapshot.representativeDiameterM.begin()+nCells);
+    forAll(mesh.boundary(),patchI)forAll(mesh.boundary()[patchI],faceI){
+        input.wallTemperature.push_back(data.boundaryTemperature(snapshot,patchI,faceI));
+        input.emissivity.push_back(data.boundaryEmissivity(snapshot,patchI,faceI));
     }
-    catch (const MieDoSolveError&)
-    {
-        throw;
-    }
-    catch (const std::exception& error)
-    {
-        solveFailure(std::string("offline MIE_TABLE coefficient/phase query failed: ") + error.what());
-    }
-
-    List<scalarField>& intensities = scratch.intensities;
-    const bool useWarmStart = scratch.intensitiesInitialized;
-    scratch.intensitiesInitialized = false;
-    if (!useWarmStart)
-    {
-        forAll(intensities, directionI)
-        {
-            intensities[directionI] = initialIntensity;
+    const bool warm=scratch.intensitiesInitialized;scratch.intensitiesInitialized=false;
+    ugkp::gpu::RadiationResult output;
+    try {output=scratch.gpu->solve(input,warm);}
+    catch(const ugkp::gpu::RadiationError& error){solveFailure(error.what(),error.iteration,error.value,error.cell,error.patch,error.face);}
+    catch(const std::exception& error){solveFailure(std::string("CUDA Mie DO solve failed: ")+error.what());}
+    if(hostDiagnosticWarningsEnabled()){
+        for(label cellI=0;cellI<nCells;++cellI){const auto& phase=output.phaseMetrics[cellI];
+            if(phase.rowError>data.controls.phaseBalanceTolerance||phase.columnError>data.controls.phaseBalanceTolerance)
+                WarningInFunction<<"DO phase balance iteration budget exhausted; time="<<mesh.time().timeName()<<"; cell="<<cellI
+                    <<"; iterations="<<phase.iterations<<"; rowResidual="<<phase.rowError<<"; columnResidual="<<phase.columnError
+                    <<"; limit="<<data.controls.phaseBalanceTolerance<<"; retaining computed phase probabilities"<<endl;
         }
-    }
-
-    List<scalarField>& frozenIntensities = scratch.frozenIntensities;
-    List<scalarField>& incidentFlux = scratch.incidentFlux;
-    List<scalarField>& directionDiagonal = scratch.diagonal;
-    List<scalarField>& directionSource = scratch.source;
-    List<scalarField>& directionSolved = scratch.solved;
-    List<scalarField>& directionLinearResidual = scratch.linearResidual;
-
-    scalarField warningLinearResidual(nDirections, scalar(0));
-    scalarField warningLinearLimit(nDirections, scalar(0));
-    labelList warningLinearIteration(nDirections, 0);
-    labelList warningSourceIteration(nDirections, 0);
-    scalar maximumRelativeChange = scalar(0);
-    label sourceIterations = 0;
-    label angleThreadsUsed = 1;
-    bool sourceFinished = false;
-    std::exception_ptr parallelError;
-    std::vector<std::exception_ptr> directionErrors
-    (
-        static_cast<std::size_t>(nDirections)
-    );
-    const label requestedThreads = min
-    (
-        max(data.controls.angleParallelThreads, label(1)),
-        max(nDirections, label(1))
-    );
-    const bool parallelAngles = requestedThreads > 1;
-    const scalarField& volumes = mesh.V();
-    const labelUList& owner = mesh.owner();
-    const labelUList& neighbour = mesh.neighbour();
-
-#ifdef _OPENMP
-    #pragma omp parallel num_threads(requestedThreads) shared(angleThreadsUsed, sourceFinished, parallelError, directionErrors, maximumRelativeChange, sourceIterations, frozenIntensities, intensities, incidentFlux)
-#endif
-    {
-#ifdef _OPENMP
-        #pragma omp single
-        {
-            angleThreadsUsed = omp_get_num_threads();
+        for(std::size_t direction=0;direction<output.directionWarnings.size();++direction){const auto& warning=output.directionWarnings[direction];
+            if(warning.linearIteration>0)WarningInFunction<<"DO linear iteration budget exhausted; time="<<mesh.time().timeName()
+                <<"; direction="<<direction<<"; sourceIteration="<<warning.sourceIteration<<"; linearIterations="<<warning.linearIteration
+                <<"; residual="<<warning.residual<<"; limit="<<warning.limit<<"; retaining computed intensity"<<endl;
         }
-#endif
-        for
-        (
-            label iteration = 1;
-            iteration <= max(data.controls.maxSourceIterations, label(1));
-            ++iteration
-        )
-        {
-#ifdef _OPENMP
-            #pragma omp single
-#endif
-            {
-                maximumRelativeChange = scalar(0);
-                std::fill
-                (
-                    directionErrors.begin(),
-                    directionErrors.end(),
-                    std::exception_ptr()
-                );
-                try
-                {
-                    if (parallelAngles)
-                    {
-                        frozenIntensities = intensities;
-                        data.computeIncidentFlux
-                        (
-                            frozenIntensities,
-                            incidentFlux
-                        );
-                    }
-                    else
-                    {
-                        data.computeIncidentFlux(intensities, incidentFlux);
-                    }
-                }
-                catch (...)
-                {
-                    parallelError = std::current_exception();
-                }
-            }
-
-            if (!parallelError)
-            {
-#ifdef _OPENMP
-                #pragma omp for schedule(static) reduction(max:maximumRelativeChange)
-#endif
-                for (label directionI = 0; directionI < nDirections; ++directionI)
-                {
-                  try
-                  {
-                    const List<scalarField>& sourceIntensities =
-                        parallelAngles ? frozenIntensities : intensities;
-                    const scalarField& oldIntensity =
-                        sourceIntensities[directionI];
-                    scalarField& diagonal = directionDiagonal[directionI];
-                    scalarField& source = directionSource[directionI];
-            const scalarField& internalFlux =
-                data.directionInternalFlux[directionI];
-            diagonal = data.directionTransportDiagonal[directionI];
-            source = scalar(0);
-            forAll(diagonal, cellI)
-            {
-                diagonal[cellI] +=
-                    (absorption[cellI] + scattering[cellI])*volumes[cellI];
-            }
-
-            forAll(mesh.boundary(), patchI)
-            {
-                const labelUList& faceCells = mesh.boundary()[patchI].faceCells();
-                forAll(faceCells, faceI)
-                {
-                    const scalar orientedAreaFlux =
-                        data.directionBoundaryFlux[directionI][patchI][faceI];
-                    const label cellI = faceCells[faceI];
-                    if (orientedAreaFlux < scalar(0))
-                    {
-                        const scalar incoming = data.incomingIntensity
-                        (
-                            snapshot,
-                            sourceIntensities,
-                            incidentFlux,
-                            directionI,
-                            patchI,
-                            faceI,
-                            cellI
-                        );
-                        source[cellI] -= orientedAreaFlux*incoming;
-                    }
-                }
-            }
-
-            forAll(source, cellI)
-            {
-                scalar scatteringMean = 0;
-                if (scattering[cellI] != scalar(0))
-                {
-                    const List<scalarField>& probability = phaseProbability[cellI];
-                    for (label otherDirectionI = 0; otherDirectionI < nDirections; ++otherDirectionI)
-                    {
-                        scatteringMean +=
-                            probability[directionI][otherDirectionI]
-                           *radiationIntensityWithRoundoffClamp
-                            (
-                                sourceIntensities[otherDirectionI][cellI],
-                                initialIntensity,
-                                "table-Mie scattering source",
-                                iteration,
-                                cellI
-                            );
-                    }
-                }
-                source[cellI] += volumes[cellI]
-                   *(
-                        absorption[cellI]*emissionIntensity[cellI]
-                      + scattering[cellI]*scatteringMean
-                    );
-            }
-
-            scalarField& solved = directionSolved[directionI];
-            solved = oldIntensity;
-            const auto linearResidual = [&](const scalarField& values)->scalar
-            {
-                scalarField& residual =
-                    directionLinearResidual[directionI];
-                residual = scalar(0);
-                scalar maximumMagnitude = SMALL;
-                scalar maximumResidual = 0;
-                forAll(residual, cellI)
-                {
-                    residual[cellI] = diagonal[cellI]*values[cellI] - source[cellI];
-                    maximumMagnitude = max
-                    (
-                        maximumMagnitude,
-                        max
-                        (
-                            mag(diagonal[cellI]*values[cellI]),
-                            mag(source[cellI])
-                        )
-                    );
-                }
-                forAll(internalFlux, faceI)
-                {
-                    const scalar orientedAreaFlux = internalFlux[faceI];
-                    if (orientedAreaFlux > scalar(0))
-                    {
-                        residual[neighbour[faceI]] -=
-                            orientedAreaFlux*values[owner[faceI]];
-                        maximumMagnitude = max
-                        (
-                            maximumMagnitude,
-                            mag(orientedAreaFlux*values[owner[faceI]])
-                        );
-                    }
-                    else if (orientedAreaFlux < scalar(0))
-                    {
-                        residual[owner[faceI]] +=
-                            orientedAreaFlux*values[neighbour[faceI]];
-                        maximumMagnitude = max
-                        (
-                            maximumMagnitude,
-                            mag(orientedAreaFlux*values[neighbour[faceI]])
-                        );
-                    }
-                }
-                forAll(residual, cellI)
-                {
-                    maximumResidual = max(maximumResidual, mag(residual[cellI]));
-                }
-                return maximumResidual/maximumMagnitude;
-            };
-
-            const scalar initialLinearResidual = linearResidual(solved);
-            const scalar linearTarget = max
-            (
-                data.linearSolverTolerance,
-                data.linearSolverRelativeTolerance*initialLinearResidual
-            );
-            scalar finalLinearResidual = initialLinearResidual;
-            label linearIteration = 0;
-
-
-
-
-            while
-            (
-                (finalLinearResidual > linearTarget
-                 ||
-                    (
-                        linearIteration == 0
-                     &&
-                        (
-                            data.linearSolverMaxIterations <= 0
-                         || !std::isfinite(initialLinearResidual)
-                         || std::isnan(linearTarget)
-                        )
-                    ))
-             && linearIteration < max(data.linearSolverMaxIterations, label(1))
-            )
-            {
-                ++linearIteration;
-                forAll(solved, cellI)
-                {
-                    scalar rightHandSide = source[cellI];
-                    const cell& cellFaces = mesh.cells()[cellI];
-                    forAll(cellFaces, localFaceI)
-                    {
-                        const label faceI = cellFaces[localFaceI];
-                        if (faceI >= mesh.nInternalFaces())
-                        {
-                            continue;
-                        }
-                        const scalar orientedAreaFlux = internalFlux[faceI];
-                        if (cellI == owner[faceI] && orientedAreaFlux < scalar(0))
-                        {
-                            rightHandSide -= orientedAreaFlux*solved[neighbour[faceI]];
-                        }
-                        else if
-                        (
-                            cellI == neighbour[faceI]
-                         && orientedAreaFlux > scalar(0)
-                        )
-                        {
-                            rightHandSide += orientedAreaFlux*solved[owner[faceI]];
-                        }
-                    }
-
-                    solved[cellI] = radiationIntensityWithRoundoffClamp
-                    (
-                        rightHandSide/diagonal[cellI],
-                        initialIntensity,
-                        "FV upwind linear solve",
-                        iteration,
-                        cellI
-                    );
-                }
-                finalLinearResidual = linearResidual(solved);
-            }
-
-            if (finalLinearResidual > linearTarget)
-            {
-                warningLinearResidual[directionI] = finalLinearResidual;
-                warningLinearLimit[directionI] = linearTarget;
-                warningLinearIteration[directionI] = linearIteration;
-                warningSourceIteration[directionI] = iteration;
-            }
-
-            forAll(solved, cellI)
-            {
-                solved[cellI] =
-                    (scalar(1) - data.sourceRelaxation)*oldIntensity[cellI]
-                  + data.sourceRelaxation*solved[cellI];
-            }
-
-            const scalar directionRelativeChange =
-                relativeChange(oldIntensity, solved);
-
-            maximumRelativeChange = max
-            (
-                maximumRelativeChange,
-                directionRelativeChange
-            );
-            intensities[directionI] = solved;
-                  }
-                  catch (...)
-                  {
-                      directionErrors[static_cast<std::size_t>(directionI)] =
-                          std::current_exception();
-                  }
-                }
-            }
-            else
-            {
-#ifdef _OPENMP
-                #pragma omp barrier
-#endif
-            }
-
-#ifdef _OPENMP
-            #pragma omp single
-#endif
-            {
-                if (!parallelError)
-                {
-                    for (label directionI = 0; directionI < nDirections; ++directionI)
-                    {
-                        if
-                        (
-                            directionErrors
-                            [static_cast<std::size_t>(directionI)]
-                        )
-                        {
-                            parallelError = directionErrors
-                            [static_cast<std::size_t>(directionI)];
-                            break;
-                        }
-                    }
-                }
-                sourceIterations = iteration;
-                sourceFinished =
-                    bool(parallelError)
-                 || maximumRelativeChange
-                    <= data.controls.sourceRelativeTolerance;
-            }
-
-#ifdef _OPENMP
-            #pragma omp barrier
-#endif
-            if (sourceFinished)
-            {
-                break;
-            }
-        }
+        if(output.maximumRelativeChange>data.controls.sourceRelativeTolerance)
+            WarningInFunction<<"DO source iteration budget exhausted; time="<<mesh.time().timeName()<<"; iterations="<<output.sourceIterations
+                <<"; residual="<<output.maximumRelativeChange<<"; limit="<<data.controls.sourceRelativeTolerance<<"; retaining computed intensities"<<endl;
     }
-
-    if (parallelError)
-    {
-        std::rethrow_exception(parallelError);
-    }
-
-    if (hostDiagnosticWarningsEnabled())
-    {
-        forAll(warningLinearIteration, directionI)
-        {
-            if (warningLinearIteration[directionI] > 0)
-            {
-                WarningInFunction
-                    << "DO linear iteration budget exhausted; time=" << mesh.time().timeName()
-                    << "; direction=" << directionI
-                    << "; sourceIteration=" << warningSourceIteration[directionI]
-                    << "; linearIterations=" << warningLinearIteration[directionI]
-                    << "; residual=" << warningLinearResidual[directionI]
-                    << "; limit=" << warningLinearLimit[directionI]
-                    << "; retaining computed intensity" << endl;
-            }
-        }
-        if (maximumRelativeChange > data.controls.sourceRelativeTolerance)
-        {
-            WarningInFunction
-                << "DO source iteration budget exhausted; time=" << mesh.time().timeName()
-                << "; iterations=" << sourceIterations
-                << "; residual=" << maximumRelativeChange
-                << "; limit=" << data.controls.sourceRelativeTolerance
-                << "; retaining computed intensities" << endl;
-        }
-    }
-
-    data.computeIncidentFlux(intensities, incidentFlux);
-
     MieDoResult result;
-    result.absorptionCoefficientInvM = absorption;
-    result.scatteringCoefficientInvM = scattering;
-    result.extinctionCoefficientInvM.setSize(nCells, scalar(0));
-    forAll(result.extinctionCoefficientInvM, cellI)
-    {
-        result.extinctionCoefficientInvM[cellI] =
-            absorption[cellI] + scattering[cellI];
-    }
-    result.asymmetryFactor = asymmetryFactor;
-    result.incidentRadiationG_Wm2.setSize(nCells, scalar(0));
-    result.particlePowerDensityWm3.setSize(nCells, scalar(0));
-    result.boundaryQrOutwardWm2.setSize(mesh.boundary().size());
-    result.integratedParticlePowerW = scalar(0);
-    result.integratedBoundaryPowerW = scalar(0);
-    result.conservationResidualW = scalar(0);
-    result.sourceIterations = sourceIterations;
-    result.angleThreadsUsed = angleThreadsUsed;
-
-    for (label directionI = 0; directionI < nDirections; ++directionI)
-    {
-        forAll(result.incidentRadiationG_Wm2, cellI)
-        {
-            result.incidentRadiationG_Wm2[cellI] +=
-                data.weights[directionI]
-               *radiationIntensityWithRoundoffClamp
-                (
-                    intensities[directionI][cellI],
-                    initialIntensity,
-                    "incident-radiation moment",
-                    sourceIterations,
-                    cellI
-                );
-        }
-    }
-
-    forAll(result.particlePowerDensityWm3, cellI)
-    {
-        result.particlePowerDensityWm3[cellI] =
-            particleRadiationPowerDensity
-            (
-                absorption[cellI],
-                result.incidentRadiationG_Wm2[cellI],
-                emissionIntensity[cellI]
-            );
-        result.integratedParticlePowerW +=
-            result.particlePowerDensityWm3[cellI]*volumes[cellI];
-    }
-
-    forAll(mesh.boundary(), patchI)
-    {
-        const labelUList& faceCells = mesh.boundary()[patchI].faceCells();
-        const vectorField& faceAreas = mesh.Sf().boundaryField()[patchI];
-        result.boundaryQrOutwardWm2[patchI].setSize(faceCells.size(), scalar(0));
-
-        forAll(faceCells, faceI)
-        {
-            const scalar areaMagnitude = mag(faceAreas[faceI]);
-            const vector normal = faceAreas[faceI]/areaMagnitude;
-            scalar qrOutward = 0;
-
-            for (label directionI = 0; directionI < nDirections; ++directionI)
-            {
-                const scalar cosineOut = data.directions[directionI] & normal;
-                scalar faceIntensity = 0;
-                if (cosineOut > scalar(0))
-                {
-                    faceIntensity = radiationIntensityWithRoundoffClamp
-                    (
-                        intensities[directionI][faceCells[faceI]],
-                        initialIntensity,
-                        "outgoing boundary intensity",
-                        sourceIterations,
-                        faceCells[faceI],
-                        patchI,
-                        faceI
-                    );
-                }
-                else if (cosineOut < scalar(0))
-                {
-                    faceIntensity = data.incomingIntensity
-                    (
-                        snapshot,
-                        intensities,
-                        incidentFlux,
-                        directionI,
-                        patchI,
-                        faceI,
-                        faceCells[faceI]
-                    );
-                }
-                const scalar directionalFlux =
-                    data.weights[directionI]*cosineOut*faceIntensity;
-                qrOutward += directionalFlux;
-            }
-
-            result.boundaryQrOutwardWm2[patchI][faceI] = qrOutward;
-            result.integratedBoundaryPowerW += qrOutward*areaMagnitude;
-        }
-    }
-
-    result.conservationResidualW =
-        result.integratedParticlePowerW + result.integratedBoundaryPowerW;
-    scratch.intensitiesInitialized = true;
-    return result;
+    copyRadiationField(output.absorption,result.absorptionCoefficientInvM);copyRadiationField(output.scattering,result.scatteringCoefficientInvM);
+    copyRadiationField(output.extinction,result.extinctionCoefficientInvM);copyRadiationField(output.asymmetry,result.asymmetryFactor);
+    copyRadiationField(output.incident,result.incidentRadiationG_Wm2);copyRadiationField(output.power,result.particlePowerDensityWm3);
+    result.boundaryQrOutwardWm2.setSize(mesh.boundary().size());result.integratedParticlePowerW=0;result.integratedBoundaryPowerW=0;
+    result.sourceIterations=output.sourceIterations;result.angleThreadsUsed=1;
+    forAll(result.particlePowerDensityWm3,cellI)result.integratedParticlePowerW+=result.particlePowerDensityWm3[cellI]*mesh.V()[cellI];
+    std::size_t index=0;
+    forAll(mesh.boundary(),patchI){auto& values=result.boundaryQrOutwardWm2[patchI];values.setSize(mesh.boundary()[patchI].size());
+        forAll(values,faceI){values[faceI]=output.boundaryFlux[index++];result.integratedBoundaryPowerW+=values[faceI]*mag(mesh.Sf().boundaryField()[patchI][faceI]);}}
+    result.conservationResidualW=result.integratedParticlePowerW+result.integratedBoundaryPowerW;
+    scratch.intensitiesInitialized=true;return result;
 }
 
-}                        
-}                  
+}
+}

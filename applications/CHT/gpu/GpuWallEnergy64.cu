@@ -1,4 +1,5 @@
 #include "GpuWallEnergy64.H"
+#include "../../../common/gpu/GpuInterfaceExchange.cuh"
 #include <algorithm>
 #include <cstdio>
 #include <vector>
@@ -76,6 +77,41 @@ int syncGasWallLedgerPointers(GpuWallEnergyState* s, const char* name)
     return 1;
 }
 
+void releaseInterfaceExchange(GpuWallEnergyState* s)
+{
+    release(s->interfaceRowOffsets);
+    release(s->interfaceSourceIndices);
+    release(s->interfaceAreas);
+    release(s->interfaceRadiationEnergy);
+    release(s->interfaceCombinedEnergy);
+    release(s->interfacePreview);
+    s->nInterfaceSolidFaces = 0;
+}
+
+__global__ void gatherInterfaceExchangeKernel
+(
+    const GpuWallEnergyState* state, double deltaT, bool hasRadiation
+)
+{
+    const auto& s=*state;
+    const int slot=blockIdx.x*blockDim.x+threadIdx.x;
+    if(slot>=s.nEnabledFaces)return;
+    const int face=s.enabledFaceIds[slot];
+    const double gas=s.gasWallEnergy[face];
+    const double deposited=s.particleWallHeatTransferEnabled
+        ?s.particleWallDepositedEnergy[face]:0.0;
+    const double reflected=s.particleWallHeatTransferEnabled
+        ?s.particleWallReflectedEnergy[face]:0.0;
+    // Preserve the host expression order: gas + radiation + (deposit + reflect).
+    double combined=gas;
+    if(hasRadiation)combined+=s.interfaceRadiationEnergy[slot];
+    if(s.particleWallHeatTransferEnabled)combined+=deposited+reflected;
+    s.interfaceCombinedEnergy[slot]=combined;
+    const double denominator=s.interfaceAreas[slot]*deltaT;
+    s.interfacePreview[slot]=gas/denominator;
+    s.interfacePreview[s.nEnabledFaces+slot]=deposited/denominator;
+    s.interfacePreview[2*s.nEnabledFaces+slot]=reflected/denominator;
+}
 __global__ void accumulateGasWallEnergy64Kernel
 (
     double* energy,
@@ -107,6 +143,7 @@ int ugkpAccumulateGasWallEnergy64(GpuWallEnergyState* s, double dt, cudaStream_t
 
 void ugkpReleaseGasWallEnergy64(GpuWallEnergyState* s)
 {
+    releaseInterfaceExchange(s);
     release(s->gasWallEnergy);
     release(s->gasWallEnergyMask);
     release(s->gasWallFlux);
@@ -713,4 +750,77 @@ extern "C" int ugkwpGpuResidentStrictResetParticleWallHeatLedgers(void* handle)
         return 1;
     }
     return 0;
+}
+
+// The map is built once from the existing conformal/nonconformal mapper.
+// All arrays use configured-face order; CSR entries retain fluid-face order.
+extern "C" int ugkwpGpuResidentStrictConfigureInterfaceExchange
+(
+    void* handle,int nSolidFaces,const int* rowOffsets,
+    const int* sourceIndices,const double* areas
+)
+{
+    GpuWallEnergyState* s=asState(handle);
+    if(validateState(s,"configure interface exchange")!=0)return 1;
+    releaseInterfaceExchange(s);
+    s->nInterfaceSolidFaces=nSolidFaces;
+    const size_t count=static_cast<size_t>(s->nEnabledFaces);
+    if(allocate(s,s->interfaceRowOffsets,static_cast<size_t>(nSolidFaces)+1,
+                "cudaMalloc interface CSR offsets")!=0)return 1;
+    if(copyToDevice(s,s->interfaceRowOffsets,rowOffsets,
+                static_cast<size_t>(nSolidFaces)+1,"cudaMemcpy interface CSR offsets")!=0)return 1;
+    if(count>0)
+    {
+        if(allocate(s,s->interfaceSourceIndices,count,"cudaMalloc interface CSR sources")!=0
+         ||allocate(s,s->interfaceAreas,count,"cudaMalloc interface areas")!=0
+         ||allocate(s,s->interfaceRadiationEnergy,count,"cudaMalloc interface radiation")!=0
+         ||allocate(s,s->interfaceCombinedEnergy,count,"cudaMalloc interface energy")!=0
+         ||copyToDevice(s,s->interfaceSourceIndices,sourceIndices,count,
+                "cudaMemcpy interface CSR sources")!=0
+         ||copyToDevice(s,s->interfaceAreas,areas,count,"cudaMemcpy interface areas")!=0)
+            return 1;
+    }
+    if(3*count+static_cast<size_t>(nSolidFaces)>0
+     &&allocate(s,s->interfacePreview,3*count+static_cast<size_t>(nSolidFaces),
+                "cudaMalloc interface preview")!=0)return 1;
+    return syncGasWallLedgerPointers(s,"cudaMemcpy interface exchange pointers");
+}
+
+extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchange
+(
+    void* handle,double deltaT,const double* radiationEnergy,double* preview
+)
+{
+    GpuWallEnergyState* s=asState(handle);
+    if(validateState(s,"preview interface exchange")!=0)return 1;
+    const int count=s->nEnabledFaces;
+    if(count>0)
+    {
+        if(radiationEnergy&&copyToDevice(s,s->interfaceRadiationEnergy,
+                radiationEnergy,static_cast<size_t>(count),
+                "cudaMemcpy compact interface radiation energy")!=0)return 1;
+        gatherInterfaceExchangeKernel<<<(count+255)/256,256>>>
+            (s->deviceState,deltaT,radiationEnergy!=nullptr);
+        const cudaError_t error=cudaGetLastError();
+        if(error!=cudaSuccess)
+        {
+            setLastError(s,"gatherInterfaceExchangeKernel launch",error);return 1;
+        }
+    }
+    if(s->nInterfaceSolidFaces>0)
+    {
+        ugkp::interfaceExchange::sumMappedFaceValues<<<
+            (s->nInterfaceSolidFaces+255)/256,256>>>
+            (s->nInterfaceSolidFaces,s->interfaceRowOffsets,
+             s->interfaceSourceIndices,s->interfaceCombinedEnergy,
+             s->interfacePreview+3*count);
+        const cudaError_t error=cudaGetLastError();
+        if(error!=cudaSuccess)
+        {
+            setLastError(s,"sumMappedFaceValues launch",error);return 1;
+        }
+    }
+    return copyToHost(s,preview,s->interfacePreview,
+        static_cast<size_t>(3*count+s->nInterfaceSolidFaces),
+        "cudaMemcpy compact interface exchange preview");
 }

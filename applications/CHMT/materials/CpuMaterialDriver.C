@@ -1,4 +1,8 @@
 #include "materials/CpuMaterialDriver.H"
+#include "gpu/MaterialBackend.H"
+#include "gpu/MaterialThermalBackend.H"
+#include "../../../common/gpu/FoamSparseSolve.H"
+#include "../../../common/gpu/FoamImplicitDiffusion.H"
 #include "core/ThermalBoundary.H"
 #include "core/AuditArithmetic.H"
 #include "core/HostAuditReduction.H"
@@ -37,7 +41,7 @@ bool controlsValid(const CpuMaterialControls& c){return (finite(c.maxSubstep)&&c
     &&finite(c.driveTractionScale)&&c.driveTractionScale>0&&(c.maxSubsteps>0)&&((c.nonlinearMaxIterations>0&&finite(c.nonlinearRelativeTolerance)&&c.nonlinearRelativeTolerance>=0
     &&finite(c.energyAbsoluteTolerance)&&c.energyAbsoluteTolerance>=0&&finite(c.energyRelativeTolerance)&&c.energyRelativeTolerance>=0)));}
 bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState& next,const PhysicsConfig& p,
-    Real dt,const CpuMaterialControls& controls,CpuMaterialReport& report,std::string& error){
+    Real dt,const CpuMaterialControls& controls,CpuMaterialReport& report,std::string& error,ugkp::gpu::SparseConjugateGradient& sparse,MaterialBackend& thermal){
     const std::size_t n=next.solid.size();if(n==0)return true;
     if(!validateThermalBoundaries(next.solidMesh,error)){report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
     if((acceptedMesh.nCells()!=static_cast<Foam::label>(n)||next.solidMesh.points.size()!=static_cast<std::size_t>(acceptedMesh.nPoints()))){report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;error="CPU material fvMesh topology mismatch";return false;}
@@ -60,10 +64,13 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
     Foam::volScalarField temperature(Foam::IOobject("CHMTMaterialTemperature",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,
         Foam::dimensionedScalar("initial",Foam::dimTemperature,300),patchTypes);
     std::vector<MaterialCaloric> caloric(n);std::vector<Real> anchor(n),target(n);
-    for(std::size_t c=0;c<n;++c){bool numerical=false;if(!materialCaloric<false>(next.solid[c],p,caloric[c],error,&numerical)){if(numerical)report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}MaterialPrimitive primitive;
-        if(!recoverMaterial<false>(old.solid[c],old.solidMesh.volumes[c],p,primitive,nullptr,-1,&numerical)){error="CPU conduction old EOS recovery failed";if(numerical)report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
-        anchor[c]=primitive.temperature;temperature[c]=anchor[c];
-        target[c]=next.solid[c].energy;}
+    std::vector<MaterialThermalInput> thermalInput;bool numerical=false;
+    const std::vector<Real> nativeVolumes(mesh.V().begin(),mesh.V().end());
+    if(!prepareResidentMaterialConduction(thermal,next.solidMesh,nativeVolumes,thermalInput,error,numerical)){
+        if(numerical)report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;
+    }
+    for(std::size_t c=0;c<n;++c){const auto& input=thermalInput[c];
+        caloric[c]=input.caloric;anchor[c]=input.anchor;target[c]=input.target;temperature[c]=input.anchor;}
     forAll(mesh.boundary(),patch)if(patchTypes[patch]==Foam::fixedValueFvPatchScalarField::typeName)forAll(mesh.boundary()[patch],f){const int face=mesh.boundary()[patch].start()+f;temperature.boundaryFieldRef()[patch][f]=next.solidMesh.boundaryPrimitive[face].temperature;}
     Foam::wordList coefficientTypes(mesh.boundary().size(),Foam::zeroGradientFvPatchScalarField::typeName);
     forAll(mesh.boundary(),patch)if(mesh.boundary()[patch].coupled()||mesh.boundary()[patch].type()=="empty")coefficientTypes[patch]=mesh.boundary()[patch].type();
@@ -71,28 +78,29 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
     const Foam::dimensionSet conductivityDimensions=Foam::dimPower/Foam::dimLength/Foam::dimTemperature;
     const Foam::dimensionedScalar deltaT("materialDt",Foam::dimTime,dt);
     Foam::dictionary solver;solver.add("solver",Foam::word("PCG"));solver.add("preconditioner",Foam::word("DIC"));solver.add("tolerance",Foam::scalar(1e-12));solver.add("relTol",Foam::scalar(0));solver.add("maxIter",Foam::label(2000));
+    ugkp::gpu::installGpuImplicitDiffusion();
     mesh.schemes().setFluxRequired(temperature.name());
     for(int iteration=0;iteration<(controls.nonlinearMaxIterations);++iteration){Foam::scalarField previous(temperature.primitiveField());
         Foam::volScalarField capacity(Foam::IOobject("CHMTMaterialSecant",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,Foam::dimensionedScalar("zero",capacityDimensions,0),coefficientTypes);
         Foam::volScalarField conductivity(Foam::IOobject("CHMTMaterialKappa",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,Foam::dimensionedScalar("zero",conductivityDimensions,0),coefficientTypes);
         Foam::volScalarField source(Foam::IOobject("CHMTMaterialEnergySource",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,Foam::dimensionedScalar("zero",Foam::dimPower/Foam::dimVolume,0));
-        for(std::size_t c=0;c<n;++c){const Real cs=caloric[c].secant<false>(temperature[c],anchor[c]);if((!(cs>0)||!finite(cs))){error="nonpositive implicit caloric secant";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
-            capacity[c]=cs/mesh.V()[c];source[c]=(target[c]-caloric[c].energy<false>(anchor[c])+cs*anchor[c])/(mesh.V()[c]*dt);
-            // Inventories and material EOS belong to the conservative HostMesh
-            // volume, already checked against the independently rounded native
-            // metric above. Keep native V only in the matrix integration weights
-            // so the cell-integral energy equation is unchanged.
-            const Real materialVolume=next.solidMesh.volumes[c];
-            Real occupied=0,k=0,poreMass=0;for(int j=0;j<Nc;++j){if(next.solid[c].condensed[j]==0)continue;const Real v=next.solid[c].condensed[j]/p.condensed[j].rho;occupied+=v;k+=v*p.condensed[j].conductivity/materialVolume;}
-            for(int s=0;s<Ns;++s)poreMass+=next.solid[c].pore[s];Real phi=1-occupied/materialVolume;
-            if((!clipPhysicsMassFraction(p,phi,3824,static_cast<int>(c)))){error="material mass/geometry incompatible during implicit solve";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
-            next.solid[c].porosity=phi;conductivity[c]=k+(poreMass>0?phi*p.gasConductivity:0);}
+        std::vector<Real> trial(temperature.primitiveField().begin(),temperature.primitiveField().end());
+        std::vector<MaterialThermalCoefficients> coefficients;
+        if(!evaluateResidentMaterialConduction(thermal,trial,dt,coefficients,error))return false;
+        for(std::size_t c=0;c<n;++c){
+            const auto& value=coefficients[c];
+            if(value.error){error=value.error==1?"nonpositive implicit caloric secant":"material mass/geometry incompatible during implicit solve";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
+            capacity[c]=value.capacity;source[c]=value.source;conductivity[c]=value.conductivity;
+            // Replay the existing warning for finite porosity clipping on the
+            // host diagnostic owner; coefficient arithmetic stays on device.
+            if(value.rawPorosity!=value.porosity){Real phi=value.rawPorosity;clipPhysicsMassFraction(p,phi,3824,static_cast<int>(c));}
+            next.solid[c].porosity=value.porosity;
+        }
         capacity.correctBoundaryConditions();conductivity.correctBoundaryConditions();temperature.correctBoundaryConditions();
         Foam::surfaceScalarField faceK(Foam::fvc::interpolate(conductivity));
-        forAll(mesh.neighbour(),f){const Real a=conductivity[mesh.owner()[f]],b=conductivity[mesh.neighbour()[f]],w=mesh.weights()[f];faceK[f]=a>0&&b>0?1/((1-w)/a+w/b):0;}
-        forAll(mesh.boundary(),patch)if(mesh.boundary()[patch].coupled()){const Foam::scalarField neighbourK(conductivity.boundaryField()[patch].patchNeighbourField());const Foam::scalarField ownK(conductivity.boundaryField()[patch].patchInternalField());
-            forAll(neighbourK,f){const Real a=ownK[f],b=neighbourK[f],w=mesh.weights().boundaryField()[patch][f];faceK.boundaryFieldRef()[patch][f]=a>0&&b>0?1/((1-w)/a+w/b):0;}}
-        Foam::fvScalarMatrix equation(Foam::fvm::Sp(capacity/deltaT,temperature)-Foam::fvm::laplacian(faceK,temperature)==source);
+        ugkp::gpu::interpolateThermalField(conductivity,mesh.weights(),faceK,true);
+        Foam::fvScalarMatrix equation(Foam::fvm::laplacian(faceK,temperature));
+        ugkp::gpu::formGpuImplicitEquation(equation,capacity,source,dt);
         // The FV residual is an integral power, whereas PCG normalises by
         // a matrix-dependent normFactor. Use a relative residual ratio: the
         // same normFactor cancels, so this is an energy budget in physical
@@ -121,7 +129,7 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
             ?static_cast<Real>(std::min(1.L,(linearEnergyTolerance/initialEnergy)/2)):1;
         solver.set("tolerance",std::numeric_limits<Foam::scalar>::min());
         solver.set("relTol",minValue(1,relativeLinearTarget));
-        const Foam::solverPerformance linear=equation.solve(solver);
+        const Foam::solverPerformance linear=ugkp::gpu::solveFoamScalarMatrix(equation,solver,sparse);
         if(!finite(linear.finalResidual())){error="nonfinite OpenFOAM implicit material sparse residual";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
         if(!linear.converged()||linear.singular())materialWarning(next,ugkp::diagnostics::Code::AccuracyResidual,"implicit material sparse residual",linear.finalResidual(),linear.initialResidual()*minValue(1,relativeLinearTarget));
         temperature.correctBoundaryConditions();const Foam::tmp<Foam::surfaceScalarField> flux=equation.flux();Real change=0;long double boundary=0,stableChange=0,inventoryScale=0;
@@ -155,7 +163,9 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
                 "implicit material iteration stagnated above energy goal",residual,energyTolerance);
             if(change>controls.nonlinearRelativeTolerance)materialWarning(next,ugkp::diagnostics::Code::AccuracyResidual,"implicit material nonlinear residual",change,controls.nonlinearRelativeTolerance);
             if(!finite(residual)||absValue(residual)>energyTolerance)materialWarning(next,ugkp::diagnostics::Code::ConservationResidual,"implicit material energy balance",residual,energyTolerance);
-            for(std::size_t c=0;c<n;++c){next.solid[c].energy=caloric[c].energy<false>(temperature[c]);MaterialPrimitive recovered;bool numerical=false;if(!recoverMaterial<false>(next.solid[c],next.solidMesh.volumes[c],p,recovered,nullptr,-1,&numerical)){error="implicit material endpoint EOS invalid";if(numerical)report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}next.solid[c].porosity=recovered.porosity;}
+            const std::vector<Real> endpoint(temperature.primitiveField().begin(),temperature.primitiveField().end());
+            if(!finishResidentMaterialConduction(thermal,endpoint,next.solid,error,numerical)){
+                if(numerical)report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
             return true;}
     }
     error="OpenFOAM material caloric nonlinear iteration failed";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;
@@ -189,14 +199,24 @@ bool baseTrace(const HostState& base,const PhysicsConfig& p,std::vector<GasPrimi
 }
 } // namespace
 struct CpuMaterialDriver::Implementation {
+    std::unique_ptr<ugkp::gpu::SparseConjugateGradient> conduction;
     ModelConfig model;Foam::fvMesh* mesh;
     ugkwp::GasMechanismConfiguration mechanism;
     std::unique_ptr<WallClosureHost> wall;bool terminalWallFailure=false,surfaceNumericalFailure=false;
+    std::unique_ptr<MaterialBackend,decltype(&destroyMaterialBackend)> gpu{nullptr,destroyMaterialBackend};
     Implementation(const ModelConfig& m,Foam::fvMesh* region,const ugkwp::GasMechanismConfiguration* canonical):model(m),mesh(region){
         if(m.physics.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){wall.reset(new WallClosureHost);if(canonical)mechanism=*canonical;}
     }
+    bool begin(const HostState& state,const PhysicsConfig& p,std::string& error){
+        if(!gpu){
+            gpu.reset(createMaterialBackend(error));
+            if(!gpu)return false;
+            setMaterialDiagnosticsSink(*gpu,ugkp::diagnostics::makeFoamSink());
+        }
+        return beginMaterialWindow(*gpu,state,p,error);
+    }
     bool evaluate(const HostState& state,const PhysicsConfig& p,const std::vector<GasPrimitive>& bulk,
-        const std::vector<GasGradient>& gradients,const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,
+        const std::vector<GasGradient>& gradients,bool useTransportRates,bool candidateState,
         Real dt,std::uint64_t sequence,CpuSurfaceResult& output,std::string& error,
         const std::vector<Real>* sideVolume=nullptr,
         const std::vector<GasWallMatchingSample>* recorded=nullptr){
@@ -217,14 +237,34 @@ struct CpuMaterialDriver::Implementation {
             }
         }
         terminalWallFailure=false;
-        bool success=evaluateCpuSurface(state,p,bulk,gradients,materialRate,filmRate,dt,sequence,output,error,sideVolume,wall?&contexts:nullptr,&surfaceNumericalFailure);
-
-        if(!success&&wall&&wall->failureStatus().code!=ugkwp::gaswall::WallCode::Success){
-            terminalWallFailure=true;const auto& status=wall->failureStatus();
-            error+="; stationary wall profile code "+std::to_string(int(status.code))+" node "+std::to_string(status.node)+" iteration "+std::to_string(status.iteration)+" residual "+(std::isfinite(status.residual)?std::to_string(status.residual):"NOT_AVAILABLE");
-        }
-        return success;
+        return evaluateResidentMaterialSurface(*gpu,state,bulk,gradients,dt,
+            useTransportRates,candidateState,output,error,surfaceNumericalFailure,
+            sideVolume,wall?&contexts:nullptr,&terminalWallFailure);
     }
+    bool evaluateHistory(const HostState& state,const PhysicsConfig& p,
+        const std::vector<const GasIntervalRecord*>& records,Real dt,
+        const std::vector<Real>& sideVolume,std::vector<CpuSurfaceResult>& output,std::string& error){
+        terminalWallFailure=false;surfaceNumericalFailure=false;
+        std::vector<std::vector<GasWallClosureContext>> contexts(records.size());
+        if(wall){
+            terminalWallFailure=true;
+            auto config=p.wallModel;config.enableSst=p.enableSst;
+            if(!wall->prepareGeometry(state.gasMesh,state.surface.gasFace,error,config,p.diagnostics))return false;
+            ugkwp::GasMechanismView<Real,Ns> view;
+            if(p.gasMode==ugkwp::GasMode::MixtureChemistry)view=mechanism.mechanismView<Ns>();
+            for(std::size_t i=0;i<records.size();++i)
+                if(!wall->contexts(records[i]->gasWallMatching,view,p.wallModel,contexts[i],error,&surfaceNumericalFailure)){
+                    terminalWallFailure=!surfaceNumericalFailure;return false;
+                }
+        }
+        std::vector<MaterialSurfaceRequest> requests;
+        for(std::size_t i=0;i<records.size();++i)
+            requests.push_back({&records[i]->gasTrace,&records[i]->gasGradient,wall?&contexts[i]:nullptr});
+        terminalWallFailure=false;
+        return evaluateResidentMaterialSurfaces(*gpu,state,requests,dt,true,false,output,error,
+            surfaceNumericalFailure,&sideVolume,&terminalWallFailure);
+    }
+
 };
 CpuMaterialDriver::CpuMaterialDriver(const ModelConfig& model,Foam::fvMesh* mesh):CpuMaterialDriver(model,mesh,nullptr){}
 CpuMaterialDriver::CpuMaterialDriver(const ModelConfig& model,Foam::fvMesh* mesh,const ugkwp::GasMechanismConfiguration* mechanism):data_(new Implementation(model,mesh,mechanism)){}
@@ -253,9 +293,10 @@ bool CpuMaterialDriver::predictWallImpl(const HostState& base,const CouplingInte
     const auto fail=[&](MaterialFailureOrigin origin){if(diagnostics)diagnostics->failureOrigin=origin;return false;};
     if(!(validateMaterialSweepRemainder(base,error,p.diagnostics)))return fail(MaterialFailureOrigin::GeometryNumerical);
     if((!validCouplingInterval(interval)||interval.begin!=base.time)){error="wall predictor interval/base time mismatch";return fail(MaterialFailureOrigin::GeometryNumerical);}
+    if(!data_->begin(base,p,error))return fail(MaterialFailureOrigin::None);
     std::vector<GasPrimitive> bulk;bool numerical=false;
     if(!(baseTrace(base,p,bulk,error,&numerical)))return fail(numerical?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None);CpuSurfaceResult surface;
-    if(!data_->evaluate(base,p,bulk,{},{},{},interval.end-interval.begin,interval.identity.sequence,surface,error,nullptr,nullptr)){if(diagnostics)diagnostics->recoverable=false;return fail(data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None);}
+    if(!data_->evaluate(base,p,bulk,{},false,false,interval.end-interval.begin,interval.identity.sequence,surface,error,nullptr,nullptr)){if(diagnostics)diagnostics->recoverable=false;return fail(data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None);}
     WallProgram program;program.interval=interval;program.surface=base.surface;WallKnot first;first.time=interval.begin;first.faces=surface.wall;first.gasPoints=base.gasMesh.points;first.solidPoints=base.solidMesh.points;
     WallKnot last=first;last.time=interval.end;
     if(p.meshMotion.policy==MeshMotionPolicy::PrescribedSinusoidal){
@@ -316,6 +357,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
         report.recoverable=false;error="unsupported or inconsistent CPU material interval/configuration/topology";return false;}
     try {
 
+        if(!data_->begin(base,p,error)){report.failureOrigin=MaterialFailureOrigin::None;return false;}
         SurfacePacketAddressing packetAddressing;
         if(!packetAddressing.build(base,geometryEndpoint,error)){report.recoverable=false;return false;}
         auto stageGeometry=[&](const HostMesh& mesh,const std::vector<Vec3>& points,Real dt,HostMesh& out,
@@ -337,7 +379,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
         CpuMaterialReport accumulated;accumulated.donorPlan.interval=window;
         MaterialReserveKnot initial;initial.time=base.time;initial.cumulativeSolid.resize(base.solid.size());initial.cumulativeFilm.resize(base.film.size());accumulated.donorPlan.knots.push_back(initial);
         std::vector<IntervalDonorSum> physicalSweepSum(base.surface.area.size()),actualSweepSum(base.surface.area.size());
-        std::vector<SolidQ> gasSolidChange(base.solid.size());
+
         auto cursor=history.cursor();const Real interval=window.end-window.begin;
         MaterialDriveCursor driveCursor(history),endpointCursor(history);
         WindowTime elapsed{};const WindowTime windowEnd=intervalDuration(window);
@@ -364,6 +406,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
 
             HostState trial;WallKnot beginning;CpuSurfaceResult surface;MaterialTransportResult transport;
             std::vector<ExchangePacket> packets;std::vector<Real> radiation;
+            std::vector<SolidQ> cumulativeDonor;
             std::vector<Real> sideVolume;
             std::vector<Real> solidSweep,gasSweep;IntervalCursor trialCursor=cursor;
             bool accepted=false;WindowTime trialElapsed;
@@ -371,7 +414,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
             // Select the physical transport CFL step once, before any sources
             // or candidate state are evaluated.
             bool transportNumerical=false;
-            if(!evaluateMaterialTransport(state.solidMesh,state.solid,p,{},dt,controls.transportCfl,transport,error,&transportNumerical)) {
+            if(!evaluateResidentMaterialTransport(*data_->gpu,state.solidMesh,{},dt,controls.transportCfl,transport.dtLimit,error,transportNumerical)) {
                 report=accumulated;report.failureOrigin=transportNumerical?MaterialFailureOrigin::TransportNumerical:MaterialFailureOrigin::None;return false;
             }
             dt=std::min(dt,transport.dtLimit);
@@ -413,7 +456,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 const HostState& evaluation=state;
                 std::vector<FilmAux> aux;std::vector<Real> target;
                 sideVolume.assign(state.surface.area.size(),0);
-                if(!data_->evaluate(evaluation,p,bulk,driveRecord->gasGradient,transport.rates,{},dt,window.identity.sequence,surface,error,&sideVolume,&driveRecord->gasWallMatching)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
+                if(!data_->evaluate(evaluation,p,bulk,driveRecord->gasGradient,true,false,dt,window.identity.sequence,surface,error,&sideVolume,&driveRecord->gasWallMatching)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
                 // Geometry follows the accepted condensed transfer. The new
                 // constitutive proposal never replaces accepted gas energy.
                 target.assign(state.surface.area.size(),0);
@@ -467,57 +510,50 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 if(!stageSweepsReady&&(!stageGeometry(state.solidMesh,trial.solidMesh.points,dt,trial.solidMesh,solidSweep,lastFailure)
                     ||!stageGeometry(state.gasMesh,trial.gasMesh.points,dt,trial.gasMesh,gasSweep,lastFailure)))break;
                 // Audit source variation without replacing the accepted transfer.
-                for(const auto& record:history.records())if(record.localBegin>elapsed&&record.localBegin<trialElapsed){
-                    CpuSurfaceResult response;
-                    if(!data_->evaluate(evaluation,p,record.gasTrace,record.gasGradient,transport.rates,{},dt,window.identity.sequence,response,error,&sideVolume,&record.gasWallMatching)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
-                    Real fraction=0;
-                    for(std::size_t f=0;f<surface.physics.size();++f){if(state.surface.gasFace[f]<0)continue;
-                        const auto& a=surface.physics[f];const auto& b=response.physics[f];const Real scale=state.surface.area[f]*dt;
-                        const int cell=state.surface.solidCell[f];Real solidDonor=0;
-                        if(cell>=0)for(int c=0;c<Nc;++c)solidDonor+=state.solid[cell].condensed[c];
-                        for(int species=0;species<Ns;++species){const Real donor=solidDonor;
-                            fraction=maxValue(fraction,scale*absValue(a.gasSpecies[species]-b.gasSpecies[species])/maxValue(p.tolerances.absoluteMass,donor));
-                            if(cell>=0)fraction=maxValue(fraction,scale*absValue(a.poreSpecies[species]-b.poreSpecies[species])/maxValue(p.tolerances.absoluteMass,state.solid[cell].pore[species]));}
+                std::vector<const GasIntervalRecord*> variationRecords;
+                for(const auto& record:history.records())if(record.localBegin>elapsed&&record.localBegin<trialElapsed)
+                    variationRecords.push_back(&record);
+                // Bound temporary storage independently of the gas-history length.
+                // Samples share a material state and have no feedback into one another.
+                const std::size_t recordsPerBatch=std::max(std::size_t(1),std::size_t(4096)/std::max(std::size_t(1),state.surface.area.size()));
+                for(std::size_t begin=0;begin<variationRecords.size();begin+=recordsPerBatch){
+                    const std::size_t end=std::min(variationRecords.size(),begin+recordsPerBatch);
+                    std::vector<const GasIntervalRecord*> batch(variationRecords.begin()+begin,variationRecords.begin()+end);
+                    std::vector<CpuSurfaceResult> responses;
+                    if(!data_->evaluateHistory(evaluation,p,batch,dt,sideVolume,responses,error)){
+                        lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;
+                        if(data_->terminalWallFailure){report.recoverable=false;return false;}break;
                     }
-                    if(fraction>controls.driveSourceFraction)materialWarning(state,ugkp::diagnostics::Code::AccuracyResidual,"material source variation",fraction,controls.driveSourceFraction);
+                    for(const auto& response:responses){
+                        Real fraction=0;
+                        for(std::size_t f=0;f<surface.physics.size();++f){if(state.surface.gasFace[f]<0)continue;
+                            const auto& a=surface.physics[f];const auto& b=response.physics[f];const Real scale=state.surface.area[f]*dt;
+                            const int cell=state.surface.solidCell[f];Real solidDonor=0;
+                            if(cell>=0)for(int c=0;c<Nc;++c)solidDonor+=state.solid[cell].condensed[c];
+                            for(int species=0;species<Ns;++species){const Real donor=solidDonor;
+                                fraction=maxValue(fraction,scale*absValue(a.gasSpecies[species]-b.gasSpecies[species])/maxValue(p.tolerances.absoluteMass,donor));
+                                if(cell>=0)fraction=maxValue(fraction,scale*absValue(a.poreSpecies[species]-b.poreSpecies[species])/maxValue(p.tolerances.absoluteMass,state.solid[cell].pore[species]));}
+                        }
+                        if(fraction>controls.driveSourceFraction)materialWarning(state,ugkp::diagnostics::Code::AccuracyResidual,"material source variation",fraction,controls.driveSourceFraction);
+                    }
                 }
                 if(!error.empty())break;
 
                 // The initial physical transport evaluation remains valid when
                 // no face swept volume was added. Only ALE changes its rates.
                 if(std::any_of(solidSweep.begin(),solidSweep.end(),[](Real swept){return swept!=0;})){
-                bool numerical=false;if(!evaluateMaterialTransport(state.solidMesh,state.solid,p,solidSweep,dt,controls.transportCfl,transport,error,&numerical)){
+                bool numerical=false;if(!evaluateResidentMaterialTransport(*data_->gpu,state.solidMesh,solidSweep,dt,controls.transportCfl,transport.dtLimit,error,numerical)){
                     lastFailure=numerical?MaterialFailureOrigin::TransportNumerical:MaterialFailureOrigin::None;
                     break;
                 }}
                 if(dt>transport.dtLimit)materialWarning(state,ugkp::diagnostics::Code::AccuracyResidual,"ALE material transport step bound",dt,transport.dtLimit);
-                bool reactionOk=true;for(std::size_t c=0;c<state.solid.size();++c){std::uint64_t count=0;SolidQ reacted;
-                    bool numerical=false;
-                    if(!advanceMaterialReactions(state.solid[c],state.solidMesh.volumes[c],p,dt,controls.reactionMaxSubstep,controls.reactionCfl,controls.maxSubsteps,reacted,count,error,&numerical)){
-                        lastFailure=numerical?MaterialFailureOrigin::ReactionNumerical:MaterialFailureOrigin::None;
-                        reactionOk=false;break;
-                    }
-                    trial.solid[c]=addSolid(reacted,transport.rates[c],dt);}
-                if(!reactionOk){break;}
-                std::vector<SolidQ> applied;
-                bool packetNumerical=false;
-                if(!applyMaterialPacketBatch(trial.solid,packets,applied,error,&packetNumerical)){
-                    lastFailure=packetNumerical?MaterialFailureOrigin::ReactionNumerical:MaterialFailureOrigin::None;
+                bool sourceNumerical=false;
+                if(!advanceResidentMaterialSources(*data_->gpu,trial.solidMesh,state.surface,packets,
+                    radiation,driveRecord->radiationReceiver,dt,controls,trialElapsed==windowEnd,
+                    trial.solid,cumulativeDonor,error,sourceNumerical)){
+                    lastFailure=sourceNumerical?MaterialFailureOrigin::ReactionNumerical:MaterialFailureOrigin::None;
                     break;
                 }
-                trial.solid=std::move(applied);
-                if(!error.empty())break;
-                for(std::size_t f=0;f<radiation.size();++f){if(driveRecord->radiationReceiver[f]==ConsumeSolid){const int c=state.surface.solidCell[f];if(c<0){lastFailure=MaterialFailureOrigin::LocalSourceNumerical;error="radiation has no material owner";break;}trial.solid[c].energy+=radiation[f];}}
-                if(!error.empty())break;
-                bool materialAdmissible=true;
-                for(std::size_t c=0;c<trial.solid.size();++c){MaterialPrimitive material;
-                    bool numerical=true;
-                    if((!validSolidInventory(trial.solid[c]))||(trialElapsed<windowEnd&&!(recoverMaterial(trial.solid[c],trial.solidMesh.volumes[c],p,material,nullptr,-1,&numerical)))){
-                        lastFailure=numerical?MaterialFailureOrigin::ReactionNumerical:MaterialFailureOrigin::None;materialAdmissible=false;break;
-                    }
-                    if(trialElapsed<windowEnd)trial.solid[c].porosity=material.porosity;
-                }
-                if(!materialAdmissible){break;}
                 trial.filmAux=aux;
                 if(p.meshMotion.policy==MeshMotionPolicy::CoupledRecession&&!(updateMaterialSweepRemainder(state,target,solidSweep,trial.solidMesh,trial.solidSweepRemainder,error,p.diagnostics))){lastFailure=MaterialFailureOrigin::GeometryNumerical;break;}
                 for(std::size_t f=0;f<target.size();++f){
@@ -528,16 +564,15 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 if(program.knots.empty())program.knots.push_back(beginning);
                 WallKnot ending=beginning;ending.time=trial.time;ending.localTime=trialElapsed;ending.gasPoints=trial.gasMesh.points;ending.solidPoints=trial.solidMesh.points;
                 if(trialElapsed<windowEnd){CpuSurfaceResult endpointProposal;
-                    if(!endpointRecord){error="missing endpoint wall matching record";break;}if(!data_->evaluate(trial,p,*endpointBulk,endpointRecord->gasGradient,{},{},dt,window.identity.sequence,endpointProposal,error,nullptr,&endpointRecord->gasWallMatching)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
+                    if(!endpointRecord){error="missing endpoint wall matching record";break;}if(!data_->evaluate(trial,p,*endpointBulk,endpointRecord->gasGradient,false,true,dt,window.identity.sequence,endpointProposal,error,nullptr,&endpointRecord->gasWallMatching)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
                     ending.faces=endpointProposal.wall;for(std::size_t f=0;f<ending.faces.size();++f)ending.faces[f].primaryKind=beginning.faces[f].primaryKind;}
                 for(std::size_t f=0;f<ending.faces.size();++f){ending.faces[f].solidNormalVelocity=aux[f].solidNormalVelocity;ending.faces[f].normalVelocity=aux[f].normalVelocity;}
                 program.knots.push_back(ending);
-                for(const auto& packet:packets){const auto d=packetDelta(packet);if(requiredConsumers(packet.kind)&ConsumeSolid)gasSolidChange[packet.solidCell]=addSolid(gasSolidChange[packet.solidCell],d.solid);}
-                MaterialReserveKnot knot;knot.time=trial.time;knot.localTime=trialElapsed;knot.cumulativeSolid.resize(trial.solid.size());knot.cumulativeFilm.resize(trial.film.size());
-                for(std::size_t c=0;c<trial.solid.size();++c)knot.cumulativeSolid[c]=addSolid(addSolid(trial.solid[c],base.solid[c],-1),gasSolidChange[c],-1);
-
+                MaterialReserveKnot knot;knot.time=trial.time;knot.localTime=trialElapsed;
+                knot.cumulativeSolid=std::move(cumulativeDonor);knot.cumulativeFilm.resize(trial.film.size());
                 accumulated.donorPlan.knots.push_back(std::move(knot));
                 accumulated.materialSteps++;
+                commitResidentMaterialStep(*data_->gpu,trial.time);
                 state=std::move(trial);elapsed=trialElapsed;cursor=trialCursor;accepted=true;
             } while(false);
             if(!accepted){if(error.empty())error="CPU material single-pass operation failed";report=accumulated;report.failureOrigin=lastFailure;return false;}
@@ -547,7 +582,8 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
         // regardless of gas microstep or local reaction step count.
         if(!state.solid.empty()){
             if(p.diagnostics)ugkp::diagnostics::beginOperation(*p.diagnostics,window.identity.sequence,base.acceptedSteps,state.time);
-            const bool solved=nativeConduction(*data_->mesh,base,state,p,interval,controls,accumulated,error);
+            if(!data_->conduction)data_->conduction.reset(new ugkp::gpu::SparseConjugateGradient);
+            const bool solved=nativeConduction(*data_->mesh,base,state,p,interval,controls,accumulated,error,*data_->conduction,*data_->gpu);
             if(!solved){report=accumulated;return false;}
         }
         const auto samePoints=[](const HostMesh& a,const HostMesh& b){if(a.points.size()!=b.points.size())return false;for(std::size_t i=0;i<a.points.size();++i)if(a.points[i].x!=b.points[i].x||a.points[i].y!=b.points[i].y||a.points[i].z!=b.points[i].z)return false;return true;};
@@ -588,7 +624,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
         if(data_->wall&&p.meshMotion.policy!=MeshMotionPolicy::Static)data_->wall->clearGeometry();
         if(!program.knots.empty()){const auto& last=history.records().back();CpuSurfaceResult endpointSurface;
             std::vector<GasPrimitive> finalBulk;bool numerical=false;if(!(baseTrace(state,p,finalBulk,error,&numerical))){report=accumulated;report.failureOrigin=numerical?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;return false;}
-            if(!data_->evaluate(state,p,finalBulk,last.gasGradient,{},{},interval,window.identity.sequence,endpointSurface,error,nullptr,nullptr)){report=accumulated;report.failureOrigin=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;report.recoverable=false;return false;}
+            if(!data_->evaluate(state,p,finalBulk,last.gasGradient,false,false,interval,window.identity.sequence,endpointSurface,error,nullptr,nullptr)){report=accumulated;report.failureOrigin=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;report.recoverable=false;return false;}
             program.knots.back().faces=endpointSurface.wall;
             // The executed regime owns the interval including its terminal flux.
             // Endpoint proposals affect only the next window's predictor.

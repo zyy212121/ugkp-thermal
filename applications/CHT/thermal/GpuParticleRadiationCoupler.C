@@ -229,172 +229,33 @@ try
     result.extinctionCoefficientInvM = radiationResult.extinctionCoefficientInvM;
     result.asymmetryFactor = radiationResult.asymmetryFactor;
 
-    const scalar legalMinimumTemperatureK = max
-    (
-        context.particleTemperatureMinK,
-        context.mieTable.minTemperatureK()
-    );
-    const scalar legalMaximumTemperatureK = min
-    (
-        context.particleTemperatureMaxK,
-        context.mieTable.maxTemperatureK()
-    );
-    scalar acceptedParticleEnergyJ = scalar(0);
-    scalar grossTransactionEnergyJ = scalar(0);
-    forAll(currentTemperatureK, cellI)
-    {
-        const scalar rawDeltaEnergyJ = couplingDeltaT
-           *context.mesh.V()[cellI]
-           *radiationResult.particlePowerDensityWm3[cellI];
-
-        const bool radiationActive =
-            snapshot.epsilonS[cellI] > context.radiationActiveEpsilonMin;
-        if (!radiationActive)
-        {
-            continue;
-        }
-
-        const scalar capacityJPerK = particleCellCapacityJPerK(snapshot, cellI);
-
-        const scalar oldTemperatureK = snapshot.particleMeanTemperatureK[cellI];
-        const scalar incidentRadiationG_Wm2 =
-            radiationResult.incidentRadiationG_Wm2[cellI];
-        const scalar representativeDiameterM =
-            snapshot.representativeDiameterM[cellI];
-        const scalar epsilonS = snapshot.epsilonS[cellI];
-        const scalar cellVolumeM3 = context.mesh.V()[cellI];
-        const auto radiativeBalanceAtTemperature =
-        [&](const scalar temperatureK)
-        {
-            const MieOpticalSample optical =
-                context.mieTable.query(representativeDiameterM, temperatureK);
-            return incidentRadiationG_Wm2
-              - fourPiConstant()*bandBlackBodyIntensity
-                (
-                    temperatureK,
-                    optical.planckBandFraction
-                );
-        };
-        const auto powerAtTemperatureW =
-        [&](const scalar temperatureK)
-        {
-            const MieOpticalSample optical =
-                context.mieTable.query(representativeDiameterM, temperatureK);
-            const scalar absorptionCoefficient =
-                scalar(3)*epsilonS*optical.Qabs
-               /(scalar(2)*representativeDiameterM);
-            const scalar powerW = cellVolumeM3*particleRadiationPowerDensity
-            (
-                absorptionCoefficient,
-                incidentRadiationG_Wm2,
-                bandBlackBodyIntensity
-                (
-                    temperatureK,
-                    optical.planckBandFraction
-                )
-            );
-
-            return powerW;
-        };
-
-        detail::ImplicitTemperatureRootResult root
-        {
-            oldTemperatureK,
-            scalar(0),
-            0
-        };
-        try
-        {
-            root = detail::solveBoundedImplicitMaterialTemperature
-            (
-                oldTemperatureK,
-                legalMinimumTemperatureK,
-                legalMaximumTemperatureK,
-                capacityJPerK,
-                couplingDeltaT,
-                100,
-                scalar(1e-10),
-                scalar(1e-9),
-                radiativeBalanceAtTemperature,
-                powerAtTemperatureW
-            );
-        }
-        catch (const ParticleRadiationSolveError& error)
-        {
-            std::ostringstream reason;
-            reason.precision(17);
-            reason
-                << "implicit radiation cell solve failed: " << error.what()
-                << "; epsilonS=" << epsilonS
-                << "; particleMassKg=" << snapshot.particleMassInCellKg[cellI]
-                << "; capacityJPerK=" << capacityJPerK
-                << "; representativeDiameterM=" << representativeDiameterM
-                << "; incidentRadiationG_Wm2=" << incidentRadiationG_Wm2
-                << "; rawDeltaEnergyJ=" << rawDeltaEnergyJ;
-            materialFailure(reason.str(), 1, cellI);
-        }
-        const scalar acceptedEnergyJ =
-            capacityJPerK*(root.temperatureK - oldTemperatureK);
-
-        currentTemperatureK[cellI] = root.temperatureK;
-        result.deltaParticleRadiationEnergyJ[cellI] = acceptedEnergyJ;
-        acceptedParticleEnergyJ += acceptedEnergyJ;
-        grossTransactionEnergyJ += mag(acceptedEnergyJ);
-    }
-
-    List<scalarField> rawBoundaryEnergyJ(context.mesh.boundary().size());
-    scalar rawBoundaryTotalEnergyJ = scalar(0);
-    forAll(context.mesh.boundary(), patchI)
-    {
-        const vectorField& faceAreas =
-            context.mesh.Sf().boundaryField()[patchI];
-        rawBoundaryEnergyJ[patchI].setSize(faceAreas.size(), scalar(0));
-        forAll(faceAreas, faceI)
-        {
-            const scalar boundaryEnergyJ = couplingDeltaT
-               *mag(faceAreas[faceI])
-               *radiationResult.boundaryQrOutwardWm2[patchI][faceI];
-
-            rawBoundaryEnergyJ[patchI][faceI] = boundaryEnergyJ;
-            rawBoundaryTotalEnergyJ += boundaryEnergyJ;
-            grossTransactionEnergyJ += mag(boundaryEnergyJ);
-        }
-    }
-
-    const detail::ConservativeBoundaryEnergyScaleResult boundaryScale =
-        detail::conservativeBoundaryEnergyScale
-        (
-            acceptedParticleEnergyJ,
-            rawBoundaryTotalEnergyJ,
-            grossTransactionEnergyJ,
-            scalar(1e-10)
-        );
-
-    forAll(context.mesh.boundary(), patchI)
-    {
-        const bool coupled = isCoupledPatch
-        (
-            context.coupledSolidPatchIds,
-            patchI
-        );
-        forAll(rawBoundaryEnergyJ[patchI], faceI)
-        {
-            const scalar boundaryEnergyJ =
-                boundaryScale.scale*rawBoundaryEnergyJ[patchI][faceI];
-
-            if (coupled)
-            {
-                result.solidWallRadiationEnergyJ[patchI][faceI] =
-                    boundaryEnergyJ;
-            }
-            else
-            {
-                result.escapedBoundaryRadiationEnergyJ += boundaryEnergyJ;
-            }
-        }
-    }
-
-    result.finalMeanTemperatureK = currentTemperatureK;
+    ugkp::gpu::ParticleRadiationMaterialInput input;
+    const label cells=context.mesh.nCells();
+    input.epsilon.assign(snapshot.epsilonS.begin(),snapshot.epsilonS.begin()+cells);
+    input.mass.assign(snapshot.particleMassInCellKg.begin(),snapshot.particleMassInCellKg.begin()+cells);
+    input.temperature.assign(currentTemperatureK.begin(),currentTemperatureK.end());
+    input.diameter.assign(snapshot.representativeDiameterM.begin(),snapshot.representativeDiameterM.begin()+cells);
+    input.incident.assign(radiationResult.incidentRadiationG_Wm2.begin(),radiationResult.incidentRadiationG_Wm2.begin()+cells);
+    input.volume.assign(context.mesh.V().begin(),context.mesh.V().end());
+    input.heatFactor=snapshot.particleHeatFactorJkgK;input.elapsed=couplingDeltaT;
+    input.minimumTemperature=max(context.particleTemperatureMinK,context.mieTable.minTemperatureK());
+    input.maximumTemperature=min(context.particleTemperatureMaxK,context.mieTable.maxTemperatureK());
+    input.activeEpsilonMinimum=context.radiationActiveEpsilonMin;
+    forAll(context.mesh.boundary(),patchI){const bool coupled=isCoupledPatch(context.coupledSolidPatchIds,patchI);
+        const vectorField& areas=context.mesh.Sf().boundaryField()[patchI];
+        forAll(areas,faceI){input.boundaryArea.push_back(mag(areas[faceI]));input.boundaryFlux.push_back(radiationResult.boundaryQrOutwardWm2[patchI][faceI]);input.coupledBoundary.push_back(coupled);}}
+    // Production couplers retain the table and workspace. Standalone callers
+    // own one temporary workspace and execute the identical CUDA operator.
+    std::unique_ptr<ugkp::gpu::ParticleRadiationMaterial> temporary;
+    auto* device=context.materialDevice;
+    if(!device){temporary.reset(new ugkp::gpu::ParticleRadiationMaterial(context.mieTable.exportGpuTable()));device=temporary.get();}
+    const auto completed=device->solve(input);
+    result.finalMeanTemperatureK.setSize(cells);
+    for(label cellI=0;cellI<cells;++cellI){result.finalMeanTemperatureK[cellI]=completed.temperature[cellI];result.deltaParticleRadiationEnergyJ[cellI]=completed.energy[cellI];}
+    std::size_t boundary=0;
+    forAll(result.solidWallRadiationEnergyJ,patchI)forAll(result.solidWallRadiationEnergyJ[patchI],faceI)
+        result.solidWallRadiationEnergyJ[patchI][faceI]=completed.boundaryEnergy[boundary++];
+    result.escapedBoundaryRadiationEnergyJ=completed.escapedEnergy;
     return result;
 
 }
@@ -428,7 +289,8 @@ GpuParticleRadiationCoupler::GpuParticleRadiationCoupler
     coupledSolidPatchIds_(coupledSolidPatchIds),
     particleTemperatureMinK_(particleTemperatureMinK),
     particleTemperatureMaxK_(particleTemperatureMaxK),
-    radiationWorkspace_(radiationSolver.makeWorkspace())
+    radiationWorkspace_(radiationSolver.makeWorkspace()),
+    materialDevice_(new ugkp::gpu::ParticleRadiationMaterial(mieTable.exportGpuTable()))
 {
 }
 
@@ -445,7 +307,8 @@ try
         coupledSolidPatchIds_,
         particleTemperatureMinK_,
         particleTemperatureMaxK_,
-        radiationSolver_.controls().radiationActiveEpsilonMin
+        radiationSolver_.controls().radiationActiveEpsilonMin,
+        materialDevice_.get()
     };
 
     return detail::solveParticleRadiationTransaction

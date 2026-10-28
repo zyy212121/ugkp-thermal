@@ -67,7 +67,7 @@ inline unsigned intervalProducerMask(ExchangeKind kind){
     return ConsumeGas;
 }
 // Scale only physical integral fields; identity and consumer mask are untouched.
-inline ExchangePacket scaledIntervalPacket(const ExchangePacket& p,Real scale){
+CHMT_HD inline ExchangePacket scaledIntervalPacket(const ExchangePacket& p,Real scale){
     ExchangePacket q=p;
     q.mass*=scale;q.momentum=q.momentum*scale;q.energy*=scale;
     q.conductive*=scale;q.advective*=scale;q.pressureWork*=scale;
@@ -85,7 +85,7 @@ inline ExchangePacket subtractIntervalPacket(const ExchangePacket& p,const Excha
     for(int c=0;c<Nc;++c)q.condensed[c]-=used.condensed[c];
     return q;
 }
-inline void addIntervalPacket(ExchangePacket& q,const ExchangePacket& p){
+CHMT_HD inline void addIntervalPacket(ExchangePacket& q,const ExchangePacket& p){
     q.mass+=p.mass;q.momentum+=p.momentum;q.energy+=p.energy;
     q.conductive+=p.conductive;q.advective+=p.advective;q.pressureWork+=p.pressureWork;
     q.viscousWork+=p.viscousWork;q.radiation+=p.radiation;q.liquidKineticAdvection+=p.liquidKineticAdvection;

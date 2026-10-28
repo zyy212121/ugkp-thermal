@@ -5,6 +5,7 @@
 #include "IOdictionary.H"
 #include "fixedGradientFvPatchFields.H"
 #include "GpuSolidThermalCoupler.H"
+#include "ThermalHostDiagnostics.H"
 #include "DynamicList.H"
 #include <algorithm>
 #include <cmath>
@@ -227,12 +228,16 @@ int main(int argc, char** argv)
     require(harness.resident.uploads==2, "finite surface was not uploaded");
     const scalarField& surface=solid.boundaryField()[pairs[2]];
     near(harness.resident.temperatures[pairs[2]][surface.size()-1],surface[0]);
-    // Required nonfinite surface arithmetic still fails before any upload.
+    // The existing order publishes temperature before consuming contact
+    // effusivity. Invalid physical properties must prevent the second upload.
     solid.boundaryFieldRef()[pairs[0]][0]=std::numeric_limits<scalar>::quiet_NaN();
     harness.resident=Resident();
     bool rejected=false;
+    FatalError.throwExceptions();
     try { harness.mapSolidWallTemperatureToFluid(gas); }
     catch (const GpuSolidThermalSolveError&) { rejected=true; }
-    require(rejected && harness.resident.uploads==0, "nonfinite surface reached upload");
+    catch (const Foam::error&) { rejected=true; }
+    FatalError.dontThrowExceptions();
+    require(rejected && harness.resident.uploads==1, "invalid contact effusivity reached upload");
     std::cout << "PASS mapping\n";
 }

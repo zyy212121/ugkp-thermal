@@ -48,11 +48,7 @@ bool evaluateCpuSurfaceImpl(const HostState& h,const PhysicsConfig& p,
         if(sideMeshVolumeRate){if(sideMeshVolumeRate->size()!=nf){if(numericalFailure)*numericalFailure=sideMeshVolumeRate->size()>=nf;error="surface side sweep layout mismatch";return false;}input.sideMeshVolumeRate=(*sideMeshVolumeRate)[f];}
         SurfacePhysicsResult physics;DeviceStatus status;
         if(!solveDrySurfaceInterface(input,p,physics,&status,numericalFailure)){error="CPU surface constitutive solve rejected face "+std::to_string(f)+" code "+std::to_string(status.code);return false;}
-        auto& w=result.wall[f];w.temperature=physics.topTemperature;w.primaryKind=ExchangeKind::GasSolid;
-        w.velocity=physics.gasState.velocity-input.gasNormal*dot(physics.gasState.velocity,input.gasNormal);
-        for(int s=0;s<Ns;++s){w.speciesRate[s]=physics.gasSpecies[s];w.poreRate[s]=physics.poreSpecies[s];w.poreSweepRate[s]=physics.poreSweep[s];}
-        for(int c=0;c<Nc;++c)w.condensedRate[c]=physics.condensed[c];
-        w.radiationFlux=physics.radiationFlux;w.solidNormalVelocity=physics.solidSpeed;w.normalVelocity=physics.topSpeed;
+        result.wall[f]=dryWallFaceSample(input,physics);
         result.physics[f]=physics;
     }
     output=std::move(result);error.clear();return true;

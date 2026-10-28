@@ -1,4 +1,7 @@
 #include "mesh/Geometry.H"
+#ifdef CHMT_DEVICE_GEOMETRY
+#include "mesh/GeometryGpu.H"
+#endif
 #include "mesh/GeometryDiagnostics.H"
 #include "mesh/Motion.H"
 #include "mesh/SweepConstraints.H"
@@ -192,6 +195,10 @@ namespace chmt {
                     m.cellFaceSigns[k] = -1;
                 }
             }
+#ifdef CHMT_DEVICE_GEOMETRY
+            geometry_device::RebuiltGeometry deviceGeometry(m);
+            if(!deviceGeometry.faces(m,error))return false;
+#else
             m.areaVectors.assign(nf, {});
             m.faceCentres.assign(nf, {});
             for (int f = 0; f<nf; ++f) {
@@ -211,6 +218,10 @@ namespace chmt {
                 }
                 m.faceCentres[f] = m.faceCentres[f]/weight;
             }
+#endif
+#ifdef CHMT_DEVICE_GEOMETRY
+            if(!deviceGeometry.cells(m,error,diagnostics))return false;
+#else
             m.volumes.assign(nc, 0);
             m.cellCentres.assign(nc, {});
             for (int c = 0; c<nc; ++c) {
@@ -257,6 +268,7 @@ namespace chmt {
                 m.cellCentres[c] = moment/vol;
                 if ((!finite(m.cellCentres[c])))return errorAt(error, "nonfinite cell centroid", c);
             }
+#endif
             if (!periodicGeometry(m, error))return false;
             m.wallDistance.assign(nc, 0);
             std::vector<int> wallFaces;
@@ -272,6 +284,9 @@ namespace chmt {
                 if(!(empty_detail::build(m,representation,error)))return false;
                 if(extrusion)*extrusion=std::move(representation);
             }
+#ifdef CHMT_DEVICE_GEOMETRY
+            if(!deviceGeometry.wallDistance(m,wallFaces,error))return false;
+#else
             struct WallDistanceResult {
                 Real distance=std::numeric_limits<Real>::max();
                 int invalidFace=-1;
@@ -359,6 +374,7 @@ namespace chmt {
                 if ((!(result.distance>0) || !finite(result.distance)))return errorAt(error, "invalid wall distance", c);
                 m.wallDistance[c] = result.distance;
             }
+#endif
             std::uint64_t h = 14695981039346656037ULL;
             auto mix = [&](std::uint64_t v) {
                 for (int k = 0; k<8; ++k) {
@@ -514,12 +530,18 @@ namespace chmt {
             sweep.assign(m.owner.size(), 0);
             bool emptyChecked=representation!=nullptr;
             if(representation && !empty_detail::trajectory(m,*representation,endpoint,error))return false;
+#ifdef CHMT_DEVICE_GEOMETRY
+            const auto deviceSweep=geometry_device::workspace().sweep(geometry_device::faceTopology(m),geometry_device::pack(m.points),geometry_device::pack(endpoint));
+#endif
             for (int f = 0; f<static_cast<int>(m.owner.size()); ++f) {
                 if(!emptyChecked && m.boundaryKind[f]==BoundaryKind::Empty) {
                     empty_detail::Extrusion extrusion;
                     if(!empty_detail::build(m,extrusion,error) || !empty_detail::trajectory(m,extrusion,endpoint,error))return false;
                     emptyChecked=true;
                 }
+#ifdef CHMT_DEVICE_GEOMETRY
+                area[f]=geometry_device::unpack(deviceSweep[f].area);sweep[f]=deviceSweep[f].volume;
+#else
                 int begin = m.faceOffsets[f], end = m.faceOffsets[f+1], ia = m.facePoints[begin];
                 for (int j = begin+1; j+1<end; ++j) {
                     int ib = m.facePoints[j], ic = m.facePoints[j+1];
@@ -531,6 +553,7 @@ namespace chmt {
                     area[f] += average;
                     sweep[f] += dot((da+db+dc)/3, average);
                 }
+#endif
                 if (!finite(area[f]) || !finite(sweep[f]))
                     return errorAt(error,"nonfinite stage area/swept volume",f);
             }
@@ -712,6 +735,14 @@ namespace chmt {
         }
         if ((np && !any))return errorAt(error, "harmonic motion lacks Dirichlet anchor", -1);
         const Real tolerance = 1e-12*meshScale(mesh.points);
+#ifdef CHMT_DEVICE_GEOMETRY
+        std::vector<int> offsets,neighbours;geometry_device::adjacency(adjacency,offsets,neighbours);
+        geometry_device::backend::HarmonicPointMotion device(geometry_device::pack(mesh.points),offsets,neighbours,prescribed,tolerance);
+        const auto result=device.solve(geometry_device::pack(prescribedDisplacement));
+        if(result.errorPoint>=0)return errorAt(error,result.errorKind==1?"zero-length motion edge":"nonfinite harmonic displacement",result.errorPoint);
+        if(np && !(result.residual<=tolerance))geometryWarning(diagnostics,result.residual,tolerance,-1,false);
+        geometry_device::unpack(result.points,output);
+#else
         bool converged = np == 0;
         Real finalResidual=0;
         for (int iter = 0; iter<20000 && !converged; ++iter) {
@@ -740,6 +771,7 @@ namespace chmt {
         if (!converged) geometryWarning(diagnostics,finalResidual,tolerance,-1,false);
         output = mesh.points;
         for (int p = 0; p<np; ++p)output[p] += displacement[p];
+#endif
         error.clear();
         return true;
     }
@@ -812,6 +844,23 @@ namespace chmt {
         // Dependent equations are checked for compatibility, never least-squared.
         bool minimumNormCorrection(sweep_detail::Rows rows, sweep_detail::Reals rhs,
             Real rankTolerance, Real consistencyTolerance, sweep_detail::Reals& delta, int& rank,ugkp::diagnostics::DeviceContext* diagnostics) {
+#ifdef CHMT_DEVICE_GEOMETRY
+            const int nr=static_cast<int>(rows.size()),nc=static_cast<int>(delta.size());
+            std::vector<double> packed;packed.reserve(sweep_detail::product(rows.size(),delta.size()));
+            for(const auto& row:rows)packed.insert(packed.end(),row.begin(),row.end());
+            static thread_local geometry_device::backend::DenseMinimumNorm solver;
+            const auto result=solver.solve(nr,nc,packed,std::vector<double>(rhs.begin(),rhs.end()),rankTolerance);
+            if(!result.initialized)return false;
+            rank=result.rank;delta.assign(result.delta.begin(),result.delta.end());
+            if(!result.valid)return false;
+            for(int i=rank;i<nr;++i){
+                if(!finite(result.rhs[i]))return false;
+                if(absValue(result.rhs[i])>consistencyTolerance)
+                    geometryWarning(diagnostics,result.rhs[i],consistencyTolerance,i,false);
+            }
+            for(Real x:delta)if(!finite(x))return false;
+            return true;
+#else
             const int nr=static_cast<int>(rows.size()),nc=static_cast<int>(delta.size());
             sweep_detail::Reals norm(nr,0,delta.get_allocator());
             Real largest=0;
@@ -850,6 +899,7 @@ namespace chmt {
             }
             for (Real x:delta) if (!finite(x)) return false;
             return true;
+#endif
         }
         bool constrainedMotionImpl(const HostMesh& input, const std::vector<int>& faces,
             const std::vector<Real>& targets, const std::vector<Vec3>& prescribedDisplacement,
@@ -975,6 +1025,12 @@ namespace chmt {
             std::vector<Vec3> start;
             if (!harmonicPointMotionRepresentedImpl(old,prescribedDisplacement,prescribed,start,error,
                 hasEmpty&&paired?&extrusion:nullptr,numericalFailure,tolerances.diagnostics)) return false;
+#ifdef CHMT_DEVICE_GEOMETRY
+            std::vector<geometry_device::backend::PlanarConstraint> devicePlanes;
+            for(const auto& p:planar)devicePlanes.push_back({p.a,p.b,p.c,p.d,p.scale});
+            geometry_device::backend::SweepLinearization linearization(geometry_device::faceTopology(old),
+                geometry_device::pack(old.points),faces,sweepScale,devicePlanes);
+#endif
             auto evaluate=[&](const std::vector<Vec3>& points,std::vector<Real>& residual,
                 std::vector<Real>& sweeps, Real& metric) {
                 std::vector<Vec3> area;
@@ -988,8 +1044,16 @@ namespace chmt {
                     metric=maxValue(metric,geometryResidualRatio(absValue(r),sweepTolerance(i,sweeps[faces[i]])));
                     report.maximumSweepResidual=maxValue(report.maximumSweepResidual,absValue(r));
                 }
+#ifdef CHMT_DEVICE_GEOMETRY
+                const auto devicePolynomials=linearization.planarity(geometry_device::pack(points));
+                std::size_t polynomialIndex=0;
+#endif
                 for (const auto& p:planar) {
+#ifdef CHMT_DEVICE_GEOMETRY
+                    const auto& coefficients=devicePolynomials[polynomialIndex++].value;
+#else
                     Real coefficients[3]; planarPolynomial(old,points,p,coefficients);
+#endif
                     for (Real coefficient:coefficients) {
                         const Real r=coefficient/p.scale;
                         if (!finite(r))return errorAt(error,"nonfinite planarity residual",p.a);
@@ -1092,9 +1156,16 @@ namespace chmt {
                 Rows jacobian{Allocator<Reals>(workspace)};
                 jacobian.reserve(rows);
                 for(std::size_t i=0;i<rows;++i)jacobian.emplace_back(columns,0,Allocator<Real>(workspace));
+#ifdef CHMT_DEVICE_GEOMETRY
+                linearization.endpoint(geometry_device::pack(points));
+#endif
                 for (std::size_t j=0;j<columns;++j) {
                     if(!generateMode(movable[j],streamedMode))return false;
                     const auto& mode=streamedMode;
+#ifdef CHMT_DEVICE_GEOMETRY
+                    const auto derivative=linearization.column(geometry_device::pack(mode));
+                    for(std::size_t row=0;row<rows;++row)jacobian[row][j]=derivative[row];
+#else
                     std::size_t row=0;
                     for (std::size_t i=0;i<faces.size();++i)
                         jacobian[row++][j]=sweepDerivative(old,points,mode.data(),faces[i])/sweepScale[i];
@@ -1108,6 +1179,7 @@ namespace chmt {
                             ++row;
                         }
                     }
+#endif
                 }
                 Reals rhs(residual.begin(),residual.end(),Allocator<Real>(workspace));
                 std::size_t planarRow=faces.size();
@@ -1125,12 +1197,23 @@ namespace chmt {
 
                     return reject(SweepConstraintStatus::Incompatible,detail.str());
                 }
+#ifdef CHMT_DEVICE_GEOMETRY
+                linearization.resetCorrection();
+#else
                 std::fill(correction.begin(),correction.end(),Vec3{});
+#endif
                 for (std::size_t j=0;j<columns;++j) {
                     if(!generateMode(movable[j],streamedMode))return false;
                     const auto& mode=streamedMode;
+#ifdef CHMT_DEVICE_GEOMETRY
+                    linearization.accumulate(geometry_device::pack(mode),delta[j]);
+#else
                     for (std::size_t p=0;p<np;++p) correction[p]+=mode[p]*delta[j];
+#endif
                 }
+#ifdef CHMT_DEVICE_GEOMETRY
+                geometry_device::unpack(linearization.correction(),correction);
+#endif
                 // Globalize this fixed-target Newton correction. Physical time,
                 // target sweeps, modes, Jacobian and delta remain unchanged.
                 bool accepted=false;
@@ -1372,7 +1455,14 @@ namespace chmt {
             if(!empty_detail::build(mesh,extrusion,error) || !empty_detail::trajectory(mesh,extrusion,endpoint,error))return false;
             break;
         }
+#ifdef CHMT_DEVICE_GEOMETRY
+        const auto result=geometry_device::workspace().surfaceEdges(geometry_device::faceTopology(mesh),
+            geometry_device::pack(mesh.points),geometry_device::pack(endpoint),
+            {{pointA,pointB,faceOwner,faceNeighbour,-1,-1}},extrusion.axis>=0,segments);
+        const Real value=result.front().sweep;
+#else
         const Real value = edgeSweepQuadrature(mesh, endpoint, s, edge, segments,extrusion.axis>=0);
+#endif
         if (!finite(value))return errorAt(error, "degenerate moving surface hinge/edge", faceOwner);
         output = value;
         error.clear();
@@ -1577,6 +1667,23 @@ namespace chmt {
         surface.edgeOwnerOffset.clear();
         surface.edgeNeighbourOffset.clear();
         const Real edgeMeshScale=edges.empty()?Real(0):meshScale(oldSolid.points);
+#ifdef CHMT_DEVICE_GEOMETRY
+        std::vector<geometry_device::backend::SurfaceEdge> deviceEdges;deviceEdges.reserve(edges.size());
+        for(const auto& e:edges)deviceEdges.push_back({e.a,e.b,reference.solidFace[e.owner],
+            e.neighbour>=0?reference.solidFace[e.neighbour]:-1,e.neighbourA,e.neighbourB});
+        const auto values=geometry_device::workspace().surfaceEdges(geometry_device::faceTopology(oldSolid),
+            geometry_device::pack(oldSolid.points),geometry_device::pack(solid.points),deviceEdges,emptySolid,0,edgeMeshScale);
+        for(std::size_t i=0;i<edges.size();++i){const auto& edge=edges[i];const auto& value=values[i];
+            if(value.invalid==1)return errorAt(error,"degenerate surface edge conormal",edge.owner);
+            surface.edgeOwnerOffset.push_back(geometry_device::unpack(value.ownerOffset));
+            surface.edgeNeighbourOffset.push_back(geometry_device::unpack(value.neighbourOffset));
+            surface.edgeOwner.push_back(edge.owner);surface.edgeNeighbour.push_back(edge.neighbour);
+            surface.edgeLength.push_back(value.length);surface.edgeConormal.push_back(geometry_device::unpack(value.conormal));
+            if(value.invalid==2)return errorAt(error,"degenerate moving surface hinge",edge.owner);
+            if(!value.converged)geometryWarning(tolerances.diagnostics,value.residual,value.tolerance,edge.owner,false);
+            surface.sweptEdgeArea.push_back(value.sweep);
+        }
+#else
         for (const auto& edge:edges) {
             Vec3 tangent = solid.points[edge.b]-solid.points[edge.a], normal = surface.normal[edge.owner];
             if (edge.neighbour >= 0)normal = normalized(normal+surface.normal[edge.neighbour]);
@@ -1615,6 +1722,7 @@ namespace chmt {
             if (!converged) geometryWarning(tolerances.diagnostics,quadratureResidual,quadratureTolerance,edge.owner,false);
             surface.sweptEdgeArea.push_back(sweep);
         }
+#endif
         output=std::move(surface); error.clear(); return true;
     }
     bool rebuildGeometry(HostMesh& m,std::string& e,ugkp::diagnostics::DeviceContext* diagnostics) {return rebuildGeometryImpl(m,e,nullptr,diagnostics);}
@@ -1677,6 +1785,9 @@ namespace chmt {
         fixedPhysicalBoundaries(oldGas, fixedGas);
         std::vector<Vec3> displacement(oldSolid.points.size()),directions(oldSolid.points.size()),support(oldSolid.points.size());
         std::vector<Real> weight(oldSolid.points.size(), 0), newThickness(weight);
+#ifdef CHMT_DEVICE_GEOMETRY
+        std::vector<geometry_device::backend::BoundaryMotionFace> motionFaces;motionFaces.reserve(ns);
+#endif
         for (int i = 0; i<ns; ++i) {
             int f = reference.solidFace[i], g = reference.gasFace[i];
             if ((f<0 || f >= static_cast<int>(oldSolid.owner.size()) || g<-1
@@ -1685,13 +1796,19 @@ namespace chmt {
             const auto& old = accepted.filmAux[i];
             const auto& now = candidateFilm[i];
             Vec3 n = normalized(oldSolid.areaVectors[f]);
+#ifndef CHMT_DEVICE_GEOMETRY
             Real area = mag(oldSolid.areaVectors[f]);
+#endif
             if ((!finite(now.thickness) || now.thickness<0 || !finite(old.thickness) || old.thickness<0
                 || !finite(now.solidFront) || !finite(old.solidFront)
                 || !finite(now.baseVelocity)))return errorAt(error, "invalid coupled front data", i);
             if ((absValue(dot(now.baseVelocity, n))>1e-12*maxValue(1,
                 mag(now.baseVelocity))))return errorAt(error,
                 "normal moving support requires separate support trajectory (unsupported)", i);
+#ifdef CHMT_DEVICE_GEOMETRY
+            motionFaces.push_back({f,old.solidFront,now.solidFront,now.thickness,
+                {now.baseVelocity.x,now.baseVelocity.y,now.baseVelocity.z}});
+#else
             const Vec3 delta = n*(now.solidFront-old.solidFront)+now.baseVelocity*dt;
             for (int k = oldSolid.faceOffsets[f]; k<oldSolid.faceOffsets[f+1]; ++k) {
                 int v = oldSolid.facePoints[k];
@@ -1702,7 +1819,17 @@ namespace chmt {
                 newThickness[v] += now.thickness*area;
                 fixedSolid[v] = 1;
             }
+#endif
         }
+#ifdef CHMT_DEVICE_GEOMETRY
+        std::vector<unsigned char> sideFaces;sideFaces.reserve(oldSolid.owner.size());
+        for(auto kind:oldSolid.boundaryKind)sideFaces.push_back(kind!=BoundaryKind::Interface);
+        const auto motion=geometry_device::workspace().boundaryMotion(geometry_device::faceTopology(oldSolid),
+            oldSolid.points.size(),geometry_device::pack(oldSolid.areaVectors),motionFaces,sideFaces,dt);
+        for(std::size_t p=0;p<motion.size();++p){displacement[p]=geometry_device::unpack(motion[p].displacement);
+            directions[p]=geometry_device::unpack(motion[p].direction);newThickness[p]=motion[p].thickness;
+            if(motion[p].weight>0)fixedSolid[p]=1;}
+#else
         for (std::size_t v = 0; v<weight.size(); ++v)if (weight[v]>0) {
             displacement[v] = displacement[v]/weight[v];
             support[v] = support[v]/weight[v];
@@ -1732,6 +1859,7 @@ namespace chmt {
             displacement[p]=recession+support[p];
         }
         for (auto& direction:directions) direction=normalized(direction);
+#endif
         HostMesh gas,solid;
         std::vector<Real> gasSweeps,solidSweeps;
         auto buildGas=[&](const HostMesh& trialSolid,std::string& failure,ugkp::diagnostics::DeviceContext* diagnostics,bool& recoverable) {

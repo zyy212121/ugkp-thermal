@@ -1,8 +1,9 @@
 """Full production CHT thermal coupler with a recording resident boundary.
 
-This executes actual CPU numerical/state/IO owners, not CUDA kernels or the
-native resident adapter. Recording payloads are not claimed codec coverage.
+This executes native thermal CUDA operators and state/IO owners. Gas resident
+interaction is recorded; recording payloads are not claimed codec coverage.
 """
+from validation.tools.cht_thermal_cuda import link_thermal_cuda
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
 
 from pathlib import Path
@@ -12,7 +13,7 @@ import re
 import subprocess
 import os
 import pytest
-ROOT=SOURCE_ROOT;THERMAL=ROOT/'applications/CHT/thermal'
+ROOT=SOURCE_ROOT;THERMAL=Path(os.environ.get('T14_THERMAL_SOURCE',ROOT/'applications/CHT/thermal'))
 spec=importlib.util.spec_from_file_location('t14_case_writer',(VALIDATION_ROOT / 'tests/test_cht_surface_temperature.py'));cases=importlib.util.module_from_spec(spec);spec.loader.exec_module(cases)
 def observe_restart(source):
     """Count actual .C open/helper executions; never alter production sources."""
@@ -26,7 +27,7 @@ def observe_restart(source):
 def exchange_probe(tmp_path_factory):
     if not shutil.which('wmake'):pytest.skip('Foundation OpenFOAM required')
     build=tmp_path_factory.mktemp('exchange_native');(build/'Make').mkdir()
-    for n in ['exchange.C','RecordingResident.H']:shutil.copy((VALIDATION_ROOT / 'tests/fixtures/cht_thermal')/n,build/n)
+    for n in ['exchange.C','RecordingResident.H','InterfaceExchangeResident.inc']:shutil.copy((VALIDATION_ROOT / 'tests/fixtures/cht_thermal')/n,build/n)
     names=['GpuSolidThermalCoupler','GpuSolidThermalProperties','GpuSolidPatchMapper','GpuThermalExchangeState','GpuParticleRadiationCoupler','MieDoRadiationSolver','MieTable']
     for n in names:
         source=(THERMAL/(n+'.C')).read_text()
@@ -35,6 +36,7 @@ def exchange_probe(tmp_path_factory):
         (build/(n+'.C')).write_text(source)
     (build/'Make/files').write_text('exchange.C\n'+'\n'.join(n+'.C' for n in names)+f'\nEXE = {build}/exchange\n')
     (build/'Make/options').write_text(f'EXE_INC = -DUGKWP_USE_CUDA -I{THERMAL} -I{ROOT}/applications/CHT/gpu -I{ROOT}/common -I$(LIB_SRC)/finiteVolume/lnInclude -I$(LIB_SRC)/meshTools/lnInclude\nEXE_LIBS = -lfiniteVolume -lmeshTools -lOpenFOAM\n')
+    link_thermal_cuda(build, THERMAL.parents[2])
     p=subprocess.run(['wmake'],cwd=build,capture_output=True,text=True);(build/'build.log').write_text(p.stdout+p.stderr);assert p.returncode==0,p.stdout+p.stderr
     return build/'exchange'
 
@@ -71,5 +73,10 @@ def test_full_actual_exchange(exchange_probe,tmp_path,mode):
     make_case(tmp_path,mode)
     env=os.environ.copy();env.pop('FOAM_SIGFPE',None)
     p=subprocess.run([str(exchange_probe),'-case',str(tmp_path)],capture_output=True,text=True,env=env)
+    if mode=='outer_zero_k':
+        assert p.returncode!=0,p.stdout+p.stderr
+        assert 'invalid consumed solid property' in p.stdout+p.stderr
+        assert 'property=kappa' in p.stdout+p.stderr
+        return
     assert p.returncode==0,p.stdout+p.stderr
     assert 'PASS '+mode in p.stdout

@@ -13,12 +13,9 @@ __device__ inline GasQ readCoupledFaceFlux(const SharedGasDeviceView& v,int face
         ?(s==activeSpecies?q.mass:0):v.gasSpecies.flux[s*v.nFaces+face];
     return q;
 }
-__global__ void gatherCoupledSurface(const SharedGasDeviceView* state,const int* faces,
-    int count,int activeSpecies,CoupledSurfaceSample* samples){
-    if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
-    const int slot=blockIdx.x*blockDim.x+threadIdx.x;if(slot>=count)return;
-    const auto& v=*state;const int face=faces[slot],cell=v.faceOwner[face];
-    auto& sample=samples[slot];auto& w=sample.primitive;auto& g=sample.gradient;
+__device__ inline CoupledSurfaceSample readCoupledSurfaceSample(const SharedGasDeviceView& v,int face,int activeSpecies){
+    const int cell=v.faceOwner[face];
+    CoupledSurfaceSample sample;auto& w=sample.primitive;auto& g=sample.gradient;
     w.rho=v.rho[cell];w.temperature=v.Tgas[cell];w.pressure=v.p[cell];w.velocity={v.Ux[cell],v.Uy[cell],v.Uz[cell]};
     const bool mixture=v.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy;
     w.soundSpeed=mixture?v.gasSpecies.soundSpeed[cell]:sqrt(v.gammaGas*w.pressure/w.rho);
@@ -33,6 +30,13 @@ __global__ void gatherCoupledSurface(const SharedGasDeviceView* state,const int*
         g.Y[s]=mixture?Vec3{v.gasSpecies.gradX[s*v.nCells+cell],v.gasSpecies.gradY[s*v.nCells+cell],v.gasSpecies.gradZ[s*v.nCells+cell]}:Vec3{};
     }
     sample.flux=readCoupledFaceFlux(v,face,activeSpecies);
+    return sample;
+}
+__global__ void gatherCoupledSurface(const SharedGasDeviceView* state,const int* faces,
+    int count,int activeSpecies,CoupledSurfaceSample* samples){
+    if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
+    const int slot=blockIdx.x*blockDim.x+threadIdx.x;if(slot>=count)return;
+    samples[slot]=readCoupledSurfaceSample(*state,faces[slot],activeSpecies);
 }
 __global__ void gatherCoupledFlux(const SharedGasDeviceView* state,const int* faces,
     int count,int activeSpecies,GasQ* flux){

@@ -1,6 +1,7 @@
 """Actual production radiation roots, OpenFOAM DO/table/transaction, and generator.
 
-These are CPU tests. They make no CUDA execution/performance claim.
+Native DO probes use the production CUDA operators when present; the standalone
+math and table probes remain host tests. This suite makes no performance claim.
 """
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
 
@@ -13,11 +14,11 @@ import subprocess
 
 import numpy as np
 import pytest
+from validation.tools.cht_thermal_cuda import link_thermal_cuda
 
 ROOT = SOURCE_ROOT
 THERMAL = Path(os.environ.get('T13_THERMAL_SOURCE', ROOT / 'applications/CHT/thermal'))
-MIE_TABLES = (THERMAL / 'mieTables' if os.environ.get('T13_THERMAL_SOURCE')
-              else SOURCE_ROOT / 'tool/radiation/mieTables')
+MIE_TABLES = THERMAL.parents[2] / 'tool/radiation/mieTables'
 
 @pytest.fixture(scope='module')
 def radiation_probe(tmp_path_factory):
@@ -29,6 +30,7 @@ def radiation_probe(tmp_path_factory):
     (p/'Make/files').write_text(f'probe.C\n{THERMAL}/MieTable.C\n{THERMAL}/MieDoRadiationSolver.C\n{THERMAL}/GpuParticleRadiationCoupler.C\nEXE = {p}/probe\n')
     omp='-fopenmp' if os.environ.get('T13_OPENMP') else ''
     (p/'Make/options').write_text(f'EXE_INC = {omp} -std=c++17 -I{THERMAL} -I{ROOT}/common -I{ROOT}/applications/CHT/gpu -I$(LIB_SRC)/finiteVolume/lnInclude -I$(LIB_SRC)/meshTools/lnInclude\nEXE_LIBS = {omp} -lfiniteVolume -lmeshTools -lOpenFOAM\n')
+    link_thermal_cuda(p, THERMAL.parents[2])
     build=subprocess.run(['wmake'],cwd=p,capture_output=True,text=True)
     (p/'build.log').write_text(build.stdout+build.stderr)
     assert build.returncode==0,build.stdout+build.stderr

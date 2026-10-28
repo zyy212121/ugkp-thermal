@@ -164,6 +164,17 @@ const labelList& OneToOneConformalSolidPatchMapper::solidPatchIds() const
     return solidPatchIds_;
 }
 
+labelList OneToOneConformalSolidPatchMapper::solidFaceForFluidFace
+(
+    const label pairI
+) const
+{
+    checkedPair(pairI);
+    labelList result(fluidMesh_.boundary()[fluidPatchIds_[pairI]].size());
+    forAll(result, faceI) result[faceI] = faceI;
+    return result;
+}
+
 scalarField OneToOneConformalSolidPatchMapper::mapIntegratedFaceEnergyToSolid
 (
     const label pairI,
@@ -335,6 +346,15 @@ const labelList& ConservativeNearestSolidPatchMapper::fluidPatchIds() const
 const labelList& ConservativeNearestSolidPatchMapper::solidPatchIds() const
 {
     return solidPatchIds_;
+}
+
+labelList ConservativeNearestSolidPatchMapper::solidFaceForFluidFace
+(
+    const label pairI
+) const
+{
+    checkedPair(pairI);
+    return nearestSolidFaceForFluidFace_[pairI];
 }
 
 scalarField ConservativeNearestSolidPatchMapper::mapIntegratedFaceEnergyToSolid

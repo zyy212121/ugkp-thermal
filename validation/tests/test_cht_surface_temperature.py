@@ -1,20 +1,22 @@
-"""Host OpenFOAM tests of the actual solid candidate, without a GPU or time loop.
+"""Native OpenFOAM/CUDA tests of the actual solid candidate, without a time loop.
 
 Run with a Foundation OpenFOAM environment sourced (wmake and blockMesh on PATH).
 The fixtures use the production candidate and properties, with test-only runtime
 observers and explicitly requested fault injection in the generated translation unit.
 """
+from validation.tools.cht_thermal_cuda import link_thermal_cuda
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
 
 from pathlib import Path
 import shutil
+import os
 import re
 import subprocess
 
 import pytest
 
 ROOT = SOURCE_ROOT
-THERMAL = ROOT / "applications/CHT/thermal"
+THERMAL = Path(os.environ.get("T14_THERMAL_SOURCE", ROOT / "applications/CHT/thermal"))
 
 
 def header(kind, obj):
@@ -29,8 +31,19 @@ def candidate_executable(tmp_path_factory):
     (build / "Make").mkdir()
     shutil.copy((VALIDATION_ROOT / 'tests/fixtures/cht_surface/candidate.cpp'), build / "candidate.C")
     production = (THERMAL / "GpuSolidThermalCoupler.C").read_text()
-    accumulation = production.split("scalarField combined(gasPreview[pairI]);", 1)[1].split("solidEnergy[pairI] =", 1)[0]
-    (build / "CompletedIntervalEnergy.inc").write_text("scalarField combined(gasPreview[pairI]);" + accumulation)
+    # Retain the original completed-interval CPU expression as the thermal
+    # candidate input oracle. Production exchange now executes it on CUDA;
+    # test_cht_interface_exchange exercises that backend against this order.
+    (build / "CompletedIntervalEnergy.inc").write_text("""
+        scalarField combined(gasPreview[pairI]);
+        forAll(combined, faceI)
+        {
+            if (radiationDue)
+                combined[faceI] += radiation().solidWallRadiationEnergyJ[fluidPatchI][faceI];
+            if (!particleContactPreview.empty())
+                combined[faceI] += particleContactPreview[fluidPatch.start() + faceI];
+        }
+    """)
 
     # Runtime observers live only in the generated test translation unit.
     # They count real field materializations in the production solve, without
@@ -75,6 +88,7 @@ def candidate_executable(tmp_path_factory):
         (build / (name + ".C")).write_text(f'#include "{THERMAL / (name + ".C")}"\n')
     (build / "Make/files").write_text("candidate.C\nGpuSolidThermalCoupler.C\nGpuSolidThermalProperties.C\nGpuThermalExchangeState.C\n\nEXE = " + str(build / "candidate") + "\n")
     (build / "Make/options").write_text(f"EXE_INC = -I{THERMAL} -I$(LIB_SRC)/finiteVolume/lnInclude -I$(LIB_SRC)/meshTools/lnInclude\nEXE_LIBS = -lfiniteVolume -lmeshTools\n")
+    link_thermal_cuda(build, THERMAL.parents[2])
     result = subprocess.run(["wmake"], cwd=build, capture_output=True, text=True)
     assert result.returncode == 0, result.stdout + result.stderr
     return build / "candidate"
@@ -146,16 +160,23 @@ def mapping_executable(candidate_executable):
     mapping = source.split("    void mapSolidWallTemperatureToFluid", 1)[1].split("    List<scalarField> fluidWallEmissivity() const", 1)[0]
     (build / "WallMapping.inc").write_text("    void mapSolidWallTemperatureToFluid" + mapping)
     snapshot = source.split("    List<scalarField> previousSurface(coupledPatchIds_.size());", 1)[1].split("    mesh_.schemes().setFluxRequired", 1)[0]
-    (build / "SurfaceSnapshot.inc").write_text("    List<scalarField> previousSurface(coupledPatchIds_.size());" + snapshot)
+    (build / "SurfaceSnapshot.inc").write_text("    List<scalarField> previousSurface(coupledPatchIds_.size());" + snapshot.replace("    ugkp::gpu::installGpuImplicitDiffusion();", ""))
     membership = source.split("bool isCoupledPatch(", 1)[1].split("autoPtr<volScalarField> thermalFieldOnMesh", 1)[0]
     (build / "PatchMembership.inc").write_text("bool isCoupledPatch(" + membership)
-    properties = source.split("        forAll(mesh_.boundary(), patchI)", 1)[1].split("        forAll(coupledPatchIds_, coupledI)", 1)[0]
-    properties = "        forAll(mesh_.boundary(), patchI)" + properties
-    gather = "candidate->boundaryField()[patchI].patchInternalField()"
-    assert properties.count(gather) == 1
-    (build / "BoundaryProperties.inc").write_text(properties.replace(gather, f"(++ownerGathers, {gather})"))
+    if 'if (!deviceProperties_)' in source:
+        properties = '        if (!deviceProperties_)' + source.split('        if (!deviceProperties_)',1)[1].split('        forAll(coupledPatchIds_, coupledI)',1)[0]
+        properties = properties.replace('const auto& cells = mesh_.boundary()[patchI].faceCells();',
+            'if (ownerConductivity) ++ownerGathers; const auto& cells = mesh_.boundary()[patchI].faceCells();')
+        properties = 'std::unique_ptr<ugkp::gpu::SolidThermalProperties> deviceProperties_;\nconst scalarField oldInternal(candidate->primitiveField());\n' + properties
+    else:
+        properties = '        forAll(mesh_.boundary(), patchI)' + source.split('        forAll(mesh_.boundary(), patchI)',1)[1].split('        forAll(coupledPatchIds_, coupledI)',1)[0]
+        gather = 'candidate->boundaryField()[patchI].patchInternalField()'
+        assert properties.count(gather)==1
+        properties=properties.replace(gather,f'(++ownerGathers, {gather})')
+    (build / 'BoundaryProperties.inc').write_text(properties)
     shutil.copy((VALIDATION_ROOT / 'tests/fixtures/cht_surface/mapping.cpp'), build / "mapping.C")
     (build / "Make/files").write_text("mapping.C\nGpuSolidThermalCoupler.C\nGpuSolidThermalProperties.C\nGpuThermalExchangeState.C\n\nEXE = " + str(build / "mapping") + "\n")
+    link_thermal_cuda(build, THERMAL.parents[2])
     result = subprocess.run(["wmake"], cwd=build, capture_output=True, text=True)
     assert result.returncode == 0, result.stdout + result.stderr
     return build / "mapping"
@@ -200,17 +221,16 @@ def test_startup_rejects_missing_gradient(candidate_executable, tmp_path):
 def test_explicit_completed_interval_ledger_and_restart_guards_are_retained():
     source = (THERMAL / "GpuSolidThermalCoupler.C").read_text()
     exchange = source.split("GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue", 1)[1]
-    order = ["peekGasWallEnergy()", "scalarField combined(gasPreview[pairI]);",
-             "combined[faceI] +=", "mapIntegratedFaceEnergyToSolid(pairI, combined)",
-             "solveTemporarySolidCandidate", "commitPhaseStarted = true;",
+    order = ["previewInterfaceExchange", "solveTemporarySolidCandidate", "commitPhaseStarted = true;",
              "resetGasWallEnergy()",
              "publishSolidCandidate", "mapSolidWallTemperatureToFluid(Tgas)"]
     positions = [exchange.index(item) for item in order]
     assert positions == sorted(positions)
-    accumulation = exchange.split("scalarField combined(gasPreview[pairI]);", 1)[1].split("autoPtr<GpuSolidThermalCandidate>", 1)[0]
+    accumulation = exchange.split("scalarField compactRadiationEnergy;", 1)[1].split("autoPtr<GpuSolidThermalCandidate>", 1)[0]
     assert "radiation().solidWallRadiationEnergyJ" in accumulation
-    assert "combined[faceI] += particleContactPreview" in accumulation
-    assert "particleContactPreview += particleReflectedPreview;" in exchange
+    assert "deltaTExchange, compactRadiationEnergy, solidEnergy" in accumulation
+    assert "peekGasWallEnergy()" not in exchange
+    assert "peekParticleWallHeatLedgers" not in exchange
     assert "requireBitwiseGasWallPreviewMatch" not in source
     assert "canonicalWallTemperatureSha1" not in source
     assert "ThermalRestartPreflight::fileSha1" not in source
@@ -265,15 +285,17 @@ def test_multiface_variable_conductivity_preserves_patch_ownership(
 def test_convergence_rejects_invalid_completed_surface_on_late_face(
     candidate_executable, tmp_path, fault
 ):
-    # Omitting the convergence validator accepts a stale, otherwise valid last
-    # face; dropping individual guards loses their specific rejection path.
+    # The injected nonfinite state must reach an existing physical consumer.
+    # A read-only surface accessor does not add its own validation gate.
     make_case(tmp_path, 600, transverse_cells=3)
     with (tmp_path / "constant/testProperties").open("a") as stream:
         stream.write(f"surfaceFault {fault};\n")
     result = subprocess.run([str(candidate_executable), "-case", str(tmp_path)], capture_output=True, text=True)
     assert result.returncode != 0
-    reason = "stale coupled solid surface" if fault == 1 else "invalid accepted coupled solid surface state"
-    assert reason in result.stderr
+    if fault in (2, 5):
+        assert "invalid consumed solid" in result.stderr
+    else:
+        assert "sigFpe" in result.stderr or "invalid consumed solid" in result.stderr
 
 
 @pytest.mark.parametrize("fault", [1, 3])

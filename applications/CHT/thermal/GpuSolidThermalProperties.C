@@ -530,6 +530,21 @@ scalar GpuSolidThermalProperties::Csec
     return secant;
 }
 
+std::array<ugkp::gpu::ThermalPropertyTable,4>
+GpuSolidThermalProperties::deviceTables() const
+{
+    const PropertyModel* properties[] = {&rho_, &Cp_, &kappa_, &emissivity_};
+    std::array<ugkp::gpu::ThermalPropertyTable,4> tables;
+    for (int i=0; i<4; ++i)
+    {
+        const auto& property = *properties[i];
+        tables[i] = {property.constant, property.clampOutOfBounds, i==3,
+            property.constantValue, int(property.temperatures.size()),
+            property.temperatures.begin(), property.values.begin()};
+    }
+    return tables;
+}
+
 scalar GpuSolidThermalProperties::referenceTemperature() const noexcept
 {
     return referenceTemperature_;

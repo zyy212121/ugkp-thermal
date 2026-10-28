@@ -83,8 +83,6 @@ __device__ void relaxOneParticleToResidentGas
             GPU_OPERATOR_R(1.0e-12)
         );
 #endif
-    const GPU_OPERATOR_REAL mu = clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]), GPU_OPERATOR_R(1.0e-30));
-    const GPU_OPERATOR_REAL re = rhoG*dPart*relMag/mu;
     if (gasDragModelActive(s.dragModelId))
     {
     const GPU_OPERATOR_REAL invTauDrag = dragInverseTimeDevice
@@ -137,6 +135,10 @@ __device__ void relaxOneParticleToResidentGas
      && !coldWallContact
     )
     {
+        // With both particle/gas models disabled, no temperature snapshot exists.
+        // Only this heat law needs Reynolds here; drag evaluates its own mu.
+        const GPU_OPERATOR_REAL mu = clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]), GPU_OPERATOR_R(1.0e-30));
+        const GPU_OPERATOR_REAL re = rhoG*dPart*relMag/mu;
         const GPU_OPERATOR_REAL tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
         const GPU_OPERATOR_REAL particleCp = particleSpecificHeatDevice(tpOld);
         const GPU_OPERATOR_REAL gasTemperatureK = clampRange

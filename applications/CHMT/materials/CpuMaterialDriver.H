@@ -19,7 +19,7 @@ struct CpuMaterialReport {
     bool recoverable=false,geometryCorrection=false;Real eventTime=0,eventDuration=0;
     MaterialDonorPlan donorPlan{};
 };
-// Owns CPU numerical machinery, not a second copy of accepted inventories.
+// Orchestrates resident CUDA material updates and the native implicit conduction solve.
 // Candidate solve never mutates the accepted native mesh: it builds an unregistered full-topology fvMesh for the real sparse solve.
 
 class CpuMaterialDriver {

@@ -247,6 +247,16 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger
     const int* enabledFaceIds
 );
 
+extern "C" int ugkwpGpuResidentStrictConfigureInterfaceExchange
+(
+    void* handle, int nSolidFaces, const int* rowOffsets,
+    const int* sourceIndices, const double* areas
+);
+extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchange
+(
+    void* handle, double deltaT, const double* radiationEnergy, double* preview
+);
+
 extern "C" int ugkwpGpuResidentStrictPeekWallEnergyLedgerRange
 (
     void* handle,
@@ -522,6 +532,7 @@ protected:
     label gasWallEnergyMeshFaces_;
     labelList gasWallEnergyFaceIds_;
     labelList gasWallEnergyPatchSizes_;
+    labelList interfaceSolidPatchSizes_;
     bool gasWallEnergyConfigured_;
     bool particleStateCellLocalPacked_;
 
@@ -572,6 +583,7 @@ public:
         gasWallEnergyMeshFaces_(0),
         gasWallEnergyFaceIds_(),
         gasWallEnergyPatchSizes_(),
+        interfaceSolidPatchSizes_(),
         gasWallEnergyConfigured_(false),
         particleStateCellLocalPacked_(false)
     {}
@@ -708,6 +720,107 @@ public:
         gasWallEnergyFaceIds_.transfer(faceIds);
         gasWallEnergyPatchSizes_.transfer(patchSizes);
         gasWallEnergyConfigured_ = !gasWallEnergyFaceIds_.empty();
+    }
+
+    void configureInterfaceExchange
+    (
+        const labelList& solidPatchSizes,
+        const List<labelList>& solidFaceForFluidFace,
+        const scalarField& fluidFaceAreas
+    )
+    {
+        requireInitialised("configureInterfaceExchange");
+        interfaceSolidPatchSizes_ = solidPatchSizes;
+        label solidCount = 0;
+        forAll(solidPatchSizes, pairI) solidCount += solidPatchSizes[pairI];
+        labelList rowOffsets(solidCount + 1, 0);
+        label solidOffset = 0;
+        forAll(solidFaceForFluidFace, pairI)
+        {
+            forAll(solidFaceForFluidFace[pairI], faceI)
+                ++rowOffsets[solidOffset + solidFaceForFluidFace[pairI][faceI] + 1];
+            solidOffset += solidPatchSizes[pairI];
+        }
+        for (label row=0; row<solidCount; ++row)
+            rowOffsets[row+1] += rowOffsets[row];
+        labelList cursor(rowOffsets);
+        labelList sources(gasWallEnergyFaceIds_.size());
+        label fluidOffset = 0;
+        solidOffset = 0;
+        forAll(solidFaceForFluidFace, pairI)
+        {
+            forAll(solidFaceForFluidFace[pairI], faceI)
+                sources[cursor[solidOffset + solidFaceForFluidFace[pairI][faceI]]++]
+                    = fluidOffset + faceI;
+            fluidOffset += gasWallEnergyPatchSizes_[pairI];
+            solidOffset += solidPatchSizes[pairI];
+        }
+        check
+        (
+            ugkwpGpuResidentStrictConfigureInterfaceExchange
+            (
+                handle_, int(solidCount),
+                reinterpret_cast<const int*>(rowOffsets.begin()),
+                reinterpret_cast<const int*>(sources.begin()),
+                fluidFaceAreas.begin()
+            ),
+            "configure GPU interface exchange"
+        );
+    }
+
+    void previewInterfaceExchange
+    (
+        scalar deltaT,
+        const scalarField& radiationEnergy,
+        List<scalarField>& solidEnergy,
+        List<scalarField>& gasHeatFlux,
+        List<scalarField>& depositedHeatFlux,
+        List<scalarField>& reflectedHeatFlux
+    ) const
+    {
+        requireInitialised("previewInterfaceExchange");
+        const label count = gasWallEnergyFaceIds_.size();
+        label solidCount = 0;
+        forAll(interfaceSolidPatchSizes_, pairI)
+            solidCount += interfaceSolidPatchSizes_[pairI];
+        scalarField preview(3*count + solidCount);
+        check
+        (
+            ugkwpGpuResidentStrictPreviewInterfaceExchange
+            (
+                handle_, deltaT,
+                radiationEnergy.empty() ? nullptr : radiationEnergy.begin(),
+                preview.begin()
+            ),
+            "preview compact GPU interface exchange"
+        );
+        const label pairs = gasWallEnergyPatchSizes_.size();
+        solidEnergy.setSize(pairs);
+        gasHeatFlux.setSize(pairs);
+        depositedHeatFlux.setSize(pairs);
+        reflectedHeatFlux.setSize(pairs);
+        label fluidOffset = 0;
+        label solidOffset = 3*count;
+        forAll(gasWallEnergyPatchSizes_, pairI)
+        {
+            const label fluidSize = gasWallEnergyPatchSizes_[pairI];
+            gasHeatFlux[pairI].setSize(fluidSize);
+            depositedHeatFlux[pairI].setSize(fluidSize);
+            reflectedHeatFlux[pairI].setSize(fluidSize);
+            for (label faceI=0; faceI<fluidSize; ++faceI)
+            {
+                const label slot = fluidOffset + faceI;
+                gasHeatFlux[pairI][faceI] = preview[slot];
+                depositedHeatFlux[pairI][faceI] = preview[count + slot];
+                reflectedHeatFlux[pairI][faceI] = preview[2*count + slot];
+            }
+            const label solidSize = interfaceSolidPatchSizes_[pairI];
+            solidEnergy[pairI].setSize(solidSize);
+            for (label faceI=0; faceI<solidSize; ++faceI)
+                solidEnergy[pairI][faceI] = preview[solidOffset + faceI];
+            fluidOffset += fluidSize;
+            solidOffset += solidSize;
+        }
     }
 
     const labelList& configuredGasWallEnergyFaceIds() const
