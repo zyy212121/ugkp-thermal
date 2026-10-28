@@ -1,3 +1,4 @@
+#include "gasTransport/WallHeatExposure.H"
 #include "gasBoundary/Resident.cuh"
 #include "gasBoundary/Evaluate.H"
 #include "gasTransport/GasBoundaryLayerModelState.H"

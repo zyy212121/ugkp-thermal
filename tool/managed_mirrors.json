@@ -1378,6 +1378,11 @@
       "path": "common/GpuMobileParticleHeat.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/WallHeatExposure.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
     }
   ],
   "local_only": {
