@@ -1008,7 +1008,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
           ? GPU_OPERATOR_R(0.0) : muMolecular + muTurbulent;
         GPU_OPERATOR_REAL kMolecular=molecularGasConductivity(s);
         if((ugkwp::gasVariableViscosity(s)||ugkwp::mixtureGasActive(s))&&!ugkwp::gasHasDirectConductivity(s))
-            kMolecular=muMolecular*ugkwp::gasFaceMolecularHeatCapacity(s,f,own,nei)/s.gasPrClamped;
+            kMolecular=muMolecular*ugkwp::gasFaceMolecularHeatCapacity(s,f,own,nei)/ugkwp::gasFaceMolecularPrandtl(s,f,own,nei);
         const GPU_OPERATOR_REAL kEffective = kMolecular + kTurbulent;
         const GPU_OPERATOR_REAL wallThermalAreaFraction =
             GPU_GAS_WALL_EXPOSURE(s, f, nei, boundaryKind);
@@ -1081,7 +1081,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
 
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
     {
-        if (!ordinaryInviscid && ugkwp::mixtureGasActive(s) && (s.gasSpecies.diffusivity || (IncludeTurbulence && s.turbulenceModel!=0))
+        if (!ordinaryInviscid && ugkwp::mixtureGasActive(s) && (s.gasSpecies.diffusivity || ugkwp::gasVariableDiffusivity(s) || (IncludeTurbulence && s.turbulenceModel!=0))
             && (nei>=0 || (boundaryKind==0 && s.gasSpecies.compositionBoundaryFixed[f]!=0)))
         {
             constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
@@ -1114,11 +1114,15 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     gradArea[k]=area*(Y[k]-yo)*s.deltaCoeffs[f];
                 }
             }
+            GPU_OPERATOR_REAL localD[Ns];
+            const GPU_OPERATOR_REAL diffusionT=nei>=0?w*left.T+(GPU_OPERATOR_R(1)-w)*right.T:right.T;
+            const GPU_OPERATOR_REAL diffusionP=nei>=0?w*left.p+(GPU_OPERATOR_R(1)-w)*right.p:right.p;
+            for(int k=0;k<Ns;++k)localD[k]=ugkwp::gasLocalMolecularDiffusivity(s,k,diffusionT,diffusionP);
             bool diffusionEvaluated=false;
             if(!ugkwp::correctedSpeciesDiffusion
             (
                 Y,gradArea,nei>=0?w*left.rho+(GPU_OPERATOR_R(1.0)-w)*right.rho:right.rho,
-                s.gasSpecies.diffusivity,IncludeTurbulence && s.turbulenceModel!=0
+                localD,IncludeTurbulence && s.turbulenceModel!=0
                     ?(nei>=0?w*s.nut[own]+(GPU_OPERATOR_R(1.0)-w)*s.nut[nei]:s.nut[own]):GPU_OPERATOR_R(0.0),
                 s.gasSpecies.turbulentSchmidt,
                 nei>=0?w*left.T+(GPU_OPERATOR_R(1.0)-w)*right.T:right.T,s.gasSpecies.thermo,diffusion,enthalpyFlux,nativeRefinement,&diffusionEvaluated

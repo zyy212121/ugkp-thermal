@@ -335,8 +335,9 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerFlux(const
     const R rho=(a.rho+b.rho)/R(2),nut=(a.nut+b.nut)/R(2),T=(a.T+b.T)/R(2);
     R Y[N],grad[N],diff[N],diffEnthalpy=0;
     for(int j=0;j<N;++j){Y[j]=(a.Y[j]+b.Y[j])/R(2);grad[j]=(b.Y[j]-a.Y[j])/length;}
+    R localD[N];for(int j=0;j<N;++j)localD[j]=wallMolecularDiffusivity(in,j,T,in.pressure);
     bool diffusionAvailable=false;
-    const bool diffusionValid=correctedSpeciesDiffusion(Y,grad,rho,in.model.diffusivity,nut,c.turbulentSchmidt,T,in.model.thermo,diff,diffEnthalpy,true,&diffusionAvailable);
+    const bool diffusionValid=correctedSpeciesDiffusion(Y,grad,rho,localD,nut,c.turbulentSchmidt,T,in.model.thermo,diff,diffEnthalpy,true,&diffusionAvailable);
     if(!diffusionAvailable||!diffusionValid)return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2416,diffEnthalpy);
     const R muA=a.mu+a.rho*a.nut,muB=b.mu+b.rho*b.nut;
     const R mu=transportConductance(muA,muB),temperatureJump=b.theta-a.theta;
@@ -344,10 +345,10 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerFlux(const
     for(int j=0;j<N;++j)enthalpyJump+=Y[j]*speciesEnthalpyIncrement(j,a.T,temperatureJump,in.model.thermo,ctx.enthalpyJump[j]);
     // Integrate Cp exactly in T; formation offsets never enter the difference.
     const R cpSecant=temperatureJump!=0?enthalpyJump/temperatureJump:(a.cp+b.cp)/R(2);
-    const R molecularMobility=in.model.molecularPrandtl>0?a.mu/in.model.molecularPrandtl:
+    const R molecularMobility=in.model.molecularPrandtl>0?a.mu/wallMolecularPrandtl(in,a.Y):
         (cpSecant!=0?in.model.conductivity/cpSecant:R(0));
     const R mobilityA=molecularMobility+a.rho*a.nut/c.turbulentPrandtl;
-    const R mobilityB=(in.model.molecularPrandtl>0?b.mu/in.model.molecularPrandtl:molecularMobility)+b.rho*b.nut/c.turbulentPrandtl;
+    const R mobilityB=(in.model.molecularPrandtl>0?b.mu/wallMolecularPrandtl(in,b.Y):molecularMobility)+b.rho*b.nut/c.turbulentPrandtl;
     const R mobility=transportConductance(mobilityA,mobilityB);
     f.conductivity=mobility*cpSecant;f.thermal=-mobility*enthalpyJump/length;
     const R thermalWeight=thermalWorkVelocityWeight(muA,muB,mobilityA,mobilityB);
@@ -814,7 +815,7 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool makeContext(con
     for(int j=0;j<N;++j){ctx.mass+=in.massFlux[j];if(in.matching.massFraction[j]>in.matching.massFraction[ctx.dependent])ctx.dependent=j;}
     for(int j=0,k=0;j<N;++j)if(j!=ctx.dependent)ctx.independent[k++]=j;
     for(int j=0;j<N;++j){ctx.enthalpyJump[j]=speciesEnthalpyBranchJumpAs<R>(j,in.model.thermo);bool available=false;ctx.wallEnthalpy[j]=wallProperty<true>(j,in.temperature,in.model.thermo,&available);if(!available)return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10014);ctx.energyReference+=in.matching.massFraction[j]*ctx.wallEnthalpy[j];}
-    R gasR=0,cp=0,maxD=0;for(int j=0;j<N;++j){gasR+=in.matching.massFraction[j]*universalGasConstant<R>()/in.model.thermo.species[j].molarMass;bool available=false;const R value=wallProperty<false>(j,in.matching.temperature,in.model.thermo,&available);if(!available)return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10015);cp+=in.matching.massFraction[j]*value;maxD=max(maxD,in.model.diffusivity[j]);}
+    R gasR=0,cp=0,maxD=0;for(int j=0;j<N;++j){gasR+=in.matching.massFraction[j]*universalGasConstant<R>()/in.model.thermo.species[j].molarMass;bool available=false;const R value=wallProperty<false>(j,in.matching.temperature,in.model.thermo,&available);if(!available)return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10015);cp+=in.matching.massFraction[j]*value;maxD=max(maxD,wallMolecularDiffusivity(in,j,in.matching.temperature,in.pressure));}
     if(gasR==0)return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10016,gasR);
     const R rho=in.pressure/(gasR*in.matching.temperature),L=in.matchingDistance;
     // A residual scale measures activity, not signed transport. Suction
@@ -822,7 +823,7 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool makeContext(con
     const R matchingMu=wallMolecularViscosity(in,in.matching.temperature,in.matching.massFraction);
     const R massMagnitude=abs(ctx.mass);
     for(int d=0;d<2;++d)ctx.scale[d]=max(R(1e-12),(massMagnitude+matchingMu/L)*max(R(1),abs(ctx.edgeU[d])));
-    const R lambda=in.model.molecularPrandtl>0?matchingMu*cp/in.model.molecularPrandtl:in.model.conductivity;
+    const R lambda=in.model.molecularPrandtl>0?matchingMu*cp/wallMolecularPrandtl(in,in.matching.massFraction):in.model.conductivity;
     ctx.scale[2]=max(R(1e-12),(massMagnitude*cp+lambda/L)*max(R(1),max(in.temperature,in.matching.temperature)));
     for(int j=0;j<N-1;++j)ctx.scale[3+j]=max(R(1e-12),massMagnitude+rho*maxD/L);
     ctx.scale[N+2]=max(R(1e-12),(massMagnitude+matchingMu/L)*max(R(1),in.matching.k));ctx.scale[N+3]=rho;

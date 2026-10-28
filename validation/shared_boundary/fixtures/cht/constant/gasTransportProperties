@@ -1,0 +1,15 @@
+FoamFile { version 2.0; format ascii; class dictionary; object gasTransportProperties; }
+viscosityModel massFractionSutherland;
+species (S0 S1);
+massFractionSutherland {
+ species S1; TRef 273;
+ muRefCoefficients (17.10e-6 -4.65e-6 1.20e-6);
+ SCoefficients (114 220);
+}
+conductivityModel massFractionPrandtl;
+massFractionPrandtl { species S1; coefficients (.720 .064); }
+diffusivityModel powerLaw;
+powerLaw {
+ S0 { DRef 5.75e-10; TRef 1; pRef 101325; temperatureExponent 1.81; pressureExponent -1; }
+ S1 { DRef 5.75e-10; TRef 1; pRef 101325; temperatureExponent 1.81; pressureExponent -1; }
+}

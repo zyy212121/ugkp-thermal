@@ -5,6 +5,13 @@
 #include "materials/GasThermoAdapter.H"
 #include <string>
 namespace chmt {
+CHMT_HD inline Real gasMolecularConductivity(const PhysicsConfig& p,Real T,const Real* Y){
+    if(p.gasTransportCoefficients.prandtlSpecies<0)return p.gasConductivity;
+    const GasThermoAdapter<Ns> thermo(p.species);Real cp=0;
+    for(int j=0;j<Ns;++j)cp+=Y[j]*ugkwp::speciesCp(j,T,thermo.view());
+    return gasMolecularViscosity(p,T,Y)*cp/ugkwp::molecularPrandtl<Ns>(molecularTransportView(p),Real(1),Y);
+}
+
 CHMT_HD inline Real physicalFraction(const PhysicsConfig& p,Real value,int component=-1) {
     if(!clipPhysicsMassFraction(p,value,3832,component)){
         using namespace ugkp::diagnostics;

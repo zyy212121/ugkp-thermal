@@ -8,7 +8,7 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstan
     auto in=originalInput;in.model.thermo.diagnostics=in.diagnostics;
     for(int j=0;j<N;++j)if(!detail::wallFraction(in,in.matching.massFraction[j],in.matching.massFraction[j],j))return false;
     if(!detail::validateInput(in,c,status))return false;
-    if(in.model.molecularViscosity.model!=MolecularViscosityModel::Constant)
+    if((in.model.molecularViscosity.model!=MolecularViscosityModel::Constant||in.model.molecularViscosity.prandtlSpecies>=0||in.model.molecularViscosity.diffusion))
         return detail::fail(status,WallCode::Unsupported);
     R m=0,cp=0;for(int j=0;j<N;++j)m+=in.massFlux[j];
     for(int j=0;j<N;++j){bool available=false;const R value=detail::wallProperty<false>(j,in.temperature,in.model.thermo,&available);

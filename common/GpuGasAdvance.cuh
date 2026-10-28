@@ -43,7 +43,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     }
     if (boundaryGrid > 0 && !preparedBoundaryLayer)
     {
-        updateRiemannBoundaryMirrorKernel<<<boundaryGrid, faceBlock, 0, s->gasCaptureStream>>>(s->deviceState);
+        updateRiemannBoundaryMirrorKernel<<<boundaryGrid, faceBlock, 0, s->gasCaptureStream>>>(s->deviceState,stageTime);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -412,7 +412,7 @@ int finaliseGasBoundaryStage(GasHostState* s, const GasHostPolicy::Time dt, cons
 
     updateRiemannBoundaryMirrorKernel<<<allFaceGrid, block, 0, s->gasCaptureStream>>>
     (
-        s->deviceState
+        s->deviceState,simulationTime
     );
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -464,6 +464,7 @@ int advancePureGasGraph(GasHostState* s, const GasHostPolicy::Time dt, const Gas
         }
         s->gasGraphTimeNodes.clear();
         s->gasGraphTimeParams.clear();
+        s->gasGraphTimeOffsets.clear();
         err = cudaStreamCreate(&s->gasCaptureStream);
         if (err != cudaSuccess) { setLastError("gas graph stream create", err); return 1; }
         err = cudaStreamBeginCapture(s->gasCaptureStream, cudaStreamCaptureModeThreadLocal);
@@ -475,7 +476,8 @@ int advancePureGasGraph(GasHostState* s, const GasHostPolicy::Time dt, const Gas
             return 1;
         }
         int status = advanceGasFluxStage(s, dt, simulationTime);
-        if (status == 0) status = finaliseGasBoundaryStage(s, dt, simulationTime);
+        // Graph transport receives the interval start; final publication uses its end.
+        if (status == 0) status = finaliseGasBoundaryStage(s, dt, simulationTime+dt);
         err = cudaStreamEndCapture(s->gasCaptureStream, &s->gasGraph);
         const cudaError_t streamError = cudaStreamDestroy(s->gasCaptureStream);
         s->gasCaptureStream = nullptr;
@@ -498,15 +500,17 @@ int advancePureGasGraph(GasHostState* s, const GasHostPolicy::Time dt, const Gas
             err = cudaGraphKernelNodeGetParams(node, &params);
             if (err != cudaSuccess) { setLastError("gas graph kernel parameters", err); return 1; }
             using GasDeviceState = typename std::remove_pointer<decltype(s->deviceState)>::type;
-            if (params.func == reinterpret_cast<void*>(updateLegacyGasBoundaryMirrorKernel<GasDeviceState>))
+            if (params.func == reinterpret_cast<void*>(updateLegacyGasBoundaryMirrorKernel<GasDeviceState>)
+                ||params.func == reinterpret_cast<void*>(updateRiemannBoundaryMirrorKernel<GasDeviceState>))
             {
                 s->gasGraphTimeNodes.push_back(node);
+                s->gasGraphTimeOffsets.push_back(*static_cast<GasHostPolicy::Time*>(params.kernelParams[1])-simulationTime);
                 params.kernelParams = nullptr;
                 params.extra = nullptr;
                 s->gasGraphTimeParams.push_back(params);
             }
         }
-        if (s->nFaces > s->nInternalFaces && s->gasGraphTimeNodes.size() != 2)
+        if (s->nFaces > s->nInternalFaces && s->gasGraphTimeNodes.size() < 2)
         {
             setLastErrorText("gas graph requires both scheduled boundary time nodes");
             return 1;
@@ -520,6 +524,7 @@ int advancePureGasGraph(GasHostState* s, const GasHostPolicy::Time dt, const Gas
     void* args[] = {&device, &currentTime};
     for (size_t i = 0; i < s->gasGraphTimeNodes.size(); ++i)
     {
+        currentTime=simulationTime+s->gasGraphTimeOffsets[i];
         cudaKernelNodeParams params = s->gasGraphTimeParams[i];
         params.kernelParams = args;
         const cudaError_t err = cudaGraphExecKernelNodeSetParams
@@ -591,7 +596,7 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
                     updateLegacyGasBoundaryMirrorKernel<<<faceGrid,faceBlock,0,s->gasCaptureStream>>>(s->deviceState,simulationTime);
                     auto error=cudaGetLastError();
                     if(error!=cudaSuccess){setLastError("wall preflight boundary time",error);return 1;}
-                    updateRiemannBoundaryMirrorKernel<<<faceGrid,faceBlock,0,s->gasCaptureStream>>>(s->deviceState);
+                    updateRiemannBoundaryMirrorKernel<<<faceGrid,faceBlock,0,s->gasCaptureStream>>>(s->deviceState,simulationTime);
                     error=cudaGetLastError();
                     if(error!=cudaSuccess){setLastError("wall preflight boundary state",error);return 1;}
                 }

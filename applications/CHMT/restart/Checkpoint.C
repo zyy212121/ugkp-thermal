@@ -1,3 +1,4 @@
+#include "../../../common/gasBoundary/Wire.H"
 #include "Checkpoint.H"
 #include <algorithm>
 #include <cerrno>
@@ -615,6 +616,12 @@ bool writeCheckpoint(const std::string& directory,const ModelConfig& config,cons
     try{
         if(directory.empty()){error="empty checkpoint directory";return false;}
         Encoder configData,payload;configData(config);payload(state);
+        if(state.gasMesh.gasBoundary&&ugkp::boundary::needsCheckpoint(*state.gasMesh.gasBoundary)) {
+            std::vector<int> integers;std::vector<double> values;
+            ugkp::boundary::encode(*state.gasMesh.gasBoundary,integers,values);
+            payload.integer(0x31444e42474b5055ULL,8); // UPKGBND1, optional boundary-definition extension
+            payload(integers);payload(values);
+        }
         if(!state.gasTemperature.empty()){
             Encoder numerical;numerical(state.gasTemperature);
             payload.data.insert(payload.data.end(),numerical.data.begin(),numerical.data.end());
@@ -670,8 +677,8 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
         const auto configEnd=decoder.offset+configSize,stateEnd=configEnd+stateSize;
         if(schema<checkpointSchema){
             // Schemas 6--8 predate molecular transport; preserve their physical payloads.
-            if(expected.physics.gasViscosityModel!=ugkwp::MolecularViscosityModel::Constant)
-                throw std::runtime_error("legacy checkpoint has const molecular transport; cannot resume with Sutherland");
+            if(expected.physics.gasTransportFingerprint!=0)
+                throw std::runtime_error("legacy checkpoint has const molecular transport; cannot resume with variable molecular transport");
             decoder.offset=configEnd;
         }else{
             ModelConfig saved;decoder(saved);
@@ -687,11 +694,25 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
             if(!same)throw std::runtime_error("checkpoint molecular transport identity differs from current configuration");
         }
         HostState candidate;decoder(candidate);
+        if(stateEnd-decoder.offset>=8) {
+            const auto start=decoder.offset;
+            if(decoder.integer(8)==0x31444e42474b5055ULL) {
+                std::vector<int> integers;std::vector<double> values;decoder(integers);decoder(values);
+                auto boundary=ugkp::boundary::decode(integers,values);
+                if(boundary.faces.size()!=candidate.gasMesh.owner.size())throw std::runtime_error("checkpoint boundary size mismatch");
+                candidate.gasMesh.gasBoundary=std::make_shared<const ugkp::boundary::Definition>(std::move(boundary));
+            } else decoder.offset=start;
+        }
         if(decoder.offset<stateEnd){
             decoder(candidate.gasTemperature);decoder.integer(8);
             for(int i=0;i<8;++i)decoder.integer(1);
         }
         if(decoder.offset!=stateEnd)throw std::runtime_error("checkpoint state length mismatch");
+        if(output.gasMesh.gasBoundary) {
+            if(output.gasMesh.gasBoundary->faces.size()!=candidate.gasMesh.owner.size())
+                throw std::runtime_error("checkpoint boundary topology differs from configured input");
+            candidate.gasMesh.gasBoundary=output.gasMesh.gasBoundary;
+        }
         output=std::move(candidate);error.clear();return true;
     }catch(const std::exception& e){error=std::string("checkpoint read: ")+e.what();return false;}
 }

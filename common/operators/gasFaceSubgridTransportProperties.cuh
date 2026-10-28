@@ -181,18 +181,18 @@ __device__ void gasFaceSubgridTransportProperties
             GPU_OPERATOR_REAL wallRho = rhoSafe;
             if(!ugkwp::mixtureGasActive(s))
                 wallRho=clampMin(s.p[own]/(s.Rgas*clampMin(wallTemperature,s.TgasMin)),s.rhoMin);
-            GPU_OPERATOR_REAL wallCp=s.gasCp, wallPr=s.gasPrClamped;
+            GPU_OPERATOR_REAL wallCp=s.gasCp, wallPr=ugkwp::gasFaceMolecularPrandtl(s,f,own,nei);
             GPU_OPERATOR_REAL wallP=s.sstJayatillekeP, thermalYPlus=s.sstThermalYPlus;
             GPU_OPERATOR_REAL molecularBaseline=molecularGasConductivity(s);
-            if(ugkwp::gasVariableViscosity(s)&&!ugkwp::gasHasDirectConductivity(s))
-                molecularBaseline=muWall*ugkwp::gasFaceMolecularHeatCapacity(s,f,own,nei)/s.gasPrClamped;
+            if((ugkwp::gasVariableViscosity(s)||ugkwp::gasVariablePrandtl(s))&&!ugkwp::gasHasDirectConductivity(s))
+                molecularBaseline=muWall*ugkwp::gasFaceMolecularHeatCapacity(s,f,own,nei)/ugkwp::gasFaceMolecularPrandtl(s,f,own,nei);
             if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
                 if(ugkwp::mixtureGasActive(s))
                 {
-                    // The impermeable wall inherits owner composition, but its
-                    // thermodynamic properties are evaluated at wall temperature.
-                    // No legacy bootstrap Cp/R participates in the shared
-                    // mixture closure.
+                    // Local viscosity or Pr uses the fixed boundary composition
+                    // when present: Cp and R must use that same wall state.
+                    // Legacy constant transport retains owner composition.
+                    // Thermodynamic properties are evaluated at wall temperature.
                     constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
                     using TableReal=typename std::remove_reference_t<decltype(s.gasSpecies)>::RealType;
                     GPU_OPERATOR_REAL Y[Ns],sum=GPU_OPERATOR_R(0),clippedSum=GPU_OPERATOR_R(0);
@@ -208,7 +208,7 @@ __device__ void gasFaceSubgridTransportProperties
                         if(!ugkwp::gasFinite(data.molarMass) || data.molarMass==TableReal(0))
                         {failure(!ugkwp::gasFinite(data.molarMass)?Code::NonFinite:Code::ZeroDenominator,
                             2654,GPU_OPERATOR_REAL(data.molarMass),Quantity::Denominator,species);return;}
-                        const GPU_OPERATOR_REAL value=ugkwp::gasVariableViscosity(s)
+                        const GPU_OPERATOR_REAL value=(ugkwp::gasVariableViscosity(s)||ugkwp::gasVariablePrandtl(s))
                             &&s.gasSpecies.compositionBoundaryFixed&&s.gasSpecies.compositionBoundaryFixed[f]
                             ?s.gasSpecies.boundaryMassFraction[species*s.nFaces+f]
                             :s.gasSpecies.rho[species*s.nCells+own]/s.rho[own];
@@ -267,11 +267,11 @@ __device__ void gasFaceSubgridTransportProperties
                     for(int component=0;component<3;++component)
                         if(!ugkwp::gasFinite(properties[component]))
                         {failure(Code::NonFinite,2661,properties[component],component==1?Quantity::Density:Quantity::Unspecified,component);return;}
-                    if(ugkwp::gasHasDirectConductivity(s))
+                    if(ugkwp::gasHasDirectConductivity(s)||ugkwp::gasVariablePrandtl(s))
                     {
-                        // Only direct conductivity makes Pr depend on wall Cp(T,Y).
-                        // Constant-Pr transport reuses the configuration-stage cache.
-                        wallPr=muWall*wallCp/molecular;
+                        // Recompute thermal wall-function constants at the local Pr.
+                        // Constant-Pr transport retains the configuration-stage cache.
+                        if(ugkwp::gasHasDirectConductivity(s))wallPr=muWall*wallCp/molecular;
                         const GPU_OPERATOR_REAL ratio=wallPr/clampMin(s.turbulentPrandtl,OfSmall);
                         wallP=ugkpwall::jayatillekeSmoothP(ratio);
                         thermalYPlus=ugkpwall::jayatillekeThermalYPlus(ratio,s.sstWallKappa,s.sstWallE,s.diagnostics,f);
@@ -279,8 +279,8 @@ __device__ void gasFaceSubgridTransportProperties
                     // The face flux adds owner-mixture molecular conductivity.
                     // Return exactly its correction,
                     // even when Cp(Twall) differs from Cp(Towner).
-                    if(!ugkwp::gasHasDirectConductivity(s)&&!ugkwp::gasVariableViscosity(s))
-                        molecularBaseline=muWall*s.gasSpecies.heatCapacity[own]/s.gasPrClamped;
+                    if(!ugkwp::gasHasDirectConductivity(s)&&!ugkwp::gasVariableViscosity(s)&&!ugkwp::gasVariablePrandtl(s))
+                        molecularBaseline=muWall*s.gasSpecies.heatCapacity[own]/ugkwp::gasFaceMolecularPrandtl(s,f,own,nei);
                 }
             const GPU_OPERATOR_REAL gradient = (wallTemperature-s.Tgas[own])*s.deltaCoeffs[f];
             const GPU_OPERATOR_REAL thermalInputs[]={wallRho,wallCp,wallPr,wallP,thermalYPlus,

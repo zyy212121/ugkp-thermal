@@ -24,6 +24,16 @@ __global__ void computeGasInternalFaceFluxKernel(GasState* sp, const GPU_OPERATO
             for (int k=0; k<ugkwp::GasStateTraits<GasState>::speciesCount; ++k)
                 s.gasSpecies.flux[k*s.nFaces+f] = GPU_OPERATOR_R(0.0);
     }
+#ifdef UGKP_BOUNDARY_FLUX_TRACE
+    // Compile-time regression probe: values consumed by the actual flux kernel.
+    // Ordinary builds contain neither printf nor additional device transfers.
+    if constexpr (ugkp::boundary::Capability<GasState>::value)
+        if (f >= s.nInternalFaces && s.gasBoundaryProgram.faces
+            && s.gasBoundaryProgram.faces[f].function[ugkp::boundary::Temperature] >= 0)
+            printf("BOUNDARY_FLUX_INPUT %d %.17g %.17g %.17g %.17g %.17g %.17g\n",
+                f, double(dt), double(s.riemannBoundaryT[f]), double(s.riemannBoundaryP[f]),
+                double(s.riemannBoundaryUx[f]), double(s.riemannBoundaryUy[f]), double(s.riemannBoundaryUz[f]));
+#endif
     (void)dt;
     computeRiemannGasFaceFluxDevice<IncludeTurbulence>
     (

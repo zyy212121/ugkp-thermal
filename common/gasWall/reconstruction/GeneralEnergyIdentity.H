@@ -24,7 +24,7 @@ UGKWP_GAS_HD Terms<R> terms(const ugkwp::gaswall::WallInput<R,N,T>&in,
  kinetic=normal*normal/R(2);
  for(int d=0;d<2;++d){R u=-ctx.wallU[d];for(int a=0;a<3;++a)u+=v.U[a]*ctx.tangent[d][a];kinetic+=u*u/R(2);out.stress-=(ctx.mass*u-momentum[d])*u;}
  out.advective+=ctx.mass*kinetic;
- out.conductivity=(in.model.molecularPrandtl>0?wallMolecularViscosity(in,v.T,v.Y)*cp/in.model.molecularPrandtl:in.model.conductivity)+v.rho*nut*cp/cfg.turbulentPrandtl;
+ out.conductivity=(in.model.molecularPrandtl>0?wallMolecularViscosity(in,v.T,v.Y)*cp/wallMolecularPrandtl(in,v.Y):in.model.conductivity)+v.rho*nut*cp/cfg.turbulentPrandtl;
  return out;
 }
 // Optional pointwise physical species flux, using exactly the existing corrected
@@ -35,7 +35,9 @@ UGKWP_GAS_HD bool physicalSpecies(const ugkwp::gaswall::WallInput<R,N,T>&in,
  const ugkwp::gaswall::detail::LayerContext<R,N>&ctx,
  const ugkwp::gaswall::physical::Primitive<R,N>&v,R nut,R (&flux)[N]){
  R grad[N]{},diff[N]{},diffH=0;for(int j=0;j<N;++j)for(int a=0;a<3;++a)grad[j]+=v.gradY[j][a]*in.normal[a];bool available=false;
- bool valid=ugkwp::correctedSpeciesDiffusion(v.Y,grad,v.rho,in.model.diffusivity,nut,cfg.turbulentSchmidt,v.T,in.model.thermo,diff,diffH,true,&available);
+ R gasR=0,localD[N];for(int j=0;j<N;++j)gasR+=v.Y[j]*ugkwp::universalGasConstant<R>()/in.model.thermo.species[j].molarMass;
+ for(int j=0;j<N;++j)localD[j]=wallMolecularDiffusivity(in,j,v.T,v.rho*gasR*v.T);
+ bool valid=ugkwp::correctedSpeciesDiffusion(v.Y,grad,v.rho,localD,nut,cfg.turbulentSchmidt,v.T,in.model.thermo,diff,diffH,true,&available);
  for(int j=0;j<N;++j)flux[j]=ctx.mass*v.Y[j]+diff[j];return valid&&available;
 }
 template<class R,int N,class T>

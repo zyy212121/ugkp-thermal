@@ -25,5 +25,5 @@ __device__ GPU_OPERATOR_REAL molecularGasConductivity(const GasState& s,int c,GP
                 cp+=s.gasSpecies.rho[j*s.nCells+c]/s.rho[c]
                     *ugkwp::speciesCp(j,temperature,s.gasSpecies.thermo);
         }
-    return ugkwp::gasCellMolecularViscosityAt(s,c,temperature)*cp/s.gasPrClamped;
+    return ugkwp::gasCellMolecularViscosityAt(s,c,temperature)*cp/ugkwp::gasCellMolecularPrandtl(s,c);
 }

@@ -1,6 +1,7 @@
 #ifndef CHMT_IO_MESHIO_H
 #define CHMT_IO_MESHIO_H
 #include "configuration/InputValues.H"
+#include "gasBoundary/FoamInput.H"
 #include "mesh/Geometry.H"
 #include "DiagnosticsFoam.H"
 #include "DiagnosticsCatalogue.H"
@@ -40,27 +41,6 @@ namespace chmt {
                 m.points[m.facePoints[i]]);
             return b;
         }
-        inline BoundaryKind boundaryKind(const std::string& value) {
-            if (value == "Slip") {
-                return BoundaryKind::Slip;
-            }
-            if (value == "NoSlip") {
-                return BoundaryKind::NoSlip;
-            }
-            if (value == "Inlet") {
-                return BoundaryKind::Inlet;
-            }
-            if (value == "Outlet") {
-                return BoundaryKind::Outlet;
-            }
-            if (value == "Interface") {
-                return BoundaryKind::Interface;
-            }
-            if (value == "Empty") {
-                return BoundaryKind::Empty;
-            }
-            throw std::runtime_error("unsupported physical boundary kind "+value);
-        }
         inline HostMesh importMesh(const Foam::fvMesh& mesh, const Foam::dictionary& properties) {
             HostMesh out;
             for (const auto& p:mesh.points())out.points.push_back(point(p));
@@ -98,7 +78,7 @@ namespace chmt {
                 } else {
                     require(!patch.coupled(), "unsupported coupled patch type "+std::string(patch.type()));
                     BoundaryKind kind = Foam::isA<Foam::emptyPolyPatch>(patch)?BoundaryKind::Empty:Foam::isA<Foam::wallPolyPatch>(patch)?BoundaryKind::NoSlip:BoundaryKind::Slip;
-                    if (prescribed && prescribed->found(patch.name()))kind = boundaryKind(text(prescribed->subDict(patch.name()), "kind"));
+                    if (prescribed && prescribed->found(patch.name()))kind = ugkp::boundary::physicalKind(text(prescribed->subDict(patch.name()), "kind"));
                     for (int i = 0; i<patch.size(); ++i)out.boundaryKind[patch.start()+i] = kind;
                 }
             }
@@ -314,12 +294,12 @@ namespace chmt {
                 for(int f=0;f<mesh.boundaryMesh()[patch].size();++f) {
                     const int face=mesh.boundaryMesh()[patch].start()+f;
                     state.gasMesh.thermalBoundary[face]=importedThermalBoundary(
-                        T.boundaryField()[patch].type(),state.gasMesh.boundaryKind[face],true);
+                        (T.boundaryField()[patch].type()=="totalTemperature"||T.boundaryField()[patch].type()=="uniformFixedValue")?Foam::word("fixedValue"):T.boundaryField()[patch].type(),state.gasMesh.boundaryKind[face],true);
                 }
             }
             // Evaluate zeroGradient from its owner before importing a valid EOS
             // primitive. The operator itself is retained independently above.
-            rho.correctBoundaryConditions();T.correctBoundaryConditions();U.correctBoundaryConditions();
+            ugkp::boundary::foam::initialiseStaticPatches(rho);ugkp::boundary::foam::initialiseStaticPatches(T);ugkp::boundary::foam::initialiseStaticPatches(U);
             for(int species=0;!single&&species<Ns;++species)Y[species].correctBoundaryConditions();
             state.gas.resize(mesh.nCells());
             auto primitive = [&](int cell, int patch, int face) {
@@ -355,6 +335,17 @@ namespace chmt {
                 state.gasMesh.boundaryPrimitive[face]=state.gasMesh.boundaryKind[face]==BoundaryKind::Empty
                     ?primitive(state.gasMesh.owner[face],-1,-1):primitive(-1,patch,f);
             }
+            Foam::volScalarField p(Foam::IOobject("p",mesh.time().timeName(),mesh,
+                Foam::IOobject::READ_IF_PRESENT,Foam::IOobject::NO_WRITE),mesh,
+                Foam::dimensionedScalar("p",Foam::dimPressure,0));
+            if(!p.headerOk()) {
+                forAll(p,cell)p[cell]=primitive(cell,-1,-1).pressure;
+                forAll(p.boundaryField(),patch)forAll(p.boundaryField()[patch],face)
+                    p.boundaryFieldRef()[patch][face]=state.gasMesh.boundaryPrimitive[mesh.boundaryMesh()[patch].start()+face].pressure;
+            }
+            auto boundary=ugkp::boundary::foam::read(mesh,rho,U,p,T,true,&state.gasMesh.boundaryKind);
+            if(!single)ugkp::boundary::foam::readComposition(mesh,Y,boundary);
+            state.gasMesh.gasBoundary=std::make_shared<const ugkp::boundary::Definition>(std::move(boundary));
             if (model.physics.enableSst) {
                 auto k = scalarField(mesh, "k", Foam::sqr(Foam::dimVelocity));
                 auto omega = scalarField(mesh, "omega", Foam::dimless/Foam::dimTime);

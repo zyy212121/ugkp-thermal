@@ -1,6 +1,7 @@
 #ifndef CHMT_GPU_SHAREDGASDEVICESTORAGE_CUH
 #define CHMT_GPU_SHAREDGASDEVICESTORAGE_CUH
 #include "gpu/HostTransferQueue.H"
+#include "../../../common/gasBoundary/Resident.cuh"
 #if defined(__CUDACC__)
 #include "../../../common/gasTransport/GasStatusCompletion.cuh"
 #endif
@@ -43,6 +44,7 @@ class SharedGasDeviceStorage {
     Buffer<unsigned long long> statusFirst_;
     ugkp::diagnostics::GpuOwner* diagnostics_=nullptr;
     SharedGasDeviceView view_{};
+    ugkp::boundary::Resident boundary_;
     Buffer<SharedGasDeviceView> device_;
 #define UGKWP_GAS_STATE_FIELD(Type,Name) GasAllocation<Type> owner_##Name;
 #include "../../../common/gasTransport/GasStateFields.inc"
@@ -50,6 +52,7 @@ class SharedGasDeviceStorage {
     Buffer<Real> speciesRho_,speciesInitial_,speciesFlux_,speciesGX_,speciesGY_,speciesGZ_,speciesLimiter_,speciesBoundary_,speciesScale_,diffusivity_,sound_,cp_,r_,thermoCoeff_,elements_,basis_;
     Buffer<int> compositionFixed_,cellStatus_,faceStatus_;
     Buffer<ugkwp::SutherlandSpecies<Real>> viscosityData_;
+    Buffer<ugkwp::PowerLawDiffusivity<Real>> powerLawData_;
     Buffer<Real> viscosityQuarter_,viscosityDenominator_;
     Buffer<ugkwp::SpeciesThermoData<Real>> thermoData_;
     Buffer<ugkwp::GasReactionData<Real>> reactions_;
@@ -95,7 +98,10 @@ class SharedGasDeviceStorage {
     }
     template<class T>bool allocateSpecies(Buffer<T>& owner,T*& pointer,std::size_t n){const bool fresh=owner.size()!=n;if(!owner.resize(n,fault_)||(fresh&&!owner.zero(transfers_.stream())))return false;pointer=owner.data();return true;}
     static bool meshField(const char* name){
-        const char* fields[]={"Cx","Cy","Cz","V","cellLength","sstWallDistance","cellPlaneStart","cellPlaneCount","cellFaceId","faceOwner","faceNeighbour","facePeriodicPair","Sfx","Sfy","Sfz","magSf","faceCx","faceCy","faceCz","facePeriodicDx","facePeriodicDy","facePeriodicDz","deltaCoeffs","faceWeight","gasBoundaryKind","riemannBoundaryKind","sstBoundaryK","sstBoundaryOmega","sstBoundaryKMode","sstBoundaryOmegaMode","gasBoundaryRho","gasBoundaryP","gasBoundaryT","gasBoundaryUx","gasBoundaryUy","gasBoundaryUz","gasBoundaryUFix","gasBoundaryTFix","gasBoundaryRhoFix","gasBoundaryPFix","riemannBoundaryRho","riemannBoundaryP","riemannBoundaryT","riemannBoundaryUx","riemannBoundaryUy","riemannBoundaryUz","riemannBoundaryUFix","riemannBoundaryTFix","riemannBoundaryRhoFix","riemannBoundaryPFix"};
+        // Boundary configuration and its evaluated mirrors keep ownership across
+        // coordinate-only mesh updates; topology changes rebuild the storage.
+        if(!std::strncmp(name,"gasBoundary",11)||!std::strncmp(name,"riemannBoundary",15))return false;
+        const char* fields[]={"Cx","Cy","Cz","V","cellLength","sstWallDistance","cellPlaneStart","cellPlaneCount","cellFaceId","faceOwner","faceNeighbour","facePeriodicPair","Sfx","Sfy","Sfz","magSf","faceCx","faceCy","faceCz","facePeriodicDx","facePeriodicDy","facePeriodicDz","deltaCoeffs","faceWeight","gasBoundaryKind","riemannBoundaryKind","sstBoundaryK","sstBoundaryOmega","sstBoundaryKMode","sstBoundaryOmegaMode","gasBoundaryRho","gasBoundaryP","gasBoundaryT","gasBoundaryUx","gasBoundaryUy","gasBoundaryUz","gasBoundaryUFix","gasBoundaryTFix","gasBoundaryRhoFix","gasBoundaryPFix","riemannBoundaryRho","riemannBoundaryP","riemannBoundaryT","riemannBoundaryUx","riemannBoundaryUy","riemannBoundaryUz","riemannBoundaryUFix","riemannBoundaryTFix","riemannBoundaryRhoFix","riemannBoundaryPFix","gasBoundaryPWave","gasBoundaryPWaveGamma","gasBoundaryPWaveFieldInf","gasBoundaryPWaveLInf","riemannBoundaryPWave","riemannBoundaryPWaveGamma","riemannBoundaryPWaveFieldInf","riemannBoundaryPWaveLInf"};
         for(const char* field:fields)if(!std::strcmp(name,field))return true;
         return false;
     }
@@ -123,7 +129,7 @@ class SharedGasDeviceStorage {
         thermoCoeff_.rebindFault(fault_);
         elements_.rebindFault(fault_);
         basis_.rebindFault(fault_);
-        thermoData_.rebindFault(fault_);viscosityData_.rebindFault(fault_);viscosityQuarter_.rebindFault(fault_);viscosityDenominator_.rebindFault(fault_);
+        thermoData_.rebindFault(fault_);viscosityData_.rebindFault(fault_);powerLawData_.rebindFault(fault_);viscosityQuarter_.rebindFault(fault_);viscosityDenominator_.rebindFault(fault_);
         reactions_.rebindFault(fault_);
         reactants_.rebindFault(fault_);
         products_.rebindFault(fault_);
@@ -170,7 +176,9 @@ class SharedGasDeviceStorage {
         geometryOld_.swap(other.geometryOld_);
         geometryNew_.swap(other.geometryNew_);
         geometrySweeps_.swap(other.geometrySweeps_);
-        if(mesh){speciesBoundary_.swap(other.speciesBoundary_);compositionFixed_.swap(other.compositionFixed_);volume_.swap(other.volume_);wallFaceArea_.swap(other.wallFaceArea_);}
+        boundary_.swap(other.boundary_);
+        speciesBoundary_.swap(other.speciesBoundary_);compositionFixed_.swap(other.compositionFixed_);
+        if(mesh){volume_.swap(other.volume_);wallFaceArea_.swap(other.wallFaceArea_);}
         if(wall){
             wallFaceSlot_.swap(other.wallFaceSlot_);
             wallOwnerSlot_.swap(other.wallOwnerSlot_);
@@ -197,7 +205,7 @@ class SharedGasDeviceStorage {
         thermoCoeff_.swap(other.thermoCoeff_);
         elements_.swap(other.elements_);
         basis_.swap(other.basis_);
-        thermoData_.swap(other.thermoData_);viscosityData_.swap(other.viscosityData_);viscosityQuarter_.swap(other.viscosityQuarter_);viscosityDenominator_.swap(other.viscosityDenominator_);
+        thermoData_.swap(other.thermoData_);viscosityData_.swap(other.viscosityData_);powerLawData_.swap(other.powerLawData_);viscosityQuarter_.swap(other.viscosityQuarter_);viscosityDenominator_.swap(other.viscosityDenominator_);
         reactions_.swap(other.reactions_);
         reactants_.swap(other.reactants_);
         products_.swap(other.products_);
@@ -245,7 +253,7 @@ class SharedGasDeviceStorage {
         ok=thermoCoeff_.release()&&ok;
         ok=elements_.release()&&ok;
         ok=basis_.release()&&ok;
-        ok=thermoData_.release()&&ok;ok=viscosityData_.release()&&ok;ok=viscosityQuarter_.release()&&ok;ok=viscosityDenominator_.release()&&ok;
+        ok=thermoData_.release()&&ok;ok=viscosityData_.release()&&ok;ok=powerLawData_.release()&&ok;ok=viscosityQuarter_.release()&&ok;ok=viscosityDenominator_.release()&&ok;
         ok=reactions_.release()&&ok;
         ok=reactants_.release()&&ok;
         ok=products_.release()&&ok;
@@ -468,7 +476,11 @@ private:
         const std::vector<Real> quarter(transport.gasMassRatioQuarter,transport.gasMassRatioQuarter+count*count);
         const std::vector<Real> denominator(transport.gasWilkeDenominator,transport.gasWilkeDenominator+count*count);
         if(!uploadBuffer(viscosityData_,data)||!uploadBuffer(viscosityQuarter_,quarter)||!uploadBuffer(viscosityDenominator_,denominator)){error=fault_.message;return false;}
-        view_.gasViscosity={transport.gasViscosityModel,count,viscosityData_.data(),viscosityQuarter_.data(),viscosityDenominator_.data()};
+        const std::vector<ugkwp::PowerLawDiffusivity<Real>> diffusion(transport.gasPowerLaw,transport.gasPowerLaw+(transport.gasPowerLawEnabled?Ns:0));
+        if(!uploadBuffer(powerLawData_,diffusion)){error=fault_.message;return false;}
+        view_.gasViscosity=molecularTransportView(transport);view_.gasViscosity.species=viscosityData_.data();
+        view_.gasViscosity.massRatioQuarter=viscosityQuarter_.data();view_.gasViscosity.wilkeDenominator=viscosityDenominator_.data();
+        view_.gasViscosity.diffusion=transport.gasPowerLawEnabled?powerLawData_.data():nullptr;
         view_.gasPrClamped=1;
         view_.gasThermalConductivity=model.physics.gasConductivity;
         // CHMT uses zero for disabled conduction, never a negative unset sentinel.
@@ -606,6 +618,7 @@ public:
         const bool rebound=owner_V.values.size()!=nc||owner_faceOwner.values.size()!=nf
             ||owner_cellFaceId.values.size()!=mesh.cellFaces.size();
         if(rebound&&!transfers_.drain())return false;
+        const bool boundaryRebound=!boundary_.view().faces||boundary_.view().count!=int(nf);
 
 
 
@@ -626,13 +639,13 @@ public:
         }
         if(!upload(view_.Cx,cx)||!upload(view_.Cy,cy)||!upload(view_.Cz,cz)||!upload(view_.V,mesh.volumes)||!upload(view_.cellLength,length)||!upload(view_.sstWallDistance,distance)
             ||!upload(view_.cellPlaneStart,start)||!upload(view_.cellPlaneCount,counts)||!upload(view_.cellFaceId,mesh.cellFaces)||!upload(view_.faceOwner,mesh.owner)||!upload(view_.faceNeighbour,neighbours)||!upload(view_.facePeriodicPair,mesh.periodicPartner))return false;
-        std::vector<Real> sx(nf),sy(nf),sz(nf),area(nf),fx(nf),fy(nf),fz(nf),dx(nf),dy(nf),dz(nf),delta(nf),weight(nf,.5),rho(nf),pressure(nf),temp(nf),ux(nf),uy(nf),uz(nf),Y(Ns*nf);
-        std::vector<int> kind(nf),fixU(nf),fixT(nf),fixR(nf),fixP(nf),fixedY(nf),kMode(nf),omegaMode(nf);
+        std::vector<Real> sx(nf),sy(nf),sz(nf),area(nf),fx(nf),fy(nf),fz(nf),dx(nf),dy(nf),dz(nf),delta(nf),weight(nf,.5),Y(boundaryRebound?Ns*nf:0);
+        std::vector<int> fixedY(boundaryRebound?nf:0),kMode(nf),omegaMode(nf);
         std::vector<Real> kBoundary(nf),omegaBoundary(nf);
         for(std::size_t f=0;f<nf;++f){auto a=mesh.areaVectors[f];sx[f]=a.x;sy[f]=a.y;sz[f]=a.z;area[f]=mag(a);fx[f]=mesh.faceCentres[f].x;fy[f]=mesh.faceCentres[f].y;fz[f]=mesh.faceCentres[f].z;
             const int o=mesh.owner[f],n=mesh.neighbour[f];Vec3 chord=mesh.faceCentres[f]-mesh.cellCentres[o];
             if(n>=0)chord=mesh.cellCentres[n]-mesh.cellCentres[o];
-            const auto b=mesh.boundaryKind[f];kind[f]=b==BoundaryKind::Internal?0:b==BoundaryKind::NoSlip||b==BoundaryKind::Interface?2:b==BoundaryKind::Slip?1:b==BoundaryKind::Periodic?5:b==BoundaryKind::Empty?4:0;
+            const auto b=mesh.boundaryKind[f];
             if(b==BoundaryKind::Periodic){const int pair=mesh.periodicPartner[f];const Vec3 shift=mesh.faceCentres[f]-mesh.faceCentres[pair];dx[f]=shift.x;dy[f]=shift.y;dz[f]=shift.z;chord=mesh.cellCentres[mesh.owner[pair]]+shift-mesh.cellCentres[o];}
             delta[f]=1/maxValue(absValue(dot(chord,a/area[f])),.05*mag(chord));
             if(n>=0||b==BoundaryKind::Periodic){
@@ -641,22 +654,35 @@ public:
                 const Real other=absValue(dot(mappedNeighbour-mesh.faceCentres[f],a/area[f]));
                 weight[f]=(own+other)>0?other/(own+other):.5;
             }
-            const auto& w=mesh.boundaryPrimitive[f];rho[f]=w.rho;pressure[f]=w.pressure;temp[f]=w.temperature;ux[f]=w.velocity.x;uy[f]=w.velocity.y;uz[f]=w.velocity.z;
-            const bool inlet=b==BoundaryKind::Inlet;fixU[f]=inlet||b==BoundaryKind::NoSlip;fixT[f]=fixedTemperature(mesh.thermalBoundary.empty()?nullptr:mesh.thermalBoundary.data(),int(f));fixR[f]=inlet;fixP[f]=inlet||b==BoundaryKind::Outlet;fixedY[f]=inlet;
-            for(int s=0;s<Ns;++s)Y[s*nf+f]=w.Y[s];
+            const auto& w=mesh.boundaryPrimitive[f];
+            const bool inlet=mesh.gasBoundary?ugkp::boundary::prescribesInflow(mesh.gasBoundary->faces[f]):b==BoundaryKind::Inlet;
+            if(boundaryRebound)fixedY[f]=mesh.gasBoundary&&mesh.gasBoundary->faces[f].compositionMode>=0?mesh.gasBoundary->faces[f].compositionMode:inlet;
+            if(boundaryRebound)for(int s=0;s<Ns;++s)Y[s*nf+f]=w.Y[s];
             kMode[f]=omegaMode[f]=inlet?1:0;
             if(mesh.boundarySst.size()==nf){kBoundary[f]=mesh.boundarySst[f].k;omegaBoundary[f]=mesh.boundarySst[f].omega;}
         }
 #define PUT(Name,Source) if(!upload(view_.Name,Source))return false
         PUT(Sfx,sx);PUT(Sfy,sy);PUT(Sfz,sz);PUT(magSf,area);PUT(faceCx,fx);PUT(faceCy,fy);PUT(faceCz,fz);PUT(facePeriodicDx,dx);PUT(facePeriodicDy,dy);PUT(facePeriodicDz,dz);PUT(deltaCoeffs,delta);PUT(faceWeight,weight);
-        PUT(gasBoundaryKind,kind);PUT(riemannBoundaryKind,kind);
         PUT(sstBoundaryK,kBoundary);PUT(sstBoundaryOmega,omegaBoundary);PUT(sstBoundaryKMode,kMode);PUT(sstBoundaryOmegaMode,omegaMode);
-#define BOUNDARY(Name,Source) PUT(gasBoundary##Name,Source);PUT(riemannBoundary##Name,Source)
-        BOUNDARY(Rho,rho);BOUNDARY(P,pressure);BOUNDARY(T,temp);BOUNDARY(Ux,ux);BOUNDARY(Uy,uy);BOUNDARY(Uz,uz);BOUNDARY(UFix,fixU);BOUNDARY(TFix,fixT);BOUNDARY(RhoFix,fixR);BOUNDARY(PFix,fixP);
-#undef BOUNDARY
 #undef PUT
+        if(boundaryRebound) {
+        ugkp::boundary::Definition definition=mesh.gasBoundary?*mesh.gasBoundary:ugkp::boundary::Definition{};
+        if(definition.faces.empty()) {
+            definition.faces.resize(nf);
+            for(std::size_t f=0;f<nf;++f) {
+                const auto& w=mesh.boundaryPrimitive[f];
+                definition.faces[f]=ugkp::boundary::prescribed(mesh.boundaryKind[f],
+                    fixedTemperature(mesh.thermalBoundary.empty()?nullptr:mesh.thermalBoundary.data(),int(f)),
+                    w.rho,w.velocity.x,w.velocity.y,w.velocity.z,w.pressure,w.temperature);
+            }
+        }
+            std::string error;
+            if(!boundary_.configure(definition,transfers_.stream(),error)){fault_.message=error;return false;}
+            view_.gasBoundaryProgram=boundary_.view();
+        if(!ugkp::boundary::publish(definition,view_,[&](auto* dst,const auto& values){return upload(dst,values);}))return false;
+        }
         if(view_.gasBoundaryLayer.enabled)wallFaceArea_=area;
-        if(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy
+        if(boundaryRebound&&view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy
             &&(!upload(view_.gasSpecies.boundaryMassFraction,Y)||!upload(view_.gasSpecies.compositionBoundaryFixed,fixedY)))return false;
         return !publish||!rebound||refreshView();
     }

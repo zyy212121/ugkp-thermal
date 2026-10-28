@@ -28,13 +28,17 @@ __global__ void prepareSteadyGasTimeStepKernel(DeviceState* sp,double courant,do
         const double nu=mu/s.rho[c];
         const double thermal=s.gasThermalConductivity>=0
             ?s.gasThermalConductivity/(s.rho[c]*cv)
-            :nu*faceCp/(cv*s.gasPr);
+            :nu*faceCp/(cv*(ugkwp::gasVariablePrandtl(s)?ugkwp::gasFaceMolecularPrandtl(s,f,own,other):s.gasPr));
         double diffusivity=fmax(4.0/3.0*(nu+densityRatio*nut),
             fmax(thermal+densityRatio*nut*faceCp/(cv*s.turbulentPrandtl),nu+densityRatio*nut));
         if(mixture)
             for(int k=0;k<ugkwp::compiledGasSpecies;++k)
             {
-                const double D=s.gasSpecies.diffusivity?s.gasSpecies.diffusivity[k]:0;
+                const double w=ugkwp::gasTransportFaceWeight(s,f,own,other);
+                const double T=ugkwp::gasTransportFaceTemperature(s,f,own,other);
+                const double pressure=other>=0?w*s.p[own]+(1-w)*s.p[other]
+                    :(s.riemannBoundaryPFix[f]?s.riemannBoundaryP[f]:s.p[own]);
+                const double D=ugkwp::gasLocalMolecularDiffusivity(s,k,T,pressure);
                 // Mixture correction couples species: sum of raw diagonal
                 // diffusion plus correction has row norm bounded by 2 max D.
                 diffusivity=fmax(diffusivity,2*densityRatio*(D+nut/s.gasSpecies.turbulentSchmidt));

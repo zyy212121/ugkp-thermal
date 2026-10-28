@@ -86,14 +86,15 @@ evaluatePrimitive(const ugkwp::gaswall::WallInput<R, N, T> &in,
             gradYn[j] += p.gradY[j][a] * normal[a];
     }
     R diffusion[N], diffH = 0;
+    R localD[N];for(int j=0;j<N;++j)localD[j]=wallMolecularDiffusivity(in,j,p.T,src.pressure);
     bool available = false;
-    if (!correctedSpeciesDiffusion(p.Y, gradYn, p.rho, in.model.diffusivity, nut,
+    if (!correctedSpeciesDiffusion(p.Y, gradYn, p.rho, localD, nut,
                                    cfg.turbulentSchmidt, p.T, in.model.thermo, diffusion, diffH,
                                    true, &available) ||
         !available)
         return false;
     R conductivity =
-        (in.model.molecularPrandtl > 0 ? molecularMu * cp / in.model.molecularPrandtl
+        (in.model.molecularPrandtl > 0 ? molecularMu * cp / wallMolecularPrandtl(in,p.Y)
                                        : in.model.conductivity) +
         p.rho * nut * cp / cfg.turbulentPrandtl;
     f.mass = p.rho * (normalU - meshNormal);
