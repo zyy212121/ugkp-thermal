@@ -2,6 +2,9 @@
 #define CHMT_MESH_SWEEP_WORKSPACE_H
 #include "mesh/GeometryDiagnostics.H"
 #include "core/HostState.H"
+#ifdef CHMT_DEVICE_GEOMETRY
+#include "mesh/GeometryGpu.H"
+#endif
 #include <algorithm>
 #include <memory>
 #include <new>
@@ -65,6 +68,9 @@ class HarmonicModes {
     Reals weights_,totals_;
     Points displacement_,next_;
     Real tolerance_;
+#ifdef CHMT_DEVICE_GEOMETRY
+    std::unique_ptr<geometry_device::backend::HarmonicPointMotion> device_;
+#endif
 public:
     HarmonicModes(const HostMesh& mesh,const std::vector<unsigned char>& fixed,
         Budget& budget,Real tolerance):mesh_(mesh),fixed_(fixed),
@@ -84,17 +90,31 @@ public:
         edges_.erase(std::unique(edges_.begin(),edges_.end()),edges_.end());
         weights_.resize(edges_.size());
         for(std::size_t k=0;k<edges_.size();++k) {
-            const int p=edges_[k].first,other=edges_[k].second;
+            const int p=edges_[k].first;
             ++offsets_[p+1];
+#ifndef CHMT_DEVICE_GEOMETRY
+            const int other=edges_[k].second;
             if(!fixed_[p]) {
                 const Real length=mag(mesh.points[p]-mesh.points[other]);
                 // The initial public harmonic solve already validates this.
                 weights_[k]=1/length;totals_[p]+=weights_[k];
             }
+#endif
         }
         for(std::size_t p=1;p<offsets_.size();++p)offsets_[p]+=offsets_[p-1];
+#ifdef CHMT_DEVICE_GEOMETRY
+        std::vector<int> rows(offsets_.begin(),offsets_.end()),neighbours;neighbours.reserve(edges_.size());
+        for(const auto& edge:edges_)neighbours.push_back(edge.second);
+        device_.reset(new geometry_device::backend::HarmonicPointMotion(geometry_device::pack(mesh_.points),rows,neighbours,fixed_,tolerance_));
+#endif
     }
     bool solve(const Points& boundary,Points& output,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
+#ifdef CHMT_DEVICE_GEOMETRY
+        const auto result=device_->solve(geometry_device::pack(boundary),true);
+        if(result.errorPoint>=0)return false;
+        if(!mesh_.points.empty() && !(result.residual<=tolerance_))geometryWarning(diagnostics,result.residual,tolerance_,-1,false);
+        geometry_device::unpack(result.points,output);
+#else
         std::fill(displacement_.begin(),displacement_.end(),Vec3{});
         std::fill(next_.begin(),next_.end(),Vec3{});
         for(std::size_t p=0;p<fixed_.size();++p)if(fixed_[p])displacement_[p]=boundary[p];
@@ -120,6 +140,7 @@ public:
             output[p]-=mesh_.points[p];
             if(fixed_[p])output[p]=boundary[p];
         }
+#endif
         return true;
     }
 };
