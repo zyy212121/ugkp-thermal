@@ -1853,7 +1853,10 @@ struct GasPrimDevice
 
 #include "operators/clearParticleMomentsKernel.cuh"
 
+// FSH is outside the four-application unification; retain its established policy.
+#define GPU_OPERATOR_GRAVITY_DENSITY_FLOOR true
 #include "operators/applyGasGravityKernel.cuh"
+#undef GPU_OPERATOR_GRAVITY_DENSITY_FLOOR
 
 #include "operators/computePressureGradientKernel.cuh"
 

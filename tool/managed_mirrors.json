@@ -1328,6 +1328,26 @@
       "path": "tests/fixtures/shared_operators/schema7_wire_golden.json",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPreparePressureProjection.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPublishParticleEnthalpyMoment.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuGasWallExposedArea.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/MolecularConductivity.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
     }
   ],
   "local_only": {

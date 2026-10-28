@@ -27,6 +27,9 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     Foam::OStringStream expanded;expanded.precision(std::numeric_limits<double>::max_digits10);
     gasProperties.Foam::dictionary::write(expanded,false);
     candidate.gasModel=ugkwp::parseGasModelProperties(expanded.str());
+    if(candidate.gasModel.mode!=ugkwp::GasMode::MixtureFrozen)
+        throw std::runtime_error("CHMT requires frozen multicomponent gas; volumetric chemistry and single-component modes are not application capabilities. Surface reactions and pyrolysis remain available.");
+
     if(candidate.gasModel.mode==ugkwp::GasMode::SingleLegacy){
         Foam::IOdictionary metadata(Foam::IOobject("materialGasProperties",time.constant(),time,
             Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));

@@ -6,6 +6,7 @@
 #include <utility>
 #include "GasModel.H"
 #include "MolecularViscosity.H"
+#include "MolecularConductivity.H"
 #include "GasEnergy.H"
 #include "GasGeometryPolicy.H"
 #include "GasBoundaryLayerState.H"

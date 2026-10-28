@@ -1,11 +1,12 @@
 #pragma once
 #include "GasStateView.H"
+#include "MolecularConductivity.H"
 template<class GasState>
 __device__ GPU_OPERATOR_REAL molecularGasConductivity(const GasState& s)
 {
     if constexpr (ugkwp::GasDirectConductivity<GasState>::value)
         if (ugkwp::gasHasDirectConductivity(s)) return s.gasThermalConductivity;
-    return s.gasMu*s.gasCp/s.gasPrClamped;
+    return ugkwp::conductivityFromViscosityCpPr(s.gasMu,s.gasCp,s.gasPrClamped);
 }
 
 template<class GasState>
@@ -20,10 +21,11 @@ __device__ GPU_OPERATOR_REAL molecularGasConductivity(const GasState& s,int c,GP
     GPU_OPERATOR_REAL cp=s.gasCp;
     if constexpr(ugkwp::GasStateTraits<GasState>::speciesCount>0)
         if(ugkwp::mixtureGasActive(s)){
-            cp=0;
+            GPU_OPERATOR_REAL fractions[ugkwp::GasStateTraits<GasState>::speciesCount];
             for(int j=0;j<ugkwp::GasStateTraits<GasState>::speciesCount;++j)
-                cp+=s.gasSpecies.rho[j*s.nCells+c]/s.rho[c]
-                    *ugkwp::speciesCp(j,temperature,s.gasSpecies.thermo);
+                fractions[j]=s.gasSpecies.rho[j*s.nCells+c]/s.rho[c];
+            cp=ugkwp::mixtureSpecificCp(fractions,temperature,s.gasSpecies.thermo);
         }
-    return ugkwp::gasCellMolecularViscosityAt(s,c,temperature)*cp/ugkwp::gasCellMolecularPrandtl(s,c);
+    return ugkwp::conductivityFromViscosityCpPr(ugkwp::gasCellMolecularViscosityAt(s,c,temperature),
+        cp,ugkwp::gasCellMolecularPrandtl(s,c));
 }
