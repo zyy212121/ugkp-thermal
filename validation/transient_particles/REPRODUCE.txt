@@ -1,0 +1,41 @@
+PR29: transient mixture/particle transport
+
+Parent: PR28 ad8bc72944264fb64c631aacc7258d12ea49d708.
+Requirements: OpenFOAM 10 environment, CUDA, Python3; tested Ns=2, sm_89.
+Keep the parent checkout and binaries for comparison. Use fresh output directories.
+
+source /opt/openfoam10/etc/bashrc
+export UGKWP_GAS_SPECIES=2 UGKWP_CUDA_ARCH=sm_89 CUDA_HOME=/usr/local/cuda
+export FOAM_USER_APPBIN=/absolute/output/candidate-bin
+export GAS_UGKP_BUILD=/absolute/output/candidate-build
+bash tool/gasUGKP/build_cuda_solver.sh
+export GAS_UGKP_STEADY_BUILD=/absolute/output/steady-build
+bash tool/gasUGKPSteady/build_cuda_solver.sh
+
+Build both applications from the parent in separate output directories as well.
+Recorded builds use the existing fast-compile NVCC wrapper:
+  /usr/local/cuda/bin/nvcc --Ofast-compile=max -Xcompiler=-fno-tree-fre "$@"
+This is validation configuration, not a production-optimization benchmark.
+
+python3 validation/transient_particles/check_native.py --candidate CANDIDATE_GAS --before PARENT_GAS --steady-before PARENT_STEADY --steady-after CANDIDATE_STEADY --output NEW_NATIVE_OUTPUT
+python3 validation/transient_particles/check_driver.py --candidate CANDIDATE_GAS --before PARENT_GAS --output NEW_DRIVER_OUTPUT
+python3 validation/steady_cuda/check_heat_failure.py --binary CANDIDATE_STEADY --output NEW_PR28_REGRESSION_OUTPUT
+bash validation/steady_cuda/check_heat_domain.sh NEW_CUDA_CONTROL_OUTPUT
+
+python3 validation/steady_cpu/build.py --particles --output CPU_REFERENCE
+python3 validation/transient_particles/check_cpu_reference.py --binary CPU_REFERENCE --case NEW_NATIVE_OUTPUT/mixture_L0-candidate --output NEW_CPU_COMPARISON_OUTPUT
+python3 validation/tests/gas_transport/steady_cpu_particles.py --selftest NEW_CPU_SELFTEST_OUTPUT
+
+Run the timing command with exclusive GPU use and no concurrent builds/tests:
+python3 validation/transient_particles/check_timing.py --candidate CANDIDATE_GAS --reference PARENT_STEADY --output NEW_TIMING_OUTPUT
+
+The old transient binary rejects mixture+particles, so timing compares different
+application drivers executing the same physical stepping. The steady driver also
+collects statistics. Do not describe this as an old/new transient speedup.
+
+Supported addition: frozen multi-species gas + inert particles on the existing
+fixed-mesh gasUGKP path, including drag, heat, porosity/species scaling and
+ordinary transient species output/restart. Reacting mixture+particles, mixture
+scheduled-pressure boundaries, ALE particles and mixture particle boundary-layer
+closure retain their existing unsupported contracts. No CHT/CHMT capability is
+advertised by the new gas application capability flag.

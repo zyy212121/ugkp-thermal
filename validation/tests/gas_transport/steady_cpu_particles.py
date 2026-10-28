@@ -10,7 +10,7 @@ from pathlib import Path
 def fragment(root):
     root = Path(root)
     backend = (root/'applications/gasUGKP/private_backend/GpuResidentStrict.cu').read_text()
-    relaxation = backend[backend.index('#include "GpuParticleGasHeatRelaxation.cuh"'):backend.index('int launchParticleDragRelaxation')]
+    relaxation = backend[backend.index('#include "GpuParticleGasHeatRelaxation.cuh"'):backend.index('#include "../../../common/gasTransport/MixtureParticleCoupling.cuh"')]
     heat_factor = backend[backend.index('__device__ double particleHeatFactorDevice'):backend.index('#include "operators/clearSolidCell.cuh"')]
     return (Path(__file__).with_suffix('.hpp').read_text()
             .replace('/* PRODUCTION_HEAT_FACTOR */', heat_factor)
