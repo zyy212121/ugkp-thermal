@@ -62,6 +62,7 @@ class CommonGasNumericsSourceContract(unittest.TestCase):
 
     def test_common_particle_drag_and_les_algebra_have_one_owner(self):
         canonical_files = (
+            "common/gasNumerics/GpuDragModels.cuh",
             "common/gasNumerics/GpuDragAlgebra.cuh",
             "common/gasNumerics/GpuLesAlgebra.cuh",
             "common/gasNumerics/GpuPackingProjectionAlgebra.cuh",
@@ -103,8 +104,15 @@ class CommonGasNumericsSourceContract(unittest.TestCase):
                 text,
             )
 
-        gas_drag = (
+        forwarding_drag = (
             ROOT / "applications/gasUGKP/private_backend/GpuDragModels.cuh"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(
+            forwarding_drag.strip().splitlines(),
+            ["#pragma once", '#include "../../../common/gasNumerics/GpuDragModels.cuh"'],
+        )
+        gas_drag = (
+            ROOT / "common/gasNumerics/GpuDragModels.cuh"
         ).read_text(encoding="utf-8")
         shared_drag = (
             ROOT / "common/gasNumerics/GpuDragModelsFSHCHT.cuh"

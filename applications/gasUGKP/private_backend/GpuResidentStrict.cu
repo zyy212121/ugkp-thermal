@@ -5751,13 +5751,29 @@ extern "C" int ugkwpGpuResidentStrictUploadEpsGPrev
     }
 
     const size_t n = static_cast<size_t>(s->nCells);
-    return copyToDevice
+    const int rc = copyToDevice
     (
         s->epsGPrev,
         epsGPrev,
         n,
         "cudaMemcpy strict epsGPrev upload"
     );
+    if (rc != 0)
+    {
+        return rc;
+    }
+    // Tracking can remove the last parcel after porosity sources have run.
+    // Its checkpoint still owes the next step a phase-volume correction.
+    // Restore the sticky coupled-path flag without changing that history.
+    for (size_t cell = 0; cell < n; ++cell)
+    {
+        if (epsGPrev[cell] != 1.0)
+        {
+            s->particlesMayBePresent = true;
+            break;
+        }
+    }
+    return 0;
 }
 
 extern "C" int ugkwpGpuResidentStrictDownloadGasBoundaryFields
