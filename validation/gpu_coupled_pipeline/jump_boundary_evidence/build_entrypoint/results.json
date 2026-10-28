@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "fix_commit": "619688ed3ccdc411622fe77e7fbdf32b9fcdaef0",
+  "change": "One missing newline between sha256sum redirection and NVCC invocation; no production changes.",
+  "entrypoint": "validation/gpu_coupled_pipeline/jump_build.sh",
+  "script_sha256": "427fb58b3383e94339fca4a366109753dfea49777444eaebd15d859ae4667059",
+  "exit_code": 0,
+  "fresh_output_directory": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/pr27-jump-build-verification-r2/clean-output",
+  "command": [
+    "bash",
+    "-x",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/repo/validation/gpu_coupled_pipeline/jump_build.sh",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/repo",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/gpu-coupled-baseline-88bc5434",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/pr27-review-supplement-clean/source",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/pr27-jump-build-verification-r2/clean-output"
+  ],
+  "baseline_commits": {
+    "cpu": "88bc5434ee7199ec0bd7b986bbf121d693022245",
+    "pre_fix_gpu": "2228479afb22845e2372f67da737ba48a6db6548"
+  },
+  "generated_programs": {
+    "jump-before": "8ebeeb33dc5a17c1ac7ad71d6b8b4e9e317a8541e546eb05c9f84c0fc57a5e27",
+    "jump-after": "36c713a88eebb19c32c1555dcaa27bd8923aecd01dc14656cfa0d321001213a4",
+    "sparse-unit": "57e16d763e6734e21f4edd44f7ef5f62fb705fa16656700eed5b9dcf35c348a0",
+    "owner-baseline": "05666bc66f7e9e18e7b408df2097579d1f435914c0b02e5f9093886ba52859ad",
+    "owner-candidate": "45d8d94f8bc64884da2bc884bdd86ae2bb731f04d3cfd1228326f8cad28e3aa8"
+  },
+  "executed_test": "The entrypoint runs sparse-unit: 30 scaled structured/periodic solves plus reuse, true residual, iteration limit and empty partition. PASS.",
+  "scope": "Complete fresh native build entrypoint verified, including SolidThermalProperties and both production-owner executables. Other newly built executables were not used to rerun the historical numeric/performance suites. Existing reviewed numeric evidence remains unchanged.",
+  "first_attempt": {
+    "exit_code": 1,
+    "stage": "GCC compilation of unchanged baseline GpuThermalExchangeState.C",
+    "reason": "internal compiler error: Segmentation fault during GIMPLE pre pass",
+    "action": "Preserved attempt; identical script/source/flags completed successfully in another fresh directory. No compiler workaround or production change.",
+    "evidence": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/pr27-jump-build-verification"
+  },
+  "accepted_review_scope": [
+    "PR27-P2-001 production fix is closed by the independent review.",
+    "Nine configurations provide 72 paired solve records per version, not 72 independent cases.",
+    "Strict normalized-residual agreement is checked for the first correction of each sample.",
+    "Serial matrix and production-owner coverage does not claim full CHT, MPI jump or new performance validation.",
+    "Previous restart boundary, absolute conservation, particle enthalpy and scale-dependent performance limitations remain."
+  ]
+}
