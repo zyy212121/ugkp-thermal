@@ -1,8 +1,11 @@
 #include "fvCFD.H"
 #include <iomanip>
 int main(int argc,char** argv) {
-    Foam::argList::noParallel();Foam::argList args(argc,argv);
+    Foam::argList::noParallel();
+    Foam::argList::addOption("referenceTime", "time", "Boundary function evaluation time");
+    Foam::argList args(argc,argv);
     Foam::Time runTime(Foam::Time::controlDictName,args);
+    if(args.optionFound("referenceTime"))runTime.setTime(args.optionRead<Foam::scalar>("referenceTime"),0);
     Foam::fvMesh mesh(Foam::IOobject(Foam::fvMesh::defaultRegion,runTime.timeName(),runTime,Foam::IOobject::MUST_READ));
     Foam::volVectorField U(Foam::IOobject("U","0",mesh,Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE),mesh);
     Foam::volScalarField p(Foam::IOobject("p","0",mesh,Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE),mesh);

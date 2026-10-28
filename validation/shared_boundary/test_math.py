@@ -29,10 +29,11 @@ int main(){
   // Independently evaluate the original boundary equations at the returned state.
   double expectedT=T0/(1+K/(R*out.T)*(gamma-1)/gamma);
   near(out.T,expectedT);near(out.rho*R*out.T,out.p);
-  double expectedP=value[Pressure]-out.rho*K;
+  const double Kp=K-(inflow?.5*(value[Ux]*value[Ux]+value[Uy]*value[Uy]+value[Uz]*value[Uz]):0);
+  double expectedP=value[Pressure]-out.rho*Kp;
   if(pressureMode) {
-   if(pressureGamma>1){double g=(pressureGamma-1)/pressureGamma;expectedP=value[Pressure]/std::pow(1+K/(R*out.T)*g,1/g);}
-   else expectedP=value[Pressure]/(1+K/(R*out.T));
+   if(pressureGamma>1){double g=(pressureGamma-1)/pressureGamma;expectedP=value[Pressure]/std::pow(1+Kp/(R*out.T)*g,1/g);}
+   else expectedP=value[Pressure]/(1+Kp/(R*out.T));
   }
   near(out.p,expectedP);maximum=std::max(maximum,std::abs(out.T-expectedT));++count;
  }

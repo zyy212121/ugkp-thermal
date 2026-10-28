@@ -3555,12 +3555,14 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     double simulationTime
 )
 {
+    // Legacy/particle callers pass the committed interval end. Transport RK
+    // stages start at simulationTime-dt; injection and publication retain the end.
     DeviceState* s = asState(handle);
     if (validateState(s, "advance") != 0)
     {
         return 1;
     }
-    if (tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
+    if (tuneFixedWorkBlockThreads(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -3572,7 +3574,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         s->gasGraphMode = !value || std::strcmp(value, "1") == 0;
     }
     if (s->gasGraphMode && !s->particlesMayBePresent && !s->gravityEnabled)
-        return advancePureGasGraph(s, dt, simulationTime);
+        return advancePureGasGraph(s, dt, simulationTime-dt);
 #endif
 
     const int block = s->reductionBlockThreads;
@@ -3601,7 +3603,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 #endif
 
     UGKP_DEV_PROBE_ENTER(ProbeGasFlux);
-    if (advanceGasFluxStage(s, dt, simulationTime) != 0)
+    if (advanceGasFluxStage(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -4237,12 +4239,14 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
     double simulationTime
 )
 {
+    // Legacy/particle callers pass the committed interval end. Transport RK
+    // stages start at simulationTime-dt; injection and publication retain the end.
     DeviceState* s = asState(handle);
     if (validateState(s, "pure-gas advance") != 0)
     {
         return 1;
     }
-    if (tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
+    if (tuneFixedWorkBlockThreads(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -4256,10 +4260,10 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
         s->gasGraphMode = !value || std::strcmp(value, "1") == 0;
     }
     if (s->gasGraphMode && !s->particlesMayBePresent && !s->gravityEnabled)
-        return advancePureGasGraph(s, dt, simulationTime);
+        return advancePureGasGraph(s, dt, simulationTime-dt);
 #endif
 
-    if (advanceGasFluxStage(s, dt, simulationTime) != 0)
+    if (advanceGasFluxStage(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }

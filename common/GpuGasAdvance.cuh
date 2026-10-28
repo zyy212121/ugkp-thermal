@@ -476,7 +476,8 @@ int advancePureGasGraph(GasHostState* s, const GasHostPolicy::Time dt, const Gas
             return 1;
         }
         int status = advanceGasFluxStage(s, dt, simulationTime);
-        if (status == 0) status = finaliseGasBoundaryStage(s, dt, simulationTime);
+        // Graph transport receives the interval start; final publication uses its end.
+        if (status == 0) status = finaliseGasBoundaryStage(s, dt, simulationTime+dt);
         err = cudaStreamEndCapture(s->gasCaptureStream, &s->gasGraph);
         const cudaError_t streamError = cudaStreamDestroy(s->gasCaptureStream);
         s->gasCaptureStream = nullptr;
