@@ -1,0 +1,431 @@
+{
+  "scope": "Paired 3000-iteration native mixture+particle case, same fast compile flags; includes process startup and output; no production-optimization claim",
+  "runs": [
+    {
+      "label": "before",
+      "repetition": 0,
+      "seconds": 23.72415565099982,
+      "exit_code": 0
+    },
+    {
+      "label": "after",
+      "repetition": 0,
+      "seconds": 15.297710601000063,
+      "exit_code": 0
+    },
+    {
+      "label": "after",
+      "repetition": 1,
+      "seconds": 15.634072540000034,
+      "exit_code": 0
+    },
+    {
+      "label": "before",
+      "repetition": 1,
+      "seconds": 21.293933029000073,
+      "exit_code": 0
+    },
+    {
+      "label": "before",
+      "repetition": 2,
+      "seconds": 21.524543118999873,
+      "exit_code": 0
+    },
+    {
+      "label": "after",
+      "repetition": 2,
+      "seconds": 15.243470691999846,
+      "exit_code": 0
+    }
+  ],
+  "binaries": {
+    "before": "fdcc50d6116eb33c078788b4413c935407470355f4c7e91a16e14794ce9955b3",
+    "after": "f0160dcee5d124c7cd1e6eb7b34ce5dd11f6bba47c02845719b9c3cb47dc10d4"
+  },
+  "comparisons": [
+    {
+      "matching_rows": 32,
+      "missing_candidate_keys": [],
+      "extra_candidate_keys": [],
+      "duplicate_reference_keys": [],
+      "duplicate_candidate_keys": [],
+      "fields": {
+        "rho": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUx": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUy": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUz": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoE": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "Ux": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "Uy": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "Uz": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "p": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "T": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoY0": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoY1": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoSolid": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUsx": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUsy": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUsz": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoEs": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoHp": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoDs": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        }
+      },
+      "unavailable": [],
+      "pass": true,
+      "scope": "Only explicitly selected actual field values; no claim of CUDA validation or unexported budget closure."
+    },
+    {
+      "matching_rows": 32,
+      "missing_candidate_keys": [],
+      "extra_candidate_keys": [],
+      "duplicate_reference_keys": [],
+      "duplicate_candidate_keys": [],
+      "fields": {
+        "rho": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUx": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUy": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUz": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoE": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "Ux": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "Uy": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "Uz": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "p": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "T": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoY0": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoY1": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoSolid": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUsx": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUsy": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUsz": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoEs": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoHp": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoDs": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        }
+      },
+      "unavailable": [],
+      "pass": true,
+      "scope": "Only explicitly selected actual field values; no claim of CUDA validation or unexported budget closure."
+    },
+    {
+      "matching_rows": 32,
+      "missing_candidate_keys": [],
+      "extra_candidate_keys": [],
+      "duplicate_reference_keys": [],
+      "duplicate_candidate_keys": [],
+      "fields": {
+        "rho": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUx": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUy": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUz": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoE": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "Ux": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "Uy": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "Uz": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "p": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "T": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoY0": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoY1": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoSolid": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUsx": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUsy": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoUsz": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoEs": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoHp": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        },
+        "rhoDs": {
+          "max_absolute": 0.0,
+          "max_scaled": 0.0,
+          "mismatches": 0,
+          "samples": 32
+        }
+      },
+      "unavailable": [],
+      "pass": true,
+      "scope": "Only explicitly selected actual field values; no claim of CUDA validation or unexported budget closure."
+    }
+  ],
+  "median_seconds": {
+    "before": 21.524543118999873,
+    "after": 15.297710601000063
+  },
+  "speedup": 1.4070434250202604,
+  "status": "PASS"
+}
