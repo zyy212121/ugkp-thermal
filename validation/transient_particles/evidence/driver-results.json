@@ -1,0 +1,238 @@
+{
+  "runs": [
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/before-bin/gasUGKP",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/driver-r3/reservoir-before"
+      ],
+      "exit": 0,
+      "seconds": 0.9732379279994348,
+      "log_sha256": "0a7913b08deded80c3b024b04ef83a9c57a6042d99391914fc30085c609f6394",
+      "binary": "before",
+      "case": "reservoir-before"
+    },
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/candidate-r2-bin/gasUGKP",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/driver-r3/reservoir-candidate"
+      ],
+      "exit": 0,
+      "seconds": 0.9524789099996269,
+      "log_sha256": "280430dd8f4624bbafd572a07728a8556600fd84ce3bc00fd150168897463cd5",
+      "binary": "candidate",
+      "case": "reservoir-candidate"
+    },
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/before-bin/gasUGKP",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/driver-r3/reconstructed-before"
+      ],
+      "exit": 0,
+      "seconds": 1.313486669001577,
+      "log_sha256": "725b1838f953bb2d26eb4c1b3727bb5c0687ea7206506ae7d73082f119caaf44",
+      "binary": "before",
+      "case": "reconstructed-before"
+    },
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/candidate-r2-bin/gasUGKP",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/driver-r3/reconstructed-candidate"
+      ],
+      "exit": 0,
+      "seconds": 1.2644814049999695,
+      "log_sha256": "5ff714ef7a1ba765a695addeb3cac655fd89085292f89bcd2a272726e1ef9097",
+      "binary": "candidate",
+      "case": "reconstructed-candidate"
+    },
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/before-bin/gasUGKP",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/driver-r3/mixture_diffusion-before"
+      ],
+      "exit": 0,
+      "seconds": 1.4181259500001033,
+      "log_sha256": "f33a635b003a96f023035d10e5332907189a17f14d23e396520c5e73b07124bb",
+      "binary": "before",
+      "case": "mixture_diffusion-before"
+    },
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/candidate-r2-bin/gasUGKP",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/driver-r3/mixture_diffusion-candidate"
+      ],
+      "exit": 0,
+      "seconds": 1.4261663570014207,
+      "log_sha256": "23923218712f49d517a58eca7c536c7a4823765012f9ef188b26a5ae9b3a6059",
+      "binary": "candidate",
+      "case": "mixture_diffusion-candidate"
+    },
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/before-bin/gasUGKP",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/driver-r3/particles-before"
+      ],
+      "exit": 0,
+      "seconds": 1.5564390620002087,
+      "log_sha256": "14b22ab719112337ee7b87c5b9a143c04f438a07826141022b23ddc5bb9c13ce",
+      "binary": "before",
+      "case": "particles-before"
+    },
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/candidate-r2-bin/gasUGKP",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/driver-r3/particles-candidate"
+      ],
+      "exit": 0,
+      "seconds": 1.472251843999402,
+      "log_sha256": "5c1917f4ecf5aad3199dd24fffe462062d7b17eadc0effd3579ff37c228d6785",
+      "binary": "candidate",
+      "case": "particles-candidate"
+    },
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/candidate-r2-bin/gasUGKP",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/driver-r3/fixed_dt"
+      ],
+      "exit": 0,
+      "seconds": 2.0975899919994845,
+      "log_sha256": "4862efe6f70a731c5e4a67c0934474900b4a8e7670e9284c68ecd4b689f7cb8d",
+      "binary": "candidate",
+      "case": "fixed_dt"
+    },
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/candidate-r2-bin/gasUGKP",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/driver-r3/adaptive"
+      ],
+      "exit": 0,
+      "seconds": 2.381001010999171,
+      "log_sha256": "de7b2b63424247259d3237e0e70d3d58b19f1cfd414e929066282182c08c6e7b",
+      "binary": "candidate",
+      "case": "adaptive"
+    },
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/candidate-r2-bin/gasUGKP",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/driver-r3/scheduled_mixture_unsupported"
+      ],
+      "exit": 1,
+      "seconds": 0.4057049929997447,
+      "log_sha256": "d15886bba9f8f380789963c4448b4524032f313c1b0c5d0717393194aaf5d179",
+      "binary": "candidate",
+      "case": "scheduled_mixture_unsupported",
+      "expected_exit": 1
+    }
+  ],
+  "comparisons": [
+    {
+      "case": "reservoir",
+      "max_scaled_errors": {
+        "rho": 0.0,
+        "rhoU": 0.0,
+        "rhoE": 0.0,
+        "U": 0.0,
+        "p": 0.0,
+        "T": 0.0,
+        "epsilonS": 0.0,
+        "rhoUs": 0.0,
+        "rhoEs": 0.0,
+        "rhoDs": 0.0,
+        "theta": 0.0,
+        "dMeanCell": 0.0
+      }
+    },
+    {
+      "case": "reconstructed",
+      "max_scaled_errors": {
+        "rho": 0.0,
+        "rhoU": 0.0,
+        "rhoE": 0.0,
+        "U": 0.0,
+        "p": 0.0,
+        "T": 0.0,
+        "epsilonS": 0.0,
+        "rhoUs": 0.0,
+        "rhoEs": 0.0,
+        "rhoDs": 0.0,
+        "theta": 0.0,
+        "dMeanCell": 0.0
+      }
+    },
+    {
+      "case": "mixture_diffusion",
+      "max_scaled_errors": {
+        "rho": 0.0,
+        "rhoU": 0.0,
+        "rhoE": 0.0,
+        "U": 0.0,
+        "p": 0.0,
+        "T": 0.0,
+        "epsilonS": 0.0,
+        "rhoUs": 0.0,
+        "rhoEs": 0.0,
+        "rhoDs": 0.0,
+        "theta": 0.0,
+        "dMeanCell": 0.0,
+        "Y_A": 0.0,
+        "Y_B": 0.0,
+        "rhoY_A": 0.0,
+        "rhoY_B": 0.0
+      }
+    },
+    {
+      "case": "particles",
+      "max_scaled_errors": {
+        "rho": 0.0,
+        "rhoU": 0.0,
+        "rhoE": 0.0,
+        "U": 0.0,
+        "p": 0.0,
+        "T": 0.0,
+        "epsilonS": 0.0,
+        "rhoUs": 0.0,
+        "rhoEs": 0.0,
+        "rhoDs": 0.0,
+        "Tp": 0.0,
+        "theta": 0.0,
+        "dMeanCell": 0.0
+      }
+    },
+    {
+      "fields_max_scaled_error": {
+        "rho": 0.0,
+        "rhoU": 0.0,
+        "rhoE": 0.0,
+        "U": 0.0,
+        "p": 0.0,
+        "T": 0.0,
+        "epsilonS": 0.0,
+        "rhoUs": 0.0,
+        "rhoEs": 0.0,
+        "rhoDs": 0.0,
+        "Tp": 0.0,
+        "theta": 0.0,
+        "dMeanCell": 0.0,
+        "Y_A": 0.0,
+        "Y_B": 0.0,
+        "rhoY_A": 0.0,
+        "rhoY_B": 0.0
+      },
+      "parcels": 2,
+      "parcel_max_scaled_error": 0,
+      "case": "adaptive vs fixed 1e-5 physical dt"
+    }
+  ],
+  "unchanged_limitation": "Scheduled pressure boundaries are not implemented for mixture gas; existing diagnostic retained.",
+  "pass": true
+}

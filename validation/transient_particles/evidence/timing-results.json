@@ -1,0 +1,168 @@
+{
+  "steps": 6000,
+  "dt": 2e-05,
+  "runs": [
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/failure-fixed-r3-bin/gasUGKPSteady",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/timing/reference-0"
+      ],
+      "exit": 0,
+      "seconds": 34.624355239999204,
+      "log_sha256": "7a90f9018549f4e91f74e72d350d2d397e559dd5b8b853ecd51d00201595f30a",
+      "binary": "reference",
+      "repetition": 0
+    },
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/candidate-r2-bin/gasUGKP",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/timing/candidate-0"
+      ],
+      "exit": 0,
+      "seconds": 32.39431306200095,
+      "log_sha256": "cb9d9c268e021dde591e5a76441d65de5c4d8591b3d0b55f47c4738c6cc106d6",
+      "binary": "candidate",
+      "repetition": 0
+    },
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/candidate-r2-bin/gasUGKP",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/timing/candidate-1"
+      ],
+      "exit": 0,
+      "seconds": 32.63516734699988,
+      "log_sha256": "eb34b2d84302891935ae86a352af2efbb31b51c39f6512415e15d80476e88136",
+      "binary": "candidate",
+      "repetition": 1
+    },
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/failure-fixed-r3-bin/gasUGKPSteady",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/timing/reference-1"
+      ],
+      "exit": 0,
+      "seconds": 33.26375903400003,
+      "log_sha256": "12c5088ecfd0c656d62b8560f7ab519fc574a7803af6643da1902339b29c05a6",
+      "binary": "reference",
+      "repetition": 1
+    },
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/failure-fixed-r3-bin/gasUGKPSteady",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/timing/reference-2"
+      ],
+      "exit": 0,
+      "seconds": 33.291965578999225,
+      "log_sha256": "b1d95e7cbdf4de4db1bed35c48a393b39b91bbf25459c7745c494304d37ce50c",
+      "binary": "reference",
+      "repetition": 2
+    },
+    {
+      "command": [
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/candidate-r2-bin/gasUGKP",
+        "-case",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/timing/candidate-2"
+      ],
+      "exit": 0,
+      "seconds": 32.96635767599946,
+      "log_sha256": "1a6e93d6de2bffdb217720a0fbdd9500a7c6a9ec5322e3ff83c668d17d8e192f",
+      "binary": "candidate",
+      "repetition": 2
+    }
+  ],
+  "comparisons": [
+    {
+      "fields_max_scaled_error": {
+        "rho": 0.0,
+        "rhoU": 0.0,
+        "rhoE": 0.0,
+        "U": 0.0,
+        "p": 0.0,
+        "T": 0.0,
+        "epsilonS": 0.0,
+        "rhoUs": 0.0,
+        "rhoEs": 0.0,
+        "rhoDs": 0.0,
+        "Tp": 1.8607848523672713e-16,
+        "theta": 0.0,
+        "dMeanCell": 0.0,
+        "Y_A": 0.0,
+        "Y_B": 0.0,
+        "rhoY_A": 0.0,
+        "rhoY_B": 0.0
+      },
+      "parcels": 99,
+      "parcel_max_scaled_error": 0,
+      "repetition": 0,
+      "minimum_surviving_id": 20,
+      "maximum_surviving_id": 99
+    },
+    {
+      "fields_max_scaled_error": {
+        "rho": 0.0,
+        "rhoU": 0.0,
+        "rhoE": 0.0,
+        "U": 0.0,
+        "p": 0.0,
+        "T": 0.0,
+        "epsilonS": 0.0,
+        "rhoUs": 0.0,
+        "rhoEs": 0.0,
+        "rhoDs": 0.0,
+        "Tp": 1.8607848523672713e-16,
+        "theta": 0.0,
+        "dMeanCell": 0.0,
+        "Y_A": 0.0,
+        "Y_B": 0.0,
+        "rhoY_A": 0.0,
+        "rhoY_B": 0.0
+      },
+      "parcels": 99,
+      "parcel_max_scaled_error": 0,
+      "repetition": 1,
+      "minimum_surviving_id": 20,
+      "maximum_surviving_id": 99
+    },
+    {
+      "fields_max_scaled_error": {
+        "rho": 0.0,
+        "rhoU": 0.0,
+        "rhoE": 0.0,
+        "U": 0.0,
+        "p": 0.0,
+        "T": 0.0,
+        "epsilonS": 0.0,
+        "rhoUs": 0.0,
+        "rhoEs": 0.0,
+        "rhoDs": 0.0,
+        "Tp": 1.8607848523672713e-16,
+        "theta": 0.0,
+        "dMeanCell": 0.0,
+        "Y_A": 0.0,
+        "Y_B": 0.0,
+        "rhoY_A": 0.0,
+        "rhoY_B": 0.0
+      },
+      "parcels": 99,
+      "parcel_max_scaled_error": 0,
+      "repetition": 2,
+      "minimum_surviving_id": 20,
+      "maximum_surviving_id": 99
+    }
+  ],
+  "scope": "Isolated paired physical-step timings; the old transient path is unsupported.\nThe reference is PR28 statistical steady stepping with the same fixed dt and\nstatic boundary. It also accumulates statistics, so this is not an old/new\ntransient speedup benchmark. No concurrent GPU tests should run.\n",
+  "binaries": {
+    "candidate": "0e062ebc4c2ccb2c387ef963fd319f5ca4e5eac55444ed5c82a30c24298af309",
+    "reference": "b3f7e30627833764739b3c8af378e65a529cd3d567c31cca422fded6efc999e1"
+  },
+  "median_seconds": {
+    "candidate": 32.63516734699988,
+    "reference": 33.291965578999225
+  },
+  "pass": true
+}

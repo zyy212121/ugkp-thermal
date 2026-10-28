@@ -498,9 +498,7 @@ int main(int argc, char *argv[])
             g.value(),
             gpuScheduling,
             ugkwpProps
-#ifdef UGKWP_STEADY_APPLICATION
             , &sharedGasModel
-#endif
         );
         configureResidentSst(resident);
         configureScheduledBoundary(resident);
@@ -587,6 +585,7 @@ int main(int argc, char *argv[])
                     Tp,
                     dMeanCell
                 );
+                resident.downloadSharedGasSpecies(sharedGasModel,rho);
                 if (gasTurbulenceModel == 3)
                 {
                     resident.downloadSstToHostMirror

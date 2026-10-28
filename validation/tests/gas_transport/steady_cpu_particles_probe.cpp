@@ -47,13 +47,13 @@ int main(){
  auto totalMomentum=[&](){double q=vol*m.rhoUx[0];for(int i=0;i<2;++i)q+=m.pm[i]*m.pux[i];return q;};
  ck(m.rhoE[0]<0,"test must exercise negative formation-inclusive gas energy");
  const double e0=totalEnergy(),p0=totalMomentum();threadIdx.x=0;
- steadyMixtureParticleCouplingKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag>(&m,.01,true,false);
+ mixtureParticleCouplingKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag>(&m,.01,true,false);
  near(totalEnergy(),e0,"paired mixture formation-inclusive total energy");near(totalMomentum(),p0,"paired mixture total momentum");
  near(m.gasSpecies.rho[0],sp0,"paired mixture species0 conservation");near(m.gasSpecies.rho[m.nCells],sp1,"paired mixture species1 conservation");
  ck(m.pT[0]>300&&m.pT[1]<1000,"paired nonlinear mixture heat path not active");
  ck(m.puxOld[0]==10&&m.puxOld[1]==30,"midpoint tracking old velocity overwritten");
  const double vx0=m.pux[0],vx1=m.pux[1];m.gravityX=2;m.gradPx[0]=0;threadIdx.x=0;
- steadyParticleExternalKickKernel(&m,.25);
+ mixtureParticleExternalKickKernel(&m,.25);
  near(m.pux[0]-vx0,.5,"external kick first active parcel");near(m.pux[1]-vx1,.5,"grid-stride kick second active parcel");
  ck(m.puxOld[0]==10&&m.puxOld[1]==30,"external kick changed midpoint history");
  std::printf("pool_selected=%d injected=%llu outflow=%llu active=%d max_collision_probability=%.17g\n",s.poolThermalCount[0],t.injected,t.outflow,t.particleCount,t.referenceMaxCollisionProbability);

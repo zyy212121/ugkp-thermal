@@ -64,8 +64,8 @@ constexpr double OfPi=3.14159265358979323846;
 #include "GpuParticleTransport.cuh"
 #include "operators/trackParticlesLocalFaceWalkKernel.cuh"
 #include "operators/computePressureGradientKernel.cuh"
-#include "applications/gasUGKPSteady/private_backend/SteadyMixturePorosity.cuh"
-#define GPU_GAS_POROSITY_SPECIES(s,c,scale) steadyScalePorositySpecies(s,c,scale)
+#include "common/gasTransport/MixturePorosity.H"
+#define GPU_GAS_POROSITY_SPECIES(s,c,scale) scaleMixturePorositySpecies(s,c,scale)
 #include "operators/applyGasVolumeFractionSourceKernel.cuh"
 #undef GPU_GAS_POROSITY_SPECIES
 #include "GpuCellDragRate.cuh"
@@ -74,7 +74,7 @@ template<class DragModel> void referenceEulerianDrag(ParticleState*sp,double dt)
 }
 #include "operators/applyEulerianParticleMaterialHeatKernel.cuh"
 /* PRODUCTION_RELAXATION */
-#include "applications/gasUGKPSteady/private_backend/SteadyMixtureParticleCoupling.cuh"
+#include "common/gasTransport/MixtureParticleCoupling.cuh"
 #include "operators/clearPoissonThermalPoolKernel.cuh"
 #include "GpuCollisionPoolAtomic.cuh"
 #include "operators/preparePoissonPoolSamplingKernel.cuh"
@@ -147,10 +147,10 @@ void particleStep(ParticleState&s,double dt,double frozenBoundaryTime){
  for(int i=0;i<s.particleCount;++i)correctOnePoissonThermalizedParticle(s,i,false);
  if(mixture){
   for(int c=0;c<s.nCells;++c){threadIdx.x=c;const double mx=s.rhoUx[c],energy=s.rhoE[c],volume=s.V[c]*s.epsGPrev[c];
-   steadyMixtureParticleCouplingKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag>(&s,dt,true,false);
+   mixtureParticleCouplingKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag>(&s,dt,true,false);
    s.gasPairedMomentumX+=volume*(s.rhoUx[c]-mx);s.gasPairedEnergy+=volume*(s.rhoE[c]-energy);
   }
-  threadIdx.x=0;steadyParticleExternalKickKernel(&s,dt);
+  threadIdx.x=0;mixtureParticleExternalKickKernel(&s,dt);
  }else{threadIdx.x=0;relaxParticlesToResidentGasKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag>(&s,dt);}
  for(int i=0;i<s.particleCount;++i){const bool active=s.pStatus[i]!=0;trackOneParticleLocalFaceWalk(s,i,dt);if(active){s.referenceAge[i]+=dt;if(!s.pStatus[i]){++s.outflow;s.outflowMass+=s.pm[i];s.outflowMomentumX+=s.pm[i]*s.pux[i];s.outflowMechanicalEnergy+=s.pm[i]*(.5*sqr3(s.pux[i],s.puy[i],s.puz[i])+1.5*s.pTheta[i]);s.outflowMaterialHeat+=s.pm[i]*particleHeatFactorDevice(s)*s.pT[i];}}}
  particleMoments(s);

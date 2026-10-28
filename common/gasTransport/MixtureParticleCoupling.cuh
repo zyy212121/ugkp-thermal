@@ -1,15 +1,15 @@
 #pragma once
 #include <type_traits>
 #include <utility>
-#include "../../../common/gasTransport/MixtureHeatExchange.H"
-#include "../../../common/gasNumerics/GpuParticlePhysicsAlgebra.cuh"
-#include "../../gasUGKP/private_backend/GpuDragModels.cuh"
+#include "MixtureHeatExchange.H"
+#include "../gasNumerics/GpuParticlePhysicsAlgebra.cuh"
+#include "../gasNumerics/GpuDragModels.cuh"
 
-// New steady application's physical-time source transaction. One cell worker
+// Physical-time source transaction shared by gasUGKP and gasUGKPSteady. One cell worker
 // owns all parcel writes and the reverse gas publication for its cell. CSR and
 // split direct-base + indexed-injection ranges consume the same post-collision
 // epoch. A full scan remains available only for the serial reference oracle.
-namespace steadyMixtureParticles
+namespace mixtureParticles
 {
 template<class State>
 __device__ int activeCount(const State& s)
@@ -67,12 +67,12 @@ __device__ double heatFraction(const State&s,int c,int i,double dt)
 }
 
 template<class DragModel,class State>
-__global__ void steadyMixtureParticleCouplingKernel
+__global__ void mixtureParticleCouplingKernel
 (State*sp,double dt,bool dragActive,bool useCsr=true,bool useSplit=false)
 {
     State&s=*sp;const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if(c>=s.nCells)return;
-    const int begin=0,end=steadyMixtureParticles::count(s,c,useCsr,useSplit);
+    const int begin=0,end=mixtureParticles::count(s,c,useCsr,useSplit);
     const double epsG=s.epsGPrev[c],volume=epsG*s.V[c];
     const double gasMass=volume*s.rho[c];
     const double heatFactor=s.particleThermalRho*s.particleCp/s.rhoSolid;
@@ -80,12 +80,12 @@ __global__ void steadyMixtureParticleCouplingKernel
     // No parcel or gas state is changed while forming the finite-bath target.
     for(int pos=begin;pos<end;++pos)
     {
-        const int i=steadyMixtureParticles::parcel(s,c,pos,useCsr,useSplit);
-        if(!steadyMixtureParticles::member(s,i,c))continue;
+        const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
+        if(!mixtureParticles::member(s,i,c))continue;
         s.puxOld[i]=s.pux[i];s.puyOld[i]=s.puy[i];s.puzOld[i]=s.puz[i];
         if(dragActive)
         {
-            const double a=-expm1(-steadyMixtureParticles::beta<DragModel>(s,c,i,epsG)*dt);
+            const double a=-expm1(-mixtureParticles::beta<DragModel>(s,c,i,epsG)*dt);
             const double w=s.pm[i]*a;
             weight+=w;x+=w*s.pux[i];y+=w*s.puy[i];z+=w*s.puz[i];
         }
@@ -98,9 +98,9 @@ __global__ void steadyMixtureParticleCouplingKernel
         double dpx=0,dpy=0,dpz=0,dEnergy=0;
         for(int pos=begin;pos<end;++pos)
         {
-            const int i=steadyMixtureParticles::parcel(s,c,pos,useCsr,useSplit);
-            if(!steadyMixtureParticles::member(s,i,c))continue;
-            const double b=steadyMixtureParticles::beta<DragModel>(s,c,i,epsG);
+            const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
+            if(!mixtureParticles::member(s,i,c))continue;
+            const double b=mixtureParticles::beta<DragModel>(s,c,i,epsG);
             const double a=-expm1(-b*dt),oldX=s.pux[i],oldY=s.puy[i],oldZ=s.puz[i],oldTheta=s.pTheta[i];
             s.pux[i]=oldX+a*(ux-oldX);s.puy[i]=oldY+a*(uy-oldY);s.puz[i]=oldZ+a*(uz-oldZ);
             s.pTheta[i]=oldTheta*exp(-2*b*dt);
@@ -125,9 +125,9 @@ __global__ void steadyMixtureParticleCouplingKernel
         double A=0,B=0;
         for(int pos=begin;pos<end;++pos)
         {
-            const int i=steadyMixtureParticles::parcel(s,c,pos,useCsr,useSplit);
-            if(!steadyMixtureParticles::member(s,i,c))continue;
-            const double w=s.pm[i]*heatFactor*steadyMixtureParticles::heatFraction(s,c,i,dt);
+            const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
+            if(!mixtureParticles::member(s,i,c))continue;
+            const double w=s.pm[i]*heatFactor*mixtureParticles::heatFraction(s,c,i,dt);
             A+=w;B+=w*(s.pT[i]-referenceTemperature);
         }
         if(A==0.)return;
@@ -150,9 +150,9 @@ __global__ void steadyMixtureParticleCouplingKernel
         double heat=0;
         for(int pos=begin;pos<end;++pos)
         {
-            const int i=steadyMixtureParticles::parcel(s,c,pos,useCsr,useSplit);
-            if(!steadyMixtureParticles::member(s,i,c))continue;
-            const double oldT=s.pT[i],a=steadyMixtureParticles::heatFraction(s,c,i,dt);
+            const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
+            if(!mixtureParticles::member(s,i,c))continue;
+            const double oldT=s.pT[i],a=mixtureParticles::heatFraction(s,c,i,dt);
             s.pT[i]=fmin(s.TpMax,fmax(s.TpMin,oldT+a*(target-oldT)));
             heat+=s.pm[i]*heatFactor*(s.pT[i]-oldT);
         }
@@ -164,9 +164,9 @@ __global__ void steadyMixtureParticleCouplingKernel
 // External pressure/gravity work is not internal drag exchange. Launch after
 // the paired transaction; gas gravity has already been applied by its owner.
 template<class State>
-__global__ void steadyParticleExternalKickKernel(State*sp,double dt)
+__global__ void mixtureParticleExternalKickKernel(State*sp,double dt)
 {
-    State&s=*sp;const int count=steadyMixtureParticles::activeCount(s);
+    State&s=*sp;const int count=mixtureParticles::activeCount(s);
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<count;i+=gridDim.x*blockDim.x)
     {
         if(s.pStatus[i]!=1)continue;

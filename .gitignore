@@ -22,3 +22,9 @@
 **/.generated/
 **/assets/radiation/alumina_mieTable.dat
 **/.pytest_cache/
+
+# Checkout-local build outputs and diagnostic runs.
+/bin/
+/lib/
+/build-evidence/
+/applications/CHMT/.build/

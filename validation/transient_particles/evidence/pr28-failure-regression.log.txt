@@ -1,0 +1,5 @@
+failure_final_partial_window 1 [] PASS
+failure_final_full_window 1 [] PASS
+failure_before_final_write 1 [] PASS
+valid_hot_parcel_partial_window 0 ['1'] PASS
+valid_hot_parcel_full_window 0 ['1'] PASS

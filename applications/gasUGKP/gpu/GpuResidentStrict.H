@@ -481,9 +481,7 @@ protected:
         const bool enableParticleModule,
         const GpuSchedulingConfiguration& scheduling,
         const dictionary* particleWallProps
-#ifdef UGKWP_STEADY_APPLICATION
         , SharedGasModelInput* gasModel = nullptr
-#endif
     )
     {
         ensureFieldSizes(mesh, rho, rhoU, rhoE, U, p, Tgas, epsS, rhoUs, rhoEs, rhoDs, rhoHp, Us, theta, Tp, dMeanCell);
@@ -650,9 +648,7 @@ protected:
         ugkwpGpuResidentStrictSetDiagnosticSink(handle_,&diagnosticSink);
         updateDiagnosticOperation(mesh.time().value());
 
-#ifdef UGKWP_STEADY_APPLICATION
         if(gasModel)gasModel->configureResident(handle_);
-#endif
         uploadMesh(mesh, nCellPlanes, particleWallProps, rhoSolid);
         uploadGasBoundaryFields
         (
@@ -663,9 +659,7 @@ protected:
             Tgas,
             RgasValue,
             strictOpenFoamGasBoundaries
-#ifdef UGKWP_STEADY_APPLICATION
             , gasModel && gasModel->active()
-#endif
         );
         if (enableParticleModule)
         {
@@ -686,9 +680,7 @@ protected:
             );
         }
         uploadFields(rho, rhoU, rhoE, U, p, Tgas);
-#ifdef UGKWP_STEADY_APPLICATION
         if(gasModel)gasModel->uploadInitialSpecies(handle_);
-#endif
 
         if (enableParticleModule)
         {
@@ -3104,9 +3096,9 @@ class GpuParticleResidentSolver
     public GpuResidentStrictBase
 {
 public:
-#ifdef UGKWP_STEADY_APPLICATION
     void downloadSharedGasSpecies(SharedGasModelInput& model,const volScalarField& rho)
     { model.downloadSpecies(handle_,rho); }
+#ifdef UGKWP_STEADY_APPLICATION
     void configureSteadySampling(scalar time)
     { check(ugkwpGpuResidentStrictConfigureSteadySampling(handle_,time),"configure particle steady sampling"); }
     void beginSamplingWindow()
@@ -3185,9 +3177,7 @@ public:
         const vector& gravity,
         const GpuSchedulingConfiguration& scheduling,
         const dictionary& ugkwpProps
-#ifdef UGKWP_STEADY_APPLICATION
         , SharedGasModelInput* gasModel = nullptr
-#endif
     )
     {
         initialiseBase
@@ -3251,9 +3241,7 @@ public:
             true,
             scheduling,
             &ugkwpProps
-#ifdef UGKWP_STEADY_APPLICATION
             , gasModel
-#endif
         );
     }
 };

@@ -24,7 +24,7 @@ const long double linear=cv+(long double)capacity*a/volume;
 const long double rhs=(long double)capacity*a/volume*(oldT-1000.L);
 const long double delta=2*rhs/(linear+sqrtl(linear*linear+2*SLOPE*rhs));
 const long double expectedGas=1000.L+delta,expectedParcel=oldT+a*(expectedGas-oldT);
-threadIdx.x=0;steadyMixtureParticleCouplingKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag>(&s,DT,false);
+threadIdx.x=0;mixtureParticleCouplingKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag>(&s,DT,false);
 ck(s.gasSpecies.cellStatus[0]==0,"heat root status");
 closeValue(s.Tgas[0],expectedGas,2e-9,"gas root");closeValue(s.pT[0],expectedParcel,1e-8,"parcel cooling");
 const long double gasHeat=(long double)volume*((long double)s.rhoE[0]-oldE);

@@ -1,3 +1,5 @@
+#include "gasTransport/MixturePorosity.H"
+#define GPU_GAS_POROSITY_SPECIES(s,c,scale) scaleMixturePorositySpecies(s,c,scale)
 #include "gasTransport/GasPseudoTime.H"
 #include "gasTransport/MolecularTransportDevice.cuh"
 #include "gasTransport/GasMeshUploadValidation.H"
@@ -2302,10 +2304,9 @@ __global__ void relaxParticlesToResidentGasKernel(DeviceState* sp, const double 
     }
 }
 
-#ifdef UGKWP_STEADY_APPLICATION
-#include "../../gasUGKPSteady/private_backend/SteadyMixtureParticleCoupling.cuh"
+#include "../../../common/gasTransport/MixtureParticleCoupling.cuh"
 int binParticlesByCell(DeviceState*,const int,const bool);
-int launchSteadyMixtureParticleCoupling(DeviceState* s,double dt)
+int launchMixtureParticleCoupling(DeviceState* s,double dt)
 {
     // Atomic moment mode still owns the standard indexing allocations. Build
     // the existing full directory here instead of scanning the entire parcel
@@ -2314,20 +2315,19 @@ int launchSteadyMixtureParticleCoupling(DeviceState* s,double dt)
     const int block=s->fixedCellBlockThreads,grid=(s->nCells+block-1)/block;
     const bool dragActive=gasDragModelActive(s->hostDragModel);
     if(s->hostDragModel==1)
-        steadyMixtureParticleCouplingKernel<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag>
+        mixtureParticleCouplingKernel<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag>
             <<<grid,block>>>(s->deviceState,dt,dragActive,true,s->useSplitPreDirectory!=0);
     else
-        steadyMixtureParticleCouplingKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag>
+        mixtureParticleCouplingKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag>
             <<<grid,block>>>(s->deviceState,dt,dragActive,true,s->useSplitPreDirectory!=0);
     auto err=cudaGetLastError();
-    if(err!=cudaSuccess){setLastError("steady paired mixture/particle source",err);return 1;}
+    if(err!=cudaSuccess){setLastError("paired mixture/particle source",err);return 1;}
     if(s->particleWorkGrid>0)
-        steadyParticleExternalKickKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,dt);
+        mixtureParticleExternalKickKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,dt);
     err=cudaGetLastError();
-    if(err!=cudaSuccess){setLastError("steady external particle force",err);return 1;}
+    if(err!=cudaSuccess){setLastError("external particle force",err);return 1;}
     return 0;
 }
-#endif
 
 int launchParticleDragRelaxation
 (
@@ -4993,9 +4993,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
     if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy
-#ifdef UGKWP_STEADY_APPLICATION
         && !(s->gasSpecies.mode==ugkwp::GasMode::MixtureFrozen && s->particlesMayBePresent)
-#endif
     )
     {
 
@@ -5009,7 +5007,8 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 #ifdef UGKWP_STEADY_APPLICATION
         !s->gasSteadyBoundaryFrozen &&
 #endif
-        tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
+        s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy
+        && tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
     {
         return 1;
     }
@@ -5070,11 +5069,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 
     const bool skipParticlePath = !s->particlesMayBePresent;
     const bool dragActive = gasDragModelActive(s->hostDragModel);
-#ifdef UGKWP_STEADY_APPLICATION
     const bool pairedMixture=s->gasSpecies.mode==ugkwp::GasMode::MixtureFrozen && !skipParticlePath;
-#else
-    constexpr bool pairedMixture=false;
-#endif
 
     if (!skipParticlePath)
     {
@@ -5098,13 +5093,11 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
 
-#ifdef UGKWP_STEADY_APPLICATION
     if(pairedMixture)
     {
         computePressureGradientKernel<<<grid,block>>>(s->deviceState);
         snapshotParticleGasCouplingStateKernel<<<grid,block>>>(s->deviceState);
     }
-#endif
     if (dragActive && !pairedMixture)
     {
     computePressureGradientKernel<<<grid, block>>>(s->deviceState);
@@ -5349,13 +5342,11 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_LEAVE(ProbeCollisionPool);
 
     UGKP_DEV_PROBE_ENTER(ProbeRelax);
-#ifdef UGKWP_STEADY_APPLICATION
     if(pairedMixture)
     {
-        if(launchSteadyMixtureParticleCoupling(s,dt))return 1;
+        if(launchMixtureParticleCoupling(s,dt))return 1;
     }
     else
-#endif
     if
     (
         particleGrid > 0
@@ -5578,6 +5569,9 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 #undef UGKP_DEV_PROBE_ENTER
 #undef UGKP_DEV_PROBE_LEAVE
 
+    // Both physical-time drivers consume the same completed transaction before
+    // accepting a sample or writing transient fields/restart data.
+    if(pairedMixture)return SharedGasTrialPolicy::complete(s);
     return 0;
 }
 
@@ -5757,13 +5751,29 @@ extern "C" int ugkwpGpuResidentStrictUploadEpsGPrev
     }
 
     const size_t n = static_cast<size_t>(s->nCells);
-    return copyToDevice
+    const int rc = copyToDevice
     (
         s->epsGPrev,
         epsGPrev,
         n,
         "cudaMemcpy strict epsGPrev upload"
     );
+    if (rc != 0)
+    {
+        return rc;
+    }
+    // Tracking can remove the last parcel after porosity sources have run.
+    // Its checkpoint still owes the next step a phase-volume correction.
+    // Restore the sticky coupled-path flag without changing that history.
+    for (size_t cell = 0; cell < n; ++cell)
+    {
+        if (epsGPrev[cell] != 1.0)
+        {
+            s->particlesMayBePresent = true;
+            break;
+        }
+    }
+    return 0;
 }
 
 extern "C" int ugkwpGpuResidentStrictDownloadGasBoundaryFields
