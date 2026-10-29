@@ -1,4 +1,5 @@
 #pragma once
+#include "gasTransport/ParticleHeatReservoir.H"
 // Contact/profile heat transaction. Coefficients and candidates share the post-collision
 // epoch; no particle field changes between this reduction and its relaxation.
 struct PairedParticleHeatCandidate {double capacity, weightedCapacity, specificHeat;};
@@ -99,16 +100,20 @@ __device__ __forceinline__ double pairedGasEnergyFloor(const DeviceState&s,int c
  const double rho=double(rhoSafe);
  const double kinetic=ugkwp::gasLegacyKineticEnergy(rho,
   ugkwp::gasEnergyFiniteOr(double(mx)/rho,0.),ugkwp::gasEnergyFiniteOr(double(my)/rho,0.),ugkwp::gasEnergyFiniteOr(double(mz)/rho,0.));
- return kinetic+ugkwp::gasLegacyMinimumInternalEnergy(double(s.rhoMin),rho,
+ const double legacy=ugkwp::gasLegacyMinimumInternalEnergy(double(s.rhoMin),rho,
   double(s.Rgas),double(s.TgasMin),double(s.gammaGas),double(OfSmall));
+ return kinetic+ugkwp::particleGasMinimumInternalEnergy(s,c,legacy);
 }
 __global__ void acceptPairedParticleHeatKernel(DeviceState*sp)
 {
  DeviceState&s=*sp;int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=s.nCells)return;
  const double C=s.rhoENext[c],A=s.particleHeatCoefficient[c],Q=s.particleHeatBudget[c];
  const double volume=pairedGasPhysicalVolume(s,c);
- const double Cg=volume*double(clampMin(finiteOr(s.rho[c],s.rhoMin),s.rhoMin))*double(s.Rgas)
+ double Cg=volume*double(clampMin(finiteOr(s.rho[c],s.rhoMin),s.rhoMin))*double(s.Rgas)
   /ugkwp::gasLegacyCaloricDenominator(double(s.gammaGas),double(OfSmall));
+ // Retain the existing finite-bath exponential and candidate/settlement
+ // organization. Its gas capacity is the actual local caloric derivative.
+ Cg=ugkwp::particleGasHeatCapacity(s,c,volume,Cg);
  double scale=C>0.?ugkwp::pairedHeatBathFraction(A/C,C,Cg):0.;
  const double available=(s.rhoE[c]-pairedGasEnergyFloor(s,c))*volume;
  scale*=ugkwp::pairedHeatAcceptanceScale(scale*Q,available);
