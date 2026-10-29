@@ -1,3 +1,10 @@
+#include "ParticleGasBinding.H"
+#include "gasTransport/MixturePorosity.H"
+#define GPU_GAS_POROSITY_SPECIES(s,c,scale) scaleMixturePorositySpecies(s,c,scale)
+#define GPU_MIXTURE_PARTICLE_COUPLING 1
+#include "../gasNumerics/GpuDragModels.cuh"
+#include "gasTransport/MixtureHeatExchange.H"
+#include "../ParticleCaloricHeatResponse.H"
 #include "gasTransport/WallHeatExposure.H"
 #include "gasBoundary/Resident.cuh"
 #include "gasBoundary/Evaluate.H"
@@ -169,6 +176,9 @@ struct DeviceState
     ugkp::diagnostics::GpuOwner* diagnosticOwner = nullptr;
 #include "GpuAutomaticCsrScheduleFields.inl"
     DeviceState* deviceState = nullptr;
+    std::uint64_t borrowedGasFields=0;
+    bool borrowedGasSpecies=false;
+    cudaEvent_t particleGasReady=nullptr,particleGasDone=nullptr;
 
     int nCells = 0;
     int nFaces = 0;
@@ -197,6 +207,7 @@ struct DeviceState
     int dragModelId = 1;
     int particleGasHeatTransferModelId = 1;
     GpuReal dragResidualRe = GPU_R(1.0e-3);
+    double dragParameter0=.8,dragParameter1=0,dragParameter2=0,dragParameter3=0;
     GpuReal gravityX = GPU_R(0.0);
     GpuReal gravityY = GPU_R(0.0);
     GpuReal gravityZ = GPU_R(0.0);
@@ -1053,6 +1064,14 @@ int validateState(DeviceState* s, const char* action)
 #include "gasTransport/ResidentSpeciesStorage.cuh"
 #include "gasTransport/ResidentWallStorage.cuh"
 
+enum ParticleGasFieldIndex {
+#define UGKP_PARTICLE_GAS_FIELD(Type,Name) particleGasField_##Name,
+#include "ParticleGasFields.inc"
+#undef UGKP_PARTICLE_GAS_FIELD
+    particleGasFieldCount
+};
+static_assert(particleGasFieldCount<=64,"particle gas ownership mask capacity");
+
 void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=nullptr)
 {
     if (s == nullptr)
@@ -1060,6 +1079,15 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
         return;
     }
 
+    // Remove borrowed pointers only from the host teardown view. Outstanding
+    // kernels retain their device view until the following cudaFree completes.
+#define UGKP_PARTICLE_GAS_FIELD(Type,Name) \
+    if(s->borrowedGasFields&(std::uint64_t(1)<<particleGasField_##Name))s->Name=nullptr;
+#include "ParticleGasFields.inc"
+#undef UGKP_PARTICLE_GAS_FIELD
+    if(s->borrowedGasSpecies)s->gasSpecies={};
+    if(s->particleGasReady)cudaEventDestroy(s->particleGasReady);
+    if(s->particleGasDone)cudaEventDestroy(s->particleGasDone);
     if (s->gasGraphExec) cudaGraphExecDestroy(s->gasGraphExec);
     if (s->gasGraph) cudaGraphDestroy(s->gasGraph);
     if (s->gasCaptureStream) cudaStreamDestroy(s->gasCaptureStream);
@@ -2224,6 +2252,8 @@ __device__ void initialiseColdWall2DParticleState(DeviceState&, int, GpuReal);
 #include "operators/trackParticlesLocalFaceWalkKernel.cuh"
 
 #include "../GpuMobileParticleHeat.cuh"
+#include "../GpuMixtureThermalParticleHeat.cuh"
+#include "gasTransport/MixtureParticleCoupling.cuh"
 #include "../GpuThermalParticleRelaxation.cuh"
 
 #include "operators/relaxMobileParticlesToResidentGasKernelStatic.cuh"
@@ -4315,6 +4345,7 @@ int advanceResidentThermalParticles(DeviceState* s,double dt,double simulationTi
 #endif
     const bool skipParticlePath = !s->particlesMayBePresent;
     const bool dragActive = gasDragModelActive(s->dragModelId);
+    const bool mixture=ugkwp::mixtureGasActive(*s);
 
     if (!skipParticlePath)
     {
@@ -4338,7 +4369,7 @@ int advanceResidentThermalParticles(DeviceState* s,double dt,double simulationTi
         return 1;
     }
 
-    if (dragActive)
+    if (dragActive && !mixture)
     {
     computePressureGradientKernel<<<grid, block>>>(s->deviceState);
     err = cudaGetLastError();
@@ -4400,7 +4431,12 @@ int advanceResidentThermalParticles(DeviceState* s,double dt,double simulationTi
         }
     }
 
-    if (s->solveParticleTemperature && s->particleGasHeatTransferModelId)
+    if(mixture) {
+        computePressureGradientKernel<<<grid,block>>>(s->deviceState);
+        err=cudaGetLastError();
+        if(err!=cudaSuccess){setLastError("mixture particle pressure gradient",err);return 1;}
+    }
+    if (!mixture && s->solveParticleTemperature && s->particleGasHeatTransferModelId)
     {
         if (s->particleStuckModelConfigured)
         {
@@ -4605,6 +4641,28 @@ int advanceResidentThermalParticles(DeviceState* s,double dt,double simulationTi
         }
     }
     UGKP_DEV_PROBE_LEAVE(ProbeCollisionPool);
+
+    if(mixture) {
+        // Reuse the same cell-owned drag transaction as gasUGKP. Thermal
+        // parcels supply their caloric response to the common bounded solve.
+        if(s->csrCellLocalPathEnabled==0 && binParticlesByCell(s,block)!=0)return 1;
+        const bool split=s->csrCellLocalPathEnabled!=0 && s->splitPreDirectoryActive!=0;
+        if(s->dragModelId==2)
+            mixtureParticleCouplingKernel<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag,false>
+                <<<grid,block>>>(s->deviceState,dt,dragActive,true,split);
+        else
+            mixtureParticleCouplingKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag,false>
+                <<<grid,block>>>(s->deviceState,dt,dragActive,true,split);
+        err=cudaGetLastError();
+        if(err!=cudaSuccess){setLastError("thermal mixture paired drag",err);return 1;}
+        mixtureThermalParticleHeatKernel<<<grid,block>>>(s->deviceState,dt,true,split);
+        err=cudaGetLastError();
+        if(err!=cudaSuccess){setLastError("thermal mixture caloric exchange",err);return 1;}
+        if(particleGrid>0)
+            mixtureParticleExternalKickKernel<<<particleGrid,s->particleBlockThreads>>>(s->deviceState,dt);
+        err=cudaGetLastError();
+        if(err!=cudaSuccess){setLastError("thermal mixture external particle force",err);return 1;}
+    }
 
     if (pairedHeatActive)
     {
@@ -4910,6 +4968,74 @@ int advanceResidentThermalParticles(DeviceState* s,double dt,double simulationTi
 #undef UGKP_DEV_PROBE_LEAVE
     return 0;
 }
+
+namespace ugkp { namespace thermal {
+int bindParticleGas(void* handle,const ParticleGasBinding& gas) {
+    auto* s=asState(handle);
+    if(validateState(s,"bind resident particle gas"))return 1;
+    if(gas.nCells!=s->nCells || gas.nFaces!=s->nFaces || gas.nInternalFaces!=s->nInternalFaces
+       || !gas.rho || !gas.rhoE || !gas.Tgas || !gas.V) {
+        setLastErrorText("particle gas binding dimensions or physical fields mismatch");return 1;
+    }
+    const void* cells[]={gas.V,gas.Cx,gas.Cy,gas.Cz,gas.cellLength,gas.rho,
+        gas.rhoUx,gas.rhoUy,gas.rhoUz,gas.rhoE,gas.Ux,gas.Uy,gas.Uz,gas.p,gas.Tgas,
+        gas.cellPlaneStart,gas.cellPlaneCount};
+    const void* faces[]={gas.faceOwner,gas.faceNeighbour,gas.facePeriodicPair,
+        gas.faceCx,gas.faceCy,gas.faceCz,gas.Sfx,gas.Sfy,gas.Sfz,gas.magSf,
+        gas.faceWeight,gas.deltaCoeffs,gas.gasBoundaryP,gas.gasBoundaryT};
+    for(const void* field:cells)if(s->nCells && !field){setLastErrorText("missing particle gas cell field");return 1;}
+    for(const void* field:faces)if(s->nFaces && !field){setLastErrorText("missing particle gas face field");return 1;}
+    if(s->nCellPlanes && !gas.cellFaceId){setLastErrorText("missing particle gas cell face addressing");return 1;}
+    if(gas.sstConfigured && (!gas.rhoK||!gas.rhoOmega||!gas.k||!gas.omega||!gas.nut)) {
+        setLastErrorText("missing particle gas SST fields");return 1;
+    }
+    if(!s->borrowedGasFields && gas.rho==s->rho) {
+        setLastErrorText("particle gas binding must be externally owned");return 1;
+    }
+    if(!s->particleGasReady) {
+        const auto err=cudaEventCreateWithFlags(&s->particleGasReady,cudaEventDisableTiming);
+        if(err!=cudaSuccess){setLastError("particle gas ready event",err);return 1;}
+    }
+    if(!s->particleGasDone) {
+        const auto err=cudaEventCreateWithFlags(&s->particleGasDone,cudaEventDisableTiming);
+        if(err!=cudaSuccess){setLastError("particle gas done event",err);return 1;}
+    }
+#define UGKP_PARTICLE_GAS_FIELD(Type,Name) \
+    if(!(s->borrowedGasFields&(std::uint64_t(1)<<particleGasField_##Name))) { \
+        if(releaseSharedGasPointer(s->Name))return 1; \
+        s->borrowedGasFields|=std::uint64_t(1)<<particleGasField_##Name; \
+    } \
+    s->Name=gas.Name;
+#include "ParticleGasFields.inc"
+#undef UGKP_PARTICLE_GAS_FIELD
+    if(!s->borrowedGasSpecies) {
+        if(releaseSharedGasSpecies(s->gasSpecies))return 1;
+        s->borrowedGasSpecies=true;
+    }
+    s->gasSpecies=gas.species;s->gasViscosity=gas.viscosity;s->diagnostics=gas.diagnostics;
+    s->gammaGas=gas.gammaGas;s->Rgas=gas.Rgas;s->gasCp=gas.gasCp;s->gasMu=gas.gasMu;
+    s->gasPrClamped=gas.gasPrClamped;s->gasPrOneThird=gas.gasPrOneThird;
+    s->rhoMin=gas.rhoMin;s->TgasMin=gas.TgasMin;
+    s->gasThermalConductivity=gas.gasThermalConductivity;s->sstConfigured=gas.sstConfigured;
+    return syncDeviceState(s,"bind non-owning particle gas view");
+}
+int advanceBoundParticlePhase(void* handle,double dt,double endTime,cudaStream_t gasStream) {
+    auto* s=asState(handle);
+    if(validateState(s,"advance bound particle phase"))return 1;
+    if(!s->particleGasReady || !s->particleGasDone) {
+        setLastErrorText("particle gas view has not been bound");return 1;
+    }
+    auto err=cudaEventRecord(s->particleGasReady,gasStream);
+    if(err==cudaSuccess)err=cudaStreamWaitEvent(nullptr,s->particleGasReady,0);
+    if(err!=cudaSuccess){setLastError("order particle phase after gas",err);return 1;}
+    const int result=advanceResidentThermalParticles(s,dt,endTime);
+    // Also order already submitted work if an asynchronous launch failed.
+    err=cudaEventRecord(s->particleGasDone,nullptr);
+    if(err==cudaSuccess)err=cudaStreamWaitEvent(gasStream,s->particleGasDone,0);
+    if(err!=cudaSuccess){setLastError("order gas after particle phase",err);return 1;}
+    return result;
+}
+}}
 
 extern "C" int ugkwpGpuResidentStrictAdvance
 (

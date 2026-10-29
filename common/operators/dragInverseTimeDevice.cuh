@@ -12,7 +12,7 @@ __device__ GPU_OPERATOR_REAL dragInverseTimeDevice
     const DragModel& model
 )
 {
-    const ugkwpGpuDrag::DragInput input
+    const ugkwpGpuDrag::ThermalDragInput input
     {
         gasDensity,
         gasVolumeFraction,
