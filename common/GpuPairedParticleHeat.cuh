@@ -1,12 +1,17 @@
 #pragma once
 #include "gasTransport/ParticleHeatReservoir.H"
-// Contact/profile heat transaction. Coefficients and candidates share the post-collision
-// epoch; no particle field changes between this reduction and its relaxation.
+// Contact/profile heat transaction. Membership is captured with the macro
+// source; coefficients use the corrected post-collision state, including a
+// parcel that has detached since it was excluded from the mobile source.
+__device__ __forceinline__ bool pairedParticleHeatMember(const DeviceState& s,int i)
+{
+ return s.pStuck[i]!=Foam::gpuThermal::particleWallMobile || s.particleContactHeatEpoch[i];
+}
 struct PairedParticleHeatCandidate {double capacity, weightedCapacity, specificHeat;};
 __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandidate
 (const DeviceState& s,int i,GpuTime dt)
 {
- if(!(dt>0.)||s.pStatus[i]==0||!(s.pm[i]>0)||s.pStuck[i]==Foam::gpuThermal::particleWallMobile)return {0.,0.,0.};
+ if(!(dt>0.)||s.pStatus[i]==0||!(s.pm[i]>0)||!pairedParticleHeatMember(s,i))return {0.,0.,0.};
  const int c=s.pCellId[i];if(c<0||c>=s.nCells)return {0.,0.,0.};
  const auto law=particleCaloricDevice(s,i);
  const double base=particleMaterialEnthalpyBaseDevice(s,i),carry=s.pThermalEnthalpyResidual[i];
@@ -78,7 +83,14 @@ __device__ __forceinline__ void accumulatePairedParticleHeatCandidate
 (DeviceState& s,int i,GpuTime dt)
 {
  if(s.particleHeatCoefficient==nullptr||s.particleHeatBudget==nullptr)return;
- s.particleContactHeatEpoch[i]=s.pStuck[i]!=Foam::gpuThermal::particleWallMobile;
+#if defined(GPU_MIXTURE_PARTICLE_COUPLING)
+ // Mixture free-particle coupling runs after collisions and owns the current
+ // mobile set. It does not use the earlier single-gas macro partition.
+ if(ugkwp::mixtureGasActive(s))
+  s.particleContactHeatEpoch[i]=s.pStuck[i]!=Foam::gpuThermal::particleWallMobile;
+ else
+#endif
+  s.particleContactHeatEpoch[i]=pairedParticleHeatMember(s,i);
  const auto p=pairedParticleHeatCandidate(s,i,dt);
  s.particleContactHeatCandidate[i]=p.capacity>0.?p.specificHeat:0.;
  if(!(p.capacity>0.))return;
@@ -122,7 +134,7 @@ __global__ void acceptPairedParticleHeatKernel(DeviceState*sp)
 __device__ __forceinline__ void publishPairedParticleGasHeat(DeviceState&s,int i,GpuTime dt)
 {
  if(s.particleHeatCoefficient==nullptr||s.particleHeatBudget==nullptr)return;
- if(s.pStuck[i]==Foam::gpuThermal::particleWallMobile || particleColdProfileNodeCountDevice(s,i)==64)return;
+ if(!pairedParticleHeatMember(s,i) || particleColdProfileNodeCountDevice(s,i)==64)return;
  const int c=s.pCellId[i];const double dh=s.particleHeatCoefficient[c]*s.particleContactHeatCandidate[i];
  if(dh==0.)return;
  double accepted=0.;const int count=particleColdProfileNodeCountDevice(s,i);

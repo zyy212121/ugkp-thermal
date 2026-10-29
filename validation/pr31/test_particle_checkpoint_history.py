@@ -3,7 +3,7 @@ from pathlib import Path
 import subprocess
 ROOT=Path(__file__).resolve().parents[2]
 APP=ROOT/"applications/CHMT"
-BASELINE="2908e423"
+WRITERS=Path(__file__).resolve().parent/"fixtures/checkpoint_writers"
 PRE=r'''
 #include "restart/Checkpoint.H"
 #include <cassert>
@@ -74,12 +74,7 @@ int main(int argc,char**argv){assert(argc==2);ModelConfig model;model.physics.ga
 
 
 def test_schema9_with_variable_transport_keeps_legacy_state(tmp_path):
-    old=subprocess.check_output(["git","show",BASELINE+":applications/CHMT/restart/Checkpoint.C"],cwd=ROOT,text=True)
-    old=old.replace('"../../../common/gasBoundary/Wire.H"','"'+str(ROOT/"common/gasBoundary/Wire.H")+'"')
-    # Compile the historical writer against the present declarations, retaining
-    # its original on-disk version and field visitor/hash. Added state is ignored.
-    old=old.replace("checkpointSchema","9")
-    path=tmp_path/"schema9.C";path.write_text(old)
+    path=WRITERS/"schema9.C"
     writer=build(tmp_path,r'''
 int main(int argc,char**argv){assert(argc==2);ModelConfig model;model.physics.gasTransportFingerprint=1234;
  HostState state;fill(state);std::string error;assert(writeCheckpoint(argv[1],model,state,error));}
@@ -123,10 +118,7 @@ int main(int argc,char**argv){assert(argc==2);ModelConfig model;model.physics.en
 
 
 def test_schema10_complete_history_is_preserved(tmp_path):
-    old=subprocess.check_output(["git","show","2252fb2d:applications/CHMT/restart/Checkpoint.C"],cwd=ROOT,text=True)
-    old=old.replace('"../../../common/gasBoundary/Wire.H"','"'+str(ROOT/"common/gasBoundary/Wire.H")+'"')
-    old=old.replace("checkpointSchema","10")
-    path=tmp_path/"schema10.C";path.write_text(old)
+    path=WRITERS/"schema10.C"
     writer=build(tmp_path,r'''
 int main(int argc,char**argv){assert(argc==2);ModelConfig model;HostState state;fill(state);
  std::string error;assert(writeCheckpoint(argv[1],model,state,error));}

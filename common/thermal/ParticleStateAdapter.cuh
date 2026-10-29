@@ -34,10 +34,9 @@ __global__ void downloadParticleSnapshotKernel(DeviceState* sp,int begin,int cou
             q.contactRelativeVelocity={q.thermal.savedVelocity[0]-ugkwp::particleWallVelocityX(s,q.face),
                 q.thermal.savedVelocity[1]-ugkwp::particleWallVelocityY(s,q.face),
                 q.thermal.savedVelocity[2]-ugkwp::particleWallVelocityZ(s,q.face)};
-            if(q.state==Foam::gpuThermal::particleWallTransientRebound || q.state==Foam::gpuThermal::particleWallTransientDeposit)
-                q.contactMechanicalEnergy=.5*q.mass*(q.thermal.savedVelocity[0]*q.thermal.savedVelocity[0]
-                    +q.thermal.savedVelocity[1]*q.thermal.savedVelocity[1]+q.thermal.savedVelocity[2]*q.thermal.savedVelocity[2]);
+
         }
+        ugkp::thermal::normalizeParticleContactMechanicalEnergy(q);
         out[k]=q;
     }
 }

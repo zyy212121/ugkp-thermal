@@ -34,6 +34,9 @@ int main(int argc,char** argv) {
             Foam::fileName restart(chmt::io::text(properties,"restartDirectory"));
             if(!restart.isAbsolute())restart=time.path()/restart;
             chmt::io::require(chmt::readCheckpoint(restart,input.model,input.state,error),error);
+            // Older checkpoints may contain an unnormalized initial diagnostic.
+            for(auto& particle:input.state.particles)
+                ugkp::thermal::normalizeParticleContactMechanicalEnergy(particle);
         }
         chmt::GasExecutionOptions options;
         options.fluxScheme=input.gasNumerics.gasFluxScheme;options.reconstruction=input.gasNumerics.gasReconstruction;

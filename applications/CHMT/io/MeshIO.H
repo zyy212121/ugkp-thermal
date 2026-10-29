@@ -427,6 +427,7 @@ namespace chmt {
                     require(ugkp::thermal::initializeMobileParticleHistory(p,model.particlePhase),
                         "particle needs valid free-particle thermal energy or complete attached thermalHistory");
                     require(p.cell>=0&&std::size_t(p.cell)<fractions.size(),"particle cell is outside the gas mesh");
+                    ugkp::thermal::normalizeParticleContactMechanicalEnergy(p);
                     particles.push_back(p);
                 }
             }

@@ -14,7 +14,11 @@ __global__ void subtractContactParticleHeatMomentsKernel(DeviceState* sp)
 {
     DeviceState& s=*sp;const int n=clampRange(*s.particleCountDevice,0,s.particleCapacity);
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<n;i+=blockDim.x*gridDim.x) {
-        if(s.pStatus[i]!=1 || s.pStuck[i]==Foam::gpuThermal::particleWallMobile)continue;
+        // Capture membership when the cell heat source is formed. A later
+        // collision may detach this parcel without putting it in that source.
+        s.particleContactHeatEpoch[i]=s.pStatus[i]==1
+            && s.pStuck[i]!=Foam::gpuThermal::particleWallMobile;
+        if(!s.particleContactHeatEpoch[i])continue;
         const int c=s.pCellId[i];if(c<0||c>=s.nCells)continue;
         const auto m=clampMin(finiteOr(s.pm[i],GPU_R(0)),GPU_R(0));
         const auto invV=GPU_R(1)/clampMin(s.V[c],s.rhoMin);

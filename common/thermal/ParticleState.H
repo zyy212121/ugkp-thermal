@@ -34,6 +34,20 @@ struct ParticleState {
     // temperature/profile plus specificEnthalpyResidual is the restart state;
     // energy is a derived output, never a second independent thermal update.
 };
+// Contact mechanical energy is a diagnostic of the deferred lab-frame
+// rebound velocity, not an independently configurable inventory. Use the same
+// rule before initial output and after a resident snapshot download.
+template<class Vector>
+#if defined(__CUDACC__)
+__host__ __device__
+#endif
+inline void normalizeParticleContactMechanicalEnergy(ParticleState<Vector>& p) {
+    p.contactMechanicalEnergy=0;
+    if(p.state==2 || p.state==3){
+        const auto& u=p.thermal.savedVelocity;
+        p.contactMechanicalEnergy=.5*p.mass*(u[0]*u[0]+u[1]*u[1]+u[2]*u[2]);
+    }
+}
 template<class ToVector,class FromVector>
 ParticleState<ToVector> adaptParticleState(const ParticleState<FromVector>& from) {
     ParticleState<ToVector> to;

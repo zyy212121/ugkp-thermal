@@ -37,3 +37,27 @@ int main(){
     exe=tmp_path/'initialization'
     subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror','-I'+str(ROOT/'common'),'-I'+str(ROOT/'applications/CHMT'),str(source),'-o',str(exe)],check=True)
     subprocess.run([exe],check=True)
+
+
+def test_contact_mechanical_energy_is_a_derived_initial_diagnostic(tmp_path):
+    source=tmp_path/'mechanical.cpp'
+    source.write_text(r'''#include "thermal/ParticleState.H"
+#include <cassert>
+int main(){
+ for(int state=0;state<4;++state){
+  ugkp::thermal::ParticleState<> p;p.state=state;p.mass=.002;
+  p.energy=1234.;p.thermal.temperature=2800.;p.thermal.savedVelocity[0]=100.;
+  for(double input:{0.,17.}){
+   p.contactMechanicalEnergy=input;
+   ugkp::thermal::normalizeParticleContactMechanicalEnergy(p);
+   assert(p.contactMechanicalEnergy==(state>=2?10.:0.));
+   assert(p.energy==1234.&&p.thermal.temperature==2800.&&p.thermal.savedVelocity[0]==100.);
+   ugkp::thermal::normalizeParticleContactMechanicalEnergy(p);
+   assert(p.contactMechanicalEnergy==(state>=2?10.:0.));
+  }
+ }
+}
+'''.replace('#include <cassert>','#include <cassert>\n#include <initializer_list>'))
+    exe=tmp_path/'mechanical'
+    subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror','-I'+str(ROOT/'common'),str(source),'-o',str(exe)],check=True)
+    subprocess.run([exe],check=True)

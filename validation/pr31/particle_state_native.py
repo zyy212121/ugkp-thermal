@@ -36,15 +36,20 @@ int main(int argc,char**argv){
  std::vector<ugkp::thermal::ParticleState<>> initial(argc>1?std::atoi(argv[1]):4);
  for(int i=0;i<int(initial.size());++i) {
   auto& q=initial[i];q.id=0xffffffffff000000ULL+i;q.rng=0x8765432100000000ULL+i;q.cell=0;
-  q.state=i%4;q.face=q.state?q.state-1:-1;q.mass=1e-10;q.diameter=.001;
+  q.state=i%4;q.face=q.state?q.state-1:-1;q.mass=.002;q.diameter=.001;
   q.position={.1,.2,.3};q.velocity=q.state?ugkp::thermal::ParticleVector{}:ugkp::thermal::ParticleVector{1.,2.,3.};
   q.contactAge=.00001*(i+1);q.contactDuration=.5;q.contactArea=1e-12;
   auto& h=q.thermal;h.initialized=true;h.status=(i%7==6)?0:1;h.temperature=2500.+i*.001;h.theta=.000123;
-  h.savedVelocity[0]=-1.25;h.savedVelocity[1]=2.5;h.savedVelocity[2]=3.75;
+  h.savedVelocity[0]=100.;h.savedVelocity[1]=0.;h.savedVelocity[2]=0.;
   h.specificEnthalpyResidual=i%2?0x1p-42:-0x1p-42;h.contactMaximumArea=1e-11;h.contactPeakFraction=.25;
   h.coldFrozenArea=2e-13;h.coldContactAge=.00002*(i+1);h.cold2DFrozenArea=3e-13;
   for(int k=0;k<8;++k){h.coldNodeSpecificEnthalpy[k]=std::nextafter(float(3e6+i+k),float(INFINITY));h.coldRingSolidMass[k]=1e-15*(k+1);h.cold2DRingContactAge[k]=.00003*(k+1);}
   for(int k=0;k<64;++k)h.cold2DNodeSpecificEnthalpy[k]=std::nextafter(float(4e6+i+k),float(INFINITY));
+  double specific=ugkwp::ParticleCaloric{}.enthalpy(h.temperature);
+  if(q.state==2){specific=0;for(float value:h.coldNodeSpecificEnthalpy)specific+=double(value)/8;}
+  if(q.state==3){specific=0;for(float value:h.cold2DNodeSpecificEnthalpy)specific+=double(value)/64;}
+  q.energy=q.mass*(specific+h.specificEnthalpyResidual);
+  ugkp::thermal::normalizeParticleContactMechanicalEnergy(q);
  }
  CHECK(ugkp::thermal::uploadParticleState(s,int(initial.size()),initial.data())==0);
  std::vector<ugkp::thermal::ParticleState<>> first,second;
@@ -63,6 +68,8 @@ int main(int argc,char**argv){
   if(a.state==3){expected=0;for(float h:a.thermal.cold2DNodeSpecificEnthalpy)expected+=double(h)/64;}
   CHECK(b.energy==a.mass*(expected+a.thermal.specificEnthalpyResidual));
   CHECK(b.thermal.initialized);
+  CHECK(a.energy==b.energy&&a.contactMechanicalEnergy==b.contactMechanicalEnergy);
+  CHECK(b.contactMechanicalEnergy==(a.state>=2?10.:0.));
  }
  CHECK(ugkp::thermal::uploadParticleState(s,0,nullptr)==0);
  CHECK(readOne(s->particleCountDevice)==0);
