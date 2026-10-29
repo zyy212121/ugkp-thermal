@@ -852,14 +852,14 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
                 gasConductanceWK=static_cast<GpuReal>(scaledConductance);
 #endif
             }
-            wallEffusivity = s.particleWallEffusivityByFace != nullptr
+            wallEffusivity = ugkwp::particleWallEffusivity(s,wallFaceI,s.particleWallEffusivityByFace != nullptr
               ? s.particleWallEffusivityByFace[wallFaceI]
               : sqrt
                 (
                     s.particleWallDensityKgM3
                    *s.particleWallSpecificHeatJkgK
                    *s.particleWallConductivityWmK
-                );
+                ));
             maximumAreaM2 = static_cast<GpuReal>
             (
                 s.pContactMaximumArea[particleI]

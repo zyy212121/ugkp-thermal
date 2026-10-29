@@ -36,7 +36,7 @@ public:
         candidate.sound_.resize(cells);candidate.cp_.resize(cells);candidate.gasConstant_.resize(cells);
         candidate.cellStatus_.assign(cells,0);candidate.faceStatus_.assign(faces,0);
         const auto thermo=shared.thermoView<Ns>();
-        for(std::size_t c=0;c<cells;++c){const auto& q=source.gas[c];const auto volume=candidate.volume_[c];
+        for(std::size_t c=0;c<cells;++c){const auto& q=source.gas[c];const auto volume=gasPhaseVolume(source,c);
             GasPrimitive primitive;if(!recoverGas(q,volume,validated.physics,primitive,nullptr,static_cast<int>(c))){
                 error="invalid integral mixture state for shared storage";return false;}
             candidate.bulk_[0][c]=q.mass/volume;candidate.bulk_[1][c]=q.momentum.x/volume;

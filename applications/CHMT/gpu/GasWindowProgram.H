@@ -16,6 +16,7 @@ CHMT_HD inline Real interpolateGasWallValue(Real a,Real b,Real alpha){
 CHMT_HD inline WallFaceSample interpolateGasWallFace(const WallFaceSample& x,const WallFaceSample& y,Real alpha){
     WallFaceSample q=x;
     q.temperature=interpolateGasWallValue(x.temperature,y.temperature,alpha);
+    q.materialEffusivity=interpolateGasWallValue(x.materialEffusivity,y.materialEffusivity,alpha);
     q.velocity={interpolateGasWallValue(x.velocity.x,y.velocity.x,alpha),
         interpolateGasWallValue(x.velocity.y,y.velocity.y,alpha),interpolateGasWallValue(x.velocity.z,y.velocity.z,alpha)};
     q.normalVelocity=interpolateGasWallValue(x.normalVelocity,y.normalVelocity,alpha);

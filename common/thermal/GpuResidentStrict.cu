@@ -177,6 +177,7 @@ struct DeviceState
 #include "GpuAutomaticCsrScheduleFields.inl"
     DeviceState* deviceState = nullptr;
     std::uint64_t borrowedGasFields=0;
+    bool particleGeometryDirty=false;
     bool borrowedGasSpecies=false;
     cudaEvent_t particleGasReady=nullptr,particleGasDone=nullptr;
 
@@ -2259,17 +2260,17 @@ __device__ void initialiseColdWall2DParticleState(DeviceState&, int, GpuReal);
 
 #include "operators/relaxMobileParticlesToResidentGasKernelStatic.cuh"
 
-int prepareParticleWallContactAreaScale(DeviceState* s, const int block)
+int prepareParticleWallContactAreaScale(DeviceState* s, const int block,cudaStream_t stream=nullptr)
 {
     if (s->particleStuckModelConfigured == 0)
     {
         return 0;
     }
-    cudaError_t err = cudaMemset
+    cudaError_t err = cudaMemsetAsync
     (
         s->particleWallRepresentedContactArea,
         0,
-        static_cast<size_t>(s->nFaces)*sizeof(GpuReal)
+        static_cast<size_t>(s->nFaces)*sizeof(GpuReal),stream
     );
     if (err != cudaSuccess)
     {
@@ -2278,7 +2279,7 @@ int prepareParticleWallContactAreaScale(DeviceState* s, const int block)
     }
 
     accumulateParticleWallRepresentedContactAreaKernel
-        <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+        <<<s->particleWorkGrid, s->particleBlockThreads,0,stream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -2292,7 +2293,7 @@ int prepareParticleWallContactAreaScale(DeviceState* s, const int block)
 
     const int faceGrid = (s->nFaces + block - 1)/block;
     finalizeParticleWallContactAreaScaleKernel
-        <<<faceGrid, block>>>(s->deviceState);
+        <<<faceGrid, block,0,stream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -2678,7 +2679,8 @@ int runToolB3(DeviceState* s, const int block)
 int rebuildResidentParticleMomentsFromParticles
 (
     DeviceState* s,
-    const int nParticles
+    const int nParticles,
+    const bool initialisePhaseFraction=true
 )
 {
     const int block = s->reductionBlockThreads;
@@ -2799,7 +2801,7 @@ int rebuildResidentParticleMomentsFromParticles
 
 
 
-    initialiseEpsGPrevKernel<<<grid, block>>>(s->deviceState);
+    if(initialisePhaseFraction)initialiseEpsGPrevKernel<<<grid, block>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -4324,6 +4326,8 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
     return 0;
 }
 
+namespace { int refreshParticleGeometryMoments(DeviceState*); }
+
 // Shared physical particle step. The application gas owner supplies the
 // resident gas state before this call; gas transport and final boundary
 // publication remain orchestration responsibilities of that owner.
@@ -5031,6 +5035,49 @@ int bindParticleGas(void* handle,const ParticleGasBinding& gas) {
     s->gasThermalConductivity=gas.gasThermalConductivity;s->sstConfigured=gas.sstConfigured;
     return syncDeviceState(s,"bind non-owning particle gas view");
 }
+int createBoundParticlePhase(const ParticlePhaseConfiguration& p,
+    const ParticleContactConfiguration& wall,const ParticleGasBinding& gas,
+    int nCellPlanes,const unsigned char* contactFaces,const double* gravity,void** owner) {
+    if(!owner||!gravity){setLastErrorText("missing particle phase creation output/gravity");return 1;}
+    *owner=nullptr;void* handle=nullptr;
+    const int code=ugkwpGpuResidentStrictCreate(gas.nCells,gas.nFaces,gas.nInternalFaces,nCellPlanes,
+        p.capacity,p.maxFaceWalkHops,p.injectionParcelMass,p.randomSeed,gas.gammaGas,gas.Rgas,p.rhoSolid,p.solveTemperature,
+        gas.gasMu,gas.gasPrClamped,p.dragModel,p.heatTransferModel,p.dragResidualRe,
+        gravity[0],gravity[1],gravity[2],p.diameter,p.minimumDiameter,p.maximumDiameter,0.,0.,
+        gas.rhoMin,gas.TgasMin,p.minimumSolidFraction,p.minimumTheta,p.minimumTemperature,p.maximumTemperature,
+        p.collisionalPressure,p.collisionalRestitution,p.pressureKickFraction,p.packingPressure,
+        p.packingFraction,p.packingIterations,1,0,0,1,gas.sstConfigured?3:0,1.,.9,.325,.17,
+        p.csrCellLocalPath,p.heavyReductionMode,p.heavyAutoInterval,
+        p.particleBlockThreads,p.reductionBlockThreads,p.warpAggregatedBinning,&handle);
+    if(code)return code;
+    std::vector<unsigned char> contactModels;
+    if(contactFaces){
+        contactModels.resize(gas.nFaces);
+        for(int f=0;f<gas.nFaces;++f)contactModels[f]=contactFaces[f]?wall.model:0;
+    }
+    if(bindParticleGas(handle,gas) || (contactFaces&&ugkwpGpuResidentStrictConfigureParticleStuckModel(handle,
+        gas.nFaces,contactModels.data(),wall.sommerfeldThreshold,wall.heatTransfer,wall.maximumCoverage,
+        wall.depositionHeatTransferEfficiency,wall.reflectionHeatTransferEfficiency,wall.adhesionEnergyScale,
+        wall.contactAngleDegree,wall.wallTransientResistance,wall.nonlinearIterations,
+        wall.meltingTemperature,wall.mushyRange,wall.latentHeat,wall.solidDensity,
+        wall.solidSpecificHeat,wall.solidThermalConductivity,wall.pinningThicknessFraction,wall.interfaceResistance))) {
+        ugkwpGpuResidentStrictRelease(handle);return 1;
+    }
+    *owner=handle;return 0;
+}
+int prepareParticleGasInterval(void* handle,cudaStream_t stream) {
+    auto* s=asState(handle);
+    if(validateState(s,"prepare particle gas interval"))return 1;
+    return prepareParticleWallContactAreaScale(s,s->fixedFaceBlockThreads,stream);
+}
+ParticleWallExchangeView particleWallExchange(void* handle) {
+    auto* s=asState(handle);
+    return s?ParticleWallExchangeView{s->particleWallDepositedEnergy,s->particleWallReflectedEnergy,
+        s->particleWallRepresentedContactArea,s->particleWallContactAreaScale}:ParticleWallExchangeView{};
+}
+const double* particleGasVolumeFraction(void* handle) {
+    auto* s=asState(handle);return s?s->epsGPrev:nullptr;
+}
 int advanceBoundParticlePhase(void* handle,double dt,double endTime,cudaStream_t gasStream) {
     auto* s=asState(handle);
     if(validateState(s,"advance bound particle phase"))return 1;
@@ -5040,7 +5087,9 @@ int advanceBoundParticlePhase(void* handle,double dt,double endTime,cudaStream_t
     auto err=cudaEventRecord(s->particleGasReady,gasStream);
     if(err==cudaSuccess)err=cudaStreamWaitEvent(nullptr,s->particleGasReady,0);
     if(err!=cudaSuccess){setLastError("order particle phase after gas",err);return 1;}
-    const int result=advanceResidentThermalParticles(s,dt,endTime);
+    int result=0;
+    if(s->particleGeometryDirty)result=refreshParticleGeometryMoments(s);
+    if(!result)result=advanceResidentThermalParticles(s,dt,endTime);
     // Also order already submitted work if an asynchronous launch failed.
     err=cudaEventRecord(s->particleGasDone,nullptr);
     if(err==cudaSuccess)err=cudaStreamWaitEvent(gasStream,s->particleGasDone,0);

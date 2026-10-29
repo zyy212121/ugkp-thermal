@@ -118,7 +118,7 @@ int main(){cudaCheck(cudaDeviceSetLimit(cudaLimitStackSize,65536));constexpr int
    accountCoupledSurfaceKernel<<<(count+127)/128,128>>>(v,faces,count,in,wallProgram,position,p,dt,dt*weight,records);
    cudaCheck(cudaDeviceSynchronize());
   }
-  packCoupledSurfaceKernel<<<(count+127)/128,128>>>(records,count,downloads,variant==2?wallDownloads:nullptr);
+  packCoupledSurfaceKernel<<<(count+127)/128,128>>>(records,count,faces,{},downloads,variant==2?wallDownloads:nullptr);
   cudaCheck(cudaDeviceSynchronize());
   for(int i=0;i<count;++i){packetNear(downloads[i].primary,primary[i]);packetNear(downloads[i].pore,pore[i]);chmt_test::check(!records[i].failed,"device closure completion");packetNear(records[i].primary,primary[i]);packetNear(records[i].pore,pore[i]);chmt_test::near(records[i].radiationEnergy,rad[i],"radiation ledger");
    const auto a=packetDelta(records[i].primary),b=packetDelta(records[i].pore);chmt_test::near(a.gas.energy+a.solid.energy+b.gas.energy+b.solid.energy,0,"energy closure");
@@ -128,7 +128,7 @@ int main(){cudaCheck(cudaDeviceSetLimit(cudaLimitStackSize,65536));constexpr int
   if(variant==2){
    exchanges[0].ready=false;wallStatuses[0]=37;modelStatuses[0].node=5;modelStatuses[0].iteration=11;modelStatuses[0].residual=.125;
    applyCoupledSurfaceKernel<<<(count+127)/128,128>>>(v,faces,count,in,wallProgram,GasWallProgramPosition{0,1,.5},p,dt,true,19,3,records);
-   packCoupledSurfaceKernel<<<(count+127)/128,128>>>(records,count,downloads,wallDownloads);
+   packCoupledSurfaceKernel<<<(count+127)/128,128>>>(records,count,faces,{},downloads,wallDownloads);
    cudaCheck(cudaDeviceSynchronize());
    chmt_test::check(downloads[0].failed==2&&wallDownloads[0].transportCode==37
     &&wallDownloads[0].status.node==5&&wallDownloads[0].status.iteration==11&&wallDownloads[0].status.residual==.125,

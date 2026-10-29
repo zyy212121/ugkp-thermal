@@ -37,7 +37,7 @@ constexpr std::uint64_t defaultSpeciesHash=defaultSpeciesNameHash();
 // Schema 10 appends complete common particle thermal/contact history.
 // Schemas 6--9 remain readable; absent history is explicitly uninitialized.
 // Borrowed shared-thermo views are rebuilt and never serialized.
-constexpr std::uint64_t checkpointSchema=10;
+constexpr std::uint64_t checkpointSchema=11;
 
 CHMT_HD inline bool finite(Real x) { return x==x && x<=std::numeric_limits<Real>::max() && x>=-std::numeric_limits<Real>::max(); }
 CHMT_HD inline Real absValue(Real x) { return x<0 ? -x : x; }

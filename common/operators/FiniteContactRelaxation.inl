@@ -37,14 +37,14 @@
                 GPU_OPERATOR_R(0.0)
             );
             const GPU_OPERATOR_REAL wallEffusivity =
-                s.particleWallEffusivityByFace != nullptr
+                ugkwp::particleWallEffusivity(s,faceI,s.particleWallEffusivityByFace != nullptr
               ? s.particleWallEffusivityByFace[faceI]
               : sqrt
                 (
                     s.particleWallDensityKgM3
                    *s.particleWallSpecificHeatJkgK
                    *s.particleWallConductivityWmK
-                );
+                ));
             const Foam::gpuThermal::AluminaLiquidProperties material =
                 Foam::gpuThermal::liquidAluminaProperties(s.pT[i]);
             const GPU_OPERATOR_REAL physicalMass =

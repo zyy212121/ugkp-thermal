@@ -29,13 +29,15 @@ bool evaluateResidentMaterialSurface(MaterialBackend&,const HostState& geometry,
     std::string&,bool& numericalFailure,
     const std::vector<Real>* sideVolume=nullptr,
     const std::vector<GasWallClosureContext>* contexts=nullptr,
-    bool* terminalWallFailure=nullptr);
+    bool* terminalWallFailure=nullptr,
+    const std::vector<WallFaceSample>* acceptedRates=nullptr);
 // Independent history samples share the same resident material state. Batching
 // changes only execution scheduling; each face retains its constitutive solve.
 struct MaterialSurfaceRequest {
     const std::vector<GasPrimitive>* bulk=nullptr;
     const std::vector<GasGradient>* gradients=nullptr;
     const std::vector<GasWallClosureContext>* contexts=nullptr;
+    const std::vector<WallFaceSample>* acceptedRates=nullptr;
 };
 bool evaluateResidentMaterialSurfaces(MaterialBackend&,const HostState&,
     const std::vector<MaterialSurfaceRequest>&,Real dt,bool useTransportRates,

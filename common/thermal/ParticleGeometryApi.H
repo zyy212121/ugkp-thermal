@@ -14,6 +14,9 @@ struct ParticleTrackingBoundaryView {
 // Rebuild tracking planes/neighbours from the owner's resident gas mesh after
 // geometry publication; no per-step upload of cell-face plane arrays.
 int refreshParticleTrackingGeometry(void* owner,const ParticleTrackingBoundaryView& boundary,cudaStream_t stream);
+// Relabel free parcels after corrected internal faces move across their fixed
+// physical positions. No transport time, forces or thermal evolution is applied.
+int relocateMobileParticles(void* owner,cudaStream_t stream);
 // Validated topology and both point arrays must live until stream completes.
 // No field readback or per-particle host work. Only attached active particles
 // are mapped; lab-frame velocities and all contact/thermal histories remain

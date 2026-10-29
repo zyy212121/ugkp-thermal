@@ -1,6 +1,33 @@
 #pragma once
 #include "ParticleGeometryApi.H"
 namespace {
+// Relabel free particles after a moving internal face passes their unchanged
+// physical position. External wall/inlet/outlet events stay with face transport.
+__global__ void relocateMobileParticleCellsKernel(DeviceState* sp){
+    DeviceState& s=*sp;
+    const int count=*s.particleCountDevice;
+    for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<count;i+=blockDim.x*gridDim.x){
+        if(!s.pStatus[i]||s.pStuck[i])continue;
+        int cell=s.pCellId[i];
+        for(int hop=0;hop<s.nCells&&cell>=0&&cell<s.nCells;++hop){
+            if(pointInsideCell(s,cell,s.px[i],s.py[i],s.pz[i]))break;
+            const int plane=mostViolatedPlane(s,cell,s.px[i],s.py[i],s.pz[i]);
+            if(plane<0||s.cellFaceKind[plane]!=0)break;
+            const int next=s.cellFaceNeighbor[plane];if(next<0||next==cell)break;
+            cell=next;
+        }
+        s.pCellId[i]=cell;
+    }
+}
+int refreshParticleGeometryMoments(DeviceState* s){
+    relocateMobileParticleCellsKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState);
+    const auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("relocate particles on refreshed mesh",error);return 1;}
+    // Rebuild moments with new cell volumes but retain the accepted lagged gas
+    // fraction, so the common volume source accounts for the geometry change.
+    const int code=rebuildResidentParticleMomentsFromParticles(s,s->particleCapacity,false);
+    if(!code)s->particleGeometryDirty=false;
+    return code;
+}
 __global__ void refreshParticleTrackingGeometryKernel(DeviceState* sp,
     ugkp::thermal::ParticleTrackingBoundaryView boundary) {
     DeviceState& s=*sp;
@@ -57,7 +84,18 @@ int refreshParticleTrackingGeometry(void* owner,const ParticleTrackingBoundaryVi
         const auto error=cudaGetLastError();
         if(error!=cudaSuccess){setLastError("refresh resident particle tracking geometry",error);return 1;}
     }
-    s->preBaseDirectoryReady=0;s->splitPreDirectoryActive=0;
+    s->preBaseDirectoryReady=0;s->splitPreDirectoryActive=0;s->particleGeometryDirty=true;
+    return 0;
+}
+int relocateMobileParticles(void* owner,cudaStream_t stream) {
+    auto* s=asState(owner);
+    if(validateState(s,"relocate mobile particles after mesh correction"))return 1;
+    if(s->particleCapacity>0){
+        relocateMobileParticleCellsKernel<<<s->particleWorkGrid,s->particleBlockThreads,0,stream>>>(s->deviceState);
+        const auto error=cudaGetLastError();
+        if(error!=cudaSuccess){setLastError("relocate mobile particles after mesh correction",error);return 1;}
+    }
+    s->preBaseDirectoryReady=0;s->splitPreDirectoryActive=0;s->particleGeometryDirty=true;
     return 0;
 }
 int mapAttachedParticles(void* owner,const ParticleSurfaceGeometry& previous,
@@ -75,7 +113,7 @@ int mapAttachedParticles(void* owner,const ParticleSurfaceGeometry& previous,
             (s->deviceState,previous,endpoint,faceMap);
         const auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("map attached particle geometry",error);return 1;}
     }
-    s->preBaseDirectoryReady=0;s->splitPreDirectoryActive=0;
+    s->preBaseDirectoryReady=0;s->splitPreDirectoryActive=0;s->particleGeometryDirty=true;
     return 0;
 }
 }}

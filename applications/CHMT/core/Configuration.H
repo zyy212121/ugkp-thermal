@@ -1,6 +1,7 @@
 #ifndef CHMT_CORE_CONFIGURATION_H
 #define CHMT_CORE_CONFIGURATION_H
 #include "Types.H"
+#include "../../../common/thermal/ParticlePhaseConfiguration.H"
 #include "../../../common/Diagnostics.H"
 #include "../../../common/gasTransport/GasModel.H"
 #include "../../../common/chemistry/ChemistryTypes.H"
@@ -124,6 +125,8 @@ inline bool validateWallModelConfig(const PhysicsConfig& p,std::string& error) {
 }
 struct ModelConfig {
     PhysicsConfig physics{};
+    ugkp::thermal::ParticlePhaseConfiguration particlePhase{};
+    ugkp::thermal::ParticleContactConfiguration particleContact{};
     std::array<std::string,Ns> speciesNames{};
     std::array<std::string,Nc> condensedNames{};
     std::array<std::string,Ne> elementNames{};

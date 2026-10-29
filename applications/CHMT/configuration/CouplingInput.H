@@ -81,6 +81,7 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     auto surface=importSurface(*candidate.solidMesh,state.solidMesh,d.subDict("surface"));
     state.surface=surface.mesh;initializeDryInterfaceAux(state);
     attachCoupledSurface(*candidate.gasMesh,d,state);
+    importParticles(d,candidate.model,state);
     std::string error;
     require(validateRuntimeState(candidate.model,state,error),error);
     const Real dt=time.controlDict().lookup<Foam::scalar>("deltaT");

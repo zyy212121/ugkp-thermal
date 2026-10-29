@@ -90,7 +90,9 @@ int uploadParticleState(void* owner,int count,const ParticleState<>* particles) 
     if(err!=cudaSuccess){setLastError("particle wall directory reset",err);return 1;}
     if(count)rebuildWallBoundParticleDirectoryKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState);
     err=cudaGetLastError();if(err!=cudaSuccess){setLastError("particle wall directory rebuild",err);return 1;}
-    return rebuildResidentParticleMomentsFromParticles(s,count);
+    const int code=rebuildResidentParticleMomentsFromParticles(s,count);
+    if(!code)s->particleGeometryDirty=false;
+    return code;
 }
 int downloadParticleState(void* owner,std::vector<ParticleState<>>& particles) {
     DeviceState* s=asState(owner);

@@ -63,6 +63,18 @@ CHMT_HD inline bool recoverMaterial(const SolidQ& q, Real volume, const PhysicsC
     return true;
 }
 
+// The same material caloric law and conductivity used by the material owner
+// supply the finite-contact wall response; particle material defaults are not
+// properties of a CHMT wall.
+CHMT_HD inline Real materialThermalEffusivity(const SolidQ& q,Real volume,const PhysicsConfig& p){
+    MaterialPrimitive w;if(!recoverMaterial(q,volume,p,w))return undefinedValue();
+    Real capacity=0;
+    for(int c=0;c<Nc;++c)capacity+=q.condensed[c]*(p.condensed[c].cp0+p.condensed[c].cp1*w.temperature);
+    const GasThermoAdapter<Ns> thermo(p.species);
+    for(int j=0;j<Ns;++j)if(q.pore[j]!=0)capacity+=q.pore[j]*ugkwp::speciesCv(j,w.temperature,thermo.view(p.diagnostics));
+    return ::sqrt(w.conductivity*capacity/volume);
+}
+
 // All reactions evaluate the same stage state. Bound the NET assembled species
 // loss with one common extent factor. Gross-consumption limiting would freeze
 // a midpoint-generated intermediate absent from the accepted base, even when

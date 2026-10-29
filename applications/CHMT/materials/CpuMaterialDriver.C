@@ -191,7 +191,7 @@ bool baseTrace(const HostState& base,const PhysicsConfig& p,std::vector<GasPrimi
 
         const int c=base.gasMesh.owner[face];
         if((c<0||static_cast<std::size_t>(c)>=base.gas.size()||static_cast<std::size_t>(c)>=base.gasMesh.volumes.size())){if(numerical)*numerical=true;error="wall predictor gas EOS failed";return false;}
-        if(!recoverGas(base.gas[c],base.gasMesh.volumes[c],p,bulk[f],nullptr,c)){
+        if(!recoverGas(base.gas[c],gasPhaseVolume(base,c),p,bulk[f],nullptr,c)){
             {if(numerical)*numerical=true;error="wall predictor gas EOS failed";return false;}
         }
     }
@@ -219,7 +219,8 @@ struct CpuMaterialDriver::Implementation {
         const std::vector<GasGradient>& gradients,bool useTransportRates,bool candidateState,
         Real dt,std::uint64_t sequence,CpuSurfaceResult& output,std::string& error,
         const std::vector<Real>* sideVolume=nullptr,
-        const std::vector<GasWallMatchingSample>* recorded=nullptr){
+        const std::vector<GasWallMatchingSample>* recorded=nullptr,
+        const std::vector<WallFaceSample>* acceptedRates=nullptr){
         std::vector<GasWallClosureContext> contexts;terminalWallFailure=false;surfaceNumericalFailure=false;
         if(wall){
             terminalWallFailure=true;
@@ -239,7 +240,7 @@ struct CpuMaterialDriver::Implementation {
         terminalWallFailure=false;
         return evaluateResidentMaterialSurface(*gpu,state,bulk,gradients,dt,
             useTransportRates,candidateState,output,error,surfaceNumericalFailure,
-            sideVolume,wall?&contexts:nullptr,&terminalWallFailure);
+            sideVolume,wall?&contexts:nullptr,&terminalWallFailure,acceptedRates);
     }
     bool evaluateHistory(const HostState& state,const PhysicsConfig& p,
         const std::vector<const GasIntervalRecord*>& records,Real dt,
@@ -259,7 +260,7 @@ struct CpuMaterialDriver::Implementation {
         }
         std::vector<MaterialSurfaceRequest> requests;
         for(std::size_t i=0;i<records.size();++i)
-            requests.push_back({&records[i]->gasTrace,&records[i]->gasGradient,wall?&contexts[i]:nullptr});
+            requests.push_back({&records[i]->gasTrace,&records[i]->gasGradient,wall?&contexts[i]:nullptr,&records[i]->gasAcceptedWall});
         terminalWallFailure=false;
         return evaluateResidentMaterialSurfaces(*gpu,state,requests,dt,true,false,output,error,
             surfaceNumericalFailure,&sideVolume,&terminalWallFailure);
@@ -456,7 +457,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 const HostState& evaluation=state;
                 std::vector<FilmAux> aux;std::vector<Real> target;
                 sideVolume.assign(state.surface.area.size(),0);
-                if(!data_->evaluate(evaluation,p,bulk,driveRecord->gasGradient,true,false,dt,window.identity.sequence,surface,error,&sideVolume,&driveRecord->gasWallMatching)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
+                if(!data_->evaluate(evaluation,p,bulk,driveRecord->gasGradient,true,false,dt,window.identity.sequence,surface,error,&sideVolume,&driveRecord->gasWallMatching,&driveRecord->gasAcceptedWall)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
                 // Geometry follows the accepted condensed transfer. The new
                 // constitutive proposal never replaces accepted gas energy.
                 target.assign(state.surface.area.size(),0);
@@ -564,7 +565,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 if(program.knots.empty())program.knots.push_back(beginning);
                 WallKnot ending=beginning;ending.time=trial.time;ending.localTime=trialElapsed;ending.gasPoints=trial.gasMesh.points;ending.solidPoints=trial.solidMesh.points;
                 if(trialElapsed<windowEnd){CpuSurfaceResult endpointProposal;
-                    if(!endpointRecord){error="missing endpoint wall matching record";break;}if(!data_->evaluate(trial,p,*endpointBulk,endpointRecord->gasGradient,false,true,dt,window.identity.sequence,endpointProposal,error,nullptr,&endpointRecord->gasWallMatching)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
+                    if(!endpointRecord){error="missing endpoint wall matching record";break;}if(!data_->evaluate(trial,p,*endpointBulk,endpointRecord->gasGradient,false,true,dt,window.identity.sequence,endpointProposal,error,nullptr,&endpointRecord->gasWallMatching,&endpointRecord->gasAcceptedWall)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
                     ending.faces=endpointProposal.wall;for(std::size_t f=0;f<ending.faces.size();++f)ending.faces[f].primaryKind=beginning.faces[f].primaryKind;}
                 for(std::size_t f=0;f<ending.faces.size();++f){ending.faces[f].solidNormalVelocity=aux[f].solidNormalVelocity;ending.faces[f].normalVelocity=aux[f].normalVelocity;}
                 program.knots.push_back(ending);
@@ -623,8 +624,9 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
         state.time=window.end;program.donorPlan=accumulated.donorPlan;
         if(data_->wall&&p.meshMotion.policy!=MeshMotionPolicy::Static)data_->wall->clearGeometry();
         if(!program.knots.empty()){const auto& last=history.records().back();CpuSurfaceResult endpointSurface;
-            std::vector<GasPrimitive> finalBulk;bool numerical=false;if(!(baseTrace(state,p,finalBulk,error,&numerical))){report=accumulated;report.failureOrigin=numerical?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;return false;}
-            if(!data_->evaluate(state,p,finalBulk,last.gasGradient,false,false,interval,window.identity.sequence,endpointSurface,error,nullptr,nullptr)){report=accumulated;report.failureOrigin=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;report.recoverable=false;return false;}
+            // Close the completed interval against its accepted stage rates.
+            // The next predictor evaluates fresh kinetics from the new state.
+            if(!data_->evaluate(state,p,last.gasTrace,last.gasGradient,false,false,interval,window.identity.sequence,endpointSurface,error,nullptr,&last.gasWallMatching,&last.gasAcceptedWall)){report=accumulated;report.failureOrigin=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;report.recoverable=false;return false;}
             program.knots.back().faces=endpointSurface.wall;
             // The executed regime owns the interval including its terminal flux.
             // Endpoint proposals affect only the next window's predictor.

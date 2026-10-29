@@ -21,7 +21,7 @@ inline bool writeAcceptedCoupledSummary(std::ostream& stream,const HostState& st
 inline bool writeAcceptedGasFields(std::ostream& stream,const HostState& state,
     const ModelConfig& model,std::string& error){
     std::vector<GasPrimitive> primitive(state.gas.size());
-    for(std::size_t c=0;c<state.gas.size();++c)if(!recoverGas(state.gas[c],state.gasMesh.volumes[c],model.physics,primitive[c],nullptr,static_cast<int>(c))){
+    for(std::size_t c=0;c<state.gas.size();++c)if(!recoverGas(state.gas[c],gasPhaseVolume(state,c),model.physics,primitive[c],nullptr,static_cast<int>(c))){
         error="invalid accepted gas output";return false;}
     stream<<std::setprecision(17)<<"cell,volume,mass,momentum_x,momentum_y,momentum_z,total_energy,temperature,pressure";
     for(const auto& name:model.speciesNames){stream<<','<<std::quoted("mass_"+name);}
@@ -32,6 +32,16 @@ inline bool writeAcceptedGasFields(std::ostream& stream,const HostState& state,
         stream<<'\n';
     }
     if(!stream){error="gas field output write failed";return false;}error.clear();return true;
+}
+inline bool writeAcceptedParticleFields(std::ostream& stream,const HostState& state,std::string& error){
+    stream<<std::setprecision(17)<<"id,status,state,cell,face,x,y,z,ux,uy,uz,mass,diameter,temperature,thermal_energy,theta,thermal_carry,contact_age,contact_duration,contact_area,contact_mechanical_energy\n";
+    for(const auto& p:state.particles){
+        stream<<p.id<<','<<p.thermal.status<<','<<p.state<<','<<p.cell<<','<<p.face<<','
+            <<p.position.x<<','<<p.position.y<<','<<p.position.z<<','<<p.velocity.x<<','<<p.velocity.y<<','<<p.velocity.z<<','
+            <<p.mass<<','<<p.diameter<<','<<p.thermal.temperature<<','<<p.energy<<','<<p.thermal.theta<<','<<p.thermal.specificEnthalpyResidual<<','
+            <<p.contactAge<<','<<p.contactDuration<<','<<p.contactArea<<','<<p.contactMechanicalEnergy<<'\n';
+    }
+    if(!stream){error="particle field output write failed";return false;}error.clear();return true;
 }
 inline bool writeAcceptedMaterialFields(std::ostream& stream,const HostState& state,
     const ModelConfig& model,std::string& error){

@@ -1,3 +1,4 @@
+#include "ablation/SurfaceDonorAllocation.H"
 #include "gpu/MaterialBackend.H"
 #include "gpu/HostTransferQueue.H"
 #include "gpu/MaterialTransportKernels.cuh"
@@ -378,6 +379,8 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
     const auto& p=b.physics;
     const bool boundaryLayer=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer;
     const std::size_t count=nf*requests.size();
+    std::vector<Real> donorShares;
+    if(!surfaceGasDonorShares(h,donorShares,error))return false;
     std::vector<SurfacePhysicsInput> inputs(count);
     std::vector<int> solidCells(count,-1),quadratureOffsets(count);
     std::vector<unsigned char> active(count);
@@ -386,6 +389,9 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
         const auto& bulk=*requests[request].bulk;
         const auto& gradients=*requests[request].gradients;
         const auto* contexts=requests[request].contexts;
+        const auto* accepted=requests[request].acceptedRates;
+        if(accepted&&!accepted->empty()&&accepted->size()!=nf){
+            numerical=false;error="accepted surface stage rate layout mismatch";return false;}
         if(!finite(dt)||dt<=0||bulk.size()!=nf||(!gradients.empty()&&gradients.size()!=nf)
             ||s.gasFace.size()!=nf||s.normal.size()!=nf||s.gasDistance.size()!=nf
             ||(!s.solidCell.empty()&&s.solidCell.size()!=nf)||(!s.baseVelocity.empty()&&s.baseVelocity.size()!=nf)){
@@ -413,7 +419,13 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
             const int gc=h.gasMesh.owner[gf];
             if(gc<0||std::size_t(gc)>=h.gasMesh.volumes.size()){error="CPU surface gas owner outside real mesh";return false;}
             auto& in=inputs[index];in.bulk=bulk[f];if(!gradients.empty())in.gradient=gradients[f];
-            in.gasInventory=conservativeGas(bulk[f],h.gasMesh.volumes[gc],p);
+            in.gasInventory=conservativeGas(bulk[f],gasPhaseVolume(h,gc)*donorShares[f],p);
+            if(accepted&&!accepted->empty()){
+                in.useAcceptedFlux=true;const auto& rates=(*accepted)[f];
+                for(int s=0;s<Ns;++s){in.acceptedGasSpecies[s]=rates.speciesRate[s];
+                    in.acceptedPoreSpecies[s]=rates.poreRate[s];in.acceptedPoreSweep[s]=rates.poreSweepRate[s];}
+                for(int c=0;c<Nc;++c)in.acceptedCondensed[c]=rates.condensedRate[c];
+            }
             if(contexts){
                 in.wallContext=(*contexts)[f];in.bulk.pressure=in.wallContext.matchingPressure;
                 in.wallContext.mechanism=b.deviceMechanism;in.wallContext.workspace=nullptr;in.wallContext.failureStatus=nullptr;
@@ -492,9 +504,10 @@ bool evaluateResidentMaterialSurface(MaterialBackend& b,const HostState& h,
     const std::vector<GasPrimitive>& bulk,const std::vector<GasGradient>& gradients,
     Real dt,bool useRates,bool candidate,CpuSurfaceResult& output,std::string& error,
     bool& numerical,const std::vector<Real>* sideVolume,
-    const std::vector<GasWallClosureContext>* contexts,bool* terminalWallFailure){
+    const std::vector<GasWallClosureContext>* contexts,bool* terminalWallFailure,
+    const std::vector<WallFaceSample>* acceptedRates){
     std::vector<CpuSurfaceResult> result;
-    if(!evaluateResidentMaterialSurfaces(b,h,{{&bulk,&gradients,contexts}},dt,useRates,candidate,
+    if(!evaluateResidentMaterialSurfaces(b,h,{{&bulk,&gradients,contexts,acceptedRates}},dt,useRates,candidate,
         result,error,numerical,sideVolume,terminalWallFailure))return false;
     output=std::move(result.front());return true;
 }

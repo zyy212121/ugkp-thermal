@@ -96,3 +96,49 @@ int main(int argc,char**argv){assert(argc==2);ModelConfig model;model.physics.ga
 }
 ''',name="new-reader")
     subprocess.run([reader,tmp_path/"old"],check=True)
+
+
+def test_particle_model_identity_is_checked_even_before_first_injection(tmp_path):
+    exe=build(tmp_path,r'''
+int main(int argc,char**argv){assert(argc==2);ModelConfig model;model.physics.enableParticles=true;
+ model.particlePhase.capacity=100;model.particlePhase.rhoSolid=2700;
+ model.particleContact.model=4;model.particleContact.latentHeat=9e5;
+ HostState empty,restored;std::string error;
+ assert(writeCheckpoint(argv[1],model,empty,error));
+ assert(readCheckpoint(argv[1],model,restored,error));
+ auto tuned=model;tuned.particlePhase.capacity=1000;tuned.particlePhase.csrCellLocalPath=0;
+ tuned.particlePhase.particleBlockThreads=256;tuned.particlePhase.heavyReductionMode=1;
+ assert(readCheckpoint(argv[1],tuned,restored,error));
+ auto changed=model;changed.particleContact.model=3;
+ assert(!readCheckpoint(argv[1],changed,restored,error));assert(error.find("particle model identity")!=std::string::npos);
+ changed=model;changed.particleContact.latentHeat*=2;
+ assert(!readCheckpoint(argv[1],changed,restored,error));
+ changed=model;changed.particlePhase.rhoSolid*=2;
+ assert(!readCheckpoint(argv[1],changed,restored,error));
+ changed=model;changed.physics.enableParticles=false;
+ assert(!readCheckpoint(argv[1],changed,restored,error));
+}
+''',name="model-identity")
+    subprocess.run([exe,tmp_path/"checkpoint"],check=True)
+
+
+def test_schema10_complete_history_is_preserved(tmp_path):
+    old=subprocess.check_output(["git","show","2252fb2d:applications/CHMT/restart/Checkpoint.C"],cwd=ROOT,text=True)
+    old=old.replace('"../../../common/gasBoundary/Wire.H"','"'+str(ROOT/"common/gasBoundary/Wire.H")+'"')
+    old=old.replace("checkpointSchema","10")
+    path=tmp_path/"schema10.C";path.write_text(old)
+    writer=build(tmp_path,r'''
+int main(int argc,char**argv){assert(argc==2);ModelConfig model;HostState state;fill(state);
+ std::string error;assert(writeCheckpoint(argv[1],model,state,error));}
+''',path,"schema10-writer")
+    subprocess.run([writer,tmp_path/"old10"],check=True)
+    reader=build(tmp_path,r'''
+int main(int argc,char**argv){assert(argc==2);ModelConfig model;HostState state,reference;fill(reference);
+ std::string error;assert(readCheckpoint(argv[1],model,state,error));
+ assert(state.particles.size()==reference.particles.size());
+ for(int j=0;j<4;++j){const auto& a=state.particles[j].thermal;const auto& b=reference.particles[j].thermal;
+ assert(a.initialized&&a.temperature==b.temperature&&a.coldContactAge==b.coldContactAge);
+ for(int k=0;k<64;++k)assert(a.cold2DNodeSpecificEnthalpy[k]==b.cold2DNodeSpecificEnthalpy[k]);}
+}
+''',name="schema10-reader")
+    subprocess.run([reader,tmp_path/"old10"],check=True)

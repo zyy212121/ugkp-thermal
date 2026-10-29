@@ -1,5 +1,7 @@
 #pragma once
 #include <cstdint>
+#include <cmath>
+#include "ParticlePhaseConfiguration.H"
 #include <cuda_runtime_api.h>
 #include "gasTransport/GasStateView.H"
 #include "gasTransport/GasBuildConfig.H"
@@ -26,7 +28,7 @@ template<class Gas> ParticleGasBinding particleGasBinding(const Gas& gas) {
 #include "ParticleGasFields.inc"
 #undef UGKP_PARTICLE_GAS_FIELD
     out.gammaGas=gas.gammaGas;out.Rgas=gas.Rgas;out.gasCp=gas.gasCp;out.gasMu=gas.gasMu;
-    out.gasPrClamped=gas.gasPrClamped;out.gasPrOneThird=gas.gasPrOneThird;
+    out.gasPrClamped=gas.gasPrClamped;out.gasPrOneThird=std::pow(gas.gasPrClamped,1./3.);
     out.rhoMin=gas.rhoMin;out.TgasMin=gas.TgasMin;out.gasThermalConductivity=gas.gasThermalConductivity;
     out.sstConfigured=gas.sstConfigured;out.species=gas.gasSpecies;
     out.viscosity=gas.gasViscosity;out.diagnostics=gas.diagnostics;
@@ -35,6 +37,16 @@ template<class Gas> ParticleGasBinding particleGasBinding(const Gas& gas) {
 // Configuration/state publication boundary. Existing private physical-field
 // allocations are released on first binding; borrowed memory is never freed.
 int bindParticleGas(void* particleOwner,const ParticleGasBinding& gas);
+// Allocate/configure the same owner used by CHT and bind the externally owned
+// gas mesh/state. The caller selects contact faces in its mesh adapter. It must
+// upload complete particle history and refresh tracking geometry before advance.
+int createBoundParticlePhase(const ParticlePhaseConfiguration& phase,
+    const ParticleContactConfiguration& contact,const ParticleGasBinding& gas,
+    int nCellPlanes,const unsigned char* contactFaces,const double* gravity,void** owner);
+const double* particleGasVolumeFraction(void* particleOwner);
+// Refresh contact occupancy before gas conductive fluxes, on the caller stream.
+int prepareParticleGasInterval(void* particleOwner,cudaStream_t gasStream);
+
 // Submit the shared physical particle phase between gasStream events. The
 // caller observes its own diagnostics after this stream reaches completion.
 int advanceBoundParticlePhase(void* particleOwner,double dt,double endTime,cudaStream_t gasStream);

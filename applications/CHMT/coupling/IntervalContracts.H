@@ -23,6 +23,7 @@ struct WallFaceSample {
     ExchangeKind primaryKind=ExchangeKind::GasSolid;
     Real speciesRate[Ns]{},condensedRate[Nc]{},poreRate[Ns]{},poreSweepRate[Ns]{};
     Real radiationFlux=0,solidNormalVelocity=0,normalVelocity=0;
+    Real materialEffusivity=0;
 }; // rates kg/(reference-surface m^2 s), radiation W/m^2; proposals, not transfers.
 struct WallKnot {
     Real time=0; WindowTime localTime{-1}; std::vector<WallFaceSample> faces{};
@@ -52,6 +53,7 @@ struct GasIntervalRecord {
     std::vector<GasPrimitive> gasTrace{}; // OWNER bulk at gasTraceTime, paired with gradient/traction/matching.
     std::vector<GasGradient> gasGradient{};
     std::vector<Vec3> gasTraction{};
+    std::vector<WallFaceSample> gasAcceptedWall{}; // instantaneous accepted rates at gasTraceTime, not integrated sources.
     std::vector<GasWallMatchingSample> gasWallMatching{}; // populated only for boundaryLayer.
     std::vector<Real> radiationEnergy{};
     std::vector<unsigned> radiationReceiver{};

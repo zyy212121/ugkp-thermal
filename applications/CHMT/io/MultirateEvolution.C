@@ -61,6 +61,10 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         if(!commitGasWindow(backend,candidate,error))return false;
         report.acceptedGasMicrosteps=history.records().size();
         accepted=std::move(candidate);error.clear();return true;
+    } catch(const Foam::error&) {
+        // Preserve the original GPU/OpenFOAM diagnostic for the application
+        // boundary; Foam::error::what() alone discards its physical context.
+        throw;
     } catch(const std::exception& exception) {
         error=std::string("single-pass multirate operation failed: ")+exception.what();
         return false;

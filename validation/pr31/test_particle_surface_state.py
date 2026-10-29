@@ -21,6 +21,10 @@ int main(){
   assert(ugkwp::particleWallVelocityY(s,f)==wy[f]);assert(ugkwp::particleWallVelocityZ(s,f)==wz[f]);}
  t[0]=3000;x[0]=12345;y[0]=-9876;z[0]=5555;
  assert(ugkwp::particleWallTemperature(s,0)==100);assert(ugkwp::particleWallVelocityX(s,0)==.1);
+ double wallE[2]={1000,2000};
+ assert(ugkwp::particleWallEffusivity(old,0,4321.)==4321.);
+ assert(ugkwp::particleWallEffusivity(s,0,4321.)==4321.);
+ s.particleSurface.effusivity=wallE;assert(ugkwp::particleWallEffusivity(s,0,4321.)==1000.);
  s.particleSurface={};assert(ugkwp::particleWallTemperature(s,0)==3000);
 }
 ''')
