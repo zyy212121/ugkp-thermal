@@ -6636,6 +6636,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
 }
 
 #include "ParticleStateAdapter.cuh"
+#include "ParticleGeometryAdapter.cuh"
 
 extern "C" void ugkwpGpuResidentStrictRelease
 (
