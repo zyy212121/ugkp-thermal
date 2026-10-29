@@ -359,11 +359,13 @@ struct Profile {
     return i?Array<double,2>{affineInterface+(1-affineInterface)*t,(1-affineInterface)/h}:Array<double,2>{affineInterface*t,affineInterface/h};
   }
   UGKWP_GAS_HD double affineValue(double y,double baseY,int side=0) const {
-    if(affineSpeciesMode==2)return 0;if(affineSpeciesMode==3)return 1;
+    if(affineSpeciesMode==2)return 0;
+    if(affineSpeciesMode==3)return 1;
     double r=affineCoordinate(y,side)[0];return speciesLogistic(::log(baseY/(1-baseY))+affineSpeciesA*(1-r*r)+affineSpeciesB*r*r*(1-r));
   }
   UGKWP_GAS_HD double affineGradient(double y,double baseY,double baseGradient,int side=0) const {
-    if(affineSpeciesMode!=1)return 0;auto c=affineCoordinate(y,side);double r=c[0],Y=affineValue(y,baseY,side);
+    if(affineSpeciesMode!=1)return 0;
+    auto c=affineCoordinate(y,side);double r=c[0],Y=affineValue(y,baseY,side);
     return Y*(1-Y)*(baseGradient/(baseY*(1-baseY))+(-2*affineSpeciesA*r+affineSpeciesB*(2*r-3*r*r))*c[1]);
   }
   UGKWP_GAS_HD Primitive pointIn(double y, const Segment &s,

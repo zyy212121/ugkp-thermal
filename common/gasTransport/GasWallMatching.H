@@ -74,7 +74,8 @@ template<class State,class R,int N> UGKWP_GAS_HD inline bool recoverWallMatching
     if(invertMixtureEnergy(value,energy,s.gasSpecies.thermo,controls,temperature,&available)!=ThermoStatus::Success||!available)return false;
     E gasR=0;int carrier=0;E sum=0;
     for(int a=0;a<N;++a){out.massFraction[a]=R(value[a]/rho);sum+=out.massFraction[a];
-        if(value[a]>value[carrier])carrier=a;gasR+=value[a]*universalGasConstant<E>()/s.gasSpecies.thermo.species[a].molarMass;}
+        if(value[a]>value[carrier])carrier=a;
+        gasR+=value[a]*universalGasConstant<E>()/s.gasSpecies.thermo.species[a].molarMass;}
     out.massFraction[carrier]+=R(1-sum);
     out.temperature=R(temperature);pressure=R(gasR*temperature);
     if(sst){out.k=R(value[N+4]/rho);out.omega=R(value[N+5]/rho);}

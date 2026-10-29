@@ -38,12 +38,14 @@ UGKWP_GAS_HD bool physicalSpecies(const ugkwp::gaswall::WallInput<R,N,T>&in,
  R gasR=0,localD[N];for(int j=0;j<N;++j)gasR+=v.Y[j]*ugkwp::universalGasConstant<R>()/in.model.thermo.species[j].molarMass;
  for(int j=0;j<N;++j)localD[j]=wallMolecularDiffusivity(in,j,v.T,v.rho*gasR*v.T);
  bool valid=ugkwp::correctedSpeciesDiffusion(v.Y,grad,v.rho,localD,nut,cfg.turbulentSchmidt,v.T,in.model.thermo,diff,diffH,true,&available);
- for(int j=0;j<N;++j)flux[j]=ctx.mass*v.Y[j]+diff[j];return valid&&available;
+ for(int j=0;j<N;++j)flux[j]=ctx.mass*v.Y[j]+diff[j];
+ return valid&&available;
 }
 template<class R,int N,class T>
 UGKWP_GAS_HD R wallTransport(const ugkwp::gaswall::WallInput<R,N,T>&in,
  const ugkwp::gaswall::detail::LayerContext<R,N>&ctx,R wallNormalVelocity){
  R result=ctx.mass*wallNormalVelocity*wallNormalVelocity/R(2);
- for(int j=0;j<N;++j)result+=in.massFlux[j]*(ctx.wallEnthalpy[j]-ctx.energyReference);return result;
+ for(int j=0;j<N;++j)result+=in.massFlux[j]*(ctx.wallEnthalpy[j]-ctx.energyReference);
+ return result;
 }
 }}} // namespace ugkwp::gaswall::coherent_energy

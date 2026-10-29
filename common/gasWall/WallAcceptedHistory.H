@@ -12,7 +12,8 @@ template<class R,int N,class T> UGKWP_GAS_HD inline WallHistoryFrame<N> historyF
  WallHistoryFrame<N> h;h.valid=true;h.nodes=c.nodes;h.distance=in.matchingDistance;h.stretch=c.stretch;h.temperature=in.temperature;h.speciesOrder=in.model.thermo.speciesOrderHash;h.dependent=ctx.dependent;
  for(int d=0;d<3;++d)h.normal[d]=in.normal[d];
  for(int a=0;a<2;++a){h.wallU[a]=ctx.wallU[a];for(int d=0;d<3;++d)h.tangent[a][d]=ctx.tangent[a][d];}
- for(int j=0;j<N-1;++j)h.independent[j]=ctx.independent[j];return h;
+ for(int j=0;j<N-1;++j)h.independent[j]=ctx.independent[j];
+ return h;
 }
 template<int N> UGKWP_GAS_HD inline bool compatibleHistory(const WallHistoryFrame<N>&old,const WallHistoryFrame<N>&now){
  for(int d=0;d<3;++d)if(old.normal[d]!=now.normal[d])return false;

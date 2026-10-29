@@ -24,7 +24,9 @@ public:
     ~Resident(){clear();}
     void clear(){
         if(faces_||functions_||terms_)cudaStreamSynchronize(stream_);
-        if(faces_)cudaFree(faces_);if(functions_)cudaFree(functions_);if(terms_)cudaFree(terms_);
+        if(faces_)cudaFree(faces_);
+        if(functions_)cudaFree(functions_);
+        if(terms_)cudaFree(terms_);
         faces_=nullptr;functions_=nullptr;terms_=nullptr;
     }
     void swap(Resident& b)noexcept {
