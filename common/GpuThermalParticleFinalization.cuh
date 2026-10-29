@@ -29,9 +29,9 @@ __device__ void finalizeOneThermalizedStuckParticle
             s.particleWallAdhesionEnergyScale,
             s.particleWallContactAngleCosine
         );
-    const GPU_OPERATOR_REAL wallUx = s.gasBoundaryUx[faceI];
-    const GPU_OPERATOR_REAL wallUy = s.gasBoundaryUy[faceI];
-    const GPU_OPERATOR_REAL wallUz = s.gasBoundaryUz[faceI];
+    const GPU_OPERATOR_REAL wallUx = ugkwp::particleWallVelocityX(s,faceI);
+    const GPU_OPERATOR_REAL wallUy = ugkwp::particleWallVelocityY(s,faceI);
+    const GPU_OPERATOR_REAL wallUz = ugkwp::particleWallVelocityZ(s,faceI);
                                                                         
                                                                             
     const GPU_OPERATOR_REAL fluctuationUx = candidateUx - poolMeanUx;

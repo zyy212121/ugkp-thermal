@@ -334,6 +334,7 @@ struct DeviceState
     GpuWallEnergy* particleWallReflectedEnergy = nullptr;
     GpuReal* particleWallRepresentedContactArea = nullptr;
     GpuReal* particleWallContactAreaScale = nullptr;
+    ugkp::thermal::ParticleSurfaceState particleSurface{};
     GpuReal* particleWallEffusivityByFace = nullptr;
     int particleStuckModelConfigured = 0;
     int particleWallHeatTransferEnabled = 0;
@@ -4970,6 +4971,17 @@ int advanceResidentThermalParticles(DeviceState* s,double dt,double simulationTi
 }
 
 namespace ugkp { namespace thermal {
+int bindParticleSurface(void* handle,int nFaces,const ParticleSurfaceState& surface) {
+    auto* s=asState(handle);
+    if(validateState(s,"bind particle material surface"))return 1;
+    const bool any=surface.temperature||surface.velocityX||surface.velocityY||surface.velocityZ;
+    const bool complete=surface.temperature&&surface.velocityX&&surface.velocityY&&surface.velocityZ;
+    if(nFaces!=s->nFaces || (any && !complete)) {
+        setLastErrorText("particle material surface needs matching faces and four resident arrays");return 1;
+    }
+    s->particleSurface=surface;
+    return syncDeviceState(s,"bind non-owning particle surface");
+}
 int bindParticleGas(void* handle,const ParticleGasBinding& gas) {
     auto* s=asState(handle);
     if(validateState(s,"bind resident particle gas"))return 1;

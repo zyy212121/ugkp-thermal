@@ -31,9 +31,9 @@ __global__ void downloadParticleSnapshotKernel(DeviceState* sp,int begin,int cou
         // Saved velocities are lab-frame delayed rebound velocities in the
         // existing contact model. These two fields are derived diagnostics.
         if(q.state && q.face>=0 && q.face<s.nFaces) {
-            q.contactRelativeVelocity={q.thermal.savedVelocity[0]-s.gasBoundaryUx[q.face],
-                q.thermal.savedVelocity[1]-s.gasBoundaryUy[q.face],
-                q.thermal.savedVelocity[2]-s.gasBoundaryUz[q.face]};
+            q.contactRelativeVelocity={q.thermal.savedVelocity[0]-ugkwp::particleWallVelocityX(s,q.face),
+                q.thermal.savedVelocity[1]-ugkwp::particleWallVelocityY(s,q.face),
+                q.thermal.savedVelocity[2]-ugkwp::particleWallVelocityZ(s,q.face)};
             if(q.state==Foam::gpuThermal::particleWallTransientRebound || q.state==Foam::gpuThermal::particleWallTransientDeposit)
                 q.contactMechanicalEnergy=.5*q.mass*(q.thermal.savedVelocity[0]*q.thermal.savedVelocity[0]
                     +q.thermal.savedVelocity[1]*q.thermal.savedVelocity[1]+q.thermal.savedVelocity[2]*q.thermal.savedVelocity[2]);
@@ -77,14 +77,15 @@ int uploadParticleState(void* owner,int count,const ParticleState<>* particles) 
     if(syncDeviceState(s,"particle state upload view"))return 1;
     cudaError_t err=cudaMemset(s->pStatus,0,size_t(s->particleCapacity)*sizeof(*s->pStatus));
     if(err!=cudaSuccess){setLastError("particle state status reset",err);return 1;}
-    for(int begin=0;begin<count;begin+=particleSnapshotChunk) {
+    for(int begin=0;begin<count;) {
         const int n=std::min(count-begin,particleSnapshotChunk);
         if(copyToDevice(buffer.device,particles+begin,n,"particle state upload chunk"))return 1;
         uploadParticleSnapshotKernel<<<(n+255)/256,256>>>(s->deviceState,begin,n,buffer.device);
         err=cudaGetLastError();if(err!=cudaSuccess){setLastError("particle state unpack",err);return 1;}
+        begin+=n;
     }
     if(copyToDevice(s->particleCountDevice,&count,1,"particle state count"))return 1;
-    s->preBaseDirectoryReady=0;s->splitPreDirectoryActive=0;s->particlesMayBePresent=count!=0;
+    s->preBaseDirectoryReady=0;s->splitPreDirectoryActive=0;s->particlesMayBePresent=count!=0 || s->nBoundarySources>0;
     err=cudaMemset(s->wallBoundParticleCountDevice,0,sizeof(int));
     if(err!=cudaSuccess){setLastError("particle wall directory reset",err);return 1;}
     if(count)rebuildWallBoundParticleDirectoryKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState);
@@ -99,11 +100,12 @@ int downloadParticleState(void* owner,std::vector<ParticleState<>>& particles) {
     std::vector<ParticleState<>> candidate(count);
     ParticleSnapshotBuffer buffer;
     if(count && allocate(buffer.device,std::min(count,particleSnapshotChunk),"particle state staging"))return 1;
-    for(int begin=0;begin<count;begin+=particleSnapshotChunk) {
+    for(int begin=0;begin<count;) {
         const int n=std::min(count-begin,particleSnapshotChunk);
         downloadParticleSnapshotKernel<<<(n+255)/256,256>>>(s->deviceState,begin,n,buffer.device);
         const auto err=cudaGetLastError();if(err!=cudaSuccess){setLastError("particle state pack",err);return 1;}
         if(copyToHost(candidate.data()+begin,buffer.device,n,"particle state download chunk"))return 1;
+        begin+=n;
     }
     const int rc=s->diagnosticOwner->completeReadback(0,count!=0);
     if(rc==0)particles.swap(candidate);

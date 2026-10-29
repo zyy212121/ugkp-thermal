@@ -1,3 +1,4 @@
+#include "thermal/ParticleSurfaceState.H"
 #include "GpuPrecisionTypes.H"
 #ifndef GPU_THERMAL_GPU_FINITE_WALL_CONTACT_H
 #define GPU_THERMAL_GPU_FINITE_WALL_CONTACT_H

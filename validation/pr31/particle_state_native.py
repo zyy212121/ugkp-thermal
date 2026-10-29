@@ -18,6 +18,17 @@ from test_full_heat_advance import native_cuda_fixture
 def source():
     text=native_cuda_fixture()
     text=text.replace('s->particleCapacity=1;', 's->particleCapacity=std::max(1,argc>1?std::atoi(argv[1]):4);')
+    text=text.replace('int main(int argc,char**argv){',r'''
+__global__ void surfaceResponse(DeviceState* sp,double* out) {
+ const auto& s=*sp;const int f=0,i=0;
+ const auto q=particleFiniteContactThermalCandidateDevice(s,i,ugkwp::particleWallTemperature(s,f),1e-8,s.pm[i],1e-6,0);
+ const double relative=10.-ugkwp::particleWallVelocityX(s,f);
+ const auto impact=Foam::gpuThermal::evaluateSommerfeldImpact(s.pT[i],fabs(relative),s.pd[i],s.sommerfeldThreshold);
+ out[0]=q.valid;out[1]=q.wallEnergyJ;out[2]=q.particleTemperatureK;out[3]=q.specificEnthalpyResidual;
+ out[4]=impact.valid;out[5]=impact.weber;out[6]=impact.reynolds;out[7]=impact.sommerfeld;
+}
+int main(int argc,char**argv){
+''')
     start=text.index(' CHECK(rebuildResidentParticleMomentsFromParticles(s,1)==0);')
     text=text[:start]+r'''
  const unsigned char mask[6]={1,3,4,0,0,0};
@@ -55,6 +66,8 @@ def source():
  }
  CHECK(ugkp::thermal::uploadParticleState(s,0,nullptr)==0);
  CHECK(readOne(s->particleCountDevice)==0);
+ s->nBoundarySources=1;CHECK(ugkp::thermal::uploadParticleState(s,0,nullptr)==0);
+ CHECK(s->particlesMayBePresent);s->nBoundarySources=0;
  CHECK(ugkp::thermal::uploadParticleState(s,int(first.size()),first.data())==0);
  CHECK(ugkp::thermal::downloadParticleState(s,second)==0);CHECK(second.size()==first.size());
  for(size_t i=0;i<first.size();++i){
@@ -67,6 +80,21 @@ def source():
 #undef UGKP_PARTICLE_OPTIONAL
 #undef UGKP_PARTICLE_ARRAY
   CHECK(a.energy==b.energy&&a.contactMechanicalEnergy==b.contactMechanicalEnergy);
+ }
+ if(initial.size()==4) {
+  double* fields[4]{};double host[6];const double material[4]={500.,.5,.25,-.75};
+  for(int j=0;j<4;++j){CHECK(allocate(fields[j],6,"surface independent fields")==0);for(double& v:host)v=material[j];CHECK(copyToDevice(fields[j],host,6,"surface init")==0);}
+  CHECK(ugkp::thermal::bindParticleSurface(s,6,{fields[0],fields[1],fields[2],fields[3]})==0);
+  double* values=nullptr;CHECK(allocate(values,8,"surface physics result")==0);double before[8],after[8],legacy[8];
+  surfaceResponse<<<1,1>>>(s->deviceState,values);CHECK(copyToHost(before,values,8,"surface before injection")==0);
+  for(double& v:host)v=2900.;CHECK(copyToDevice(s->gasBoundaryT,host,6,"gas thermal boundary")==0);
+  for(double& v:host)v=1000.;CHECK(copyToDevice(s->gasBoundaryUx,host,6,"gas ejection velocity")==0);
+  surfaceResponse<<<1,1>>>(s->deviceState,values);CHECK(copyToHost(after,values,8,"surface after injection")==0);
+  for(int k=0;k<8;++k)CHECK(before[k]==after[k]);CHECK(before[0]==1&&before[4]==1&&before[1]!=0);
+  CHECK(ugkp::thermal::bindParticleSurface(s,6,{})==0);
+  surfaceResponse<<<1,1>>>(s->deviceState,values);CHECK(copyToHost(legacy,values,8,"legacy gas wall surface")==0);
+  CHECK(legacy[1]!=before[1]&&legacy[5]!=before[5]);
+  CUDA_OK(cudaFree(values));for(auto field:fields)CUDA_OK(cudaFree(field));
  }
  std::printf("{\"particles\":%zu,\"complete_state_exact\":true,\"independent_theta_age\":true}\n",first.size());
  releaseState(s);

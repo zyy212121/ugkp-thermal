@@ -96,7 +96,7 @@ __global__ void relaxColdWall1DParticlesToResidentGasKernel
             duration,
             peakTimeFraction,
             activeDt,
-            s.gasBoundaryT[faceI],
+            ugkwp::particleWallTemperature(s,faceI),
             wallEffusivity,
             efficiency*s.particleWallContactAreaScale[faceI],
             gasTemperatureK,

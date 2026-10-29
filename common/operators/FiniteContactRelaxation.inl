@@ -71,7 +71,7 @@
             const ParticleFiniteContactThermalCandidate result =
                 particleFiniteContactThermalCandidateDevice
                 (
-                    s, i, s.gasBoundaryT[faceI], physicalMass, s.pm[i],
+                    s, i, ugkwp::particleWallTemperature(s,faceI), physicalMass, s.pm[i],
                     conductanceTimeIntegral, 0
                 );
 

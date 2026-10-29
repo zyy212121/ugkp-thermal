@@ -956,7 +956,7 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
                 maximumAreaM2,
                 intrinsicAreaM2,
                 thermalDeltaTS,
-                s.gasBoundaryT[wallFaceI],
+                ugkwp::particleWallTemperature(s,wallFaceI),
                 wallEffusivity,
                 thermalAreaFactor,
                 gasTemperatureK,
