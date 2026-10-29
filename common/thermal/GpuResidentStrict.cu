@@ -6623,6 +6623,8 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     return s->diagnosticOwner->completeReadback(rc == 0 ? 0 : 1);
 }
 
+#include "ParticleStateAdapter.cuh"
+
 extern "C" void ugkwpGpuResidentStrictRelease
 (
     void* handle
