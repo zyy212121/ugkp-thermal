@@ -63,12 +63,12 @@ __global__ void computeGasPrimitiveGradientsKernel
     {
         if (ugkwp::mixtureGasActive(s))
         {
-            int dependent=ugkwp::GasStateTraits<GasState>::speciesCount-1;
-            // Keep populated-last arithmetic; an absent species must retain
-            // its physical stencil gradient rather than a closure residual.
-            if(s.gasSpecies.rho[dependent*s.nCells+c]==GPU_OPERATOR_R(0.0))
-                for(int k=0;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)
-                    if(s.gasSpecies.rho[k*s.nCells+c]>s.gasSpecies.rho[dependent*s.nCells+c])dependent=k;
+            // A nonzero trace needs its own physical stencil just as an absent
+            // species does. Put the gradient closure on the largest carrier,
+            // so carrier-sized Gauss roundoff cannot create a trace slope.
+            int dependent=0;
+            for(int k=1;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)
+                if(s.gasSpecies.rho[k*s.nCells+c]>s.gasSpecies.rho[dependent*s.nCells+c])dependent=k;
             for(int k=0;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)
             {
                 GPU_OPERATOR_REAL gx=GPU_OPERATOR_R(0.0),gy=GPU_OPERATOR_R(0.0),gz=GPU_OPERATOR_R(0.0);

@@ -6,7 +6,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[3]
 
 
-@pytest.mark.parametrize("probe", ["equilibrium_co2_wall.cu", "wall_matching_temperature.cu", "adiabatic_coherent.cpp"])
+@pytest.mark.parametrize("probe", ["equilibrium_co2_wall.cu", "wall_matching_temperature.cu", "adiabatic_coherent.cpp", "trace_diffusion_closure.cu", "scale_invariant_limiter.cu"])
 def test_equilibrium_co2_wall(tmp_path, probe):
     executable = tmp_path / "equilibrium-wall"
     subprocess.run([

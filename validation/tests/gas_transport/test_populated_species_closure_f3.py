@@ -81,15 +81,16 @@ int main(){State s;initialise(s);s.gasFluxScheme=SCHEME;face(s);
 
 
 @pytest.mark.parametrize("scheme", [1, 2])
-def test_populated_last_convective_arithmetic_and_one_sided_inflow(tmp_path, scheme):
+def test_conservative_scalar_fluxes_and_one_sided_inflow(tmp_path, scheme):
     compile_probe(tmp_path, closure_fixture() + r'''
 int main(){
     for(int emptySide=-1;emptySide<2;++emptySide){State s;initialise(s);s.gasFluxScheme=SCHEME;
         for(int c=0;c<2;++c){s.gasSpecies.rho[4+c]=c==emptySide?Real(0):Real(.15+.1*c);
             s.gasSpecies.rho[2+c]=1-s.gasSpecies.rho[c]-s.gasSpecies.rho[4+c];recover(s,c);}
         face(s);const Real first=scalarFlux(s,0),second=scalarFlux(s,1);
-        ck(sameBits(s.gasSpecies.flux[0],first)&&sameBits(s.gasSpecies.flux[3],second),"populated-last face arithmetic changed");
-        ck(sameBits(s.gasSpecies.flux[6],s.gasPhiRho[0]-(first+second)),"populated-last closure arithmetic changed");
+        for(int k=0;k<3;++k){const Real expected=scalarFlux(s,k);
+            ck(std::abs(s.gasSpecies.flux[k*3]-expected)<=Real(32)*std::numeric_limits<Real>::epsilon()*std::max(Real(1),std::abs(expected)),"scalar transport equation changed");}
+        ck(s.gasSpecies.flux[0]+s.gasSpecies.flux[3]+s.gasSpecies.flux[6]==s.gasPhiRho[0],"face mass sum not closed");
         if(emptySide>=0){
             ck(emptySide==0?s.gasSpecies.flux[6]<0:s.gasSpecies.flux[6]>0,"one-sided physical inflow suppressed");
             for(int c=0;c<2;++c){threadIdx.x=c;computeGasFluxPositivityScaleKernel(&s,1e-6);}
@@ -112,15 +113,15 @@ int main(){State s;initialise(s);
 ''')
 
 
-def test_gradient_preserves_populated_last_and_one_sided_species(tmp_path):
+def test_gradient_preserves_physical_stencil_and_one_sided_species(tmp_path):
     compile_probe(tmp_path, closure_fixture() + r'''
 int main(){State s;initialise(s);s.gasSpecies.rho[5]=Real(.3);s.gasSpecies.rho[3]=1-s.gasSpecies.rho[1]-s.gasSpecies.rho[5];recover(s,1);
     for(int c=0;c<2;++c){threadIdx.x=c;computeGasPrimitiveGradientsKernel(&s);}
     const Real w=s.faceWeight[0];
     ck(s.gasSpecies.gradX[4]==(1-w)*s.gasSpecies.rho[5],"physical gradient into absent owner changed");
-    Real raw[2];for(int k=0;k<2;++k)raw[k]=-(w*s.gasSpecies.rho[k*2]+(1-w)*s.gasSpecies.rho[k*2+1])+s.gasSpecies.rho[k*2+1];
-    ck(sameBits(s.gasSpecies.gradX[1],raw[0])&&sameBits(s.gasSpecies.gradX[3],raw[1]),"populated-last gradient arithmetic changed");
-    ck(sameBits(s.gasSpecies.gradX[5],-(raw[0]+raw[1])),"populated-last gradient closure changed");
+    for(int k=0;k<3;++k){const Real expected=w*(s.gasSpecies.rho[k*2+1]-s.gasSpecies.rho[k*2]);
+        ck(std::abs(s.gasSpecies.gradX[k*2+1]-expected)<Real(16)*std::numeric_limits<Real>::epsilon(),"physical Gauss gradient changed");}
+    ck(s.gasSpecies.gradX[1]+s.gasSpecies.gradX[3]+s.gasSpecies.gradX[5]==0,"gradient sum not closed");
 }
 ''')
 
@@ -140,14 +141,15 @@ int main(){State s;initialise(s);
 ''')
 
 
-def test_diffusion_keeps_populated_last_arithmetic_and_zero_face_inflow(tmp_path):
+def test_diffusion_equation_and_zero_face_inflow(tmp_path):
     compile_probe(tmp_path, closure_fixture() + r'''
 int main(){State s;initialise(s);Real D[3]={Real(.03),Real(.01),Real(.07)};
     for(int absent=0;absent<2;++absent){Real y[3]={Real(.1),absent?Real(.9):Real(.7),absent?Real(0):Real(.2)},grad[3]={Real(.17),Real(-.11),Real(-.06)},j[3],energy;
         ck(ugkwp::correctedSpeciesDiffusion(y,grad,Real(2),D,Real(0),Real(.8),Real(700),s.gasSpecies.thermo,j,energy),"one-sided diffusion rejected");
         Real raw[3],sum=0;for(int k=0;k<3;++k){raw[k]=-Real(2)*D[k]*grad[k];sum+=raw[k];}
-        if(!absent){ck(sameBits(j[0],raw[0]-y[0]*sum)&&sameBits(j[1],raw[1]-y[1]*sum),"populated-last diffusion arithmetic changed");ck(sameBits(j[2],-(j[0]+j[1])),"populated-last diffusion closure changed");}
-        else ck(j[2]==raw[2]&&j[2]>0,"zero face mass fraction erased physical diffusion");
+        for(int k=0;k<3;++k)ck(std::abs(j[k]-(raw[k]-y[k]*sum))<Real(16)*std::numeric_limits<Real>::epsilon(),"diffusion equation changed");
+        ck(std::abs(j[0]+j[1]+j[2])<Real(16)*std::numeric_limits<Real>::epsilon(),"diffusion sum not closed");
+        if(absent)ck(j[2]==raw[2]&&j[2]>0,"zero face mass fraction erased physical diffusion");
         Real expected=0;for(int k=0;k<3;++k)expected+=ugkwp::speciesH(k,Real(700),s.gasSpecies.thermo)*j[k];
         ck(energy==expected,"final diffusion enthalpy mismatch");
     }
