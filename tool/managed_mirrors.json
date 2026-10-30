@@ -1493,6 +1493,11 @@
       "path": "common/thermal/ParticleTrackingGeometry.H",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/PositiveInventory.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
     }
   ],
   "local_only": {

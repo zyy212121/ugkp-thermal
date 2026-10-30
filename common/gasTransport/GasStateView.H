@@ -8,6 +8,7 @@
 #include "MolecularViscosity.H"
 #include "MolecularConductivity.H"
 #include "GasEnergy.H"
+#include "PositiveInventory.H"
 #include "GasGeometryPolicy.H"
 #include "GasBoundaryLayerState.H"
 #include "../chemistry/ChemistryTypes.H"
