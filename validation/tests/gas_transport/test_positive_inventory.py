@@ -97,3 +97,24 @@ int main(){
  ck(std::abs((s.gasSpecies.rho[2]+s.gasSpecies.rho[3])-inventory)<=2*std::numeric_limits<Real>::denorm_min(),"trace inventory not conserved");
 }
 """)
+
+
+def test_subnormal_scaled_face_flux_cannot_round_above_donor_inventory(tmp_path):
+    compile_probe(tmp_path,fixture()+r"""
+int main(){
+ State s;initialise(s);const Real dt=1e-8;
+ const Real quantum=std::numeric_limits<Real>::denorm_min();
+ s.V[0]=s.V[1]=1e-10;
+ s.gasSpecies.rho[0]=s.gasSpecies.rho[1]=1;
+ s.gasSpecies.rho[2]=0;s.gasSpecies.rho[3]=75*quantum;
+ s.gasSpecies.flux[0]=2*quantum;s.gasSpecies.flux[3]=-2*quantum;
+ s.gasPhiRho[0]=0;
+ for(int c=0;c<2;++c){threadIdx.x=c;computeGasFluxPositivityScaleKernel(&s,dt);}
+ ck(s.gasSpecies.positivityScale[3]>0&&s.gasSpecies.positivityScale[3]<1,"inactive limiter");
+ threadIdx.x=0;applyGasFluxPositivityScaleKernel(&s);
+ ck(s.gasSpecies.flux[0]+s.gasSpecies.flux[3]==0,"scaled species mass closure");
+ for(int c=0;c<2;++c){threadIdx.x=c;applyGasFluxDivergenceByCellKernel(&s,dt);}
+ ck(s.gasSpecies.rho[3]>=0,"scaled subnormal flux rounded above donor inventory");
+ ck(s.gasSpecies.rho[2]+s.gasSpecies.rho[3]==75*quantum,"trace mass not conserved");
+}
+""")

@@ -185,13 +185,13 @@ __global__ void applyGasFluxPositivityScaleKernel(GasState* sp, const bool nativ
                 scale=GPU_OPERATOR_R(1.0);
             }
             for (int k=0; k<ugkwp::GasStateTraits<GasState>::speciesCount; ++k)
-                s.gasSpecies.flux[k*s.nFaces+f]*=scale;
+                s.gasSpecies.flux[k*s.nFaces+f]=ugkwp::scaleInventoryFlux(s.gasSpecies.flux[k*s.nFaces+f],scale);
         }
     }
-    s.gasPhiRho[f] *= scale;
-    s.gasPhiRhoUx[f] *= scale;
-    s.gasPhiRhoUy[f] *= scale;
-    s.gasPhiRhoUz[f] *= scale;
-    s.gasPhiRhoE[f] *= scale;
+    s.gasPhiRho[f] = ugkwp::scaleInventoryFlux(s.gasPhiRho[f],scale);
+    s.gasPhiRhoUx[f] = ugkwp::scaleInventoryFlux(s.gasPhiRhoUx[f],scale);
+    s.gasPhiRhoUy[f] = ugkwp::scaleInventoryFlux(s.gasPhiRhoUy[f],scale);
+    s.gasPhiRhoUz[f] = ugkwp::scaleInventoryFlux(s.gasPhiRhoUz[f],scale);
+    s.gasPhiRhoE[f] = ugkwp::scaleInventoryFlux(s.gasPhiRhoE[f],scale);
     publishLimitedGasWallEnergy(s, f, 0);
 }
