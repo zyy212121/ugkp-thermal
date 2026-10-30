@@ -155,17 +155,58 @@ namespace chmt {
 #undef CHMT_READ_SST
             }
             if (d.found("particle")) {
-                const auto& a = d.subDict("particle");
-                auto& t = p.particle;
-                t.condensedIndex = a.lookup<Foam::label>("condensedIndex");
-                t.maxFaceCrossings = a.lookupOrDefault<Foam::label>("maxFaceCrossings", 32);
-                t.heatTransferCoefficient = readNumber(a, "heatTransferCoefficient");
-                t.contactHeatTransferCoefficient = readNumber(a, "contactHeatTransferCoefficient");
-                t.contactDuration = readNumber(a, "contactDuration");
-                t.emissivity = readNumber(a, "emissivity", 0);
-                const auto mode = text(a, "contact");
-
-                t.contact = mode == "Deposit"?ParticleContactMode::Deposit:ParticleContactMode::ElasticRebound;
+                const auto& a=d.subDict("particle");
+                auto& t=m.particlePhase;
+                t.capacity=a.lookupOrDefault<Foam::label>("capacity",t.capacity);
+                t.maxFaceWalkHops=a.lookupOrDefault<Foam::label>("maxFaceCrossings",t.maxFaceWalkHops);
+                t.randomSeed=std::stoull(text(a,"randomSeed","1"));
+#define CHMT_PARTICLE_NUMBER(name) t.name=readNumber(a,#name,t.name)
+                CHMT_PARTICLE_NUMBER(injectionParcelMass);
+                CHMT_PARTICLE_NUMBER(rhoSolid);CHMT_PARTICLE_NUMBER(diameter);
+                CHMT_PARTICLE_NUMBER(minimumDiameter);CHMT_PARTICLE_NUMBER(maximumDiameter);
+                CHMT_PARTICLE_NUMBER(minimumTemperature);CHMT_PARTICLE_NUMBER(maximumTemperature);
+                CHMT_PARTICLE_NUMBER(dragResidualRe);CHMT_PARTICLE_NUMBER(minimumSolidFraction);
+                CHMT_PARTICLE_NUMBER(minimumTheta);CHMT_PARTICLE_NUMBER(collisionalRestitution);
+                CHMT_PARTICLE_NUMBER(pressureKickFraction);CHMT_PARTICLE_NUMBER(packingFraction);
+#undef CHMT_PARTICLE_NUMBER
+                t.solveTemperature=flag(a,"solveTemperature",t.solveTemperature);
+                t.collisionalPressure=flag(a,"collisionalPressure",t.collisionalPressure);
+                t.packingPressure=flag(a,"packingPressure",t.packingPressure);
+                t.packingIterations=a.lookupOrDefault<Foam::label>("packingIterations",t.packingIterations);
+                t.csrCellLocalPath=flag(a,"csrCellLocalPath",t.csrCellLocalPath);
+                t.warpAggregatedBinning=flag(a,"warpAggregatedBinning",t.warpAggregatedBinning);
+                t.heavyReductionMode=a.lookupOrDefault<Foam::label>("heavyReductionMode",t.heavyReductionMode);
+                t.heavyAutoInterval=a.lookupOrDefault<Foam::label>("heavyAutoInterval",t.heavyAutoInterval);
+                t.particleBlockThreads=a.lookupOrDefault<Foam::label>("particleBlockThreads",t.particleBlockThreads);
+                t.reductionBlockThreads=a.lookupOrDefault<Foam::label>("reductionBlockThreads",t.reductionBlockThreads);
+                const auto drag=text(a,"dragModel","SchillerNaumann");
+                require(drag=="none"||drag=="SchillerNaumann"||drag=="GidaspowErgunWenYu","unsupported shared particle dragModel");
+                t.dragModel=drag=="none"?0:drag=="SchillerNaumann"?1:2;
+                const auto heat=text(a,"heatTransferModel","RanzMarshall");
+                require(heat=="none"||heat=="RanzMarshall","unsupported shared particle heatTransferModel");
+                t.heatTransferModel=heat=="none"?0:1;
+                // The former CHMT particle fields never selected an implemented
+                // phase. Do not reinterpret a prescribed coefficient as Ranz--Marshall.
+                for(const char* key:{"heatTransferCoefficient","contactHeatTransferCoefficient","contactDuration","emissivity"})
+                    require(readNumber(a,key,0)==0,std::string("particle.")+key+" is not a shared thermal-particle model input");
+                auto& w=m.particleContact;
+                const auto contact=text(a,"contactModel","reboundContact");
+                require(contact=="reboundContact"||contact=="solidifyingDeposition"||contact=="coldWall1D"||contact=="coldWall2D","unsupported shared particle contactModel");
+                w.model=contact=="reboundContact"?1:contact=="coldWall2D"?4:3;
+                if(a.found("contactCoeffs")){
+                    const auto& c=a.subDict("contactCoeffs");
+#define CHMT_CONTACT_NUMBER(name) w.name=readNumber(c,#name,w.name)
+                    CHMT_CONTACT_NUMBER(sommerfeldThreshold);CHMT_CONTACT_NUMBER(maximumCoverage);
+                    CHMT_CONTACT_NUMBER(depositionHeatTransferEfficiency);CHMT_CONTACT_NUMBER(reflectionHeatTransferEfficiency);
+                    CHMT_CONTACT_NUMBER(adhesionEnergyScale);CHMT_CONTACT_NUMBER(contactAngleDegree);
+                    CHMT_CONTACT_NUMBER(meltingTemperature);CHMT_CONTACT_NUMBER(mushyRange);CHMT_CONTACT_NUMBER(latentHeat);
+                    CHMT_CONTACT_NUMBER(solidDensity);CHMT_CONTACT_NUMBER(solidSpecificHeat);CHMT_CONTACT_NUMBER(solidThermalConductivity);
+                    CHMT_CONTACT_NUMBER(pinningThicknessFraction);CHMT_CONTACT_NUMBER(interfaceResistance);
+#undef CHMT_CONTACT_NUMBER
+                    w.heatTransfer=flag(c,"heatTransfer",w.heatTransfer);
+                    w.wallTransientResistance=flag(c,"wallTransientResistance",w.wallTransientResistance);
+                    w.nonlinearIterations=c.lookupOrDefault<Foam::label>("nonlinearIterations",w.nonlinearIterations);
+                }
             }
             if (d.found("meshMotion")) {
                 const auto& a = d.subDict("meshMotion");

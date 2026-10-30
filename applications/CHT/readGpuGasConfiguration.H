@@ -54,6 +54,15 @@ const dictionary* gpuSolutionControls =
   : nullptr;
 
 SharedGasModelInput sharedGasModel(runTime,mesh);
+// Application capability: shared mixture operators remain available to gasUGKP/CHMT.
+if (sharedGasModel.model().mode != ugkwp::GasMode::SingleLegacy)
+{
+    FatalErrorInFunction
+        << "CHT supports single-component gas, with or without particles. "
+        << "Use CHMT for frozen-mixture material coupling."
+        << exit(FatalError);
+}
+
 MolecularTransportInput molecularTransport(runTime,mesh,sharedGasModel.model());
 
 scalar gammaGasValue = 0;

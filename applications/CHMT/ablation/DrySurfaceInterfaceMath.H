@@ -143,6 +143,14 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
             }
             if ((!finite(factor) || factor<0)) return false;
         }
+        // A frozen, steady wall layer cannot withdraw a species absent at
+        // its matching boundary. This transport supply condition is independent
+        // of the time interval used for the finite-inventory bound.
+        if(!in.useAcceptedFlux&&p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
+            &&in.wallContext.mechanism.reactionCount==0){
+            for(int s=0;s<Ns;++s)if(trial.gasSpecies[s]+trial.poreSpecies[s]<0
+                &&in.wallContext.matching.massFraction[s]==0)factor=0;
+        }
         // Actual geometric sweep is immutable during this evaluation. If a
         // donor limit would rescale it, the entire geometry/source trial must be
         // recomputed instead of silently changing only its diagnostic mass.
@@ -294,11 +302,12 @@ CHMT_HD inline bool solveDrySurfaceInterface(const SurfacePhysicsInput& in,const
 }
 // The proposal adapter uses the same reference-area units on CPU and GPU.
 CHMT_HD inline WallFaceSample dryWallFaceSample(const SurfacePhysicsInput& input,
-    const SurfacePhysicsResult& physics) {
+    const SurfacePhysicsResult& physics,const PhysicsConfig& config) {
     WallFaceSample wall;wall.temperature=physics.topTemperature;wall.primaryKind=ExchangeKind::GasSolid;
     wall.velocity=physics.gasState.velocity-input.gasNormal*dot(physics.gasState.velocity,input.gasNormal);
     for(int s=0;s<Ns;++s){wall.speciesRate[s]=physics.gasSpecies[s];wall.poreRate[s]=physics.poreSpecies[s];wall.poreSweepRate[s]=physics.poreSweep[s];}
     for(int c=0;c<Nc;++c)wall.condensedRate[c]=physics.condensed[c];
+    wall.materialEffusivity=materialThermalEffusivity(input.solid,input.solidVolume,config);
     wall.radiationFlux=physics.radiationFlux;wall.solidNormalVelocity=physics.solidSpeed;wall.normalVelocity=physics.topSpeed;
     return wall;
 }

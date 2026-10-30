@@ -1,4 +1,4 @@
-"""Execute unchanged production heat transaction kernels with HOST launch adapters."""
+"""Execute production contact heat transaction kernels with HOST launch adapters."""
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
 
 from pathlib import Path
@@ -26,19 +26,23 @@ using GpuTime=double;
 ThreadIndex gridDim{1};
 void atomicAdd(double*p,double x){*p+=x;}
 struct DeviceState{
+ int particleStuckModelConfigured=1;
+ ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
+ GpuReal gasPrClamped=.9*.9*.9,gasCp=1004.5;
  int nCells=1,nFaces=1,particleCapacity=4,count=2;int*particleCountDevice=&count;
  int pStatus[4]={1,1},pCellId[4]={},pStuckFaceId[4]={-1,-1},compactPStuckFaceId[4]={};
- unsigned char pStuck[4]={},compactPStuck[4]={},particleStuckCandidateMask[1]={};
+ unsigned char pStuck[4]={1,1},compactPStuck[4]={},particleStuckCandidateMask[1]={};
  GpuReal pT[4]={2800,3400},compactPT[4]={},pm[4]={100,100},pd[4]={.001,.002};
  GpuReal pux[4]={40000,40000},puy[4]={},puz[4]={};
  float pColdNodeSpecificEnthalpy[32]={},pCold2DNodeSpecificEnthalpy[256]={},compactPColdNodeSpecificEnthalpy[32]={},compactPCold2DNodeSpecificEnthalpy[256]={};
  double pThermalEnthalpyResidual[4]={},compactPThermalEnthalpyResidual[4]={};
  GpuReal gasBoundaryT[1]={300};
- GpuReal couplingRhoOld[1]={1},couplingUxOld[1]={40000},couplingUyOld[1]={},couplingUzOld[1]={},couplingTgasOld[1]={3200};
+ GpuReal couplingRhoOld[1]={1},couplingUxOld[1]={0},couplingUyOld[1]={},couplingUzOld[1]={},couplingTgasOld[1]={3200};
  GpuReal Tgas[1]={3200},p[1]={},Ux[1]={40000},Uy[1]={},Uz[1]={};
  GpuReal rho[1]={1},rhoUx[1]={40000},rhoUy[1]={},rhoUz[1]={},V[1]={1},epsGPrev[1]={.9};
  double rhoE[1]={800000000.+717.5*3200},rhoENext[1]={};double A[1]={},Q[1]={};
  double*particleHeatCoefficient=A,*particleHeatBudget=Q;
+ double particleContactHeatCandidate[4]={};unsigned char particleContactHeatEpoch[4]={};
  GpuReal rhoMin=1e-6,TgasMin=1,TpMin=1,TpMax=6000,particleDiameterFallback=.001;
  GpuReal rhoSolid=3000,gasMu=1e-5,gasPrOneThird=.9,Rgas=287,gammaGas=1.4;
  Foam::gpuThermal::ColdWallSolidificationParameters coldWallSolidificationParameters{};

@@ -64,7 +64,9 @@ UGKWP_GAS_HD physical::Face<double,2> resistanceFace(Profile&p,int l,const doubl
  for(int d=0;d<2;++d){double cross=0;for(int a=0;a<3;++a)for(int b=0;b<3;++b)cross+=v.gradU[b][a]*in.normal[b]*p.ctx.tangent[d][a];for(int a=0;a<3;++a)f.momentum[a]+=mu*cross*p.ctx.tangent[d][a];momentum[d]=-p.ctx.mass*p.ctx.wallU[d];for(int a=0;a<3;++a)momentum[d]+=f.momentum[a]*p.ctx.tangent[d][a];}
  coherent_energy::Integral<double> integral;
  for(double g:{-.57735026918962576451,.57735026918962576451}){double yy=(ya+yb)/2+(yb-ya)/2*g;auto vv=basePhysical(p,yy);physical::Face<double,2>ff;physical::Source<double,2>ss;pointOk=trackedEvaluate(in,cfg,vv,yy,in.normal,p.ctx.wallNormal,ff,ss);if(valid)*valid=pointOk&&*valid;integral.add((yb-ya)/2,coherent_energy::terms(in,cfg,p.ctx,vv,ss.nut,momentum,F));}
- if(resistance)*resistance=integral.resistance;if(stressIntegral)*stressIntegral=integral.stress;if(advectiveIntegral)*advectiveIntegral=integral.advective;
+ if(resistance)*resistance=integral.resistance;
+ if(stressIntegral)*stressIntegral=integral.stress;
+ if(advectiveIntegral)*advectiveIntegral=integral.advective;
  f.energy=integral.energy(p.w.state[l+1][2]-p.w.state[l][2]);for(int j=0;j<2;++j)f.species[j]=F[j];return f;
 }
 
@@ -103,7 +105,8 @@ UGKWP_GAS_HD bool refresh(const Input&in,const Config&cfg,W&w,const Ctx&ctx,doub
  for(int i=0;i<cfg.nodes;++i){points[i]={};oldFlux[i]={};if(!detail::pointState(in,cfg,ctx,w.state[i],points[i]))return false;for(int j=0;j<6;++j)low[i][j]=0;}
  for(int i=0;i<cfg.nodes-1;++i){auto a=points[i],b=points[i+1];detail::pointSst(in,cfg,w.y[i],points[i],points[i+1],w.y[i+1]-w.y[i],a);detail::pointSst(in,cfg,w.y[i+1],points[i],points[i+1],w.y[i+1]-w.y[i],b);trackOldInterval(in,cfg,points[i],points[i+1],a,w.y[i+1]-w.y[i],w.y[i]);trackOldInterval(in,cfg,points[i],points[i+1],b,w.y[i+1]-w.y[i],w.y[i+1]);if(!detail::layerFlux(in,cfg,ctx,a,b,w.y[i+1]-w.y[i],oldFlux[i],w.y[i],w.y[i+1]))return false;}
  for(int i=0;i<cfg.nodes-1;++i){auto p=points[i];if(!detail::pointReaction(in,p))return false;double volume=i==0?w.y[1]/2:(w.y[i+1]-w.y[i-1])/2;int sp=ctx.independent[0];low[i][3]=(oldFlux[i].species[sp]-(i==0?in.massFlux[sp]:oldFlux[i-1].species[sp])-volume*p.source[sp])/ctx.scale[3];}
- for(int j:{0,1,2,4,5})low[0][j]=w.state[0][j];if(!cfg.enableSst)low[0][5]-=1;
+ for(int j:{0,1,2,4,5})low[0][j]=w.state[0][j];
+ if(!cfg.enableSst)low[0][5]-=1;
  int edge=cfg.nodes-1;low[edge][0]=w.state[edge][0]-ctx.edgeU[0];low[edge][1]=w.state[edge][1]-ctx.edgeU[1];low[edge][2]=w.state[edge][2]-(in.matching.temperature-in.temperature);low[edge][3]=w.state[edge][3]-in.matching.massFraction[ctx.independent[0]];low[edge][4]=w.state[edge][4]-(cfg.enableSst?std::sqrt(in.matching.k):0);low[edge][5]=w.state[edge][5]-(cfg.enableSst?1/std::sqrt(in.matching.omega):1);
  if(cfg.nodes>2&&cfg.enableSst)low[1][5]=points[1].z-points[0].z-w.y[1]*std::sqrt(points[0].rho*in.model.sstCoefficients.beta1/(6*points[0].mu));
  double wallEnergy=coherent_energy::wallTransport(in,ctx,points[0].normalVelocity);out={};out.conductiveHeatFlux=oldFlux[0].energy-wallEnergy;for(int d=0;d<2;++d)for(int a=0;a<3;++a)out.traction[a]-=oldFlux[0].momentum[d]*ctx.tangent[d][a];
@@ -192,7 +195,9 @@ template<class Stats> UGKWP_GAS_HD bool solve(const Input&in,const Config&origin
  // Nonzero boundary RHS still receives the original interior coupling.
  for(int node:{0,cfg.nodes-1})for(int col=0;col<6;++col){if(node==0&&(col==3||(col==5&&cfg.enableSst&&ctx.mass>0)))continue;int j=node*6+col;
  BoundaryTransform t;t.column=j;t.lo=std::max(0,j-17);t.hi=std::min(n,j+18);t.diagonal=a[j*n+j];for(int i=t.lo;i<t.hi;++i)t.values[i-t.lo]=a[i*n+j];cache.boundary.push_back(t);
- for(int i=0;i<n;++i)if(i!=j)a[i*n+j]=0;for(int k=0;k<n;++k)a[j*n+k]=0;a[j*n+j]=1;}
+ for(int i=0;i<n;++i)if(i!=j)a[i*n+j]=0;
+ for(int k=0;k<n;++k)a[j*n+k]=0;
+ a[j*n+j]=1;}
  if(!ok||!lu.factor(a,n)){ok=false;++s.factorFailures;break;}
  }else scale=cachedScale;
  for(const auto&t:cache.boundary){int j=t.column;double step=rhs[j]/t.diagonal;for(int i=t.lo;i<t.hi;++i)if(i!=j)rhs[i]-=t.values[i-t.lo]*step;rhs[j]=step;}
@@ -268,7 +273,8 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
   if(!team.all(valid))return false;
   double wallEnergy=coherent_energy::wallTransport(in,ctx,points[0].normalVelocity);
   if(team.leader()){
-   for(int j:{0,1,2,4,5})low[0][j]=w.state[0][j];if(!cfg.enableSst)low[0][5]-=1;
+   for(int j:{0,1,2,4,5})low[0][j]=w.state[0][j];
+   if(!cfg.enableSst)low[0][5]-=1;
    low[edge][0]=w.state[edge][0]-ctx.edgeU[0];low[edge][1]=w.state[edge][1]-ctx.edgeU[1];low[edge][2]=w.state[edge][2]-(in.matching.temperature-in.temperature);low[edge][3]=w.state[edge][3]-in.matching.massFraction[ctx.independent[0]];low[edge][4]=w.state[edge][4]-(cfg.enableSst?std::sqrt(in.matching.k):0);low[edge][5]=w.state[edge][5]-(cfg.enableSst?1/std::sqrt(in.matching.omega):1);
    if(nodes>2&&cfg.enableSst)low[1][5]=points[1].z-points[0].z-w.y[1]*std::sqrt(points[0].rho*in.model.sstCoefficients.beta1/(6*points[0].mu));
    out={};out.conductiveHeatFlux=oldFlux[0].energy-wallEnergy;for(int d=0;d<2;++d)for(int a=0;a<3;++a)out.traction[a]-=oldFlux[0].momentum[d]*ctx.tangent[d][a];
@@ -316,16 +322,19 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
    auto branches=hermiteBranches(cfg,w);const int mask=cfg.enableSst&&ctx.mass>0;
    bool fresh=!lu.valid||lu.n!=n||cache.dirichletMask!=mask||!cache.haveState||branches!=cache.branches;
    if(fresh){
-    if(team.leader())collectNutBranches=true;team.sync();bool branchBaseValid=refresh(in,cfg,w,ctx,norm,out);++evaluations;
+    if(team.leader())collectNutBranches=true;
+    team.sync();bool branchBaseValid=refresh(in,cfg,w,ctx,norm,out);++evaluations;
     if(!branchBaseValid){ok=false;if(team.leader())collectNutBranches=false;team.sync();break;}
     auto&baseNutBranches=s.baseNutBranches;auto&steps=s.steps;
     if(team.leader()){baseNutBranches=currentNutBranches;a.resize(n*n);steps.resize(n);}++jacobianBuilds;
-    for(int i=team.rank();i<n*n;i+=team.size())a[i]=0.;team.sync();
+    for(int i=team.rank();i<n*n;i+=team.size())a[i]=0.;
+    team.sync();
     for(int col=0;col<6&&ok;++col)for(int color=0;color<5&&ok;++color){
      copyActive(cfg,probe,w);
      for(int node=color+5*team.rank();node<cfg.nodes;node+=5*team.size()){
       int j=node*6+col;double old=base[j],eps=std::sqrt(std::numeric_limits<double>::epsilon()),vs=col==2?100:1;
-      if(col==4)vs=std::sqrt(std::max(1.,in.matching.k))*eps;if(col==5)vs=eps/std::sqrt(in.matching.omega);
+      if(col==4)vs=std::sqrt(std::max(1.,in.matching.k))*eps;
+      if(col==5)vs=eps/std::sqrt(in.matching.omega);
       scale[j]=std::max(std::abs(old),vs);double h=eps*scale[j];if(col==3&&old>=.5)h=-h;probe.state[node][col]=old+h;
       if((col==4||col==5)&&!pchipFdCompatible(cfg,w,probe,node,col)){probe.state[node][col]=old-h;if(!pchipFdCompatible(cfg,w,probe,node,col))probe.state[node][col]=old+h;}steps[j]=probe.state[node][col]-old;
      }
@@ -362,13 +371,15 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
      for(int node=color+5*team.rank();node<cfg.nodes;node+=5*team.size()){
       int j=node*6+col;bool zero=col==4&&base[j]!=0;int lo=std::max(0,node-2),hi=std::min(cfg.nodes-1,node+2);for(int i=lo;i<=hi;++i)if(probe.residual[i][4]!=res[i*6+4])zero=false;
       bool fullZero=true;for(int i=lo*6;i<(hi+1)*6;++i)if(probe.residual[i/6][i%6]!=res[i])fullZero=false;
-      if(zero||fullZero)fallback=true;for(int i=lo*6;i<(hi+1)*6;++i)a[i*n+j]=(probe.residual[i/6][i%6]-res[i])/steps[j]*scale[j];
+      if(zero||fullZero)fallback=true;
+      for(int i=lo*6;i<(hi+1)*6;++i)a[i*n+j]=(probe.residual[i/6][i%6]-res[i])/steps[j]*scale[j];
      }
      fallback=!team.all(!fallback);
      if(fallback){
       for(int node=color;node<cfg.nodes&&ok;node+=5){
        int j=node*6+col;double old=base[j],eps=std::sqrt(std::numeric_limits<double>::epsilon()),vs=col==2?100:1;
-       if(col==4)vs=std::sqrt(std::max(1.,in.matching.k))*eps;if(col==5)vs=eps/std::sqrt(in.matching.omega);
+       if(col==4)vs=std::sqrt(std::max(1.,in.matching.k))*eps;
+       if(col==5)vs=eps/std::sqrt(in.matching.omega);
        double h=eps*std::max(std::abs(old),vs);if(col==3&&old>=.5)h=-h;double nn;bool valid=false;
        copyActive(cfg,probe,w);
        if(team.leader()){probe.state[node][col]=old+h;if((col==4||col==5)&&!pchipFdCompatible(cfg,w,probe,node,col)){probe.state[node][col]=old-h;if(pchipFdCompatible(cfg,w,probe,node,col))h=-h;}}
@@ -395,22 +406,26 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
        if(!valid){ok=false;if(team.leader())++s.fdFailures;team.sync();break;}
        double actual=probe.state[node][col]-old;bool zero=col==4&&old!=0;
        for(int i=0;i<cfg.nodes;++i)if(probe.residual[i][4]!=res[i*6+4])zero=false;
-       for(int i=team.rank();i<n;i+=team.size())plus[i]=probe.residual[i/6][i%6];team.sync();
+       for(int i=team.rank();i<n;i+=team.size())plus[i]=probe.residual[i/6][i%6];
+       team.sync();
        if(zero){
         if(team.leader())++s.centralDirections;
         h=std::cbrt(std::numeric_limits<double>::epsilon())*std::max(std::abs(old),std::sqrt(std::max(1.,in.matching.k)));
         while(true){
          copyActive(cfg,probe,w);if(team.leader())probe.state[node][col]=old+h;team.sync();valid=refresh(in,cfg,probe,ctx,nn,trialOut);++evaluations;
          bool samePlus=sameBranches(cfg,w,probe);
-         for(int i=team.rank();i<n;i+=team.size())plus[i]=probe.residual[i/6][i%6];team.sync();double hp=0;if(team.leader())hp=probe.state[node][col]-old;hp=team.broadcast(hp);
+         for(int i=team.rank();i<n;i+=team.size())plus[i]=probe.residual[i/6][i%6];
+         team.sync();double hp=0;if(team.leader())hp=probe.state[node][col]-old;hp=team.broadcast(hp);
          copyActive(cfg,probe,w);if(team.leader())probe.state[node][col]=old-h;team.sync();valid=refresh(in,cfg,probe,ctx,nn,trialOut)&&valid;++evaluations;if(team.leader())actual=hp-(probe.state[node][col]-old);actual=team.broadcast(actual);
          if(!valid){ok=false;break;}if(samePlus&&sameBranches(cfg,w,probe))break;
          double nextH=h/2;if(old+nextH==old||old-nextH==old||old+nextH==old+h){if(team.leader())++s.fdRoundoff;team.sync();break;}h=nextH;
         }
         if(!ok)break;
        }
-       if(team.leader())scale[j]=std::max(std::abs(old),vs);team.sync();
-       for(int i=team.rank();i<n;i+=team.size())a[i*n+j]=(plus[i]-(zero?probe.residual[i/6][i%6]:res[i]))/actual*scale[j];team.sync();
+       if(team.leader())scale[j]=std::max(std::abs(old),vs);
+       team.sync();
+       for(int i=team.rank();i<n;i+=team.size())a[i*n+j]=(plus[i]-(zero?probe.residual[i/6][i%6]:res[i]))/actual*scale[j];
+       team.sync();
       }
      }
     }
@@ -419,7 +434,9 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
      cachedScale=scale;cache.branches=branches;cache.dirichletMask=mask;collectNutBranches=false;cache.boundary.clear();
      for(int node:{0,cfg.nodes-1})for(int col=0;col<6;++col){if(node==0&&(col==3||(col==5&&cfg.enableSst&&ctx.mass>0)))continue;int j=node*6+col;
       BoundaryTransform t;t.column=j;t.lo=std::max(0,j-17);t.hi=std::min(n,j+18);t.diagonal=a[j*n+j];for(int i=t.lo;i<t.hi;++i)t.values[i-t.lo]=a[i*n+j];cache.boundary.push_back(t);
-      for(int i=0;i<n;++i)if(i!=j)a[i*n+j]=0;for(int k=0;k<n;++k)a[j*n+k]=0;a[j*n+j]=1;
+      for(int i=0;i<n;++i)if(i!=j)a[i*n+j]=0;
+      for(int k=0;k<n;++k)a[j*n+k]=0;
+      a[j*n+j]=1;
      }
      factored=ok&&lu.factor(a,n);if(!factored)++s.factorFailures;
     }
@@ -431,7 +448,8 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
    team.sync();double previousNorm=norm;double alpha=1,next=norm;bool accepted=false;
    for(int line=0;line<40;++line){
     copyActive(cfg,probe,w);bool feasible=true;
-    for(int i=team.rank();i<n;i+=team.size())probe.state[i/6][i%6]=base[i]+alpha*rhs[i]*scale[i];team.sync();
+    for(int i=team.rank();i<n;i+=team.size())probe.state[i/6][i%6]=base[i]+alpha*rhs[i]*scale[i];
+    team.sync();
     for(int i=team.rank();i<cfg.nodes;i+=team.size())feasible=detail::feasibleLayerComposition<double,2>(probe.state[i])&&feasible;
     feasible=team.all(feasible);bool valid=false;if(feasible){valid=refresh(in,cfg,probe,ctx,next,trialOut);++evaluations;}
     if(valid&&std::isfinite(next)&&next<norm){copyActive(cfg,w,probe);if(team.leader())out=trialOut;norm=next;accepted=true;team.sync();break;}alpha*=.5;

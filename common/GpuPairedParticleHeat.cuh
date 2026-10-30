@@ -1,11 +1,18 @@
 #pragma once
-// CHT heat transaction. Coefficients and candidates share the post-collision
-// epoch; no particle field changes between this reduction and its relaxation.
+#include "gasTransport/ParticleHeatReservoir.H"
+// Contact/profile heat transaction. Membership is captured with the macro
+// source; coefficients use the corrected post-collision state, including a
+// parcel that has detached since it was excluded from the mobile source.
+__device__ __forceinline__ bool pairedParticleHeatMember(const DeviceState& s,int i)
+{
+ if(!s.particleStuckModelConfigured)return false;
+ return s.pStuck[i]!=Foam::gpuThermal::particleWallMobile || s.particleContactHeatEpoch[i];
+}
 struct PairedParticleHeatCandidate {double capacity, weightedCapacity, specificHeat;};
 __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandidate
 (const DeviceState& s,int i,GpuTime dt)
 {
- if(!(dt>0.)||s.pStatus[i]==0||!(s.pm[i]>0))return {0.,0.,0.};
+ if(!(dt>0.)||s.pStatus[i]==0||!(s.pm[i]>0)||!pairedParticleHeatMember(s,i))return {0.,0.,0.};
  const int c=s.pCellId[i];if(c<0||c>=s.nCells)return {0.,0.,0.};
  const auto law=particleCaloricDevice(s,i);
  const double base=particleMaterialEnthalpyBaseDevice(s,i),carry=s.pThermalEnthalpyResidual[i];
@@ -77,7 +84,17 @@ __device__ __forceinline__ void accumulatePairedParticleHeatCandidate
 (DeviceState& s,int i,GpuTime dt)
 {
  if(s.particleHeatCoefficient==nullptr||s.particleHeatBudget==nullptr)return;
- const auto p=pairedParticleHeatCandidate(s,i,dt);if(!(p.capacity>0.))return;
+#if defined(GPU_MIXTURE_PARTICLE_COUPLING)
+ // Mixture free-particle coupling runs after collisions and owns the current
+ // mobile set. It does not use the earlier single-gas macro partition.
+ if(ugkwp::mixtureGasActive(s))
+  s.particleContactHeatEpoch[i]=s.pStuck[i]!=Foam::gpuThermal::particleWallMobile;
+ else
+#endif
+  s.particleContactHeatEpoch[i]=pairedParticleHeatMember(s,i);
+ const auto p=pairedParticleHeatCandidate(s,i,dt);
+ s.particleContactHeatCandidate[i]=p.capacity>0.?p.specificHeat:0.;
+ if(!(p.capacity>0.))return;
  const int c=s.pCellId[i];atomicAdd(s.particleHeatCoefficient+c,p.weightedCapacity);
  atomicAdd(s.particleHeatBudget+c,double(s.pm[i])*p.specificHeat);
  atomicAdd(s.rhoENext+c,p.capacity);
@@ -96,16 +113,20 @@ __device__ __forceinline__ double pairedGasEnergyFloor(const DeviceState&s,int c
  const double rho=double(rhoSafe);
  const double kinetic=ugkwp::gasLegacyKineticEnergy(rho,
   ugkwp::gasEnergyFiniteOr(double(mx)/rho,0.),ugkwp::gasEnergyFiniteOr(double(my)/rho,0.),ugkwp::gasEnergyFiniteOr(double(mz)/rho,0.));
- return kinetic+ugkwp::gasLegacyMinimumInternalEnergy(double(s.rhoMin),rho,
+ const double legacy=ugkwp::gasLegacyMinimumInternalEnergy(double(s.rhoMin),rho,
   double(s.Rgas),double(s.TgasMin),double(s.gammaGas),double(OfSmall));
+ return kinetic+ugkwp::particleGasMinimumInternalEnergy(s,c,legacy);
 }
 __global__ void acceptPairedParticleHeatKernel(DeviceState*sp)
 {
  DeviceState&s=*sp;int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=s.nCells)return;
  const double C=s.rhoENext[c],A=s.particleHeatCoefficient[c],Q=s.particleHeatBudget[c];
  const double volume=pairedGasPhysicalVolume(s,c);
- const double Cg=volume*double(clampMin(finiteOr(s.rho[c],s.rhoMin),s.rhoMin))*double(s.Rgas)
+ double Cg=volume*double(clampMin(finiteOr(s.rho[c],s.rhoMin),s.rhoMin))*double(s.Rgas)
   /ugkwp::gasLegacyCaloricDenominator(double(s.gammaGas),double(OfSmall));
+ // Retain the existing finite-bath exponential and candidate/settlement
+ // organization. Its gas capacity is the actual local caloric derivative.
+ Cg=ugkwp::particleGasHeatCapacity(s,c,volume,Cg);
  double scale=C>0.?ugkwp::pairedHeatBathFraction(A/C,C,Cg):0.;
  const double available=(s.rhoE[c]-pairedGasEnergyFloor(s,c))*volume;
  scale*=ugkwp::pairedHeatAcceptanceScale(scale*Q,available);
@@ -114,9 +135,8 @@ __global__ void acceptPairedParticleHeatKernel(DeviceState*sp)
 __device__ __forceinline__ void publishPairedParticleGasHeat(DeviceState&s,int i,GpuTime dt)
 {
  if(s.particleHeatCoefficient==nullptr||s.particleHeatBudget==nullptr)return;
- if(particleColdProfileNodeCountDevice(s,i)==64)return;
- const auto p=pairedParticleHeatCandidate(s,i,dt);if(!(p.capacity>0.))return;
- const int c=s.pCellId[i];const double dh=s.particleHeatCoefficient[c]*p.specificHeat;
+ if(!pairedParticleHeatMember(s,i) || particleColdProfileNodeCountDevice(s,i)==64)return;
+ const int c=s.pCellId[i];const double dh=s.particleHeatCoefficient[c]*s.particleContactHeatCandidate[i];
  if(dh==0.)return;
  double accepted=0.;const int count=particleColdProfileNodeCountDevice(s,i);
  if(count){

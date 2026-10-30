@@ -123,6 +123,10 @@ __global__ void injectBoundaryParticlesKernel
         s.pContactDuration[slot] = 0.0f;
         s.pContactMaximumArea[slot] = 0.0f;
         s.pContactPeakFraction[slot] = 0.0f;
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+        // Injection follows the macro heat partition and can reuse old slots.
+        if(s.particleContactHeatEpoch)s.particleContactHeatEpoch[slot]=0;
+#endif
         clearColdWallParticleState(s, slot);
         clearColdWall2DParticleState(s, slot);
 #endif

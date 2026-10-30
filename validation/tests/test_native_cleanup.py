@@ -128,7 +128,7 @@ int main(){
 
 def radiation_code(text=None):
     if text is None:
-        text = (ROOT/'applications/CHT/gpu/GpuResidentStrict.cu').read_text()
+        text = (ROOT/'common/thermal/GpuResidentStrict.cu').read_text()
     legacy = 'struct ParticleRadiationValidationError' in text
     record = block(text, 'struct ParticleRadiationValidationError')+';\n' if legacy else ''
     code = CUDA + r'''
@@ -262,6 +262,6 @@ def test_first_slice_preserves_coupler_order_and_real_download_consumers():
     assert 'savedVelocityBound' not in header
     assert 'Legacy transient restart lacks saved impact velocity' not in header
     assert 'scalarField puxOld(nParticles,0.0), puyOld(nParticles,0.0), puzOld(nParticles,0.0);' in header
-    native = (ROOT/'applications/CHT/gpu/GpuResidentStrict.cu').read_text()
+    native = (ROOT/'common/thermal/GpuResidentStrict.cu').read_text()
     assert 'particleRadiationValidationError' not in native
     assert 'validateParticleRadiationAffineTemperatureKernel' not in native

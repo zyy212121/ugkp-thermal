@@ -4,12 +4,14 @@
 #include "core/AuditArithmetic.H"
 #include "materials/GasThermoAdapter.H"
 #include <string>
+#include "../../../common/gasTransport/MolecularConductivity.H"
 namespace chmt {
 CHMT_HD inline Real gasMolecularConductivity(const PhysicsConfig& p,Real T,const Real* Y){
     if(p.gasTransportCoefficients.prandtlSpecies<0)return p.gasConductivity;
-    const GasThermoAdapter<Ns> thermo(p.species);Real cp=0;
-    for(int j=0;j<Ns;++j)cp+=Y[j]*ugkwp::speciesCp(j,T,thermo.view());
-    return gasMolecularViscosity(p,T,Y)*cp/ugkwp::molecularPrandtl<Ns>(molecularTransportView(p),Real(1),Y);
+    const GasThermoAdapter<Ns> thermo(p.species);
+    const Real cp=ugkwp::mixtureSpecificCp(Y,T,thermo.view());
+    return ugkwp::conductivityFromViscosityCpPr(gasMolecularViscosity(p,T,Y),cp,
+        ugkwp::molecularPrandtl<Ns>(molecularTransportView(p),Real(1),Y));
 }
 
 CHMT_HD inline Real physicalFraction(const PhysicsConfig& p,Real value,int component=-1) {

@@ -105,7 +105,7 @@ def test_offline_history_is_automatic_and_preserves_checkout(tmp_path,conflictin
                 for p in checkout.rglob('*') if p.is_file() and '.git' not in p.relative_to(checkout).parts}
     before=inventory()
     env=dict(os.environ,PYTHONDONTWRITEBYTECODE='1',GIT_ALLOW_PROTOCOL='file',GIT_TERMINAL_PROMPT='0')
-    command=[sys.executable,'-m','pytest','-q','validation/tests/test_frozen_history.py',
+    command=[sys.executable,'-m','pytest','-q','--prepare-audit-history','validation/tests/test_frozen_history.py',
         '-o','cache_dir='+str(tmp_path/'cache'),'--basetemp',str(tmp_path/'nested')]
     for repeat in range(1 if conflicting_ref else 2):
         run=subprocess.run(command,cwd=checkout,env=env,capture_output=True,text=True)

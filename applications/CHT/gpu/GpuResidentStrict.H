@@ -1,3 +1,4 @@
+#include "thermal/ParticleTrackingGeometry.H"
 #include "gasBoundary/FoamInput.H"
 #include "gasBoundary/Api.H"
 #include "gasTransport/FoamBoundaryLayerInput.H"
@@ -3696,11 +3697,9 @@ protected:
             forAll(cFaces, i)
             {
                 const label faceI = cFaces[i];
-                vector n = faceAreas[faceI]/(magFaceAreas[faceI] + SMALL);
-                if (owner[faceI] != cellI)
-                {
-                    n = -n;
-                }
+                const auto plane=ugkp::thermal::particleTrackingPlane(
+                    int(cellI),int(owner[faceI]),faceAreas[faceI].x(),faceAreas[faceI].y(),faceAreas[faceI].z(),
+                    magFaceAreas[faceI],faceCentres[faceI].x(),faceCentres[faceI].y(),faceCentres[faceI].z(),scalar(SMALL));
 
                 label neighbor = -1;
                 label kind = 0;
@@ -3783,10 +3782,10 @@ protected:
                 cellFaceKind[planeI] = kind;
                 cellFaceRestitution[planeI] = restitution;
                 cellFaceTangential[planeI] = tangential;
-                planeNx[planeI] = n.x();
-                planeNy[planeI] = n.y();
-                planeNz[planeI] = n.z();
-                planeD[planeI] = n & faceCentres[faceI];
+                planeNx[planeI] = plane.x;
+                planeNy[planeI] = plane.y;
+                planeNz[planeI] = plane.z;
+                planeD[planeI] = plane.d;
                 ++planeI;
             }
         }

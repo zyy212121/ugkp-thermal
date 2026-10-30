@@ -1,3 +1,4 @@
+#include "ablation/SurfaceDonorAllocation.H"
 #include "ablation/CpuSurfaceInterface.H"
 #include "ablation/DrySurfaceInterfaceMath.H"
 namespace chmt {
@@ -26,6 +27,8 @@ bool evaluateCpuSurfaceImpl(const HostState& h,const PhysicsConfig& p,
     if(p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer&&(!wallContexts||(wallContexts->size()!=nf))){
         if(numericalFailure)*numericalFailure=wallContexts&&wallContexts->size()>=nf;
         error="CPU boundaryLayer requires current matching snapshot and certified stage geometry";return false;}
+    std::vector<Real> donorShares;
+    if(!surfaceGasDonorShares(h,donorShares,error))return false;
     CpuSurfaceResult result;result.physics.resize(nf);result.wall.resize(nf);
     for(std::size_t f=0;f<nf;++f){const int gf=surface.gasFace[f];
         if(gf<0)continue;
@@ -33,7 +36,7 @@ bool evaluateCpuSurfaceImpl(const HostState& h,const PhysicsConfig& p,
             ||static_cast<std::size_t>(gf)>=h.gasMesh.faceIds.size())){error="CPU surface gas face outside real mesh";return false;}
         const int gc=h.gasMesh.owner[gf];if((gc<0||static_cast<std::size_t>(gc)>=h.gasMesh.volumes.size())){error="CPU surface gas owner outside real mesh";return false;}
         SurfacePhysicsInput input;input.bulk=bulk[f];if(!gradients.empty())input.gradient=gradients[f];
-        input.gasInventory=conservativeGas(bulk[f],h.gasMesh.volumes[gc],p);
+        input.gasInventory=conservativeGas(bulk[f],gasPhaseVolume(h,gc)*donorShares[f],p);
         if(wallContexts){input.wallContext=(*wallContexts)[f];input.bulk.pressure=input.wallContext.matchingPressure;}input.area=surface.area[f];input.normal=surface.normal[f];
         input.gasArea=mag(h.gasMesh.areaVectors[gf]);input.gasNormal=-h.gasMesh.areaVectors[gf]/input.gasArea;
         input.gasDistance=surface.gasDistance[f];input.dt=dt;input.aux.pressure=input.bulk.pressure;
@@ -48,7 +51,7 @@ bool evaluateCpuSurfaceImpl(const HostState& h,const PhysicsConfig& p,
         if(sideMeshVolumeRate){if(sideMeshVolumeRate->size()!=nf){if(numericalFailure)*numericalFailure=sideMeshVolumeRate->size()>=nf;error="surface side sweep layout mismatch";return false;}input.sideMeshVolumeRate=(*sideMeshVolumeRate)[f];}
         SurfacePhysicsResult physics;DeviceStatus status;
         if(!solveDrySurfaceInterface(input,p,physics,&status,numericalFailure)){error="CPU surface constitutive solve rejected face "+std::to_string(f)+" code "+std::to_string(status.code);return false;}
-        result.wall[f]=dryWallFaceSample(input,physics);
+        result.wall[f]=dryWallFaceSample(input,physics,p);
         result.physics[f]=physics;
     }
     output=std::move(result);error.clear();return true;

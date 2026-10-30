@@ -73,6 +73,11 @@ struct HostState {
     GasSstIntegralAudit gasSstAudit{};
     Real time=0;std::uint64_t acceptedSteps=0,rejectedSteps=0,commitSequence=0;Budget budget{};
 };
+// GasQ/SstQ store physical cell integrals. The resident common gas operators
+// use intrinsic gas densities, with the lagged phase volume carried explicitly.
+inline Real gasPhaseVolume(const HostState& state,std::size_t cell) {
+    return state.gasMesh.volumes[cell]*(state.gasVoidFraction.empty()?Real(1):state.gasVoidFraction[cell]);
+}
 struct StepReport {
     Real acceptedDt=0,nextDt=0,couplingResidual=0,gclResidual=0,minimumVolume=0,minimumMass=0,minimumTemperature=0;
     Real filmReducedResidual=0,filmKineticDefect=0;int iterations=0,rejectedTrials=0;

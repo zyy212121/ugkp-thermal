@@ -34,6 +34,9 @@ int main(int argc,char** argv) {
             Foam::fileName restart(chmt::io::text(properties,"restartDirectory"));
             if(!restart.isAbsolute())restart=time.path()/restart;
             chmt::io::require(chmt::readCheckpoint(restart,input.model,input.state,error),error);
+            // Older checkpoints may contain an unnormalized initial diagnostic.
+            for(auto& particle:input.state.particles)
+                ugkp::thermal::normalizeParticleContactMechanicalEnergy(particle);
         }
         chmt::GasExecutionOptions options;
         options.fluxScheme=input.gasNumerics.gasFluxScheme;options.reconstruction=input.gasNumerics.gasReconstruction;
@@ -54,6 +57,10 @@ int main(int argc,char** argv) {
             chmt::io::require(chmt::io::writeAcceptedCoupledSummary(summary,input.state,input.model,error),error);
             std::ofstream fields((directory/Foam::fileName("gas-"+suffix+".csv")).c_str());
             chmt::io::require(chmt::io::writeAcceptedGasFields(fields,input.state,input.model,error),error);
+            if(input.model.physics.enableParticles){
+                std::ofstream particles((directory/Foam::fileName("particles-"+suffix+".csv")).c_str());
+                chmt::io::require(chmt::io::writeAcceptedParticleFields(particles,input.state,error),error);
+            }
             std::ofstream solid((directory/Foam::fileName("material-"+suffix+".csv")).c_str());
             chmt::io::require(chmt::io::writeAcceptedMaterialFields(solid,input.state,input.model,error),error);
             std::ofstream exchange((directory/Foam::fileName("exchange-"+suffix+".csv")).c_str());

@@ -17,7 +17,7 @@ def code(revision=None):
     s=s.replace('*p=std::malloc(n);return *p?0:1;','*p=std::malloc(n);if(*p)live[*p]=n;return *p?0:1;')
     s=s.replace('int cudaFree(void* p){std::free(p);return 0;}','int cudaFree(void* p){if(p){assert(live.erase(p)==1);std::free(p);}return 0;}')
     s=s.replace('return value == 0.0;', 'return (++predicateChecks, value == 0.0);')
-    owner=l1.source('applications/CHT/gpu/GpuResidentStrict.cu',revision)
+    owner=l1.source('common/thermal/GpuResidentStrict.cu',revision)
     progress='unsigned char particleWallEnergyRestoreProgress=0;' if 'particleWallEnergyRestoreProgress' in owner else ''
     s+=r'''
 using GpuWallEnergy=double;

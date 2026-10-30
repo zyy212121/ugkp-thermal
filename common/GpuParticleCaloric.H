@@ -36,6 +36,16 @@ struct ParticleCaloric {
   if(!phaseChange)return liquidCp(t);
   return t<=solidus()?solidCp:(t<liquidus()?mushyCp():liquidCp(t));
  }
+ // Derivative of the stored enthalpy law. Above the phase liquidus the
+ // existing endpoint trapezoid is authoritative, including outside the
+ // tabulated liquid-Cp interval; specificHeat() retains its original meaning.
+ UGKWP_PARTICLE_CALORIC_HD double enthalpyDerivative(double t)const {
+  if(!phaseChange)return liquidCp(t);
+  if(t<=solidus())return solidCp;
+  if(t<liquidus())return mushyCp();
+  const double slope=t>=2327.&&t<4000.?0.0031/0.101961276:0.;
+  return .5*(liquidCp(liquidus())+liquidCp(t))+.5*slope*(t-liquidus());
+ }
  // Exact integral of the existing piecewise-linear heat-capacity law,
  // evaluated on the small interval rather than subtracting large H values.
  UGKWP_PARTICLE_CALORIC_HD double enthalpyIncrement(double t,double deltaT)const {

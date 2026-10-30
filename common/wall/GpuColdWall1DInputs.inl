@@ -130,11 +130,11 @@
           ? s.particleWallReflectionHeatTransferEfficiency
           : s.particleWallDepositionHeatTransferEfficiency;
         const GpuReal wallEffusivity =
-            s.particleWallEffusivityByFace != nullptr
+            ugkwp::particleWallEffusivity(s,faceI,s.particleWallEffusivityByFace != nullptr
           ? s.particleWallEffusivityByFace[faceI]
           : sqrt
             (
                 s.particleWallDensityKgM3
                *s.particleWallSpecificHeatJkgK
                *s.particleWallConductivityWmK
-            );
+            ));

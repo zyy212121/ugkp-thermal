@@ -8,7 +8,7 @@ import subprocess
 ROOT = SOURCE_ROOT
 
 def test_cold_wall_default_inherits_particle_grid(tmp_path):
-    source = (ROOT / 'applications/CHT/gpu/GpuResidentStrict.cu').read_text()
+    source = (ROOT / 'common/thermal/GpuResidentStrict.cu').read_text()
     from test_low_level_occupancy_behavior import function as extract_function
     configuration = extract_function(source, 'configureAdditionalLaunchWorkGrids') + '\n' + (ROOT / 'common/GpuThermalLaunchOccupancy.cuh').read_text().replace('#pragma once', '')
     helper = (ROOT / 'common/GpuParticleLaunchConfiguration.cuh').read_text()

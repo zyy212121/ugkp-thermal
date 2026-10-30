@@ -23,7 +23,7 @@ BRANCHES = {
     ),
     "CHT": (
         UNIFIED_ROOT / "applications/CHT/gpu/GpuResidentStrict.H",
-        UNIFIED_ROOT / "applications/CHT/gpu/GpuResidentStrict.cu",
+        UNIFIED_ROOT / "common/thermal/GpuResidentStrict.cu",
     ),
 }
 

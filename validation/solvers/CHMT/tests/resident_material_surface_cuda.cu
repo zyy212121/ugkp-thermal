@@ -63,7 +63,7 @@ int main(){cudaCheck(cudaDeviceSetLimit(cudaLimitStackSize,65536));constexpr int
             bool numerical=true;DeviceStatus device;
             if(!solveDrySurfaceInterface(cpu,*p,expected[f],&device,&numerical)){
                 std::fprintf(stderr,"CPU surface failed variant=%d face=%d wall=%d numerical=%d\n",variant,f,int(wallStatus.code),numerical);return 3;}
-            expectedWall[f]=dryWallFaceSample(cpu,expected[f]);
+            expectedWall[f]=dryWallFaceSample(cpu,expected[f],*p);
             // Device must read resident inventories, never these host placeholders.
             in.solid.energy=-1;in.solidVolume=-1;in.solidLocalRate.condensed[0]=1e30;
         }

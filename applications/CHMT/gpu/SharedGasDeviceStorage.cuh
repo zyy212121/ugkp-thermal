@@ -1,6 +1,7 @@
 #ifndef CHMT_GPU_SHAREDGASDEVICESTORAGE_CUH
 #define CHMT_GPU_SHAREDGASDEVICESTORAGE_CUH
 #include "gpu/HostTransferQueue.H"
+#include "../../../common/thermal/ParticleSurfaceState.H"
 #include "../../../common/gasBoundary/Resident.cuh"
 #if defined(__CUDACC__)
 #include "../../../common/gasTransport/GasStatusCompletion.cuh"
@@ -20,6 +21,9 @@
 #include <climits>
 namespace chmt {
 struct SharedGasDeviceView:ugkwp::GasStateView<Real,Real,ugkwp::SstCoefficients> {
+    // Borrowed from the common particle owner; null is the particle-free phase.
+    const Real* gasVolumeFraction=nullptr;
+    ugkp::thermal::ParticleWallExchangeView particleWall;
     ugkwp::GasSpeciesState<Real,Ns> gasSpecies;
     ugkwp::GasBoundaryLayerModelState<Real,Ns> gasBoundaryLayerModel;
 };
@@ -502,10 +506,10 @@ private:
         }
         if(initialize){if(!uploadState(state,error))return false;}
         else{
-            if(importSpecies){std::vector<Real> values(Ns*nc);for(std::size_t c=0;c<nc;++c)for(int s=0;s<Ns;++s)values[s*nc+c]=state.gas[c].species[s]/volume_[c];
+            if(importSpecies){std::vector<Real> values(Ns*nc);for(std::size_t c=0;c<nc;++c)for(int s=0;s<Ns;++s)values[s*nc+c]=state.gas[c].species[s]/gasPhaseVolume(state,c);
                 if(!upload(sp.rho,values)){error=fault_.message;return false;}}
             if(importSst){if(nc&&state.sst.empty()){error="missing supplied SST inventory";return false;}
-                std::vector<Real> k(nc),omega(nc);for(std::size_t c=0;c<nc;++c){k[c]=state.sst[c].rhoK/volume_[c];omega[c]=state.sst[c].rhoOmega/volume_[c];}
+                std::vector<Real> k(nc),omega(nc);for(std::size_t c=0;c<nc;++c){k[c]=state.sst[c].rhoK/gasPhaseVolume(state,c);omega[c]=state.sst[c].rhoOmega/gasPhaseVolume(state,c);}
                 if(!upload(view_.rhoK,k)||!upload(view_.rhoOmega,omega)){error=fault_.message;return false;}}
         }
         sstInitialized_=sstInitialized_||model.physics.enableSst;
@@ -687,8 +691,10 @@ public:
         return !publish||!rebound||refreshView();
     }
     bool uploadState(const HostState& state,std::string& error){
-        const std::size_t n=state.gas.size();if(!state.gasTemperature.empty()&&state.gasTemperature.size()!=n){error="missing supplied gas temperature backing";return false;}if(view_.sstConfigured&&n&&state.sst.empty()){error="missing supplied SST inventory";return false;}std::vector<Real> rho(n),px(n),py(n),pz(n),energy(n),species(Ns*n),k(n),omega(n);
-        for(std::size_t c=0;c<n;++c){const auto& q=state.gas[c];const Real v=volume_[c];
+        const std::size_t n=state.gas.size();
+        if(!state.gasVoidFraction.empty()&&state.gasVoidFraction.size()!=n){error="gas phase fraction count differs from gas cells";return false;}
+        if(!state.gasTemperature.empty()&&state.gasTemperature.size()!=n){error="missing supplied gas temperature backing";return false;}if(view_.sstConfigured&&n&&state.sst.empty()){error="missing supplied SST inventory";return false;}std::vector<Real> rho(n),px(n),py(n),pz(n),energy(n),species(Ns*n),k(n),omega(n);
+        for(std::size_t c=0;c<n;++c){const auto& q=state.gas[c];const Real v=gasPhaseVolume(state,c);
             for(int s=0;s<Ns;++s)species[s*n+c]=q.species[s]/v;
             rho[c]=q.mass/v;px[c]=q.momentum.x/v;py[c]=q.momentum.y/v;pz[c]=q.momentum.z/v;energy[c]=q.energy/v;
             if(view_.sstConfigured){k[c]=state.sst[c].rhoK/v;omega[c]=state.sst[c].rhoOmega/v;}
@@ -697,17 +703,19 @@ public:
         error.clear();return true;
     }
     bool downloadState(HostState& state,std::string& error){
-        std::vector<Real> rho,px,py,pz,energy,species,k,omega;const std::size_t n=view_.nCells;
+        std::vector<Real> rho,px,py,pz,energy,species,k,omega,fraction;const std::size_t n=view_.nCells;
+        if(view_.gasVolumeFraction&&!enqueueRead(view_.gasVolumeFraction,n,fraction)){error=fault_.message;return false;}
         if(!enqueueRead(view_.rho,n,rho)||!enqueueRead(view_.rhoUx,n,px)||!enqueueRead(view_.rhoUy,n,py)||!enqueueRead(view_.rhoUz,n,pz)||!enqueueRead(view_.rhoE,n,energy)||!readTemperature(n)||(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&!enqueueRead(view_.gasSpecies.rho,Ns*n,species))){error=fault_.message;return false;}
         if(view_.sstConfigured&&(!enqueueRead(view_.rhoK,n,k)||!enqueueRead(view_.rhoOmega,n,omega))){error=fault_.message;return false;}
         if(!observeDiagnostics()){error=fault_.message;return false;}
+        if(view_.gasVolumeFraction)state.gasVoidFraction=std::move(fraction);
         auto candidate=state.gas;candidate.resize(n);
-        for(std::size_t c=0;c<n;++c){auto& q=candidate[c];q.mass=rho[c]*volume_[c];q.momentum={px[c]*volume_[c],py[c]*volume_[c],pz[c]*volume_[c]};q.energy=energy[c]*volume_[c];
-            for(int s=0;s<Ns;++s)q.species[s]=view_.gasSpecies.mode==ugkwp::GasMode::SingleLegacy?(s==activeSpecies_?q.mass:0):species[s*n+c]*volume_[c];
+        for(std::size_t c=0;c<n;++c){auto& q=candidate[c];const Real v=gasPhaseVolume(state,c);q.mass=rho[c]*v;q.momentum={px[c]*v,py[c]*v,pz[c]*v};q.energy=energy[c]*v;
+            for(int s=0;s<Ns;++s)q.species[s]=view_.gasSpecies.mode==ugkwp::GasMode::SingleLegacy?(s==activeSpecies_?q.mass:0):species[s*n+c]*v;
         }
         auto sst=state.sst;
         if(view_.sstConfigured){
-            sst.resize(n);for(std::size_t c=0;c<n;++c){sst[c]={k[c]*volume_[c],omega[c]*volume_[c]};
+            sst.resize(n);for(std::size_t c=0;c<n;++c){sst[c]={k[c]*gasPhaseVolume(state,c),omega[c]*gasPhaseVolume(state,c)};
             }
         }
         state.gas=std::move(candidate);state.sst=std::move(sst);state.gasTemperature.swap(temperatureStaging_);error.clear();return true;

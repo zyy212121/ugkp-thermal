@@ -73,7 +73,7 @@ def test_thermal_terminal_extensions_still_admitted(tmp_path, original_root):
 
 
 def radiation_source(root):
-    text = (root / 'applications/CHT/gpu/GpuResidentStrict.cu').read_text()
+    text = ((root/'common/thermal/GpuResidentStrict.cu') if (root/'common/thermal/GpuResidentStrict.cu').exists() else (root/'applications/CHT/gpu/GpuResidentStrict.cu')).read_text()
     def block(name):
         start = text.index(name)
         brace = text.index('{', start)

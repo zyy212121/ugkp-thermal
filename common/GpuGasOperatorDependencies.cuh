@@ -10,3 +10,5 @@
 #include "gasTransport/GasGeometryValidation.H"
 #include "gasTransport/SpeciesDiffusion.H"
 #include "operators/advanceGasChemistryKernel.cuh"
+
+#include "thermal/ParticleSurfaceState.H"

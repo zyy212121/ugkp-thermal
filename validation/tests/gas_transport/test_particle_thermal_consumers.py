@@ -72,7 +72,7 @@ int main() {
 
 @pytest.mark.parametrize("heat_joules", [.02, .03, .05])
 def test_actual_double_radiation_kernel_retains_small_heat(tmp_path, heat_joules):
-    text = (ROOT / "applications/CHT/gpu/GpuResidentStrict.cu").read_text()
+    text = (ROOT / "common/thermal/GpuResidentStrict.cu").read_text()
     start = text.index("__global__ void applyParticleRadiationAffineTemperatureKernel")
     brace = text.index("{", start)
     depth, end = 1, brace + 1
@@ -206,7 +206,7 @@ int main() {
 
 
 def test_actual_radiation_apply_reports_required_errors_and_continues(tmp_path):
-    text = (ROOT / "applications/CHT/gpu/GpuResidentStrict.cu").read_text()
+    text = (ROOT / "common/thermal/GpuResidentStrict.cu").read_text()
     start = text.index("__global__ void applyParticleRadiationAffineTemperatureKernel")
     brace = text.index("{", start)
     depth, end = 1, brace + 1

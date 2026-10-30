@@ -23,6 +23,11 @@ __device__ void relaxOneParticleToResidentGas
         return;
     }
 
+#if defined(GPU_MIXTURE_PARTICLE_COUPLING)
+    // Free mixture parcels have already received the cell-owned paired source
+    // and external kick. Contact particles still advance their own lifecycle.
+    if(ugkwp::mixtureGasActive(s) && s.pStuck[i]==Foam::gpuThermal::particleWallMobile)return;
+#endif
 #if defined(GPU_PAIRED_PARTICLE_HEAT)
     if (particleColdProfileNodeCountDevice(s,i) != 8)
         publishPairedParticleGasHeat(s,i,dt);
@@ -127,6 +132,14 @@ __device__ void relaxOneParticleToResidentGas
 
 #endif
 
+#if defined(GPU_CELL_MEAN_MOBILE_HEAT)
+    if (!stuck && s.solveParticleTemperature != 0 && s.particleGasHeatTransferModelId != 0
+        && (!s.particleStuckModelConfigured || !s.particleContactHeatEpoch[i]))
+    {
+        const auto mu=clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]),GPU_R(1e-30));
+        relaxMobileParticleThermalState(s,i,c,rhoG*dPart*relMag/mu,dPart,dt);
+    }
+#endif
 #if !defined(GPU_PAIRED_PARTICLE_HEAT)
     if
     (

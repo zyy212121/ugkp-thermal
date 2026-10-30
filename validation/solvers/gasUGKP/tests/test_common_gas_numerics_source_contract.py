@@ -85,7 +85,7 @@ class CommonGasNumericsSourceContract(unittest.TestCase):
         backends = (
             ROOT / "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
             ROOT / "applications/FSH/private_backend/GpuResidentStrict.cu",
-            ROOT / "applications/CHT/gpu/GpuResidentStrict.cu",
+            ROOT / "common/thermal/GpuResidentStrict.cu",
         )
         for backend in backends:
             text = backend.read_text(encoding="utf-8")

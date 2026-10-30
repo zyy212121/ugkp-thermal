@@ -132,9 +132,9 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
                 vxStep*nx + vyStep*ny + vzStep*nz;
             const GPU_OPERATOR_REAL normalSpeed = fabs
             (
-                (vxStep - s.gasBoundaryUx[globalFaceId])*nx
-              + (vyStep - s.gasBoundaryUy[globalFaceId])*ny
-              + (vzStep - s.gasBoundaryUz[globalFaceId])*nz
+                (vxStep - ugkwp::particleWallVelocityX(s,globalFaceId))*nx
+              + (vyStep - ugkwp::particleWallVelocityY(s,globalFaceId))*ny
+              + (vzStep - ugkwp::particleWallVelocityZ(s,globalFaceId))*nz
             );
             const Foam::gpuThermal::SommerfeldImpact impact =
                 Foam::gpuThermal::evaluateSommerfeldImpact

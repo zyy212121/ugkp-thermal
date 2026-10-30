@@ -46,7 +46,7 @@ __global__ void evaluateMaterialSurfaceKernel(MaterialSurfaceView view,const Phy
         input.wallContext.failureStatus=&status.wall;
         SurfacePhysicsResult result;
         if(!solveDrySurfaceInterface(input,*physics,result,&status.device,&status.numericalFailure))continue;
-        view.physicsOut[face]=result;view.wallOut[face]=dryWallFaceSample(input,result);status.success=true;
+        view.physicsOut[face]=result;view.wallOut[face]=dryWallFaceSample(input,result,*physics);status.success=true;
     }
 }
 }

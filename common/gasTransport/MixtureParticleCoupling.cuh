@@ -2,6 +2,7 @@
 #include <type_traits>
 #include <utility>
 #include "MixtureHeatExchange.H"
+#include "MixtureParticleDirectory.cuh"
 #include "../gasNumerics/GpuParticlePhysicsAlgebra.cuh"
 #include "../gasNumerics/GpuDragModels.cuh"
 
@@ -11,37 +12,6 @@
 // epoch. A full scan remains available only for the serial reference oracle.
 namespace mixtureParticles
 {
-template<class State>
-__device__ int activeCount(const State& s)
-{return *s.particleCountDevice<0?0:(*s.particleCountDevice>s.particleCapacity?s.particleCapacity:*s.particleCountDevice);}
-template<class State>
-__device__ bool member(const State& s,int i,int c)
-{return i>=0 && i<activeCount(s) && s.pStatus[i]==1 && s.pCellId[i]==c;}
-template<class State,class=void>struct HasSplitDirectory:std::false_type{};
-template<class State>struct HasSplitDirectory<State,std::void_t<
-    decltype(std::declval<const State&>().preBaseCellOffset)>>:std::true_type{};
-
-template<class State>
-__device__ int count(const State&s,int c,bool useCsr,bool useSplit)
-{
-    if constexpr(HasSplitDirectory<State>::value)
-        if(useSplit)return s.preBaseCellOffset[c+1]-s.preBaseCellOffset[c]
-            +s.cellParticleOffset[c+1]-s.cellParticleOffset[c];
-    return useCsr?s.cellParticleOffset[c+1]-s.cellParticleOffset[c]:activeCount(s);
-}
-template<class State>
-__device__ int parcel(const State&s,int c,int position,bool useCsr,bool useSplit)
-{
-    if constexpr(HasSplitDirectory<State>::value)
-        if(useSplit)
-        {
-            const int baseCount=s.preBaseCellOffset[c+1]-s.preBaseCellOffset[c];
-            return position<baseCount?s.preBaseCellOffset[c]+position
-                :s.sortedParticleIndex[s.cellParticleOffset[c]+position-baseCount];
-        }
-    return useCsr?s.sortedParticleIndex[s.cellParticleOffset[c]+position]:position;
-}
-
 template<class DragModel,class State>
 __device__ double beta(const State&s,int c,int i,double epsG)
 {
@@ -66,7 +36,7 @@ __device__ double heatFraction(const State&s,int c,int i,double dt)
 }
 }
 
-template<class DragModel,class State>
+template<class DragModel,bool ConstantHeat=true,class State>
 __global__ void mixtureParticleCouplingKernel
 (State*sp,double dt,bool dragActive,bool useCsr=true,bool useSplit=false)
 {
@@ -75,7 +45,6 @@ __global__ void mixtureParticleCouplingKernel
     const int begin=0,end=mixtureParticles::count(s,c,useCsr,useSplit);
     const double epsG=s.epsGPrev[c],volume=epsG*s.V[c];
     const double gasMass=volume*s.rho[c];
-    const double heatFactor=s.particleThermalRho*s.particleCp/s.rhoSolid;
     double weight=0,x=0,y=0,z=0;
     // No parcel or gas state is changed while forming the finite-bath target.
     for(int pos=begin;pos<end;++pos)
@@ -115,6 +84,8 @@ __global__ void mixtureParticleCouplingKernel
         s.rhoE[c]-=dEnergy/volume;
         recoverGasPrimitiveCell(s,c);
     }
+    if constexpr(ConstantHeat) {
+    const double heatFactor=s.particleThermalRho*s.particleCp/s.rhoSolid;
     if(s.solveParticleTemperature!=0 && s.particleGasHeatTransferModelId!=0 && heatFactor>0.)
     {
         constexpr int Ns=ugkwp::GasStateTraits<State>::speciesCount;
@@ -159,6 +130,7 @@ __global__ void mixtureParticleCouplingKernel
         s.rhoE[c]-=heat/volume;
         recoverGasPrimitiveCell(s,c);
     }
+    }
 }
 
 // External pressure/gravity work is not internal drag exchange. Launch after
@@ -169,7 +141,7 @@ __global__ void mixtureParticleExternalKickKernel(State*sp,double dt)
     State&s=*sp;const int count=mixtureParticles::activeCount(s);
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<count;i+=gridDim.x*blockDim.x)
     {
-        if(s.pStatus[i]!=1)continue;
+        if(s.pStatus[i]!=1 || !mixtureParticles::mobile(s,i))continue;
         const int c=s.pCellId[i];if(c<0 || c>=s.nCells)continue;
         s.pux[i]+=dt*(s.gravityX-s.gradPx[c]/s.rhoSolid);
         s.puy[i]+=dt*(s.gravityY-s.gradPy[c]/s.rhoSolid);

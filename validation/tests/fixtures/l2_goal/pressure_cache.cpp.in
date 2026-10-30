@@ -72,13 +72,8 @@ __device__ double pressureKickInternalEnergy
 {
     return energy - 0.5*sqr3(px, py, pz)/clampMin(rhoP, OfVSmall);
 }
-{{applyCollisionalPressureProjectionOneParticle}}
-{{preparePressureProjectionCell}}
-template<bool SplitDirectory, bool CompactParticles=false>
-{{applyCollisionalPressureProjectionKernel}}
-{{preparePressureProjectionCacheKernel}}
-
-{{applyCachedPressureProjectionParticlesKernel}}
+using PressureReal=double;using PressureTime=double;
+#include "GpuPressureAnalyticPhysics.cuh"
 
 int main(){for(int split=0;split<2;++split){DeviceState oldState;int count=9;oldState.particleCountDevice=&count;
  for(int i=0;i<9;++i){oldState.pStatus[i]=i==5?0:1;oldState.pux[i]=i*0.2;oldState.puy[i]=i*0.3;oldState.puz[i]=i*0.1;oldState.pTheta[i]=0.04;}
@@ -93,7 +88,7 @@ int main(){for(int split=0;split<2;++split){DeviceState oldState;int count=9;old
  // A stale cache must be overwritten from limited faces by both routes.
  for(int c=0;c<3;++c){oldState.pressureDeltaMomX[c]=999;oldState.pressureDeltaEnergy[c]=-999;}
  DeviceState newState=oldState;
- for(int c=0;c<3;++c){blockIdx.x=c;if(split)applyCollisionalPressureProjectionKernel<true>(&oldState,0.01);else applyCollisionalPressureProjectionKernel<false>(&oldState,0.01);}
+ for(int c=0;c<3;++c){blockIdx.x=c;if(split)applyAnalyticPressureProjectionKernel<true>(&oldState,0.01);else applyAnalyticPressureProjectionKernel<false>(&oldState,0.01);}
  for(int c=0;c<3;++c){blockIdx.x=c;preparePressureProjectionCacheKernel(&newState,0.01);}
  blockIdx.x=0;applyCachedPressureProjectionParticlesKernel(&newState);
 for(int i=0;i<32;++i)assert(oldState.Usx[i]==newState.Usx[i]);
