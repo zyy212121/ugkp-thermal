@@ -36,7 +36,7 @@ int main(int argc,char** argv) {
     foam=Path(os.environ.get('WM_PROJECT_DIR','/opt/openfoam10'))
     lib=Path(os.environ.get('FOAM_LIBBIN',str(foam/'platforms/linux64GccDPInt32Opt/lib')))
     exe=out/'parse'
-    cmd=['g++','-std=c++14','-DWM_DP','-DWM_LABEL_SIZE=32','-DNoRepository','-I'+str(ROOT/'common'),
+    cmd=['g++','-std=c++17','-DWM_DP','-DWM_LABEL_SIZE=32','-DNoRepository','-I'+str(ROOT/'common'),
          '-I'+str(foam/'src/OpenFOAM/lnInclude'),'-I'+str(foam/'src/finiteVolume/lnInclude'),
          '-I'+str(foam/'src/meshTools/lnInclude'),'-I'+str(foam/'src/OSspecific/POSIX/lnInclude'),
          str(source),'-L'+str(lib),'-Wl,-rpath,'+str(lib),'-lfiniteVolume','-lmeshTools','-lOpenFOAM','-L'+str(lib/'dummy'),'-Wl,-rpath,'+str(lib/'dummy'),'-lPstream','-o',str(exe)]

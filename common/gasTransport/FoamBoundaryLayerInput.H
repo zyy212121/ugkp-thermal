@@ -128,6 +128,11 @@ public:
         else if(model=="equilibriumOde")config_.model=2;
         else FatalErrorInFunction<<"Unknown boundaryLayer model '"<<model
             <<"'; valid models are constantTransport, finiteRate (reactingSst alias), and equilibriumOde"<<exit(FatalError);
+        const word stress=d.lookupOrDefault<word>("equilibriumStressClosure","localStress");
+        if(stress!="wallStress"&&stress!="localStress")FatalErrorInFunction
+            <<"Unknown equilibriumStressClosure '"<<stress<<"'"<<exit(FatalError);
+        config_.equilibriumStressClosure=stress=="localStress";
+        Info<<"boundaryLayer equilibriumStressClosure: "<<stress<<nl;
         hasLocalSst_=turbulenceModel==3 && config_.model==1;
         // Read once. Subsequent timesteps never inspect the option or dictionary.
         if(d.lookupOrDefault<bool>("writeProfiles",false))profileWriter_=&BoundaryLayerInput::writeProfiles;

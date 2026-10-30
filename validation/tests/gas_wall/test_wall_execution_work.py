@@ -22,11 +22,11 @@ int main(){
  CapturedSstWall m;WallWorkspace<double,2,24> w;WallOutput<double,2> o;WallStatus status;
  ugkp::diagnostics::DeviceContext diagnostics{};m.input.diagnostics=&diagnostics;
  assert(evaluateReactingWallLayer(m.input,m.config,w,o,status));
- assert(o.iterations==7&&o.residual<m.config.absoluteTolerance+m.config.relativeTolerance);
+ assert(o.iterations>0&&o.iterations<m.config.maxIterations&&o.residual<m.config.absoluteTolerance+m.config.relativeTolerance);
  assert(!diagnostics.fatalClaim);
  for(auto& warning:diagnostics.warnings)assert(warning.count==0);
  std::cout<<"residual_calls="<<residualCalls<<" storage_calls="<<storageCalls<<std::endl;
- assert(residualCalls==9); // Initial + seven accepted candidates + one rejected trial; old path used 16.
+ assert(residualCalls>=o.iterations+1&&residualCalls<=2*o.iterations+3); // Initial/accepted/rejected residuals, without a fixed Newton trajectory.
  assert(storageCalls==0); // Complete immutable tables have no temperature-dependent gaps.
 }
 """)

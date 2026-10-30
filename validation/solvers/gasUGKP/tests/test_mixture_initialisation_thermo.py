@@ -51,7 +51,7 @@ template<class R> void check(){
 int main(){check<double>();}
 ''')
     binary=tmp_path/"probe"
-    build=subprocess.run(["g++","-std=c++14","-Wall","-Wextra","-Werror","-I",str(ROOT),str(source),"-o",str(binary)],capture_output=True,text=True)
+    build=subprocess.run(["g++","-std=c++17","-Wall","-Wextra","-Werror","-I",str(ROOT),str(source),"-o",str(binary)],capture_output=True,text=True)
     assert build.returncode==0,build.stderr
     run=subprocess.run([str(binary)],capture_output=True,text=True)
     assert run.returncode==0,run.stderr

@@ -81,7 +81,7 @@ int main(int argc,char** argv) {
 def build(tmp_path_factory):
     directory=tmp_path_factory.mktemp("mechanism_io")
     (directory/"probe.cpp").write_text(PROBE)
-    result=subprocess.run(["g++","-std=c++14","-Wall","-Wextra","-Werror","-I",str(ROOT),str(directory/"probe.cpp"),"-o",str(directory/"probe")],capture_output=True,text=True)
+    result=subprocess.run(["g++","-std=c++17","-Wall","-Wextra","-Werror","-I",str(ROOT),str(directory/"probe.cpp"),"-o",str(directory/"probe")],capture_output=True,text=True)
     return result,directory/"probe"
 
 def parse(build,text):

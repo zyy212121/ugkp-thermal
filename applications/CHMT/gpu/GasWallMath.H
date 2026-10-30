@@ -13,7 +13,7 @@ CHMT_HD inline Real gasPacketSpeciesWithdrawal(const ExchangePacket& packet,int 
 // are per reference-surface area. No material state or material RHS is an input.
 struct GasWallInput {
     GasWallClosureContext wallContext{};
-    const ugkwp::gaswall::WallOutput<Real,Ns>* preparedLayer=nullptr;
+    const ugkwp::gaswall::WallExchangeOutput<Real,Ns>* preparedLayer=nullptr;
 
     const ugkwp::gaswall::WallMatchingState<Real,Ns>* preparedMatching=nullptr;
     const Real* preparedMatchingPressure=nullptr;
@@ -24,7 +24,7 @@ struct GasWallInput {
     ExchangeKind primaryKind=ExchangeKind::GasSolid;
     Real speciesRate[Ns]{},condensedRate[Nc]{},poreRate[Ns]{},poreSweepRate[Ns]{};
 };
-struct GasWallResult { ExchangePacket primary{},pore{}; GasPrimitive trace{}; Vec3 traction{}; ugkwp::gaswall::WallOutput<Real,Ns> layer{}; };
+struct GasWallResult { ExchangePacket primary{},pore{}; GasPrimitive trace{}; Vec3 traction{}; ugkwp::gaswall::WallExchangeOutput<Real,Ns> layer{}; };
 CHMT_HD inline bool evaluateGasWall(const GasWallInput& in,const SurfacePacketIdentity& identity,
     const PhysicsConfig& p,GasWallResult& output) {
     const Real ratio=in.area/in.gasArea;

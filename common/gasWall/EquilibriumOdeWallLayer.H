@@ -12,7 +12,7 @@ template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam>
 UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
  const WallInput<R,N,TableReal>& originalInput,const WallModelConfig<R>& controls,
  WallWorkspace<R,N,M>& w,WallOutput<R,N>& output,WallStatus& status,
- const Team& team=Team{}){
+ const Team& team=Team{},const R* accepted=nullptr,R acceptedStress=0){
     using namespace detail;
     auto c=controls;c.enableSst=false;c.coherentDiscretization=false;
     auto in=originalInput;in.model.thermo.diagnostics=in.diagnostics;
@@ -33,10 +33,14 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
     }
     const R speed=::sqrt(ctx.edgeU[0]*ctx.edgeU[0]+ctx.edgeU[1]*ctx.edgeU[1]);
     const R laminarStress=wallMolecularViscosity(in,in.matching.temperature,in.matching.massFraction)*speed/in.matchingDistance;
-    ctx.equilibriumWallStress=laminarStress;
+    ctx.equilibriumWallStress=accepted?acceptedStress:laminarStress;
+    const bool localStress=c.localStressCorrection&&ctx.mass!=0;
+    for(int d=0;d<2;++d)ctx.equilibriumWallTraction[d]=speed>0
+        ?ctx.equilibriumWallStress*ctx.edgeU[d]/speed:R(0);
     for(int i=team.rank();i<c.nodes;i+=team.size()){
         const R fraction=::pow(R(i)/R(c.nodes-1),c.stretch);
         w.y[i]=in.matchingDistance*fraction;
+        if(accepted){for(int j=0;j<N+4;++j)w.state[i][j]=accepted[i*(N+4)+j];continue;}
         for(int d=0;d<2;++d)w.state[i][d]=fraction*ctx.edgeU[d];
         w.state[i][2]=fraction*(in.matching.temperature-in.temperature);
         for(int j=0;j<N-1;++j)w.state[i][3+j]=in.matching.massFraction[ctx.independent[j]];
@@ -67,12 +71,13 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
             if(alpha==0)break;
         }
         if(!gasFinite(norm)||norm>tolerance)break;
-        R measuredStress=0;bool measured=true;
+        R measuredStress=0,measuredTraction[2]{};bool measured=true;
         if(team.leader()){
             LayerFlux<R,N> first;
             measured=intervalFlux(in,c,ctx,w.state[0],w.state[1],w.y[0],w.y[1],first);
             if(measured)measuredStress=::sqrt(first.momentum[0]*first.momentum[0]
                                             +first.momentum[1]*first.momentum[1]);
+            if(measured)for(int d=0;d<2;++d)measuredTraction[d]=-first.momentum[d];
             measured=measured&&gasFinite(measuredStress);
         }
         if(!team.broadcast(measured)){
@@ -80,10 +85,16 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
             return false;
         }
         measuredStress=team.broadcast(measuredStress);
+        if(localStress)for(int d=0;d<2;++d)measuredTraction[d]=team.broadcast(measuredTraction[d]);
         const R stress=ctx.equilibriumWallStress,defect=measuredStress-stress;
         const R scale=max(laminarStress,max(stress,measuredStress));
         const R stressResidual=c.equilibriumKappa==0?R(0):(scale>0?abs(defect)/scale:R(0));
         norm=max(norm,stressResidual);
+        if(localStress&&c.equilibriumKappa!=0){
+            const R vectorDefect=::hypot(measuredTraction[0]-ctx.equilibriumWallTraction[0],
+                measuredTraction[1]-ctx.equilibriumWallTraction[1]);
+            norm=max(norm,scale>0?vectorDefect/scale:vectorDefect);
+        }
         if(norm<=tolerance){
             bool published=false;
             if(team.leader()){
@@ -109,6 +120,8 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
         if(!gasFinite(next)||next<0)break;
         previous=true;previousStress=stress;previousDefect=defect;
         ctx.equilibriumWallStress=next;
+        if(localStress)for(int d=0;d<2;++d)ctx.equilibriumWallTraction[d]=measuredStress>0
+            ?next*measuredTraction[d]/measuredStress:R(0);
         ++updates;
     }
     if(team.leader()){

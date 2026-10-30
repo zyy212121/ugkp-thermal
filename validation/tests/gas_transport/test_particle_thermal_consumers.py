@@ -256,3 +256,35 @@ int main(){
     source.write_text(code)
     subprocess.run(["g++", "-std=c++17", "-O2", "-I" + str(ROOT / "common"), "-I" + str(ROOT), str(source), "-o", str(binary)], check=True)
     subprocess.run([str(binary)], check=True)
+
+
+def test_finite_contact_weak_strong_and_invalid_transaction(tmp_path):
+    code = r'''#include "GpuParticleThermalConsumers.H"
+#include "GpuParticleCaloric.H"
+#include <cassert>
+#include <cmath>
+#include <limits>
+#include <initializer_list>
+int main(){
+ ugkwp::ParticleCaloric law;
+ const double cp=law.specificHeat(300.),mass=1e-6,parcel=2.;
+ for(double ratio:{0.,1e-18,1e-9,1e-3,1.,1e3,1e12,1e15,1e18,1e100}){
+  ugkwp::ParticleThermalCarry<double> state{300.,0.};
+  auto r=ugkwp::publishFiniteWallThermalHeat(state,600.,mass,parcel,ratio*mass*cp,200.,4000.,law);
+  const long double dh=cp*300.L*(ratio<=1?ratio/(1.L+ratio):1.L/(1.L+1.L/ratio));
+  assert(r.valid);assert(std::abs(r.wallEnergy+double(parcel*dh))<=1e-12*std::abs(double(parcel*dh))+1e-24);
+  assert(std::abs(state.temperature-(300.+double(dh/cp)))<2e-12);
+ }
+ for(double bad:{-1.,std::numeric_limits<double>::quiet_NaN()}){
+  ugkwp::ParticleThermalCarry<double> state{300.,.0002};
+  auto r=ugkwp::publishFiniteWallThermalHeat(state,600.,mass,parcel,bad,200.,4000.,law);
+  assert(!r.valid&&r.wallEnergy==0&&state.temperature==300.&&state.specificEnthalpyResidual==.0002);
+ }
+ ugkwp::ParticleThermalCarry<double> state{300.,0.};
+ auto r=ugkwp::publishFiniteWallThermalHeat(state,600.,mass,parcel,std::numeric_limits<double>::infinity(),200.,4000.,law);
+ assert(r.valid&&state.temperature==600.&&std::abs(r.wallEnergy+parcel*cp*300)<1e-9);
+}
+'''
+    cpp=tmp_path/'contact.cpp';cpp.write_text(code);exe=tmp_path/'contact'
+    subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT/'common'),str(cpp),'-o',str(exe)],check=True)
+    subprocess.run([str(exe)],check=True)

@@ -2,7 +2,7 @@
 #include "gpu/MaterialBackend.H"
 #include "gpu/HostTransferQueue.H"
 #include "gpu/MaterialTransportKernels.cuh"
-#include "gpu/MaterialReactionKernels.cuh"
+#include "gpu/MaterialSourceKernels.cuh"
 #include "gpu/MaterialSurfaceKernels.cuh"
 #include "materials/MaterialInventoryMath.H"
 #include "materials/CpuMaterialDriver.H"
@@ -12,7 +12,7 @@
 #include <memory>
 namespace chmt {
 namespace {
-struct MaterialStepResult {int phase=0,code=0,entity=-1;bool numerical=true;};
+using namespace materialSourceDetail;
 // All conduction kernels use the accepted material owner's stream and inventory.
 // Candidate energy/EOS results are published only after every cell succeeds.
 __global__ void prepareConductionKernel(int count,const SolidQ* initial,const Real* initialVolumes,
@@ -46,51 +46,11 @@ __global__ void finishConductionKernel(int count,const SolidQ* current,const Rea
     value.porosity=primitive.porosity;next[c]=value;
 }
 __global__ void selectConductionFailure(const MaterialStepResult* status,int count,MaterialStepResult* result){
-    if(blockIdx.x||threadIdx.x)return;
-    *result={};for(int c=0;c<count;++c)if(status[c].phase){*result=status[c];return;}
+    MaterialStepResult value{};
+    for(int c=threadIdx.x;c<count;c+=blockDim.x)if(status[c].phase){value=status[c];break;}
+    reduceMaterialFailure(value,result,false);
 }
-__global__ void selectReactionFailure(const MaterialReactionStatus* status,int count,MaterialStepResult* result){
-    if(blockIdx.x||threadIdx.x)return;
-    *result={};
-    for(int c=0;c<count;++c)if(status[c].code!=MaterialReactionCode::Success){
-        *result={1,int(status[c].code),c,status[c].numericalFailure};return;
-    }
-}
-__global__ void applyMaterialSourcesKernel(int count,const SolidQ* reacted,const SolidQ* rates,
-    const SolidQ* initial,const SolidQ* gasChange,SolidQ* candidateGasChange,const ExchangePacket* packets,const int* offsets,
-    const int* indices,const int* radiationOffsets,const int* radiationFaces,
-    const Real* radiation,const unsigned* receivers,const Real* volumes,const PhysicsConfig* physics,
-    Real dt,bool finalStep,SolidQ* next,SolidQ* donor,MaterialStepResult* status,
-    const MaterialStepResult* reactionResult){
-    const int c=blockIdx.x*blockDim.x+threadIdx.x;
-    if(c>=count||reactionResult->phase)return;
-    status[c]={};
-    const SolidQ transported=addSolid(reacted[c],rates[c],dt);
-    SolidQ result;
-    const auto code=applyMaterialPacketRow(transported,packets,indices,offsets[c],offsets[c+1],result);
-    if(code!=MaterialInventoryCode::Success){status[c]={2,int(code),c,true};return;}
-    if(radiation)for(int e=radiationOffsets[c];e<radiationOffsets[c+1];++e){
-        const int face=radiationFaces[e];
-        if(receivers[face]==ConsumeSolid)result.energy+=radiation[face];
-    }
-    MaterialPrimitive primitive;bool numerical=true;
-    if(!validSolidInventory(result)||(!finalStep&&!recoverMaterial(result,volumes[c],*physics,primitive,nullptr,-1,&numerical))){
-        status[c]={3,0,c,numerical};return;
-    }
-    if(!finalStep)result.porosity=primitive.porosity;
-    SolidQ change=gasChange[c];
-    for(int e=offsets[c];e<offsets[c+1];++e)
-        change=addSolid(change,packetDelta(packets[indices[e]]).solid);
-    candidateGasChange[c]=change;next[c]=result;
-    donor[c]=addSolid(addSolid(result,initial[c],-1),change,-1);
-}
-__global__ void selectSourceFailure(const MaterialStepResult* status,int count,MaterialStepResult* result){
-    if(blockIdx.x||threadIdx.x||result->phase)return;
-    // Packet rejection precedes the final inventory/EOS check in the original
-    // whole-domain implementation. Retain this order across cells.
-    for(int phase=2;phase<=3;++phase)for(int c=0;c<count;++c)
-        if(status[c].phase==phase){*result=status[c];return;}
-}
+
 }
 struct MaterialBackend {
     CudaFault fault;
@@ -100,7 +60,7 @@ struct MaterialBackend {
     PhysicsConfig physics{};
     std::uint64_t sequence=0,step=0;Real time=0;
     Buffer<PhysicsConfig> devicePhysics;
-    Buffer<SolidQ> current,next,initial,reacted,gasChange,candidateGasChange,donor;
+    Buffer<SolidQ> current,next,initial,gasChange,candidateGasChange,donor;
     Buffer<Real> initialVolumes,conductionVolumes,conductionTemperature;
     Buffer<MaterialThermalInput> conductionInput;
     Buffer<MaterialThermalCoefficients> conductionCoefficients;
@@ -113,7 +73,6 @@ struct MaterialBackend {
     Buffer<SolidQ> faceFlux,rates;
     Buffer<int> cellErrors,faceErrors;
     Buffer<MaterialTransportDeviceResult> transportResult;
-    Buffer<MaterialReactionStatus> reactionStatus;
     Buffer<MaterialStepResult> sourceStatus,stepResult;
     Buffer<ExchangePacket> packets;
     Buffer<int> packetOffsets,packetIndices,radiationOffsets,radiationFaces;
@@ -230,10 +189,9 @@ bool beginMaterialWindow(MaterialBackend& b,const HostState& state,const Physics
     devicePhysics.tolerances.diagnostics=b.diagnostics.device();
     b.sequence=state.commitSequence+1;b.step=state.acceptedSteps;b.time=state.time;
     if(!b.upload(b.current,state.solid)||!b.initial.copy(b.current,b.fault,b.stream.get())
-        ||!b.allocate(b.next,state.solid.size())||!b.allocate(b.reacted,state.solid.size())
+        ||!b.allocate(b.next,state.solid.size())
         ||!b.allocate(b.gasChange,state.solid.size())||!b.gasChange.zero(b.stream.get())
         ||!b.allocate(b.candidateGasChange,state.solid.size())
-        ||!b.allocate(b.donor,state.solid.size())||!b.allocate(b.reactionStatus,state.solid.size())
         ||!b.allocate(b.sourceStatus,state.solid.size())||!b.allocate(b.stepResult,1)
         ||!b.uploadRaw(b.devicePhysics,&devicePhysics,1)||!b.upload(b.initialVolumes,state.solidMesh.volumes)
         ||!b.upload(b.nextVolumes,state.solidMesh.volumes))return b.failure(error);
@@ -252,7 +210,7 @@ bool prepareResidentMaterialConduction(MaterialBackend& b,const HostMesh& mesh,
     if(b.cells)prepareConductionKernel<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,
         b.initial.data(),b.initialVolumes.data(),b.current.data(),b.volumes.data(),b.conductionVolumes.data(),
         b.devicePhysics.data(),b.conductionInput.data(),b.sourceStatus.data());
-    selectConductionFailure<<<1,1,0,b.stream.get()>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
+    selectConductionFailure<<<1,256,0,b.stream.get()>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
     MaterialStepResult result;
     if(!b.fault.check(cudaGetLastError(),"prepare resident material conduction")
         ||!b.transfers.download(&result,b.stepResult.data(),1)||!b.finish(error))return b.failure(error);
@@ -279,7 +237,7 @@ bool finishResidentMaterialConduction(MaterialBackend& b,const std::vector<Real>
     if(b.cells)finishConductionKernel<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,b.current.data(),
         b.volumes.data(),b.conductionInput.data(),b.conductionTemperature.data(),b.devicePhysics.data(),
         b.next.data(),b.sourceStatus.data());
-    selectConductionFailure<<<1,1,0,b.stream.get()>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
+    selectConductionFailure<<<1,256,0,b.stream.get()>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
     MaterialStepResult result;
     if(!b.fault.check(cudaGetLastError(),"finish resident material conduction")
         ||!b.transfers.download(&result,b.stepResult.data(),1)||!b.finish(error))return b.failure(error);
@@ -315,6 +273,7 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
     std::vector<SolidQ>& cumulative,std::string& error,bool& numerical){
     numerical=true;
     const int count=int(b.current.size());
+    if(controls.retainDonorHistory&&!b.allocate(b.donor,count))return b.failure(error);
     std::vector<std::vector<int>> packetRows(count),radiationRows(count);
     for(std::size_t i=0;i<packets.size();++i)if(requiredConsumers(packets[i].kind)&ConsumeSolid){
         const int cell=packets[i].solidCell;
@@ -338,23 +297,19 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
         ||!b.upload(b.radiationOffsets,radiationOffsets)||!b.upload(b.radiationFaces,radiationFaces)
         ||!b.upload(b.radiation,radiation)||!b.upload(b.radiationReceiver,receivers)
         ||!b.upload(b.nextVolumes,endpointMesh.volumes))return b.failure(error);
+    if(!b.fault.check(cudaMemsetAsync(b.stepResult.data(),0,sizeof(MaterialStepResult),b.stream.get()),
+        "clear material source result"))return b.failure(error);
     if(count){
-        advanceMaterialReactionsKernel<<<(count+127)/128,128,0,b.stream.get()>>>(
-            b.current.data(),b.volumes.data(),count,b.devicePhysics.data(),dt,controls.reactionMaxSubstep,
-            controls.reactionCfl,controls.maxSubsteps,b.reacted.data(),b.reactionStatus.data());
-    }
-    selectReactionFailure<<<1,1,0,b.stream.get()>>>(b.reactionStatus.data(),count,b.stepResult.data());
-    if(count){
-        applyMaterialSourcesKernel<<<(count+127)/128,128,0,b.stream.get()>>>(count,b.reacted.data(),b.rates.data(),
+        applyMaterialSourcesKernel<<<(count+127)/128,128,0,b.stream.get()>>>(count,b.current.data(),b.rates.data(),
             b.initial.data(),b.gasChange.data(),b.candidateGasChange.data(),b.packets.data(),b.packetOffsets.data(),b.packetIndices.data(),
             b.radiationOffsets.data(),b.radiationFaces.data(),radiation.empty()?nullptr:b.radiation.data(),
             b.radiationReceiver.data(),b.nextVolumes.data(),b.devicePhysics.data(),dt,finalStep,
-            b.next.data(),b.donor.data(),b.sourceStatus.data(),b.stepResult.data());
+            b.next.data(),controls.retainDonorHistory?b.donor.data():nullptr,b.sourceStatus.data(),controls.reactionMaxSubstep,controls.reactionCfl,controls.maxSubsteps);
     }
-    selectSourceFailure<<<1,1,0,b.stream.get()>>>(b.sourceStatus.data(),count,b.stepResult.data());
+    selectSourceFailure<<<1,256,0,b.stream.get()>>>(b.sourceStatus.data(),count,b.stepResult.data());
     if(!b.fault.check(cudaGetLastError(),"launch resident material local sources"))return b.failure(error);
     MaterialStepResult result;std::vector<SolidQ> candidateShadow,candidateDonor;
-    if(!b.transfers.download(&result,b.stepResult.data(),1)||!b.read(b.next,candidateShadow)||!b.read(b.donor,candidateDonor)
+    if(!b.transfers.download(&result,b.stepResult.data(),1)||!b.read(b.next,candidateShadow)||(controls.retainDonorHistory&&!b.read(b.donor,candidateDonor))
         ||!b.finish(error))return b.failure(error);
     if(result.phase){
         numerical=result.numerical;

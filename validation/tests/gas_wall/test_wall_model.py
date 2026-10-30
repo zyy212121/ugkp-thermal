@@ -135,11 +135,13 @@ def test_exothermic_differential_diffusion_independent_bvp(tmp_path):
     reference=solve_bvp(ode,bc,y,guess,tol=1e-7,max_nodes=10000)
     assert reference.success,reference.message
     wallY=reference.y[0,0];heat=reference.y[3,0];edgeJ=reference.y[1,-1]
+    # This grid-refinement oracle specifies its original stretch explicitly;
+    # application defaults (currently stretch=3) are a separate resolution choice.
     compile_run(tmp_path, f'''
  Model m;m.in.temperature=500;m.in.matching.temperature=700;m.in.matching.velocity[0]=0;
  m.coef[2]=100000;m.rx[0].highRate.preExponential=50;m.in.model.mode=GasMode::MixtureChemistry;
  m.in.model.diffusivity[0]=1e-4;m.in.model.diffusivity[1]=3e-4;
- WallModelConfig<double> c;c.nodes=96;c.maxIterations=100;c.relativeTolerance=1e-10;
+ WallModelConfig<double> c;c.nodes=96;c.stretch=2;c.maxIterations=100;c.relativeTolerance=1e-10;
  WallWorkspace<double,2,128> w;WallOutput<double,2> o;WallStatus s;
  if(!evaluateWallModel(m.in,c,w,o,s)){{std::cerr<<int(s.code)<<" iteration "<<s.iteration;return 2;}}
  assert(near(o.traceMassFraction[0],{wallY:.17g},.005));

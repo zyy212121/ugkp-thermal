@@ -23,7 +23,7 @@ def run(root,tmp,terminal):
     app=root/'applications/CHMT';tmp.mkdir()
     (tmp/'owner.C').write_text(owner(root))
     fixture=(VALIDATION_ROOT / 'tests/fixtures/predictor_terminal/probe.cpp')
-    cmd=['g++','-std=c++14','-O2','-ffp-contract=off','-Wall','-Wextra','-Werror','-pedantic','-Wno-misleading-indentation','-Wno-mismatched-new-delete', '-DTERMINAL_TEST='+str(int(terminal)), '-I'+str(tmp),'-I'+str(app),'-I'+str(root/'common'),'-I'+str((VALIDATION_ROOT / 'tests/fixtures/surface_terminal')),str(fixture),str(app/'ablation/CpuSurfaceInterface.C'),str(app/'mesh/Geometry.C'),'-o',str(tmp/'probe')]
+    cmd=['g++','-std=c++17','-O2','-ffp-contract=off','-Wall','-Wextra','-Werror','-pedantic','-Wno-misleading-indentation','-Wno-mismatched-new-delete', '-DTERMINAL_TEST='+str(int(terminal)), '-I'+str(tmp),'-I'+str(app),'-I'+str(root/'common'),'-I'+str((VALIDATION_ROOT / 'tests/fixtures/surface_terminal')),str(fixture),str(app/'ablation/CpuSurfaceInterface.C'),str(app/'mesh/Geometry.C'),'-o',str(tmp/'probe')]
     build=subprocess.run(cmd,text=True,capture_output=True)
     (tmp/'build.log').write_text(' '.join(cmd)+'\n'+build.stdout+build.stderr)
     assert build.returncode==0,build.stderr

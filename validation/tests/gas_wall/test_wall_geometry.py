@@ -73,7 +73,7 @@ def compile_run(tmp_path, body):
     src = tmp_path / 'geometry.cpp'
     src.write_text(BASE+'\nint main(){\n'+body+'\n}\n')
     exe = tmp_path / 'geometry'
-    result = subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-pedantic','-I',str(ROOT),'-I',str(ROOT/'common'),str(src),'-o',str(exe)],capture_output=True,text=True)
+    result = subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-pedantic','-I',str(ROOT),'-I',str(ROOT/'common'),str(src),'-o',str(exe)],capture_output=True,text=True)
     assert result.returncode == 0, result.stderr
     result = subprocess.run([str(exe)],capture_output=True,text=True)
     assert result.returncode == 0, result.stdout+result.stderr
@@ -324,7 +324,7 @@ def test_concave_profile_quadrature_preserves_actual_section_moments(tmp_path):
 def test_standalone_profile_probe_reports_numeric_acceptance(tmp_path):
     import json
     exe = tmp_path / 'profile_probe'
-    subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),'-I',str(ROOT/'common'),str((VALIDATION_ROOT / 'tests/gas_wall/test_wall_geometry_profile_probe.cpp')),'-o',str(exe)],check=True,capture_output=True,text=True)
+    subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),'-I',str(ROOT/'common'),str((VALIDATION_ROOT / 'tests/gas_wall/test_wall_geometry_profile_probe.cpp')),'-o',str(exe)],check=True,capture_output=True,text=True)
     result = subprocess.run([str(exe)],check=True,capture_output=True,text=True)
     rows = [json.loads(line) for line in result.stdout.splitlines()]
     assert len(rows) == 9

@@ -23,6 +23,11 @@ int main(int argc,char** argv) {
         Foam::IOdictionary properties(Foam::IOobject("chmtProperties",time.constant(),time,
             Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
         chmt::io::CoupledCaseInput input;chmt::io::readCoupledCase(time,properties,input);
+        std::cout<<"CHMT gas wall treatment="
+            <<(input.model.physics.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer?"boundaryLayer":"lowRe")
+            <<" layer model="<<(input.model.physics.wallModel.model==ugkwp::gaswall::BoundaryLayerModel::ConstantTransport?"constantTransport":
+                input.model.physics.wallModel.model==ugkwp::gaswall::BoundaryLayerModel::EquilibriumOde?"equilibriumOde":"reactingSst")
+            <<" equilibrium stress="<<(input.model.physics.wallModel.localStressCorrection?"localStress":"wallStress")<<'\n';
         if(args.optionFound("check-input")) {
             std::cout<<"CHMT coupled input valid; shared GPU evolution was not executed.\n";return 0;
         }
@@ -51,10 +56,25 @@ int main(int argc,char** argv) {
         const Foam::fileName directory=time.path()/chmt::io::text(properties,"outputDirectory","chmtOutput");
         chmt::io::require(!Foam::isDir(directory)&&!Foam::isFile(directory),"output directory already exists");
         chmt::io::require(Foam::mkDir(directory),"cannot create coupled output directory");
-        auto publish=[&](){
+        const auto& outputControls=properties.found("outputControls")?properties.subDict("outputControls"):properties;
+        const auto diagnosticInterval=outputControls.lookupOrDefault<Foam::label>("diagnosticInterval",1);
+        const auto fieldInterval=outputControls.lookupOrDefault<Foam::label>("fieldInterval",1);
+        const auto checkpointInterval=outputControls.lookupOrDefault<Foam::label>("checkpointInterval",1);
+        chmt::io::require(diagnosticInterval>=0&&fieldInterval>=0&&checkpointInterval>=0,"output intervals must be nonnegative accepted-step counts");
+        const bool writeInitial=chmt::io::flag(outputControls,"writeInitial",true);
+        const bool writeFinal=chmt::io::flag(outputControls,"writeFinal",true);
+        auto publish=[&](bool force){
+            const auto step=input.state.acceptedSteps;
+            const bool diagnostics=force||(diagnosticInterval>0&&step%diagnosticInterval==0);
+            const bool full=force||(fieldInterval>0&&step%fieldInterval==0);
+            const bool checkpoint=force||(checkpointInterval>0&&step%checkpointInterval==0);
+            if(!diagnostics&&!full&&!checkpoint)return;
             const std::string suffix=std::to_string(input.state.acceptedSteps);
+            if(diagnostics){
             std::ofstream summary((directory/Foam::fileName("accepted-"+suffix+".csv")).c_str());
             chmt::io::require(chmt::io::writeAcceptedCoupledSummary(summary,input.state,input.model,error),error);
+            }
+            if(full){
             std::ofstream fields((directory/Foam::fileName("gas-"+suffix+".csv")).c_str());
             chmt::io::require(chmt::io::writeAcceptedGasFields(fields,input.state,input.model,error),error);
             if(input.model.physics.enableParticles){
@@ -69,13 +89,14 @@ int main(int argc,char** argv) {
                 std::ofstream wall((directory/Foam::fileName("wall-layer-"+suffix+".csv")).c_str());
                 chmt::io::require(chmt::io::writeAcceptedWallLayerFields(wall,input.state,input.model,error),error);
             }
-            chmt::io::require(chmt::writeCheckpoint(directory/Foam::fileName("checkpoint-"+suffix),input.model,input.state,error),error);
+            }
+            if(checkpoint)chmt::io::require(chmt::writeCheckpoint(directory/Foam::fileName("checkpoint-"+suffix),input.model,input.state,error),error);
         };
-        publish();
+        if(writeInitial||(writeFinal&&input.state.time>=end))publish(true);
         while(input.state.time<end){
             chmt::WindowEvolutionReport report;
             chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error),error);
-            publish();
+            publish(writeFinal&&input.state.time>=end);
             if
             (
                 ugkwp::logging::progressLogDue

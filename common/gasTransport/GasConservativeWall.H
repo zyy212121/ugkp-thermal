@@ -76,7 +76,7 @@ UGKWP_GAS_HD inline void reconstructConservativeWall(
     State &s, int slot, int worker, const gaswall::WallInput<double, 2> &in,
     const gaswall::WallModelConfig<double> &cfg,
     const gaswall::WallWorkspace<double, 2, M> &w,
-    const gaswall::WallOutput<double, 2> &out, const Team &team) {
+    const gaswall::WallExchangeOutput<double, 2> &out, const Team &team) {
   auto &data = s.gasBoundaryLayerModel.conservative;
   if (!data.enabled || data.columns[slot].cells[0] < 0)
     return;

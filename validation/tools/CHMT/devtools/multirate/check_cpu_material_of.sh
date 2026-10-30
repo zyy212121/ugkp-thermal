@@ -9,7 +9,7 @@ runners="$root/validation/tools/CHMT"
 build=$(mktemp -d /tmp/chmt-native-material.XXXXXX)
 trap 'rm -rf "$build"' EXIT
 cxx=${CXX:-g++}
-"$cxx" -std=c++14 -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 -I"$app" -I"$validation" -I"$app/../../common" \
+"$cxx" -std=c++17 -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 -I"$app" -I"$validation" -I"$app/../../common" \
  -I"$WM_PROJECT_DIR/src/OpenFOAM/lnInclude" -I"$WM_PROJECT_DIR/src/finiteVolume/lnInclude" -I"$WM_PROJECT_DIR/src/meshTools/lnInclude" -I"$WM_PROJECT_DIR/src/OSspecific/POSIX/lnInclude" \
  "$validation/devtools/multirate/test_cpu_material_of.C" "$app/materials/MaterialTransport.C" "$app/film/CpuFilmDriver.C" "$app/ablation/CpuSurfaceInterface.C" "$app/mesh/Geometry.C" \
  -L"$FOAM_LIBBIN" -lfiniteVolume -lmeshTools -lOpenFOAM -L"$FOAM_LIBBIN/$FOAM_MPI" -lPstream -o "$build/test_cpu_material_of"

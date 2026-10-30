@@ -3,6 +3,7 @@
 #include <utility>
 #include "MixtureHeatExchange.H"
 #include "MixtureParticleDirectory.cuh"
+#include "MixtureCouplingTeam.cuh"
 #include "../gasNumerics/GpuParticlePhysicsAlgebra.cuh"
 #include "../gasNumerics/GpuDragModels.cuh"
 
@@ -36,18 +37,15 @@ __device__ double heatFraction(const State&s,int c,int i,double dt)
 }
 }
 
-template<class DragModel,bool ConstantHeat=true,class State>
-__global__ void mixtureParticleCouplingKernel
-(State*sp,double dt,bool dragActive,bool useCsr=true,bool useSplit=false)
+template<class DragModel,bool ConstantHeat,class State,class Team>
+__device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragActive,bool useCsr,bool useSplit,const Team&team)
 {
-    State&s=*sp;const int c=blockIdx.x*blockDim.x+threadIdx.x;
-    if(c>=s.nCells)return;
     const int begin=0,end=mixtureParticles::count(s,c,useCsr,useSplit);
     const double epsG=s.epsGPrev[c],volume=epsG*s.V[c];
     const double gasMass=volume*s.rho[c];
     double weight=0,x=0,y=0,z=0;
     // No parcel or gas state is changed while forming the finite-bath target.
-    for(int pos=begin;pos<end;++pos)
+    for(int pos=begin+team.rank();pos<end;pos+=team.width())
     {
         const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
         if(!mixtureParticles::member(s,i,c))continue;
@@ -59,13 +57,14 @@ __global__ void mixtureParticleCouplingKernel
             weight+=w;x+=w*s.pux[i];y+=w*s.puy[i];z+=w*s.puz[i];
         }
     }
+    weight=team.sum(weight);x=team.sum(x);y=team.sum(y);z=team.sum(z);
     if(dragActive)
     {
         const double ux=(gasMass*s.Ux[c]+x)/(gasMass+weight);
         const double uy=(gasMass*s.Uy[c]+y)/(gasMass+weight);
         const double uz=(gasMass*s.Uz[c]+z)/(gasMass+weight);
         double dpx=0,dpy=0,dpz=0,dEnergy=0;
-        for(int pos=begin;pos<end;++pos)
+        for(int pos=begin+team.rank();pos<end;pos+=team.width())
         {
             const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
             if(!mixtureParticles::member(s,i,c))continue;
@@ -80,9 +79,12 @@ __global__ void mixtureParticleCouplingKernel
             dEnergy+=s.pm[i]*(.5*(dx*(s.pux[i]+oldX)+dy*(s.puy[i]+oldY)+dz*(s.puz[i]+oldZ))
                               +1.5*(s.pTheta[i]-oldTheta));
         }
+        dpx=team.sum(dpx);dpy=team.sum(dpy);dpz=team.sum(dpz);dEnergy=team.sum(dEnergy);
+        if(team.rank()==0){
         s.rhoUx[c]-=dpx/volume;s.rhoUy[c]-=dpy/volume;s.rhoUz[c]-=dpz/volume;
         s.rhoE[c]-=dEnergy/volume;
         recoverGasPrimitiveCell(s,c);
+        }team.sync();
     }
     if constexpr(ConstantHeat) {
     const double heatFactor=s.particleThermalRho*s.particleCp/s.rhoSolid;
@@ -94,32 +96,35 @@ __global__ void mixtureParticleCouplingKernel
         const double oldInternal=s.rhoE[c]-kinetic;
         const double referenceTemperature=s.Tgas[c];
         double A=0,B=0;
-        for(int pos=begin;pos<end;++pos)
+        for(int pos=begin+team.rank();pos<end;pos+=team.width())
         {
             const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
             if(!mixtureParticles::member(s,i,c))continue;
             const double w=s.pm[i]*heatFactor*mixtureParticles::heatFraction(s,c,i,dt);
             A+=w;B+=w*(s.pT[i]-referenceTemperature);
         }
+        A=team.sum(A);B=team.sum(B);
         if(A==0.)return;
         double target=referenceTemperature;
-        const auto status=ugkwp::invertMixtureHeatExchange
+        auto status=ugkwp::ThermoStatus::Success;
+        if(team.rank()==0)status=ugkwp::invertMixtureHeatExchange
         (species,oldInternal,A/volume,B/volume,s.gasSpecies.thermo,
          s.gasSpecies.thermoControls,target);
+        target=team.broadcast(target);status=static_cast<ugkwp::ThermoStatus>(team.broadcast(int(status)));
         if(status!=ugkwp::ThermoStatus::Success)
         {
-            s.gasSpecies.cellStatus[c]=static_cast<int>(status);
+            if(team.rank()==0){s.gasSpecies.cellStatus[c]=static_cast<int>(status);
             // A failed physical exchange must reach this step's completion,
             // including the final sample, without waiting for another flux.
             using namespace ugkp::diagnostics;
             auto failure=makeRecord(Code::InvalidPhysicalState,30700,0,0,
                 EntityKind::Cell,c,-1,static_cast<int>(status));
             failure.metadata=static_cast<unsigned>(status);
-            recordFatal(s.diagnostics,failure);
+            recordFatal(s.diagnostics,failure);}
             return;
         }
         double heat=0;
-        for(int pos=begin;pos<end;++pos)
+        for(int pos=begin+team.rank();pos<end;pos+=team.width())
         {
             const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
             if(!mixtureParticles::member(s,i,c))continue;
@@ -127,11 +132,40 @@ __global__ void mixtureParticleCouplingKernel
             s.pT[i]=fmin(s.TpMax,fmax(s.TpMin,oldT+a*(target-oldT)));
             heat+=s.pm[i]*heatFactor*(s.pT[i]-oldT);
         }
-        s.rhoE[c]-=heat/volume;
-        recoverGasPrimitiveCell(s,c);
+        heat=team.sum(heat);
+        if(team.rank()==0){s.rhoE[c]-=heat/volume;recoverGasPrimitiveCell(s,c);}
     }
     }
 }
+
+// Separate scalar and cooperative launches retain dense scalar work for light
+// cells. Giving every light cell a full warp regresses sparse populations.
+template<class DragModel,bool ConstantHeat=true,bool Cooperative=false,class State>
+__global__ void mixtureParticleCouplingKernel
+(State*sp,double dt,bool dragActive,bool useCsr=true,bool useSplit=false,bool skipHeavy=false){
+ State&s=*sp;const int thread=blockIdx.x*blockDim.x+threadIdx.x;
+#if defined(__CUDACC__)
+ if constexpr(Cooperative){
+  for(int c=thread/32;c<s.nCells;c+=gridDim.x*(blockDim.x/32)){
+   if(mixtureParticles::count(s,c,useCsr,useSplit)>=32)
+    mixtureParticleCouplingCell<DragModel,ConstantHeat>(s,c,dt,dragActive,useCsr,useSplit,mixtureParticles::WarpCouplingTeam{});
+  }
+ }else
+#endif
+ {const int c=thread;if(c<s.nCells&&(!skipHeavy||mixtureParticles::count(s,c,useCsr,useSplit)<32))
+   mixtureParticleCouplingCell<DragModel,ConstantHeat>(s,c,dt,dragActive,useCsr,useSplit,mixtureParticles::SerialCouplingTeam{});}
+}
+#if defined(__CUDACC__)
+template<class DragModel,bool ConstantHeat=true,class State>
+inline cudaError_t launchMixtureParticleCouplingCells(State*state,int cells,double dt,bool drag,bool csr,bool split){
+ if(cells<=0)return cudaSuccess;
+ mixtureParticleCouplingKernel<DragModel,ConstantHeat><<<(cells+127)/128,128>>>(state,dt,drag,csr,split,true);
+ auto error=cudaGetLastError();if(error!=cudaSuccess)return error;
+ const int groups=(cells+3)/4;
+ mixtureParticleCouplingKernel<DragModel,ConstantHeat,true><<<groups<256?groups:256,128>>>(state,dt,drag,csr,split);
+ return cudaGetLastError();
+}
+#endif
 
 // External pressure/gravity work is not internal drag exchange. Launch after
 // the paired transaction; gas gravity has already been applied by its owner.

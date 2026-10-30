@@ -472,9 +472,8 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
         );
         fvScalarMatrix equation
         (
-            fvm::laplacian(kappa, *candidate)
+            ugkp::gpu::gpuImplicitThermalEquation(kappa, *candidate, Csec, oldTemperature(), deltaTExchange, true)
         );
-        ugkp::gpu::formGpuImplicitEquation(equation, Csec, oldTemperature(), deltaTExchange, true);
         solverPerformance linearPerformance;
         {
             ScalarSolverLogSilencer silenceSolverLog;

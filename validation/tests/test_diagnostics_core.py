@@ -37,7 +37,7 @@ def test_real_openfoam_dispatch(tmp_path):
         pytest.skip('OpenFOAM environment unavailable')
     binary = tmp_path / 'foam'
     command = f'''{toolchain_setup()}
-    g++ -std=c++14 -pthread -DWM_DP -DWM_LABEL_SIZE=32 -I{ROOT}/common \
+    g++ -std=c++17 -pthread -DWM_DP -DWM_LABEL_SIZE=32 -I{ROOT}/common \
       -I$WM_PROJECT_DIR/src/OpenFOAM/lnInclude -I$WM_PROJECT_DIR/src/OSspecific/POSIX/lnInclude \
       {SOURCES}/test_foam.cpp -L$FOAM_LIBBIN -L$FOAM_LIBBIN/$FOAM_MPI -lOpenFOAM -lPstream -o {binary} && {binary}
     '''
@@ -232,7 +232,7 @@ def test_native_gas_boundary_layer_input_compiles(tmp_path):
     source.write_text('#include "BoundaryLayerInput.H"\n')
     setup=f'{toolchain_setup()}' if ENV.exists() else ':'
     command=f'''{setup}
-    g++ -std=c++14 -fsyntax-only -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 \\
+    g++ -std=c++17 -fsyntax-only -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 \\
       -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 \\
       -I$WM_PROJECT_DIR/src/finiteVolume/lnInclude -I$WM_PROJECT_DIR/src/meshTools/lnInclude \\
       -I$WM_PROJECT_DIR/src/OpenFOAM/lnInclude -I$WM_PROJECT_DIR/src/OSspecific/POSIX/lnInclude \\

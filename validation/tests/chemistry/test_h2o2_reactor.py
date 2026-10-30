@@ -37,7 +37,7 @@ time=target;}
 @pytest.fixture(scope='module')
 def runner(tmp_path_factory):
     tmp=tmp_path_factory.mktemp('h2o2-reactor');src=tmp/'run.cpp';src.write_text(SOURCE);exe=tmp/'run'
-    build=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
+    build=subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
     assert build.returncode==0,build.stderr
     return exe
 

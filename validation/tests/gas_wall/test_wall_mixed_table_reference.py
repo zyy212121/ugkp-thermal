@@ -12,7 +12,7 @@ def test_double_tables_against_independent_physical_reference(tmp_path):
     source = (VALIDATION_ROOT / 'tests/gas_wall/mixed_table_reference_probe.cpp')
     executable = tmp_path/f'mixed_table_{64}'
     compiled = subprocess.run([
-        'g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror',
+        'g++', '-std=c++17', '-O2', '-Wall', '-Wextra', '-Werror',
         '-I', str(ROOT), '-I', str(ROOT/'common'),
         str(source), '-o', str(executable),
     ], capture_output=True, text=True)

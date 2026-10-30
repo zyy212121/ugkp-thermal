@@ -46,6 +46,10 @@ struct SparseCommunication {
     void* context=nullptr;
     void (*globalSum)(void*,double*,int)=nullptr;
     void (*addInterface)(void*,const double*,double*,int)=nullptr;
+    // Exact union of local cells read/written by addInterface. Negative count
+    // retains the unrestricted callback contract; native FV supplies this set.
+    const int* interfaceCells=nullptr;
+    int interfaceCellCount=-1;
 };
 class SparseConjugateGradient {
     struct Implementation;

@@ -10,6 +10,7 @@ def fixture():
 #include "GpuParticleThermalCarry.H"
 struct ThermalState:PairedState {
  unsigned char pStuck[4]={};double pThermalEnthalpyResidual[4]={};
+ double mixtureHeatInitialTemperature[4]{},mixtureHeatFraction[4]{};
  double thetaDragAlpha[2]={1,1};ugkwp::ParticleCaloric law;
 };
 using DeviceState=ThermalState;
@@ -64,7 +65,7 @@ auto equation=[&](long double t){const long double d=t-1000;
  return volume*((1000-.22L*1000-R)*d-.11L*d*d)+mass*(h(s.law,pt)-h(s.law,oldT));};
 for(int it=0;it<180;++it){long double mid=(lo+hi)/2;if(equation(mid)>0)hi=mid;else lo=mid;}
 const long double expected=(lo+hi)/2,expectedP=oldT+a*(expected-oldT);
-threadIdx.x=0;mixtureThermalParticleHeatKernel(&s,DT,CSR,SPLIT);
+threadIdx.x=0;prepareMixtureThermalParticleHeatKernel(&s,DT);mixtureThermalParticleHeatKernel(&s,DT,CSR,SPLIT);
 ck(s.gasSpecies.cellStatus[0]==0,"nonlinear heat status");
 closeValue(s.Tgas[0],expected,3e-8,"gas finite bath root");
 closeValue(particleEffectiveTemperatureDevice(s,0),expectedP,3e-8,"particle exponential constitutive equation");

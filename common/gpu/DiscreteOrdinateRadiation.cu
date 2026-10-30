@@ -35,6 +35,8 @@ __device__ double consume(double value,double reference,int code,int iteration,i
 struct Geometry {
     int cells,directions,faces,boundary;
     const int *owner,*neighbour,*boundaryOwner,*boundaryPatch,*boundaryFace,*reflected,*boundaryOffsets,*boundaryCells;
+    const int *reflectionOffsets,*reflectionDonors;
+    const double* reflectionWeights;
     const RadiationBoundary* boundaryType;
     const double *volume,*weights,*internalFlux,*transportDiagonal,*boundaryFlux,*cosine,*area,*denominator,*fixed;
 };
@@ -70,8 +72,13 @@ __device__ double incoming(Geometry g,Fields f,const double* intensities,const d
     Errors errors,int slot,unsigned priority){
     const int cell=g.boundaryOwner[face],patch=g.boundaryPatch[face],local=g.boundaryFace[face];
     switch(g.boundaryType[face]){
-    case RadiationBoundary::Specular:return consume(intensities[std::size_t(g.reflected[direction*g.boundary+face])*g.cells+cell],
-        intensities[std::size_t(direction)*g.cells+cell],Specular,0,cell,patch,local,errors,slot,priority);
+    case RadiationBoundary::Specular:{
+        double value=0;const int row=direction*g.boundary+face;
+        for(int e=g.reflectionOffsets[row];e<g.reflectionOffsets[row+1];++e)
+            value+=g.reflectionWeights[e]*consume(intensities[std::size_t(g.reflectionDonors[e])*g.cells+cell],
+                intensities[std::size_t(direction)*g.cells+cell],Specular,0,cell,patch,local,errors,slot,priority);
+        return value;
+    }
     case RadiationBoundary::Zero:return 0;
     case RadiationBoundary::Fixed:return g.fixed[face];
     case RadiationBoundary::Black:return f.wallBlack[face];
@@ -155,21 +162,36 @@ struct DiscreteOrdinateRadiation::Implementation {
     Array<double> absorption,scattering,extinction,asymmetry,emission,wallBlack,scaling,nextScaling,rowError,columnError,reference;
     Array<MieOpticalQuery> queries;Array<MieBracket> phaseBrackets;Array<MiePhaseMetrics> phaseMetrics;
     Array<double> intensities,frozen,incident,initial,incidentRadiation,power,wallFlux,directionChange;
+    // finish() is ordered on the owner stream; these reductions are shared scratch.
+    Array<double> change,magnitude;
     Array<unsigned char> initialValid;
+    Array<int> reflectionOffsets,reflectionDonors;Array<double> reflectionWeights;
     Array<OrderedMaximum> partialA,partialB;Array<double> reductionA,reductionB;
     Array<unsigned long long> firstError;Array<Failure> failures;
     Array<const UpwindLinearReport*> reportPointers;Array<UpwindLinearReport> reports;
     Geometry g{};Fields f{};
+    struct DirectionWorkspace {
+        Array<double> diagonal,source,solved,previous;
+        Array<unsigned long long> firstError;Array<Failure> failures;
+        cudaStream_t stream=nullptr;
+        DirectionWorkspace(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));}
+        ~DirectionWorkspace(){if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
+    };
     struct Direction {
         OrderedUpwindPlan plan;Array<int> offsets,neighbours,subtract,residualOrder,levels;Array<double> flux;
-        Array<double> diagonal,source,solved,previous,change,magnitude;
-        Array<unsigned long long> firstError;Array<Failure> failures;
+        std::shared_ptr<DirectionWorkspace> workspace;
+        Array<double> &diagonal,&source,&solved,&previous;
+        Array<unsigned long long>& firstError;Array<Failure>& failures;
         std::unique_ptr<OrderedUpwindGraph> graph;
         cudaStream_t stream=nullptr;cudaEvent_t complete=nullptr;
-        Direction(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));checked(cudaEventCreateWithFlags(&complete,cudaEventDisableTiming));}
-        ~Direction(){if(stream)cudaStreamSynchronize(stream);graph.reset();if(complete)cudaEventDestroy(complete);if(stream)cudaStreamDestroy(stream);}
+        explicit Direction(std::shared_ptr<DirectionWorkspace> w):workspace(std::move(w)),
+            diagonal(workspace->diagonal),source(workspace->source),solved(workspace->solved),previous(workspace->previous),
+            firstError(workspace->firstError),failures(workspace->failures),stream(workspace->stream){
+            checked(cudaEventCreateWithFlags(&complete,cudaEventDisableTiming));}
+        ~Direction(){if(stream)cudaStreamSynchronize(stream);graph.reset();if(complete)cudaEventDestroy(complete);}
         Errors errors(){return {firstError.ptr,failures.ptr};}
     };
+    int concurrentAngles=1;
     std::vector<std::unique_ptr<Direction>> directions;
     Implementation(const RadiationGeometry& input,const MieOpticalTable& table,const RadiationControls& options):geometry(input),controls(options),optical(table){
         checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfers.bind(stream);
@@ -203,24 +225,49 @@ struct DiscreteOrdinateRadiation::Implementation {
         for(auto* field:{&absorption,&scattering,&extinction,&asymmetry,&emission,&incidentRadiation,&power})field->resize(cells);
         wallBlack.resize(boundary);wallFlux.resize(boundary);reference.resize(1);queries.resize(cells);phaseMetrics.resize(cells);phaseBrackets.resize(std::size_t(angles)*angles);
         for(auto* field:{&scaling,&nextScaling,&rowError,&columnError,&intensities,&frozen})field->resize(angular);
+        change.resize(cells);magnitude.resize(cells);
         incident.resize(boundary);initial.resize(cells+boundary);initialValid.resize(cells+boundary);directionChange.resize(angles);
         reductionA.resize(1);reductionB.resize(1);firstError.resize(1);failures.resize(std::max({1,cells,boundary}));
         partialA.resize(std::max(1,(std::max(cells+boundary,angles)+255)/256));partialB.resize(partialA.size);
         epsilon.resize(cells);temperature.resize(cells);diameter.resize(cells);wallTemperature.resize(boundary);emissivity.resize(boundary);
+        if(std::find(geometry.boundaryType.begin(),geometry.boundaryType.end(),RadiationBoundary::Specular)!=geometry.boundaryType.end()
+            &&geometry.reflectionOffsets.size()!=std::size_t(angles)*boundary+1)
+            throw std::invalid_argument("specular boundary requires conservative reflection map");
+        if(!geometry.reflectionOffsets.empty()){
+            const auto& offsets=geometry.reflectionOffsets;
+            if(offsets.size()!=std::size_t(angles)*boundary+1||offsets.front()!=0
+                ||offsets.back()!=int(geometry.reflectionDonors.size())
+                ||geometry.reflectionWeights.size()!=geometry.reflectionDonors.size())
+                throw std::invalid_argument("invalid specular reflection map shape");
+            for(std::size_t row=0;row+1<offsets.size();++row){
+                if(offsets[row]<0||offsets[row]>offsets[row+1]||offsets[row+1]>offsets.back())
+                    throw std::invalid_argument("invalid specular reflection offsets");
+                for(int j=offsets[row];j<offsets[row+1];++j)
+                    if(geometry.reflectionDonors[j]<0||geometry.reflectionDonors[j]>=angles
+                        ||!std::isfinite(geometry.reflectionWeights[j])||geometry.reflectionWeights[j]<0)
+                        throw std::invalid_argument("invalid specular reflection entry");
+            }
+        }
+        reflectionOffsets.upload(geometry.reflectionOffsets,transfers);
+        reflectionDonors.upload(geometry.reflectionDonors,transfers);
+        reflectionWeights.upload(geometry.reflectionWeights,transfers);
         g={cells,angles,int(geometry.owner.size()),boundary,owner.ptr,neighbour.ptr,boundaryOwner.ptr,boundaryPatch.ptr,boundaryFace.ptr,
-            reflected.ptr,boundaryOffsets.ptr,boundaryCells.ptr,boundaryType.ptr,volume.ptr,weights.ptr,internalFlux.ptr,transportDiagonal.ptr,
+            reflected.ptr,boundaryOffsets.ptr,boundaryCells.ptr,reflectionOffsets.ptr,reflectionDonors.ptr,reflectionWeights.ptr,boundaryType.ptr,volume.ptr,weights.ptr,internalFlux.ptr,transportDiagonal.ptr,
             boundaryFlux.ptr,cosines.ptr,area.ptr,denominator.ptr,fixed.ptr};
         f={absorption.ptr,scattering.ptr,extinction.ptr,asymmetry.ptr,emission.ptr,wallBlack.ptr,scaling.ptr,reference.ptr,queries.ptr,optical.deviceTable(),phaseBrackets.ptr,emissivity.ptr};
         mieDetail::phaseBrackets<<<std::max(1,(angles*angles+127)/128),128,0,stream>>>(angles*angles,f.table,directionCosines.ptr,phaseBrackets.ptr);
         transfers.finish();
+        concurrentAngles=controls.parallelAngles?std::max(1,std::min(angles,controls.maximumConcurrentAngles>0?controls.maximumConcurrentAngles:angles)):1;
+        std::vector<std::shared_ptr<DirectionWorkspace>> workspaces;
+        for(int i=0;i<concurrentAngles;++i)workspaces.push_back(std::make_shared<DirectionWorkspace>());
         std::vector<const UpwindLinearReport*> deviceReports;
         for(int angle=0;angle<angles;++angle){
-            std::unique_ptr<Direction> next(new Direction);auto& d=*next;
+            std::unique_ptr<Direction> next(new Direction(workspaces[angle%concurrentAngles]));auto& d=*next;
             std::vector<double> flux(geometry.internalFlux.begin()+std::size_t(angle)*g.faces,geometry.internalFlux.begin()+std::size_t(angle+1)*g.faces);
             d.plan.build(cells,geometry.owner,geometry.neighbour,geometry.cellOffsets,geometry.cellFaces,flux);
             d.offsets.upload(d.plan.offsets,transfers);d.neighbours.upload(d.plan.neighbour,transfers);d.subtract.upload(d.plan.subtract,transfers);
             d.residualOrder.upload(d.plan.residualOrder,transfers);d.levels.upload(d.plan.levelCells,transfers);d.flux.upload(d.plan.flux,transfers);
-            for(auto* field:{&d.diagonal,&d.source,&d.solved,&d.previous,&d.change,&d.magnitude})field->resize(cells);
+            for(auto* field:{&d.diagonal,&d.source,&d.solved,&d.previous})field->resize(cells);
             transfers.finish();
             d.firstError.resize(1);d.failures.resize(std::max(1,cells));
             OrderedUpwindDevice matrix{cells,d.offsets.ptr,d.neighbours.ptr,d.subtract.ptr,d.residualOrder.ptr,d.levels.ptr,d.flux.ptr};
@@ -259,23 +306,28 @@ RadiationResult DiscreteOrdinateRadiation::solve(const RadiationSnapshot& snapsh
             if(report.externalFailure!=ULLONG_MAX)d.readFailure(report.externalFailure,q.failures.ptr);
             if(report.errorCell>=0)fail({report.errorValue,Linear,iteration,report.errorCell,-1,-1});
             if(report.finalResidual>report.target)result.directionWarnings[angle]={report.finalResidual,report.target,report.iterations,iteration};
-            relaxedDirection<<<blocks,128,0,d.stream>>>(g.cells,angle,d.controls.sourceRelaxation,angular,q.solved.ptr,d.intensities.ptr,q.change.ptr,q.magnitude.ptr);
-            d.maximum(g.cells,q.change.ptr,nullptr,0,d.reductionA.ptr);d.maximum(g.cells,q.magnitude.ptr,nullptr,d.controls.small,d.reductionB.ptr);
+            relaxedDirection<<<blocks,128,0,d.stream>>>(g.cells,angle,d.controls.sourceRelaxation,angular,q.solved.ptr,d.intensities.ptr,d.change.ptr,d.magnitude.ptr);
+            d.maximum(g.cells,d.change.ptr,nullptr,0,d.reductionA.ptr);d.maximum(g.cells,d.magnitude.ptr,nullptr,d.controls.small,d.reductionB.ptr);
             ratio<<<1,1,0,d.stream>>>(d.reductionA.ptr,d.reductionB.ptr,d.directionChange.ptr+angle);
         };
         if(d.controls.parallelAngles){
-            // Frozen sources make the directions independent. Queue all work
-            // before collecting a single compact set of convergence records.
-            for(int angle=0;angle<g.directions;++angle){auto& q=*d.directions[angle];prepare(angle,q.stream);q.graph->begin(q.stream);q.graph->advance(q.stream,1);
-                checked(cudaEventRecord(q.complete,q.stream));checked(cudaStreamWaitEvent(d.stream,q.complete,0));}
-            std::vector<UpwindLinearReport> reports;
-            for(;;){
-                collectReports<<<std::max(1,(g.directions+127)/128),128,0,d.stream>>>(g.directions,d.reportPointers.ptr,d.reports.ptr);
-                d.reports.download(reports,d.transfers);d.transfers.finish();bool active=false;
-                for(int angle=0;angle<g.directions;++angle)if(reports[angle].active){auto& q=*d.directions[angle];q.graph->advance(q.stream);checked(cudaEventRecord(q.complete,q.stream));checked(cudaStreamWaitEvent(d.stream,q.complete,0));active=true;}
-                if(!active)break;
+            // Frozen source semantics are unchanged across batches. Scratch is
+            // reused only after each batch has finished publication on owner stream.
+            for(int begin=0;begin<g.directions;begin+=d.concurrentAngles){
+                const int end=std::min(g.directions,begin+d.concurrentAngles),count=end-begin;
+                for(int angle=begin;angle<end;++angle){auto& q=*d.directions[angle];prepare(angle,q.stream);q.graph->begin(q.stream);q.graph->advance(q.stream,1);
+                    checked(cudaEventRecord(q.complete,q.stream));checked(cudaStreamWaitEvent(d.stream,q.complete,0));}
+                std::vector<UpwindLinearReport> reports(count);
+                for(;;){
+                    collectReports<<<std::max(1,(count+127)/128),128,0,d.stream>>>(count,d.reportPointers.ptr+begin,d.reports.ptr);
+                    d.transfers.download(reports.data(),d.reports.ptr,count*sizeof(UpwindLinearReport));d.transfers.finish();bool active=false;
+                    for(int angle=begin;angle<end;++angle)if(reports[angle-begin].active){auto& q=*d.directions[angle];q.graph->advance(q.stream);checked(cudaEventRecord(q.complete,q.stream));checked(cudaStreamWaitEvent(d.stream,q.complete,0));active=true;}
+                    if(!active)break;
+                }
+                for(int angle=begin;angle<end;++angle)finish(angle,reports[angle-begin]);
+                // Next batch reuses matrix/solution buffers on independent streams.
+                checked(cudaStreamSynchronize(d.stream));
             }
-            for(int angle=0;angle<g.directions;++angle)finish(angle,reports[angle]);
         }else{
             for(int angle=0;angle<g.directions;++angle){prepare(angle,d.stream);finish(angle,d.directions[angle]->graph->launch(d.stream));}
         }

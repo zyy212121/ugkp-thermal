@@ -62,7 +62,7 @@ log="${log_dir}/separated_build_$(date +%Y%m%d_%H%M%S).log"
 
     rm -f "${obj_dir}"/*.o "${backend_lib}"
 
-    "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" \
+    ugkp_nvcc "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" \
         -std=c++17 \
         -O3 \
         "${probe_nvcc_flags[@]}" \

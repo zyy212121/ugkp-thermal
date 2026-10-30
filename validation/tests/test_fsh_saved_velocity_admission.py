@@ -50,7 +50,7 @@ int main(){for(double value:{0.,-0.,1.2345678901234567,1e300,std::numeric_limits
  }
 '''.replace('BODY',body).replace('DECLARATIONS',declarations).replace('LEGACY',legacy)
         src=tmp_path/(label+'.cpp');src.write_text(code);exe=tmp_path/label
-        subprocess.run(['g++','-std=c++14','-O2',str(src),'-o',str(exe)],check=True)
+        subprocess.run(['g++','-std=c++17','-O2',str(src),'-o',str(exe)],check=True)
         result=subprocess.check_output([str(exe)],text=True);(tmp_path/(label+'.out')).write_text(result);outputs.append(result.splitlines())
     assert outputs[0][:5]==['uploaded 1 1']*5
     assert outputs[0][5:7]==['refused 0 1']*2

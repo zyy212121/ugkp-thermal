@@ -98,7 +98,7 @@ int main(){
 }
 ''')
     exe=tmp_path/f'borrowed_{64}'
-    run=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-I',str(ROOT),'-I',str(ROOT/'common'),str(source),'-o',str(exe)],capture_output=True,text=True)
+    run=subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror','-I',str(ROOT),'-I',str(ROOT/'common'),str(source),'-o',str(exe)],capture_output=True,text=True)
     assert run.returncode==0,run.stderr
     run=subprocess.run([str(exe)],capture_output=True,text=True)
     assert run.returncode==0,run.stdout+run.stderr

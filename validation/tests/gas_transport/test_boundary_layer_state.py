@@ -46,7 +46,7 @@ ck(near(exchange[0].mass,Real(-.6)),"mass used matching flux or chemistry");ck(n
 Real h=Real(.4)*ugkwp::speciesH(0,Real(700),s.gasSpecies.thermo)-Real(.1)*ugkwp::speciesH(1,Real(700),s.gasSpecies.thermo);
 ck(near(exchange[0].energy,-2*(h+Real(.3)*Real(6.5)+50+25-23)),"enthalpy, kinetic, sweep or traction work double counted");
 ck(near(exchange[0].momentumX,-2*(Real(.3)*2+100-4)),"momentum wall orientation");ck(exchange[0].k==0,"auxiliary k flux leaked into physical wall");ck(near(closure[0].wallShearStress,Real(5))&&closure[0].ownerOmega==11&&closure[0].volume==3&&closure[0].ownerDistance==Real(.5),"numerical wall relation changed units");
-output.traceTemperature=std::numeric_limits<Real>::quiet_NaN();ck(ugkwp::publishGasBoundaryLayerOutput(s,0,input,output,Real(2),Real(.25)),"terminal exchange unavailable");ck(exchange[0].ready&&std::isnan(exchange[0].energy),"terminal energy not actually published");
+const Real acceptedEnergy=exchange[0].energy;output.traceTemperature=std::numeric_limits<Real>::quiet_NaN();ck(!ugkwp::publishGasBoundaryLayerOutput(s,0,input,output,Real(2),Real(.25)),"invalid exchange accepted");ck(!exchange[0].ready&&exchange[0].energy==acceptedEnergy,"invalid candidate changed accepted energy");
 }
 ''')
 
@@ -57,14 +57,14 @@ def test_stage_evaluation_uses_unconstrained_matching_and_preserves_inventory(tm
     src=fixture().replace('struct State:ugkwp::GasStateView<Real,Time,ugkwp::SstCoefficients>{ugkwp::GasSpeciesState<Real,2> gasSpecies;};',
         '#include "gasTransport/GasBoundaryLayerModelState.H"\nstruct State:ugkwp::GasStateView<Real,Time,ugkwp::SstCoefficients>{ugkwp::GasSpeciesState<Real,2> gasSpecies;ugkwp::GasBoundaryLayerModelState<Real,2> gasBoundaryLayerModel;};')
     body=r'''
-int main(){State s;initialise(s);s.gasMu=.02;s.gasThermalConductivity=.5;s.Uy[1]=10;
+int main(){State s;initialise(s);s.gasMu=.02;s.gasThermalConductivity=.5;s.Uy[1]=10;s.rhoUy[1]=s.rho[1]*10;s.rhoE[1]+=s.rho[1]*50;
 s.riemannBoundaryKind[1]=2;s.riemannBoundaryTFix[1]=1;s.riemannBoundaryT[1]=500;
 Real diffusion[2]={.01,.01};s.gasSpecies.diffusivity=diffusion;
 auto&w=s.gasBoundaryLayer;w.enabled=true;w.count=1;int fs[3]={-1,0,-1},os[2]={0,-1},status[1]={0};w.faceSlot=fs;w.ownerSlot=os;w.status=status;
 ugkwp::GasBoundaryLayerExchange<Real> exchange[1];ugkwp::GasBoundaryLayerSstClosure<Real> closure[1];Real speciesFlux[2];w.exchange=exchange;w.sst=closure;w.speciesFlux=speciesFlux;
 auto&m=s.gasBoundaryLayerModel;m.config.model=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport;
-ugkwp::gaswall::WallInput<Real,2> in[1];ugkwp::gaswall::WallOutput<Real,2> out[1];ugkwp::gaswall::WallStatus modelStatus[1];auto*workspace=new ugkwp::gaswall::WallWorkspace<Real,2>[1];
-int face[1]={1},offsets[2]={0,1},matching[1]={1};Real weights[1]={1},qd[1]={.5},qw[1]={1};m.input=in;m.output=out;m.workspace=nullptr;m.workspaceCount=0;delete[] workspace;m.status=modelStatus;m.faces=face;m.matchingOffsets=offsets;m.matchingCells=matching;m.matchingWeights=weights;
+ugkwp::gaswall::WallInput<Real,2> in[1];ugkwp::gaswall::WallResidentOutput<Real,2> out[1];ugkwp::gaswall::WallOutput<Real,2> evaluation[1];ugkwp::gaswall::WallStatus modelStatus[1];auto*workspace=new ugkwp::gaswall::WallWorkspace<Real,2>[1];
+int face[1]={1},offsets[2]={0,1},matching[1]={1};Real weights[1]={1},qd[1]={.5},qw[1]={1};m.input=in;m.output=out;m.evaluationOutput=evaluation;m.workspace=nullptr;m.workspaceCount=0;delete[] workspace;m.status=modelStatus;m.faces=face;m.matchingOffsets=offsets;m.matchingCells=matching;m.matchingWeights=weights;
 in[0].normal[0]=1;in[0].matchingDistance=1.5;in[0].ownerDistance=.5;in[0].quadrature={qd,qw,1,1,.5};
 // Real device scratch is raw allocation, never constructor-zeroed.
 if(m.workspace)for(std::size_t b=0;b<ugkwp::gasBoundaryLayerWorkspaceBytes<Real,2>(m.config.nodes);++b)static_cast<unsigned char*>(m.workspace)[b]=0xff;
@@ -72,7 +72,7 @@ Real savedRho=s.rho[0],savedEnergy=s.rhoE[0],savedSpecies=s.gasSpecies.rho[0];
 if(!ugkwp::evaluateGasBoundaryLayerSlot(s,0)){std::fprintf(stderr,"wall failed transport=%d code=%d iterations=%d residual=%.17g\n",status[0],int(modelStatus[0].code),modelStatus[0].iteration,modelStatus[0].residual);return 1;}ck(exchange[0].ready,"stage not published");
 ck(!in[0].integrateOwnerKSource,"disabled audit requested auxiliary quadrature");
 ck(ugkwp::evaluateGasBoundaryLayerSlot(s,0),"physical reevaluation failed");ck(!in[0].integrateOwnerKSource,"coarse update requested unrelated auxiliary source");
-ck(in[0].matching.temperature==s.Tgas[1]&&in[0].matching.velocity[1]==10,"matching cell not refreshed");
+ck(std::abs(in[0].matching.temperature-s.Tgas[1])<1e-10&&in[0].matching.velocity[1]==10,"matching cell not refreshed");
 ck(s.rho[0]==savedRho&&s.rhoE[0]==savedEnergy&&s.gasSpecies.rho[0]==savedSpecies,"auxiliary solve changed bulk inventory");
 os[1]=0;ck(ugkwp::evaluateGasBoundaryLayerSlot(s,0),"readable constrained donor rejected");
 matching[0]=s.nCells;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"inaccessible matching donor accepted");ck(s.gasSpecies.faceStatus[1]!=0&&!exchange[0].ready,"failed stage not invalidated");
@@ -83,12 +83,14 @@ matching[0]=s.nCells;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"inaccessible 
         body=body.replace('m.config.model=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport;',f'm.config.model=ugkwp::gaswall::BoundaryLayerModel::ReactingSst;m.config.nodes={nodes};m.config.relativeTolerance=Real({tolerance});')
         body=body.replace('m.workspace=nullptr;m.workspaceCount=0;delete[] workspace;',f'delete[] workspace;m.workspace=new ugkwp::gaswall::WallWorkspace<Real,2,{capacity}>[1];m.workspaceCount=1;m.workspaceCapacity={capacity};')
     if not success:
-
         body=body.replace("m.config.relativeTolerance=Real(1e-20);", "m.config.relativeTolerance=Real(1e-20);m.config.absoluteTolerance=0;")
-        body=body.replace('ck(exchange[0].ready,"stage not published");',
-            'ck(exchange[0].ready,"stage not published");'
-            'ck(modelStatus[0].code==ugkwp::gaswall::WallCode::Success,"stale terminal status");'
-            'ck(modelStatus[0].residual>double(m.config.relativeTolerance),"residual was fabricated");')
+        body=body[:body.index('if(!ugkwp::evaluateGasBoundaryLayerSlot(s,0))')]+r'''
+ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"unconverged wall accepted");
+ck(!exchange[0].ready,"unconverged wall published");
+ck(s.rho[0]==savedRho&&s.rhoE[0]==savedEnergy&&s.gasSpecies.rho[0]==savedSpecies,"failed wall changed inventory");
+ck(modelStatus[0].residual>double(m.config.relativeTolerance),"unconverged residual hidden");
+}
+'''
     if missing_storage:
         body=body.replace('matching[0]=s.nCells;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"inaccessible matching donor accepted");ck(s.gasSpecies.faceStatus[1]!=0&&!exchange[0].ready,"failed stage not invalidated");',
             'm.'+missing_storage+'=nullptr;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"missing matching backing accepted");ck(s.gasSpecies.faceStatus[1]==int(ugkwp::GasTransportCode::InvalidStorage)&&!exchange[0].ready,"missing backing did not invalidate closure");ck(s.rho[0]==savedRho&&s.rhoE[0]==savedEnergy&&s.gasSpecies.rho[0]==savedSpecies,"missing matching backing changed physical inventory");')

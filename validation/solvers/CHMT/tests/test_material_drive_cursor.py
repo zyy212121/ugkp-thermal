@@ -36,6 +36,12 @@ int main(){
   assert(cached.slabEndLocal(begin,end,.05,1,fast,fastError)==materialDriveSlabEndLocal(history,begin,end,.05,1,reference,referenceError));
   assert(fast==reference&&fastError==referenceError&&fast>begin);begin=fast;
  }
+ // Open interval sampling preserves endpoints and arbitrary query order.
+ for(int i=0;i<500;++i){const WindowTime lo(((i*73)%1024)*dt/4),hi=lo+dt;
+  std::vector<const GasIntervalRecord*> actual,reference;cached.samplesInside(lo,hi,actual);
+  for(const auto& r:history.records())if(r.localBegin>lo&&r.localBegin<hi)reference.push_back(&r);
+  assert(actual==reference);
+ }
  WindowTime unchanged(7);assert(!cached.slabEndLocal(WindowTime{},history.localEnd(),-1,1,unchanged,error));assert(unchanged==WindowTime(7));
  // The cursor is a consumed-prefix hint, not a binary search. Unsorted end
  // values therefore retain the existing first-match behavior as well.

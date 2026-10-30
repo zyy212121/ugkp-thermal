@@ -82,5 +82,5 @@ int main(){std::string error;CouplingInterval w;w.end=1;IntervalHistory history;
 }
 '''.replace('SELECT',select).replace('CONSUME',consume)
     src=tmp_path/'history.cpp';src.write_text(source);exe=tmp_path/'history'
-    subprocess.run(['g++','-std=c++14','-O2','-I'+str(APP), '-I'+str(VALIDATION_ROOT / 'solvers/CHMT'),str(src),'-o',str(exe)],check=True)
+    subprocess.run(['g++','-std=c++17','-O2','-I'+str(APP), '-I'+str(VALIDATION_ROOT / 'solvers/CHMT'),str(src),'-o',str(exe)],check=True)
     subprocess.run([str(exe)],check=True)

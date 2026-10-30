@@ -21,10 +21,16 @@ void __syncwarp(unsigned mask){assert(mask==0xffffffffu);++explicitBarriers;barr
 void requireOrder(unsigned mask){assert(mask==0xffffffffu&&ordered);ordered=false;}
 int __all_sync(unsigned mask,int value){requireOrder(mask);flags[threadIdx.x]=value;barrier.wait();
  if(threadIdx.x==0){flag=1;for(int i=0;i<32;++i)flag=flag&&flags[i];}barrier.wait();int out=flag;barrier.wait();return out;}
-int __shfl_sync(unsigned mask,int value,int leader){requireOrder(mask);assert(leader==0);
+int __shfl_sync(unsigned mask,int value,int leader,int width=32){assert(width==32);requireOrder(mask);assert(leader==0);
  if(threadIdx.x==0)integer=value;barrier.wait();int out=integer;barrier.wait();return out;}
-double __shfl_sync(unsigned mask,double value,int leader){requireOrder(mask);assert(leader==0);
+double __shfl_sync(unsigned mask,double value,int leader,int width=32){assert(width==32);requireOrder(mask);assert(leader==0);
  if(threadIdx.x==0)std::memcpy(&scalar,&value,sizeof(value));barrier.wait();double out;std::memcpy(&out,&scalar,sizeof(out));barrier.wait();return out;}
+double shuffleValues[32]{};
+double __shfl_down_sync(unsigned mask,double value,int delta,int width=32){
+ assert(mask==0xffffffffu&&width==32);shuffleValues[threadIdx.x]=value;barrier.wait();
+ const double result=shuffleValues[threadIdx.x+delta<32?threadIdx.x+delta:threadIdx.x];
+ barrier.wait();return result;
+}
 #define __device__
 #include "common/gasWall/WallCudaTeam.cuh"
 int main(){using ugkwp::gaswall::detail::CudaWallTeam;static_assert(CudaWallTeam::width==32,"one full warp");
@@ -47,7 +53,7 @@ int main(){using ugkwp::gaswall::detail::CudaWallTeam;static_assert(CudaWallTeam
 
 def test_actual_warp_team_contract_with_cpu_intrinsic_adapter(tmp_path):
     source=tmp_path/'warp.cpp';source.write_text(CPP);exe=tmp_path/'warp'
-    build=subprocess.run(['g++','-std=c++14','-Werror','-O2','-pthread','-I'+str(SOURCE_ROOT),'-I'+str(SOURCE_ROOT/'common'),str(source),'-o',str(exe)],capture_output=True,text=True)
+    build=subprocess.run(['g++','-std=c++17','-Werror','-O2','-pthread','-I'+str(SOURCE_ROOT),'-I'+str(SOURCE_ROOT/'common'),str(source),'-o',str(exe)],capture_output=True,text=True)
     assert build.returncode==0,build.stderr
     result=subprocess.run([str(exe)],capture_output=True,text=True,timeout=30)
     assert result.returncode==0,result.stdout+result.stderr
@@ -67,7 +73,7 @@ def test_adapter_rejects_missing_workspace_ordering(tmp_path,primitive):
     assert text.count(primitive)==1
     header.write_text(text.replace(primitive,primitive.replace('sync();','')))
     source=tmp_path/'mutant.cpp';source.write_text(CPP);exe=tmp_path/'mutant-probe'
-    build=subprocess.run(['g++','-std=c++14','-Werror','-O2','-pthread','-I'+str(root),str(source),'-o',str(exe)],capture_output=True,text=True)
+    build=subprocess.run(['g++','-std=c++17','-Werror','-O2','-pthread','-I'+str(root),str(source),'-o',str(exe)],capture_output=True,text=True)
     assert build.returncode==0,build.stderr
     result=subprocess.run([str(exe)],capture_output=True,text=True,timeout=30)
     assert result.returncode!=0

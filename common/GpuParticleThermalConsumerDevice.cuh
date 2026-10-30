@@ -43,6 +43,7 @@ __device__ __forceinline__ auto commitParticleFiniteContactThermalCandidateDevic
 (State& s, const int i, const ParticleFiniteContactThermalCandidate& candidate, int)
     -> decltype(s.pThermalEnthalpyResidual[i] = candidate.specificEnthalpyResidual, void())
 {
+    if(!candidate.valid)return;
     s.pT[i] = candidate.particleTemperatureK;
     s.pThermalEnthalpyResidual[i] = candidate.specificEnthalpyResidual;
 }
@@ -50,5 +51,6 @@ template<class State>
 __device__ __forceinline__ void commitParticleFiniteContactThermalCandidateDevice
 (State& s, const int i, const ParticleFiniteContactThermalCandidate& candidate, long)
 {
+    if(!candidate.valid)return;
     s.pT[i] = candidate.particleTemperatureK;
 }
