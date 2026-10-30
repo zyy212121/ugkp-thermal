@@ -100,7 +100,7 @@ int main(){
 }
 '''
     cpp=tmp_path/'iterations.cpp';cpp.write_text(code);exe=tmp_path/'iterations'
-    built=subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT),'-I'+str(ROOT/'common'),str(cpp),'-o',str(exe)],capture_output=True,text=True)
+    built=subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasWall'),str(cpp),'-o',str(exe)],capture_output=True,text=True)
     assert built.returncode==0,built.stderr
     ran=subprocess.run([str(exe)],capture_output=True,text=True)
     assert ran.returncode==0,ran.stdout+ran.stderr

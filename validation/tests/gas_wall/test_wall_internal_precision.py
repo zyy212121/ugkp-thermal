@@ -33,8 +33,11 @@ int main(){
  }
  std::cout<<"],\"q\":"<<out.conductiveHeatFlux<<",\"tau\":"<<out.traction[0]<<",\"omega\":"<<out.ownerOmega<<"}\n";
  c.relativeTolerance=1e-20;c.absoluteTolerance=0;
- assert(evaluateWallModel(m.in,c,w,out,status));assert(status.residual>c.relativeTolerance);
- assert(status.code==WallCode::Success&&out.residual==double(status.residual));
+ const auto converged=out;
+ assert(!evaluateWallModel(m.in,c,w,out,status));
+ assert(status.code!=WallCode::Success);
+ assert(out.conductiveHeatFlux==converged.conductiveHeatFlux&&out.residual==converged.residual);
+ diagnostic={};
  c.model=BoundaryLayerModel::ConstantTransport;c.enableSst=false;c.relativeTolerance=1e-8;
  m.in.model.mode=GasMode::MixtureFrozen;m.in.massFlux[0]=m.in.massFlux[1]=0;m.in.temperature=std::numeric_limits<double>::quiet_NaN();
  const auto saved=out;

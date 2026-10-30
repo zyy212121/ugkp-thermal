@@ -267,7 +267,7 @@ def test_profile_configuration_cache_key_and_atomic_rejection(tmp_path):
  assert(c.rebuild(m,{0},s,o));auto legacy=c.descriptors[0].distance;
  o.profileNodes=24;assert(c.rebuild(m,{0},s,o));assert(c.descriptors[0].distance!=legacy);
  auto first=c.descriptors[0].distance.data();assert(c.rebuild(m,{0},s,o));assert(c.descriptors[0].distance.data()==first);
- auto y=c.descriptors[0].distance;o.profileStretch=3;assert(c.rebuild(m,{0},s,o));assert(c.descriptors[0].distance!=y);
+ auto y=c.descriptors[0].distance;o.profileStretch+=1;assert(c.rebuild(m,{0},s,o));assert(c.descriptors[0].distance!=y);
  y=c.descriptors[0].distance;o.firstSegmentGaussOrder=16;assert(c.rebuild(m,{0},s,o));assert(c.descriptors[0].distance.size()>y.size());
  o.profileNodes=3;assert(c.rebuild(m,{0},s,o));checkMoments(c.descriptors[0],{.5,.5,.5},1);
  o.profileNodes=24;o.firstSegmentGaussOrder=3;assert(c.rebuild(m,{0},s,o));
@@ -282,8 +282,9 @@ def test_profile_section_aggregation_bounds_resident_storage(tmp_path):
   WallGeometryDescriptor<double>d;WallStatus s;assert(buildWallGeometry(mesh,0,d,s,opt));
   checkMoments(d,mesh.cellCentres[0],mesh.volumes[0]);
   assert(!d.quadraturePointsAreInterior);
+  // Both profile knots and dual-face midpoints partition the section.
   const int ownerVertices=mesh.volumes[0]<1?4:8;
-  assert(d.distance.size()<=size_t(2*(opt.profileNodes+ownerVertices+1)+8));
+  assert(d.distance.size()<=size_t(2*(2*opt.profileNodes+ownerVertices+1)+2*opt.firstSegmentGaussOrder));
   // The transmitted view needs just these compact scalar samples. Full
   // tetrahedral geometry and cut searches are not repeated during a gas stage.
   assert(d.quadrature().count==int(d.distance.size()));

@@ -74,7 +74,7 @@ __device__ void mixtureThermalParticleHeatCell(State&s,int c,double dt,bool csr,
     if(status!=ugkwp::ThermoStatus::Success) {
         if(team.rank()==0){s.gasSpecies.cellStatus[c]=static_cast<int>(status);
         using namespace ugkp::diagnostics;
-        auto failure=makeRecord(Code::InvalidPhysicalState,30700,0,0,
+        auto failure=makeRecord(Code::InvalidPhysicalState,30702,0,0,
             EntityKind::Cell,c,-1,static_cast<int>(status));
         failure.metadata=static_cast<unsigned>(status);recordFatal(s.diagnostics,failure);}
         return;
@@ -98,7 +98,7 @@ __device__ void mixtureThermalParticleHeatCell(State&s,int c,double dt,bool csr,
         if(anyFailure){
             s.gasSpecies.cellStatus[c]=static_cast<int>(ugkwp::ThermoStatus::NonFiniteInput);
             using namespace ugkp::diagnostics;
-            recordFatal(s.diagnostics,makeRecord(Code::InvalidPhysicalState,30700,0,0,
+            recordFatal(s.diagnostics,makeRecord(Code::InvalidPhysicalState,30701,0,0,
                 EntityKind::Cell,c,-1,static_cast<int>(ugkwp::ThermoStatus::NonFiniteInput)));
         }
     }
