@@ -48,4 +48,9 @@ UGKWP_GAS_HD R wallTransport(const ugkwp::gaswall::WallInput<R,N,T>&in,
  for(int j=0;j<N;++j)result+=in.massFlux[j]*(ctx.wallEnthalpy[j]-ctx.energyReference);
  return result;
 }
+template<class R,int N,class T>
+UGKWP_GAS_HD R wallTransport(const WallInput<R,N,T>& in,
+ const detail::LayerContext<R,N>& ctx,const detail::LayerPoint<R,N>& wall){
+ return detail::wallTransportEnergy(in,ctx,wall);
+}
 }}} // namespace ugkwp::gaswall::coherent_energy

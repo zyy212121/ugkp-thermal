@@ -144,6 +144,20 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_POINT_INLINE boo
 }
 
 
+// Energy carried through the physical wall, in the reduced energy frame.
+// Prescribed species enthalpy follows the solved wall temperature for a
+// Neumann thermal boundary; the coordinate origin remains frozen in Newton.
+template<class R,int N,class T> UGKWP_GAS_HD inline R wallTransportEnergy(
+ const WallInput<R,N,T>& in,const LayerContext<R,N>& ctx,const LayerPoint<R,N>& wall){
+    R energy=ctx.mass*wall.normalVelocity*wall.normalVelocity/R(2);
+    for(int j=0;j<N;++j){
+        R h=ctx.wallEnthalpy[j]-ctx.energyReference;
+        if(in.adiabatic)h+=speciesEnthalpyIncrement(j,in.temperature,wall.theta,in.model.thermo,ctx.enthalpyJump[j]);
+        energy+=in.massFlux[j]*h;
+    }
+    return energy;
+}
+
 // Jacobian rows only need a five-node window around one perturbed node.
 // Keep pristine pointState results private to its assembling thread; reaction
 // and the distinct node/interval SST gradients always operate on fresh copies.
@@ -445,7 +459,8 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVIC
     LayerPoint<R,N> p;if(!evaluatePoint(in,c,ctx,x,y,i,p))return false;
     LayerFlux<R,N> right;if(fluxes)loadIntervalFlux(fluxes[i],right);
     else if(!loadRowInterval(in,c,ctx,x,y,i,right))return false;
-    if(i==0){row[0]=x[0][0];row[1]=x[0][1];row[2]=x[0][2];
+    if(i==0){row[0]=x[0][0];row[1]=x[0][1];
+        row[2]=in.adiabatic?(right.energy-wallTransportEnergy(in,ctx,p))/ctx.scale[2]:x[0][2];
         for(int j=0;j<N-1;++j){const int s=ctx.independent[j];row[3+j]=(right.species[s]-in.massFlux[s]-p.source[s]*y[1]/R(2))/ctx.scale[3+j];}
         row[K]=x[0][K];R wallZ=0;
         if(c.enableSst&&ctx.mass>0){R tau2=0;for(int d=0;d<2;++d){const R tau=-right.momentum[d];tau2+=tau*tau;}
@@ -815,18 +830,37 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool makeContext(con
     for(int j=0;j<N;++j){ctx.mass+=in.massFlux[j];if(in.matching.massFraction[j]>in.matching.massFraction[ctx.dependent])ctx.dependent=j;}
     for(int j=0,k=0;j<N;++j)if(j!=ctx.dependent)ctx.independent[k++]=j;
     for(int j=0;j<N;++j){ctx.enthalpyJump[j]=speciesEnthalpyBranchJumpAs<R>(j,in.model.thermo);bool available=false;ctx.wallEnthalpy[j]=wallProperty<true>(j,in.temperature,in.model.thermo,&available);if(!available)return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10014);ctx.energyReference+=in.matching.massFraction[j]*ctx.wallEnthalpy[j];}
-    R gasR=0,cp=0,maxD=0;for(int j=0;j<N;++j){gasR+=in.matching.massFraction[j]*universalGasConstant<R>()/in.model.thermo.species[j].molarMass;bool available=false;const R value=wallProperty<false>(j,in.matching.temperature,in.model.thermo,&available);if(!available)return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10015);cp+=in.matching.massFraction[j]*value;maxD=max(maxD,wallMolecularDiffusivity(in,j,in.matching.temperature,in.pressure));}
+    R gasR=0,cp=0,wallCp=0,maxD=0,maxWallD=0;
+    for(int j=0;j<N;++j){
+        const R fraction=in.matching.massFraction[j];
+        gasR+=fraction*universalGasConstant<R>()/in.model.thermo.species[j].molarMass;
+        bool available=false;
+        const R value=wallProperty<false>(j,in.matching.temperature,in.model.thermo,&available);
+        if(!available)return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10015);
+        cp+=fraction*value;
+        const R wallValue=wallProperty<false>(j,in.temperature,in.model.thermo,&available);
+        if(!available)return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10015);
+        wallCp+=fraction*wallValue;
+        maxD=max(maxD,wallMolecularDiffusivity(in,j,in.matching.temperature,in.pressure));
+        maxWallD=max(maxWallD,wallMolecularDiffusivity(in,j,in.temperature,in.pressure));
+    }
     if(gasR==0)return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10016,gasR);
     const R rho=in.pressure/(gasR*in.matching.temperature),L=in.matchingDistance;
-    // A residual scale measures activity, not signed transport. Suction
-    // must not cancel diffusion and turn roundoff into a large residual.
+    // A residual scale measures activity, not signed transport. Suction must
+    // not cancel diffusion. With variable transport, a cold matching endpoint
+    // must not hide the finite hot-wall flux and amplify its roundoff either.
+    // Freeze endpoint estimates using the supplied composition; they scale the
+    // equations only, without changing the local coefficients or wall fluxes.
     const R matchingMu=wallMolecularViscosity(in,in.matching.temperature,in.matching.massFraction);
-    const R massMagnitude=abs(ctx.mass);
-    for(int d=0;d<2;++d)ctx.scale[d]=max(R(1e-12),(massMagnitude+matchingMu/L)*max(R(1),abs(ctx.edgeU[d])));
-    const R lambda=in.model.molecularPrandtl>0?matchingMu*cp/wallMolecularPrandtl(in,in.matching.massFraction):in.model.conductivity;
-    ctx.scale[2]=max(R(1e-12),(massMagnitude*cp+lambda/L)*max(R(1),max(in.temperature,in.matching.temperature)));
-    for(int j=0;j<N-1;++j)ctx.scale[3+j]=max(R(1e-12),massMagnitude+rho*maxD/L);
-    ctx.scale[N+2]=max(R(1e-12),(massMagnitude+matchingMu/L)*max(R(1),in.matching.k));ctx.scale[N+3]=rho;
+    const R wallMu=wallMolecularViscosity(in,in.temperature,in.matching.massFraction);
+    const R muScale=max(matchingMu,wallMu),massMagnitude=abs(ctx.mass);
+    for(int d=0;d<2;++d)ctx.scale[d]=max(R(1e-12),(massMagnitude+muScale/L)*max(R(1),abs(ctx.edgeU[d])));
+    const R pr=wallMolecularPrandtl(in,in.matching.massFraction);
+    const R lambda=in.model.molecularPrandtl>0?max(matchingMu*cp,wallMu*wallCp)/pr:in.model.conductivity;
+    ctx.scale[2]=max(R(1e-12),(massMagnitude*max(cp,wallCp)+lambda/L)*max(R(1),max(in.temperature,in.matching.temperature)));
+    const R diffusionScale=max(rho*maxD,(in.pressure/(gasR*in.temperature))*maxWallD);
+    for(int j=0;j<N-1;++j)ctx.scale[3+j]=max(R(1e-12),massMagnitude+diffusionScale/L);
+    ctx.scale[N+2]=max(R(1e-12),(massMagnitude+muScale/L)*max(R(1),in.matching.k));ctx.scale[N+3]=rho;
     ctx.trialStorageComplete=layerAllTrialStorageComplete(in);
     (void)c;return true;
 }
@@ -1057,10 +1091,10 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
 template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool publishLayer(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
  const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,int iterations,R norm,WallOutput<R,N>& output,const bool terminalProfile=false){
     WallOutput<R,N> out;LayerPoint<R,N> wall;if(!pointState(in,c,ctx,w.state[0],wall,terminalProfile))return false;
-    if(!trace(in,wall.Y,out,terminalProfile))return false;
+    auto traceInput=in;if(in.adiabatic)traceInput.temperature=wall.T;
+    if(!trace(traceInput,wall.Y,out,terminalProfile))return false;
     LayerFlux<R,N> first,last;
-    R wallEnergy=ctx.mass*wall.normalVelocity*wall.normalVelocity/R(2);
-    for(int j=0;j<N;++j)wallEnergy+=in.massFlux[j]*(ctx.wallEnthalpy[j]-ctx.energyReference);
+    const R wallEnergy=wallTransportEnergy(in,ctx,wall);
     R resistance=0,advectiveIntegral=0,viscousIntegral=0;bool heatAuditAvailable=true;
     for(int i=0;i+1<c.nodes;++i){LayerFlux<R,N> f;
         if(!intervalFlux(in,c,ctx,w.state[i],w.state[i+1],w.y[i],w.y[i+1],f,terminalProfile))return false;
@@ -1082,7 +1116,7 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
     }
     for(int d=0;d<2;++d){const R tau=-first.momentum[d];for(int a=0;a<3;++a)out.traction[a]+=tau*ctx.tangent[d][a];}
     out.conductiveHeatFlux=first.energy-wallEnergy;
-    out.heatConduction=heatAuditAvailable&&resistance>0?(in.temperature-in.matching.temperature)/resistance:std::numeric_limits<R>::quiet_NaN();
+    out.heatConduction=heatAuditAvailable&&resistance>0?(out.traceTemperature-in.matching.temperature)/resistance:std::numeric_limits<R>::quiet_NaN();
     out.heatViscous=heatAuditAvailable?viscousIntegral:std::numeric_limits<R>::quiet_NaN();
     out.heatTransport=heatAuditAvailable?advectiveIntegral-wallEnergy:std::numeric_limits<R>::quiet_NaN();
     out.heatBalanceResidual=out.heatConduction+out.heatViscous+out.heatTransport-out.conductiveHeatFlux;

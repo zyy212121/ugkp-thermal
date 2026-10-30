@@ -35,14 +35,21 @@ template<class State,class R,int N> UGKWP_GAS_HD inline bool recoverWallMatching
     // endpoint is moved into the strict positive domain below.
     if(sst)for(int k=N+4;k<M;++k){if(anchor[k]<0)return false;
         if(value[k]<0)alpha=gasThermoDetail::minValue(alpha,anchor[k]/(anchor[k]-value[k]));}
+    const auto controls=castThermoControls<E>(s.gasSpecies.thermoControls);
+    E minimumTemperature,maximumTemperature;
+    mixtureTemperatureBounds(s.gasSpecies.thermo,controls,minimumTemperature,maximumTemperature);
+    // Constrain the extrapolated point with the gas model's existing lower
+    // temperature bound. Approaching the T=0 cone to one ULP can destroy all
+    // thermal energy when kinetic energy is subtracted during inversion.
+    // This limits only the borrowed matching reconstruction, never FV stocks.
     E density0=0,ddensity=0,thermal0=anchor[N+3],dthermal=value[N+3]-anchor[N+3];
     for(int a=0;a<N;++a){const E delta=value[a]-anchor[a];
-        const E reference=speciesE(a,E(0),s.gasSpecies.thermo);
+        const E reference=speciesE(a,minimumTemperature,s.gasSpecies.thermo);
         if(!gasFinite(reference))return false;
         density0+=anchor[a];ddensity+=delta;thermal0-=anchor[a]*reference;dthermal-=delta*reference;}
     E aa=2*ddensity*dthermal,bb=2*(density0*dthermal+ddensity*thermal0),cc=2*density0*thermal0;
     for(int d=0;d<3;++d){const E v=anchor[N+d],dv=value[N+d]-v;aa-=dv*dv;bb-=2*v*dv;cc-=v*v;}
-    if(!(density0>0&&cc>0))return false;
+    if(!(density0>0&&cc>=0))return false;
     // The matching point is on the owner/bulk interface, outside the donor
     // centres. A smooth one-sided extrapolation can legitimately put k/omega
     // outside their donor range. Constrain only the physical domain above;
@@ -52,7 +59,8 @@ template<class State,class R,int N> UGKWP_GAS_HD inline bool recoverWallMatching
     // this segment is the positive root, obtained once with stable algebra.
     if((aa*alpha+bb)*alpha+cc<=0){
         E root;
-        if(aa==0)root=-cc/bb;
+        if(cc==0)root=bb>0&&aa<0?-bb/aa:E(0);
+        else if(aa==0)root=-cc/bb;
         else {const E disc=::sqrt(bb*bb-4*aa*cc),q=-E(.5)*(bb+(bb>=0?disc:-disc));
             const E x=q/aa,y=cc/q;root=x>0?x:y;if(y>0&&y<root)root=y;}
         alpha=::nextafter(root,E(0));
@@ -69,7 +77,6 @@ template<class State,class R,int N> UGKWP_GAS_HD inline bool recoverWallMatching
     if(!(rho>0))return false;
     E kinetic=0;for(int d=0;d<3;++d){out.velocity[d]=R(value[N+d]/rho);kinetic+=value[N+d]*value[N+d]/(2*rho);}
     E temperature=s.Tgas[cells[0]],energy=value[N+3]-kinetic;
-    const auto controls=castThermoControls<E>(s.gasSpecies.thermoControls);
     bool available=false;
     if(invertMixtureEnergy(value,energy,s.gasSpecies.thermo,controls,temperature,&available)!=ThermoStatus::Success||!available)return false;
     E gasR=0;int carrier=0;E sum=0;

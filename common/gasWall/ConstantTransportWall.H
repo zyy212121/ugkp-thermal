@@ -32,7 +32,12 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstan
           const R kernel=detail::abs(b)<R(1e-8)?(R(1)-x): ::exp(-b*x)*(-::expm1(-b*(R(1)-x)))/(-::expm1(-b));
           sum+=weight*mu*speed2*gradient*gradient*kernel;}
         heating=length*sum/(R(3)*intervals);}}
-    out.conductiveHeatFlux=-lambda/length*detail::expRatio(b)*(in.matching.temperature-in.temperature)-heating;
+    const R thermalConductance=lambda/length*detail::expRatio(b);
+    if(in.adiabatic){
+        in.temperature=in.matching.temperature+heating/thermalConductance;
+        if(!detail::trace(in,in.matching.massFraction,out,true))return detail::fail(status,WallCode::InvalidThermodynamics);
+    }
+    out.conductiveHeatFlux=-thermalConductance*(in.matching.temperature-in.temperature)-heating;
     for(int j=0;j<N;++j){out.matchingSpeciesFlux[j]=in.massFlux[j];
         out.chemistryMismatch[j]=in.coarseReactionIntegral?-in.coarseReactionIntegral[j]:std::numeric_limits<R>::quiet_NaN();}
     out.chemistryMismatchAvailable=in.coarseReactionIntegral!=nullptr;

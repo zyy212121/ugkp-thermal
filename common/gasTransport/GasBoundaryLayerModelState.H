@@ -255,6 +255,8 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
             in.sstTangentialGradient[i][j]=value;
         }
     }
+    in.adiabatic=!model.useSuppliedWallState&&state.riemannBoundaryTFix
+        &&!state.riemannBoundaryTFix[face];
     if(!model.useSuppliedWallState)
     {
     in.temperature=state.riemannBoundaryT[face];
