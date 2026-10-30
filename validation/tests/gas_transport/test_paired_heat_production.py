@@ -26,6 +26,7 @@ using GpuTime=double;
 ThreadIndex gridDim{1};
 void atomicAdd(double*p,double x){*p+=x;}
 struct DeviceState{
+ int particleStuckModelConfigured=1;
  ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
  GpuReal gasPrClamped=.9*.9*.9,gasCp=1004.5;
  int nCells=1,nFaces=1,particleCapacity=4,count=2;int*particleCountDevice=&count;

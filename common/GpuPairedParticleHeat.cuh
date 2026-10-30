@@ -5,6 +5,7 @@
 // parcel that has detached since it was excluded from the mobile source.
 __device__ __forceinline__ bool pairedParticleHeatMember(const DeviceState& s,int i)
 {
+ if(!s.particleStuckModelConfigured)return false;
  return s.pStuck[i]!=Foam::gpuThermal::particleWallMobile || s.particleContactHeatEpoch[i];
 }
 struct PairedParticleHeatCandidate {double capacity, weightedCapacity, specificHeat;};
