@@ -114,6 +114,12 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
     if(team.leader()){
         fail(status,WallCode::NonConvergence);
         status.iteration=updates;status.residual=double(norm);
+        // Preserve the numerical failure before the application adapter adds
+        // its generic unavailable-output diagnostic.
+        using namespace ugkp::diagnostics;
+        if(in.diagnostics)recordFatal(in.diagnostics,makeRecord(
+            gasFinite(norm)?Code::InvalidPhysicalState:Code::NonFinite,2422,23,in.diagnosticNode,
+            EntityKind::Face,in.diagnosticEntity,-1,double(norm),double(tolerance),0,Quantity::Accuracy));
     }
     return false;
 }

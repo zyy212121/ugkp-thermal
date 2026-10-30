@@ -15,7 +15,7 @@ template<class S,int N> UGKWP_GAS_HD inline WallInput<WallReal,N,S> wallComputat
     dst.model.molecularViscosity=src.model.molecularViscosity;
     dst.model.viscosity=src.model.viscosity;dst.model.conductivity=src.model.conductivity;dst.model.molecularPrandtl=src.model.molecularPrandtl;
     dst.model.sstCoefficients=src.model.sstCoefficients;dst.quadrature=src.quadrature;dst.coarseReactionIntegral=src.coarseReactionIntegral;
-    dst.integrateOwnerKSource=src.integrateOwnerKSource;dst.volumeSstClosure=src.volumeSstClosure;
+    dst.adiabatic=src.adiabatic;dst.integrateOwnerKSource=src.integrateOwnerKSource;dst.volumeSstClosure=src.volumeSstClosure;
     for(int i=0;i<3;++i)for(int j=0;j<2;++j)dst.sstTangentialGradient[i][j]=src.sstTangentialGradient[i][j];
     return dst;
 }

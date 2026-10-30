@@ -50,6 +50,9 @@ template<class R,int N,class TableReal=R> struct WallInput {
     std::int64_t diagnosticEntity=-1;
     std::uint32_t diagnosticNode=0;
     R pressure=0,temperature=0,massFlux[N]{},velocity[3]{},normal[3]{};
+    // False: prescribed wall temperature. True: solve wall temperature from
+    // zero conductive heat flux; temperature then supplies the coordinate origin.
+    bool adiabatic=false;
     R matchingDistance=0,ownerDistance=0;
     WallMatchingState<R,N> matching;
     WallGasModel<R,N,TableReal> model;

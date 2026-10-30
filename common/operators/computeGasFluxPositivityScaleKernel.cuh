@@ -1,5 +1,6 @@
 #pragma once
 #include "gasTransport/GasPseudoTime.H"
+#include "gasTransport/PositiveInventory.H"
 #include "GpuWallEnergySink.cuh"
 #include "gasTransport/GasGeometryValidation.H"
 
@@ -70,19 +71,9 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
         if(!ugkwp::gasFinite(inventoryVolume))
         {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);return;}
         inventoryVolumeComputed=true;
-        const GPU_OPERATOR_REAL availableMass =
-            clampMin(s.rho[c] - s.rhoMin, GPU_OPERATOR_R(0.0))*inventoryVolume;
-        const GPU_OPERATOR_REAL requestedOutflowMass = dt*outgoingMassFlux;
-        if (requestedOutflowMass > availableMass)
-        {
-            scale = clampRange
-            (
-                GPU_OPERATOR_R(0.999)*availableMass
-               /(requestedOutflowMass + GPU_OPERATOR_TINY(1.0e-300)),
-                GPU_OPERATOR_R(0.0),
-                GPU_OPERATOR_R(1.0)
-            );
-        }
+        scale=ugkwp::inventoryOutflowScale(
+            clampMin(s.rho[c]-s.rhoMin,GPU_OPERATOR_R(0)),inventoryVolume,
+            GPU_OPERATOR_REAL(dt),outgoingMassFlux);
     }
     s.gasFluxPositivityScale[c] = scale;
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
@@ -123,9 +114,9 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
                         {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);return;}
                         inventoryVolumeComputed=true;
                     }
-                    const GPU_OPERATOR_REAL available=s.gasSpecies.rho[k*s.nCells+c]*inventoryVolume;
-                    if(dt*outflow>available)
-                        factor=clampRange(GPU_OPERATOR_R(0.999)*available/(dt*outflow),GPU_OPERATOR_R(0.0),GPU_OPERATOR_R(1.0));
+                    factor=ugkwp::inventoryOutflowScale(
+                        s.gasSpecies.rho[k*s.nCells+c],inventoryVolume,
+                        GPU_OPERATOR_REAL(dt),outflow);
                 }
                 s.gasSpecies.positivityScale[k*s.nCells+c]=factor;
             }
@@ -194,13 +185,13 @@ __global__ void applyGasFluxPositivityScaleKernel(GasState* sp, const bool nativ
                 scale=GPU_OPERATOR_R(1.0);
             }
             for (int k=0; k<ugkwp::GasStateTraits<GasState>::speciesCount; ++k)
-                s.gasSpecies.flux[k*s.nFaces+f]*=scale;
+                s.gasSpecies.flux[k*s.nFaces+f]=ugkwp::scaleInventoryFlux(s.gasSpecies.flux[k*s.nFaces+f],scale);
         }
     }
-    s.gasPhiRho[f] *= scale;
-    s.gasPhiRhoUx[f] *= scale;
-    s.gasPhiRhoUy[f] *= scale;
-    s.gasPhiRhoUz[f] *= scale;
-    s.gasPhiRhoE[f] *= scale;
+    s.gasPhiRho[f] = ugkwp::scaleInventoryFlux(s.gasPhiRho[f],scale);
+    s.gasPhiRhoUx[f] = ugkwp::scaleInventoryFlux(s.gasPhiRhoUx[f],scale);
+    s.gasPhiRhoUy[f] = ugkwp::scaleInventoryFlux(s.gasPhiRhoUy[f],scale);
+    s.gasPhiRhoUz[f] = ugkwp::scaleInventoryFlux(s.gasPhiRhoUz[f],scale);
+    s.gasPhiRhoE[f] = ugkwp::scaleInventoryFlux(s.gasPhiRhoE[f],scale);
     publishLimitedGasWallEnergy(s, f, 0);
 }

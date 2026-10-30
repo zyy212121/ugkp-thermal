@@ -109,13 +109,14 @@ UGKWP_GAS_HD bool refresh(const Input&in,const Config&cfg,W&w,const Ctx&ctx,doub
  if(!cfg.enableSst)low[0][5]-=1;
  int edge=cfg.nodes-1;low[edge][0]=w.state[edge][0]-ctx.edgeU[0];low[edge][1]=w.state[edge][1]-ctx.edgeU[1];low[edge][2]=w.state[edge][2]-(in.matching.temperature-in.temperature);low[edge][3]=w.state[edge][3]-in.matching.massFraction[ctx.independent[0]];low[edge][4]=w.state[edge][4]-(cfg.enableSst?std::sqrt(in.matching.k):0);low[edge][5]=w.state[edge][5]-(cfg.enableSst?1/std::sqrt(in.matching.omega):1);
  if(cfg.nodes>2&&cfg.enableSst)low[1][5]=points[1].z-points[0].z-w.y[1]*std::sqrt(points[0].rho*in.model.sstCoefficients.beta1/(6*points[0].mu));
- double wallEnergy=coherent_energy::wallTransport(in,ctx,points[0].normalVelocity);out={};out.conductiveHeatFlux=oldFlux[0].energy-wallEnergy;for(int d=0;d<2;++d)for(int a=0;a<3;++a)out.traction[a]-=oldFlux[0].momentum[d]*ctx.tangent[d][a];
+ double wallEnergy=coherent_energy::wallTransport(in,ctx,points[0]);out={};out.conductiveHeatFlux=oldFlux[0].energy-wallEnergy;for(int d=0;d<2;++d)for(int a=0;a<3;++a)out.traction[a]-=oldFlux[0].momentum[d]*ctx.tangent[d][a];
  Profile p(in,cfg,w,s.transformSlope);for(int i=1;i<cfg.nodes;++i)for(int j=0;j<2;++j)cachedUslopes[i][j]=p.nodeSlope(i,j);p.setWallFlux(out);Segment seg;seg.lo=0;seg.hi=w.y[cfg.nodes-1];p.segments.push_back(seg);auto& faces=s.faces;
  // Zero-blowing/constant-composition diagnostic only. Derived first flux and wall gradient share a fixed point.
  double closure=0,scaledClosure=0;bool physicalValid=closeFirstFace(p,oldFlux[0].species,wallEnergy,out,closure,scaledClosure);
  nutBranchPhase=true;for(int i=0;i<cfg.nodes-1;++i)faces[i]=resistanceFace(p,i,oldFlux[i].species,nullptr,nullptr,&physicalValid);
 
  if(cfg.enableSst&&ctx.mass>0){double tau2=0;for(int d=0;d<2;++d){double tau=ctx.mass*ctx.wallU[d];for(int a=0;a<3;++a)tau-=faces[0].momentum[a]*ctx.tangent[d][a];tau2+=tau*tau;}double uTau=std::sqrt(std::sqrt(tau2)/points[0].rho),v=ctx.mass/points[0].rho;if(!(uTau>0))return detail::wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10012,uTau);double vp=v/uTau;low[0][5]=w.state[0][5]-std::sqrt((points[0].mu/points[0].rho)/(uTau*uTau)*vp*(1+5*vp)/25);}
+ if(in.adiabatic)low[0][2]=out.conductiveHeatFlux/ctx.scale[2];
  norm=scaledClosure;for(int i=0;i<cfg.nodes;++i){double high[6];for(int j=0;j<6;++j)high[j]=low[i][j];if(i>0&&i<cfg.nodes-1){double integralK=0,integralO=0;for(int side=0;side<2;++side){int l=i-1+side;double lo=side?w.y[i]:(w.y[i-1]+w.y[i])/2,hi=side?(w.y[i]+w.y[i+1])/2:w.y[i];const double g[2]={-.57735026918962576451,.57735026918962576451},wt[2]={1,1};for(int q=0;q<2;++q){double y=(hi+lo)/2+(hi-lo)/2*g[q];auto v=basePhysical(p,y);physical::Face<double,2>f;physical::Source<double,2>s;if(!trackedEvaluate(in,cfg,v,y,in.normal,ctx.wallNormal,f,s))return false;integralK+=(hi-lo)/2*wt[q]*s.k;integralO+=(hi-lo)/2*wt[q]*s.omega;}}
  auto&a=faces[i-1];auto&b=faces[i];double mom[2]{};for(int d=0;d<2;++d){for(int k=0;k<3;++k)mom[d]+=(b.momentum[k]-a.momentum[k])*ctx.tangent[d][k];high[d]=mom[d]/ctx.scale[d];}double energy=b.energy-a.energy;high[2]=energy/ctx.scale[2];high[4]=(b.k-a.k-integralK)/ctx.scale[4];if(i>1){double volume=(w.y[i+1]-w.y[i-1])/2,z=w.state[i][5];high[5]=-(b.omega-a.omega-integralO)*z*z*z*z/(2*volume*ctx.scale[5]);}}
  if(!cfg.enableSst){high[4]=w.state[i][4];high[5]=w.state[i][5]-1;}for(int j=0;j<6;++j){w.residual[i][j]=high[j];norm=std::max(norm,std::abs(high[j]));}}
@@ -124,7 +125,7 @@ UGKWP_GAS_HD BoundedVector<int,2*M> hermiteBranches(const Config&cfg,const W&w){
 // Publication retains old species-row semantics and replaces every changed high-operator field.
 UGKWP_GAS_HD bool completePublication(const Input&in,const Config&cfg,W&w,const Ctx&ctx,Profile&p,int iterations,double norm,WallOutput<double,2>&out,double totalR,double totalStress,double totalAdvective,bool physicalValid){
  auto& faces=s.faces;
- out.heatConduction=(in.temperature-in.matching.temperature)/totalR;out.heatViscous=totalStress/totalR;detail::LayerPoint<double,2> wallPoint;if(!detail::pointState(in,cfg,ctx,w.state[0],wallPoint))return false;out.heatTransport=totalAdvective/totalR-coherent_energy::wallTransport(in,ctx,wallPoint.normalVelocity);out.heatBalanceResidual=out.heatConduction+out.heatViscous+out.heatTransport-out.conductiveHeatFlux;
+ out.heatConduction=(out.traceTemperature-in.matching.temperature)/totalR;out.heatViscous=totalStress/totalR;detail::LayerPoint<double,2> wallPoint;if(!detail::pointState(in,cfg,ctx,w.state[0],wallPoint))return false;out.heatTransport=totalAdvective/totalR-coherent_energy::wallTransport(in,ctx,wallPoint);out.heatBalanceResidual=out.heatConduction+out.heatViscous+out.heatTransport-out.conductiveHeatFlux;
  auto wall=p.physicalPrimitive(0);physical::Face<double,2>wallFace;physical::Source<double,2>wallSource;physicalValid=trackedEvaluate(in,cfg,wall,0.,in.normal,ctx.wallNormal,wallFace,wallSource)&&physicalValid;out.wallKFlux=wallFace.k;
  if(cfg.enableSst&&in.volumeSstClosure){out.kFluxCount=cfg.nodes+1;out.kFluxHeight[0]=0;out.kTransportFlux[0]=out.wallKFlux;out.omegaDiffusiveFlux[0]=0;
  for(int i=0;i<cfg.nodes-1;++i){double y=(w.y[i]+w.y[i+1])/2;out.kFluxHeight[i+1]=y;out.kTransportFlux[i+1]=faces[i].k;out.omegaDiffusiveFlux[i+1]=faces[i].omega-ctx.mass*p.base(y).omega;}
@@ -147,7 +148,7 @@ template<class Stats> UGKWP_GAS_HD bool solve(const Input&in,const Config&origin
  const int n=cfg.nodes*6;auto&lu=cache.factors;auto&cachedScale=cache.scale;int jacobianBuilds=0;auto&base=s.base;auto&res=s.res;auto&a=s.matrix;auto&rhs=s.rhs;auto&scale=s.scale;auto&plus=s.plus;auto&probe=s.probe;auto&trialOut=s.trialOut;base.resize(n);res.resize(n);rhs.resize(n);scale.resize(n);plus.resize(n);
  while(ok&&norm>cfg.absoluteTolerance+cfg.relativeTolerance&&its<cfg.maxIterations){
  for(int j=0;j<n;++j){base[j]=w.state[j/6][j%6];res[j]=w.residual[j/6][j%6];rhs[j]=-res[j];}
- auto branches=hermiteBranches(cfg,w);const int mask=cfg.enableSst&&ctx.mass>0;bool fresh=!lu.valid||lu.n!=n||cache.dirichletMask!=mask||!cache.haveState||branches!=cache.branches;if(fresh){collectNutBranches=true;bool branchBaseValid=refresh(in,cfg,w,ctx,norm,out);++evaluations;if(!branchBaseValid){ok=false;collectNutBranches=false;break;}auto&baseNutBranches=s.baseNutBranches;baseNutBranches=currentNutBranches;++jacobianBuilds;a.assign(n*n,0.);auto&steps=s.steps;steps.resize(n);
+ auto branches=hermiteBranches(cfg,w);const int mask=(cfg.enableSst&&ctx.mass>0?1:0)|(in.adiabatic?2:0);bool fresh=!lu.valid||lu.n!=n||cache.dirichletMask!=mask||!cache.haveState||branches!=cache.branches;if(fresh){collectNutBranches=true;bool branchBaseValid=refresh(in,cfg,w,ctx,norm,out);++evaluations;if(!branchBaseValid){ok=false;collectNutBranches=false;break;}auto&baseNutBranches=s.baseNutBranches;baseNutBranches=currentNutBranches;++jacobianBuilds;a.assign(n*n,0.);auto&steps=s.steps;steps.resize(n);
  for(int col=0;col<6&&ok;++col)for(int color=0;color<5&&ok;++color){copyActive(cfg,probe,w);
  for(int node=color;node<cfg.nodes;node+=5){int j=node*6+col;double old=base[j],eps=std::sqrt(std::numeric_limits<double>::epsilon()),vs=col==2?100:1;if(col==4)vs=std::sqrt(std::max(1.,in.matching.k))*eps;if(col==5)vs=eps/std::sqrt(in.matching.omega);scale[j]=std::max(std::abs(old),vs);double h=eps*scale[j];if(col==3&&old>=.5)h=-h;probe.state[node][col]=old+h;if((col==4||col==5)&&!pchipFdCompatible(cfg,w,probe,node,col)){probe.state[node][col]=old-h;if(!pchipFdCompatible(cfg,w,probe,node,col))probe.state[node][col]=old+h;}steps[j]=probe.state[node][col]-old;}
  double nn;bool valid=refresh(in,cfg,probe,ctx,nn,trialOut);++evaluations;
@@ -193,7 +194,7 @@ template<class Stats> UGKWP_GAS_HD bool solve(const Input&in,const Config&origin
  cache.boundary.clear();
  // Store only exact Dirichlet elimination transforms, never a second raw J.
  // Nonzero boundary RHS still receives the original interior coupling.
- for(int node:{0,cfg.nodes-1})for(int col=0;col<6;++col){if(node==0&&(col==3||(col==5&&cfg.enableSst&&ctx.mass>0)))continue;int j=node*6+col;
+ for(int node:{0,cfg.nodes-1})for(int col=0;col<6;++col){if(node==0&&(col==3||(col==2&&in.adiabatic)||(col==5&&cfg.enableSst&&ctx.mass>0)))continue;int j=node*6+col;
  BoundaryTransform t;t.column=j;t.lo=std::max(0,j-17);t.hi=std::min(n,j+18);t.diagonal=a[j*n+j];for(int i=t.lo;i<t.hi;++i)t.values[i-t.lo]=a[i*n+j];cache.boundary.push_back(t);
  for(int i=0;i<n;++i)if(i!=j)a[i*n+j]=0;
  for(int k=0;k<n;++k)a[j*n+k]=0;
@@ -271,7 +272,7 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
   if(!team.all(valid))return false;
   for(int i=team.rank();i<edge;i+=team.size()){auto p=points[i];bool reactionOk=detail::pointReaction(in,p);valid=reactionOk&&valid;double volume=i==0?w.y[1]/2:(w.y[i+1]-w.y[i-1])/2;int sp=ctx.independent[0];low[i][3]=(oldFlux[i].species[sp]-(i==0?in.massFlux[sp]:oldFlux[i-1].species[sp])-volume*p.source[sp])/ctx.scale[3];}
   if(!team.all(valid))return false;
-  double wallEnergy=coherent_energy::wallTransport(in,ctx,points[0].normalVelocity);
+  double wallEnergy=coherent_energy::wallTransport(in,ctx,points[0]);
   if(team.leader()){
    for(int j:{0,1,2,4,5})low[0][j]=w.state[0][j];
    if(!cfg.enableSst)low[0][5]-=1;
@@ -284,6 +285,7 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
   team.sync();p.setWallFlux(out);Segment seg;seg.lo=0;seg.hi=w.y[edge];p.segments.push_back(seg);team.sync();
   double closure=0,scaledClosure=0;bool physicalValid=true;observerSlot=-1;
   if(team.leader())physicalValid=closeFirstFace(p,oldFlux[0].species,wallEnergy,out,closure,scaledClosure);
+  if(team.leader()&&in.adiabatic)low[0][2]=out.conductiveHeatFlux/ctx.scale[2];
   physicalValid=team.broadcast(physicalValid);scaledClosure=team.broadcast(scaledClosure);
   // Each lane owns its Profile correction; propagate the leader's closed flux.
   p.setWallFlux(out);if(team.leader())nutBranchPhase=true;team.sync();
@@ -319,7 +321,7 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
   if(team.leader()){base.resize(n);res.resize(n);rhs.resize(n);scale.resize(n);plus.resize(n);}team.sync();
   while(ok&&norm>cfg.absoluteTolerance+cfg.relativeTolerance&&its<cfg.maxIterations){
    for(int j=team.rank();j<n;j+=team.size()){base[j]=w.state[j/6][j%6];res[j]=w.residual[j/6][j%6];rhs[j]=-res[j];}team.sync();
-   auto branches=hermiteBranches(cfg,w);const int mask=cfg.enableSst&&ctx.mass>0;
+   auto branches=hermiteBranches(cfg,w);const int mask=(cfg.enableSst&&ctx.mass>0?1:0)|(in.adiabatic?2:0);
    bool fresh=!lu.valid||lu.n!=n||cache.dirichletMask!=mask||!cache.haveState||branches!=cache.branches;
    if(fresh){
     if(team.leader())collectNutBranches=true;
@@ -432,7 +434,7 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
     bool factored=false;
     if(team.leader()){
      cachedScale=scale;cache.branches=branches;cache.dirichletMask=mask;collectNutBranches=false;cache.boundary.clear();
-     for(int node:{0,cfg.nodes-1})for(int col=0;col<6;++col){if(node==0&&(col==3||(col==5&&cfg.enableSst&&ctx.mass>0)))continue;int j=node*6+col;
+     for(int node:{0,cfg.nodes-1})for(int col=0;col<6;++col){if(node==0&&(col==3||(col==2&&in.adiabatic)||(col==5&&cfg.enableSst&&ctx.mass>0)))continue;int j=node*6+col;
       BoundaryTransform t;t.column=j;t.lo=std::max(0,j-17);t.hi=std::min(n,j+18);t.diagonal=a[j*n+j];for(int i=t.lo;i<t.hi;++i)t.values[i-t.lo]=a[i*n+j];cache.boundary.push_back(t);
       for(int i=0;i<n;++i)if(i!=j)a[i*n+j]=0;
       for(int k=0;k<n;++k)a[j*n+k]=0;
