@@ -32,14 +32,14 @@ def test_wall_clips_finite_y_and_warns_without_retry(tmp_path):
  ''')
 
 
-def test_wall_accuracy_warning_keeps_computed_profile(tmp_path):
+def test_wall_iteration_limit_rejects_without_publishing(tmp_path):
     compile_run(tmp_path, r'''
  Model m;ugkp::diagnostics::DeviceContext diagnostic{};m.in.diagnostics=&diagnostic;
  WallModelConfig<double> c;c.nodes=12;c.maxIterations=0;
  WallWorkspace<double,2,32> w;WallOutput<double,2> o;WallStatus s;
- assert(evaluateWallModel(m.in,c,w,o,s));assert(!diagnostic.fatalClaim);
- assert(o.iterations==0&&o.residual>c.relativeTolerance+c.absoluteTolerance);
- assert(diagnostic.warnings[1].count>0);assert(std::isfinite(o.conductiveHeatFlux));
+ o.traceTemperature=917;o.conductiveHeatFlux=918;
+ assert(!evaluateWallModel(m.in,c,w,o,s));assert(s.code!=WallCode::Success);
+ assert(o.traceTemperature==917&&o.conductiveHeatFlux==918);
  for(int i=0;i<c.nodes;++i)assert(std::isfinite(w.state[i][2]));
  ''')
 

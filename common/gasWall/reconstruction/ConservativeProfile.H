@@ -107,7 +107,7 @@ struct Profile {
     return slope;
   }
   UGKWP_GAS_HD void
-  setWallFlux(const ugkwp::gaswall::WallOutput<double, 2> &out) {
+  setWallFlux(const ugkwp::gaswall::WallExchangeOutput<double, 2> &out) {
     d::LayerPoint<double, 2> wall;
     d::pointState(in, cfg, ctx, w.state[0], wall);
     double dy = w.y[1] - w.y[0];
@@ -159,7 +159,7 @@ struct Profile {
                            (edge.Y[0] - wall.Y[0]) / dy;
     return basis;
   }
-  UGKWP_GAS_HD void setWallFlux(const ugkwp::gaswall::WallOutput<double, 2> &out,
+  UGKWP_GAS_HD void setWallFlux(const ugkwp::gaswall::WallExchangeOutput<double, 2> &out,
                                 const WallFluxBasis &basis) {
     for (int t = 0; t < 2; ++t) {
       double tau = 0;

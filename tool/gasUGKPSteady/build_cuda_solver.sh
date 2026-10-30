@@ -7,7 +7,7 @@ gas_species="${UGKWP_GAS_SPECIES-2}"
 build="${GAS_UGKP_STEADY_BUILD:-$source_root/applications/gasUGKPSteady/private_backend/build/$WM_OPTIONS}"
 case "$build" in /*) ;; *) build="$PWD/$build";; esac
 mkdir -p "$build" "$FOAM_USER_APPBIN"
-"${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 --expt-relaxed-constexpr \
+ugkp_nvcc "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 --expt-relaxed-constexpr \
  -DUGKWP_GAS_SPECIES="$gas_species" -O3 --fmad=true \
  -arch="${UGKWP_CUDA_ARCH:-sm_89}" -Xcompiler=-fPIC \
  -I"$source_root/applications/gasUGKP/gpu" -I"$source_root/common" \

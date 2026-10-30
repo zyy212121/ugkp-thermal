@@ -76,6 +76,7 @@ template<class Archive> void visit(Archive&, const HostStageGeometry&);
 template<class Archive> void visit(Archive&, HostState&);
 template<class Archive> void visit(Archive&, const HostState&);
 struct Encoder {
+    unsigned configurationVersion=11;
     Bytes data;
     void integer(std::uint64_t x,int bytes){for(int i=0;i<bytes;++i){data.push_back(static_cast<unsigned char>(x&255));x>>=8;}}
     void operator()(const Real& x){static_assert(sizeof(Real)==8&&std::numeric_limits<Real>::is_iec559,"checkpoint requires IEEE binary64");std::uint64_t bits;std::memcpy(&bits,&x,8);integer(bits,8);}
@@ -92,6 +93,7 @@ struct Encoder {
     template<class T>typename std::enable_if<!std::is_enum<T>::value>::type operator()(const T& x){visit(*this,x);}
 };
 struct Decoder {
+    unsigned configurationVersion=11;
     const Bytes& data;std::size_t offset=0;
     explicit Decoder(const Bytes& input):data(input){}
     std::uint64_t integer(int bytes){if(std::size_t(bytes)>data.size()-offset)throw std::runtime_error("truncated checkpoint");std::uint64_t x=0;for(int i=0;i<bytes;++i)x|=std::uint64_t(data[offset++])<<(8*i);return x;}
@@ -434,10 +436,12 @@ template<class Archive,class Value> void visitPhysicsConfigFields(Archive& a,Val
     a(x.meltTemperature);
     a(x.permeability);
     a(x.poreViscosity);
-    a(x.poreEffectiveDiffusivity);
+    if(a.configurationVersion>=8)a(x.poreEffectiveDiffusivity);
+    if(a.configurationVersion>=9){
     a(x.gasViscosityModel);a(x.gasViscositySpecies);a(x.gasTransportFingerprint);
     for(int s=0;s<Ns;++s){a(x.gasSutherland[s].muRef);a(x.gasSutherland[s].TRef);a(x.gasSutherland[s].S);a(x.gasSutherland[s].molarMass);}
     a(x.gasMassRatioQuarter);a(x.gasWilkeDenominator);
+    }
     a(x.gasViscosity);
     a(x.gasConductivity);
     a(x.gasDiffusivity);
@@ -622,6 +626,8 @@ bool writeCheckpoint(const std::string& directory,const ModelConfig& config,cons
         configData.integer(0x31474643504b4755ULL,8); // UGKPCFG1
         ugkp::thermal::visitParticlePhaseConfiguration(configData,config.particlePhase);
         ugkp::thermal::visitParticleContactConfiguration(configData,config.particleContact);
+        configData.integer(0x314c4157504b4755ULL,8); // UGKPWAL1
+        configData(config.physics.wallModel.localStressCorrection);
         payload(state);
         if(state.gasMesh.gasBoundary&&ugkp::boundary::needsCheckpoint(*state.gasMesh.gasBoundary)) {
             std::vector<int> integers;std::vector<double> values;
@@ -692,13 +698,13 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
         if(checksum(bytes.data()+decoder.offset,bytes.size()-decoder.offset)!=bodyChecksum)
             throw std::runtime_error("checkpoint checksum mismatch");
         const auto configEnd=decoder.offset+configSize,stateEnd=configEnd+stateSize;
-        if(schema<=8){
-            // Schemas 6--8 predate molecular transport; preserve their physical payloads.
-            if(expected.physics.gasTransportFingerprint!=0)
-                throw std::runtime_error("legacy checkpoint has const molecular transport; cannot resume with variable molecular transport");
-            decoder.offset=configEnd;
-        }else{
+        {
+            // Decode legacy physical configuration too; skipping its bytes made
+            // reordered species and changed calorics indistinguishable.
+            decoder.configurationVersion=unsigned(schema);
             ModelConfig saved;decoder(saved);
+            if(schema<=8&&expected.physics.gasTransportFingerprint!=0)
+                throw std::runtime_error("legacy checkpoint has const molecular transport; cannot resume with variable molecular transport");
             if(schema>=11){
                 if(decoder.integer(8)!=0x31474643504b4755ULL)
                     throw std::runtime_error("checkpoint particle configuration extension mismatch");
@@ -717,8 +723,30 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
                         throw std::runtime_error("checkpoint particle model identity differs from current configuration");
                 }
             }
+            if(decoder.offset<configEnd){
+                if(decoder.integer(8)!=0x314c4157504b4755ULL)
+                    throw std::runtime_error("checkpoint wall configuration extension mismatch");
+                decoder(saved.physics.wallModel.localStressCorrection);
+            }
             if(decoder.offset!=configEnd)throw std::runtime_error("checkpoint configuration length mismatch");
             const auto& a=saved.physics;const auto& b=expected.physics;
+            // Compare physical identity, independently of tolerances, scheduling,
+            // workspace sizes and other controls which may change at restart.
+            Encoder oldThermo,newThermo;
+            oldThermo(saved.speciesNames);newThermo(expected.speciesNames);
+            oldThermo(saved.condensedNames);newThermo(expected.condensedNames);
+            oldThermo(saved.elementNames);newThermo(expected.elementNames);
+            oldThermo(a.nElements);newThermo(b.nElements);
+            oldThermo(a.gasMode);newThermo(b.gasMode);
+            oldThermo(a.singleGasSpecies);newThermo(b.singleGasSpecies);
+            oldThermo(a.gasThermoFingerprint);newThermo(b.gasThermoFingerprint);
+            oldThermo(a.gasMechanismFingerprint);newThermo(b.gasMechanismFingerprint);
+            oldThermo(a.species);newThermo(b.species);
+            oldThermo(a.condensed);newThermo(b.condensed);
+            oldThermo(saved.gasPhase);newThermo(expected.gasPhase);
+            oldThermo(saved.gasMechanismSourceSha256);newThermo(expected.gasMechanismSourceSha256);
+            if(oldThermo.data!=newThermo.data)
+                throw std::runtime_error("checkpoint species/thermochemical identity differs from current configuration");
             bool same=a.gasViscosityModel==b.gasViscosityModel&&a.gasViscositySpecies==b.gasViscositySpecies
                 &&a.gasTransportFingerprint==b.gasTransportFingerprint;
             for(int i=0;i<Ns;++i){const auto& x=a.gasSutherland[i];const auto& y=b.gasSutherland[i];

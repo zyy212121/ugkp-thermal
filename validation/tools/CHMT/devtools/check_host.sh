@@ -8,7 +8,7 @@ validation="$root/validation/solvers/CHMT"
 runners="$root/validation/tools/CHMT"
 build=$(mktemp -d /tmp/chmt-rebuild-host.XXXXXX)
 trap 'rm -rf "$build"' EXIT
-flags=(-std=c++14 -O2 -Wall -Wextra -Werror -pedantic -I"$app" -I"$validation" -I"$app/../../common")
+flags=(-std=c++17 -O2 -Wall -Wextra -Werror -pedantic -I"$app" -I"$validation" -I"$app/../../common")
 for test in core transaction; do
   "${CXX:-g++}" "${flags[@]}" "$validation/tests/test_$test.cpp" -o "$build/$test"
   "$build/$test"

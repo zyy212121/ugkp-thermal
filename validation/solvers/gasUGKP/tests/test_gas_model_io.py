@@ -35,7 +35,7 @@ def build(tmp_path_factory):
     source = directory / "probe.cpp"
     source.write_text(PROBE)
     binary = directory / "probe"
-    result = subprocess.run(["g++", "-std=c++14", "-Wall", "-Wextra", "-Werror", "-I", str(ROOT), str(source), "-o", str(binary)], capture_output=True, text=True)
+    result = subprocess.run(["g++", "-std=c++17", "-Wall", "-Wextra", "-Werror", "-I", str(ROOT), str(source), "-o", str(binary)], capture_output=True, text=True)
     return result, binary
 
 def parse(build, text, absent=False):
@@ -202,7 +202,7 @@ int main(){
 }
 ''')
     binary=tmp_path/"nonfinite"
-    build=subprocess.run(["g++","-std=c++14","-Wall","-Wextra","-Werror","-I",str(ROOT),str(source),"-o",str(binary)],capture_output=True,text=True)
+    build=subprocess.run(["g++","-std=c++17","-Wall","-Wextra","-Werror","-I",str(ROOT),str(source),"-o",str(binary)],capture_output=True,text=True)
     assert build.returncode==0,build.stderr
     run=subprocess.run([str(binary)],input=mixture().replace("molarMass 0.028","molarMass nan"),capture_output=True,text=True)
     assert run.returncode==0,run.stderr

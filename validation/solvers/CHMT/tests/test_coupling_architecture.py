@@ -18,7 +18,7 @@ def test_private_gas_solver_is_not_restored():
 
 def test_coupling_entry_rejects_pure_flow(tmp_path):
     binary = tmp_path / 'entry'
-    subprocess.run(['g++', '-std=c++14', '-Wall', '-Wextra', '-Werror', '-pedantic',
+    subprocess.run(['g++', '-std=c++17', '-Wall', '-Wextra', '-Werror', '-pedantic',
                     '-I' + str(APP), '-I'+str(VALIDATION_ROOT / 'solvers/CHMT'), str((VALIDATION_ROOT / 'solvers/CHMT/tests/test_coupling_entry.cpp')),
                     '-o', str(binary)], check=True)
     subprocess.run([str(binary)], check=True)

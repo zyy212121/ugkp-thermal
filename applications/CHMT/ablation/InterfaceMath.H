@@ -224,7 +224,7 @@ struct GasWallClosureContext {
 };
 struct InterfaceGasClosure {
     GasPrimitive trace{};Vec3 traction{};Real conductiveHeatFlux=0;
-    ugkwp::gaswall::WallOutput<Real,Ns> layer{};
+    ugkwp::gaswall::WallExchangeOutput<Real,Ns> layer{};
 };
 CHMT_HD inline bool evaluateInterfaceGasClosure(const GasPrimitive& bulk,const GasGradient& inputGradient,
     Real temperature,Real distance,Vec3 velocity,Vec3 normal,Real normalSpeed,
@@ -255,15 +255,17 @@ CHMT_HD inline bool evaluateInterfaceGasClosure(const GasPrimitive& bulk,const G
         auto config=p.wallModel;config.enableSst=p.enableSst;
         config.turbulentPrandtl=p.sst.turbulentPrandtl;config.turbulentSchmidt=p.sst.turbulentSchmidt;
         ugkwp::gaswall::WallStatus status;
+        ugkwp::gaswall::WallOutput<Real,Ns> solvedLayer;
         bool accepted=false;
         if(config.model==ugkwp::gaswall::BoundaryLayerModel::ConstantTransport)
-            accepted=ugkwp::gaswall::evaluateConstantTransportWall(input,config,result.layer,status);
+            accepted=ugkwp::gaswall::evaluateConstantTransportWall(input,config,solvedLayer,status);
         else if(context.workspace){
-            if(context.workspaceCapacity==24)accepted=ugkwp::gaswall::evaluateWallModel(input,config,*static_cast<ugkwp::gaswall::WallWorkspace<Real,Ns,24>*>(context.workspace),result.layer,status);
-            else if(context.workspaceCapacity==48)accepted=ugkwp::gaswall::evaluateWallModel(input,config,*static_cast<ugkwp::gaswall::WallWorkspace<Real,Ns,48>*>(context.workspace),result.layer,status);
-            else if(context.workspaceCapacity==128)accepted=ugkwp::gaswall::evaluateWallModel(input,config,*static_cast<ugkwp::gaswall::WallWorkspace<Real,Ns,128>*>(context.workspace),result.layer,status);
+            if(context.workspaceCapacity==24)accepted=ugkwp::gaswall::evaluateWallModel(input,config,*static_cast<ugkwp::gaswall::WallWorkspace<Real,Ns,24>*>(context.workspace),solvedLayer,status);
+            else if(context.workspaceCapacity==48)accepted=ugkwp::gaswall::evaluateWallModel(input,config,*static_cast<ugkwp::gaswall::WallWorkspace<Real,Ns,48>*>(context.workspace),solvedLayer,status);
+            else if(context.workspaceCapacity==128)accepted=ugkwp::gaswall::evaluateWallModel(input,config,*static_cast<ugkwp::gaswall::WallWorkspace<Real,Ns,128>*>(context.workspace),solvedLayer,status);
         }
         if(!accepted){if(numericalFailure)*numericalFailure=false;if(context.failureStatus)*context.failureStatus=status;return false;}
+        result.layer=solvedLayer;
         Real mass=0;for(int s=0;s<Ns;++s)mass+=species[s];
         if(!makeInterfacePrimitive(result.layer.traceMassFraction,temperature,input.pressure,velocity,normal,
             normalSpeed,mass,p,result.trace,numericalFailure))return false;

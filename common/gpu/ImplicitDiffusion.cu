@@ -58,7 +58,7 @@ struct ImplicitDiffusion::Implementation {
 };
 ImplicitDiffusion::ImplicitDiffusion():data_(new Implementation){}
 ImplicitDiffusion::~ImplicitDiffusion()=default;
-void ImplicitDiffusion::assemble(const DiffusionInput& input,DiffusionMatrix& output){
+void ImplicitDiffusion::assemble(const DiffusionInput& input,DiffusionMatrix& output,const DiffusionTransientInput* transient){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);const int n=input.cells,ni=input.internalFaces,nf=input.owner.size(),nb=nf-ni;
     if(d.cells!=n||d.internal!=ni||d.owner!=input.owner||d.neighbour!=input.neighbour){
         std::vector<std::vector<std::pair<int,int>>> rows(n);
@@ -73,6 +73,15 @@ void ImplicitDiffusion::assemble(const DiffusionInput& input,DiffusionMatrix& ou
     d.diagonal.reserve(n);d.source.reserve(n);d.upper.reserve(ni);d.boundaryDiagonal.reserve(nb);d.boundarySource.reserve(nb);d.flux.reserve(nf);
     if(nf)faceFactors<<<(nf+127)/128,128,0,d.stream>>>(nf,ni,d.gamma.ptr,d.area.ptr,d.delta.ptr,d.gradientInternal.ptr,d.gradientBoundary.ptr,d.correction.ptr,input.corrected,d.upper.ptr,d.boundaryDiagonal.ptr,d.boundarySource.ptr,d.flux.ptr);
     if(n)cellAssembly<<<(n+127)/128,128,0,d.stream>>>(n,ni,d.offsets.ptr,d.faces.ptr,d.signs.ptr,d.upper.ptr,d.flux.ptr,d.volume.ptr,input.corrected,d.diagonal.ptr,d.source.ptr);
+    if(transient){
+        d.capacity.upload(*transient->capacity,d.transfers);d.rhs.upload(*transient->rhs,d.transfers);
+        if(n)transientCells<<<(n+127)/128,128,0,d.stream>>>(n,d.volume.ptr,d.capacity.ptr,d.rhs.ptr,
+            transient->dt,transient->sourceFromCapacity,d.diagonal.ptr,d.source.ptr);
+        if(ni)negate<<<(ni+127)/128,128,0,d.stream>>>(ni,d.upper.ptr,false);
+        if(nb){negate<<<(nb+127)/128,128,0,d.stream>>>(nb,d.boundaryDiagonal.ptr,true);
+            negate<<<(nb+127)/128,128,0,d.stream>>>(nb,d.boundarySource.ptr,true);}
+        if(nf)negate<<<(nf+127)/128,128,0,d.stream>>>(nf,d.flux.ptr,false);
+    }
     d.diagonal.download(output.diagonal,n,d.transfers);d.source.download(output.source,n,d.transfers);d.upper.download(output.upper,ni,d.transfers);
     d.boundaryDiagonal.download(output.boundaryDiagonal,nb,d.transfers);d.boundarySource.download(output.boundarySource,nb,d.transfers);d.flux.download(output.fluxCorrection,nf,d.transfers);
     d.transfers.finish();

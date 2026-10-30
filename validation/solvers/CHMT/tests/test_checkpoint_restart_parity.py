@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 APP = (SOURCE_ROOT / 'applications/CHMT')
-TOOL = (CASES_ROOT / 'test/tools/CHMT/coupled_runtime/compare_restart.py')
+TOOL = (VALIDATION_ROOT / 'tools/CHMT/compare_restart.py')
 
 
 def _case(path):
@@ -39,6 +39,10 @@ def test_any_native_payload_bit_difference_fails_even_with_equal_csv(tmp_path):
     raw = bytearray(target.read_bytes())
     config_size = int.from_bytes(raw[48:56],'little')
     raw[72+config_size] ^= 1
+    digest = 14695981039346656037
+    for byte in raw[72:]:
+        digest = ((digest ^ byte) * 1099511628211) & ((1 << 64) - 1)
+    raw[64:72] = digest.to_bytes(8, 'little')
     target.write_bytes(raw)
     run = subprocess.run([sys.executable,str(TOOL),str(left),str(right)],capture_output=True,text=True)
     assert run.returncode != 0

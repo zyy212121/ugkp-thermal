@@ -58,7 +58,7 @@ int main(){
 @pytest.mark.parametrize('optimization',['-O0','-O2'])
 def test_double_caloric_roots_and_bounded_neighbors_keep_tight_controls(tmp_path,optimization):
     source=tmp_path/'precision.cpp';source.write_text(SOURCE);exe=tmp_path/'precision'
-    build=subprocess.run(['g++','-std=c++14',optimization,'-ffp-contract=off','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(source),'-o',str(exe)],capture_output=True,text=True)
+    build=subprocess.run(['g++','-std=c++17',optimization,'-ffp-contract=off','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(source),'-o',str(exe)],capture_output=True,text=True)
     assert build.returncode==0,build.stderr
     run=subprocess.run([str(exe)],capture_output=True,text=True)
     assert run.returncode==0,run.stderr

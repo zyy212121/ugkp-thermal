@@ -548,6 +548,9 @@ struct DeviceState
     GpuReal* puzOld = nullptr;
     GpuReal* pT = nullptr;
     double* pThermalEnthalpyResidual = nullptr;
+    // Source-epoch scratch; rebuilt after drag, never checkpointed or reordered.
+    double* mixtureHeatInitialTemperature = nullptr;
+    double* mixtureHeatFraction = nullptr;
     GpuReal* pTheta = nullptr;
     GpuTime* pContactAge = nullptr;
     GpuReal* pd = nullptr;
@@ -1337,6 +1340,7 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->compactPuzOld);
     release(s->pT);
     release(s->pThermalEnthalpyResidual);
+    release(s->mixtureHeatInitialTemperature);release(s->mixtureHeatFraction);
     release(s->pTheta);
     release(s->pContactAge);
     release(s->pd);
@@ -1687,6 +1691,8 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->compactPuzOld, np, "cudaMalloc strict compact particle old uz");
     rc |= allocate(s->pT, np, "cudaMalloc strict particle T");
     rc |= allocate(s->pThermalEnthalpyResidual, np, "cudaMalloc strict particle thermal enthalpy residual");
+    rc |= allocate(s->mixtureHeatInitialTemperature,np,"allocate mixture heat source temperatures");
+    rc |= allocate(s->mixtureHeatFraction,np,"allocate mixture heat source fractions");
     rc |= allocate(s->pTheta, np, "cudaMalloc strict particle theta");
     rc |= allocate(s->pContactAge, np, "cudaMalloc strict particle theta");
     rc |= allocate(s->pd, np, "cudaMalloc strict particle d");
@@ -4653,15 +4659,17 @@ int advanceResidentThermalParticles(DeviceState* s,double dt,double simulationTi
         if(s->csrCellLocalPathEnabled==0 && binParticlesByCell(s,block)!=0)return 1;
         const bool split=s->csrCellLocalPathEnabled!=0 && s->splitPreDirectoryActive!=0;
         if(s->dragModelId==2)
-            mixtureParticleCouplingKernel<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag,false>
-                <<<grid,block>>>(s->deviceState,dt,dragActive,true,split);
+            err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag,false>
+                (s->deviceState,s->nCells,dt,dragActive,true,split);
         else
-            mixtureParticleCouplingKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag,false>
-                <<<grid,block>>>(s->deviceState,dt,dragActive,true,split);
-        err=cudaGetLastError();
+            err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::SchillerNaumannDeviceDrag,false>
+                (s->deviceState,s->nCells,dt,dragActive,true,split);
         if(err!=cudaSuccess){setLastError("thermal mixture paired drag",err);return 1;}
-        mixtureThermalParticleHeatKernel<<<grid,block>>>(s->deviceState,dt,true,split);
+        if(particleGrid>0)
+            prepareMixtureThermalParticleHeatKernel<<<particleGrid,s->particleBlockThreads>>>(s->deviceState,dt);
         err=cudaGetLastError();
+        if(err!=cudaSuccess){setLastError("prepare mixture particle caloric response",err);return 1;}
+        err=launchMixtureThermalParticleHeatCells(s->deviceState,s->nCells,dt,true,split);
         if(err!=cudaSuccess){setLastError("thermal mixture caloric exchange",err);return 1;}
         if(particleGrid>0)
             mixtureParticleExternalKickKernel<<<particleGrid,s->particleBlockThreads>>>(s->deviceState,dt);

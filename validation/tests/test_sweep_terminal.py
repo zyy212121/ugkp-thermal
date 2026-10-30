@@ -10,7 +10,7 @@ OWNER = 'applications/CHMT/mesh/Geometry.C'
 
 def build_run(tmp, name, probe, owner=None, include_root=ROOT):
     source = tmp / (name + '.cpp'); source.write_text(probe)
-    cmd = ['g++', '-std=c++14', '-O2', '-ffp-contract=off', '-Wall', '-Wextra', '-Werror', '-pedantic', '-Wno-mismatched-new-delete', '-Wno-misleading-indentation',
+    cmd = ['g++', '-std=c++17', '-O2', '-ffp-contract=off', '-Wall', '-Wextra', '-Werror', '-pedantic', '-Wno-mismatched-new-delete', '-Wno-misleading-indentation',
            '-I' + str(include_root / 'applications/CHMT'), '-I' + str(include_root / 'common'), str(source)]
     if owner: cmd.append(str(owner))
     cmd += ['-o', str(tmp / name)]

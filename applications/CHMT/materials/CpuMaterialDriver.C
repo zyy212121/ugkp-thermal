@@ -99,8 +99,7 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
         capacity.correctBoundaryConditions();conductivity.correctBoundaryConditions();temperature.correctBoundaryConditions();
         Foam::surfaceScalarField faceK(Foam::fvc::interpolate(conductivity));
         ugkp::gpu::interpolateThermalField(conductivity,mesh.weights(),faceK,true);
-        Foam::fvScalarMatrix equation(Foam::fvm::laplacian(faceK,temperature));
-        ugkp::gpu::formGpuImplicitEquation(equation,capacity,source,dt);
+        Foam::fvScalarMatrix equation(ugkp::gpu::gpuImplicitThermalEquation(faceK,temperature,capacity,source,dt));
         // The FV residual is an integral power, whereas PCG normalises by
         // a matrix-dependent normFactor. Use a relative residual ratio: the
         // same normFactor cancels, so this is an energy budget in physical
@@ -376,13 +375,21 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
             return false;
         };
         HostState state=base;state.filmAux=dryGeometryAux(base);state.ledger.clear();state.filmStorage.clear();
+        const bool staticGeometry=p.meshMotion.policy==MeshMotionPolicy::Static;
+        HostState trial;
+        if(staticGeometry){trial.gasMesh=state.gasMesh;trial.solidMesh=state.solidMesh;
+            trial.gasStages=state.gasStages;trial.solidStages=state.solidStages;}
         WallProgram program;program.interval=window;program.surface=base.surface;
         CpuMaterialReport accumulated;accumulated.donorPlan.interval=window;
-        MaterialReserveKnot initial;initial.time=base.time;initial.cumulativeSolid.resize(base.solid.size());initial.cumulativeFilm.resize(base.film.size());accumulated.donorPlan.knots.push_back(initial);
+        if(controls.retainDonorHistory){
+            MaterialReserveKnot initial;initial.time=base.time;
+            initial.cumulativeSolid.resize(base.solid.size());initial.cumulativeFilm.resize(base.film.size());
+            accumulated.donorPlan.knots.push_back(std::move(initial));
+        }
         std::vector<IntervalDonorSum> physicalSweepSum(base.surface.area.size()),actualSweepSum(base.surface.area.size());
 
         auto cursor=history.cursor();const Real interval=window.end-window.begin;
-        MaterialDriveCursor driveCursor(history),endpointCursor(history);
+        MaterialDriveCursor driveCursor(history),endpointCursor(history),variationCursor(history);
         WindowTime elapsed{};const WindowTime windowEnd=intervalDuration(window);
         while(elapsed<windowEnd){
             if(p.diagnostics)ugkp::diagnostics::beginOperation(*p.diagnostics,window.identity.sequence,base.acceptedSteps,state.time);
@@ -405,7 +412,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
             const std::vector<GasPrimitive> emptyBulk;
             const auto& bulk=state.surface.area.empty()?emptyBulk:driveRecord->gasTrace;
 
-            HostState trial;WallKnot beginning;CpuSurfaceResult surface;MaterialTransportResult transport;
+            WallKnot beginning;CpuSurfaceResult surface;MaterialTransportResult transport;
             std::vector<ExchangePacket> packets;std::vector<Real> radiation;
             std::vector<SolidQ> cumulativeDonor;
             std::vector<Real> sideVolume;
@@ -421,7 +428,10 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
             dt=std::min(dt,transport.dtLimit);
             do {
                 if(!finite(dt)||!(dt>0)||elapsed+dt==elapsed){lastFailure=MaterialFailureOrigin::LocalSourceNumerical;error="CPU material substep does not advance";break;}
-                error.clear();trial=state;trialElapsed=elapsed+dt;trial.time=windowAbsolute(window.begin,trialElapsed);trialCursor=cursor;
+                error.clear();
+                if(staticGeometry)static_cast<HostDynamicState&>(trial)=state;
+                else trial=state;
+                trialElapsed=elapsed+dt;trial.time=windowAbsolute(window.begin,trialElapsed);trialCursor=cursor;
                 if(!trialCursor.takeThroughLocal(trialElapsed,packets,radiation,error))break;
 
                 std::vector<GasPrimitive> terminalBulk;
@@ -447,7 +457,10 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     if(!state.surface.area.empty()&&!trajectorySurface(state,trial.gasMesh,trial.solidMesh,dt,trial.surface,lastFailure))return false;
                     return true;
                 };
-                if(p.meshMotion.policy!=MeshMotionPolicy::CoupledRecession){
+                if(staticGeometry){
+                    solidSweep.assign(state.solidMesh.owner.size(),0);
+                    gasSweep.assign(state.gasMesh.owner.size(),0);
+                }else if(p.meshMotion.policy!=MeshMotionPolicy::CoupledRecession){
                     if(!prepareImposedGeometry())break;
                 }
                 bool stageSweepsReady=p.meshMotion.policy!=MeshMotionPolicy::CoupledRecession;
@@ -512,8 +525,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     ||!stageGeometry(state.gasMesh,trial.gasMesh.points,dt,trial.gasMesh,gasSweep,lastFailure)))break;
                 // Audit source variation without replacing the accepted transfer.
                 std::vector<const GasIntervalRecord*> variationRecords;
-                for(const auto& record:history.records())if(record.localBegin>elapsed&&record.localBegin<trialElapsed)
-                    variationRecords.push_back(&record);
+                variationCursor.samplesInside(elapsed,trialElapsed,variationRecords);
                 // Bound temporary storage independently of the gas-history length.
                 // Samples share a material state and have no feedback into one another.
                 const std::size_t recordsPerBatch=std::max(std::size_t(1),std::size_t(4096)/std::max(std::size_t(1),state.surface.area.size()));
@@ -569,12 +581,16 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     ending.faces=endpointProposal.wall;for(std::size_t f=0;f<ending.faces.size();++f)ending.faces[f].primaryKind=beginning.faces[f].primaryKind;}
                 for(std::size_t f=0;f<ending.faces.size();++f){ending.faces[f].solidNormalVelocity=aux[f].solidNormalVelocity;ending.faces[f].normalVelocity=aux[f].normalVelocity;}
                 program.knots.push_back(ending);
+                if(controls.retainDonorHistory){
                 MaterialReserveKnot knot;knot.time=trial.time;knot.localTime=trialElapsed;
                 knot.cumulativeSolid=std::move(cumulativeDonor);knot.cumulativeFilm.resize(trial.film.size());
                 accumulated.donorPlan.knots.push_back(std::move(knot));
+                }
                 accumulated.materialSteps++;
                 commitResidentMaterialStep(*data_->gpu,trial.time);
-                state=std::move(trial);elapsed=trialElapsed;cursor=trialCursor;accepted=true;
+                if(staticGeometry)std::swap(static_cast<HostDynamicState&>(state),static_cast<HostDynamicState&>(trial));
+                else state=std::move(trial);
+                elapsed=trialElapsed;cursor=trialCursor;accepted=true;
             } while(false);
             if(!accepted){if(error.empty())error="CPU material single-pass operation failed";report=accumulated;report.failureOrigin=lastFailure;return false;}
         }

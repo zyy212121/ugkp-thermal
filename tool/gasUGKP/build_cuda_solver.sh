@@ -25,7 +25,7 @@ case "${GAS_UGKP_FMAD:-1}" in
   0|off|false|no) fmad_flag=--fmad=false;;
   *) echo 'ERROR: GAS_UGKP_FMAD must be 0 or 1' >&2; exit 2;;
 esac
-"${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 --expt-relaxed-constexpr \
+ugkp_nvcc "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 --expt-relaxed-constexpr \
  -DUGKWP_GAS_SPECIES="$gas_species" -O3 "${probe_flags[@]}" "$fmad_flag" \
  -arch="$cuda_arch" -Xcompiler=-fPIC -I"$solver_root/gpu" -I"$source_root/common" \
  -c "$solver_root/private_backend/GpuResidentStrict.cu" -o "$build/GpuResidentStrict.o"

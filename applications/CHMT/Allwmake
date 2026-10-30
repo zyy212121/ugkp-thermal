@@ -26,17 +26,17 @@ else
  command -v "$nvcc" >/dev/null || { echo 'BLOCKED: native CHMT build requires the CUDA toolkit compiler nvcc.' >&2; exit 2; }
  cuda=${CUDA_HOME:-$(cd "$(dirname "$(command -v "$nvcc")")/.." && pwd)}
  python3 "$app/../../tool/CHMT/build_info.py" --species-count "${UGKWP_GAS_SPECIES:-2}" --arch "$cuda_arch" --nvcc "$nvcc" --output "$build/generated"
- "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 --expt-relaxed-constexpr -O2 -arch="$cuda_arch" -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -I"$app" -I"$app/../../common" -I"$app/../../common/gasNumerics" -c "$app/gpu/Backend.cu" -o "$build/Backend.o"
- "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false --expt-relaxed-constexpr -arch="$cuda_arch" -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -I"$app" -I"$app/../../common" -I"$app/../../common/gasNumerics" -c "$app/gpu/MaterialBackend.cu" -o "$build/MaterialBackend.o"
+ ugkp_nvcc "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 --expt-relaxed-constexpr -O2 -arch="$cuda_arch" -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -I"$app" -I"$app/../../common" -I"$app/../../common/gasNumerics" -c "$app/gpu/Backend.cu" -o "$build/Backend.o"
+ ugkp_nvcc "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false --expt-relaxed-constexpr -arch="$cuda_arch" -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -I"$app" -I"$app/../../common" -I"$app/../../common/gasNumerics" -c "$app/gpu/MaterialBackend.cu" -o "$build/MaterialBackend.o"
  # Shared thermal particle owner is a separate translation unit, not a CHMT
  # implementation copy. Each local application build resolves its own objects.
- "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false --expt-relaxed-constexpr -arch="$cuda_arch" -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -I"$app/../../common" -I"$app/../../common/thermal" -c "$app/../../common/thermal/GpuResidentStrict.cu" -o "$build/ParticleResident.o"
- "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false -arch="$cuda_arch" -I"$app/../../common" -c "$app/../../common/thermal/GpuWallEnergy64.cu" -o "$build/ParticleWallEnergy.o"
- "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false -arch="$cuda_arch" -c "$app/../../common/gpu/SparseConjugateGradient.cu" -o "$build/SparseConjugateGradient.o"
- "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false --expt-relaxed-constexpr -arch="$cuda_arch" -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -I"$app" -I"$app/../../common" -c "$app/gpu/MaterialThermalBackend.cu" -o "$build/MaterialThermalBackend.o"
- "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false -arch="$cuda_arch" -c "$app/../../common/gpu/ImplicitDiffusion.cu" -o "$build/ImplicitDiffusion.o"
- "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false -arch="$cuda_arch" -c "$app/../../common/gpu/ThermalFieldOperators.cu" -o "$build/ThermalFieldOperators.o"
- "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false -arch="$cuda_arch" -c "$app/../../common/gpu/PolyhedralGeometry.cu" -o "$build/PolyhedralGeometry.o"
+ ugkp_nvcc "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false --expt-relaxed-constexpr -arch="$cuda_arch" -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -I"$app/../../common" -I"$app/../../common/thermal" -c "$app/../../common/thermal/GpuResidentStrict.cu" -o "$build/ParticleResident.o"
+ ugkp_nvcc "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false -arch="$cuda_arch" -I"$app/../../common" -c "$app/../../common/thermal/GpuWallEnergy64.cu" -o "$build/ParticleWallEnergy.o"
+ ugkp_nvcc "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false -arch="$cuda_arch" -c "$app/../../common/gpu/SparseConjugateGradient.cu" -o "$build/SparseConjugateGradient.o"
+ ugkp_nvcc "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false --expt-relaxed-constexpr -arch="$cuda_arch" -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -I"$app" -I"$app/../../common" -c "$app/gpu/MaterialThermalBackend.cu" -o "$build/MaterialThermalBackend.o"
+ ugkp_nvcc "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false -arch="$cuda_arch" -c "$app/../../common/gpu/ImplicitDiffusion.cu" -o "$build/ImplicitDiffusion.o"
+ ugkp_nvcc "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false -arch="$cuda_arch" -c "$app/../../common/gpu/ThermalFieldOperators.cu" -o "$build/ThermalFieldOperators.o"
+ ugkp_nvcc "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false -arch="$cuda_arch" -c "$app/../../common/gpu/PolyhedralGeometry.cu" -o "$build/PolyhedralGeometry.o"
  "${CXX:-g++}" "${flags[@]}" -DCHMT_DEVICE_GEOMETRY "$app/CHMT.C" "$app/io/MultirateEvolution.C" "$app/materials/CpuMaterialDriver.C" "$app/materials/MaterialTransport.C" "$app/ablation/CpuSurfaceInterface.C" "$app/mesh/Geometry.C" "$app/restart/Checkpoint.C" "$build/Backend.o" "$build/MaterialBackend.o" "$build/ParticleResident.o" "$build/ParticleWallEnergy.o" "$build/SparseConjugateGradient.o" "$build/MaterialThermalBackend.o" "$build/ImplicitDiffusion.o" "$build/ThermalFieldOperators.o" "$build/PolyhedralGeometry.o" "${libs[@]}" -L"$cuda/lib64" -Wl,-rpath,"$cuda/lib64" -lcudart -o "$build/CHMT"
  test -x "$build/CHMT"
  if [[ -n ${FOAM_USER_APPBIN:-} ]]; then mkdir -p "$FOAM_USER_APPBIN"; cp "$build/CHMT" "$FOAM_USER_APPBIN/CHMT"; fi

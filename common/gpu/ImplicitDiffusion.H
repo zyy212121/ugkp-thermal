@@ -9,6 +9,13 @@ struct DiffusionInput {
     std::vector<double> volume,gamma,area,delta,gradientInternal,gradientBoundary,correction;
     bool corrected=false;
 };
+// Borrowed host inputs; assemble uploads these once and keeps its matrix on
+// device through transient completion. The caller still owns native FV output.
+struct DiffusionTransientInput {
+    const std::vector<double>* capacity=nullptr;
+    const std::vector<double>* rhs=nullptr;
+    double dt=0;bool sourceFromCapacity=false;
+};
 struct DiffusionMatrix {
     std::vector<double> diagonal,source,upper,lower,boundaryDiagonal,boundarySource,fluxCorrection;
 };
@@ -16,7 +23,7 @@ class ImplicitDiffusion {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:
     ImplicitDiffusion();~ImplicitDiffusion();
-    void assemble(const DiffusionInput&,DiffusionMatrix&);
+    void assemble(const DiffusionInput&,DiffusionMatrix&,const DiffusionTransientInput* transient=nullptr);
     void transient(const std::vector<double>& volume,const std::vector<double>& capacity,
         const std::vector<double>& rhs,double dt,bool sourceFromCapacity,DiffusionMatrix&);
 };

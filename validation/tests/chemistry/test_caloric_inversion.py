@@ -47,6 +47,6 @@ int main() {
 }
 ''')
     binary = tmp_path / "caloric"
-    subprocess.run(["g++", "-std=c++14", "-Wall", "-Wextra", "-Werror", "-pedantic",
+    subprocess.run(["g++", "-std=c++17", "-Wall", "-Wextra", "-Werror", "-pedantic",
                     "-I" + str(ROOT), str(source), "-o", str(binary)], check=True)
     subprocess.run([str(binary)], check=True)

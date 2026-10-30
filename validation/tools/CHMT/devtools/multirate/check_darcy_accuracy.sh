@@ -8,7 +8,7 @@ runners="$root/validation/tools/CHMT"
 build=$(mktemp -d /tmp/chmt-darcy-accuracy.XXXXXX)
 trap 'rm -rf "$build"' EXIT
 cxx=${CXX:-g++}
-flags=(-O2 -std=c++14 -Wall -Wextra -Werror -pedantic -I"$app" -I"$validation" -I"$app/../../common")
+flags=(-O2 -std=c++17 -Wall -Wextra -Werror -pedantic -I"$app" -I"$validation" -I"$app/../../common")
 if [[ ${CHMT_SANITIZE:-0} == 1 ]]; then
     flags+=(-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer)
 fi

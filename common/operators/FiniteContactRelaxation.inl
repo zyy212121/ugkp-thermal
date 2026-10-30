@@ -75,6 +75,12 @@
                     conductanceTimeIntegral, 0
                 );
 
+            if(!result.valid){
+                using namespace ugkp::diagnostics;
+                recordFatal(s.diagnostics,makeRecord(Code::InvalidPhysicalState,33000,33,0,
+                    EntityKind::Particle,i,-1,conductanceTimeIntegral,0,0,Quantity::InternalEnergy));
+                return;
+            }
             commitParticleFiniteContactThermalCandidateDevice(s, i, result, 0);
             atomicAddParticleWallEnergyByFace
             (

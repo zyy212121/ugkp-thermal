@@ -82,8 +82,12 @@ class SharedGasDeviceStorage {
     Buffer<ugkwp::GasBoundaryLayerExchange<Real>> wallExchange_;
     Buffer<ugkwp::GasBoundaryLayerSstClosure<Real>> wallSst_;
     Buffer<ugkwp::gaswall::WallInput<Real,Ns>> wallInput_;
-    Buffer<ugkwp::gaswall::WallOutput<Real,Ns>> wallOutput_;
+    Buffer<ugkwp::gaswall::WallResidentOutput<Real,Ns>> wallOutput_;
+    Buffer<ugkwp::gaswall::WallOutput<Real,Ns>> wallEvaluationOutput_;
+    Buffer<Real> wallFluxProfile_;
     Buffer<ugkwp::gaswall::WallStatus> wallModelStatus_;
+    Buffer<Real> wallAcceptedHistory_,wallCandidateHistory_;
+    Buffer<ugkwp::gaswall::WallHistoryFrame<Ns>> wallAcceptedFrame_,wallCandidateFrame_;
     Buffer<unsigned char> wallWorkspace_;
     static std::size_t count(const char* name,std::size_t cells,std::size_t faces,std::size_t addressing){
         if(!std::strcmp(name,"cellFaceId"))return addressing;
@@ -152,7 +156,10 @@ class SharedGasDeviceStorage {
         wallSst_.rebindFault(fault_);
         wallInput_.rebindFault(fault_);
         wallOutput_.rebindFault(fault_);
+        wallEvaluationOutput_.rebindFault(fault_);wallFluxProfile_.rebindFault(fault_);
         wallModelStatus_.rebindFault(fault_);
+        wallAcceptedHistory_.rebindFault(fault_);wallCandidateHistory_.rebindFault(fault_);
+        wallAcceptedFrame_.rebindFault(fault_);wallCandidateFrame_.rebindFault(fault_);
         speciesBoundary_.rebindFault(fault_);
         compositionFixed_.rebindFault(fault_);
         device_.rebindFault(fault_);
@@ -198,7 +205,10 @@ class SharedGasDeviceStorage {
             wallSst_.swap(other.wallSst_);
             wallInput_.swap(other.wallInput_);
             wallOutput_.swap(other.wallOutput_);
+            wallEvaluationOutput_.swap(other.wallEvaluationOutput_);wallFluxProfile_.swap(other.wallFluxProfile_);
             wallModelStatus_.swap(other.wallModelStatus_);
+            wallAcceptedHistory_.swap(other.wallAcceptedHistory_);wallCandidateHistory_.swap(other.wallCandidateHistory_);
+            wallAcceptedFrame_.swap(other.wallAcceptedFrame_);wallCandidateFrame_.swap(other.wallCandidateFrame_);
             wallGeometry_.swap(other.wallGeometry_);wallFaces_.swap(other.wallFaces_);wallHostInput_.swap(other.wallHostInput_);
             std::swap(wallGeometryVersion_,other.wallGeometryVersion_);std::swap(wallGeometryReady_,other.wallGeometryReady_);std::swap(wallModelFailed_,other.wallModelFailed_);std::swap(wallInputDirty_,other.wallInputDirty_);
         }
@@ -276,7 +286,10 @@ class SharedGasDeviceStorage {
         ok=wallSst_.release()&&ok;
         ok=wallInput_.release()&&ok;
         ok=wallOutput_.release()&&ok;
+        ok=wallEvaluationOutput_.release()&&ok;ok=wallFluxProfile_.release()&&ok;
         ok=wallModelStatus_.release()&&ok;
+        ok=wallAcceptedHistory_.release()&&ok;ok=wallCandidateHistory_.release()&&ok;
+        ok=wallAcceptedFrame_.release()&&ok;ok=wallCandidateFrame_.release()&&ok;
         ok=speciesBoundary_.release()&&ok;
         ok=compositionFixed_.release()&&ok;
         ok=device_.release()&&ok;
@@ -543,6 +556,8 @@ public:
         if(wallWorkspace_.size()!=sizing.bytes)wallWorkspace_.swap(previousWorkspace_);
         if(!wallWorkspace_.resize(sizing.bytes,fault_)){error=fault_.message;return false;}
         layer.workspaceCount=sizing.slots;layer.workspace=wallWorkspace_.data();
+        if(!wallEvaluationOutput_.resize(sizing.slots,fault_))return false;
+        layer.evaluationOutput=wallEvaluationOutput_.data();
         std::fprintf(stderr,"CHMT boundaryLayer workspace requested=%d resolved=%d capacity=%d bytes=%zu\n",
             physics.wallWorkspaceSlots,layer.workspaceCount,layer.workspaceCapacity,sizing.bytes);
         return true;
@@ -574,6 +589,17 @@ public:
         auto& wall=view_.gasBoundaryLayer;wall.faceSlot=wallFaceSlot_.data();wall.ownerSlot=wallOwnerSlot_.data();
         wall.exchange=wallExchange_.data();wall.sst=wallSst_.data();wall.status=wallStatus_.data();wall.speciesFlux=wallSpecies_.data();
         auto& layer=view_.gasBoundaryLayerModel;layer.input=wallInput_.data();layer.output=wallOutput_.data();layer.status=wallModelStatus_.data();
+        const std::size_t fluxCount=layer.volumeSstClosure&&layer.config.enableSst?std::size_t(count)*3*(layer.config.nodes+1):0;
+        if(!wallFluxProfile_.resize(fluxCount,fault_))return false;
+        layer.fluxProfile=wallFluxProfile_.data();
+        if(layer.config.model!=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport){
+            const std::size_t values=std::size_t(count)*layer.config.nodes*(Ns+4);
+            if(!wallAcceptedHistory_.resize(values,fault_)||!wallCandidateHistory_.resize(values,fault_)
+                ||!wallAcceptedFrame_.resize(count,fault_)||!wallCandidateFrame_.resize(count,fault_)
+                ||!wallAcceptedFrame_.zero(transfers_.stream())||!wallCandidateFrame_.zero(transfers_.stream()))return false;
+            layer.acceptedHistory=wallAcceptedHistory_.data();layer.candidateHistory=wallCandidateHistory_.data();
+            layer.acceptedFrame=wallAcceptedFrame_.data();layer.candidateFrame=wallCandidateFrame_.data();
+        }
         layer.faces=wallFaceList_.data();layer.matchingOffsets=wallMatchOffsets_.data();layer.matchingCells=wallMatchCells_.data();layer.matchingWeights=wallMatchWeights_.data();
         wallInputDirty_=false;wallGeometryReady_=true;wallGeometryVersion_=mesh.geometryVersion;
         return wallExchange_.zero(transfers_.stream())&&wallStatus_.zero(transfers_.stream())&&wallModelStatus_.zero(transfers_.stream());
@@ -601,7 +627,7 @@ public:
     bool downloadWallOutputs(std::vector<ugkwp::gaswall::WallOutput<Real,Ns>>& output,std::vector<GasWallMatchingSample>& matching){
         std::vector<ugkwp::gaswall::WallInput<Real,Ns>> inputs;
         std::vector<ugkwp::GasBoundaryLayerExchange<Real>> exchange;
-        std::vector<ugkwp::gaswall::WallOutput<Real,Ns>> candidate;
+        std::vector<ugkwp::gaswall::WallResidentOutput<Real,Ns>> candidate;
         if(!enqueueRead(wallExchange_.data(),wallExchange_.size(),exchange)
             ||!enqueueRead(wallOutput_.data(),wallOutput_.size(),candidate)
             ||!enqueueRead(wallInput_.data(),wallInput_.size(),inputs)||!observeDiagnostics())return false;
@@ -614,7 +640,18 @@ public:
             if(f<modelStatus.size())fault_.message+=" wall code "+std::to_string(int(modelStatus[f].code))+" node "+std::to_string(modelStatus[f].node)+" iteration "+std::to_string(modelStatus[f].iteration)+" residual "+(std::isfinite(modelStatus[f].residual)?std::to_string(modelStatus[f].residual):"NOT_AVAILABLE");
             return false;
         }
-        output=std::move(candidate);
+        std::vector<Real> flux;
+        if(wallFluxProfile_.size()&&(!enqueueRead(wallFluxProfile_.data(),wallFluxProfile_.size(),flux)||!observeDiagnostics()))return false;
+        output.resize(candidate.size());
+        for(std::size_t i=0;i<candidate.size();++i){
+            static_cast<ugkwp::gaswall::WallExchangeOutput<Real,Ns>&>(output[i])=candidate[i];
+            const int n=view_.gasBoundaryLayerModel.config.nodes+1;
+            for(int j=0;j<candidate[i].kFluxCount;++j){
+                output[i].kFluxHeight[j]=flux[(3*i)*n+j];
+                output[i].kTransportFlux[j]=flux[(3*i+1)*n+j];
+                output[i].omegaDiffusiveFlux[j]=flux[(3*i+2)*n+j];
+            }
+        }
         matching.resize(inputs.size());for(std::size_t f=0;f<inputs.size();++f){matching[f].pressure=inputs[f].pressure;matching[f].mechanicalPressure=0;matching[f].state=inputs[f].matching;}return true;
     }
     bool uploadGeometry(const HostMesh& mesh,bool publish=true){

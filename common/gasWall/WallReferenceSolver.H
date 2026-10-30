@@ -83,8 +83,8 @@ UGKWP_GAS_HD inline R referenceMerit(const WallModelConfig<R>& c,
 // accepted is an optional, immutable transformed profile in the CURRENT wall
 // frame/species coordinates and on the same node geometry. The adapter owns
 // coordinate conversion and geometry invalidation. No endpoint lift or warm
-// Picard pass is applied here. A nonconverged publication remains advisory, as
-// in the existing BVP API; stats distinguish it from a converged equation solve.
+// Picard pass is applied here. Only a converged equation solve publishes an accepted wall output; a finite
+// but nonconverged iterate remains in scratch for diagnostics.
 template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam>
 UGKWP_GAS_HD inline bool evaluateWallReference(
  const WallInput<R,N,TableReal>& original,const WallModelConfig<R>& c,
@@ -176,9 +176,9 @@ UGKWP_GAS_HD inline bool evaluateWallReference(
     if(team.leader()){
         stats.residual=norm;stats.iterations=iteration;stats.converged=norm<=tolerance;
         status.iteration=iteration;status.residual=norm;
-        published=publishLayer(in,c,ctx,w,iteration,norm,output,false);
-        if(!published){fail(status,WallCode::InadmissibleState);wallFatal(in,ugkp::diagnostics::Code::NonFinite,10022);}
-        if(published&&!stats.converged)wallWarning(in,ugkp::diagnostics::Code::AccuracyResidual,2422,norm,tolerance);
+        if(!stats.converged){fail(status,WallCode::NonConvergence);}
+        else published=publishLayer(in,c,ctx,w,iteration,norm,output,false);
+        if(stats.converged&&!published){fail(status,WallCode::InadmissibleState);wallFatal(in,ugkp::diagnostics::Code::NonFinite,10022);}
     }
     return team.broadcast(published);
 }

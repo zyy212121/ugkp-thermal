@@ -86,7 +86,7 @@ def test_film_exact_outputs_and_linear_incidence(tmp_path):
         probe.write_text(body)
         exe = tmp_path / label
         includes = ['-I' + str(baseline / 'applications/CHMT'), '-I' + str(baseline / 'common')] if label == 'base' else []
-        command = ['g++', '-std=c++14', '-O2', '-ffp-contract=off', '-D_GLIBCXX_ASSERTIONS',
+        command = ['g++', '-std=c++17', '-O2', '-ffp-contract=off', '-D_GLIBCXX_ASSERTIONS',
                    *includes, '-I' + str(APP), '-I' + str(support), '-I' + str(ROOT / 'common'), '-MMD', '-MF', str(tmp_path / (label + '.d')), str(probe), '-o', str(exe)]
         build = subprocess.run(command, text=True, capture_output=True)
         (tmp_path / (label + '-build.log')).write_text(build.stdout + build.stderr)

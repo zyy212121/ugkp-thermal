@@ -56,7 +56,7 @@ int main(int argc,char**argv){using namespace Foam;Fixture fixture;
 }
 '''.replace('METHOD',method)
     source=tmp/'probe.C';source.write_text(code);binary=tmp/'probe'
-    command=prefix+f'''g++ -std=c++14 -DWM_DP -DWM_LABEL_SIZE=32 \\
+    command=prefix+f'''g++ -std=c++17 -DWM_DP -DWM_LABEL_SIZE=32 \\
       -I{shlex.quote(str(COMMON_ROOT/'common'))} \\
       -I"$WM_PROJECT_DIR/src/OpenFOAM/lnInclude" -I"$WM_PROJECT_DIR/src/OSspecific/POSIX/lnInclude" \\
       {shlex.quote(str(source))} -L"$FOAM_LIBBIN" -L"$FOAM_LIBBIN/$FOAM_MPI" \\

@@ -22,7 +22,7 @@ def build_run(root,dest,terminal):
     (dest/'owner.C').write_text(source)
     probe=dest/'probe.cpp'
     probe.write_text(((VALIDATION_ROOT / 'tests/fixtures/transport_terminal/probe.cpp')).read_text().replace("<<out.bodyPower<<' '",'').replace('&&out.bodyPower==normal.bodyPower',''))
-    cmd=['g++','-std=c++14','-O2','-ffp-contract=off','-Wall','-Wextra','-Werror','-pedantic','-Wno-misleading-indentation','-Wno-mismatched-new-delete','-DTERMINAL_TEST='+str(int(terminal)),'-I'+str(dest),'-I'+str(app),'-I'+str((VALIDATION_ROOT / 'tests/fixtures/transport_terminal')),str(probe),'-o',str(dest/'probe')]
+    cmd=['g++','-std=c++17','-O2','-ffp-contract=off','-Wall','-Wextra','-Werror','-pedantic','-Wno-misleading-indentation','-Wno-mismatched-new-delete','-DTERMINAL_TEST='+str(int(terminal)),'-I'+str(dest),'-I'+str(app),'-I'+str((VALIDATION_ROOT / 'tests/fixtures/transport_terminal')),str(probe),'-o',str(dest/'probe')]
     b=subprocess.run(cmd,text=True,capture_output=True);(dest/'build.log').write_text(' '.join(cmd)+'\n'+b.stdout+b.stderr);assert b.returncode==0,b.stderr
     r=subprocess.run([str(dest/'probe')],text=True,capture_output=True,timeout=60);(dest/'run.log').write_text(r.stdout+r.stderr);assert r.returncode==0,r.stderr
     return r.stdout
@@ -72,6 +72,6 @@ int main(){std::string error;std::vector<FilmAux> output;MaterialFailureOrigin o
 }
 '''
     probe=tmp_path/'proposal.cpp';probe.write_text(source)
-    cmd=['g++','-std=c++14','-O2','-ffp-contract=off','-Wall','-Wextra','-Werror','-pedantic','-Wno-misleading-indentation','-I'+str(app),'-I'+str(ROOT/'common'),str(probe),str(app/'materials/MaterialTransport.C'),'-o',str(tmp_path/'proposal')]
+    cmd=['g++','-std=c++17','-O2','-ffp-contract=off','-Wall','-Wextra','-Werror','-pedantic','-Wno-misleading-indentation','-I'+str(app),'-I'+str(ROOT/'common'),str(probe),str(app/'materials/MaterialTransport.C'),'-o',str(tmp_path/'proposal')]
     b=subprocess.run(cmd,text=True,capture_output=True);(tmp_path/'build.log').write_text(' '.join(cmd)+'\n'+b.stdout+b.stderr);assert b.returncode==0,b.stderr
     r=subprocess.run([str(tmp_path/'proposal')],text=True,capture_output=True);(tmp_path/'run.log').write_text(r.stdout+r.stderr);assert r.returncode==0,r.stderr

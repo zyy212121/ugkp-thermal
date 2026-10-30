@@ -10,7 +10,7 @@ APP = ROOT / 'applications/CHMT'
 
 def build_run(tmp_path, source, includes=(), flags=()):
     exe = tmp_path / (source.stem + ".exe")
-    cmd = ['g++', '-std=c++14', '-O2', '-ffp-contract=off', '-Wall', '-Wextra',
+    cmd = ['g++', '-std=c++17', '-O2', '-ffp-contract=off', '-Wall', '-Wextra',
            '-Werror', '-pedantic', *flags, *['-I'+str(p) for p in includes],
            '-I'+str(APP), '-I'+str(VALIDATION_ROOT/'solvers/CHMT'), '-I'+str(ROOT/'common'), str(source), '-o', str(exe)]
     build = subprocess.run(cmd, text=True, capture_output=True)

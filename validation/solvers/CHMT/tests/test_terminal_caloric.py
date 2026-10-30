@@ -53,7 +53,7 @@ int main(){
 }
 ''')
     exe = tmp_path / 'probe'
-    subprocess.run(['g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror', '-pedantic',
+    subprocess.run(['g++', '-std=c++17', '-O2', '-Wall', '-Wextra', '-Werror', '-pedantic',
                     '-I' + str(ROOT / 'applications/CHMT'), '-I' + str(ROOT / 'common'),
                     str(source), '-o', str(exe)], check=True)
     subprocess.run([str(exe)], check=True, timeout=30)

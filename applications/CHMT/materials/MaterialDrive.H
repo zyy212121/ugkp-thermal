@@ -12,15 +12,31 @@ class MaterialDriveCursor {
     const IntervalHistory& history_;
     std::size_t record_=0;
     WindowTime previous_{};
-    bool positioned_=false;
+    bool positioned_=false,ordered_=true;
 public:
-    explicit MaterialDriveCursor(const IntervalHistory& history):history_(history){}
+    explicit MaterialDriveCursor(const IntervalHistory& history):history_(history){
+        const auto& records=history.records();
+        for(std::size_t i=0;i<records.size();++i)
+            if(!(records[i].localBegin<records[i].localEnd)
+                ||(i&&records[i].localBegin<records[i-1].localEnd)){ordered_=false;break;}
+    }
     const GasIntervalRecord* at(WindowTime time){
-        if(!positioned_||time<previous_||!std::isfinite(previous_.sum)||!std::isfinite(previous_.correction))record_=0;
+        if(!ordered_||!positioned_||time<previous_||!std::isfinite(previous_.sum)||!std::isfinite(previous_.correction))record_=0;
         positioned_=true;previous_=time;
         const auto& records=history_.records();
         while(record_<records.size()&&!(time<records[record_].localEnd))++record_;
         return record_<records.size()?&records[record_]:nullptr;
+    }
+    // Exact open-interval samples for the source-variation audit. Arbitrary
+    // queries retain first-match ordering; monotone production queries reuse
+    // the same index without rescanning already-consumed records.
+    void samplesInside(WindowTime begin,WindowTime end,std::vector<const GasIntervalRecord*>& output){
+        output.clear();at(begin);
+        const auto& records=history_.records();
+        for(std::size_t i=ordered_?record_:0;i<records.size();++i){
+            const auto& r=records[i];if(ordered_&&r.localBegin>=end)break;
+            if(r.localBegin>begin&&r.localBegin<end)output.push_back(&r);
+        }
     }
     // A LOCAL first-order lag control, not a bound on global PDE error. Keep
     // source-variation comparisons in their original order and arithmetic.
@@ -31,7 +47,10 @@ public:
             ||!finite(tolerance)||tolerance<0||!finite(tractionScale)||tractionScale<=0){error="invalid material driving control";return false;}
         const GasIntervalRecord* held=at(begin);
         if(!held){error="no driving sample at material slab start";return false;}WindowTime end=requested;
-        for(const auto& r:history.records()){if(r.localBegin<=begin||r.localBegin>=end)continue;
+        for(std::size_t index=ordered_?record_:0;index<history.records().size();++index){
+            const auto& r=history.records()[index];
+            if(ordered_&&r.localBegin>=end)break;
+            if(r.localBegin<=begin||r.localBegin>=end)continue;
             if(r.gasTrace.size()!=held->gasTrace.size()||r.gasTraction.size()!=held->gasTraction.size()||r.gasGradient.size()!=held->gasGradient.size()||r.gasWallMatching.size()!=held->gasWallMatching.size()){
                 error="gas drive layout changed";return false;}
             Real change=0;

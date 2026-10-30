@@ -44,7 +44,7 @@ def test_geometry_scale_exact_outputs_and_counts(tmp_path):
         probe = tmp_path / (label + '.cpp')
         probe.write_text(((VALIDATION_ROOT / 'tests/fixtures/geometry_hoists/probe.cpp')).read_text().replace('GEOMETRY_FIXTURE', str(root / 'applications/CHMT/devtools/multirate/test_sweep_constraints.cpp' if label == 'base' else VALIDATION_ROOT / 'solvers/CHMT/devtools/multirate/test_sweep_constraints.cpp')))
         exe = tmp_path / label
-        command = ['g++', '-O2', '-std=c++14', '-ffp-contract=off', '-D_GLIBCXX_ASSERTIONS',
+        command = ['g++', '-O2', '-std=c++17', '-ffp-contract=off', '-D_GLIBCXX_ASSERTIONS',
                    '-I' + str(root / 'applications/CHMT'), '-I' + str(root / 'applications/CHMT/mesh'), '-I' + str(root / 'common'),
                    '-MMD', '-MF', str(tmp_path / (label + '.d')), str(probe), str(owner), '-o', str(exe)]
         build = subprocess.run(command, capture_output=True, text=True)

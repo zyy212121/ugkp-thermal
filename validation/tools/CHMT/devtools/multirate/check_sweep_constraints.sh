@@ -8,7 +8,7 @@ runners="$root/validation/tools/CHMT"
 bin=$(mktemp /tmp/chmt-sweep-constraints.XXXXXX)
 trap 'rm -f "$bin"' EXIT
 for test in test_sweep_constraints test_sweep_remainder test_dense_curved_remainder; do
-"${CXX:-g++}" -std=c++14 -Wall -Wextra -Werror -pedantic \
+"${CXX:-g++}" -std=c++17 -Wall -Wextra -Werror -pedantic \
   -I"$root/applications/CHMT" -I"$validation" -I"$root/common" \
   "$validation/devtools/multirate/$test.cpp" \
   "$root/applications/CHMT/mesh/Geometry.C" -o "$bin"
