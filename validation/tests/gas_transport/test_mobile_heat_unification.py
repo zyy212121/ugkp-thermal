@@ -3,7 +3,7 @@ import subprocess
 from test_paired_heat_production import SOURCE, ROOT, VALIDATION_ROOT
 
 EXTRA = r'''
- int particleStuckModelConfigured=1,solveParticleTemperature=1,particleGasHeatTransferModelId=1;
+ int solveParticleTemperature=1,particleGasHeatTransferModelId=1;
  GpuReal epsSMin=1e-12,pTheta[4]{},thetaDragAlpha[1]{1.};
  double mobileMoments[6]{},*particleMobileHeatMoments=mobileMoments;
  GpuReal momRhoP[1]{},momRhoUPx[1]{},momRhoUPy[1]{},momRhoUPz[1]{},momRhoPD[1]{},momRhoHpP[1]{};

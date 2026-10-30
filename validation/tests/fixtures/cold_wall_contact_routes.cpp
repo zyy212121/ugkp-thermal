@@ -78,6 +78,7 @@ template<class T> T sqr3(T x,T y,T z) {return x*x+y*y+z*z;}
 template<class T> bool finiteDevice(T x) {return x==x && std::abs(x)<(ROUTE_FSH?1.e300:(sizeof(T)==8?1.e300:1.e30));}
 template<class T> bool nonFiniteDevice(T x) {return !finiteDevice(x);}
 struct DeviceState {
+ int particleStuckModelConfigured=1;
     int coldWallSolidificationEnabled=1, nCells=1, nFaces=1, nInternalFaces=0;
     int particleCapacity=1, solveParticleTemperature=1, particleGasHeatTransferModelId=1;
     int particleWallHeatTransferEnabled=1, dragModelId=0;
