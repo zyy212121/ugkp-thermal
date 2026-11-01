@@ -66,6 +66,10 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
     double pinningThicknessFraction, double interfaceResistanceM2KW
 );
 
+// Optional global particle-source velocity; unspecified follows gas boundaries.
+extern "C" int ugkwpGpuResidentStrictConfigureParticleInjectionVelocity
+(void* handle, int specified, double ux, double uy, double uz);
+
 extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 (
     void* handle, int nBoundarySources, const int* sourceCell,

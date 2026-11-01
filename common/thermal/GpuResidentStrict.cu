@@ -614,6 +614,8 @@ struct DeviceState
     int* csrHeavyInjectionCellTaskCount = nullptr;
     GpuReal* csrHeavyInjectionPartials = nullptr;
 
+    bool particleInjectionVelocitySpecified = false;
+    double particleInjectionVelocity[3]{};
     int nBoundarySources = 0;
     int* sourceCell = nullptr;
     int* sourceFace = nullptr;
@@ -3144,9 +3146,8 @@ struct ChtSpeciesTrialPolicy {
     static int begin(DeviceState* s){return s->gasModelPoisoned;}
     static int commit(DeviceState* s){return s->gasModelPoisoned;}
     static int commitInterval(DeviceState* s){
-        if(s->gasBoundaryLayer.enabled&&s->gasBoundaryLayerModel.acceptedHistory){
-            commitAcceptedWallHistory<<<(s->gasBoundaryLayer.count+63)/64,64,0,s->gasCaptureStream>>>(s->deviceState);
-            const auto e=cudaGetLastError();if(e!=cudaSuccess){setLastError("commit CHT wall history",e);return 1;}}
+        const auto e=commitResidentWallHistory(s);
+        if(e!=cudaSuccess){setLastError("commit CHT wall history",e);return 1;}
         return s->gasModelPoisoned;
     }
     static const double* stageVolumes(DeviceState* s,bool){return s->V;}
@@ -3526,6 +3527,8 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     rc |= copyToDevice(s->planeD, planeD, nPlanes, "cudaMemcpy strict planeD");
     return rc == 0 ? 0 : 1;
 }
+
+#include "GpuParticleInjectionVelocityConfiguration.cuh"
 
 extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 (

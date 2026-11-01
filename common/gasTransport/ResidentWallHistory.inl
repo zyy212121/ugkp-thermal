@@ -7,3 +7,13 @@ template<class State> __global__ void commitAcceptedWallHistory(State*state){
  for(int i=0;i<m.config.nodes*B;++i)m.acceptedHistory[offset+i]=m.candidateHistory[offset+i];
  m.acceptedFrame[slot]=m.candidateFrame[slot];
 }
+
+// Shared completion hook for gas-only transactions and coupled particle steps.
+// The device kernel declines publication after a fatal diagnostic.
+template<class State> inline cudaError_t commitResidentWallHistory(State* s) {
+ if(s->gasBoundaryLayer.enabled&&s->gasBoundaryLayerModel.acceptedHistory){
+  commitAcceptedWallHistory<<<(s->gasBoundaryLayer.count+63)/64,64,0,s->gasCaptureStream>>>(s->deviceState);
+  return cudaGetLastError();
+ }
+ return cudaSuccess;
+}
