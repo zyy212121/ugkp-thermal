@@ -533,6 +533,8 @@ struct DeviceState
     int* csrHeavyInjectionCellTaskCount = nullptr;
     double* csrHeavyInjectionPartials = nullptr;
 
+    bool particleInjectionVelocitySpecified = false;
+    double particleInjectionVelocity[3]{};
     int nBoundarySources = 0;
     int* sourceCell = nullptr;
     int* sourceFace = nullptr;
@@ -2876,6 +2878,8 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     rc |= copyToDevice(s->planeD, planeD, nPlanes, "cudaMemcpy strict planeD");
     return rc == 0 ? 0 : 1;
 }
+
+#include "GpuParticleInjectionVelocityConfiguration.cuh"
 
 extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 (

@@ -1,3 +1,4 @@
+#include "ParticleInjectionVelocity.H"
 #pragma once
 #include "GpuParticleThermalCarryStorage.cuh"
 __global__ void injectBoundaryParticlesKernel
@@ -38,15 +39,18 @@ __global__ void injectBoundaryParticlesKernel
 
     const bool scheduledInletActive =
         scheduledInletFaceDevice(s, sourceFace);
-    const GPU_OPERATOR_REAL sourceUx = scheduledInletActive
+    const GPU_OPERATOR_REAL sourceUx = ugkwp::particleInjectionVelocityComponent
+      (s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[0], scheduledInletActive
       ? finiteOr(s.gasBoundaryUx[sourceFace], finiteOr(s.sourceUx[j], GPU_OPERATOR_R(0.0)))
-      : finiteOr(s.sourceUx[j], GPU_OPERATOR_R(0.0));
-    const GPU_OPERATOR_REAL sourceUy = scheduledInletActive
+      : finiteOr(s.sourceUx[j], GPU_OPERATOR_R(0.0)));
+    const GPU_OPERATOR_REAL sourceUy = ugkwp::particleInjectionVelocityComponent
+      (s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[1], scheduledInletActive
       ? finiteOr(s.gasBoundaryUy[sourceFace], finiteOr(s.sourceUy[j], GPU_OPERATOR_R(0.0)))
-      : finiteOr(s.sourceUy[j], GPU_OPERATOR_R(0.0));
-    const GPU_OPERATOR_REAL sourceUz = scheduledInletActive
+      : finiteOr(s.sourceUy[j], GPU_OPERATOR_R(0.0)));
+    const GPU_OPERATOR_REAL sourceUz = ugkwp::particleInjectionVelocityComponent
+      (s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[2], scheduledInletActive
       ? finiteOr(s.gasBoundaryUz[sourceFace], finiteOr(s.sourceUz[j], GPU_OPERATOR_R(0.0)))
-      : finiteOr(s.sourceUz[j], GPU_OPERATOR_R(0.0));
+      : finiteOr(s.sourceUz[j], GPU_OPERATOR_R(0.0)));
     const GPU_OPERATOR_REAL sourceTheta = scheduledInletActive
       ? clampMin(finiteOr(s.theta[sourceCell], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0))
       : clampMin(finiteOr(s.sourceTheta[j], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
