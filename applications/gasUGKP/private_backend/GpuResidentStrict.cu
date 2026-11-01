@@ -4829,6 +4829,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 #define UGKP_DEV_PROBE_LEAVE_IF(STAGE, EXECUTED) ((void)0)
 #endif
 
+    ugkwp::invalidateGasBoundaryLayerPreparation(*s);
     UGKP_DEV_PROBE_ENTER(ProbeGasFlux);
     if (advanceGasFluxStage(s, dt, simulationTime-dt) != 0)
     {
@@ -5348,7 +5349,10 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 
     // Both physical-time drivers consume the same completed transaction before
     // accepting a sample or writing transient fields/restart data.
-    if(pairedMixture)return SharedGasTrialPolicy::complete(s);
+    if(pairedMixture){
+        if(SharedGasTrialPolicy::validate(s)!=0 || SharedGasTrialPolicy::commitInterval(s)!=0)return 1;
+        return SharedGasTrialPolicy::complete(s);
+    }
     return 0;
 }
 

@@ -349,7 +349,8 @@ sharedGasModel.validateNumerics
     !gpuScheduling.pureGasOnly,
     sstWallTreatment,
     boundaryLayerInput.model(),
-    true // gasUGKP and gasUGKPSteady share the paired physical-time source
+    true, // gasUGKP and gasUGKPSteady share the paired physical-time source
+    boundaryLayerInput.model()==2 // equilibriumODE particle intervals share resident wall stages/history
 );
 
 #endif

@@ -37,10 +37,8 @@ struct SharedGasTrialPolicy
     static int commit(DeviceState* s) { return s->gasModelPoisoned?1:0; }
     static int commitInterval(DeviceState* s) {
         if(s->gasModelPoisoned)return 1;
-        if(s->gasBoundaryLayer.enabled&&s->gasBoundaryLayerModel.acceptedHistory){
-            commitAcceptedWallHistory<<<(s->gasBoundaryLayer.count+63)/64,64,0,s->gasCaptureStream>>>(s->deviceState);
-            const auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("commit accepted wall history",error);return 1;}
-        }
+        const auto error=commitResidentWallHistory(s);
+        if(error!=cudaSuccess){setLastError("commit accepted wall history",error);return 1;}
         return 0;
     }
     static const double* stageVolumes(DeviceState* s,bool) { return s->V; }

@@ -3146,9 +3146,8 @@ struct ChtSpeciesTrialPolicy {
     static int begin(DeviceState* s){return s->gasModelPoisoned;}
     static int commit(DeviceState* s){return s->gasModelPoisoned;}
     static int commitInterval(DeviceState* s){
-        if(s->gasBoundaryLayer.enabled&&s->gasBoundaryLayerModel.acceptedHistory){
-            commitAcceptedWallHistory<<<(s->gasBoundaryLayer.count+63)/64,64,0,s->gasCaptureStream>>>(s->deviceState);
-            const auto e=cudaGetLastError();if(e!=cudaSuccess){setLastError("commit CHT wall history",e);return 1;}}
+        const auto e=commitResidentWallHistory(s);
+        if(e!=cudaSuccess){setLastError("commit CHT wall history",e);return 1;}
         return s->gasModelPoisoned;
     }
     static const double* stageVolumes(DeviceState* s,bool){return s->V;}
