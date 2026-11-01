@@ -310,6 +310,19 @@ bool handleMesh(const int fd, const RequestHeader& request, ServerState& s)
     return responseHeader(fd,s, status, 0);
 }
 
+bool handleParticleInjectionVelocity
+(const int fd,const RequestHeader& request,ServerState& s)
+{
+ CountArgs a{};
+ if(!validatePayload(fd,s,request,WireCodec<CountArgs>::size+3*sizeof(double))
+    ||!readObject(fd,a))return false;
+ std::vector<double> velocity;
+ if(!readVector(fd,velocity,3))return false;
+ const int status=ugkwpGpuResidentStrictConfigureParticleInjectionVelocity
+   (s.backend,a.count,velocity[0],velocity[1],velocity[2]);
+ return responseHeader(fd,s,status,0);
+}
+
 bool handleBoundarySources
 (
     const int fd, const RequestHeader& request, ServerState& s
@@ -883,6 +896,7 @@ bool dispatch
         case Op::configureParticleStuckModel:
             return handleConfigureParticleStuckModel(fd,request,s);
         case Op::uploadBoundarySources:return handleBoundarySources(fd,request,s);
+        case Op::configureParticleInjectionVelocity:return handleParticleInjectionVelocity(fd,request,s);
         case Op::configureScheduledInlet:
             return handleScheduledInletConfiguration(fd,request,s);
         case Op::downloadSourceResidualMass:return handleDownloadResidual(fd,request,s);

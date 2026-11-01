@@ -477,6 +477,18 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     return finishNoPayload(s);
 }
 
+extern "C" int ugkwpGpuResidentStrictConfigureParticleInjectionVelocity
+(void* handle,int specified,double ux,double uy,double uz)
+{
+ ClientState* s=static_cast<ClientState*>(handle);
+ if(!s)return fail("missing particle injection velocity handle");
+ const double velocity[3]={ux,uy,uz};
+ const auto bytes=WireCodec<CountArgs>::size+3*sizeof(double);
+ if(!startRequest(s,Op::configureParticleInjectionVelocity,bytes)
+    ||!sendObject(s->fd,CountArgs{specified})||!sendArray(s->fd,velocity,3))return -1;
+ return finishNoPayload(s);
+}
+
 extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 (
     void* handle, int count, const int* sourceCell, const int* sourceFace,
