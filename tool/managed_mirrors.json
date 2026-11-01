@@ -1513,6 +1513,11 @@
       "path": "common/ParticleInjectionVelocity.H",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/ParticleReservoirRelaxation.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
     }
   ],
   "local_only": {
