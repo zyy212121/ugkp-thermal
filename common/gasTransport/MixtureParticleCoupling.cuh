@@ -192,7 +192,9 @@ inline cudaError_t launchMixtureParticleCouplingCells(State*state,int cells,doub
  mixtureParticleCouplingKernel<DragModel,ConstantHeat><<<(cells+127)/128,128>>>(state,dt,drag,csr,split,true,walls>0);
  auto error=cudaGetLastError();if(error!=cudaSuccess)return error;
  const int groups=(cells+3)/4;
- mixtureParticleCouplingKernel<DragModel,ConstantHeat,true><<<groups<256?groups:256,128>>>(state,dt,drag,csr,split);
+ mixtureParticleCouplingKernel<DragModel,ConstantHeat,true><<<groups<256?groups:256,128>>>(state,dt,drag,csr,split,false,walls>0);
+ error=cudaGetLastError();if(error!=cudaSuccess)return error;
+ if(walls>0)mixtureParticleWallCouplingKernel<DragModel,ConstantHeat><<<(walls+63)/64,64>>>(state,dt,drag,csr,split);
  return cudaGetLastError();
 }
 #endif
