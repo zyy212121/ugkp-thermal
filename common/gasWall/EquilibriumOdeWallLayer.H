@@ -106,6 +106,14 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
             return team.broadcast(published);
         }
         if(updates>=c.maxIterations)break;
+        if(localStress&&stressResidual<=tolerance){
+            // Finish the scalar solve with a frozen direction before changing
+            // that direction. A rotated constitutive function cannot inherit
+            // signs or secant history evaluated for the previous direction.
+            ctx.equilibriumWallStress=measuredStress;
+            for(int d=0;d<2;++d)ctx.equilibriumWallTraction[d]=measuredTraction[d];
+            previous=false;hasLower=false;hasUpper=false;++updates;continue;
+        }
         // A safeguarded secant update accelerates the scalar fixed point.
         // Bounds are obtained only from evaluated signs, never prescribed
         // by a target wall law, macro inventory, or fitting factor.
@@ -121,8 +129,8 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
         if(!gasFinite(next)||next<0)break;
         previous=true;previousStress=stress;previousDefect=defect;
         ctx.equilibriumWallStress=next;
-        if(localStress)for(int d=0;d<2;++d)ctx.equilibriumWallTraction[d]=measuredStress>0
-            ?next*measuredTraction[d]/measuredStress:R(0);
+        if(localStress)for(int d=0;d<2;++d)ctx.equilibriumWallTraction[d]=stress>0
+            ?next*ctx.equilibriumWallTraction[d]/stress:(measuredStress>0?next*measuredTraction[d]/measuredStress:R(0));
         ++updates;
     }
     if(team.leader()){
