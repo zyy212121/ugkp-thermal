@@ -2170,12 +2170,13 @@ int launchMixtureParticleCoupling(DeviceState* s,double dt,bool external=true)
     if(s->csrCellLocalPathEnabled==0 && binParticlesByCell(s,s->reductionBlockThreads,false))return 1;
     cudaError_t err=cudaSuccess;
     const bool dragActive=gasDragModelActive(s->hostDragModel);
+    const int walls=s->gasBoundaryLayer.enabled&&s->gasBoundaryLayerModel.particleSource?s->gasBoundaryLayer.count:0;
     if(s->hostDragModel==1)
         err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag>
-            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0);
+            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0,walls);
     else
         err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::SchillerNaumannDeviceDrag>
-            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0);
+            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0,walls);
     if(err!=cudaSuccess){setLastError("paired mixture/particle source",err);return 1;}
     if(external&&s->particleWorkGrid>0)
         mixtureParticleExternalKickKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,dt);

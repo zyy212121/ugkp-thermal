@@ -153,26 +153,43 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragAct
 
 // Separate scalar and cooperative launches retain dense scalar work for light
 // cells. Giving every light cell a full warp regresses sparse populations.
+template<class DragModel,bool ConstantHeat,class State,class Team>
+__device__ void mixtureParticleMacroReservoir(State&s,int c,double dt,bool drag,bool csr,bool split,const Team&team){
+ mixtureParticles::MacroReservoir<State> reservoir;
+ mixtureParticleCouplingReservoir<DragModel,ConstantHeat>(s,c,dt,drag,csr,split,team,reservoir);
+}
+template<class DragModel,bool ConstantHeat,class State>
+__global__ void mixtureParticleWallCouplingKernel(State*sp,double dt,bool drag,bool csr,bool split){
+ if constexpr(mixtureParticles::HasWallReservoir<State>::value){
+  State&s=*sp;const int slot=blockIdx.x*blockDim.x+threadIdx.x;
+  if(slot>=s.gasBoundaryLayer.count)return;
+  const int c=s.faceOwner[s.gasBoundaryLayerModel.faces[slot]];
+  // ownerSlot defines the existing wall reconstruction for this cell. Avoid
+  // assigning the same macro inventory twice where two wall faces share it.
+  if(mixtureParticles::wallReservoirSlot(s,c)!=slot)return;
+  mixtureParticleWallReservoirs<DragModel,ConstantHeat>(s,c,slot,dt,drag,csr,split);
+ }
+}
 template<class DragModel,bool ConstantHeat=true,bool Cooperative=false,class State>
 __global__ void mixtureParticleCouplingKernel
-(State*sp,double dt,bool dragActive,bool useCsr=true,bool useSplit=false,bool skipHeavy=false){
+(State*sp,double dt,bool dragActive,bool useCsr=true,bool useSplit=false,bool skipHeavy=false,bool spatialWalls=false){
  State&s=*sp;const int thread=blockIdx.x*blockDim.x+threadIdx.x;
 #if defined(__CUDACC__)
  if constexpr(Cooperative){
   for(int c=thread/32;c<s.nCells;c+=gridDim.x*(blockDim.x/32)){
-   if(mixtureParticles::wallReservoirSlot(s,c)<0&&mixtureParticles::count(s,c,useCsr,useSplit)>=32)
-    mixtureParticleCouplingCell<DragModel,ConstantHeat>(s,c,dt,dragActive,useCsr,useSplit,mixtureParticles::WarpCouplingTeam{});
+   if((!spatialWalls||mixtureParticles::wallReservoirSlot(s,c)<0)&&mixtureParticles::count(s,c,useCsr,useSplit)>=32)
+    mixtureParticleMacroReservoir<DragModel,ConstantHeat>(s,c,dt,dragActive,useCsr,useSplit,mixtureParticles::WarpCouplingTeam{});
   }
  }else
 #endif
- {const int c=thread;if(c<s.nCells&&(!skipHeavy||mixtureParticles::wallReservoirSlot(s,c)>=0||mixtureParticles::count(s,c,useCsr,useSplit)<32))
-   mixtureParticleCouplingCell<DragModel,ConstantHeat>(s,c,dt,dragActive,useCsr,useSplit,mixtureParticles::SerialCouplingTeam{});}
+ {const int c=thread;if(c<s.nCells&&(!spatialWalls||mixtureParticles::wallReservoirSlot(s,c)<0)&&(!skipHeavy||mixtureParticles::count(s,c,useCsr,useSplit)<32))
+   mixtureParticleMacroReservoir<DragModel,ConstantHeat>(s,c,dt,dragActive,useCsr,useSplit,mixtureParticles::SerialCouplingTeam{});}
 }
 #if defined(__CUDACC__)
 template<class DragModel,bool ConstantHeat=true,class State>
-inline cudaError_t launchMixtureParticleCouplingCells(State*state,int cells,double dt,bool drag,bool csr,bool split){
+inline cudaError_t launchMixtureParticleCouplingCells(State*state,int cells,double dt,bool drag,bool csr,bool split,int walls=0){
  if(cells<=0)return cudaSuccess;
- mixtureParticleCouplingKernel<DragModel,ConstantHeat><<<(cells+127)/128,128>>>(state,dt,drag,csr,split,true);
+ mixtureParticleCouplingKernel<DragModel,ConstantHeat><<<(cells+127)/128,128>>>(state,dt,drag,csr,split,true,walls>0);
  auto error=cudaGetLastError();if(error!=cudaSuccess)return error;
  const int groups=(cells+3)/4;
  mixtureParticleCouplingKernel<DragModel,ConstantHeat,true><<<groups<256?groups:256,128>>>(state,dt,drag,csr,split);
