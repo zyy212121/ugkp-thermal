@@ -2162,12 +2162,12 @@ __global__ void relaxParticlesToResidentGasKernel(DeviceState* sp, const double 
 #include "../../../common/gasTransport/MixtureParticleCoupling.cuh"
 #include "../../../common/gasTransport/WallParticleInterval.cuh"
 int binParticlesByCell(DeviceState*,const int,const bool);
-int launchMixtureParticleCoupling(DeviceState* s,double dt,bool external=true)
+int launchMixtureParticleCoupling(DeviceState* s,double dt,bool external=true,bool directoryPrepared=false)
 {
     // Atomic moment mode still owns the standard indexing allocations. Build
     // the existing full directory here instead of scanning the entire parcel
     // population for every cell in the new paired source.
-    if(s->csrCellLocalPathEnabled==0 && binParticlesByCell(s,s->reductionBlockThreads,false))return 1;
+    if(!directoryPrepared&&s->csrCellLocalPathEnabled==0 && binParticlesByCell(s,s->reductionBlockThreads,false))return 1;
     cudaError_t err=cudaSuccess;
     const bool dragActive=gasDragModelActive(s->hostDragModel);
     const int walls=s->gasBoundaryLayer.enabled&&s->gasBoundaryLayerModel.particleSource?s->gasBoundaryLayer.count:0;
@@ -4850,7 +4850,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         if(prepareGasTrialTransport<SharedGasTrialPolicy>(s,dt,simulationTime-dt))return 1;
         // Compaction can renumber parcels; rebuild the current directory before
         // selecting spatial reservoirs. It remains valid through velocity updates.
-        if(binParticlesByCell(s,block,false)||launchMixtureParticleCoupling(s,dt,false))return 1;
+        if(binParticlesByCell(s,block,false)||launchMixtureParticleCoupling(s,dt,false,true))return 1;
         publishWallParticleInterval<<<1,1>>>(s->deviceState,dt,simulationTime);
         err=cudaGetLastError();if(err!=cudaSuccess){setLastError("publish wall particle interval",err);return 1;}
     }
