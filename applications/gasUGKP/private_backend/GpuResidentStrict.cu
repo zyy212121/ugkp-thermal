@@ -2160,8 +2160,9 @@ __global__ void relaxParticlesToResidentGasKernel(DeviceState* sp, const double 
 }
 
 #include "../../../common/gasTransport/MixtureParticleCoupling.cuh"
+#include "../../../common/gasTransport/WallParticleInterval.cuh"
 int binParticlesByCell(DeviceState*,const int,const bool);
-int launchMixtureParticleCoupling(DeviceState* s,double dt)
+int launchMixtureParticleCoupling(DeviceState* s,double dt,bool external=true)
 {
     // Atomic moment mode still owns the standard indexing allocations. Build
     // the existing full directory here instead of scanning the entire parcel
@@ -2176,7 +2177,7 @@ int launchMixtureParticleCoupling(DeviceState* s,double dt)
         err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::SchillerNaumannDeviceDrag>
             (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0);
     if(err!=cudaSuccess){setLastError("paired mixture/particle source",err);return 1;}
-    if(s->particleWorkGrid>0)
+    if(external&&s->particleWorkGrid>0)
         mixtureParticleExternalKickKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,dt);
     err=cudaGetLastError();
     if(err!=cudaSuccess){setLastError("external particle force",err);return 1;}
@@ -4829,6 +4830,29 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 #define UGKP_DEV_PROBE_LEAVE_IF(STAGE, EXECUTED) ((void)0)
 #endif
 
+    // Wall node exchange is a source-first Lie split. Its finite-bath
+    // transaction is completed once before flux stages; those stages consume
+    // the same accepted source, with no lag/replay on the following interval.
+    const bool nodeParticleInterval=s->particlesMayBePresent
+        &&s->gasSpecies.mode==ugkwp::GasMode::MixtureFrozen
+        &&s->gasBoundaryLayer.enabled&&s->gasBoundaryLayerModel.particleSource;
+    if(nodeParticleInterval){
+        resetWallParticleInterval<<<(s->gasBoundaryLayer.count+63)/64,64>>>(s->deviceState);
+        if(s->nBoundarySources>0){
+            injectBoundaryParticlesKernel<<<(s->nBoundarySources+s->particleBlockThreads-1)/s->particleBlockThreads,s->particleBlockThreads>>>
+                (s->deviceState,dt,simulationTime);
+        }
+        applyGasVolumeFractionSourceKernel<<<grid,block>>>(s->deviceState,dt);
+        recoverPrimitivesKernel<<<grid,block>>>(s->deviceState);
+        err=cudaGetLastError();if(err!=cudaSuccess){setLastError("wall particle source preparation",err);return 1;}
+        ugkwp::invalidateGasBoundaryLayerPreparation(*s);
+        if(prepareGasTrialTransport<SharedGasTrialPolicy>(s,dt,simulationTime-dt))return 1;
+        // Compaction can renumber parcels; rebuild the current directory before
+        // selecting spatial reservoirs. It remains valid through velocity updates.
+        if(binParticlesByCell(s,block,false)||launchMixtureParticleCoupling(s,dt,false))return 1;
+        publishWallParticleInterval<<<1,1>>>(s->deviceState,dt,simulationTime);
+        err=cudaGetLastError();if(err!=cudaSuccess){setLastError("publish wall particle interval",err);return 1;}
+    }
     ugkwp::invalidateGasBoundaryLayerPreparation(*s);
     UGKP_DEV_PROBE_ENTER(ProbeGasFlux);
     if (advanceGasFluxStage(s, dt, simulationTime-dt) != 0)
@@ -4852,7 +4876,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     if (!skipParticlePath)
     {
     UGKP_DEV_PROBE_ENTER(ProbeEulerianCoupling);
-    applyGasVolumeFractionSourceKernel<<<grid, block>>>
+    if(!nodeParticleInterval)applyGasVolumeFractionSourceKernel<<<grid, block>>>
     (
         s->deviceState,
         dt
@@ -4937,7 +4961,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_LEAVE(ProbeEulerianCoupling);
 
     UGKP_DEV_PROBE_ENTER(ProbeInjection);
-    const bool runInjection = s->nBoundarySources > 0;
+    const bool runInjection = s->nBoundarySources > 0&&!nodeParticleInterval;
 #ifdef UGKWP_STEADY_APPLICATION
     if(auditSteadyParcelInventory(s,GpuSteadySamplingReport::gasFluxFields,-1))return 1;
 #endif
@@ -5122,7 +5146,12 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_ENTER(ProbeRelax);
     if(pairedMixture)
     {
-        if(launchMixtureParticleCoupling(s,dt))return 1;
+        if(!nodeParticleInterval){if(launchMixtureParticleCoupling(s,dt))return 1;}
+        else if(s->particleWorkGrid>0){
+            // Pressure/gravity is external work and retains its original phase.
+            mixtureParticleExternalKickKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,dt);
+            err=cudaGetLastError();if(err!=cudaSuccess){setLastError("external particle force",err);return 1;}
+        }
     }
     else
     if

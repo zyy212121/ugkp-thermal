@@ -51,6 +51,26 @@ class BoundaryLayerInput
             speciesNames_,config_.nodes,profiles.data(),stageTime,time.value());
         output.close();
         if(!flowWritten || !output)WarningInFunction<<"Cannot write finite boundaryLayer node profiles "<<path<<endl;
+        if(config_.model==2){
+            const std::size_t columns=config_.speciesCount+12;
+            std::vector<double> rows(faces_.size()*config_.nodes*columns);double interval[2]{};int available=0;
+            if(ugkwpGpuResidentStrictDownloadBoundaryLayerParticleReservoirsV1(handle,config_.wallCount,
+                config_.nodes,config_.speciesCount,rows.data(),interval,&available))
+                WarningInFunction<<"Cannot download wall particle reservoirs: "<<ugkwpGpuResidentStrictLastError()<<endl;
+            else if(available){
+                const fileName nodePath=time.timePath()/"uniform"/"gasBoundaryLayerParticleReservoirs.csv";
+                std::ofstream nodes(nodePath.c_str());nodes<<std::setprecision(17);
+                nodes<<"face,node,time,exchangeTime,deltaT,gasVolume,gasMass,gasMomentumX,gasMomentumY,gasMomentumZ,gasEnergy,gasTemperature";
+                for(const auto&name:speciesNames_)nodes<<",gasMass_"<<name;
+                nodes<<",gasMomentumSourceX,gasMomentumSourceY,gasMomentumSourceZ,gasEnergySource,gasHeatSource\n";
+                for(std::size_t slot=0;slot<faces_.size();++slot)for(unsigned node=0;node<config_.nodes;++node){
+                    nodes<<faces_[slot]<<','<<node<<','<<time.value()<<','<<interval[1]<<','<<interval[0];
+                    const double*row=rows.data()+(slot*config_.nodes+node)*columns;
+                    for(std::size_t col=0;col<columns;++col)nodes<<','<<row[col];nodes<<'\n';
+                }
+                nodes.close();if(!nodes)WarningInFunction<<"Cannot write wall particle reservoirs "<<nodePath<<endl;
+            }
+        }
         // Equilibrium ODE has no local k/omega: do not create that interface/file.
         if(hasLocalSst_)
         {

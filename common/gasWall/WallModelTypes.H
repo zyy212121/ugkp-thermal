@@ -68,6 +68,10 @@ template<class R,int N,class TableReal=R> struct WallInput {
     // Optional coarse chemistry integrated per wall area over the same domain.
     // Absence sets chemistryMismatchAvailable=false and mismatch values to NaN.
     const TableReal* coarseReactionIntegral=nullptr;
+    // Frozen accepted particle exchange, per gas area/time and dual CV.
+    // Rows: absolute-frame momentum[3], total energy. No species source.
+    const TableReal* particleSource=nullptr;
+
 };
 template<class R,int N> struct WallExchangeOutput {
     R traceTemperature=0,traceDensity=0,traceMassFraction[N]{},traceVelocity[3]{};
@@ -78,7 +82,8 @@ template<class R,int N> struct WallExchangeOutput {
     // Persistent total normal k transport and omega diffusion; workspace is pooled.
     // Faces interpolate these shared fluxes, preserving owner/neighbour antisymmetry.
     int kFluxCount=0;
-    R heatConduction=0,heatViscous=0,heatTransport=0,heatBalanceResidual=0;
+    R heatConduction=0,heatViscous=0,heatTransport=0,heatParticle=0,heatBalanceResidual=0;
+    R particleMomentum[3]{},particleEnergy=0,particleMomentumResidual[2]{},particleEnergyResidual=0;
     bool chemistryMismatchAvailable=false;
     int iterations=0;
     R residual=0;

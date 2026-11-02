@@ -34,7 +34,7 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
     const R speed=::sqrt(ctx.edgeU[0]*ctx.edgeU[0]+ctx.edgeU[1]*ctx.edgeU[1]);
     const R laminarStress=wallMolecularViscosity(in,in.matching.temperature,in.matching.massFraction)*speed/in.matchingDistance;
     ctx.equilibriumWallStress=accepted?acceptedStress:laminarStress;
-    const bool localStress=c.localStressCorrection&&ctx.mass!=0;
+    const bool localStress=c.localStressCorrection&&(ctx.mass!=0||in.particleSource);
     for(int d=0;d<2;++d)ctx.equilibriumWallTraction[d]=speed>0
         ?ctx.equilibriumWallStress*ctx.edgeU[d]/speed:R(0);
     for(int i=team.rank();i<c.nodes;i+=team.size()){
@@ -75,9 +75,10 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
         if(team.leader()){
             LayerFlux<R,N> first;
             measured=intervalFlux(in,c,ctx,w.state[0],w.state[1],w.y[0],w.y[1],first);
-            if(measured)measuredStress=::sqrt(first.momentum[0]*first.momentum[0]
-                                            +first.momentum[1]*first.momentum[1]);
-            if(measured)for(int d=0;d<2;++d)measuredTraction[d]=-first.momentum[d];
+            if(measured){
+                for(int d=0;d<2;++d)measuredTraction[d]=-first.momentum[d]+particleMomentumSource(in,0,ctx.tangent[d]);
+                measuredStress=::hypot(measuredTraction[0],measuredTraction[1]);
+            }
             measured=measured&&gasFinite(measuredStress);
         }
         if(!team.broadcast(measured)){

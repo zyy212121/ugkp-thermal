@@ -15,6 +15,7 @@ template<class S,int N> UGKWP_GAS_HD inline WallInput<WallReal,N,S> wallComputat
     dst.model.molecularViscosity=src.model.molecularViscosity;
     dst.model.viscosity=src.model.viscosity;dst.model.conductivity=src.model.conductivity;dst.model.molecularPrandtl=src.model.molecularPrandtl;
     dst.model.sstCoefficients=src.model.sstCoefficients;dst.quadrature=src.quadrature;dst.coarseReactionIntegral=src.coarseReactionIntegral;
+    dst.particleSource=src.particleSource;
     dst.adiabatic=src.adiabatic;dst.integrateOwnerKSource=src.integrateOwnerKSource;dst.volumeSstClosure=src.volumeSstClosure;
     for(int i=0;i<3;++i)for(int j=0;j<2;++j)dst.sstTangentialGradient[i][j]=src.sstTangentialGradient[i][j];
     return dst;
@@ -37,6 +38,10 @@ template<class S,int N> UGKWP_GAS_HD inline bool publishWallPrecision(const Wall
     dst.integratedKSource=S(src.integratedKSource);dst.ownerOmega=S(src.ownerOmega);dst.wallKFlux=S(src.wallKFlux);
     dst.ownerKBalanceResidual=S(src.ownerKBalanceResidual);dst.ownerKContent=S(src.ownerKContent);dst.ownerKDestruction=S(src.ownerKDestruction);
     dst.kFluxCount=src.kFluxCount;for(int j=0;j<src.kFluxCount;++j){dst.kFluxHeight[j]=S(src.kFluxHeight[j]);dst.kTransportFlux[j]=S(src.kTransportFlux[j]);dst.omegaDiffusiveFlux[j]=S(src.omegaDiffusiveFlux[j]);}
+    dst.heatParticle=S(src.heatParticle);
+    for(int d=0;d<3;++d)dst.particleMomentum[d]=S(src.particleMomentum[d]);
+    for(int d=0;d<2;++d)dst.particleMomentumResidual[d]=S(src.particleMomentumResidual[d]);
+    dst.particleEnergy=S(src.particleEnergy);dst.particleEnergyResidual=S(src.particleEnergyResidual);
     dst.heatConduction=S(src.heatConduction);dst.heatViscous=S(src.heatViscous);dst.heatTransport=S(src.heatTransport);dst.heatBalanceResidual=S(src.heatBalanceResidual);
     dst.chemistryMismatchAvailable=src.chemistryMismatchAvailable;dst.iterations=src.iterations;dst.residual=S(src.residual);
 

@@ -68,6 +68,11 @@ try
         const std::size_t historyValues=std::size_t(a.wallCount)*a.nodes*(ugkwp::compiledGasSpecies+4);
         WALL_ALLOC(gasBoundaryLayerModel.acceptedHistory,historyValues);
         WALL_ALLOC(gasBoundaryLayerModel.candidateHistory,historyValues);
+        if(a.model==2){
+            WALL_ALLOC(gasBoundaryLayerModel.particleSource,std::size_t(a.wallCount)*a.nodes*4);
+            WALL_ALLOC(gasBoundaryLayerModel.particleHeat,std::size_t(a.wallCount)*a.nodes);
+            WALL_ALLOC(gasBoundaryLayerModel.particleReservoir,std::size_t(a.wallCount)*a.nodes*(ugkwp::compiledGasSpecies+7));
+        }
         WALL_ALLOC(gasBoundaryLayerModel.acceptedFrame,a.wallCount);
         WALL_ALLOC(gasBoundaryLayerModel.candidateFrame,a.wallCount);
     }

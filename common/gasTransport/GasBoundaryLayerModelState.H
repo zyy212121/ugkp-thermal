@@ -28,6 +28,11 @@ template<class Real,int Ns,int MaxNodes=48> struct GasBoundaryLayerModelState
     void* workspace=nullptr;
     int workspaceCapacity=MaxNodes; // allocated capacity bucket: 24, 48 or 128
     gaswall::WallStatus* status=nullptr;
+    Real particleIntervalDt=0,particleIntervalTime=0;
+    bool particleCoupling=false; // current interval accepted exchange, cleared before its predictor
+    Real* particleSource=nullptr; // wall*nodes*4, intrinsic impulse/energy per area/time
+    Real* particleHeat=nullptr; // wall*nodes, actual thermal exchange, distinct from drag work
+    Real* particleReservoir=nullptr; // wall*nodes*(Ns+7): volume,mass,P[3],E,T,species masses
     Real* profile=nullptr; // enabled-at-startup rows: y,U[3],T,k,omega,Y[Ns]
     void* referenceScratch=nullptr;
     // New operator selection is internal storage ownership, not an input gate.
@@ -246,6 +251,7 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
              || !state.riemannBoundaryUy || !state.riemannBoundaryUz)))))
         return fail(GasTransportCode::InvalidStorage);
     auto& in=model.input[slot];
+    in.particleSource=model.particleCoupling&&model.particleSource?model.particleSource+std::size_t(slot)*model.config.nodes*4:nullptr;
     in.diagnostics=state.diagnostics;in.diagnosticEntity=face;
     // The BVP replaces only the actual owner-volume normal SST operator.
     in.volumeSstClosure=model.volumeSstClosure&&model.config.enableSst&&model.config.model==gaswall::BoundaryLayerModel::ReactingSst;
@@ -342,6 +348,7 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int 
         return false;
     };
     auto& in=model.input[slot];
+    in.particleSource=model.particleCoupling&&model.particleSource?model.particleSource+std::size_t(slot)*model.config.nodes*4:nullptr;
     const bool analytic=model.config.model==gaswall::BoundaryLayerModel::ConstantTransport;
     bool evaluated=false;
     if(analytic)

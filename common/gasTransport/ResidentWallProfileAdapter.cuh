@@ -48,3 +48,33 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1
     *stageTime=s->gasBoundaryLayerStageTime;
     return s->diagnosticOwner->completeReadback(0,count!=0);
 }
+
+extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerParticleReservoirsV1
+(void* handle,std::uint32_t walls,std::uint32_t nodes,std::uint32_t species,
+ double* rows,double* interval,int* available)
+{
+ DeviceState*s=asState(handle);
+ if(validateState(s,"download wall particle reservoirs"))return 1;
+ const auto&m=s->gasBoundaryLayerModel;
+ if(!rows||!interval||!available||walls!=std::uint32_t(s->gasBoundaryLayer.count)
+    ||nodes!=std::uint32_t(m.config.nodes)||species!=ugkwp::compiledGasSpecies)
+ {setLastErrorText("wall particle reservoir output dimensions unavailable");return 1;}
+ *available=0;if(!m.particleSource)return 0;
+ bool active=false;
+ if(copyToHost(&active,&s->deviceState->gasBoundaryLayerModel.particleCoupling,1,"read wall particle epoch"))return 1;
+ if(s->diagnosticOwner->completeReadback(0,true))return 1;
+ if(!active)return 0;
+ const std::size_t count=std::size_t(walls)*nodes;
+ std::vector<double> state(count*(species+7)),source(count*4),heat(count);
+ if(copyToHost(state.data(),m.particleReservoir,state.size(),"read node gas inventories")
+  ||copyToHost(source.data(),m.particleSource,source.size(),"read accepted node sources")
+  ||copyToHost(heat.data(),m.particleHeat,heat.size(),"read accepted node heat")
+  ||copyToHost(interval,&s->deviceState->gasBoundaryLayerModel.particleIntervalDt,1,"read node source dt")
+  ||copyToHost(interval+1,&s->deviceState->gasBoundaryLayerModel.particleIntervalTime,1,"read node source time"))return 1;
+ if(s->diagnosticOwner->completeReadback(0,true))return 1;
+ for(std::size_t i=0;i<count;++i){double*row=rows+i*(species+12);
+  std::copy_n(state.data()+i*(species+7),species+7,row);
+  std::copy_n(source.data()+i*4,4,row+species+7);row[species+11]=heat[i];
+ }
+ *available=1;return 0;
+}

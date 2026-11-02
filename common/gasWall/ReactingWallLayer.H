@@ -4,6 +4,7 @@
 #include "WallLayerMath.H"
 #include "WallThermoMath.H"
 #include "EquilibriumOdeMath.H"
+#include "WallParticleSource.H"
 #include "../gasTransport/SpeciesDiffusion.H"
 // Keep repeated SST/thermochemistry leaves out of each capacity-specialized
 // device body. This bounds nvcc optimization memory; host calls remain inline.
@@ -35,11 +36,11 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool applyEquilibriu
     if(c.model!=BoundaryLayerModel::EquilibriumOde)return true;
     p.nut=equilibriumDynamicViscosity(p.rho,ctx.equilibriumWallStress,y,
         p.mu,c.equilibriumKappa,c.equilibriumAPlus)/p.rho;
-    if(c.localStressCorrection&&ctx.mass!=0){
+    if(c.localStressCorrection&&(ctx.mass!=0||in.particleSource)){
         // In the wall-relative frame F_u=j*u-tau=-tau_w. Only the
         // viscosity prefactor changes; the original wall damping survives.
-        const R tx=ctx.equilibriumWallTraction[0]+ctx.mass*p.u[0];
-        const R tz=ctx.equilibriumWallTraction[1]+ctx.mass*p.u[1];
+        const R tx=ctx.equilibriumWallTraction[0]+ctx.mass*p.u[0]-particleMomentumPrefix(in,c,y,ctx.tangent[0]);
+        const R tz=ctx.equilibriumWallTraction[1]+ctx.mass*p.u[1]-particleMomentumPrefix(in,c,y,ctx.tangent[1]);
         p.nut=equilibriumLocalStressViscosity(p.rho,ctx.equilibriumWallStress,
             ::hypot(tx,tz),y,p.mu,c.equilibriumKappa,c.equilibriumAPlus)/p.rho;
     }
@@ -469,7 +470,7 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVIC
     LayerFlux<R,N> right;if(fluxes)loadIntervalFlux(fluxes[i],right);
     else if(!loadRowInterval(in,c,ctx,x,y,i,right))return false;
     if(i==0){row[0]=x[0][0];row[1]=x[0][1];
-        row[2]=in.adiabatic?(right.energy-wallTransportEnergy(in,ctx,p))/ctx.scale[2]:x[0][2];
+        row[2]=in.adiabatic?(right.energy-particleEnergySource(in,ctx,0)-wallTransportEnergy(in,ctx,p))/ctx.scale[2]:x[0][2];
         for(int j=0;j<N-1;++j){const int s=ctx.independent[j];row[3+j]=(right.species[s]-in.massFlux[s]-p.source[s]*y[1]/R(2))/ctx.scale[3+j];}
         row[K]=x[0][K];R wallZ=0;
         if(c.enableSst&&ctx.mass>0){R tau2=0;for(int d=0;d<2;++d){const R tau=-right.momentum[d];tau2+=tau*tau;}
@@ -482,8 +483,8 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVIC
     LayerFlux<R,N> left;if(fluxes)loadIntervalFlux(fluxes[i-1],left);
     else if(!loadRowInterval(in,c,ctx,x,y,i-1,left))return false;
     const R dyL=y[i]-y[i-1],dyR=y[i+1]-y[i],volume=(dyL+dyR)/R(2);
-    for(int d=0;d<2;++d)row[d]=(right.momentum[d]-left.momentum[d])/ctx.scale[d];
-    row[2]=(right.energy-left.energy)/ctx.scale[2];
+    for(int d=0;d<2;++d)row[d]=(right.momentum[d]-left.momentum[d]-particleMomentumSource(in,i,ctx.tangent[d]))/ctx.scale[d];
+    row[2]=(right.energy-left.energy-particleEnergySource(in,ctx,i))/ctx.scale[2];
     for(int j=0;j<N-1;++j){const int s=ctx.independent[j];row[3+j]=(right.species[s]-left.species[s]-volume*p.source[s])/ctx.scale[3+j];}
     if(!c.enableSst){row[K]=x[i][K];row[Z]=x[i][Z]-R(1);return true;}
     row[K]=(right.k-left.k-volume*p.sourceK)/ctx.scale[K];
@@ -1104,9 +1105,10 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
     if(!trace(traceInput,wall.Y,out,terminalProfile))return false;
     LayerFlux<R,N> first,last;
     const R wallEnergy=wallTransportEnergy(in,ctx,wall);
-    R resistance=0,advectiveIntegral=0,viscousIntegral=0;bool heatAuditAvailable=true;
+    R resistance=0,advectiveIntegral=0,viscousIntegral=0,particleIntegral=0,particlePrefix=0;bool heatAuditAvailable=true;
     for(int i=0;i+1<c.nodes;++i){LayerFlux<R,N> f;
         if(!intervalFlux(in,c,ctx,w.state[i],w.state[i+1],w.y[i],w.y[i+1],f,terminalProfile))return false;
+        particlePrefix+=particleEnergySource(in,ctx,i);
         if(i==0)first=f;
         if(i+2==c.nodes)last=f;
         if(c.enableSst&&in.volumeSstClosure){
@@ -1121,14 +1123,25 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
         if(!gasFinite(r)||r>std::numeric_limits<R>::max()-resistance){heatAuditAvailable=false;continue;}
         const R total=resistance+r,a=resistance/total,b=r/total;
         advectiveIntegral=a*advectiveIntegral+b*f.advectiveEnergy;
-        viscousIntegral=a*viscousIntegral+b*f.stressWork;resistance=total;
+        viscousIntegral=a*viscousIntegral+b*f.stressWork;
+        particleIntegral=a*particleIntegral-b*particlePrefix;resistance=total;
     }
-    for(int d=0;d<2;++d){const R tau=-first.momentum[d];for(int a=0;a<3;++a)out.traction[a]+=tau*ctx.tangent[d][a];}
-    out.conductiveHeatFlux=first.energy-wallEnergy;
+    for(int d=0;d<2;++d){const R tau=-first.momentum[d]+particleMomentumSource(in,0,ctx.tangent[d]);for(int a=0;a<3;++a)out.traction[a]+=tau*ctx.tangent[d][a];}
+    out.conductiveHeatFlux=first.energy-particleEnergySource(in,ctx,0)-wallEnergy;
     out.heatConduction=heatAuditAvailable&&resistance>0?(out.traceTemperature-in.matching.temperature)/resistance:std::numeric_limits<R>::quiet_NaN();
     out.heatViscous=heatAuditAvailable?viscousIntegral:std::numeric_limits<R>::quiet_NaN();
     out.heatTransport=heatAuditAvailable?advectiveIntegral-wallEnergy:std::numeric_limits<R>::quiet_NaN();
-    out.heatBalanceResidual=out.heatConduction+out.heatViscous+out.heatTransport-out.conductiveHeatFlux;
+    out.heatParticle=heatAuditAvailable?particleIntegral:std::numeric_limits<R>::quiet_NaN();
+    out.heatBalanceResidual=out.heatConduction+out.heatViscous+out.heatTransport+out.heatParticle-out.conductiveHeatFlux;
+    for(int i=0;i<c.nodes;++i){
+        if(in.particleSource)for(int d=0;d<3;++d)out.particleMomentum[d]+=in.particleSource[4*i+d];
+        out.particleEnergy+=particleEnergySource(in,ctx,i);
+    }
+    for(int d=0;d<2;++d)out.particleMomentumResidual[d]=last.momentum[d]
+        +particleMomentumSource(in,c.nodes-1,ctx.tangent[d])-first.momentum[d]
+        +particleMomentumSource(in,0,ctx.tangent[d])-dot(out.particleMomentum,ctx.tangent[d]);
+    out.particleEnergyResidual=last.energy+particleEnergySource(in,ctx,c.nodes-1)
+        -first.energy+particleEnergySource(in,ctx,0)-out.particleEnergy;
     // The matching endpoint also has a half control volume. Its source is
     // included consistently in both the diagnostic integral and edge flux.
     for(int i=0;i<c.nodes;++i){LayerPoint<R,N> p;
@@ -1254,6 +1267,14 @@ UGKWP_GAS_HD inline bool prepareReactingWallInput(WallInput<R,N,TableReal>&in,
     bool inputValid=false;if(team.leader())inputValid=validateInput(in,c,status);
     if(!team.broadcast(inputValid))return false;
     if(c.nodes<2||c.nodes>M){if(team.leader()){fail(status,WallCode::InvalidInput);wallFatal(in,ugkp::diagnostics::Code::InvalidIndex,2423,c.nodes,ugkp::diagnostics::Quantity::Index);}return false;}
+    if(in.particleSource){
+        bool sourceValid=true;
+        for(int i=team.rank();i<c.nodes*4;i+=team.size())if(!gasFinite(R(in.particleSource[i])))sourceValid=false;
+        if(!team.all(sourceValid)){
+            if(team.leader()){fail(status,WallCode::InvalidInput);wallFatal(in,ugkp::diagnostics::Code::NonFinite,30702);}
+            return false;
+        }
+    }
     if(in.model.mode!=GasMode::MixtureFrozen&&in.model.mode!=GasMode::MixtureChemistry&&in.model.mode!=GasMode::SingleLegacy){if(team.leader()){fail(status,WallCode::Unsupported);wallFatal(in,ugkp::diagnostics::Code::MissingOperator,10020);}return false;}
     if(c.enableSst&&(!gasFinite(in.matching.k)||!gasFinite(in.matching.omega)||in.matching.k<0||in.matching.omega<=0)){
         if(team.leader()){fail(status,WallCode::InvalidInput);wallFatal(in,(gasFinite(in.matching.k)&&gasFinite(in.matching.omega)?ugkp::diagnostics::Code::InvalidPhysicalState:ugkp::diagnostics::Code::NonFinite),2424,in.matching.omega);}return false;}

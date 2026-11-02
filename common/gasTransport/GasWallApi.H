@@ -26,3 +26,9 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
 extern "C" int ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(void* handle);
 extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1
 (void* handle,std::uint32_t walls,std::uint32_t nodes,std::uint32_t species,double* profiles,double* stageTime);
+
+// Output-only node CV inventories and the actual accepted particle sources.
+// Rows: Vgas,mass,P[3],E,T,speciesMass[Ns],sourceP[3],sourceE,sourceHeat.
+extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerParticleReservoirsV1
+(void* handle,std::uint32_t walls,std::uint32_t nodes,std::uint32_t species,
+ double* rows,double* interval,int* available);

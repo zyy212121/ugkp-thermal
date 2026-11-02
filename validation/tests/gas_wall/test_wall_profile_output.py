@@ -92,4 +92,5 @@ def test_profile_switch_is_startup_only_and_download_stays_in_write_path():
     assert 'profileWriter_=&BoundaryLayerInput::skipProfiles' in adapter
     branch=driver.split('if (runTime.writeTime())',1)[1]
     assert 'resident.writeBoundaryLayerDiagnostics(boundaryLayerInput, runTime);' in branch
-    assert driver.count('resident.writeBoundaryLayerDiagnostics(')==1
+    # Gas-only and particle physical-time write paths both publish real profiles.
+    assert driver.count('resident.writeBoundaryLayerDiagnostics(')==2

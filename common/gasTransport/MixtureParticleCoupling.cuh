@@ -37,22 +37,24 @@ __device__ double heatFraction(const State&s,int c,int i,double dt)
 }
 }
 
-template<class DragModel,bool ConstantHeat,class State,class Team>
-__device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragActive,bool useCsr,bool useSplit,const Team&team)
+#include "ParticleCouplingReservoirViews.cuh"
+
+template<class DragModel,bool ConstantHeat,class State,class Team,class Reservoir>
+__device__ void mixtureParticleCouplingReservoir(State&s,int c,double dt,bool dragActive,bool useCsr,bool useSplit,const Team&team,Reservoir& reservoir)
 {
     const int begin=0,end=mixtureParticles::count(s,c,useCsr,useSplit);
-    const double epsG=s.epsGPrev[c],volume=epsG*s.V[c];
-    const double gasMass=volume*s.rho[c];
+    const double epsG=s.epsGPrev[c],volume=reservoir.volume(s,c);
+    const double gasMass=reservoir.mass(s,c);
     double weight=0,x=0,y=0,z=0;
     // No parcel or gas state is changed while forming the finite-bath target.
     for(int pos=begin+team.rank();pos<end;pos+=team.width())
     {
         const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
-        if(!mixtureParticles::member(s,i,c))continue;
+        if(!reservoir.member(s,i,c))continue;
         s.puxOld[i]=s.pux[i];s.puyOld[i]=s.puy[i];s.puzOld[i]=s.puz[i];
         if(dragActive)
         {
-            const double a=-expm1(-mixtureParticles::beta<DragModel>(s,c,i,epsG)*dt);
+            const double a=-expm1(-reservoir.template beta<DragModel>(s,c,i,epsG)*dt);
             const double w=s.pm[i]*a;
             weight+=w;x+=w*s.pux[i];y+=w*s.puy[i];z+=w*s.puz[i];
         }
@@ -60,15 +62,15 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragAct
     weight=team.sum(weight);x=team.sum(x);y=team.sum(y);z=team.sum(z);
     if(dragActive)
     {
-        const double ux=(gasMass*s.Ux[c]+x)/(gasMass+weight);
-        const double uy=(gasMass*s.Uy[c]+y)/(gasMass+weight);
-        const double uz=(gasMass*s.Uz[c]+z)/(gasMass+weight);
+        const double ux=(gasMass*reservoir.velocity(s,c,0)+x)/(gasMass+weight);
+        const double uy=(gasMass*reservoir.velocity(s,c,1)+y)/(gasMass+weight);
+        const double uz=(gasMass*reservoir.velocity(s,c,2)+z)/(gasMass+weight);
         double dpx=0,dpy=0,dpz=0,dEnergy=0;
         for(int pos=begin+team.rank();pos<end;pos+=team.width())
         {
             const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
-            if(!mixtureParticles::member(s,i,c))continue;
-            const double b=mixtureParticles::beta<DragModel>(s,c,i,epsG);
+            if(!reservoir.member(s,i,c))continue;
+            const double b=reservoir.template beta<DragModel>(s,c,i,epsG);
             const double a=-expm1(-b*dt),oldX=s.pux[i],oldY=s.puy[i],oldZ=s.puz[i],oldTheta=s.pTheta[i];
             s.pux[i]=oldX+a*(ux-oldX);s.puy[i]=oldY+a*(uy-oldY);s.puz[i]=oldZ+a*(uz-oldZ);
             s.pTheta[i]=oldTheta*exp(-2*b*dt);
@@ -81,9 +83,8 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragAct
         }
         dpx=team.sum(dpx);dpy=team.sum(dpy);dpz=team.sum(dpz);dEnergy=team.sum(dEnergy);
         if(team.rank()==0){
-        s.rhoUx[c]-=dpx/volume;s.rhoUy[c]-=dpy/volume;s.rhoUz[c]-=dpz/volume;
-        s.rhoE[c]-=dEnergy/volume;
-        recoverGasPrimitiveCell(s,c);
+        const double momentumChange[3]={dpx,dpy,dpz};
+        reservoir.apply(s,c,momentumChange,dEnergy);
         }team.sync();
     }
     if constexpr(ConstantHeat) {
@@ -91,16 +92,16 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragAct
     if(s.solveParticleTemperature!=0 && s.particleGasHeatTransferModelId!=0 && heatFactor>0.)
     {
         constexpr int Ns=ugkwp::GasStateTraits<State>::speciesCount;
-        double species[Ns];for(int k=0;k<Ns;++k)species[k]=s.gasSpecies.rho[k*s.nCells+c];
-        const double kinetic=.5*(s.rhoUx[c]*s.rhoUx[c]+s.rhoUy[c]*s.rhoUy[c]+s.rhoUz[c]*s.rhoUz[c])/s.rho[c];
-        const double oldInternal=s.rhoE[c]-kinetic;
-        const double referenceTemperature=s.Tgas[c];
+        double species[Ns];for(int k=0;k<Ns;++k)species[k]=reservoir.species(s,c,k);
+        const double kinetic=.5*(reservoir.momentum(s,c,0)*reservoir.momentum(s,c,0)+reservoir.momentum(s,c,1)*reservoir.momentum(s,c,1)+reservoir.momentum(s,c,2)*reservoir.momentum(s,c,2))/reservoir.density(s,c);
+        const double oldInternal=reservoir.energy(s,c)-kinetic;
+        const double referenceTemperature=reservoir.temperature(s,c);
         double A=0,B=0;
         for(int pos=begin+team.rank();pos<end;pos+=team.width())
         {
             const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
-            if(!mixtureParticles::member(s,i,c))continue;
-            const double w=s.pm[i]*heatFactor*mixtureParticles::heatFraction(s,c,i,dt);
+            if(!reservoir.member(s,i,c))continue;
+            const double w=s.pm[i]*heatFactor*reservoir.heatFraction(s,c,i,dt);
             A+=w;B+=w*(s.pT[i]-referenceTemperature);
         }
         A=team.sum(A);B=team.sum(B);
@@ -127,15 +128,27 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragAct
         for(int pos=begin+team.rank();pos<end;pos+=team.width())
         {
             const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
-            if(!mixtureParticles::member(s,i,c))continue;
-            const double oldT=s.pT[i],a=mixtureParticles::heatFraction(s,c,i,dt);
+            if(!reservoir.member(s,i,c))continue;
+            const double oldT=s.pT[i],a=reservoir.heatFraction(s,c,i,dt);
             s.pT[i]=fmin(s.TpMax,fmax(s.TpMin,oldT+a*(target-oldT)));
             heat+=s.pm[i]*heatFactor*(s.pT[i]-oldT);
         }
         heat=team.sum(heat);
-        if(team.rank()==0){s.rhoE[c]-=heat/volume;recoverGasPrimitiveCell(s,c);}
+        if(team.rank()==0){const double momentumChange[3]={};reservoir.apply(s,c,momentumChange,heat,true);}
     }
     }
+}
+
+#include "WallParticleReservoirCoupling.cuh"
+
+template<class DragModel,bool ConstantHeat,class State,class Team>
+__device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragActive,bool useCsr,bool useSplit,const Team&team){
+ if constexpr(mixtureParticles::HasWallReservoir<State>::value){
+  const int slot=mixtureParticles::wallReservoirSlot(s,c);
+  if(slot>=0){mixtureParticleWallReservoirs<DragModel,ConstantHeat>(s,c,slot,dt,dragActive,useCsr,useSplit);return;}
+ }
+ mixtureParticles::MacroReservoir<State> reservoir;
+ mixtureParticleCouplingReservoir<DragModel,ConstantHeat>(s,c,dt,dragActive,useCsr,useSplit,team,reservoir);
 }
 
 // Separate scalar and cooperative launches retain dense scalar work for light
@@ -147,12 +160,12 @@ __global__ void mixtureParticleCouplingKernel
 #if defined(__CUDACC__)
  if constexpr(Cooperative){
   for(int c=thread/32;c<s.nCells;c+=gridDim.x*(blockDim.x/32)){
-   if(mixtureParticles::count(s,c,useCsr,useSplit)>=32)
+   if(mixtureParticles::wallReservoirSlot(s,c)<0&&mixtureParticles::count(s,c,useCsr,useSplit)>=32)
     mixtureParticleCouplingCell<DragModel,ConstantHeat>(s,c,dt,dragActive,useCsr,useSplit,mixtureParticles::WarpCouplingTeam{});
   }
  }else
 #endif
- {const int c=thread;if(c<s.nCells&&(!skipHeavy||mixtureParticles::count(s,c,useCsr,useSplit)<32))
+ {const int c=thread;if(c<s.nCells&&(!skipHeavy||mixtureParticles::wallReservoirSlot(s,c)>=0||mixtureParticles::count(s,c,useCsr,useSplit)<32))
    mixtureParticleCouplingCell<DragModel,ConstantHeat>(s,c,dt,dragActive,useCsr,useSplit,mixtureParticles::SerialCouplingTeam{});}
 }
 #if defined(__CUDACC__)
