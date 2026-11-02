@@ -6,7 +6,7 @@ template<int N> struct WallHistoryFrame {
  bool valid=false,adiabatic=false;int nodes=0;double distance=0,stretch=0,temperature=0;
  double normal[3]{},tangent[2][3]{},wallU[2]{};int independent[N-1]{},dependent=0;
  unsigned long long speciesOrder=0,thermoHash=0;
- int model=0;bool enableSst=false,localStressCorrection=false;double wallStress=0;
+ int model=0;bool enableSst=false,localStressCorrection=false;double wallStress=0,wallTraction[3]{};
  double turbulentPrandtl=0,turbulentSchmidt=0,equilibriumKappa=0,equilibriumAPlus=0;
 };
 template<class R,int N,class T> UGKWP_GAS_HD inline WallHistoryFrame<N> historyFrame(

@@ -15,6 +15,19 @@ const double theta=angle*.61,co=std::cos(theta),si=std::sin(theta);
 for(int i=0;i<8;++i){double x=source[4*i],z=source[4*i+2];source[4*i]=co*x-si*z;source[4*i+2]=si*x+co*z;}
 Workspace w;WallOutput<double,2>out;WallStatus status;bool ok=evaluateWallModel(in,c,w,out,status);if(!ok){std::cerr<<"FAILED scale="<<n/100.<<" norm="<<status.residual<<" iterations="<<status.iteration<<"\n";return 1;}
 assert(out.residual<=c.absoluteTolerance+c.relativeTolerance);
+// Warm starts must retain the traction direction as well as its magnitude.
+// With the same physical input a converged profile needs no Newton update.
+if(n==100||n==201){
+ double history[8*6];for(int i=0;i<8;++i)for(int j=0;j<6;++j)history[i*6+j]=w.state[i][j];
+ detail::LayerContext<double,2>ctx;assert(detail::makeContext(in,c,ctx));double traction[2]{};
+ for(int d=0;d<2;++d)traction[d]=detail::dot(out.traction,ctx.tangent[d]);
+ const double stress=std::hypot(traction[0],traction[1]);auto warm=c;warm.maxIterations=1;
+ WallOutput<double,2>again;WallStatus warmStatus;
+ assert(evaluateEquilibriumOdeWallLayerImpl(in,warm,w,again,warmStatus,detail::SerialWallTeam{},history,stress,traction));
+ assert(warmStatus.iteration==0);
+ for(int d=0;d<3;++d)assert(std::abs(again.traction[d]-out.traction[d])<1e-6);
+}
+
 assert(std::abs(out.particleEnergyResidual)<1e-4);
 for(int d=0;d<2;++d)assert(std::abs(out.particleMomentumResidual[d])<1e-5);
 }}

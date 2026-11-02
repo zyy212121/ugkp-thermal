@@ -8,7 +8,7 @@ ROOT=Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location("native",ROOT/"validation/transient_particles/check_native.py")
 native=importlib.util.module_from_spec(spec);spec.loader.exec_module(native)
 def main():
- parser=argparse.ArgumentParser();parser.add_argument("--output",type=Path,required=True);parser.add_argument("--height",type=float,default=.0004);parser.add_argument("--heat",action="store_true");parser.add_argument("--steps",type=int,default=10);parser.add_argument("--dt",type=float,default=2e-5);args=parser.parse_args()
+ parser=argparse.ArgumentParser();parser.add_argument("--output",type=Path,required=True);parser.add_argument("--height",type=float,default=.0004);parser.add_argument("--heat",action="store_true");parser.add_argument("--binary",type=Path,default=ROOT/"bin/gasUGKP");parser.add_argument("--steps",type=int,default=10);parser.add_argument("--dt",type=float,default=2e-5);args=parser.parse_args()
  out=args.output.resolve();out.mkdir(parents=True,exist_ok=False);case=out/"closed-wall"
  native.one_cell(case,1e-6,.00012,args.steps,0,2)
  native.set_entry(case/"system/controlDict","deltaT",str(args.dt))
@@ -24,7 +24,7 @@ def main():
  p=case/"constant/fluidProperties";s=p.read_text();p.write_text(s[:s.index("turbulence")]+"turbulence {simulationType RAS; RAS {model kOmegaSST; turbulence on; printCoeffs on; kOmegaSSTCoeffs {wallTreatment boundaryLayer; boundaryLayer {model equilibriumOde; nodes 8; stretch 2.5; maxIterations 120; relativeTolerance 1e-8; absoluteTolerance 1e-10; writeProfiles true;}}}}\n")
  native.set_entry(case/"constant/particleProperties","particleTemperatureTransport","true" if args.heat else "false")
  native.set_entry(case/"constant/particleProperties","particleGasHeatTransferModel","RanzMarshall" if args.heat else "none")
- for command,name in [(["blockMesh","-case",str(case)],"mesh.log"),([str(ROOT/"bin/gasUGKP"),"-case",str(case)],"run.log")]:
+ for command,name in [(["blockMesh","-case",str(case)],"mesh.log"),([str(args.binary.resolve()),"-case",str(case)],"run.log")]:
   with (out/name).open("w") as log:subprocess.run(command,stdout=log,stderr=subprocess.STDOUT,check=True,env=native.ENV)
  def field(directory,name):return native.fields.internal(directory/name,4)
  def budget(directory):

@@ -110,7 +110,7 @@ UGKWP_GAS_HD UGKWP_WALL_WORKSPACE_CALL bool evaluateGasBoundaryLayerWorkspace(
     gaswall::WallReferenceScratch<Ns,Capacity>* scratch=nullptr,
     const Real* accepted=nullptr,gaswall::WallReferenceStats* statistics=nullptr,
     gaswall::coherent::Scratch<Capacity>* coherentScratch=nullptr,
-    gaswall::coherent::PersistentWallState<Capacity>* coherentWall=nullptr,Real acceptedStress=0)
+    gaswall::coherent::PersistentWallState<Capacity>* coherentWall=nullptr,Real acceptedStress=0,const Real* acceptedTraction=nullptr)
 {
     using ScalarExecution=std::integral_constant<bool,
         std::is_same<Team,gaswall::detail::SerialWallTeam>::value
@@ -129,7 +129,7 @@ UGKWP_GAS_HD UGKWP_WALL_WORKSPACE_CALL bool evaluateGasBoundaryLayerWorkspace(
             else if(config.model==gaswall::BoundaryLayerModel::ReactingSst)
                 evaluated=gaswall::evaluateReactingWallLayerImpl(input,config,workspace,output,status,team,accepted);
             else if(config.model==gaswall::BoundaryLayerModel::EquilibriumOde)
-                evaluated=gaswall::evaluateEquilibriumOdeWallLayerImpl(input,config,workspace,output,status,team,accepted,acceptedStress);
+                evaluated=gaswall::evaluateEquilibriumOdeWallLayerImpl(input,config,workspace,output,status,team,accepted,acceptedStress,acceptedTraction);
             else evaluated=evaluateGasBoundaryLayerModelWithTeam(input,config,workspace,output,status,team,ScalarExecution{});
         }else evaluated=evaluateGasBoundaryLayerModelWithTeam(input,config,workspace,output,status,team,ScalarExecution{});
     }
@@ -197,10 +197,13 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerHistory(State&state,int slot,in
      team.sync();history=&w.trial[0][0];
    }
  }
+ Real historyTraction[2]{};
+ if(history)for(int d=0;d<2;++d)for(int a=0;a<3;++a)
+     historyTraction[d]+=Real(m.acceptedFrame[slot].wallTraction[a])*ctx.tangent[d][a];
  const bool coherentRoute=gasBoundaryLayerUsesCoherent(m,slot);
  auto* coherentScratch=coherentRoute?static_cast<gaswall::coherent::Scratch<Capacity>*>(m.coherentScratch)+worker:nullptr;
  auto* coherentWall=coherentRoute?static_cast<gaswall::coherent::PersistentWallState<Capacity>*>(m.coherentState)+slot:nullptr;
- const bool ok=evaluateGasBoundaryLayerWorkspace<Capture>(in,m.config,w,m.evaluationOutput[worker],m.status[slot],Capture?m.profile+std::size_t(slot)*m.config.nodes*(7+Ns):nullptr,team,scratch,history,reference?m.referenceStats+slot:nullptr,coherentScratch,coherentWall,history?Real(m.acceptedFrame[slot].wallStress):Real(0));
+ const bool ok=evaluateGasBoundaryLayerWorkspace<Capture>(in,m.config,w,m.evaluationOutput[worker],m.status[slot],Capture?m.profile+std::size_t(slot)*m.config.nodes*(7+Ns):nullptr,team,scratch,history,reference?m.referenceStats+slot:nullptr,coherentScratch,coherentWall,history?Real(m.acceptedFrame[slot].wallStress):Real(0),history?historyTraction:nullptr);
  if(ok&&team.leader()){
    const int count=m.config.nodes+1;
    auto* flux=m.fluxProfile?m.fluxProfile+std::size_t(slot)*3*count:nullptr;
@@ -213,7 +216,7 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerHistory(State&state,int slot,in
    for(int i=team.rank();i<m.config.nodes;i+=team.size())for(int j=0;j<B;++j)next[i*B+j]=w.state[i][j];
    team.sync();if(team.leader()){
        frame.valid=true;double stress2=0;for(int d=0;d<3;++d)stress2+=m.output[slot].traction[d]*m.output[slot].traction[d];
-       frame.wallStress=::sqrt(stress2);m.candidateFrame[slot]=frame;
+       frame.wallStress=::sqrt(stress2);for(int d=0;d<3;++d)frame.wallTraction[d]=m.output[slot].traction[d];m.candidateFrame[slot]=frame;
    }
  }
  team.sync();return ok;

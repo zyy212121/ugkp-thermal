@@ -12,7 +12,7 @@ template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam>
 UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
  const WallInput<R,N,TableReal>& originalInput,const WallModelConfig<R>& controls,
  WallWorkspace<R,N,M>& w,WallOutput<R,N>& output,WallStatus& status,
- const Team& team=Team{},const R* accepted=nullptr,R acceptedStress=0){
+ const Team& team=Team{},const R* accepted=nullptr,R acceptedStress=0,const R* acceptedTraction=nullptr){
     using namespace detail;
     auto c=controls;c.enableSst=false;c.coherentDiscretization=false;
     auto in=originalInput;in.model.thermo.diagnostics=in.diagnostics;
@@ -37,6 +37,10 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
     const bool localStress=c.localStressCorrection&&(ctx.mass!=0||in.particleSource);
     for(int d=0;d<2;++d)ctx.equilibriumWallTraction[d]=speed>0
         ?ctx.equilibriumWallStress*ctx.edgeU[d]/speed:R(0);
+    if(accepted&&acceptedTraction&&localStress){
+        for(int d=0;d<2;++d)ctx.equilibriumWallTraction[d]=acceptedTraction[d];
+        ctx.equilibriumWallStress=::hypot(acceptedTraction[0],acceptedTraction[1]);
+    }
     for(int i=team.rank();i<c.nodes;i+=team.size()){
         const R fraction=::pow(R(i)/R(c.nodes-1),c.stretch);
         w.y[i]=in.matchingDistance*fraction;
