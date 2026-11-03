@@ -17,24 +17,31 @@ template<class R> struct NodeParticleMomentResponse {
  R heatCapacityFactor=0,particleTemperature=0,heatMass=0,heatEnthalpy=0,heatDiameter=0;
  R heatGasCapacity=0,heatSolidCapacity=0,heatRate=0,heatDt=0;
  R heatMomentum[3]{};
- R rawMass=0,rawParticleEnergy=0,weightedBetaDt=0,gasMass=0,gasCv=0,gasTemperatureMin=0;
+ R rawMass=0,rawParticleEnergy=0,rawParticleKineticEnergy=0,rawParticleInternalEnergy=0;
+ R rawDiameterMoment=0,weightedBetaDt=0,gasMass=0,gasCv=0,gasTemperatureMin=0;
  R rawMomentum[3]{};
- UGKWP_GAS_HD inline void addRaw(R mass,const R* velocity,R theta,R betaDt){
-  rawMass+=mass;weightedBetaDt+=mass*betaDt;
-  rawParticleEnergy+=R(.5)*mass*(velocity[0]*velocity[0]+velocity[1]*velocity[1]+velocity[2]*velocity[2])+R(1.5)*mass*theta;
+ UGKWP_GAS_HD inline void addRaw(R mass,const R* velocity,R theta,R diameter){
+  rawMass+=mass;rawDiameterMoment+=mass*diameter;
+  const R kinetic=R(.5)*mass*(velocity[0]*velocity[0]+velocity[1]*velocity[1]+velocity[2]*velocity[2]);
+  const R internal=R(1.5)*mass*theta;
+  rawParticleKineticEnergy+=kinetic;rawParticleInternalEnergy+=internal;
+  rawParticleEnergy+=kinetic+internal;
   for(int d=0;d<3;++d)rawMomentum[d]+=mass*velocity[d];
  }
- UGKWP_GAS_HD inline void add(R mass,const R* velocity,R theta,R betaDt){
-  addRaw(mass,velocity,theta,betaDt);
+ UGKWP_GAS_HD inline void setUniformBetaDt(R betaDt){
+  weightedMass=R(0);weightedBetaDt=R(0);parcelKineticConstant=R(0);
+  parcelKineticQuadratic=R(0);unresolvedEnergyChange=R(0);
+  for(int d=0;d<3;++d){weightedParticleVelocity[d]=R(0);parcelKineticLinear[d]=R(0);}
+  if(!(rawMass>R(0))||!(betaDt>R(0)))return;
   const R a=-::expm1(-betaDt),remain=R(1)-a;
-  weightedMass+=mass*a;
+  weightedBetaDt=rawMass*betaDt;weightedMass=rawMass*a;
   for(int d=0;d<3;++d){
-   weightedParticleVelocity[d]+=mass*a*velocity[d];
-   parcelKineticLinear[d]+=mass*remain*a*velocity[d];
-   parcelKineticConstant+=R(.5)*mass*(remain*remain-R(1))*velocity[d]*velocity[d];
+   weightedParticleVelocity[d]=a*rawMomentum[d];
+   parcelKineticLinear[d]=remain*a*rawMomentum[d];
   }
-  parcelKineticQuadratic+=R(.5)*mass*a*a;
-  unresolvedEnergyChange+=R(1.5)*mass*theta*::expm1(-R(2)*betaDt);
+  parcelKineticConstant=(remain*remain-R(1))*rawParticleKineticEnergy;
+  parcelKineticQuadratic=R(.5)*rawMass*a*a;
+  unresolvedEnergyChange=rawParticleInternalEnergy*::expm1(-R(2)*betaDt);
  }
 };
 template<class R> UGKWP_GAS_HD inline MomentDragRelaxationResult<R> nodeMomentGasState(

@@ -12,21 +12,6 @@ template<class State> __device__ int wallReservoirSlot(const State&s,int cell){
    return s.gasBoundaryLayer.ownerSlot[cell];
  }return -1;
 }
-template<class State> struct WallReservoirSelection {
- const double* y;int nodes,node,face;double height;bool outside;
- __device__ bool operator()(const State&s,int i)const{
-  const auto&in=s.gasBoundaryLayerModel.input[s.gasBoundaryLayer.faceSlot[face]];
-  const double h=(s.px[i]-s.faceCx[face])*in.normal[0]
-               +(s.py[i]-s.faceCy[face])*in.normal[1]
-               +(s.pz[i]-s.faceCz[face])*in.normal[2];
-  if(node==nodes)return outside&&h>y[nodes-1];
-  if(outside&&h>y[nodes-1])return false;
-  // Convex-cell/planar-wall reconstruction; clipping here only locates a parcel
-  // infinitesimally outside the face due to tracking roundoff, never its state.
-  const double position=fmin(fmax(h,0.),height);
-  return ugkwp::particleNormalReservoir(y,nodes,position)==node;
- }
-};
 }
 // Read-only per-node particle moments and heat moments for the wall ODE source.
 // Macro gas closure and one ordinary parcel relaxation remain in the common stages.
@@ -88,9 +73,7 @@ void gatherWallParticleMomentResponse(State&s,int c,int slot,double dt,
   if(outer.volumeFraction>0&&h>y[nodes-1])continue;
   const double position=fmin(fmax(h,0.),height);const int node=ugkwp::particleNormalReservoir(y,nodes,position);
   if(!(gas[node].mass>0))continue;
-  mixtureParticles::WallReservoirSelection<State> select{y,nodes,node,face,height,outer.volumeFraction>0};
-  mixtureParticles::NodeReservoir<State,Ns,decltype(select)> reservoir{gas[node],select,nullptr};
-  const double q=drag?reservoir.template beta<DragModel>(s,c,i,epsG)*dt:0.;
+  const double particleDiameter=clampMin(finiteOr(s.pd[i],s.particleDiameterFallback),1.0e-12);
   const double velocity[3]={s.pux[i],s.puy[i],s.puz[i]};
 #if GPU_OPERATOR_THERMAL
   const double theta=particleMomentThetaDevice(s,i);
@@ -98,7 +81,7 @@ void gatherWallParticleMomentResponse(State&s,int c,int slot,double dt,
   const double theta=clampMin(finiteOr(s.pTheta[i],0.0),0.0);
 #endif
   auto& response=m.particleResponse[std::size_t(slot)*nodes+node].moments;
-  if(drag)response.addRaw(s.pm[i],velocity,theta,q);
+  response.addRaw(s.pm[i],velocity,theta,particleDiameter);
   if(heat){
    const double tp=clampRange(finiteOr(s.pT[i],s.TpMin),s.TpMin,s.TpMax);
 #if GPU_OPERATOR_THERMAL
@@ -108,10 +91,25 @@ void gatherWallParticleMomentResponse(State&s,int c,int slot,double dt,
    const double h=s.pm[i]*heatFactor*tp;
 #endif
    response.heatMass+=s.pm[i];response.heatEnthalpy+=h;
-   response.heatDiameter+=s.pm[i]*clampMin(finiteOr(s.pd[i],s.particleDiameterFallback),1.0e-12);
+   response.heatDiameter+=s.pm[i]*particleDiameter;
    response.heatMomentum[0]+=s.pm[i]*s.pux[i];
    response.heatMomentum[1]+=s.pm[i]*s.puy[i];
    response.heatMomentum[2]+=s.pm[i]*s.puz[i];
+  }
+ }
+ if(drag){
+  for(int node=0;node<nodes;++node){
+   auto& response=m.particleResponse[std::size_t(slot)*nodes+node].moments;
+   if(!(response.rawMass>0.)||!(gas[node].mass>0.)||!(gas[node].volume>0.))continue;
+   const double diameter=clampMin(finiteOr(response.rawDiameterMoment/response.rawMass,s.particleDiameterFallback),1.0e-12);
+   const double meanParticle[3]={response.rawMomentum[0]/response.rawMass,response.rawMomentum[1]/response.rawMass,response.rawMomentum[2]/response.rawMass};
+   const double meanGas[3]={gas[node].momentum[0]/gas[node].mass,gas[node].momentum[1]/gas[node].mass,gas[node].momentum[2]/gas[node].mass};
+   const double slip=sqrt(sqr3(meanGas[0]-meanParticle[0],meanGas[1]-meanParticle[1],meanGas[2]-meanParticle[2]));
+   double massFraction[Ns];for(int j=0;j<Ns;++j)massFraction[j]=gas[node].speciesMass[j]/gas[node].mass;
+   const double mu=ugkwp::molecularViscosity<Ns>(s.gasViscosity,s.gasMu,gas[node].temperature,massFraction);
+   const double betaEpsG=1.0-solidEpsFromMomentDevice(s,c);
+   const double beta=cellDragInverseTimeCore<DragModel>(s,gas[node].mass/gas[node].volume,mu,betaEpsG,diameter,slip,DragModel{});
+   response.setUniformBetaDt(finiteDevice(beta)&&beta>OfSmall?dt*beta:0.);
   }
  }
  if(s.solveParticleTemperature!=0&&s.particleGasHeatTransferModelId!=0){

@@ -4,7 +4,7 @@ int main(){
  Fixture f;WallModelConfig<double> c;configure(17,f,c);c.nodes=8;c.stretch=2.5;c.maxIterations=200;
  NodeParticleSourceResponse<double> response[8];const double mass=2e-5,alpha=.2,betaDt=-std::log1p(-alpha),theta=.4,scale=500;
  const double pu[3]={3,-1,.5};
- for(int i=0;i<c.nodes;++i){response[i].sourceScale=scale;response[i].moments.add(mass,pu,theta,betaDt);}
+ for(int i=0;i<c.nodes;++i){response[i].sourceScale=scale;response[i].moments.addRaw(mass,pu,theta,1.2e-4);response[i].moments.setUniformBetaDt(betaDt);}
  f.in.particleResponse=response;Workspace w;WallOutput<double,2> out;WallStatus status;
  assert(evaluateWallModel(f.in,c,w,out,status));assert(status.code==WallCode::Success);assert(out.residual<1e-8);assert(std::abs(out.heatBalanceResidual)<1e-5);
  LayerContext<double,2> ctx;assert(makeContext(f.in,c,ctx));LayerPoint<double,2> p;
