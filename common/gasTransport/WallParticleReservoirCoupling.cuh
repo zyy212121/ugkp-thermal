@@ -28,27 +28,30 @@ template<class State> struct WallReservoirSelection {
  }
 };
 }
-// One serial worker owns a wall cell and its reservoirs, so intermediate gas
-// updates are immediately visible to the following heat transaction. Bulk
-// cells retain the existing scalar/warp scheduling and transaction unchanged.
-template<class DragModel,bool ConstantHeat,class State>
+// Read-only per-node particle moments and heat moments for the wall ODE source.
+// Macro gas closure and one ordinary parcel relaxation remain in the common stages.
+template<class DragModel,class State>
 __device__
 #if defined(__CUDA_ARCH__)
 __noinline__
 #endif
-void mixtureParticleWallReservoirs(State&s,int c,int slot,double dt,
+void gatherWallParticleMomentResponse(State&s,int c,int slot,double dt,
  bool drag,bool csr,bool split){
- if(mixtureParticles::count(s,c,csr,split)==0)return;
  constexpr int Ns=ugkwp::GasStateTraits<State>::speciesCount;
- constexpr int capacity=129; // same public wall capacity (128), plus outer cell remainder
+ constexpr int capacity=129;
  auto&m=s.gasBoundaryLayerModel;const auto&in=m.input[slot];const int nodes=m.config.nodes;
  const int face=m.faces[slot];const double area=s.magSf[face],height=s.V[c]/area;
  const double volume=s.epsGPrev[c]*s.V[c];
- if(dt==0)return;
  if(nodes<2||nodes>=capacity||!(height>0&&volume>0&&dt>0)){
   using namespace ugkp::diagnostics;recordFatal(s.diagnostics,
    makeRecord(Code::InvalidPhysicalState,30701,0,0,EntityKind::Cell,c));return;
  }
+ const double scale=1/(s.epsGPrev[c]*area*dt),epsG=s.epsGPrev[c];
+ for(int node=0;node<nodes;++node){auto&r=m.particleResponse[std::size_t(slot)*nodes+node];
+  r=ugkwp::gaswall::detail::NodeParticleSourceResponse<double>{};r.sourceScale=scale;}
+ const int end=mixtureParticles::count(s,c,csr,split);
+ const bool heat=s.solveParticleTemperature!=0&&s.particleGasHeatTransferModelId!=0;
+ if(end==0||(!drag&&!heat)||dt==0)return;
  double y[capacity];ugkwp::ParticleReservoirShape<Ns,double> shape[capacity];
  ugkwp::ParticleThermalReservoir<Ns,double> gas[capacity];
  ugkwp::gaswall::detail::LayerContext<double,Ns> ctx;
@@ -57,8 +60,7 @@ void mixtureParticleWallReservoirs(State&s,int c,int slot,double dt,
  for(int i=0;i<nodes;++i)y[i]=in.matchingDistance*pow(double(i)/double(nodes-1),m.config.stretch);
  for(int i=0;i<nodes;++i){
   const double lo=i?.5*(y[i-1]+y[i]):0,hi=fmin(height,i+1<nodes?.5*(y[i]+y[i+1]):y[i]);
-  auto&q=shape[i];q.volumeFraction=fmax(0.,hi-lo)/height;
-  if(q.volumeFraction==0)continue;
+  auto&q=shape[i];q.volumeFraction=fmax(0.,hi-lo)/height;if(q.volumeFraction==0)continue;
   const double centre=.5*(lo+hi);int left=0;while(left+1<nodes-1&&y[left+1]<centre)++left;
   const double alpha=(centre-y[left])/(y[left+1]-y[left]);double state[Ns+4];
   for(int j=0;j<Ns+4;++j)state[j]=(1-alpha)*profile[left*(Ns+4)+j]+alpha*profile[(left+1)*(Ns+4)+j];
@@ -69,12 +71,9 @@ void mixtureParticleWallReservoirs(State&s,int c,int slot,double dt,
   for(int d=0;d<3;++d)q.velocity[d]=in.velocity[d]+point.u[0]*ctx.tangent[0][d]
       +point.u[1]*ctx.tangent[1][d]+(point.normalVelocity-ctx.wallNormal)*in.normal[d];
  }
- // A matching plane inside the owner volume leaves an ordinary macro bath
- // outside the wall layer. No parcel is exchanged with both baths.
  auto&outer=shape[nodes];outer.volumeFraction=fmax(0.,height-y[nodes-1])/height;
  outer.density=s.rho[c];outer.temperature=s.Tgas[c];
- const double u[3]={s.Ux[c],s.Uy[c],s.Uz[c]};
- for(int d=0;d<3;++d)outer.velocity[d]=u[d];
+ for(int d=0;d<3;++d)outer.velocity[d]=d==0?s.Ux[c]:d==1?s.Uy[c]:s.Uz[c];
  for(int j=0;j<Ns;++j)outer.massFraction[j]=s.gasSpecies.rho[j*s.nCells+c]/s.rho[c];
  ugkwp::ParticleGasReservoir<double> macro;macro.mass=volume*s.rho[c];macro.energy=volume*s.rhoE[c];
  macro.momentum[0]=volume*s.rhoUx[c];macro.momentum[1]=volume*s.rhoUy[c];macro.momentum[2]=volume*s.rhoUz[c];
@@ -83,27 +82,80 @@ void mixtureParticleWallReservoirs(State&s,int c,int slot,double dt,
    s.gasSpecies.thermo,s.gasSpecies.thermoControls,gas);
  if(!available){using namespace ugkp::diagnostics;recordFatal(s.diagnostics,
   makeRecord(Code::InvalidPhysicalState,30701,0,0,EntityKind::Cell,c));return;}
- double impulse[3]{},energy=0;
- for(int i=0;i<=nodes;++i){
-  if(!(gas[i].mass>0))continue;
-  mixtureParticles::WallReservoirSelection<State> select{y,nodes,i,face,height,outer.volumeFraction>0};
-  mixtureParticles::NodeReservoir<State,Ns,decltype(select)> reservoir{gas[i],select};
-  mixtureParticleCouplingReservoir<DragModel,ConstantHeat>(s,c,dt,drag,csr,split,
-    mixtureParticles::SerialCouplingTeam{},reservoir);
-  // Reverse only the actual represented parcel increments. Reconstruction is
-  // conservative, but its floating-point sum is not another physical source.
-  for(int d=0;d<3;++d)impulse[d]+=reservoir.reverseMomentum[d];
-  energy+=reservoir.reverseEnergy;
-  if(i<nodes){
-   const std::size_t offset=std::size_t(slot)*nodes+i;double*src=m.particleSource+4*offset;
-   const double scale=1/(s.epsGPrev[c]*area*dt);
-   for(int d=0;d<3;++d)src[d]=reservoir.reverseMomentum[d]*scale;
-   src[3]=reservoir.reverseEnergy*scale;m.particleHeat[offset]=reservoir.thermalExchange*scale;
-   double*row=m.particleReservoir+offset*(Ns+7);row[0]=gas[i].volume;row[1]=gas[i].mass;
-   for(int d=0;d<3;++d)row[2+d]=gas[i].momentum[d];row[5]=gas[i].energy;row[6]=gas[i].temperature;
-   for(int j=0;j<Ns;++j)row[7+j]=gas[i].speciesMass[j];
+ for(int pos=0;pos<end;++pos){const int i=mixtureParticles::parcel(s,c,pos,csr,split);
+  if(!mixtureParticles::member(s,i,c))continue;
+  const double h=(s.px[i]-s.faceCx[face])*in.normal[0]+(s.py[i]-s.faceCy[face])*in.normal[1]+(s.pz[i]-s.faceCz[face])*in.normal[2];
+  if(outer.volumeFraction>0&&h>y[nodes-1])continue;
+  const double position=fmin(fmax(h,0.),height);const int node=ugkwp::particleNormalReservoir(y,nodes,position);
+  if(!(gas[node].mass>0))continue;
+  mixtureParticles::WallReservoirSelection<State> select{y,nodes,node,face,height,outer.volumeFraction>0};
+  mixtureParticles::NodeReservoir<State,Ns,decltype(select)> reservoir{gas[node],select,nullptr};
+  const double q=drag?reservoir.template beta<DragModel>(s,c,i,epsG)*dt:0.;
+  const double velocity[3]={s.pux[i],s.puy[i],s.puz[i]};
+#if GPU_OPERATOR_THERMAL
+  const double theta=particleMomentThetaDevice(s,i);
+#else
+  const double theta=clampMin(finiteOr(s.pTheta[i],0.0),0.0);
+#endif
+  auto& response=m.particleResponse[std::size_t(slot)*nodes+node].moments;
+  if(drag)response.addRaw(s.pm[i],velocity,theta,q);
+  if(heat){
+   const double tp=clampRange(finiteOr(s.pT[i],s.TpMin),s.TpMin,s.TpMax);
+#if GPU_OPERATOR_THERMAL
+   const double h=materialEnthalpyMoment(s.pm[i],tp);
+#else
+   const double heatFactor=particleHeatFactorDevice(s);
+   const double h=s.pm[i]*heatFactor*tp;
+#endif
+   response.heatMass+=s.pm[i];response.heatEnthalpy+=h;
+   response.heatDiameter+=s.pm[i]*clampMin(finiteOr(s.pd[i],s.particleDiameterFallback),1.0e-12);
+   response.heatMomentum[0]+=s.pm[i]*s.pux[i];
+   response.heatMomentum[1]+=s.pm[i]*s.puy[i];
+   response.heatMomentum[2]+=s.pm[i]*s.puz[i];
   }
  }
- s.rhoUx[c]+=impulse[0]/volume;s.rhoUy[c]+=impulse[1]/volume;s.rhoUz[c]+=impulse[2]/volume;s.rhoE[c]+=energy/volume;
- recoverGasPrimitiveCell(s,c);
+ if(s.solveParticleTemperature!=0&&s.particleGasHeatTransferModelId!=0){
+  for(int node=0;node<nodes;++node){
+   auto& response=m.particleResponse[std::size_t(slot)*nodes+node].moments;
+   const double mass=response.heatMass;
+   if(!(mass>0.)||!(gas[node].mass>0.))continue;
+#if GPU_OPERATOR_THERMAL
+   const double tpAvg=Foam::gpuThermal::aluminaTemperatureFromSpecificEnthalpyK(response.heatEnthalpy/(mass+OfSmall));
+   const double cp=particleSpecificHeatDevice(tpAvg);
+   const double rateCapacity=s.rhoSolid*cp;
+#else
+   const double cp=particleHeatFactorDevice(s);
+   const double tpAvg=clampRange(response.heatEnthalpy/(mass*clampMin(cp,OfSmall)),s.TpMin,s.TpMax);
+   const double rateCapacity=s.particleThermalRho*s.particleCp;
+#endif
+   if(!(cp>0.)||!(rateCapacity>0.))continue;
+   const double diameter=clampMin(response.heatDiameter/mass,1.0e-12);
+   const double usx=response.heatMomentum[0]/mass,usy=response.heatMomentum[1]/mass,usz=response.heatMomentum[2]/mass;
+   const double gvx=gas[node].momentum[0]/gas[node].mass,gvy=gas[node].momentum[1]/gas[node].mass,gvz=gas[node].momentum[2]/gas[node].mass;
+   const double slip=sqrt(sqr3(gvx-usx,gvy-usy,gvz-usz));
+   const double gasTemperature=gas[node].temperature;
+   const double gasDensity=gas[node].mass/gas[node].volume;
+   const double mu=clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,gasTemperature),1.0e-30);
+   const double re=gasDensity*diameter*slip/mu;
+   const double pr=ugkwp::gasCellMolecularPrandtl(s,c);
+   const double conductivity=molecularGasConductivity(s,c,gasTemperature);
+   const double nu=ugkwp::ranzMarshallNuFromPr(clampMin(re,0.0),clampMin(pr,1.0e-12));
+   const double rate=6.0*nu*conductivity/(rateCapacity*diameter*diameter+1.0e-300);
+   const double gasCv=s.Rgas/clampMin(s.gammaGas-1.0,OfSmall);
+   const double gasCapacity=gas[node].mass*gasCv;
+   const double solidCapacity=mass*cp;
+   const double totalCapacity=gasCapacity+solidCapacity;
+   const double effectiveCapacity=gasCapacity*solidCapacity/(totalCapacity+OfSmall);
+   const double coupledRate=clampMin(rate,0.0)*(1.0+solidCapacity/(gasCapacity+OfSmall));
+   response.particleTemperature=clampRange(tpAvg,s.TpMin,s.TpMax);
+   response.heatGasCapacity=gasCapacity;response.heatSolidCapacity=solidCapacity;
+   response.heatRate=clampMin(rate,0.0);response.heatDt=dt;
+  }
+ }
+ for(int node=0;node<nodes;++node){
+  auto& response=m.particleResponse[std::size_t(slot)*nodes+node].moments;
+  response.gasMass=gas[node].mass;
+  response.gasCv=s.Rgas/clampMin(s.gammaGas-1.0,OfSmall);
+  response.gasTemperatureMin=s.TgasMin;
+ }
 }

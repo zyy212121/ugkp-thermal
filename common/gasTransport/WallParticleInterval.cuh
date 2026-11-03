@@ -9,6 +9,7 @@ template<class State> __global__ void resetWallParticleInterval(State*sp){
   const int offset=slot*m.config.nodes+i;
   for(int d=0;d<4;++d)m.particleSource[4*offset+d]=0;
   m.particleHeat[offset]=0;
+  if(m.particleResponse)m.particleResponse[offset]=ugkwp::gaswall::detail::NodeParticleSourceResponse<double>{};
   for(int j=0;j<ugkwp::compiledGasSpecies+7;++j)m.particleReservoir[offset*(ugkwp::compiledGasSpecies+7)+j]=0;
  }
 }

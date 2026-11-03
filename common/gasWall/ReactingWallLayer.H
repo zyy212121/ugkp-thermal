@@ -27,20 +27,47 @@ template<class R,int N> struct LayerPoint {
     R mu=0,T=0,theta=0,normalCoefficient=0,Y[N]{},rho=0,cp=0,h[N]{},u[2]{},normalVelocity=0,k=0,z=0,omega=0;
     R nut=0,f1=0,f2=0,sourceK=0,sourceOmega=0,sourceOmegaWithoutCrossDiffusion=0,source[N]{};
 };
+template<class R,int N,class T> UGKWP_GAS_HD inline void wallParticleGasVelocity(
+ const WallInput<R,N,T>& in,const LayerContext<R,N>& ctx,const LayerPoint<R,N>& p,R gasVelocity[3]){
+ for(int d=0;d<3;++d)gasVelocity[d]=in.velocity[d]+p.u[0]*ctx.tangent[0][d]
+   +p.u[1]*ctx.tangent[1][d]+(p.normalVelocity-ctx.wallNormal)*in.normal[d];
+}
+template<class R,int N,class T> UGKWP_GAS_HD inline R particleMomentumSourceAt(
+ const WallInput<R,N,T>& in,const LayerContext<R,N>& ctx,int node,const LayerPoint<R,N>& p,const R* direction){
+ if(!in.particleResponse)return particleMomentumSource(in,node,direction);
+ const auto& response=in.particleResponse[node];R gasVelocity[3];wallParticleGasVelocity(in,ctx,p,gasVelocity);R value=0;
+ if(response.moments.gasMass>R(0)){
+  const auto relaxed=nodeMomentGasState(response.moments,gasVelocity,p.T);
+  for(int d=0;d<3;++d)value+=response.moments.gasMass*(relaxed.velocity[d]-gasVelocity[d])*response.sourceScale*direction[d];
+ }else for(int d=0;d<3;++d)value+=nodeMomentGasImpulse(response.moments,d,gasVelocity[d])*response.sourceScale*direction[d];
+ return value;
+}
+template<class R,int N,class T> UGKWP_GAS_HD inline R particleEnergySourceAt(
+ const WallInput<R,N,T>& in,const LayerContext<R,N>& ctx,int node,const LayerPoint<R,N>& p){
+ if(!in.particleResponse)return particleEnergySource(in,ctx,node);
+ const auto& response=in.particleResponse[node];
+ R gasVelocity[3];wallParticleGasVelocity(in,ctx,p,gasVelocity);R dragEnergy=0;
+ if(response.moments.gasMass>R(0)){
+  const R gasOld=response.moments.gasMass*response.moments.gasCv*p.T+R(.5)*response.moments.gasMass*(gasVelocity[0]*gasVelocity[0]+gasVelocity[1]*gasVelocity[1]+gasVelocity[2]*gasVelocity[2]);
+  dragEnergy=nodeMomentGasState(response.moments,gasVelocity,p.T).intrinsicGasEnergy-gasOld;
+ }else dragEnergy=nodeMomentGasEnergySource(response.moments,gasVelocity);
+ R value=(dragEnergy+nodeMomentGasHeatSource(response.moments,p.T))*response.sourceScale;
+ for(int d=0;d<2;++d)value-=ctx.wallU[d]*particleMomentumSourceAt(in,ctx,node,p,ctx.tangent[d]);
+ return value;
+}
 // The same closure is used by nodal diagnostics and every conservative
 // interval flux, including final publication and numerical Jacobian probes.
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool applyEquilibriumViscosity(
  const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
- const LayerContext<R,N>& ctx,R y,LayerPoint<R,N>& p){
-    (void)in;
+ const LayerContext<R,N>& ctx,R y,LayerPoint<R,N>& p,const R* responsePrefix=nullptr){
     if(c.model!=BoundaryLayerModel::EquilibriumOde)return true;
     p.nut=equilibriumDynamicViscosity(p.rho,ctx.equilibriumWallStress,y,
         p.mu,c.equilibriumKappa,c.equilibriumAPlus)/p.rho;
     if(c.localStressCorrection&&(ctx.mass!=0||in.particleSource)){
         // In the wall-relative frame F_u=j*u-tau=-tau_w. Only the
         // viscosity prefactor changes; the original wall damping survives.
-        const R tx=ctx.equilibriumWallTraction[0]+ctx.mass*p.u[0]-particleMomentumPrefix(in,c,y,ctx.tangent[0]);
-        const R tz=ctx.equilibriumWallTraction[1]+ctx.mass*p.u[1]-particleMomentumPrefix(in,c,y,ctx.tangent[1]);
+        const R tx=ctx.equilibriumWallTraction[0]+ctx.mass*p.u[0]-(responsePrefix?responsePrefix[0]:particleMomentumPrefix(in,c,y,ctx.tangent[0]));
+        const R tz=ctx.equilibriumWallTraction[1]+ctx.mass*p.u[1]-(responsePrefix?responsePrefix[1]:particleMomentumPrefix(in,c,y,ctx.tangent[1]));
         p.nut=equilibriumLocalStressViscosity(p.rho,ctx.equilibriumWallStress,
             ::hypot(tx,tz),y,p.mu,c.equilibriumKappa,c.equilibriumAPlus)/p.rho;
     }
@@ -151,6 +178,35 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_POINT_INLINE boo
     if(in.model.molecularViscosity.model!=MolecularViscosityModel::Constant&&(!gasFinite(p.mu)||!(p.mu>0)))return wallFatal(in,ugkp::diagnostics::Code::InvalidPhysicalState,2702,p.mu);
     if(c.enableSst&&p.z>0)p.omega=R(1)/(p.z*p.z);
     return true;
+}
+template<int V> struct WallProfilePriority:WallProfilePriority<V-1>{};
+template<> struct WallProfilePriority<0>{};
+template<class Row> UGKWP_GAS_HD inline auto wallProfileValue(const Row& row,int k,WallProfilePriority<2>)->decltype(row[k]){return row[k];}
+template<class Row> UGKWP_GAS_HD inline auto wallProfileValue(const Row& row,int k,WallProfilePriority<1>)->decltype(row.values[k]){return row.values[k];}
+template<class Row> UGKWP_GAS_HD inline auto wallProfileValue(const Row& row,int k,WallProfilePriority<0>)->decltype(row.base.values[k]){return row.base.values[k];}
+template<class R,int N,class T,class Rows> UGKWP_GAS_HD inline bool particleResponsePoint(
+ const WallInput<R,N,T>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
+ const Rows& rows,const R* y,int node,LayerPoint<R,N>& p){
+ const R lo=node?(y[node-1]+y[node])/R(2):R(0);
+ const R hi=node+1<c.nodes?(y[node]+y[node+1])/R(2):y[node];
+ const R centre=(lo+hi)/R(2);int left=0;
+ while(left+1<c.nodes-1&&y[left+1]<centre)++left;
+ const R f=(centre-y[left])/(y[left+1]-y[left]);R state[N+4];
+ for(int k=0;k<N+4;++k)state[k]=(R(1)-f)*wallProfileValue(rows[left],k,WallProfilePriority<2>{})+f*wallProfileValue(rows[left+1],k,WallProfilePriority<2>{});
+ return pointState(in,c,ctx,state,p);
+}
+template<class R,int N,class T,class Rows> UGKWP_GAS_HD inline bool particleResponsePrefix(
+ const WallInput<R,N,T>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
+ const Rows& rows,const R* y,R targetY,const R* direction,R& value){
+ if(!in.particleResponse){value=particleMomentumPrefix(in,c,targetY,direction);return true;}
+ value=0;R previous=0,current=0;
+ for(int i=0;i<c.nodes;++i){const R next=i+1<c.nodes?in.matchingDistance*::pow(R(i+1)/R(c.nodes-1),c.stretch):in.matchingDistance;
+  const R lo=i?(previous+current)/R(2):R(0),hi=i+1<c.nodes?(current+next)/R(2):current;
+  const R fraction=targetY>=hi?R(1):(targetY<=lo?R(0):(targetY-lo)/(hi-lo));
+  if(fraction>0){LayerPoint<R,N> point;if(!particleResponsePoint(in,c,ctx,rows,y,i,point))return false;
+   value+=fraction*particleMomentumSourceAt(in,ctx,i,point,direction);}
+  previous=current;current=next;
+ }return true;
 }
 
 
@@ -412,18 +468,27 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD inline bool eval
     if(c.enableSst&&index>0){const int l=index-1,r=index+1<c.nodes?index+1:index;LayerPoint<R,N> a,b;
         if(!loadBasePoint(in,c,ctx,x[l],a,terminalProfile)||!loadBasePoint(in,c,ctx,x[r],b,terminalProfile))return false;
         pointSst(in,c,y[index],a,b,y[r]-y[l],p,y[index]-y[l]);}
-    return applyEquilibriumViscosity(in,c,ctx,y[index],p);
+    R prefix[2];const R* prefixView=nullptr;
+    if(in.particleResponse){for(int d=0;d<2;++d)if(!particleResponsePrefix(in,c,ctx,x,y,y[index],ctx.tangent[d],prefix[d]))return false;prefixView=prefix;}
+    return applyEquilibriumViscosity(in,c,ctx,y[index],p,prefixView);
 }
 // Flux values at a face depend on endpoint gradients through SST eddy viscosity.
 // Use a two-point strain/gradient consistently, preserving a three-node residual
 // stencil and block-tridiagonal Newton system.
 template<class R,int N,class TableReal,class RowA,class RowB> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool intervalFlux(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
- const LayerContext<R,N>& ctx,const RowA& xa,const RowB& xb,R ya,R yb,LayerFlux<R,N>& f,const bool terminalProfile=false){
+ const LayerContext<R,N>& ctx,const RowA& xa,const RowB& xb,R ya,R yb,LayerFlux<R,N>& f,const bool terminalProfile=false,const R* prefixA=nullptr,const R* prefixB=nullptr){
     LayerPoint<R,N> a,b;if(!loadBasePoint(in,c,ctx,xa,a,terminalProfile)||!loadBasePoint(in,c,ctx,xb,b,terminalProfile))return false;
     const auto originalA=a,originalB=b;
     pointSst(in,c,ya,originalA,originalB,yb-ya,a);pointSst(in,c,yb,originalA,originalB,yb-ya,b);
-    if(!applyEquilibriumViscosity(in,c,ctx,ya,a)||!applyEquilibriumViscosity(in,c,ctx,yb,b))return false;
+    if(!applyEquilibriumViscosity(in,c,ctx,ya,a,prefixA)||!applyEquilibriumViscosity(in,c,ctx,yb,b,prefixB))return false;
     return layerFlux(in,c,ctx,a,b,yb-ya,f,ya,yb,terminalProfile);
+}
+template<class R,int N,class T,class Rows,class RowA,class RowB> UGKWP_GAS_HD inline bool intervalFluxProfile(
+ const WallInput<R,N,T>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const Rows& rows,const R* y,
+ const RowA& xa,const RowB& xb,R ya,R yb,LayerFlux<R,N>& f,const bool terminalProfile=false){
+ R pa[2],pb[2];const R* va=nullptr;const R* vb=nullptr;
+ if(in.particleResponse){for(int d=0;d<2;++d)if(!particleResponsePrefix(in,c,ctx,rows,y,ya,ctx.tangent[d],pa[d])||!particleResponsePrefix(in,c,ctx,rows,y,yb,ctx.tangent[d],pb[d]))return false;va=pa;vb=pb;}
+ return intervalFlux(in,c,ctx,xa,xb,ya,yb,f,terminalProfile,va,vb);
 }
 template<class R,int N> UGKWP_GAS_HD inline void storeIntervalFlux(const LayerFlux<R,N>& f,R (*cache)[N+4]){
     for(int j=0;j<N;++j)cache[0][j]=f.species[j];
@@ -439,14 +504,14 @@ template<class R,int N> UGKWP_GAS_HD inline void loadIntervalFlux(const R (*cach
 template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD inline bool loadRowInterval(
  const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
  const Rows& x,const R* y,int face,LayerFlux<R,N>& f){
-    return intervalFlux(in,c,ctx,x[face],x[face+1],y[face],y[face+1],f);
+    return intervalFluxProfile(in,c,ctx,x,y,x[face],x[face+1],y[face],y[face+1],f);
 }
 template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD inline bool loadRowInterval(
  const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
  const CachedLayerRows<R,N,Rows>& x,const R* y,int face,LayerFlux<R,N>& f){
     const int slot=face-x.cache.first;R* saved=x.fluxes[slot];
     if(!x.fluxStatus[slot]){
-        if(!intervalFlux(in,c,ctx,x[face],x[face+1],y[face],y[face+1],f))return false;
+        if(!intervalFluxProfile(in,c,ctx,x,y,x[face],x[face+1],y[face],y[face+1],f))return false;
         for(int j=0;j<N;++j)saved[j]=f.species[j];
         saved[N]=f.momentum[0];saved[N+1]=f.momentum[1];saved[N+2]=f.energy;
         saved[N+3]=f.k;saved[N+4]=f.omega;x.fluxStatus[slot]=1;
@@ -467,10 +532,12 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVIC
         row[K]=x[i][K]-(c.enableSst?::sqrt(in.matching.k):0);row[Z]=x[i][Z]-(c.enableSst?R(1)/::sqrt(in.matching.omega):R(1));
         return true;}
     LayerPoint<R,N> p;if(!evaluatePoint(in,c,ctx,x,y,i,p))return false;
+    LayerPoint<R,N> responsePoint=p;
+    if(in.particleResponse&&!particleResponsePoint(in,c,ctx,x,y,i,responsePoint))return false;
     LayerFlux<R,N> right;if(fluxes)loadIntervalFlux(fluxes[i],right);
     else if(!loadRowInterval(in,c,ctx,x,y,i,right))return false;
     if(i==0){row[0]=x[0][0];row[1]=x[0][1];
-        row[2]=in.adiabatic?(right.energy-particleEnergySource(in,ctx,0)-wallTransportEnergy(in,ctx,p))/ctx.scale[2]:x[0][2];
+        row[2]=in.adiabatic?(right.energy-particleEnergySourceAt(in,ctx,0,responsePoint)-wallTransportEnergy(in,ctx,p))/ctx.scale[2]:x[0][2];
         for(int j=0;j<N-1;++j){const int s=ctx.independent[j];row[3+j]=(right.species[s]-in.massFlux[s]-p.source[s]*y[1]/R(2))/ctx.scale[3+j];}
         row[K]=x[0][K];R wallZ=0;
         if(c.enableSst&&ctx.mass>0){R tau2=0;for(int d=0;d<2;++d){const R tau=-right.momentum[d];tau2+=tau*tau;}
@@ -483,8 +550,8 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVIC
     LayerFlux<R,N> left;if(fluxes)loadIntervalFlux(fluxes[i-1],left);
     else if(!loadRowInterval(in,c,ctx,x,y,i-1,left))return false;
     const R dyL=y[i]-y[i-1],dyR=y[i+1]-y[i],volume=(dyL+dyR)/R(2);
-    for(int d=0;d<2;++d)row[d]=(right.momentum[d]-left.momentum[d]-particleMomentumSource(in,i,ctx.tangent[d]))/ctx.scale[d];
-    row[2]=(right.energy-left.energy-particleEnergySource(in,ctx,i))/ctx.scale[2];
+    for(int d=0;d<2;++d)row[d]=(right.momentum[d]-left.momentum[d]-particleMomentumSourceAt(in,ctx,i,responsePoint,ctx.tangent[d]))/ctx.scale[d];
+    row[2]=(right.energy-left.energy-particleEnergySourceAt(in,ctx,i,responsePoint))/ctx.scale[2];
     for(int j=0;j<N-1;++j){const int s=ctx.independent[j];row[3+j]=(right.species[s]-left.species[s]-volume*p.source[s])/ctx.scale[3+j];}
     if(!c.enableSst){row[K]=x[i][K];row[Z]=x[i][Z]-R(1);return true;}
     row[K]=(right.k-left.k-volume*p.sourceK)/ctx.scale[K];
@@ -582,7 +649,7 @@ UGKWP_GAS_HD inline bool allResidual(const WallInput<R,N,TableReal>& in,
         bool valid=true;
         for(int i=team.rank();i<c.nodes-1;i+=team.size()){
             LayerFlux<R,N> flux;
-            if(!intervalFlux(in,c,ctx,x[i],x[i+1],y[i],y[i+1],flux)){valid=false;break;}
+            if(!intervalFluxProfile(in,c,ctx,x,y,x[i],x[i+1],y[i],y[i+1],flux)){valid=false;break;}
             storeIntervalFlux(flux,intervals[i]);
         }
         if(!team.all(valid))return false;
@@ -1107,8 +1174,10 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
     const R wallEnergy=wallTransportEnergy(in,ctx,wall);
     R resistance=0,advectiveIntegral=0,viscousIntegral=0,particleIntegral=0,particlePrefix=0;bool heatAuditAvailable=true;
     for(int i=0;i+1<c.nodes;++i){LayerFlux<R,N> f;
-        if(!intervalFlux(in,c,ctx,w.state[i],w.state[i+1],w.y[i],w.y[i+1],f,terminalProfile))return false;
-        particlePrefix+=particleEnergySource(in,ctx,i);
+        if(!intervalFluxProfile(in,c,ctx,w.state,w.y,w.state[i],w.state[i+1],w.y[i],w.y[i+1],f,terminalProfile))return false;
+        if(in.particleResponse){LayerPoint<R,N> sourcePoint;if(!particleResponsePoint(in,c,ctx,w.state,w.y,i,sourcePoint))return false;
+            particlePrefix+=particleEnergySourceAt(in,ctx,i,sourcePoint);}
+        else particlePrefix+=particleEnergySource(in,ctx,i);
         if(i==0)first=f;
         if(i+2==c.nodes)last=f;
         if(c.enableSst&&in.volumeSstClosure){
@@ -1126,22 +1195,28 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
         viscousIntegral=a*viscousIntegral+b*f.stressWork;
         particleIntegral=a*particleIntegral-b*particlePrefix;resistance=total;
     }
-    for(int d=0;d<2;++d){const R tau=-first.momentum[d]+particleMomentumSource(in,0,ctx.tangent[d]);for(int a=0;a<3;++a)out.traction[a]+=tau*ctx.tangent[d][a];}
-    out.conductiveHeatFlux=first.energy-particleEnergySource(in,ctx,0)-wallEnergy;
+    LayerPoint<R,N> responseWall;if(in.particleResponse&&!particleResponsePoint(in,c,ctx,w.state,w.y,0,responseWall))return false;
+    const LayerPoint<R,N>& wallResponse=in.particleResponse?responseWall:wall;
+    for(int d=0;d<2;++d){const R tau=-first.momentum[d]+particleMomentumSourceAt(in,ctx,0,wallResponse,ctx.tangent[d]);for(int a=0;a<3;++a)out.traction[a]+=tau*ctx.tangent[d][a];}
+    out.conductiveHeatFlux=first.energy-particleEnergySourceAt(in,ctx,0,wallResponse)-wallEnergy;
     out.heatConduction=heatAuditAvailable&&resistance>0?(out.traceTemperature-in.matching.temperature)/resistance:std::numeric_limits<R>::quiet_NaN();
     out.heatViscous=heatAuditAvailable?viscousIntegral:std::numeric_limits<R>::quiet_NaN();
     out.heatTransport=heatAuditAvailable?advectiveIntegral-wallEnergy:std::numeric_limits<R>::quiet_NaN();
     out.heatParticle=heatAuditAvailable?particleIntegral:std::numeric_limits<R>::quiet_NaN();
     out.heatBalanceResidual=out.heatConduction+out.heatViscous+out.heatTransport+out.heatParticle-out.conductiveHeatFlux;
-    for(int i=0;i<c.nodes;++i){
-        if(in.particleSource)for(int d=0;d<3;++d)out.particleMomentum[d]+=in.particleSource[4*i+d];
-        out.particleEnergy+=particleEnergySource(in,ctx,i);
+    LayerPoint<R,N> responseLast;if(in.particleResponse&&!particleResponsePoint(in,c,ctx,w.state,w.y,c.nodes-1,responseLast))return false;
+    const LayerPoint<R,N>& lastResponse=in.particleResponse?responseLast:wall;
+    for(int i=0;i<c.nodes;++i){LayerPoint<R,N> responseNode;
+        if(in.particleResponse&&!particleResponsePoint(in,c,ctx,w.state,w.y,i,responseNode))return false;
+        const LayerPoint<R,N>& sourcePoint=in.particleResponse?responseNode:wall;
+        for(int d=0;d<3;++d){R axis[3]={};axis[d]=R(1);out.particleMomentum[d]+=particleMomentumSourceAt(in,ctx,i,sourcePoint,axis);}
+        out.particleEnergy+=particleEnergySourceAt(in,ctx,i,sourcePoint);
     }
     for(int d=0;d<2;++d)out.particleMomentumResidual[d]=last.momentum[d]
-        +particleMomentumSource(in,c.nodes-1,ctx.tangent[d])-first.momentum[d]
-        +particleMomentumSource(in,0,ctx.tangent[d])-dot(out.particleMomentum,ctx.tangent[d]);
-    out.particleEnergyResidual=last.energy+particleEnergySource(in,ctx,c.nodes-1)
-        -first.energy+particleEnergySource(in,ctx,0)-out.particleEnergy;
+        +particleMomentumSourceAt(in,ctx,c.nodes-1,lastResponse,ctx.tangent[d])-first.momentum[d]
+        +particleMomentumSourceAt(in,ctx,0,wallResponse,ctx.tangent[d])-dot(out.particleMomentum,ctx.tangent[d]);
+    out.particleEnergyResidual=last.energy+particleEnergySourceAt(in,ctx,c.nodes-1,lastResponse)
+        -first.energy+particleEnergySourceAt(in,ctx,0,wallResponse)-out.particleEnergy;
     // The matching endpoint also has a half control volume. Its source is
     // included consistently in both the diagnostic integral and edge flux.
     for(int i=0;i<c.nodes;++i){LayerPoint<R,N> p;

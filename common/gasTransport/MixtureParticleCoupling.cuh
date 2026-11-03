@@ -24,6 +24,15 @@ __device__ double beta(const State&s,int c,int i,double epsG)
     return fmax(0.,DragModel::inverseResponseTime(input));
 }
 
+template<class Drag,class Reservoir,class State>
+__device__ auto dragExponent(const Reservoir& reservoir,const State&s,int c,int i,double epsG,double dt,int)
+ -> decltype(reservoir.template betaTime<Drag>(s,c,i,epsG,dt)){
+ return reservoir.template betaTime<Drag>(s,c,i,epsG,dt);
+}
+template<class Drag,class Reservoir,class State>
+__device__ double dragExponent(const Reservoir& reservoir,const State&s,int c,int i,double epsG,double dt,long){
+ return reservoir.template beta<Drag>(s,c,i,epsG)*dt;
+}
 template<class State>
 __device__ double heatFraction(const State&s,int c,int i,double dt)
 {
@@ -54,7 +63,8 @@ __device__ void mixtureParticleCouplingReservoir(State&s,int c,double dt,bool dr
         s.puxOld[i]=s.pux[i];s.puyOld[i]=s.puy[i];s.puzOld[i]=s.puz[i];
         if(dragActive)
         {
-            const double a=-expm1(-reservoir.template beta<DragModel>(s,c,i,epsG)*dt);
+            const double q=mixtureParticles::dragExponent<DragModel>(reservoir,s,c,i,epsG,dt,0);
+            const double a=-expm1(-q);
             const double w=s.pm[i]*a;
             weight+=w;x+=w*s.pux[i];y+=w*s.puy[i];z+=w*s.puz[i];
         }
@@ -70,10 +80,10 @@ __device__ void mixtureParticleCouplingReservoir(State&s,int c,double dt,bool dr
         {
             const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
             if(!reservoir.member(s,i,c))continue;
-            const double b=reservoir.template beta<DragModel>(s,c,i,epsG);
-            const double a=-expm1(-b*dt),oldX=s.pux[i],oldY=s.puy[i],oldZ=s.puz[i],oldTheta=s.pTheta[i];
+            const double q=mixtureParticles::dragExponent<DragModel>(reservoir,s,c,i,epsG,dt,0);
+            const double a=-expm1(-q),oldX=s.pux[i],oldY=s.puy[i],oldZ=s.puz[i],oldTheta=s.pTheta[i];
             s.pux[i]=oldX+a*(ux-oldX);s.puy[i]=oldY+a*(uy-oldY);s.puz[i]=oldZ+a*(uz-oldZ);
-            s.pTheta[i]=oldTheta*exp(-2*b*dt);
+            s.pTheta[i]=oldTheta*exp(-2*q);
             const double dx=s.pux[i]-oldX,dy=s.puy[i]-oldY,dz=s.puz[i]-oldZ;
             dpx+=s.pm[i]*dx;dpy+=s.pm[i]*dy;dpz+=s.pm[i]*dz;
             // Actual represented differences, not independently recomputed work
@@ -143,10 +153,6 @@ __device__ void mixtureParticleCouplingReservoir(State&s,int c,double dt,bool dr
 
 template<class DragModel,bool ConstantHeat,class State,class Team>
 __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragActive,bool useCsr,bool useSplit,const Team&team){
- if constexpr(mixtureParticles::HasWallReservoir<State>::value){
-  const int slot=mixtureParticles::wallReservoirSlot(s,c);
-  if(slot>=0){mixtureParticleWallReservoirs<DragModel,ConstantHeat>(s,c,slot,dt,dragActive,useCsr,useSplit);return;}
- }
  mixtureParticles::MacroReservoir<State> reservoir;
  mixtureParticleCouplingReservoir<DragModel,ConstantHeat>(s,c,dt,dragActive,useCsr,useSplit,team,reservoir);
 }
@@ -159,42 +165,44 @@ __device__ void mixtureParticleMacroReservoir(State&s,int c,double dt,bool drag,
  mixtureParticleCouplingReservoir<DragModel,ConstantHeat>(s,c,dt,drag,csr,split,team,reservoir);
 }
 template<class DragModel,bool ConstantHeat,class State>
-__global__ void mixtureParticleWallCouplingKernel(State*sp,double dt,bool drag,bool csr,bool split){
+__global__ void mixtureParticleWallMomentKernel(State*sp,double dt,bool drag,bool csr,bool split){
  if constexpr(mixtureParticles::HasWallReservoir<State>::value){
   State&s=*sp;const int slot=blockIdx.x*blockDim.x+threadIdx.x;
   if(slot>=s.gasBoundaryLayer.count)return;
   const int c=s.faceOwner[s.gasBoundaryLayerModel.faces[slot]];
-  // ownerSlot defines the existing wall reconstruction for this cell. Avoid
-  // assigning the same macro inventory twice where two wall faces share it.
   if(mixtureParticles::wallReservoirSlot(s,c)!=slot)return;
-  mixtureParticleWallReservoirs<DragModel,ConstantHeat>(s,c,slot,dt,drag,csr,split);
+  gatherWallParticleMomentResponse<DragModel>(s,c,slot,dt,drag,csr,split);
  }
 }
 template<class DragModel,bool ConstantHeat=true,bool Cooperative=false,class State>
 __global__ void mixtureParticleCouplingKernel
-(State*sp,double dt,bool dragActive,bool useCsr=true,bool useSplit=false,bool skipHeavy=false,bool spatialWalls=false){
+(State*sp,double dt,bool dragActive,bool useCsr=true,bool useSplit=false,bool skipHeavy=false){
  State&s=*sp;const int thread=blockIdx.x*blockDim.x+threadIdx.x;
 #if defined(__CUDACC__)
  if constexpr(Cooperative){
   for(int c=thread/32;c<s.nCells;c+=gridDim.x*(blockDim.x/32)){
-   if((!spatialWalls||mixtureParticles::wallReservoirSlot(s,c)<0)&&mixtureParticles::count(s,c,useCsr,useSplit)>=32)
+   if(mixtureParticles::count(s,c,useCsr,useSplit)>=32)
     mixtureParticleMacroReservoir<DragModel,ConstantHeat>(s,c,dt,dragActive,useCsr,useSplit,mixtureParticles::WarpCouplingTeam{});
   }
  }else
 #endif
- {const int c=thread;if(c<s.nCells&&(!spatialWalls||mixtureParticles::wallReservoirSlot(s,c)<0)&&(!skipHeavy||mixtureParticles::count(s,c,useCsr,useSplit)<32))
+ {const int c=thread;if(c<s.nCells&&(!skipHeavy||mixtureParticles::count(s,c,useCsr,useSplit)<32))
    mixtureParticleMacroReservoir<DragModel,ConstantHeat>(s,c,dt,dragActive,useCsr,useSplit,mixtureParticles::SerialCouplingTeam{});}
 }
 #if defined(__CUDACC__)
 template<class DragModel,bool ConstantHeat=true,class State>
-inline cudaError_t launchMixtureParticleCouplingCells(State*state,int cells,double dt,bool drag,bool csr,bool split,int walls=0){
+inline cudaError_t launchMixtureParticleWallMoments(State*state,int walls,double dt,bool drag,bool csr,bool split){
+ if(walls<=0)return cudaSuccess;
+ mixtureParticleWallMomentKernel<DragModel,ConstantHeat><<<(walls+63)/64,64>>>(state,dt,drag,csr,split);
+ return cudaGetLastError();
+}
+template<class DragModel,bool ConstantHeat=true,class State>
+inline cudaError_t launchMixtureParticleCouplingCells(State*state,int cells,double dt,bool drag,bool csr,bool split){
  if(cells<=0)return cudaSuccess;
- mixtureParticleCouplingKernel<DragModel,ConstantHeat><<<(cells+127)/128,128>>>(state,dt,drag,csr,split,true,walls>0);
+ mixtureParticleCouplingKernel<DragModel,ConstantHeat><<<(cells+127)/128,128>>>(state,dt,drag,csr,split,true);
  auto error=cudaGetLastError();if(error!=cudaSuccess)return error;
  const int groups=(cells+3)/4;
- mixtureParticleCouplingKernel<DragModel,ConstantHeat,true><<<groups<256?groups:256,128>>>(state,dt,drag,csr,split,false,walls>0);
- error=cudaGetLastError();if(error!=cudaSuccess)return error;
- if(walls>0)mixtureParticleWallCouplingKernel<DragModel,ConstantHeat><<<(walls+63)/64,64>>>(state,dt,drag,csr,split);
+ mixtureParticleCouplingKernel<DragModel,ConstantHeat,true><<<groups<256?groups:256,128>>>(state,dt,drag,csr,split,false);
  return cudaGetLastError();
 }
 #endif

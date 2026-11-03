@@ -31,6 +31,8 @@ template<class Real,int Ns,int MaxNodes=48> struct GasBoundaryLayerModelState
     Real particleIntervalDt=0,particleIntervalTime=0;
     bool particleCoupling=false; // current interval accepted exchange, cleared before its predictor
     Real* particleSource=nullptr; // wall*nodes*4, intrinsic impulse/energy per area/time
+    gaswall::detail::NodeParticleSourceResponse<Real>* particleResponse=nullptr; // frozen node moment source for wall residual
+    Real* particleFrozenBetaDt=nullptr; // per-parcel frozen response exponent for the final one-shot transaction
     Real* particleHeat=nullptr; // wall*nodes, actual thermal exchange, distinct from drag work
     Real* particleReservoir=nullptr; // wall*nodes*(Ns+7): volume,mass,P[3],E,T,species masses
     Real* profile=nullptr; // enabled-at-startup rows: y,U[3],T,k,omega,Y[Ns]

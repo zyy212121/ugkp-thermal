@@ -9,6 +9,7 @@
 #include "../gasNumerics/GpuSstAlgebra.cuh"
 
 namespace ugkwp { namespace gaswall {
+namespace detail { template<class R> struct FrozenDragResponse; template<class R> struct NodeParticleSourceResponse; }
 using WallReal=double;
 enum class WallFamily : int { LowRe=0, WallFunction=1, BoundaryLayer=2 };
 enum class BoundaryLayerModel : int { ConstantTransport=0, ReactingSst=1, FiniteRate=ReactingSst, EquilibriumOde=2 };
@@ -71,6 +72,8 @@ template<class R,int N,class TableReal=R> struct WallInput {
     // Frozen accepted particle exchange, per gas area/time and dual CV.
     // Rows: absolute-frame momentum[3], total energy. No species source.
     const TableReal* particleSource=nullptr;
+    // Optional frozen finite-bath drag response, one entry per node.
+    const detail::NodeParticleSourceResponse<R>* particleResponse=nullptr;
 
 };
 template<class R,int N> struct WallExchangeOutput {

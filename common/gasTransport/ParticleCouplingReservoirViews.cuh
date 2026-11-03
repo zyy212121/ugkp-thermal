@@ -21,6 +21,7 @@ template<class State> struct MacroReservoir {
 // and wall reservoirs; no wall-private drag/heat update exists.
 template<class State,int Ns,class Selector> struct NodeReservoir {
  ugkwp::ParticleThermalReservoir<Ns,double>& gas;const Selector& selector;
+ const double* frozenBetaDt=nullptr;
  double thermalExchange=0,reverseMomentum[3]{},reverseEnergy=0;
  __device__ bool member(const State&s,int i,int c)const{return mixtureParticles::member(s,i,c)&&selector(s,i);}
  __device__ double volume(const State&,int)const{return gas.volume;}
@@ -37,6 +38,10 @@ template<class State,int Ns,class Selector> struct NodeReservoir {
   double slip2=0;const double p[3]={s.pux[i],s.puy[i],s.puz[i]};for(int d=0;d<3;++d){const double v=velocity(s,c,d)-p[d];slip2+=v*v;}
   const ugkwpGpuDrag::DragInput input={density(s,c),viscosity(s),eps,s.rhoSolid,s.pd[i],::sqrt(slip2),1e-300,s.dragParameter0,s.dragParameter1,s.dragParameter2,s.dragParameter3};
   return fmax(0.,Drag::inverseResponseTime(input));
+ }
+ template<class Drag> __device__ double betaTime(const State&s,int c,int i,double eps,double dt)const{
+  if(frozenBetaDt&&frozenBetaDt[i]>=0)return frozenBetaDt[i];
+  return beta<Drag>(s,c,i,eps)*dt;
  }
  __device__ double heatFraction(const State&s,int c,int i,double dt)const{
   double y[Ns];fractions(y);const double mu=viscosity(s);const double cp=ugkwp::mixtureSpecificCp(y,gas.temperature,s.gasSpecies.thermo);

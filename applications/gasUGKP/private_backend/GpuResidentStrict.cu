@@ -2170,18 +2170,28 @@ int launchMixtureParticleCoupling(DeviceState* s,double dt,bool external=true,bo
     if(!directoryPrepared&&s->csrCellLocalPathEnabled==0 && binParticlesByCell(s,s->reductionBlockThreads,false))return 1;
     cudaError_t err=cudaSuccess;
     const bool dragActive=gasDragModelActive(s->hostDragModel);
-    const int walls=s->gasBoundaryLayer.enabled&&s->gasBoundaryLayerModel.particleSource?s->gasBoundaryLayer.count:0;
     if(s->hostDragModel==1)
         err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag>
-            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0,walls);
+            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0);
     else
         err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::SchillerNaumannDeviceDrag>
-            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0,walls);
+            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0);
     if(err!=cudaSuccess){setLastError("paired mixture/particle source",err);return 1;}
     if(external&&s->particleWorkGrid>0)
         mixtureParticleExternalKickKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,dt);
     err=cudaGetLastError();
     if(err!=cudaSuccess){setLastError("external particle force",err);return 1;}
+    return 0;
+}
+
+int gatherWallParticleMoments(DeviceState* s,double dt){
+    const int walls=s->gasBoundaryLayer.enabled&&s->gasBoundaryLayerModel.particleResponse?s->gasBoundaryLayer.count:0;
+    if(!walls)return 0;
+    const bool dragActive=gasDragModelActive(s->hostDragModel);
+    cudaError_t err=s->hostDragModel==1
+        ?launchMixtureParticleWallMoments<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag>(s->deviceState,walls,dt,dragActive,true,s->useSplitPreDirectory!=0)
+        :launchMixtureParticleWallMoments<ugkwpGpuDrag::SchillerNaumannDeviceDrag>(s->deviceState,walls,dt,dragActive,true,s->useSplitPreDirectory!=0);
+    if(err!=cudaSuccess){setLastError("read-only wall particle moment gather",err);return 1;}
     return 0;
 }
 
@@ -3432,6 +3442,29 @@ extern "C" const char* ugkwpGpuResidentStrictLastError()
 }
 
 #include "../../../common/GpuGasAdvance.cuh"
+
+int solveWallParticleMomentSource(DeviceState* s,double dt,double stageTime)
+{
+    auto& model=s->gasBoundaryLayerModel;
+    // The caller has already built the source-free predictor profile. Gather
+    // frozen drag and heat moments without changing either parcels or macro
+    // gas inventory; the ordinary macro stages apply their physical updates once.
+    if(binParticlesByCell(s,s->reductionBlockThreads,false))return 1;
+    if(gatherWallParticleMoments(s,dt))return 1;
+    model.particleCoupling=true;
+    publishWallParticleInterval<<<1,1>>>(s->deviceState,dt,stageTime+dt);
+    cudaError_t err=cudaGetLastError();
+    if(err!=cudaSuccess){setLastError("enable frozen wall response",err);return 1;}
+    ugkwp::invalidateGasBoundaryLayerPreparation(*s);
+    if(prepareGasTrialTransport<SharedGasTrialPolicy>(s,dt,stageTime)!=0)return 1;
+    // Parcel state remains untouched here. The ordinary macro moment relaxation
+    // runs once in the later particle stage; this response is only a wall closure.
+    if(std::getenv("UGKP_WALL_COUPLING_TRACE"))
+        std::fprintf(stderr,"wall particle node-moment source time=%.17g nodes=%d macro_relaxation=1\n",
+            stageTime+dt,model.config.nodes);
+    return 0;
+}
+
 
 template<class Kernel>
 int queryKernelBlocksPerSm
@@ -4831,9 +4864,9 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 #define UGKP_DEV_PROBE_LEAVE_IF(STAGE, EXECUTED) ((void)0)
 #endif
 
-    // Wall node exchange is a source-first Lie split. Its finite-bath
-    // transaction is completed once before flux stages; those stages consume
-    // the same accepted source, with no lag/replay on the following interval.
+    // Wall node moments are gathered read-only for the ODE source. The
+    // ordinary Eulerian moment closure and parcel relaxation apply their
+    // respective updates once in the macro stages below.
     const bool nodeParticleInterval=s->particlesMayBePresent
         &&s->gasSpecies.mode==ugkwp::GasMode::MixtureFrozen
         &&s->gasBoundaryLayer.enabled&&s->gasBoundaryLayerModel.particleSource;
@@ -4848,9 +4881,10 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         err=cudaGetLastError();if(err!=cudaSuccess){setLastError("wall particle source preparation",err);return 1;}
         ugkwp::invalidateGasBoundaryLayerPreparation(*s);
         if(prepareGasTrialTransport<SharedGasTrialPolicy>(s,dt,simulationTime-dt))return 1;
-        // Compaction can renumber parcels; rebuild the current directory before
-        // selecting spatial reservoirs. It remains valid through velocity updates.
-        if(binParticlesByCell(s,block,false)||launchMixtureParticleCoupling(s,dt,false,true))return 1;
+        // Gather node particle moments without mutating parcels or gas. The
+        // wall profile consumes this frozen source; macro relaxation occurs once
+        // later in the ordinary particle stage.
+        if(solveWallParticleMomentSource(s,dt,simulationTime-dt))return 1;
         publishWallParticleInterval<<<1,1>>>(s->deviceState,dt,simulationTime);
         err=cudaGetLastError();if(err!=cudaSuccess){setLastError("publish wall particle interval",err);return 1;}
     }
@@ -4896,12 +4930,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
 
-    if(pairedMixture)
-    {
-        computePressureGradientKernel<<<grid,block>>>(s->deviceState);
-        snapshotParticleGasCouplingStateKernel<<<grid,block>>>(s->deviceState);
-    }
-    if (dragActive && !pairedMixture)
+    if (dragActive)
     {
     computePressureGradientKernel<<<grid, block>>>(s->deviceState);
     err = cudaGetLastError();
@@ -4923,7 +4952,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
     }
-    else if (s->particleGasHeatTransferModelId != 0 && !pairedMixture)
+    else if (s->particleGasHeatTransferModelId != 0)
     {
         snapshotParticleGasCouplingStateKernel<<<grid, block>>>
         (
@@ -4940,7 +4969,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             return 1;
         }
     }
-    if (s->particleGasHeatTransferModelId != 0 && !pairedMixture)
+    if (s->particleGasHeatTransferModelId != 0)
     {
     applyEulerianParticleMaterialHeatKernel<<<grid, block>>>(s->deviceState, dt);
     err = cudaGetLastError();
@@ -5145,16 +5174,6 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_LEAVE(ProbeCollisionPool);
 
     UGKP_DEV_PROBE_ENTER(ProbeRelax);
-    if(pairedMixture)
-    {
-        if(!nodeParticleInterval){if(launchMixtureParticleCoupling(s,dt))return 1;}
-        else if(s->particleWorkGrid>0){
-            // Pressure/gravity is external work and retains its original phase.
-            mixtureParticleExternalKickKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,dt);
-            err=cudaGetLastError();if(err!=cudaSuccess){setLastError("external particle force",err);return 1;}
-        }
-    }
-    else
     if
     (
         particleGrid > 0
@@ -5178,6 +5197,11 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         {
             return 1;
         }
+    }
+    if(pairedMixture && particleGrid>0)
+    {
+        mixtureParticleExternalKickKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,dt);
+        err=cudaGetLastError();if(err!=cudaSuccess){setLastError("external particle force",err);return 1;}
     }
     UGKP_DEV_PROBE_LEAVE(ProbeRelax);
 

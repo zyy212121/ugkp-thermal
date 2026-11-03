@@ -69,6 +69,8 @@ try
         WALL_ALLOC(gasBoundaryLayerModel.acceptedHistory,historyValues);
         WALL_ALLOC(gasBoundaryLayerModel.candidateHistory,historyValues);
         if(a.model==2){
+            WALL_ALLOC(gasBoundaryLayerModel.particleResponse,std::size_t(a.wallCount)*a.nodes);
+            WALL_ALLOC(gasBoundaryLayerModel.particleFrozenBetaDt,s->particleCapacity);
             WALL_ALLOC(gasBoundaryLayerModel.particleSource,std::size_t(a.wallCount)*a.nodes*4);
             WALL_ALLOC(gasBoundaryLayerModel.particleHeat,std::size_t(a.wallCount)*a.nodes);
             WALL_ALLOC(gasBoundaryLayerModel.particleReservoir,std::size_t(a.wallCount)*a.nodes*(ugkwp::compiledGasSpecies+7));
@@ -107,6 +109,8 @@ try
         {
             in.massFlux[species]=speciesFlux[std::size_t(species)*a.wallCount+slot];
         }
+        if(a.model==2&&candidate.gasBoundaryLayerModel.particleResponse)
+            in.particleResponse=candidate.gasBoundaryLayerModel.particleResponse+std::size_t(slot)*a.nodes;
     }
     rc|=copyToDevice(model.input,inputs.data(),inputs.size(),"upload wall input descriptors");
     if(rc){discardBoundaryLayerCandidate(s,candidate);return 1;}
