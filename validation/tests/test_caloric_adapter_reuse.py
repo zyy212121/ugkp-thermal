@@ -38,7 +38,7 @@ def test_adapter_reuse_exact_secants(tmp_path):
         probe.write_text(((VALIDATION_ROOT / 'tests/fixtures/caloric_reuse/probe.cpp')).read_text().replace('ADAPTER_HEADER', str(header)))
         exe = tmp_path / (label + '-probe')
         frozen_includes = ['-I'+str(baseline/'applications/CHMT'),'-I'+str(baseline/'common')] if label=='base' else []
-        cmd = ['g++', '-O2', '-std=c++14', '-ffp-contract=off', '-D_GLIBCXX_ASSERTIONS',
+        cmd = ['g++', '-O2', '-std=c++17', '-ffp-contract=off', '-D_GLIBCXX_ASSERTIONS',
                '-I' + str(tmp_path / label), *frozen_includes, '-I' + str(ROOT / 'applications/CHMT'), '-I' + str(ROOT / 'applications/CHMT/materials'),
                '-I' + str(ROOT / 'common'), '-MMD', '-MF', str(tmp_path / (label + '.d')), str(probe), '-o', str(exe)]
         build = subprocess.run(cmd, capture_output=True, text=True)

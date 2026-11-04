@@ -36,10 +36,21 @@ def restart_fields(meta):
 
 
 def function_body(text, name):
-    match = re.search(r'\b' + re.escape(name) + r'\s*\([^;{}]*\)\s*\{', text)
-    if not match:
+    # A call inside an if-condition is not a definition. Match balanced
+    # parameters first, then require the opening body immediately afterwards.
+    start = None
+    for match in re.finditer(r'\b' + re.escape(name) + r'\s*\(', text):
+        depth, end = 1, match.end()
+        while end < len(text) and depth:
+            depth += (text[end] == '(') - (text[end] == ')')
+            end += 1
+        body = re.match(r'\s*\{', text[end:]) if depth == 0 else None
+        if body:
+            if start is not None:
+                raise ValueError('multiple definitions: ' + name)
+            start = end + body.end()
+    if start is None:
         raise ValueError('missing function: ' + name)
-    start = match.end()
     level = 1
     for index in range(start, len(text)):
         if text[index] == '{':
@@ -94,7 +105,7 @@ def lambda_definition(text, name):
 
 
 def build_probe(root, meta, app):
-    source = root / 'applications' / app / ('gpu' if app == 'CHT' else 'private_backend') / 'GpuResidentStrict.cu'
+    source = root / 'common/thermal/GpuResidentStrict.cu' if app == 'CHT' else root / 'applications' / app / 'private_backend/GpuResidentStrict.cu'
     text = source.read_text()
     state = text[text.index('struct DeviceState'):]
     state = state[:state.index('\n};')]

@@ -69,8 +69,10 @@ __global__ void direction(int n,const double* z,const double* recurrence,double*
     const int i=blockIdx.x*blockDim.x+threadIdx.x;
     if(i<n&&!recurrence[7])p[i]=recurrence[6]==0?z[i]:z[i]+(recurrence[0]/recurrence[2])*p[i];
 }
-__global__ void prepareStep(double* recurrence,double norm,double singularSmall){
+struct LocalSolveParameters {double norm,initial;ConjugateGradientControls controls;};
+__global__ void prepareStep(double* recurrence,double norm,double singularSmall,const LocalSolveParameters* parameters=nullptr){
     if(blockIdx.x||threadIdx.x||recurrence[7])return;
+    if(parameters){norm=parameters->norm;singularSmall=parameters->controls.singularSmall;}
     recurrence[5]=fabs(recurrence[1])/norm<singularSmall;
     if(!recurrence[5]){recurrence[3]=recurrence[0]/recurrence[1];recurrence[6]+=1;}
     recurrence[2]=recurrence[0];
@@ -103,9 +105,15 @@ __global__ void finishReduction(int n,const double* partial,double* result,const
     for(int stride=threads/2;stride;stride/=2){if(threadIdx.x<stride)values[threadIdx.x]+=values[threadIdx.x+stride];__syncthreads();}
     if(threadIdx.x==0)*result=values[0];
 }
-__global__ void finishIteration(double* recurrence,double norm,double initial,
-    ConjugateGradientControls controls,cudaGraphConditionalHandle handle){
+__global__ void gatherInterface(int count,const int* cells,const double* x,const double* y,double* packed){
+    const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count){packed[i]=x[cells[i]];packed[count+i]=y[cells[i]];}
+}
+__global__ void scatterInterface(int count,const int* cells,const double* packed,double* y){
+    const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)y[cells[i]]=packed[i];
+}
+__global__ void finishIteration(double* recurrence,const LocalSolveParameters* parameters,cudaGraphConditionalHandle handle){
     if(blockIdx.x||threadIdx.x||recurrence[7])return;
+    const auto controls=parameters->controls;const double norm=parameters->norm,initial=parameters->initial;
     const double residual=recurrence[4]/norm;
     const bool converged=residual<controls.tolerance ||
         (controls.relativeTolerance>controls.normalizationSmall&&residual<controls.relativeTolerance*initial);
@@ -122,9 +130,31 @@ struct SparseConjugateGradient::Implementation {
     std::vector<int> cachedOwner,cachedNeighbour,cachedBoundaryOwner,cachedBoundaryNeighbour;
     int cachedRows=-1,cachedEntries=0;
     DeviceArray<double> values,rowSum,x,b,r,z,p,ap,partial,result,recurrence;
-    std::vector<double> interfaceX,interfaceResult;
+    std::vector<double> interfaceX,interfaceResult,interfacePacked;
+    std::vector<int> cachedInterfaceCells;
+    DeviceArray<int> interfaceCells;
+    DeviceArray<double> interfaceDevice;
+    void configureInterface(int n,const SparseCommunication& comm){
+        if(!comm.addInterface||comm.interfaceCellCount<0)return;
+        const int count=comm.interfaceCellCount;
+        if(count&&!comm.interfaceCells)throw std::invalid_argument("missing compact interface cells");
+        std::vector<int> cells;if(count)cells.assign(comm.interfaceCells,comm.interfaceCells+count);
+        std::sort(cells.begin(),cells.end());
+        if((count&&(cells.front()<0||cells.back()>=n))||std::adjacent_find(cells.begin(),cells.end())!=cells.end())
+            throw std::invalid_argument("invalid compact interface cells");
+        if(cells!=cachedInterfaceCells){interfaceCells.upload(cells.data(),count,transfers);cachedInterfaceCells=std::move(cells);}
+        interfacePacked.resize(2*count);interfaceDevice.reserve(2*count);
+        interfaceX.resize(n);interfaceResult.resize(n);
+    }
+    DeviceArray<LocalSolveParameters> localParameters;
+    struct Graph {
+        cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;
+        void clear(){if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);executable=nullptr;graph=nullptr;}
+        ~Graph(){clear();}
+    } localGraph;
+    int graphRows=-1;std::vector<const void*> graphAddresses;
     Implementation(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfers.bind(stream);const auto status=cudaMallocHost(reinterpret_cast<void**>(&hostRecurrence),8*sizeof(double));if(status!=cudaSuccess){cudaStreamDestroy(stream);stream=nullptr;checked(status);}}
-    ~Implementation(){transfers.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}if(hostRecurrence)cudaFreeHost(hostRecurrence);}
+    ~Implementation(){transfers.discard();if(stream){cudaStreamSynchronize(stream);localGraph.clear();cudaStreamDestroy(stream);}if(hostRecurrence)cudaFreeHost(hostRecurrence);}
     void reduce(int n,int mode,const double* a,const double* other,double* output,
         const SparseCommunication& comm,double mean=0,const double* stop=nullptr){
         const int blocks=std::max(1,std::min(1024,(n+threads-1)/threads));partial.reserve(blocks);
@@ -143,12 +173,24 @@ struct SparseConjugateGradient::Implementation {
     void matvec(int n,const double* input,double* output,const SparseCommunication& comm,const double* stop=nullptr){
         if(n)multiply<<<(n+threads-1)/threads,threads,0,stream>>>(n,offsets.ptr,columns.ptr,values.ptr,input,output,stop);
         if(comm.addInterface){
-            interfaceX.resize(n);interfaceResult.resize(n);
-            if(n){transfers.download(interfaceX.data(),input,n*sizeof(double));
-                transfers.download(interfaceResult.data(),output,n*sizeof(double));}
-            transfers.finish();
-            comm.addInterface(comm.context,interfaceX.data(),interfaceResult.data(),n);
-            if(n)transfers.upload(output,interfaceResult.data(),n*sizeof(double));
+            if(comm.interfaceCellCount>=0){
+                const int count=int(cachedInterfaceCells.size());
+                if(count){gatherInterface<<<(count+threads-1)/threads,threads,0,stream>>>(count,interfaceCells.ptr,input,output,interfaceDevice.ptr);
+                    transfers.download(interfacePacked.data(),interfaceDevice.ptr,2*count*sizeof(double));}
+                transfers.finish();
+                for(int i=0;i<count;++i){const int c=cachedInterfaceCells[i];interfaceX[c]=interfacePacked[i];interfaceResult[c]=interfacePacked[count+i];}
+                comm.addInterface(comm.context,interfaceX.data(),interfaceResult.data(),n);
+                for(int i=0;i<count;++i)interfacePacked[i]=interfaceResult[cachedInterfaceCells[i]];
+                if(count){transfers.upload(interfaceDevice.ptr,interfacePacked.data(),count*sizeof(double));
+                    scatterInterface<<<(count+threads-1)/threads,threads,0,stream>>>(count,interfaceCells.ptr,interfaceDevice.ptr,output);}
+            }else{
+                interfaceX.resize(n);interfaceResult.resize(n);
+                if(n){transfers.download(interfaceX.data(),input,n*sizeof(double));
+                    transfers.download(interfaceResult.data(),output,n*sizeof(double));}
+                transfers.finish();
+                comm.addInterface(comm.context,interfaceX.data(),interfaceResult.data(),n);
+                if(n)transfers.upload(output,interfaceResult.data(),n*sizeof(double));
+            }
         }
     }
     void iteration(int n,double norm,double singularSmall,const SparseCommunication& comm,bool local=false){
@@ -159,7 +201,7 @@ struct SparseConjugateGradient::Implementation {
         if(n)direction<<<blocks,threads,0,stream>>>(n,z.ptr,recurrence.ptr,p.ptr);
         matvec(n,p.ptr,ap.ptr,comm,stop);
         reduce(n,2,ap.ptr,p.ptr,recurrence.ptr+1,comm,0,stop);
-        prepareStep<<<1,1,0,stream>>>(recurrence.ptr,norm,singularSmall);
+        prepareStep<<<1,1,0,stream>>>(recurrence.ptr,norm,singularSmall,local?localParameters.ptr:nullptr);
         if(n)update<<<blocks,threads,0,stream>>>(n,recurrence.ptr,p.ptr,ap.ptr,x.ptr,r.ptr);
         reduce(n,1,r.ptr,nullptr,recurrence.ptr+4,comm,0,stop);
     }
@@ -179,7 +221,7 @@ ConjugateGradientReport SparseConjugateGradient::solve(const SparseMatrixView& m
 }
 ConjugateGradientReport SparseConjugateGradient::solvePrepared(int n,double* solution,
     const ConjugateGradientControls& controls,const SparseCommunication& comm,const double* initialAffine){
-    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);const int blocks=(n+threads-1)/threads;
+    auto& d=*data_;d.configureInterface(n,comm);PinnedTransferQueue::Operation operation(d.transfers);const int blocks=(n+threads-1)/threads;
     d.x.upload(solution,n,d.transfers);
     d.r.reserve(n);d.z.reserve(n);d.p.reserve(n);d.ap.reserve(n);
     d.matvec(n,d.x.ptr,d.ap.ptr,comm);
@@ -195,15 +237,21 @@ ConjugateGradientReport SparseConjugateGradient::solvePrepared(int n,double* sol
     report.converged=converged();
     if(controls.minimumIterations>0||!report.converged){
         d.recurrence.reserve(8);checked(cudaMemsetAsync(d.recurrence.ptr,0,8*sizeof(double),d.stream));
-        struct Graph {
-            cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;
-            ~Graph(){if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);}
-        } graph;
+        auto& graph=d.localGraph;
         // Local solves retain the unchanged recurrence and every stopping
         // decision inside a conditional CUDA graph. MPI/interface callbacks
         // use the same kernels around the native host communication contract.
         const bool local=!comm.addInterface&&!comm.globalSum;
         if(local){
+            const LocalSolveParameters parameters{norm,report.initialResidual,controls};
+            d.localParameters.upload(&parameters,1,d.transfers);
+            // CSR topology is read at execution time. Capture depends only on
+            // row count, launch dimensions and device/host buffer addresses.
+            const std::vector<const void*> addresses={d.offsets.ptr,d.columns.ptr,d.values.ptr,d.rowSum.ptr,
+                d.r.ptr,d.z.ptr,d.p.ptr,d.ap.ptr,d.x.ptr,d.recurrence.ptr,d.partial.ptr,d.localParameters.ptr,d.hostRecurrence};
+            if(d.graphRows!=n||d.graphAddresses!=addresses){graph.clear();d.graphRows=n;d.graphAddresses=addresses;}
+        }
+        if(local&&!graph.executable){
             checked(cudaGraphCreate(&graph.graph,0));
             cudaGraphConditionalHandle handle;
             checked(cudaGraphConditionalHandleCreate(&handle,graph.graph,1,cudaGraphCondAssignDefault));
@@ -214,7 +262,7 @@ ConjugateGradientReport SparseConjugateGradient::solvePrepared(int n,double* sol
             cudaGraph_t body=parameters.conditional.phGraph_out[0];
             checked(cudaStreamBeginCaptureToGraph(d.stream,body,nullptr,nullptr,0,cudaStreamCaptureModeThreadLocal));
             d.iteration(n,norm,controls.singularSmall,comm,true);
-            finishIteration<<<1,1,0,d.stream>>>(d.recurrence.ptr,norm,report.initialResidual,controls,handle);
+            finishIteration<<<1,1,0,d.stream>>>(d.recurrence.ptr,d.localParameters.ptr,handle);
             checked(cudaStreamEndCapture(d.stream,&body));
             cudaGraphNode_t notification;
             checked(cudaGraphAddMemcpyNode1D(&notification,graph.graph,&loop,1,d.hostRecurrence,d.recurrence.ptr,

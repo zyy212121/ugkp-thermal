@@ -27,7 +27,7 @@ try
     {setLastErrorText("missing consumed boundaryLayer arrays or species values");return 1;}
     if(a.wallCount&&a.model==0&&(ugkwp::gasVariableViscosity(*s)||ugkwp::gasVariableDiffusivity(*s)||s->gasViscosity.prandtlSpecies>=0))
     {setLastErrorText("constantTransport wall is an analytic constant-transport limit; select equilibriumOde or reactingSst for variable transport");return 1;}
-    if(a.model>2){setLastErrorText("missing selected boundaryLayer model");return 1;}
+    if(a.model>2||a.equilibriumStressClosure>1){setLastErrorText("missing selected boundaryLayer model");return 1;}
     std::vector<int> owners(s->nFaces);
     if(copyToHost(owners.data(),s->faceOwner,owners.size(),"read wall owners"))return 1;
     if(s->diagnosticOwner->completeReadback(0,!owners.empty()))return 1;
@@ -61,6 +61,16 @@ try
     WALL_ALLOC(gasBoundaryLayer.status,a.wallCount);WALL_ALLOC(gasBoundaryLayer.speciesFlux,std::size_t(a.wallCount)*ugkwp::compiledGasSpecies);
     WALL_ALLOC(gasBoundaryLayerModel.input,a.wallCount);WALL_ALLOC(gasBoundaryLayerModel.output,a.wallCount);
     WALL_ALLOC(gasBoundaryLayerModel.status,a.wallCount);
+    WALL_ALLOC(gasBoundaryLayerModel.evaluationOutput,sizing.slots);
+    if(a.model==1&&s->hostTurbulenceModel==3)
+        WALL_ALLOC(gasBoundaryLayerModel.fluxProfile,std::size_t(a.wallCount)*3*(a.nodes+1));
+    if(a.model!=0){
+        const std::size_t historyValues=std::size_t(a.wallCount)*a.nodes*(ugkwp::compiledGasSpecies+4);
+        WALL_ALLOC(gasBoundaryLayerModel.acceptedHistory,historyValues);
+        WALL_ALLOC(gasBoundaryLayerModel.candidateHistory,historyValues);
+        WALL_ALLOC(gasBoundaryLayerModel.acceptedFrame,a.wallCount);
+        WALL_ALLOC(gasBoundaryLayerModel.candidateFrame,a.wallCount);
+    }
     model.workspaceCount=sizing.slots;
     model.workspaceCapacity=ugkwp::gasBoundaryLayerWorkspaceCapacity(a.nodes);
     unsigned char* scratch=nullptr;
@@ -100,6 +110,7 @@ try
     model.volumeSstClosure=a.model==1;
     w.useMacroSstInventory=true;
     model.config.model=static_cast<ugkwp::gaswall::BoundaryLayerModel>(a.model);
+    model.config.localStressCorrection=a.equilibriumStressClosure==1;
     model.config.nodes=a.nodes;model.config.maxIterations=a.maxIterations;
     model.config.relativeTolerance=a.relativeTolerance;model.config.absoluteTolerance=a.absoluteTolerance;
     model.config.stretch=a.stretch;model.config.turbulentPrandtl=a.turbulentPrandtl;
@@ -135,7 +146,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
     if(!diagnostics || !s->gasBoundaryLayer.exchange || !s->gasBoundaryLayerModel.input || !s->gasBoundaryLayerModel.output)
     {setLastErrorText("invalid boundaryLayer diagnostic dimensions");return 1;}
     std::vector<ugkwp::gaswall::WallInput<double,ugkwp::compiledGasSpecies>> input(walls);
-    std::vector<ugkwp::gaswall::WallOutput<double,ugkwp::compiledGasSpecies>> output(walls);
+    std::vector<ugkwp::gaswall::WallResidentOutput<double,ugkwp::compiledGasSpecies>> output(walls);
     std::vector<ugkwp::GasBoundaryLayerExchange<double>> exchange(walls);
     std::vector<int> faces(walls),owners(s->nFaces);
     if(copyToHost(input.data(),s->gasBoundaryLayerModel.input,walls,"read wall input")

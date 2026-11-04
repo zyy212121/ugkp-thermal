@@ -90,6 +90,40 @@ def main():
         reference=output/f'checkpoint-{indices[-1]}/state.chmt'
         resumed=restart/'chmtOutput'/f'checkpoint-{indices[-1]}/state.chmt'
         report['restart_checkpoint_byte_identical']=reference.read_bytes()==resumed.read_bytes()
-        assert report['restart_checkpoint_byte_identical']
+        # Wall-heat counters restart at zero. Their differenced ledger heat can
+        # round differently while every physical owner/history bit is unchanged.
+        # Prove that distinction with the production codec before allowing it.
+        probe=case/'physical-checksum.cpp';probe.write_text(r'''
+#include "restart/Checkpoint.C"
+#include <iostream>
+int main(int argc,char** argv){
+ if(argc!=2)return 2;
+ std::ifstream input(std::string(argv[1])+"/state.chmt",std::ios::binary|std::ios::ate);
+ chmt::Bytes data(size_t(input.tellg()));input.seekg(0);input.read(reinterpret_cast<char*>(data.data()),data.size());
+ chmt::Decoder decoder(data);decoder.offset=72;chmt::ModelConfig model;decoder(model);
+ if(decoder.integer(8)!=0x31474643504b4755ULL)return 3;
+ ugkp::thermal::visitParticlePhaseConfiguration(decoder,model.particlePhase);
+ ugkp::thermal::visitParticleContactConfiguration(decoder,model.particleContact);
+ chmt::HostState state;std::string error;if(!chmt::readCheckpoint(argv[1],model,state,error)){std::cerr<<error;return 4;}
+ state.ledger.clear();chmt::Encoder physical;physical(state);physical(state.gasTemperature);
+ for(const auto& p:state.particles)ugkp::thermal::visitParticleThermalHistory(physical,p.thermal);
+ std::cout.write(reinterpret_cast<const char*>(physical.data.data()),physical.data.size());
+}
+''')
+        exe=case/'physical-checksum'
+        subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT/'applications/CHMT'),'-I'+str(ROOT/'common'),str(probe),'-o',str(exe)],check=True)
+        physical_left=subprocess.check_output([exe,reference.parent]);physical_right=subprocess.check_output([exe,resumed.parent])
+        assert physical_left==physical_right,'restart changed physical owner or internal contact history'
+        left_ledger=table(output/f'exchange-{indices[-1]}.csv');right_ledger=table(restart/'chmtOutput'/f'exchange-{indices[-1]}.csv')
+        assert len(left_ledger)==len(right_ledger)
+        maximum=0.
+        for left,right in zip(left_ledger,right_ledger):
+            for key in left:
+                if key not in ('energy','conductive'):assert left[key]==right[key];continue
+                x,y=float(left[key]),float(right[key]);delta=abs(x-y)
+                assert delta<=64*2.220446049250313e-16*max(1.,abs(x),abs(y)),(key,x,y)
+                maximum=max(maximum,delta)
+        report['restart_physical_owner_bitwise_equal']=True
+        report['restart_ledger_max_absolute_difference_J']=maximum
     (case/'particle-results.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))
 if __name__=='__main__':main()

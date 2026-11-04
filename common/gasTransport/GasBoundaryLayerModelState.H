@@ -22,7 +22,9 @@ template<class Real,int Ns,int MaxNodes=48> struct GasBoundaryLayerModelState
     bool volumeSstClosure=false; // gas FV adapter; material/interface adapters retain their own closure
     bool useSuppliedWallState=false; // material adapters own Tw, absolute velocity and total Js
     gaswall::WallInput<Real,Ns>* input=nullptr;
-    gaswall::WallOutput<Real,Ns>* output=nullptr;
+    gaswall::WallResidentOutput<Real,Ns>* output=nullptr;
+    gaswall::WallOutput<Real,Ns>* evaluationOutput=nullptr; // bounded worker pool
+    Real* fluxProfile=nullptr; // three arrays of nodes+1, only for SST volume closure
     void* workspace=nullptr;
     int workspaceCapacity=MaxNodes; // allocated capacity bucket: 24, 48 or 128
     gaswall::WallStatus* status=nullptr;
@@ -103,7 +105,7 @@ UGKWP_GAS_HD UGKWP_WALL_WORKSPACE_CALL bool evaluateGasBoundaryLayerWorkspace(
     gaswall::WallReferenceScratch<Ns,Capacity>* scratch=nullptr,
     const Real* accepted=nullptr,gaswall::WallReferenceStats* statistics=nullptr,
     gaswall::coherent::Scratch<Capacity>* coherentScratch=nullptr,
-    gaswall::coherent::PersistentWallState<Capacity>* coherentWall=nullptr)
+    gaswall::coherent::PersistentWallState<Capacity>* coherentWall=nullptr,Real acceptedStress=0)
 {
     using ScalarExecution=std::integral_constant<bool,
         std::is_same<Team,gaswall::detail::SerialWallTeam>::value
@@ -119,6 +121,10 @@ UGKWP_GAS_HD UGKWP_WALL_WORKSPACE_CALL bool evaluateGasBoundaryLayerWorkspace(
         if constexpr(std::is_same<Real,gaswall::WallReal>::value){
             if(scratch&&statistics&&config.model==gaswall::BoundaryLayerModel::ReactingSst)
                 evaluated=gaswall::evaluateWallReference(input,config,workspace,*scratch,accepted,output,status,*statistics,team);
+            else if(config.model==gaswall::BoundaryLayerModel::ReactingSst)
+                evaluated=gaswall::evaluateReactingWallLayerImpl(input,config,workspace,output,status,team,accepted);
+            else if(config.model==gaswall::BoundaryLayerModel::EquilibriumOde)
+                evaluated=gaswall::evaluateEquilibriumOdeWallLayerImpl(input,config,workspace,output,status,team,accepted,acceptedStress);
             else evaluated=evaluateGasBoundaryLayerModelWithTeam(input,config,workspace,output,status,team,ScalarExecution{});
         }else evaluated=evaluateGasBoundaryLayerModelWithTeam(input,config,workspace,output,status,team,ScalarExecution{});
     }
@@ -169,10 +175,11 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerHistory(State&state,int slot,in
  auto&m=state.gasBoundaryLayerModel;auto&in=m.input[slot];auto&w=static_cast<gaswall::WallWorkspace<Real,Ns,Capacity>*>(m.workspace)[worker];
  auto* scratch=m.referenceScratch?static_cast<gaswall::WallReferenceScratch<Ns,Capacity>*>(m.referenceScratch)+worker:nullptr;
  gaswall::detail::LayerContext<Real,Ns>ctx;
- const bool reference=scratch&&m.acceptedHistory&&m.candidateHistory&&m.acceptedFrame&&m.candidateFrame&&m.referenceStats&&m.config.model==gaswall::BoundaryLayerModel::ReactingSst;
+ const bool historyOwned=m.acceptedHistory&&m.candidateHistory&&m.acceptedFrame&&m.candidateFrame;
+ const bool reference=scratch&&historyOwned&&m.referenceStats&&m.config.model==gaswall::BoundaryLayerModel::ReactingSst;
  const Real*history=nullptr;
  gaswall::WallHistoryFrame<Ns>frame;
- if(reference){
+ if(historyOwned){
    bool valid=false;if(team.leader())valid=gaswall::detail::prepareReactingWallInput<Capacity>(in,m.config,m.status[slot],gaswall::detail::SerialWallTeam{});
    if(!team.broadcast(valid))return false;
    if(!team.all(gaswall::detail::makeContext(in,m.config,ctx)))return false;
@@ -188,12 +195,21 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerHistory(State&state,int slot,in
  const bool coherentRoute=gasBoundaryLayerUsesCoherent(m,slot);
  auto* coherentScratch=coherentRoute?static_cast<gaswall::coherent::Scratch<Capacity>*>(m.coherentScratch)+worker:nullptr;
  auto* coherentWall=coherentRoute?static_cast<gaswall::coherent::PersistentWallState<Capacity>*>(m.coherentState)+slot:nullptr;
- const bool ok=evaluateGasBoundaryLayerWorkspace<Capture>(in,m.config,w,m.output[slot],m.status[slot],Capture?m.profile+std::size_t(slot)*m.config.nodes*(7+Ns):nullptr,team,scratch,history,reference?m.referenceStats+slot:nullptr,coherentScratch,coherentWall);
+ const bool ok=evaluateGasBoundaryLayerWorkspace<Capture>(in,m.config,w,m.evaluationOutput[worker],m.status[slot],Capture?m.profile+std::size_t(slot)*m.config.nodes*(7+Ns):nullptr,team,scratch,history,reference?m.referenceStats+slot:nullptr,coherentScratch,coherentWall,history?Real(m.acceptedFrame[slot].wallStress):Real(0));
+ if(ok&&team.leader()){
+   const int count=m.config.nodes+1;
+   auto* flux=m.fluxProfile?m.fluxProfile+std::size_t(slot)*3*count:nullptr;
+   gaswall::storeWallResidentOutput(m.evaluationOutput[worker],m.output[slot],flux,count);
+ }
+ team.sync();
  if(reference&&team.leader()&&m.referenceCounters){auto&total=m.referenceCounters[slot];const auto&v=m.referenceStats[slot];++total.solves;total.failures+=!ok||!v.converged;total.iterations+=v.iterations;total.residuals+=v.residualEvaluations;total.jacobians+=v.jacobianEvaluations;total.central+=v.centralDirections;total.history+=v.usedHistory;total.numericalHistory+=v.usedNumericalState;total.maxResidual=gaswall::detail::max(total.maxResidual,v.residual);}
- if(reference&&ok){
+ if(historyOwned&&ok){
    Real*next=m.candidateHistory+std::size_t(slot)*m.config.nodes*B;
    for(int i=team.rank();i<m.config.nodes;i+=team.size())for(int j=0;j<B;++j)next[i*B+j]=w.state[i][j];
-   team.sync();if(team.leader()){frame.valid=m.referenceStats[slot].converged;m.candidateFrame[slot]=frame;}
+   team.sync();if(team.leader()){
+       frame.valid=true;double stress2=0;for(int d=0;d<3;++d)stress2+=m.output[slot].traction[d]*m.output[slot].traction[d];
+       frame.wallStress=::sqrt(stress2);m.candidateFrame[slot]=frame;
+   }
  }
  team.sync();return ok;
 }
@@ -217,6 +233,7 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
     if(face<0 || face>=state.nFaces)return fail(GasTransportCode::InvalidStorage);
     const bool analytic=model.config.model==gaswall::BoundaryLayerModel::ConstantTransport;
     if((!analytic && (workspaceSlot<0 || workspaceSlot>=model.workspaceCount || !model.workspace))
+        || (!analytic && !model.evaluationOutput)
         || !model.input || !model.output || !model.status || !model.matchingOffsets
         || !model.matchingCells || !model.matchingWeights || !wall.sst || !wall.speciesFlux
         || !state.rho || !state.rhoE || !state.rhoUx || !state.rhoUy || !state.rhoUz || !state.Tgas
@@ -329,7 +346,11 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int 
     bool evaluated=false;
     if(analytic)
     {
-        if(team.leader())evaluated=gaswall::evaluateConstantTransportWall(in,model.config,model.output[slot],model.status[slot]);
+        if(team.leader()){
+            gaswall::WallOutput<Real,Ns> result;
+            evaluated=gaswall::evaluateConstantTransportWall(in,model.config,result,model.status[slot]);
+            if(evaluated)gaswall::storeWallResidentOutput(result,model.output[slot],static_cast<Real*>(nullptr),0);
+        }
         evaluated=team.broadcast(evaluated);
     }
     else if constexpr(Capacity>0)

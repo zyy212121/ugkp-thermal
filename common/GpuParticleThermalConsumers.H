@@ -30,36 +30,49 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleWallThermalPublication publishFiniteWal
     const Caloric& caloric
 )
 {
+    if (!(physicalMass>0.) || !finiteThermalCarry(physicalMass)
+        || !(parcelMass>=0.) || !finiteThermalCarry(parcelMass)
+        || !(conductanceIntegral>=0.) || !finiteThermalCarry(wallTemperature)
+        || !finiteThermalCarry(state.temperature) || !finiteThermalCarry(state.specificEnthalpyResidual))
+        return {false,0.};
     const double oldEnthalpy = effectiveParticleEnthalpy(state, caloric);
     const double oldTemperature = caloric.temperature(oldEnthalpy);
-    if (conductanceIntegral == 0.0 || wallTemperature == oldTemperature)
-    {
-        const auto publication = publishParticleThermalHeatImpl<true, true>
-            (state, 0.0, minimumTemperature, maximumTemperature, caloric);
-        return {publication.valid, 0.0};
+    if (!finiteThermalCarry(oldEnthalpy) || !finiteThermalCarry(oldTemperature)) return {false,0.};
+    if (conductanceIntegral==0.) return {true,0.};
+    // Preserve the small enthalpy carry without subtracting absolute enthalpies.
+    const double anchorCorrection=caloric.enthalpyIncrement(double(state.temperature),
+        oldTemperature-double(state.temperature))-state.specificEnthalpyResidual;
+    const double delta=wallTemperature-oldTemperature;
+    const double equilibriumHeat=caloric.enthalpyIncrement(oldTemperature,delta)+anchorCorrection;
+    const double cp=caloric.specificHeat(oldTemperature);
+    if (!(cp>0.) || !finiteThermalCarry(cp) || !finiteThermalCarry(equilibriumHeat)) return {false,0.};
+    const bool strong=conductanceIntegral/physicalMass>=cp;
+    double proposedSpecificHeat=equilibriumHeat;
+    if (finiteThermalCarry(conductanceIntegral)) {
+        double lower=delta<0.?delta:0.,upper=delta>0.?delta:0.;
+        for (int iteration=0;iteration<96;++iteration) {
+            const double middle=lower+.5*(upper-lower);
+            if(middle==lower||middle==upper)break;
+            const double heat=caloric.enthalpyIncrement(oldTemperature,middle)+anchorCorrection;
+            // Scale by the dominant coefficient; neither G*dT nor m*dh can overflow.
+            const double residual=strong ? (physicalMass/conductanceIntegral)*heat+(middle-delta)
+                : heat-(conductanceIntegral/physicalMass)*(delta-middle);
+            if(!finiteThermalCarry(residual))return {false,0.};
+            if(residual<0.)lower=middle;else upper=middle;
+        }
+        const double solvedDelta=lower+.5*(upper-lower);
+        // Heat from enthalpy in the strong limit, from flux in the weak limit.
+        proposedSpecificHeat=strong ? caloric.enthalpyIncrement(oldTemperature,solvedDelta)+anchorCorrection
+            : (conductanceIntegral/physicalMass)*(delta-solvedDelta);
     }
-    double lower = oldTemperature < wallTemperature ? oldTemperature : wallTemperature;
-    double upper = oldTemperature > wallTemperature ? oldTemperature : wallTemperature;
-    for (int iteration = 0; iteration < 64; ++iteration)
-    {
-        const double middle = lower + 0.5*(upper - lower);
-        const double residual = physicalMass*(caloric.enthalpy(middle) - oldEnthalpy)
-            + conductanceIntegral*(middle - wallTemperature);
-        if (residual < 0.0) lower = middle;
-        else upper = middle;
-        if (lower + 0.5*(upper - lower) == middle) break;
-    }
-    const double solvedTemperature = lower + 0.5*(upper - lower);
-    // The small flux stays small; subtracting two large absolute h values here
-    // would discard heat that the persistent carry is meant to retain.
-    const double proposedSpecificHeat =
-        conductanceIntegral*(wallTemperature - solvedTemperature)/physicalMass;
-    auto candidate = state;
-    const auto publication = publishParticleThermalHeatImpl<true, true>
-        (candidate, proposedSpecificHeat, minimumTemperature, maximumTemperature, caloric);
-    const double wallEnergy = -parcelMass*publication.acceptedSpecificHeat;
-    state = candidate;
-    return {publication.valid && finiteThermalCarry(wallEnergy), wallEnergy};
+    // Positive infinite conductance represents the zero-resistance ideal contact limit.
+    auto candidate=state;
+    const auto publication=publishParticleThermalHeatImpl<true>
+        (candidate,proposedSpecificHeat,minimumTemperature,maximumTemperature,caloric);
+    const double wallEnergy=-parcelMass*publication.acceptedSpecificHeat;
+    if(!publication.valid||!finiteThermalCarry(wallEnergy))return {false,0.};
+    state=candidate;
+    return {true,wallEnergy};
 }
 
 template<class Storage, class Caloric>

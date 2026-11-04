@@ -37,7 +37,7 @@ def test_real_openfoam_dispatch(tmp_path):
         pytest.skip('OpenFOAM environment unavailable')
     binary = tmp_path / 'foam'
     command = f'''{toolchain_setup()}
-    g++ -std=c++14 -pthread -DWM_DP -DWM_LABEL_SIZE=32 -I{ROOT}/common \
+    g++ -std=c++17 -pthread -DWM_DP -DWM_LABEL_SIZE=32 -I{ROOT}/common \
       -I$WM_PROJECT_DIR/src/OpenFOAM/lnInclude -I$WM_PROJECT_DIR/src/OSspecific/POSIX/lnInclude \
       {SOURCES}/test_foam.cpp -L$FOAM_LIBBIN -L$FOAM_LIBBIN/$FOAM_MPI -lOpenFOAM -lPstream -o {binary} && {binary}
     '''
@@ -168,6 +168,21 @@ def production_diagnostic_callsites():
                'clipPhysicsMassFraction':2,'gasRecordFaceFailure':3,
                'gasRecordEvaluatedFaceFailure':3,'gasRecordTransportDiagnostic':4,'failure':1,
                'gasEddyFinite':3,'gasProducerScalarValid':3,'gasStencilIndexFailure':3,'interfaceFailure':1,'materialInversionFailure':1,'reactionControlFailure':2}
+    # A logical diagnostic can be emitted by scalar/cooperative/reference
+    # implementations. Keep the shared IDs explicit; unrelated producers must
+    # obtain a new ID instead of silently inheriting another source's label.
+    shared={
+        2422:{'common/gasTransport/GasCoherentBoundaryLayer.H','common/gasWall/EquilibriumOdeWallLayer.H','common/gasWall/ReactingWallLayer.H'},
+        10015:{'common/gasWall/ReactingWallLayer.H'},
+        2419:{'common/gasWall/ReactingWallLayer.H'},
+        10012:{'common/gasWall/ReactingWallLayer.H','common/gasWall/WallCoherentSolver.H'},
+        2420:{'common/gasWall/ReactingWallLayer.H','common/gasWall/WallReferenceSolver.H'},
+        2421:{'common/gasWall/ReactingWallLayer.H','common/gasWall/WallReferenceSolver.H'},
+        10022:{'common/gasWall/ReactingWallLayer.H','common/gasWall/WallReferenceSolver.H'},
+        2668:{'common/operators/gasFaceSubgridTransportProperties.cuh'},
+        2603:{'common/operators/evaluateResidentBoundary.cuh','common/operators/makeGasPrimDevice.cuh'},
+        10050:{'common/operators/reconstructGasMixtureFace.cuh'},
+    }
     seen={}
     resolved_sources=set()
     for folder in ('common','applications'):
@@ -202,12 +217,13 @@ def production_diagnostic_callsites():
                     site=int(value[0])
                     if site!=1 and not 1000<=site<=65535:continue
                     location=(str(path.relative_to(ROOT)),source[:a+value.start()].count('\n')+1)
-                    assert site not in seen,(site,seen.get(site),location)
+                    if site in seen:
+                        assert site in shared and {seen[site][0],location[0]}<=shared[site],(site,seen.get(site),location)
                     seen[site]=location
     return seen
 
 
-def test_production_diagnostic_callsite_ids_are_unique():
+def test_production_diagnostic_callsites_are_registered_and_shared_explicitly():
     import re
     seen=production_diagnostic_callsites()
     catalogueIds={int(site) for site in re.findall(r'\{(\d+),"', (ROOT/'common/DiagnosticsCatalogue.H').read_text())}
@@ -232,7 +248,7 @@ def test_native_gas_boundary_layer_input_compiles(tmp_path):
     source.write_text('#include "BoundaryLayerInput.H"\n')
     setup=f'{toolchain_setup()}' if ENV.exists() else ':'
     command=f'''{setup}
-    g++ -std=c++14 -fsyntax-only -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 \\
+    g++ -std=c++17 -fsyntax-only -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 \\
       -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 \\
       -I$WM_PROJECT_DIR/src/finiteVolume/lnInclude -I$WM_PROJECT_DIR/src/meshTools/lnInclude \\
       -I$WM_PROJECT_DIR/src/OpenFOAM/lnInclude -I$WM_PROJECT_DIR/src/OSspecific/POSIX/lnInclude \\

@@ -5,7 +5,21 @@
 #include "gaussLaplacianScheme.H"
 #include "fvMesh.H"
 #include "fvSchemes.H"
+#include "fvmLaplacian.H"
 namespace ugkp { namespace gpu {
+// A scoped request follows the native runtime-selected Gauss/interpolation/
+// snGrad path. It exists only while constructing one equation, never in a
+// matrix-address cache; a nested or failed construction restores its parent.
+struct FoamTransientAssembly {
+    DiffusionTransientInput input;
+    bool consumed=false;
+    static FoamTransientAssembly*& active(){static thread_local FoamTransientAssembly* request=nullptr;return request;}
+    struct Scope {
+        FoamTransientAssembly* previous;
+        explicit Scope(FoamTransientAssembly& request):previous(active()){active()=&request;}
+        ~Scope(){active()=previous;}
+    };
+};
 // Retain OpenFOAM's selected interpolation, snGrad and boundary policies. The
 // cell/face matrix assembly and correction divergence execute on CUDA.
 class FoamImplicitDiffusion : public Foam::fv::gaussLaplacianScheme<Foam::scalar,Foam::scalar> {
@@ -36,7 +50,9 @@ public:
                 input.gradientInternal.push_back(internal[f]);input.gradientBoundary.push_back(boundary[f]);
             }
         }
-        static thread_local ImplicitDiffusion backend;DiffusionMatrix coefficients;backend.assemble(input,coefficients);
+        static thread_local ImplicitDiffusion backend;DiffusionMatrix coefficients;auto* transient=FoamTransientAssembly::active();
+        backend.assemble(input,coefficients,transient?&transient->input:nullptr);
+        if(transient)transient->consumed=true;
         tmp<fvScalarMatrix> result(new fvScalarMatrix(temperature,delta().dimensions()*gamma.dimensions()*mesh.magSf().dimensions()*temperature.dimensions()));
         auto& matrix=result.ref();
         forAll(matrix.diag(),c){matrix.diag()[c]=coefficients.diagonal[c];matrix.source()[c]=coefficients.source[c];}
@@ -62,6 +78,25 @@ inline void installGpuImplicitDiffusion(){
         return true;
     }();
     (void)installed;
+}
+inline void formGpuImplicitEquation(Foam::fvScalarMatrix&,const Foam::volScalarField&,
+    const Foam::volScalarField&,double,bool);
+// Both volume and face conductivity overloads preserve the native selected
+// interpolation and nonorthogonal correction. Only the unnecessary intermediate
+// matrix download/re-upload is removed; residual/flux consumers retain fvMatrix.
+template<class Conductivity> inline Foam::tmp<Foam::fvScalarMatrix> gpuImplicitThermalEquation(
+    const Conductivity& conductivity,const Foam::volScalarField& temperature,
+    const Foam::volScalarField& capacity,const Foam::volScalarField& rhs,
+    double dt,bool sourceFromCapacity=false){
+    std::vector<double> c(capacity.primitiveField().begin(),capacity.primitiveField().end());
+    std::vector<double> b(rhs.primitiveField().begin(),rhs.primitiveField().end());
+    FoamTransientAssembly request;request.input={&c,&b,dt,sourceFromCapacity};
+    FoamTransientAssembly::Scope scope(request);
+    auto result=Foam::fvm::laplacian(conductivity,temperature);
+    // A separately registered non-Gauss scheme owns its native assembly.
+    // Preserve that explicit dictionary selection and its existing completion.
+    if(!request.consumed)formGpuImplicitEquation(result.ref(),capacity,rhs,dt,sourceFromCapacity);
+    return result;
 }
 inline void formGpuImplicitEquation(Foam::fvScalarMatrix& matrix,const Foam::volScalarField& capacity,
     const Foam::volScalarField& rhs,double dt,bool sourceFromCapacity=false){

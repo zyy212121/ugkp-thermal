@@ -21,6 +21,7 @@ void check(int index,const Fixture& f,const WallModelConfig<double>& c,const Wor
  assert(std::abs(out.traceMassFraction[0]+out.traceMassFraction[1]-1)<1e-14);
  detail::LayerContext<double,2> ctx;assert(detail::makeContext(f.in,c,ctx));
  ctx.equilibriumWallStress=std::sqrt(out.traction[0]*out.traction[0]+out.traction[1]*out.traction[1]+out.traction[2]*out.traction[2]);
+ for(int a=0;a<2;++a)for(int d=0;d<3;++d)ctx.equilibriumWallTraction[a]+=out.traction[d]*ctx.tangent[a][d];
  detail::LayerFlux<double,2> first;
  assert(detail::intervalFlux(f.in,c,ctx,w.state[0],w.state[1],w.y[0],w.y[1],first));
  double energyActivity=std::max(1.,std::abs(first.energy));
@@ -82,4 +83,5 @@ int main(){
 #endif
   std::cout<<"index="<<index<<" ok="<<ok<<" iterations="<<status.iteration<<" residual="<<status.residual<<'\n';
  }
+ return 0;
 }

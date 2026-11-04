@@ -2165,15 +2165,14 @@ int launchMixtureParticleCoupling(DeviceState* s,double dt)
     // the existing full directory here instead of scanning the entire parcel
     // population for every cell in the new paired source.
     if(s->csrCellLocalPathEnabled==0 && binParticlesByCell(s,s->reductionBlockThreads,false))return 1;
-    const int block=s->fixedCellBlockThreads,grid=(s->nCells+block-1)/block;
+    cudaError_t err=cudaSuccess;
     const bool dragActive=gasDragModelActive(s->hostDragModel);
     if(s->hostDragModel==1)
-        mixtureParticleCouplingKernel<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag>
-            <<<grid,block>>>(s->deviceState,dt,dragActive,true,s->useSplitPreDirectory!=0);
+        err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag>
+            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0);
     else
-        mixtureParticleCouplingKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag>
-            <<<grid,block>>>(s->deviceState,dt,dragActive,true,s->useSplitPreDirectory!=0);
-    auto err=cudaGetLastError();
+        err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::SchillerNaumannDeviceDrag>
+            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0);
     if(err!=cudaSuccess){setLastError("paired mixture/particle source",err);return 1;}
     if(s->particleWorkGrid>0)
         mixtureParticleExternalKickKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,dt);

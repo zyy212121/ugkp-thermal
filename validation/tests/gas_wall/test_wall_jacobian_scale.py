@@ -10,6 +10,14 @@ CASES=json.loads((Path(__file__).parent/'fixtures/sst_near_zero_k_derivative.jso
 
 @pytest.mark.parametrize('capture',CASES,ids=lambda x:str(x['case']))
 def test_sqrt_k_derivative_has_a_resolvable_physical_scale(tmp_path,capture):
+    reference=capture['reference']
+    if capture['case']==94:
+        from independent_sst_k import derivative
+        old_equation=derivative(capture,legacy_face_average=True)
+        assert abs(old_equation-reference)<1e-7*abs(reference)
+        reference=derivative(capture)
+        # ffd64367 changed mean(rho)*mean(alpha)*mean(nut) to
+        # mean(rho*alpha*nut). The retained JSON records the former equation.
     values=capture['input'];statements=[]
     fields=['m.in.matchingDistance','m.in.ownerDistance','m.in.temperature','m.in.matching.temperature','m.in.matching.velocity[0]','m.in.matching.k','m.in.matching.omega']
     statements.extend(f'{name}={value!r};' for name,value in zip(fields,values))
@@ -24,7 +32,7 @@ def test_sqrt_k_derivative_has_a_resolvable_physical_scale(tmp_path,capture):
     assert(detail::assembleJacobianNode(m.in,c,ctx,w,NODE));
     const double derivative=w.diagonal[NODE][4][4],reference=REFERENCE;
     assert(std::isfinite(derivative)&&std::abs(derivative-reference)<.001*std::abs(reference));
-    }'''.replace('PROFILE',profile).replace('NODE',str(capture['node'])).replace('REFERENCE',repr(capture['reference'])))
+    }'''.replace('PROFILE',profile).replace('NODE',str(capture['node'])).replace('REFERENCE',repr(reference)))
     executable=tmp_path/'derivative'
     subprocess.run(['g++','-std=c++17','-O2','-ffp-contract=off','-Wall','-Wextra','-Werror','-I',str(SOURCE_ROOT),str(source),'-o',str(executable)],check=True,capture_output=True,text=True)
     result=subprocess.run([str(executable)],capture_output=True,text=True)

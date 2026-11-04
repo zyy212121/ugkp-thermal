@@ -203,7 +203,7 @@ def thermo_probe(tmp_path):
     source.write_text(SOURCE)
     binary = tmp_path / "probe"
     compile_result = subprocess.run(
-        ["g++", "-std=c++14", "-O2", "-Wall", "-Wextra", "-pedantic", "-DTEST_REAL="+'double',
+        ["g++", "-std=c++17", "-O2", "-Wall", "-Wextra", "-pedantic", "-DTEST_REAL="+'double',
          "-I"+str(ROOT), str(source), "-o", str(binary)], capture_output=True, text=True)
     assert compile_result.returncode == 0, compile_result.stderr
     return binary
@@ -238,6 +238,6 @@ __global__ void probe1(ugkwp::SpeciesThermoView<double,1> v,double* out) {evalua
 __global__ void probe2(ugkwp::SpeciesThermoView<double,2> v,double* out) {evaluate(v,out);}
 __global__ void probe10(ugkwp::SpeciesThermoView<double,10> v,double* out) {evaluate(v,out);}
 ''')
-    result = subprocess.run([nvcc, "-std=c++14", "-I"+str(ROOT), "-c", str(source),
+    result = subprocess.run([nvcc, "-std=c++17", "-I"+str(ROOT), "-c", str(source),
                              "-o", str(tmp_path / "thermo.o")], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr

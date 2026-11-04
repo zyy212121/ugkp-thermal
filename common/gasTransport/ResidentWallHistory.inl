@@ -1,4 +1,5 @@
-__global__ void commitAcceptedWallHistory(DeviceState*state){
+#pragma once
+template<class State> __global__ void commitAcceptedWallHistory(State*state){
  if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
  auto&m=state->gasBoundaryLayerModel;const int slot=blockIdx.x*blockDim.x+threadIdx.x;
  if(slot>=state->gasBoundaryLayer.count||!m.acceptedHistory||!m.candidateHistory||!m.candidateFrame||!m.acceptedFrame||!m.candidateFrame[slot].valid)return;

@@ -1,4 +1,10 @@
-"""Captured production-wall regression for Newton globalization; no field-comparison rerun."""
+"""Captured wall regression with current SST discretization.
+
+Heat reference is the independent NumPy/SciPy FV solve in
+validation/pr33/sst_heat_reference.py, not a refreshed production snapshot.
+Historical 653.7676567 predates ffd64367/0039dc68 conductance, work weighting,
+near-wall source integration and directed omega cross-diffusion changes.
+"""
 from pathlib import Path
 import subprocess
 from validation.tools.paths import SOURCE_ROOT
@@ -22,7 +28,7 @@ def test_captured_sst_input_converges_in_physical_domain(tmp_path):
     assert(ok&&!diagnostics.fatalClaim);
     assert(output.residual<=model.config.absoluteTolerance+model.config.relativeTolerance);
     assert(output.iterations>0&&output.iterations<model.config.maxIterations);
-    assert(std::abs(output.conductiveHeatFlux-653.76765672560316)<1e-6);
+    assert(std::abs(output.conductiveHeatFlux-674.8259379397244)<1e-6);
     assert(workspace.state[0][5]==0);
     for(int i=1;i<model.config.nodes;++i){assert(workspace.state[i][5]>0);assert(std::isfinite(workspace.state[i][5]));}
     ''')
@@ -72,18 +78,18 @@ def test_exhausted_mathematical_search_restores_current_residual(tmp_path):
     ''')
 
 
-def test_finite_iteration_budget_warns_and_keeps_normal_publication(tmp_path):
+def test_exhausted_iteration_budget_rejects_without_publication(tmp_path):
     run_cpp(tmp_path,r'''
     CapturedSstWall model;ugkp::diagnostics::DeviceContext diagnostics{};
     model.input.diagnostics=&diagnostics;model.config.maxIterations=0;
     ugkwp::gaswall::WallWorkspace<double,2,24> workspace{};
     ugkwp::gaswall::WallOutput<double,2> output{};ugkwp::gaswall::WallStatus status{};
-    assert(ugkwp::gaswall::evaluateReactingWallLayer(model.input,model.config,workspace,output,status));
-    assert(!diagnostics.fatalClaim&&diagnostics.warnings[1].count>0);
-    assert(diagnostics.warnings[1].sample.code==ugkp::diagnostics::Code::AccuracyResidual);
-    assert(diagnostics.warnings[1].sample.sourceSiteId==2422);
-    assert(output.residual>model.config.absoluteTolerance+model.config.relativeTolerance);
-    assert(std::isfinite(output.conductiveHeatFlux));
+    output.conductiveHeatFlux=123;
+    assert(!ugkwp::gaswall::evaluateReactingWallLayer(model.input,model.config,workspace,output,status));
+    assert(diagnostics.fatalClaim&&diagnostics.firstFatal.sourceSiteId==2422);
+    assert(status.code==ugkwp::gaswall::WallCode::NonConvergence);
+    assert(status.residual>model.config.absoluteTolerance+model.config.relativeTolerance);
+    assert(output.conductiveHeatFlux==123);
     assert(workspace.state[0][5]==0);
     for(int i=1;i<model.config.nodes;++i)assert(workspace.state[i][5]>0);
     ''')

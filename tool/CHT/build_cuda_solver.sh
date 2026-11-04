@@ -31,33 +31,33 @@ log="${log_dir}/cuda_solver_build_$(date +%Y%m%d_%H%M%S).log"
         probe_flags=(-DUGKP_DEVELOPMENT_PROBES=1)
     fi
     echo "[cuda-build] physical=64 time=64"
-    "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 --expt-relaxed-constexpr -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -O3 -lineinfo --fmad=false \
+    ugkp_nvcc "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 --expt-relaxed-constexpr -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -O3 -lineinfo --fmad=false \
         -arch="${cuda_arch}" -Xcompiler -fPIC "${probe_flags[@]}" \
         -I"${solver_root}/thermal" -I"${solver_root}/../../common" \
         -c "${solver_root}/gpu/GpuResidentStrict.cu" \
         -o "${obj_dir}/GpuResidentStrict.o"
-    "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 --expt-relaxed-constexpr -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -O3 -lineinfo --fmad=false \
+    ugkp_nvcc "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 --expt-relaxed-constexpr -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -O3 -lineinfo --fmad=false \
         -arch="${cuda_arch}" -Xcompiler -fPIC \
         -c "${solver_root}/gpu/GpuWallEnergy64.cu" \
         -o "${obj_dir}/GpuWallEnergy64.o"
-    "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false \
+    ugkp_nvcc "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false \
         -arch="${cuda_arch}" -Xcompiler -fPIC \
         -c "${source_root}/common/gpu/SparseConjugateGradient.cu" \
         -o "${obj_dir}/SparseConjugateGradient.o"
-    "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false \
+    ugkp_nvcc "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false \
         -arch="${cuda_arch}" -Xcompiler -fPIC \
         -c "${source_root}/common/gpu/SolidThermalProperties.cu" \
         -o "${obj_dir}/SolidThermalProperties.o"
-    "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false \
+    ugkp_nvcc "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false \
         -arch="${cuda_arch}" -Xcompiler -fPIC \
         -c "${source_root}/common/gpu/ImplicitDiffusion.cu" \
         -o "${obj_dir}/ImplicitDiffusion.o"
-    "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false \
+    ugkp_nvcc "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false \
         -arch="${cuda_arch}" -Xcompiler -fPIC \
         -c "${source_root}/common/gpu/ThermalFieldOperators.cu" \
         -o "${obj_dir}/ThermalFieldOperators.o"
     for unit in MieOpticalProperties DiscreteOrdinateRadiation ParticleRadiationMaterial; do
-        "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false \
+        ugkp_nvcc "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false \
             -arch="${cuda_arch}" -Xcompiler -fPIC \
             -c "${source_root}/common/gpu/${unit}.cu" -o "${obj_dir}/${unit}.o"
     done

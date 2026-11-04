@@ -7,7 +7,7 @@ def build_run(tmp_path, code, geometry=False):
     source = tmp_path / "review.cpp"
     source.write_text(code)
     exe = tmp_path / "review"
-    command = ["g++", "-std=c++14", "-O2", "-I" + str(SOURCE_ROOT / "applications/CHMT"), "-I" + str(SOURCE_ROOT / "common"), str(source)]
+    command = ["g++", "-std=c++17", "-O2", "-I" + str(SOURCE_ROOT / "applications/CHMT"), "-I" + str(SOURCE_ROOT / "common"), str(source)]
     if geometry:
         command += [str(SOURCE_ROOT / "applications/CHMT/mesh/Geometry.C")]
     subprocess.run(command + ["-o", str(exe)], check=True, capture_output=True, text=True)

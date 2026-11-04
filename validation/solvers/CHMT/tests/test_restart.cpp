@@ -87,20 +87,30 @@ int main(){
  require(readCheckpoint(directory,diffusive,restored,error),error);
  require(writeCheckpoint(directory,diffusive,restored,error),error);
  require(writeCheckpoint(directory,model,h,error)&&bytes(file)==original,"restore nondiffusive checkpoint");
- // Schema 5 canonical gas identity is serialized even when testing a material-only component.
- for(int change=0;change<9;++change){auto wrong=model;
+ // Physical identity is checked before publishing any restored owner state.
+ for(int change=0;change<13;++change){auto wrong=model;
   if(change==0)wrong.physics.gasThermoFingerprint=123;
   if(change==1)wrong.physics.species[0].nasa7[7]=99;
-  if(change==2)wrong.gasMechanismSource="different-mechanism.yaml";
+  if(change==2)wrong.gasMechanismSource="relocated-mechanism.yaml";
   if(change==3)wrong.gasPhase="different-phase";
   if(change==4)wrong.physics.gasMode=ugkwp::GasMode::MixtureChemistry;
   if(change==5)wrong.physics.gasMechanismFingerprint=987;
   if(change==6)wrong.gasMechanismSourceSha256="different-pinned-source";
   if(change==7)wrong.physics.gasChemistryControls.relativeTolerance*=2;
-  if(change==8)wrong.physics.singleGasSpecies=0;
+  if(change==8)wrong.physics.singleGasSpecies=model.physics.singleGasSpecies+1;
+  if(change==9)wrong.speciesNames[0]="different-species";
+  if(change==10)wrong.condensedNames[0]="different-material";
+  if(change==11)wrong.physics.condensed[0].e0+=1;
+  if(change==12)wrong.physics.species[0].element[0]+=1;
   HostState untouched;untouched.time=987;
-  require(readCheckpoint(directory,wrong,untouched,error),"changed metadata retains positional state decoding");
-  require(untouched.time==h.time&&sameBits(untouched.solidSweepRemainder,h.solidSweepRemainder),"metadata changes do not replace state values");
+  const bool accepted=readCheckpoint(directory,wrong,untouched,error);
+  if(change==2||change==7){
+   require(accepted,"path relocation and numerical controls preserve physical identity");
+   require(untouched.time==h.time&&sameBits(untouched.solidSweepRemainder,h.solidSweepRemainder),"allowed control changes preserve payload");
+  }else{
+   require(!accepted&&error.find("thermochemical identity")!=std::string::npos,"changed thermochemical identity rejected");
+   require(untouched.time==987,"identity rejection leaves destination unchanged");
+  }
  }
 
  // Wet and phase-boundary inventory states retain the geometry carry exactly.
