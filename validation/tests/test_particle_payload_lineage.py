@@ -56,6 +56,7 @@ constexpr Real OfSmall=Real(1e-12);
 namespace ugkwp {inline Real radialDistributionG0FromRatio(Real r){return 1/(1-r);}}
 namespace Foam{namespace gpuThermal{enum{particleWallMobile=0,coldWallAxialNodeCount=8,coldWallRadialRingCount=8,coldWall2DNodeCount=64,coldWall2DRadialNodeCount=8};}namespace gpuWall{template<class S>void publishWallBoundParticleIndex(S&s,int){++s.published;}}}
 struct DeviceState{
+ int particleInjectionVelocitySpecified=0; Real particleInjectionVelocity[3]={};
 FIELDS
  int nCells=1,nFaces=1,nInternalFaces=0,particleCapacity=4,nBoundarySources=1,coldWallSolidificationEnabled=1,coldWall2DEnabled=1,published=0;
  int count=2,compactCount=1,*particleCountDevice=&count,*compactCountDevice=&compactCount,compactCellOffset[2]={0,1},sortedParticleIndex[4]={2,0,0,0};
@@ -80,7 +81,8 @@ Real scheduledSolidVolumeFractionDevice(DeviceState&,double){return 0;}
  extra+='double particleSpecificEnthalpyDevice(Real t){return ugkwp::ParticleCaloric{}.enthalpy(double(t));}\n#include "GpuMaterialEnthalpyMoment.cuh"\n'
  extra+='Real particleMomentThetaDevice(const DeviceState&s,int i){return s.pTheta[i];}\n#define GPU_MOMENT_REAL Real\n#define GPU_MOMENT_R(x) Real(x)\n#define GPU_MOMENT_THERMAL 1\ndouble heat(DeviceState&s,int i){\n#include "GpuParticleMomentContribution.inl"\nreturn particleHeat;}\n'
  main='int main(){DeviceState s;'+''.join(init)+r'''
- const auto expectedRng=mixSeed(s.rngSeed^(0xd1b54a32d192ed03ULL+2ULL));
+ auto expectedRng=mixSeed(s.rngSeed^(0xd1b54a32d192ed03ULL+2ULL));
+ uniform01Device(expectedRng);
  injectBoundaryParticlesKernel(&s,1.,0.);assert(s.count==3&&s.sourceResidualMass[0]==0&&s.pRng[2]==expectedRng&&s.pOrigId[2]==2&&s.pT[2]==3000&&s.pStatus[2]==1&&s.pCellId[2]==0);
 '''
  if carry:main+='assert(s.pThermalEnthalpyResidual[2]==0);s.pThermalEnthalpyResidual[2]=.125;'

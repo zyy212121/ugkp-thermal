@@ -105,6 +105,7 @@ def test_actual_injection_initializes_reused_slot_without_other_solver_storage(t
 #define __device__
 #define __global__
 #define __forceinline__ inline
+#include "GpuFrozenParticleRelease.cuh"
 #define GPU_OPERATOR_REAL double
 #define GPU_OPERATOR_TIME double
 #define GPU_OPERATOR_R(x) static_cast<double>(x)
@@ -218,6 +219,7 @@ def test_actual_cold_profile_transitions_preserve_increment_and_legacy_reference
 #include <vector>
 #define __device__
 #define __forceinline__ inline
+#include "GpuFrozenParticleRelease.cuh"
 #define GPU_OPERATOR_REAL GpuReal
 #define GPU_OPERATOR_R(x) GPU_R(x)
 #define GPU_RESET_CONTACT_AGE(s,i) s.pContactAge[i]=0;
@@ -241,7 +243,7 @@ struct DeviceState {
 #include "operators/clearColdWallParticleState.cuh"
 BODIES2D
 #include "GpuParticleCaloricDevice.cuh"
-void detachParticle(DeviceState& s,int i){const bool detach=true;DETACH}
+void detachParticle(DeviceState& s,int i){const bool detach=true,releaseAtRest=false;DETACH}
 
 double schema7Temperature(const double temperature) {
  DECLARATIONS
