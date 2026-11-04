@@ -8,7 +8,7 @@ template<class R> UGKWP_GAS_HD inline R scaledExponentialIntegral(R x){
 }
 // Integral of exp(2*a*x) times the thermal Green function, multiplied by
 // expRatio(a)^2. Exponential factors are combined before evaluation.
-template<class R> UGKWP_GAS_HD inline bool constantWallHeatingLogFactor(R a,R b,R& value,bool normalizeConductance=false){
+template<class R> UGKWP_GAS_HD inline bool constantWallHeatingEvaluation(R a,R b,R& value,bool normalizeConductance,bool logarithmic){
     const R aa=abs(a);
     if(abs(b)>=R(.01)){
         const R da=-::expm1(-aa),db=-::expm1(-abs(b));
@@ -25,6 +25,7 @@ template<class R> UGKWP_GAS_HD inline bool constantWallHeatingLogFactor(R a,R b,
         // F and expRatio(b) can both underflow although their ratio is finite.
         const R normalization=normalizeConductance?::log(abs(b)/db):R(0);
         value=e+R(2)*::log(ratio)+::log(integral)-normalization;
+        if(!logarithmic)value=::exp(value);
         return gasFinite(value);
     }
     // Near b=0 the closed-form difference loses digits. Integrate in the
@@ -44,20 +45,26 @@ template<class R> UGKWP_GAS_HD inline bool constantWallHeatingLogFactor(R a,R b,
         }
         const R current=sum*end/(R(3)*R(intervals)*scale);
         if(previous>=0&&abs(current-previous)/R(15)<=R(1e-12)*max(abs(current),R(1e-300))){
-            value=R(2)*::log(ratio)+::log(current);
-            if(normalizeConductance)value-=::log(expRatio(b));
+            if(logarithmic){
+                value=R(2)*::log(ratio)+::log(current);
+                if(normalizeConductance)value-=::log(expRatio(b));
+            }else{
+                value=ratio*(ratio*current);
+                if(normalizeConductance)value/=expRatio(b);
+            }
             return gasFinite(value);
         }
         previous=current;
     }
     return false;
 }
-// Public factor probe retained; production combines all physical scales in log
-// space before exponentiation, since the standalone factor need not fit in R.
+template<class R> UGKWP_GAS_HD inline bool constantWallHeatingLogFactor(R a,R b,R& value,bool normalizeConductance=false){
+    return constantWallHeatingEvaluation(a,b,value,normalizeConductance,true);
+}
+// Keep the existing fixed-temperature factor arithmetic. Only adiabatic
+// temperature needs the logarithmic interface to combine all scales first.
 template<class R> UGKWP_GAS_HD inline bool constantWallHeatingFactor(R a,R b,R& value,bool normalizeConductance=false){
-    R logarithm=0;
-    if(!constantWallHeatingLogFactor(a,b,logarithm,normalizeConductance))return false;
-    value=::exp(logarithm);return gasFinite(value)&&value>=0;
+    return constantWallHeatingEvaluation(a,b,value,normalizeConductance,false);
 }
 }
 // Analytic frozen-composition constant-cp/transport limit, not the reacting SST model.
@@ -79,7 +86,7 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstan
     R du[3],normalDifference=0,speedScale=0;for(int d=0;d<3;++d){du[d]=in.matching.velocity[d]-in.velocity[d];normalDifference+=du[d]*in.normal[d];}
     for(int d=0;d<3;++d){du[d]-=normalDifference*in.normal[d];speedScale=detail::max(speedScale,detail::abs(du[d]));out.traction[d]=mu/length*detail::expRatio(a)*du[d];}
     R heating=0,adiabaticRise=0;
-    if(speedScale>0){
+    if(in.adiabatic&&speedScale>0){
         R logFactor=0,scaledSpeed2=0;
         for(int d=0;d<3;++d){const R component=du[d]/speedScale;scaledSpeed2+=component*component;}
         if(!detail::constantWallHeatingLogFactor(a,b,logFactor,in.adiabatic))return detail::fail(status,WallCode::NonConvergence);
@@ -87,7 +94,14 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstan
         const R logSpeed2=R(2)*::log(speedScale)+::log(scaledSpeed2);
         const R value=::exp(logFactor+logSpeed2+::log(mu)-::log(in.adiabatic?lambda:length));
         if(!gasFinite(value))return detail::fail(status,WallCode::InadmissibleState);
-        if(in.adiabatic)adiabaticRise=value;else heating=value;
+        adiabaticRise=value;
+    }else if(!in.adiabatic){
+        R speed2=0;for(int d=0;d<3;++d)speed2+=du[d]*du[d];
+        if(speed2>0){
+            R factor=0;
+            if(!detail::constantWallHeatingFactor(a,b,factor))return detail::fail(status,WallCode::NonConvergence);
+            heating=mu*speed2/length*factor;
+        }
     }
     const R thermalConductance=lambda/length*detail::expRatio(b);
     if(in.adiabatic){
