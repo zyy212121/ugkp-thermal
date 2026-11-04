@@ -41,7 +41,7 @@ CREATE_FIELDS = (
     ("double", "particleDiameterFallback"),
     ("double", "particleDiameterMin"),
     ("double", "particleDiameterMax"),
-    ("double", "particleDiameterSigma"),
+    ("double", "particleDiameterN"),
     ("double", "injectionTheta"),
     ("double", "rhoMin"),
     ("double", "TgasMin"),

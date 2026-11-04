@@ -239,7 +239,7 @@ bool handleCreate
         a.particleGasHeatTransferModelId, a.dragResidualRe,
         a.gravityX, a.gravityY, a.gravityZ,
         a.particleDiameterFallback, a.particleDiameterMin,
-        a.particleDiameterMax, a.particleDiameterSigma, a.injectionTheta,
+        a.particleDiameterMax, a.particleDiameterN, a.injectionTheta,
         a.rhoMin, a.TgasMin, a.epsSMin, a.thetaMin, a.TpMin, a.TpMax,
         a.collisionalPressureEnabled, a.collisionalRestitution,
         a.pressureKickFraction, a.jammingPressureEnabled,

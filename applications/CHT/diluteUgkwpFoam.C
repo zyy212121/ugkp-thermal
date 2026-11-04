@@ -1,3 +1,4 @@
+#include "FoamParticleDiameterDistribution.H"
 #include "fvCFD.H"
 #include "physicoChemicalConstants.H"
 #include "zeroGradientFvPatchFields.H"
@@ -174,8 +175,8 @@ int main(int argc, char *argv[])
             max(ugkwpProps.lookupOrDefault<scalar>("dMin", dS.value()), SMALL);
         const scalar dMaxStrict =
             max(ugkwpProps.lookupOrDefault<scalar>("dMax", dS.value()), dMinStrict);
-        const scalar dSigmaStrict =
-            max(ugkwpProps.lookupOrDefault<scalar>("dSigma", scalar(0)), scalar(0));
+        const scalar dnStrict =
+            readParticleDiameterShape(ugkwpProps);
         const scalar gpuResidentInjectionTheta =
             max
             (
@@ -651,7 +652,7 @@ int main(int argc, char *argv[])
             dS.value(),
             dMinStrict,
             dMaxStrict,
-            dSigmaStrict,
+            dnStrict,
             gpuResidentInjectionTheta,
             gpuResidentInjectionTp,
             rhoMinStrict,

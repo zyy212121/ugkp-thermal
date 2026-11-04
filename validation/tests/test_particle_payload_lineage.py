@@ -60,7 +60,7 @@ FIELDS
  int nCells=1,nFaces=1,nInternalFaces=0,particleCapacity=4,nBoundarySources=1,coldWallSolidificationEnabled=1,coldWall2DEnabled=1,published=0;
  int count=2,compactCount=1,*particleCountDevice=&count,*compactCountDevice=&compactCount,compactCellOffset[2]={0,1},sortedParticleIndex[4]={2,0,0,0};
  int sourceFace[1]={0},sourceCell[1]={0},nScheduledInletFaces=0,*scheduledInletFaceMask=nullptr;
- Real injectionParcelMass=Real(2),particleDiameterMin=Real(.001),particleDiameterMax=Real(.002),particleDiameterSigma=0,particleDiameterFallback=Real(.001),TpMin=200,TpMax=4000,rhoSolid=3000;
+ Real injectionParcelMass=Real(2),particleDiameterMin=Real(.001),particleDiameterMax=Real(.002),particleDiameterN=1,particleDiameterFallback=Real(.001),TpMin=200,TpMax=4000,rhoSolid=3000;
  unsigned long long rngSeed=31;
  Real gasBoundaryUx[1]={},gasBoundaryUy[1]={},gasBoundaryUz[1]={},sourceUx[1]={1},sourceUy[1]={2},sourceUz[1]={3},sourceTheta[1]={4},theta[1]={},Sfx[1]={-1},Sfy[1]={},Sfz[1]={},sourceMassRate[1]={2},sourceResidualMass[1]={0},sourcePx[1]={.1},sourcePy[1]={.2},sourcePz[1]={.3},Cx[1]={},Cy[1]={},Cz[1]={},sourceT[1]={3000},sourceD[1]={.001};
 };

@@ -10,6 +10,7 @@ struct ParticlePhaseConfiguration {
     std::uint64_t randomSeed=1;
     double injectionParcelMass=1e-10;
     double rhoSolid=3990,diameter=1e-4,minimumDiameter=1e-12,maximumDiameter=1;
+    double dn=1;
     double minimumTemperature=1,maximumTemperature=10000;
     int solveTemperature=1,dragModel=1,heatTransferModel=1;
     double dragResidualRe=1e-3,minimumSolidFraction=1e-12,minimumTheta=1e-12;
@@ -44,9 +45,10 @@ inline ParticlePhaseConfiguration particleModelIdentity(ParticlePhaseConfigurati
     return c;
 }
 template<class Archive,class Configuration>
-void visitParticlePhaseConfiguration(Archive& a,Configuration& c) {
+void visitParticlePhaseConfiguration(Archive& a,Configuration& c,bool includeRrShape=true) {
     a(c.capacity);a(c.maxFaceWalkHops);a(c.randomSeed);
     a(c.injectionParcelMass);a(c.rhoSolid);a(c.diameter);a(c.minimumDiameter);a(c.maximumDiameter);
+    if(includeRrShape)a(c.dn);
     a(c.minimumTemperature);a(c.maximumTemperature);
     a(c.solveTemperature);a(c.dragModel);a(c.heatTransferModel);a(c.dragResidualRe);
     a(c.minimumSolidFraction);a(c.minimumTheta);a(c.collisionalPressure);a(c.packingPressure);

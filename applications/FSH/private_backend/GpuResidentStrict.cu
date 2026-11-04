@@ -181,7 +181,7 @@ struct DeviceState
     double particleDiameterFallback = 0.0;
     double particleDiameterMin = 0.0;
     double particleDiameterMax = 0.0;
-    double particleDiameterSigma = 0.0;
+    double particleDiameterN = 1.0;
     double injectionTheta = 0.0;
     double rhoMin = 1.0e-12;
     double TgasMin = 1.0e-12;
@@ -2612,7 +2612,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     double particleDiameterFallback,
     double particleDiameterMin,
     double particleDiameterMax,
-    double particleDiameterSigma,
+    double particleDiameterN,
     double injectionTheta,
     double rhoMin,
     double TgasMin,
@@ -2658,6 +2658,12 @@ extern "C" int ugkwpGpuResidentStrictCreate
         return 1;
     }
 
+    if (particleDiameterMax > particleDiameterMin
+        && !(std::isfinite(particleDiameterN) && particleDiameterN > 0))
+    {
+        setLastErrorText("RR diameter shape dn must be finite and positive");
+        return 1;
+    }
     DeviceState* s = new DeviceState;
     s->particleTrackingKernel = reinterpret_cast<const void*>(trackParticlesLocalFaceWalkKernel<true>);
     s->diagnosticOwner = new ugkp::diagnostics::GpuOwner;
@@ -2723,7 +2729,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->particleDiameterFallback = particleDiameterFallback;
     s->particleDiameterMin = particleDiameterMin;
     s->particleDiameterMax = particleDiameterMax;
-    s->particleDiameterSigma = particleDiameterSigma;
+    s->particleDiameterN = particleDiameterN;
     s->injectionTheta = injectionTheta;
     s->rhoMin = rhoMin;
     s->TgasMin = TgasMin;

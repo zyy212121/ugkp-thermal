@@ -18,7 +18,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     double particleThermalRho, double particleCp, double gasMu,
     double gasPr, double particleDiameterFallback,
     double particleDiameterMin, double particleDiameterMax,
-    double particleDiameterSigma, double injectionTheta, double rhoMin,
+    double particleDiameterN, double injectionTheta, double rhoMin,
     double TgasMin, double epsSMin, double thetaMin, double TpMin,
     double TpMax, int collisionalPressureEnabled,
     double collisionalRestitution, double pressureKickFraction,

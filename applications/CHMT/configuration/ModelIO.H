@@ -1,4 +1,5 @@
 #include "FoamSommerfeldConfiguration.H"
+#include "FoamParticleDiameterDistribution.H"
 #ifndef CHMT_CONFIGURATION_MODELIO_H
 #define CHMT_CONFIGURATION_MODELIO_H
 #include "configuration/InputValues.H"
@@ -174,6 +175,7 @@ namespace chmt {
 #define CHMT_PARTICLE_NUMBER(name) t.name=readNumber(a,#name,t.name)
                 CHMT_PARTICLE_NUMBER(injectionParcelMass);
                 CHMT_PARTICLE_NUMBER(rhoSolid);CHMT_PARTICLE_NUMBER(diameter);
+                t.dn=Foam::readParticleDiameterShape(a);
                 CHMT_PARTICLE_NUMBER(minimumDiameter);CHMT_PARTICLE_NUMBER(maximumDiameter);
                 CHMT_PARTICLE_NUMBER(minimumTemperature);CHMT_PARTICLE_NUMBER(maximumTemperature);
                 CHMT_PARTICLE_NUMBER(dragResidualRe);CHMT_PARTICLE_NUMBER(minimumSolidFraction);

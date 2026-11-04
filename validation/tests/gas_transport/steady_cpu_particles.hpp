@@ -4,7 +4,7 @@ struct ParticleState : DeviceState {
  int particleCapacity=0,particleCount=0,*particleCountDevice=&particleCount,nBoundarySources=1,maxFaceWalkHops=1000;
  int solveParticleTemperature=1,particleGasHeatTransferModelId=1,dragModel=0;
  double rhoSolid=1000,invRhoSolid=.001,epsSMin=1e-12,particleThermalRho=1000,particleCp=1000,particleThermalCapacity=1e6;
- double particleDiameterFallback=.001,particleDiameterMin=.001,particleDiameterMax=.001,particleDiameterSigma=0;
+ double particleDiameterFallback=.001,particleDiameterMin=.001,particleDiameterMax=.001,particleDiameterN=1;
  double TpMin=1,TpMax=10000,gasPrOneThird=0,dragParameter0=0,dragParameter1=0,dragParameter2=0,dragParameter3=0,injectionParcelMass=1e-5;
  double referenceMaxCollisionProbability=0,thetaMin=1e-12;
  int*poolThermalCount=nullptr,*poissonPoolSampleTargetCount=nullptr;
