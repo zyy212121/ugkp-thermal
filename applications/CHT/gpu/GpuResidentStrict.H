@@ -1501,7 +1501,8 @@ protected:
                 thetaMin,
                 injectionTheta,
                 injectionTp,
-                TpMin
+                TpMin,
+                *particleWallProps
             );
         }
         if (enableParticleModule)
@@ -3864,10 +3865,11 @@ protected:
         const scalar thetaMin,
         const scalar injectionTheta,
         const scalar injectionTp,
-        const scalar TpMin
+        const scalar TpMin,
+        const dictionary& particleProperties
     )
     {
-        const auto injectionVelocity=readParticleInjectionVelocity(mesh);
+        const auto injectionVelocity=readParticleInjectionVelocity(particleProperties);
         check(ugkwpGpuResidentStrictConfigureParticleInjectionVelocity
           (handle_,injectionVelocity.specified,injectionVelocity.value.x(),
            injectionVelocity.value.y(),injectionVelocity.value.z()),

@@ -17,10 +17,8 @@ struct ParticleInjectionVelocitySetting {
  vector value=vector::zero;
  vector select(const vector& gas) const {return specified ? value : gas;}
 };
-inline ParticleInjectionVelocitySetting readParticleInjectionVelocity(const fvMesh& mesh) {
+inline ParticleInjectionVelocitySetting readParticleInjectionVelocity(const dictionary& properties) {
  ParticleInjectionVelocitySetting setting;
- if(!mesh.foundObject<IOdictionary>("particleProperties"))return setting;
- const auto& properties=mesh.lookupObject<IOdictionary>("particleProperties");
  setting.specified=properties.found("particleInjectionVelocity");
  if(setting.specified){
   setting.value=vector(properties.lookup("particleInjectionVelocity"));
@@ -28,5 +26,10 @@ inline ParticleInjectionVelocitySetting readParticleInjectionVelocity(const fvMe
    FatalErrorInFunction<<"particleInjectionVelocity must be a finite velocity vector in constant/particleProperties"<<exit(FatalError);
  }
  return setting;
+}
+// Registry lookup is an application adapter; parsing uses the owning dictionary.
+inline ParticleInjectionVelocitySetting readParticleInjectionVelocity(const fvMesh& mesh) {
+ if(!mesh.foundObject<IOdictionary>("particleProperties"))return {};
+ return readParticleInjectionVelocity(mesh.lookupObject<IOdictionary>("particleProperties"));
 }
 }
