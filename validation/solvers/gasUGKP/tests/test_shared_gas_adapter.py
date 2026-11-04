@@ -33,7 +33,19 @@ void setLastError(const char*s,int){last=s;}
 template<class T> int allocate(T*&p,std::size_t n,const char*){p=nullptr;if(!n)return 0;if(failAfter==0)return 1;if(failAfter>0)--failAfter;p=static_cast<T*>(std::malloc(n*sizeof(T)));if(!p)return 1;++allocations;return 0;}
 template<class T> int copyToDevice(T*d,const T*s,std::size_t n,const char*){if(copyFailAfter==0){copyFailAfter=-1;if(n)std::memcpy(d,s,sizeof(T));return 1;}if(copyFailAfter>0)--copyFailAfter;if(n)std::memcpy(d,s,n*sizeof(T));return 0;}
 template<class T> int copyToHost(T*d,const T*s,std::size_t n,const char*){if(hostCopyFailAfter==0){hostCopyFailAfter=-1;if(n)std::memcpy(d,s,sizeof(T));return 1;}if(hostCopyFailAfter>0)--hostCopyFailAfter;if(n)std::memcpy(d,s,n*sizeof(T));return 0;}
+// This adapter probe replaces only diagnostics completion (no CUDA work).
+// Storage allocation/copy/rollback and the complete species adapter are real.
+struct ProbeDiagnosticOwner {
+ int completions=0;
+ void recordHostFatal(const ugkp::diagnostics::Record&) {assert(false);}
+ void dispatchPending() {assert(false);}
+ int completeReadback(int status,bool copied) {if(copied)++completions;return status;}
+};
 struct DeviceState {
+ ProbeDiagnosticOwner diagnosticStorage;
+ ProbeDiagnosticOwner* diagnosticOwner=&diagnosticStorage;
+ ugkp::diagnostics::DeviceContext diagnosticContext{};
+ ugkp::diagnostics::DeviceContext* diagnostics=&diagnosticContext;
  ugkwp::GasSpeciesState<double,ugkwp::compiledGasSpecies> gasSpecies,gasRejectedView;
  bool gasModelPoisoned=false;
  DeviceState* deviceState=nullptr;
@@ -151,7 +163,7 @@ def test_model_configuration_and_reupload_preserve_storage_on_actual_failures(tm
     source=tmp_path/"adapter.cpp"
     source.write_text(ADAPTER_PROBE)
     binary=tmp_path/"adapter"
-    build=subprocess.run(["g++","-std=c++17","-Wall","-Wextra","-Werror","-I",str(ROOT),str(source),"-o",str(binary)],capture_output=True,text=True)
+    build=subprocess.run(["g++","-std=c++17","-Wall","-Wextra","-Werror","-I",str(ROOT),"-I",str(ROOT/"common"),str(source),"-o",str(binary)],capture_output=True,text=True)
     assert build.returncode==0,build.stderr
     run=subprocess.run([str(binary)],capture_output=True,text=True)
     assert run.returncode==0,run.stderr
@@ -225,6 +237,7 @@ int main(int argc,char**argv){
 
  // Start a distinct valid trial: the preceding missing-storage status is sticky.
  state.gasSpecies.cellStatus[0]=0;
+ ugkp::diagnostics::reset(state.diagnosticContext,0,0);
  // Complete positive chemistry after the same lifecycle, with no optional audit.
  double rho[2]={1,1},momentum[2]={0,0},energy[2]{};
  state.rho=rho;state.rhoUx=state.rhoUy=state.rhoUz=momentum;state.rhoE=energy;
@@ -252,7 +265,7 @@ int main(int argc,char**argv){
 }
 ''')
     binary=tmp_path/"reacting_adapter"
-    build=subprocess.run(["g++","-std=c++17","-DUGKWP_GAS_SPECIES=10","-Wall","-Wextra","-Werror","-I",str(ROOT),str(source),"-o",str(binary)],capture_output=True,text=True)
+    build=subprocess.run(["g++","-std=c++17","-DUGKWP_GAS_SPECIES=10","-Wall","-Wextra","-Werror","-I",str(ROOT),"-I",str(ROOT/"common"),str(source),"-o",str(binary)],capture_output=True,text=True)
     assert build.returncode==0,build.stderr
     run=subprocess.run([str(binary),str((SOURCE_ROOT / 'tool/chemistry/mechanisms'))],capture_output=True,text=True)
     assert run.returncode==0,run.stderr
@@ -304,7 +317,7 @@ def test_double_view_copy_failure_quarantines_live_storage_and_poisoned_resident
 }}
 ''')
     binary=tmp_path/"poison"
-    build=subprocess.run(["g++","-std=c++17","-Wall","-Wextra","-Werror","-I",str(ROOT),str(source),"-o",str(binary)],capture_output=True,text=True)
+    build=subprocess.run(["g++","-std=c++17","-Wall","-Wextra","-Werror","-I",str(ROOT),"-I",str(ROOT/"common"),str(source),"-o",str(binary)],capture_output=True,text=True)
     assert build.returncode==0,build.stderr
     run=subprocess.run([str(binary)],capture_output=True,text=True)
     assert run.returncode==0,run.stderr

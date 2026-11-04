@@ -40,6 +40,8 @@ particles {{attached {{id "42"; rng "1234567"; cell 0; face {face}; state {state
    if state==2:assert int(q['face'])==-1 and float(q['contact_age'])==0 and float(q['contact_duration'])==0
    release_error=None
    if state==2 and frozen:
+    # This is the first accepted output window, not an independent
+    # observation at the internal instant of release.
     released=inventory(output,1);r=released['parcels'][0]
     assert int(r['state'])==0 and all(float(r[k])==0 for k in ('ux','uy','uz'))
     # No heat is exchanged before this controlled release. Include the saved
@@ -55,7 +57,7 @@ particles {{attached {{id "42"; rng "1234567"; cell 0; face {face}; state {state
    for kind in ('gas','solid','particle'):
     assert abs(final[kind]-resumed[kind])<1e-10*max(1.,abs(final[kind]))
    assert q==resumed['parcels'][0]
-   report.append(dict(model=model,case=name,final=q,restart_equal=True,frozen_release_particle_energy_error_J=release_error,total_energy_change_J=sum(final[k]-first[k] for k in ('gas','solid','particle'))))
+   report.append(dict(model=model,case=name,final=q,restart_equal=True,first_window_frozen_particle_energy_error_J=release_error,total_energy_change_J=sum(final[k]-first[k] for k in ('gas','solid','particle'))))
  # Exercise actual configuration-to-kernel selection on fresh impacts.
  for threshold in ('0','false'):
   case=prepare(out/('impact-'+threshold),'coldWall1D',True,end_time=1e-5)
