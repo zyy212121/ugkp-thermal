@@ -1,4 +1,4 @@
-"""Native CHT contact/solid energy audit using this checkout's executable."""
+"""Native CHT gas/solid energy audit (particles disabled) using this checkout's executable."""
 import argparse, hashlib, json, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]

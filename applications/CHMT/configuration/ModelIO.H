@@ -233,7 +233,7 @@ namespace chmt {
             if(gas.mode==ugkwp::GasMode::SingleLegacy){
                 auto metadata=gas;metadata.mode=ugkwp::GasMode::MixtureFrozen;
                 require(bindSingleGasModel(metadata,text(d,"singleGasSpecies"),m,error),error);
-            } else bindSharedGasModel(gas,m,error);
+            } else require(bindSharedGasModel(gas,m,error),error);
             p.wallModel.enableSst=p.enableSst;p.wallModel.turbulentPrandtl=p.sst.turbulentPrandtl;
             p.wallModel.turbulentSchmidt=p.sst.turbulentSchmidt;
             return m;

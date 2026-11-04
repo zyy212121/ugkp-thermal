@@ -8,19 +8,23 @@ template<class R> UGKWP_GAS_HD inline R scaledExponentialIntegral(R x){
 }
 // Integral of exp(2*a*x) times the thermal Green function, multiplied by
 // expRatio(a)^2. Exponential factors are combined before evaluation.
-template<class R> UGKWP_GAS_HD inline bool constantWallHeatingFactor(R a,R b,R& value){
+template<class R> UGKWP_GAS_HD inline bool constantWallHeatingFactor(R a,R b,R& value,bool normalizeConductance=false){
     const R aa=abs(a);
     if(abs(b)>=R(.01)){
         const R da=-::expm1(-aa),db=-::expm1(-abs(b));
         const R ratio=aa==0?R(1):aa/da;
-        const R e0=b>0?max(R(0),R(2)*a-b)-R(2)*max(a,R(0)):R(0);
-        const R e1=b>0?R(2)*a-b-R(2)*max(a,R(0)):max(b,R(2)*a)-R(2)*max(a,R(0));
+        const R positive=R(2)*max(a,R(0)),negative=R(2)*min(a,R(0));
+        const R e0=b>0?(normalizeConductance?max(b-positive,negative):max(-positive,negative-b)):R(0);
+        const R e1=b>0?(normalizeConductance?negative:negative-b):max(b-positive,negative);
         const R e=max(e0,e1);
         const R f0=scaledExponentialIntegral(b>0?R(2)*a-b:R(2)*a);
         const R f1=scaledExponentialIntegral(b>0?R(2)*a:R(2)*a-b);
         const R integral=(::exp(e0-e)*f0-::exp(e1-e)*f1)/db;
         if(!(integral>0))return false;
-        value=::exp(e+R(2)*::log(ratio)+::log(integral));
+        // For an adiabatic wall, form F/expRatio(b) before exponentiation.
+        // F and expRatio(b) can both underflow although their ratio is finite.
+        const R normalization=normalizeConductance?::log(abs(b)/db):R(0);
+        value=::exp(e+R(2)*::log(ratio)+::log(integral)-normalization);
         return gasFinite(value)&&value>=0;
     }
     // Near b=0 the closed-form difference loses digits. Integrate in the
@@ -40,7 +44,9 @@ template<class R> UGKWP_GAS_HD inline bool constantWallHeatingFactor(R a,R b,R& 
         }
         const R current=sum*end/(R(3)*R(intervals)*scale);
         if(previous>=0&&abs(current-previous)/R(15)<=R(1e-12)*max(abs(current),R(1e-300))){
-            value=ratio*(ratio*current);return gasFinite(value)&&value>=0;
+            value=ratio*(ratio*current);
+            if(normalizeConductance)value/=expRatio(b);
+            return gasFinite(value)&&value>=0;
         }
         previous=current;
     }
@@ -65,18 +71,19 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstan
     const R a=m*length/mu,b=m*cp*length/lambda;
     R du[3],normalDifference=0,speed2=0;for(int d=0;d<3;++d){du[d]=in.matching.velocity[d]-in.velocity[d];normalDifference+=du[d]*in.normal[d];}
     for(int d=0;d<3;++d){du[d]-=normalDifference*in.normal[d];speed2+=du[d]*du[d];out.traction[d]=mu/length*detail::expRatio(a)*du[d];}
-    R heating=0;
+    R heating=0,adiabaticRise=0;
     if(speed2>0){
         R factor=0;
-        if(!detail::constantWallHeatingFactor(a,b,factor))return detail::fail(status,WallCode::NonConvergence);
-        heating=mu*speed2/length*factor;
+        if(!detail::constantWallHeatingFactor(a,b,factor,in.adiabatic))return detail::fail(status,WallCode::NonConvergence);
+        if(in.adiabatic)adiabaticRise=mu*speed2/lambda*factor;
+        else heating=mu*speed2/length*factor;
     }
     const R thermalConductance=lambda/length*detail::expRatio(b);
     if(in.adiabatic){
-        in.temperature=in.matching.temperature+heating/thermalConductance;
+        in.temperature=in.matching.temperature+adiabaticRise;
         if(!detail::trace(in,in.matching.massFraction,out,true))return detail::fail(status,WallCode::InvalidThermodynamics);
     }
-    out.conductiveHeatFlux=-thermalConductance*(in.matching.temperature-in.temperature)-heating;
+    out.conductiveHeatFlux=in.adiabatic?R(0):-thermalConductance*(in.matching.temperature-in.temperature)-heating;
     for(int j=0;j<N;++j){out.matchingSpeciesFlux[j]=in.massFlux[j];
         out.chemistryMismatch[j]=in.coarseReactionIntegral?-in.coarseReactionIntegral[j]:std::numeric_limits<R>::quiet_NaN();}
     out.chemistryMismatchAvailable=in.coarseReactionIntegral!=nullptr;

@@ -7,6 +7,24 @@ namespace chmt {
 // evaluations still call common MixtureThermo; no caloric formulas live here.
 inline bool bindSharedGasModel(const ugkwp::GasModelConfiguration& shared,
     ModelConfig& model,std::string& error) {
+    // Validate owning tables before any indexed access or model mutation.
+    if(shared.species.size()!=Ns||shared.speciesNames.size()!=Ns
+        ||shared.diffusionCoefficients.size()!=Ns){
+        error="shared gas species tables must match compiled CHMT species count";return false;
+    }
+    const std::size_t elements=shared.elementNames.size();
+    if(elements>Ne||shared.elementComposition.size()!=std::size_t(Ns)*elements){
+        error="shared gas element tables exceed CHMT capacity or have inconsistent dimensions";return false;
+    }
+    for(const auto& source:shared.species){
+        const std::size_t required=source.model==ugkwp::SpeciesThermoModel::LinearCp?3:
+            source.model==ugkwp::SpeciesThermoModel::NASA7?14:0;
+        if(!required||source.coefficientOffset<0
+            ||std::size_t(source.coefficientOffset)>shared.coefficients.size()
+            ||required>shared.coefficients.size()-std::size_t(source.coefficientOffset)){
+            error="shared gas thermodynamic coefficient range or model is invalid";return false;
+        }
+    }
     auto& physics=model.physics;
     physics.gasMode=shared.mode;physics.gasThermoFingerprint=shared.thermoHash;
     physics.gasChemistryControls=shared.chemistryControls;
@@ -34,7 +52,7 @@ inline bool bindSharedGasModel(const ugkwp::GasModelConfiguration& shared,
 inline bool bindSingleGasModel(const ugkwp::GasModelConfiguration& materialGas,
     const std::string& activeName,ModelConfig& model,std::string& error) {
     ModelConfig candidate=model;
-    bindSharedGasModel(materialGas,candidate,error);
+    if(!bindSharedGasModel(materialGas,candidate,error))return false;
     int active=-1;for(int s=0;s<Ns;++s)if(candidate.speciesNames[s]==activeName)active=s;
     if(active<0){error="singleGasSpecies is absent from materialGasProperties";return false;}
     candidate.physics.gasMode=ugkwp::GasMode::SingleLegacy;candidate.physics.singleGasSpecies=active;
