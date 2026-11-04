@@ -147,6 +147,17 @@ __device__ void finalizeOneThermalizedStuckParticle
             releaseUy -= GPU_OPERATOR_R(2.0)*relativeNormal*outwardNy;
             releaseUz -= GPU_OPERATOR_R(2.0)*relativeNormal*outwardNz;
         }
+        if (s.pStuck[i] == Foam::gpuThermal::particleWallTransientRebound)
+        {
+            const unsigned char model = s.particleStuckCandidateMask[faceI];
+            const GPU_OPERATOR_REAL frozenArea =
+                model == Foam::gpuThermal::particleWallSolidifyingDeposition
+                ? static_cast<GPU_OPERATOR_REAL>(s.pColdFrozenArea[i])
+                : model == Foam::gpuThermal::particleWallColdWall2D
+                ? static_cast<GPU_OPERATOR_REAL>(s.pCold2DFrozenArea[i]) : GPU_OPERATOR_R(0.0);
+            if (frozenArea > GPU_OPERATOR_R(0.0))
+                releaseUx = releaseUy = releaseUz = GPU_OPERATOR_R(0.0);
+        }
         s.pux[i] = releaseUx;
         s.puy[i] = releaseUy;
         s.puz[i] = releaseUz;

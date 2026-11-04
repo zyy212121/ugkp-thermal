@@ -1001,18 +1001,17 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
                 fmax(kinematicAreaM2, frozenFootprintAreaM2) - damageAreaM2;
             bool detach = false;
             bool enterLongDeposit = false;
+            bool releaseAtRest = false;
             if
             (
                 wallState
              == Foam::gpuThermal::particleWallTransientRebound
             )
             {
-                detach = !(effectiveContactAreaM2 > GPU_R(0.0));
-                enterLongDeposit =
-                    !detach
-                 && !(kinematicAreaM2 > GPU_R(0.0))
-                 && frozenFootprintAreaM2 > GPU_R(0.0);
-                longDepositAreaM2 = effectiveContactAreaM2;
+                const auto release = Foam::gpuThermal::reboundContactRelease
+                    (kinematicAreaM2, frozenFootprintAreaM2, damageAreaM2);
+                detach = release.detach;
+                releaseAtRest = release.atRest;
             }
             else
             {
@@ -1046,6 +1045,11 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
             transition = detach ? 1 : (enterLongDeposit ? 2 : 0);
             if (transition == 1)
             {
+                if (releaseAtRest) {
+                    s.puxOld[particleI] = GPU_R(0.0);
+                    s.puyOld[particleI] = GPU_R(0.0);
+                    s.puzOld[particleI] = GPU_R(0.0);
+                }
                 s.pux[particleI] = s.puxOld[particleI];
                 s.puy[particleI] = s.puyOld[particleI];
                 s.puz[particleI] = s.puzOld[particleI];
