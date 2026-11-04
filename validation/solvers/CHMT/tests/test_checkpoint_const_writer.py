@@ -104,8 +104,10 @@ bool measuredWriteCheckpoint(const std::string& directory,const ModelConfig& con
 
 def test_const_writer_exact_bytes_and_fewer_allocations(tmp_path):
     baseline = (APP/'restart/Checkpoint.C').read_text()
-    baseline = baseline.replace('Encoder configData,payload;configData(config);payload(state);',
-                                'ModelConfig model=config;HostState copy=state;Encoder configData,payload;configData(model);payload(copy);')
+    marker='Encoder configData,payload;'
+    assert baseline.count(marker)==1, 'copy-reference insertion must execute once'
+    baseline = baseline.replace(marker,'ModelConfig model=config;HostState copy=state;'+marker)
+    baseline = baseline.replace('configData(config);','configData(model);').replace('payload(state);','payload(copy);')
     before = _probe(tmp_path, 'base', baseline)
     after = _probe(tmp_path, 'current', (APP/'restart/Checkpoint.C').read_text())
     receipt = dict(base=BASE, before=before, after=after)

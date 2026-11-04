@@ -9,6 +9,13 @@ def main():
  out=args.output.resolve();out.mkdir(parents=True,exist_ok=False);report={'runs':[],'budgets':[],'parity':[]}
  def save():(out/'results.json').write_text(json.dumps(report,indent=2))
  def run(case,solver,mesh=False):
+  # Historical archived fixtures are monodisperse. Migrate only the copied
+  # input to the replacement RR spelling; do not rewrite saved evidence.
+  props=case/'constant/particleProperties'
+  text=props.read_text()
+  if 'dSigma' in text:
+   assert 'dSigma 0;' in text
+   props.write_text(text.replace('dSigma 0;','dn 1;'))
   r=m.run(ROOT/'bin'/solver,case,mesh);r.update(case=case.name,solver=solver,sha256=m.sha(ROOT/'bin'/solver));report['runs'].append(r);save();assert r['exit']==0,r
  for name,mass,diam,steps,slope,velocity in [('hot_constant',1e-6,.001,1,0,0),('hot_nonlinear',1e-6,.001,1,-.22,0),('closed_drag_heat',.001,.001,100,0,2)]:
   d=out/name;m.one_cell(d,mass,diam,steps,slope,velocity);run(d,'gasUGKP',True)
