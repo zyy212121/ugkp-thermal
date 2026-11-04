@@ -37,7 +37,7 @@ struct CoupledSurfaceDownload {
 // neither allocate nor copy nonlinear wall solver diagnostic arrays.
 struct CoupledWallDownload {
     GasWallMatchingSample matching{};
-    ugkwp::gaswall::WallOutput<Real,Ns> layer{};
+    ugkwp::gaswall::WallExchangeOutput<Real,Ns> layer{};
     int transportCode=0;
     ugkwp::gaswall::WallStatus status{};
 };

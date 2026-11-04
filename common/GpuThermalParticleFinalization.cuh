@@ -147,6 +147,32 @@ __device__ void finalizeOneThermalizedStuckParticle
             releaseUy -= GPU_OPERATOR_R(2.0)*relativeNormal*outwardNy;
             releaseUz -= GPU_OPERATOR_R(2.0)*relativeNormal*outwardNz;
         }
+        bool frozenRelease = false;
+        double frozenEnergy = 0.;
+        if (s.pStuck[i] == Foam::gpuThermal::particleWallTransientRebound)
+        {
+            const unsigned char model = s.particleStuckCandidateMask[faceI];
+            const GPU_OPERATOR_REAL frozenArea =
+                model == Foam::gpuThermal::particleWallSolidifyingDeposition
+                ? static_cast<GPU_OPERATOR_REAL>(s.pColdFrozenArea[i])
+                : model == Foam::gpuThermal::particleWallColdWall2D
+                ? static_cast<GPU_OPERATOR_REAL>(s.pCold2DFrozenArea[i]) : GPU_OPERATOR_R(0.0);
+            if (frozenArea > GPU_OPERATOR_R(0.0)) {
+                frozenRelease = true;
+                // The corrected pool velocity is a new mechanical allocation,
+                // separate from the saved impact/rebound reservoir. Thermalize
+                // its remaining lab-frame energy after adhesion and reflection
+                // before enforcing zero-speed release. Fluctuation energy alone
+                // omits the pool mean and cross terms.
+                const double rx = releaseUx, ry = releaseUy, rz = releaseUz;
+                const double cancelledPoolSpecificEnergy =
+                    0.5*(rx*rx + ry*ry + rz*rz);
+                frozenEnergy = frozenReleaseSpecificEnergy(s,i,
+                    model == Foam::gpuThermal::particleWallSolidifyingDeposition ? 8 : 64)
+                    + cancelledPoolSpecificEnergy;
+                releaseUx = releaseUy = releaseUz = GPU_OPERATOR_R(0.0);
+            }
+        }
         s.pux[i] = releaseUx;
         s.puy[i] = releaseUy;
         s.puz[i] = releaseUz;
@@ -164,6 +190,7 @@ __device__ void finalizeOneThermalizedStuckParticle
         s.pContactPeakFraction[i] = 0.0f;
         clearColdWallParticleState(s, i);
         clearColdWall2DParticleState(s, i);
+        if (frozenRelease) publishFrozenReleaseEnergy(s,i,frozenEnergy);
     }
     else
     {

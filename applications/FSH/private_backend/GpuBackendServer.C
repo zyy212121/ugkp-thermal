@@ -239,7 +239,7 @@ bool handleCreate
         a.particleGasHeatTransferModelId, a.dragResidualRe,
         a.gravityX, a.gravityY, a.gravityZ,
         a.particleDiameterFallback, a.particleDiameterMin,
-        a.particleDiameterMax, a.particleDiameterSigma, a.injectionTheta,
+        a.particleDiameterMax, a.particleDiameterN, a.injectionTheta,
         a.rhoMin, a.TgasMin, a.epsSMin, a.thetaMin, a.TpMin, a.TpMax,
         a.collisionalPressureEnabled, a.collisionalRestitution,
         a.pressureKickFraction, a.jammingPressureEnabled,
@@ -308,6 +308,19 @@ bool handleMesh(const int fd, const RequestHeader& request, ServerState& s)
         ptr(restitution), ptr(tangential), ptr(nx), ptr(ny), ptr(nz), ptr(d)
     );
     return responseHeader(fd,s, status, 0);
+}
+
+bool handleParticleInjectionVelocity
+(const int fd,const RequestHeader& request,ServerState& s)
+{
+ CountArgs a{};
+ if(!validatePayload(fd,s,request,WireCodec<CountArgs>::size+3*sizeof(double))
+    ||!readObject(fd,a))return false;
+ std::vector<double> velocity;
+ if(!readVector(fd,velocity,3))return false;
+ const int status=ugkwpGpuResidentStrictConfigureParticleInjectionVelocity
+   (s.backend,a.count,velocity[0],velocity[1],velocity[2]);
+ return responseHeader(fd,s,status,0);
 }
 
 bool handleBoundarySources
@@ -883,6 +896,7 @@ bool dispatch
         case Op::configureParticleStuckModel:
             return handleConfigureParticleStuckModel(fd,request,s);
         case Op::uploadBoundarySources:return handleBoundarySources(fd,request,s);
+        case Op::configureParticleInjectionVelocity:return handleParticleInjectionVelocity(fd,request,s);
         case Op::configureScheduledInlet:
             return handleScheduledInletConfiguration(fd,request,s);
         case Op::downloadSourceResidualMass:return handleDownloadResidual(fd,request,s);

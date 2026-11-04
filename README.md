@@ -229,15 +229,26 @@ The principal input files are:
 
 ### Particle distribution and injection
 
-The particle-size distribution is controlled by:
+Particle diameters use a doubly truncated Rosin–Rammler (RR) distribution:
 
-- `dS`: characteristic particle diameter;
-- `dMin`: lower diameter limit;
-- `dMax`: upper diameter limit;
-- `dSigma`: logarithmic distribution-width parameter.
+- `dS`: the untruncated 63.212% diameter scale;
+- `dMin` and `dMax`: the lower and upper truncation limits;
+- `dn`: the finite, positive shape exponent (default `1`).
 
-`parcelMass` or `injectionParcelMass` specifies the physical particle mass
-represented by one computational parcel.
+Where `dMeanCell` or a boundary diameter field supplies the local injection
+scale, that value is used instead of the global `dS`. Equal-mass computational
+parcels sample the represented **mass CDF**, not the number CDF. `parcelMass`
+or `injectionParcelMass` specifies the physical mass represented by one parcel.
+
+To migrate old lognormal configurations, remove `dSigma` (including `dSigma 0`)
+and specify the intended RR shape with `dn`; there is no automatic equivalent
+mapping from the old width to the new exponent. For a single diameter, set
+`dMin` and `dMax` equal to that diameter. Omitting both the old `dSigma` and the
+new `dn` now selects RR with `dn=1` when the limits differ, whereas the old
+omitted width selected a local single diameter. Thus old default configurations
+can change their distribution without a deprecated-key error. RR also consumes
+a different number of random draws, so cross-version stochastic trajectories
+are not guaranteed to match even with the same seed.
 
 Time-dependent inlet pressure and particle volume fraction are specified by
 `gpuResidentPressureTable` and `gpuResidentVolumeFractionTable`. The GPU uses

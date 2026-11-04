@@ -49,7 +49,7 @@ int main(){cudaCheck(cudaDeviceSetLimit(cudaLimitStackSize,65536));constexpr int
  v->gasPhiRho=alloc<double>(count);v->gasPhiRhoUx=alloc<double>(count);v->gasPhiRhoUy=alloc<double>(count);v->gasPhiRhoUz=alloc<double>(count);v->gasPhiRhoE=alloc<double>(count);v->gasSpecies.flux=alloc<double>(Ns*count);
  auto* faces=alloc<int>(count);auto* in=alloc<CoupledSurfaceInput>(count);auto* wallProgram=alloc<WallFaceSample>(2*count);auto* records=alloc<CoupledSurfaceRecord>(count);
  auto* downloads=alloc<CoupledSurfaceDownload>(count);auto* wallDownloads=alloc<CoupledWallDownload>(count);
- auto* wallInputs=alloc<ugkwp::gaswall::WallInput<Real,Ns>>(count);auto* layers=alloc<ugkwp::gaswall::WallOutput<Real,Ns>>(count);
+ auto* wallInputs=alloc<ugkwp::gaswall::WallInput<Real,Ns>>(count);auto* layers=alloc<ugkwp::gaswall::WallResidentOutput<Real,Ns>>(count);
  auto* exchanges=alloc<ugkwp::GasBoundaryLayerExchange<Real>>(count);auto* slots=alloc<int>(count);
  auto* wallStatuses=alloc<int>(count);auto* modelStatuses=alloc<ugkwp::gaswall::WallStatus>(count);
  v->gasBoundaryLayer.faceSlot=slots;v->gasBoundaryLayer.exchange=exchanges;v->gasBoundaryLayer.status=wallStatuses;

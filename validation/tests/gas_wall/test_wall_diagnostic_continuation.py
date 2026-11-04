@@ -34,7 +34,7 @@ def compile_run(tmp_path, body):
 
 
 @pytest.mark.parametrize('iterations',[0,1])
-def test_large_double_residual_publishes_every_physical_field(tmp_path,iterations):
+def test_large_double_residual_does_not_publish_unconverged_state(tmp_path,iterations):
     compile_run(tmp_path,r'''
  Model m;ugkp::diagnostics::DeviceContext diagnostic{};m.in.diagnostics=&diagnostic;
  m.in.integrateOwnerKSource=false;m.in.model.viscosity=1e20;m.in.model.conductivity=-.04;
@@ -46,16 +46,15 @@ def test_large_double_residual_publishes_every_physical_field(tmp_path,iteration
   assert(!evaluateReactingWallLayerImpl(in,controls,w,exact,exactStatus));
   assert(diagnostic.firstFatal.code==ugkp::diagnostics::Code::ZeroDenominator&&diagnostic.firstFatal.sourceSiteId==2421&&diagnostic.firstFatal.observed==0);
   assert(exact.traceTemperature==123);return 0;}
- assert(evaluateReactingWallLayerImpl(in,controls,w,exact,exactStatus));
- assert(std::isfinite(exact.residual)&&exact.residual>1e38);
- std::memset(static_cast<void*>(&out),0xA5,sizeof(out));assert(evaluateWallModel(m.in,c,w,out,status));
- physicalCast(out,exact);assert(status.code==WallCode::Success&&status.residual==exactStatus.residual);
- assert(std::isfinite(out.residual)&&out.residual>0&&out.residual==double(exact.residual));
- std::cout<<"residual64="<<status.residual<<" published_residual="<<out.residual<<" heat="<<out.conductiveHeatFlux<<'\n';
+ exact.traceTemperature=123;out.traceTemperature=124;
+ assert(!evaluateReactingWallLayerImpl(in,controls,w,exact,exactStatus));
+ assert(exactStatus.code!=WallCode::Success&&exact.traceTemperature==123);
+ diagnostic={};assert(!evaluateWallModel(m.in,c,w,out,status));
+ assert(status.code!=WallCode::Success&&out.traceTemperature==124);
 '''.replace('LIMIT',str(iterations)))
 
 
-def test_large_double_species_balance_preserves_public_value_audit(tmp_path):
+def test_large_species_demand_rejects_unconverged_publication(tmp_path):
     compile_run(tmp_path,r'''
  Model m;m.in.integrateOwnerKSource=false;m.in.temperature=m.in.matching.temperature=500;m.in.matching.velocity[0]=0;
  m.in.matchingDistance=1;m.in.ownerDistance=.5;m.in.massFlux[0]=3e38;m.in.massFlux[1]=-3e38;
@@ -65,18 +64,11 @@ def test_large_double_species_balance_preserves_public_value_audit(tmp_path):
  for(int j=0;j<6;++j)m.coef[j]=j%3==0?1000:0;
  WallModelConfig<double> c;c.nodes=3;c.maxIterations=0;WallWorkspace<double,2,3> w;WallOutput<double,2> out;WallStatus status;
  auto in=detail::wallComputationInput(m.in);auto controls=detail::wallComputationConfig(c);WallOutput<double,2> exact;
- assert(evaluateReactingWallLayerImpl(in,controls,w,exact,status));
- detail::LayerContext<double,2> ctx;detail::makeContext(in,controls,ctx);
- for(int i=0;i<3;++i)w.state[i][3]=1.8-1.5*w.y[i];
- double norm;assert(detail::allResidual(in,controls,ctx,w.state,w.y,w.residual,norm));
- assert(!ugkp::diagnostics::hasFatal(&diagnostic)&&diagnostic.warnings[2].count>0);
- // Finite fractions clip; the resulting physical fluxes retain their audit.
- assert(detail::publishLayer(in,controls,ctx,w,0,norm,exact,true));
- std::memset(static_cast<void*>(&out),0xA5,sizeof(out));assert(detail::publishWallPrecision(m.in,exact,out));physicalCast(out,exact);
- const double audit=double(out.matchingSpeciesFlux[0])-double(out.wallSpeciesFlux[0])-double(out.reactionIntegral[0]);
- assert(std::isfinite(audit)&&audit<-1e38);
- assert(out.speciesBalanceResidual[0]==double(audit)&&std::isfinite(out.speciesBalanceResidual[0])&&out.speciesBalanceResidual[0]<0);
- std::cout<<"audit64="<<audit<<" published_audit="<<out.speciesBalanceResidual[0]<<'\n';
+ exact.traceTemperature=917;out.traceTemperature=918;
+ assert(!evaluateReactingWallLayerImpl(in,controls,w,exact,status));
+ assert(exact.traceTemperature==917&&status.code!=WallCode::Success);
+ diagnostic={};assert(!evaluateWallModel(m.in,c,w,out,status));
+ assert(out.traceTemperature==918&&status.code!=WallCode::Success);
 ''')
 
 
@@ -97,15 +89,15 @@ def test_disabled_omega_channel_cannot_veto_complete_physics(tmp_path):
 ''')
 
 
-@pytest.mark.parametrize('iterations',[0,1])
-def test_optional_chemistry_mismatch_overflow_preserves_physical_profile(tmp_path,iterations):
+@pytest.mark.parametrize('rate',[0,20])
+def test_optional_nonfinite_chemistry_audit_preserves_physical_profile(tmp_path,rate):
     compile_run(tmp_path,r'''
  Model m;m.in.integrateOwnerKSource=false;m.in.temperature=m.in.matching.temperature=500;m.in.matching.velocity[0]=0;
- m.in.model.mode=GasMode::MixtureChemistry;m.rx[0].highRate.preExponential=1e307;
- WallModelConfig<double> c;c.nodes=3;c.maxIterations=LIMIT;WallWorkspace<double,2,3> w;
+ m.in.model.mode=GasMode::MixtureChemistry;m.rx[0].highRate.preExponential=RATE;
+ WallModelConfig<double> c;c.nodes=3;c.maxIterations=100;WallWorkspace<double,2,3> w;
  WallOutput<double,2> plain,out;WallStatus status;
  assert(evaluateWallModel(m.in,c,w,plain,status));const auto savedStatus=status;
- double coarse[2]={0,-std::numeric_limits<double>::max()};m.in.coarseReactionIntegral=coarse;
+ double coarse[2]={0,-std::numeric_limits<double>::infinity()};m.in.coarseReactionIntegral=coarse;
  std::memset(static_cast<void*>(&out),0xA5,sizeof(out));assert(evaluateWallModel(m.in,c,w,out,status));
  physicalCast(out,plain);assert(status.code==WallCode::Success&&status.residual==savedStatus.residual);
  assert(out.residual==plain.residual&&out.chemistryMismatchAvailable&&!plain.chemistryMismatchAvailable);
@@ -114,19 +106,19 @@ def test_optional_chemistry_mismatch_overflow_preserves_physical_profile(tmp_pat
  assert(std::isinf(out.chemistryMismatch[1])&&out.chemistryMismatch[1]>0);
  // Adapter must preserve the same actual diagnostic even without narrowing.
  WallOutput<double,2> converted;assert(detail::publishWallPrecision(m.in,out,converted));sameOutput(out,converted);
-'''.replace('LIMIT',str(iterations)))
+'''.replace('RATE',str(rate)))
 
 
 def test_large_finite_chemistry_mismatch_preserves_physics(tmp_path):
     compile_run(tmp_path,r'''
  Model m;m.in.integrateOwnerKSource=false;m.in.temperature=m.in.matching.temperature=500;m.in.matching.velocity[0]=0;
- m.in.model.mode=GasMode::MixtureChemistry;m.rx[0].highRate.preExponential=1e38;
- WallModelConfig<double> c;c.nodes=3;c.maxIterations=0;WallWorkspace<double,2,3> w;WallOutput<double,2> plain,out;WallStatus status;
+ m.in.model.mode=GasMode::MixtureChemistry;m.rx[0].highRate.preExponential=20;
+ WallModelConfig<double> c;c.nodes=3;c.maxIterations=100;WallWorkspace<double,2,3> w;WallOutput<double,2> plain,out;WallStatus status;
  assert(evaluateWallModel(m.in,c,w,plain,status));
  double coarse[2]={0,-3e38};m.in.coarseReactionIntegral=coarse;
  auto in=detail::wallComputationInput(m.in);auto controls=detail::wallComputationConfig(c);WallOutput<double,2> exact;
  assert(evaluateReactingWallLayerImpl(in,controls,w,exact,status));assert(std::isfinite(exact.chemistryMismatch[1]));
- assert(exact.chemistryMismatch[1]>3e38);
+ assert(exact.chemistryMismatch[1]==3e38);
  std::memset(static_cast<void*>(&out),0xA5,sizeof(out));assert(evaluateWallModel(m.in,c,w,out,status));physicalCast(out,exact);
  assert(out.chemistryMismatchAvailable&&out.chemistryMismatch[1]==exact.chemistryMismatch[1]);
  assert(out.reactionIntegral[0]==plain.reactionIntegral[0]&&out.matchingSpeciesFlux[0]==plain.matchingSpeciesFlux[0]);

@@ -63,7 +63,7 @@ int main(int argc,char**argv){
  }catch(const std::exception& e){std::cerr<<e.what();return 2;}
 }
 ''')
-    result=subprocess.run(['g++','-std=c++14','-Wall','-Wextra','-Werror',str(source),'-o',str(binary)],capture_output=True,text=True)
+    result=subprocess.run(['g++','-std=c++17','-Wall','-Wextra','-Werror',str(source),'-o',str(binary)],capture_output=True,text=True)
     assert result.returncode==0,result.stderr
     return binary
 

@@ -9,11 +9,11 @@ namespace ugkwp
 // Publish physical-wall exchange, not matching flux or auxiliary chemistry.
 // normalSweepRate is grid velocity dot MATERIAL->GAS normal, in m/s.
 // All stored fluxes are outward integrated rates, matching common gas kernels.
-template<class State,class Real,int Ns>
+template<class State,class Real,int Ns,class Output>
 UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
 (
     const State& state,int slot,const gaswall::WallInput<Real,Ns>& input,
-    const gaswall::WallOutput<Real,Ns>& output,Real area,Real normalSweepRate
+    const Output& output,Real area,Real normalSweepRate
 )
 {
     auto& wall=state.gasBoundaryLayer;

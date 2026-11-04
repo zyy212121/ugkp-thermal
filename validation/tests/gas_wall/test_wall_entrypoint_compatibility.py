@@ -51,7 +51,7 @@ int main(){
     source = tmp_path/'entrypoints.cpp'
     source.write_text(model+body)
     exe = source.with_suffix('')
-    build = subprocess.run(['g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror',
+    build = subprocess.run(['g++', '-std=c++17', '-O2', '-Wall', '-Wextra', '-Werror',
                             '-I', str(ROOT),
                             '-I', str(ROOT/'common'), str(source), '-o', str(exe)],
                            capture_output=True, text=True)

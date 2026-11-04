@@ -54,8 +54,24 @@ int main(int argc,char** argv){
         double cpuSeconds=0,gpuSeconds=0,maxError=0;int nativeIterations=0,deviceIterations=0;
         for(int correction=0;correction<4;++correction){
             fvScalarMatrix native(fvm::Sp(capacity/dt,cpu)-static_cast<fv::laplacianScheme<scalar,scalar>&>(nativeDiffusion).fvmLaplacian(kappa,cpu)==source);
-            fvScalarMatrix device(static_cast<fv::laplacianScheme<scalar,scalar>&>(deviceDiffusion).fvmLaplacian(kappa,gpu));
-            ugkp::gpu::formGpuImplicitEquation(device,capacity,source,dt.value());
+            fvScalarMatrix sequential(static_cast<fv::laplacianScheme<scalar,scalar>&>(deviceDiffusion).fvmLaplacian(kappa,gpu));
+            ugkp::gpu::formGpuImplicitEquation(sequential,capacity,source,dt.value());
+            std::vector<double> c(capacity.begin(),capacity.end()),rhs(source.begin(),source.end());
+            ugkp::gpu::FoamTransientAssembly fused;fused.input={&c,&rhs,dt.value(),false};
+            tmp<fvScalarMatrix> assembled;
+            {ugkp::gpu::FoamTransientAssembly::Scope scope(fused);
+             assembled=static_cast<fv::laplacianScheme<scalar,scalar>&>(deviceDiffusion).fvmLaplacian(kappa,gpu);}
+            fvScalarMatrix device(assembled);
+            if(!fused.consumed)throw std::runtime_error("fused matrix request ignored");
+            auto same=[](const scalarField& a,const scalarField& b){
+                if(a.size()!=b.size())throw std::runtime_error("fused matrix size mismatch");
+                forAll(a,i)if(a[i]!=b[i])throw std::runtime_error("fused matrix changed arithmetic");};
+            same(device.diag(),sequential.diag());same(device.source(),sequential.source());same(device.upper(),sequential.upper());
+            forAll(device.internalCoeffs(),p){same(device.internalCoeffs()[p],sequential.internalCoeffs()[p]);same(device.boundaryCoeffs()[p],sequential.boundaryCoeffs()[p]);}
+            if(device.faceFluxCorrectionPtr()){
+                same(device.faceFluxCorrectionPtr()->primitiveField(),sequential.faceFluxCorrectionPtr()->primitiveField());
+                forAll(device.faceFluxCorrectionPtr()->boundaryField(),p)same(device.faceFluxCorrectionPtr()->boundaryField()[p],sequential.faceFluxCorrectionPtr()->boundaryField()[p]);}
+
             auto start=std::chrono::steady_clock::now();auto a=native.solve(controls);
             cpuSeconds+=std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();
             start=std::chrono::steady_clock::now();auto b=ugkp::gpu::solveFoamScalarMatrix(device,controls,backend);

@@ -15,7 +15,12 @@ def test_shared_flux_jacobian_and_manufactured_omega(tmp_path):
  d::LayerContext<double,2> ctx;d::makeContext(m.in,c,ctx);double f[128][6],norm;assert(d::allResidual(m.in,c,ctx,w.state,w.y,f,norm));
  double summed=0,sourceSum=0;for(int i=2;i<c.nodes-1;++i){d::LayerPoint<double,2> p;assert(d::evaluatePoint(m.in,c,ctx,w.state,w.y,i,p));double vol=(w.y[i+1]-w.y[i-1])/2,yl=(w.y[i-1]+w.y[i])/2,yr=(w.y[i]+w.y[i+1])/2;
  double fit=std::pow(w.y[i],4)*(1/std::pow(yl,3)-1/std::pow(yr,3))/(3*vol),des=p.rho*sstBeta(p.f1,m.in.model.sstCoefficients)*p.omega*p.omega;
- sourceSum+=vol*(p.sourceOmega+des*(1-fit));summed+=-f[i][5]*2*vol*ctx.scale[5]/std::pow(p.z,4);}
+ // Reconstruct the current directed cross diffusion independently.
+ d::LayerPoint<double,2> a,b;assert(d::evaluatePoint(m.in,c,ctx,w.state,w.y,i-1,a));assert(d::evaluatePoint(m.in,c,ctx,w.state,w.y,i+1,b));
+ const double hl=w.y[i]-w.y[i-1],hr=w.y[i+1]-w.y[i];
+ const double dk=(hr*(p.k-a.k)/hl+hl*(b.k-p.k)/hr)/(hl+hr);
+ const double cd=dk<0?dk*std::log(p.omega/a.omega)/hl:dk*std::log(b.omega/p.omega)/hr;
+ sourceSum+=vol*(p.sourceOmegaWithoutCrossDiffusion+des*(1-fit)+2*p.rho*m.in.model.sstCoefficients.alphaOmega2*(1-p.f1)*cd);summed+=-f[i][5]*2*vol*ctx.scale[5]/std::pow(p.z,4);}
  d::LayerFlux<double,2> first,last;assert(d::intervalFlux(m.in,c,ctx,w.state[1],w.state[2],w.y[1],w.y[2],first));assert(d::intervalFlux(m.in,c,ctx,w.state[c.nodes-2],w.state[c.nodes-1],w.y[c.nodes-2],w.y[c.nodes-1],last));
  double target=last.omega-first.omega-sourceSum;double rel=std::abs(target-summed)/std::max(1.,std::abs(sourceSum));std::cout<<"telescoping relative="<<rel<<"\n";assert(rel<2e-14);
  for(int j=1;j<c.nodes-1;++j)for(int v=0;v<6;++v){double old=w.state[j][v];w.state[j][v]+=1e-7;double pert[128][6],pn;assert(d::allResidual(m.in,c,ctx,w.state,w.y,pert,pn));w.state[j][v]=old;for(int i=0;i<c.nodes;++i)if(std::abs(i-j)>1)for(int q=0;q<6;++q)assert(pert[i][q]==f[i][q]);}

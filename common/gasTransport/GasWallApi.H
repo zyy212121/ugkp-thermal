@@ -5,7 +5,8 @@ namespace ugkwpGpu {
 struct BoundaryLayerConfigV1
 {
     std::uint32_t version=1,speciesCount=0,model=1,nodes=ugkwp::gaswall::defaultWallNodes,maxIterations=60;
-    std::uint32_t wallCount=0,quadratureCount=0,matchingCount=0,workspaceSlots=0,reservedAudit=0;
+    std::uint32_t wallCount=0,quadratureCount=0,matchingCount=0,workspaceSlots=0;
+    union { std::uint32_t equilibriumStressClosure=1; std::uint32_t reservedAudit; }; // 0 wallStress, 1 localStress
     double relativeTolerance=1e-8,absoluteTolerance=1e-10,stretch=ugkwp::gaswall::defaultWallStretch;
     double turbulentPrandtl=.9,turbulentSchmidt=.7;
 };

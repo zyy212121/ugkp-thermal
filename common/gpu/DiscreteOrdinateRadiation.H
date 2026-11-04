@@ -11,6 +11,8 @@ struct RadiationGeometry {
     int cells=0,directions=0;
     std::vector<int> owner,neighbour,cellOffsets,cellFaces,boundaryOwner;
     std::vector<int> boundaryPatch,boundaryFace,reflectedDirection;
+    std::vector<int> reflectionOffsets,reflectionDonors;
+    std::vector<double> reflectionWeights;
     std::vector<RadiationBoundary> boundaryType;
     std::vector<double> volume,weights,directionCosines;
     // Direction-major arrays preserve the native geometry and face order.
@@ -24,6 +26,7 @@ struct RadiationControls {
     // This retains the original distinction between frozen angular sources
     // and sequential angular Gauss-Seidel updates; it is not a case selector.
     bool parallelAngles=false;
+    int maximumConcurrentAngles=0; // 0 retains all-direction concurrency for API callers.
 };
 struct RadiationSnapshot {
     std::vector<double> epsilon,temperature,diameter,wallTemperature,emissivity;

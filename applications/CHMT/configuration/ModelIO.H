@@ -1,3 +1,5 @@
+#include "FoamSommerfeldConfiguration.H"
+#include "FoamParticleDiameterDistribution.H"
 #ifndef CHMT_CONFIGURATION_MODELIO_H
 #define CHMT_CONFIGURATION_MODELIO_H
 #include "configuration/InputValues.H"
@@ -44,9 +46,11 @@ namespace chmt {
             std::string error;
             const Foam::wordList names(d.lookup("condensedNames"));
 
+            require(names.size()==Nc,"condensedNames must match the condensed species capacity");
             for (int c = 0; c<Nc; ++c)m.condensedNames[c] = names[c];
             const Foam::wordList elementNames(d.lookup("elements"));
 
+            require(elementNames.size()<=Ne,"elements exceed configured capacity");
             p.nElements = elementNames.size();
             for (int e = 0; e<Ne&&e<p.nElements; ++e)m.elementNames[e] = elementNames[e];
             p.enableGas = flag(d, "enableGas", true);
@@ -76,6 +80,7 @@ namespace chmt {
                 const auto& r = d.subDict("reactions");
                 const Foam::wordList keys = r.toc();
 
+                require(keys.size()<=int(sizeof(p.reactions)/sizeof(p.reactions[0])),"reactions exceed configured capacity");
                 p.nReactions = keys.size();
                 for (int i = 0; i<p.nReactions; ++i)p.reactions[i] = reaction(r.subDict(keys[i]));
             }
@@ -93,6 +98,7 @@ namespace chmt {
                     const auto& r = a.subDict("surfaceReactions");
                     const Foam::wordList keys = r.toc();
 
+                    require(keys.size()<=int(sizeof(t.surfaceReactions)/sizeof(t.surfaceReactions[0])),"surfaceReactions exceed configured capacity");
                     t.nSurfaceReactions = keys.size();
                     for (int i = 0; i<t.nSurfaceReactions; ++i) {
                         const auto& v = r.subDict(keys[i]);
@@ -121,13 +127,19 @@ namespace chmt {
             if (d.found("sst")) {
                 const auto& a = d.subDict("sst");
                 const auto family=text(a,"wallTreatment","lowRe");
+                require(family=="boundaryLayer"||family=="lowRe","unsupported CHMT sst.wallTreatment: "+family);
                 p.wallModel.family=family=="boundaryLayer"?ugkwp::gaswall::WallFamily::BoundaryLayer:ugkwp::gaswall::WallFamily::LowRe;
                 if(a.found("boundaryLayer")){
 
                     const auto& layer=a.subDict("boundaryLayer");auto& wall=p.wallModel;
                     const auto model=text(layer,"model","reactingSst");
 
-                    wall.model=model=="constantTransport"?ugkwp::gaswall::BoundaryLayerModel::ConstantTransport:ugkwp::gaswall::BoundaryLayerModel::ReactingSst;
+                    require(model=="constantTransport"||model=="reactingSst"||model=="equilibriumOde","unknown sst.boundaryLayer.model: "+model);
+                    wall.model=model=="constantTransport"?ugkwp::gaswall::BoundaryLayerModel::ConstantTransport:
+                        model=="equilibriumOde"?ugkwp::gaswall::BoundaryLayerModel::EquilibriumOde:ugkwp::gaswall::BoundaryLayerModel::ReactingSst;
+                    const auto stress=text(layer,"equilibriumStressClosure","localStress");
+                    require(stress=="wallStress"||stress=="localStress","unknown equilibriumStressClosure: "+stress);
+                    wall.localStressCorrection=stress=="localStress";
                     p.wallWorkspaceSlots=layer.lookupOrDefault<Foam::label>("workspaceSlots",p.wallWorkspaceSlots);
                     wall.nodes=layer.lookupOrDefault<Foam::label>("nodes",wall.nodes);
                     wall.maxIterations=layer.lookupOrDefault<Foam::label>("maxIterations",wall.maxIterations);
@@ -163,6 +175,7 @@ namespace chmt {
 #define CHMT_PARTICLE_NUMBER(name) t.name=readNumber(a,#name,t.name)
                 CHMT_PARTICLE_NUMBER(injectionParcelMass);
                 CHMT_PARTICLE_NUMBER(rhoSolid);CHMT_PARTICLE_NUMBER(diameter);
+                t.dn=Foam::readParticleDiameterShape(a);
                 CHMT_PARTICLE_NUMBER(minimumDiameter);CHMT_PARTICLE_NUMBER(maximumDiameter);
                 CHMT_PARTICLE_NUMBER(minimumTemperature);CHMT_PARTICLE_NUMBER(maximumTemperature);
                 CHMT_PARTICLE_NUMBER(dragResidualRe);CHMT_PARTICLE_NUMBER(minimumSolidFraction);
@@ -196,7 +209,7 @@ namespace chmt {
                 if(a.found("contactCoeffs")){
                     const auto& c=a.subDict("contactCoeffs");
 #define CHMT_CONTACT_NUMBER(name) w.name=readNumber(c,#name,w.name)
-                    CHMT_CONTACT_NUMBER(sommerfeldThreshold);CHMT_CONTACT_NUMBER(maximumCoverage);
+                    w.sommerfeldThreshold=Foam::readSommerfeldThreshold(c,w.sommerfeldThreshold);CHMT_CONTACT_NUMBER(maximumCoverage);
                     CHMT_CONTACT_NUMBER(depositionHeatTransferEfficiency);CHMT_CONTACT_NUMBER(reflectionHeatTransferEfficiency);
                     CHMT_CONTACT_NUMBER(adhesionEnergyScale);CHMT_CONTACT_NUMBER(contactAngleDegree);
                     CHMT_CONTACT_NUMBER(meltingTemperature);CHMT_CONTACT_NUMBER(mushyRange);CHMT_CONTACT_NUMBER(latentHeat);
@@ -223,7 +236,7 @@ namespace chmt {
             if(gas.mode==ugkwp::GasMode::SingleLegacy){
                 auto metadata=gas;metadata.mode=ugkwp::GasMode::MixtureFrozen;
                 require(bindSingleGasModel(metadata,text(d,"singleGasSpecies"),m,error),error);
-            } else bindSharedGasModel(gas,m,error);
+            } else require(bindSharedGasModel(gas,m,error),error);
             p.wallModel.enableSst=p.enableSst;p.wallModel.turbulentPrandtl=p.sst.turbulentPrandtl;
             p.wallModel.turbulentSchmidt=p.sst.turbulentSchmidt;
             return m;

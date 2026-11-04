@@ -1,3 +1,4 @@
+#include "../../../common/gpu/SpecularReflection.H"
 #include "MieDoRadiationSolver.H"
 
 #include "MieDoRadiationMath.H"
@@ -595,6 +596,21 @@ ugkp::gpu::RadiationGeometry radiationGeometry(const MieDoRadiationSolverData& d
             result.diffuseDenominator.push_back(data.diffuseDenominator[patchI][faceI]);result.fixedIntensity.push_back(data.patchControls[patchI].fixedIntensity);
         }
     }
+    std::vector<std::array<double,3>> angularDirections;
+    for(const vector& v:data.directions)angularDirections.push_back({v.x(),v.y(),v.z()});
+    std::vector<std::vector<std::vector<ugkp::gpu::ReflectionEntry>>> reflection;
+    int boundaryIndex=0;
+    forAll(mesh.boundary(),patchI)forAll(mesh.boundary()[patchI],faceI){
+        const vector area=mesh.Sf().boundaryField()[patchI][faceI],normal=area/mag(area);
+        if(result.boundaryType[boundaryIndex++]==RadiationBoundary::Specular)
+            reflection.push_back(ugkp::gpu::specularReflection(angularDirections,result.weights,{normal.x(),normal.y(),normal.z()}));
+        else reflection.emplace_back(data.directions.size());
+    }
+    result.reflectionOffsets.push_back(0);
+    forAll(data.directions,directionI)for(const auto& face:reflection){
+        for(const auto& entry:face[directionI]){result.reflectionDonors.push_back(entry.donor);result.reflectionWeights.push_back(entry.weight);}
+        result.reflectionOffsets.push_back(result.reflectionDonors.size());
+    }
     forAll(data.directions,directionI){
         for(const scalar flux:data.directionInternalFlux[directionI])result.internalFlux.push_back(flux);
         for(const scalar diagonal:data.directionTransportDiagonal[directionI])result.transportDiagonal.push_back(diagonal);
@@ -617,7 +633,8 @@ ugkp::gpu::RadiationControls radiationControls(const MieDoRadiationSolverData& d
     result.sourceTolerance=data.controls.sourceRelativeTolerance;result.linearTolerance=data.linearSolverTolerance;
     result.linearRelativeTolerance=data.linearSolverRelativeTolerance;result.sourceRelaxation=data.sourceRelaxation;result.small=SMALL;
     result.phaseIterations=data.controls.maxPhaseBalanceIterations;result.sourceIterations=data.controls.maxSourceIterations;result.linearIterations=data.linearSolverMaxIterations;
-    result.parallelAngles=min(max(data.controls.angleParallelThreads,label(1)),max(data.directions.size(),label(1)))>1;
+    result.maximumConcurrentAngles=min(max(data.controls.angleParallelThreads,label(1)),max(data.directions.size(),label(1)));
+    result.parallelAngles=result.maximumConcurrentAngles>1;
     return result;
 }
 void copyRadiationField(const std::vector<double>& source,scalarField& target)

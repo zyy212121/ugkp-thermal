@@ -29,5 +29,5 @@ int main(){
 }
 ''')
     binary=tmp_path/"surface"
-    subprocess.run(["g++","-std=c++14","-O2","-Wall","-Wextra","-Werror","-I"+str(ROOT/"common"),str(source),"-o",str(binary)],check=True)
+    subprocess.run(["g++","-std=c++17","-O2","-Wall","-Wextra","-Werror","-I"+str(ROOT/"common"),str(source),"-o",str(binary)],check=True)
     subprocess.run([binary],check=True)

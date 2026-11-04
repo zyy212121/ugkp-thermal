@@ -45,7 +45,7 @@ EXTRA_STATE = r'''
  GpuReal poolThermalSumUx[16]{},poolThermalSumUy[16]{},poolThermalSumUz[16]{},poolThermalSumU2[16]{};
  GpuReal poissonPoolMass[16]{},poissonPoolMomX[16]{},poissonPoolMomY[16]{},poissonPoolMomZ[16]{};
  GpuReal poissonPoolEnergy[16]{},poissonPoolDiameter[16]{},poissonPoolDiameter2[16]{};
- GpuReal particleDiameterMin=GPU_R(1e-8),particleDiameterMax=GPU_R(.01),particleDiameterSigma=0;
+ GpuReal particleDiameterMin=GPU_R(1e-8),particleDiameterMax=GPU_R(.01),particleDiameterN=1;
  unsigned long long pRng[16]{};
 '''
 

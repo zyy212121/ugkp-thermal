@@ -178,7 +178,7 @@ int main(){
 }
 ''')
     exe = tmp_path / "thermo"
-    result = subprocess.run(["g++", "-std=c++14", "-O2", "-ffp-contract=off", "-Wall", "-Wextra", "-Werror", "-pedantic", "-I" + str(ROOT / "common"), str(source), "-o", str(exe)], capture_output=True, text=True)
+    result = subprocess.run(["g++", "-std=c++17", "-O2", "-ffp-contract=off", "-Wall", "-Wextra", "-Werror", "-pedantic", "-I" + str(ROOT / "common"), str(source), "-o", str(exe)], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     result = subprocess.run([str(exe)], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr

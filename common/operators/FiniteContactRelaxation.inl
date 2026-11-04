@@ -75,6 +75,12 @@
                     conductanceTimeIntegral, 0
                 );
 
+            if(!result.valid){
+                using namespace ugkp::diagnostics;
+                recordFatal(s.diagnostics,makeRecord(Code::InvalidPhysicalState,33000,33,0,
+                    EntityKind::Particle,i,-1,conductanceTimeIntegral,0,0,Quantity::InternalEnergy));
+                return;
+            }
             commitParticleFiniteContactThermalCandidateDevice(s, i, result, 0);
             atomicAddParticleWallEnergyByFace
             (
@@ -88,6 +94,7 @@
 
         bool detach = false;
         bool enterLongDeposit = false;
+        bool releaseAtRest = false;
         GPU_OPERATOR_REAL longDepositArea = GPU_OPERATOR_R(0.0);
         const GPU_OPERATOR_REAL theta1 = age1/duration;
         const GPU_OPERATOR_REAL kinematicArea =
@@ -107,10 +114,10 @@
          == Foam::gpuThermal::particleWallTransientRebound
         )
         {
-            detach = !(effectiveContactArea > GPU_OPERATOR_R(0.0));
-            enterLongDeposit =
-                coldWallContact && !detach && !(kinematicArea > GPU_OPERATOR_R(0.0));
-            longDepositArea = effectiveContactArea;
+            const auto release = Foam::gpuThermal::reboundContactRelease
+                (kinematicArea, frozenArea, damageArea);
+            detach = release.detach;
+            releaseAtRest = release.atRest;
         }
         else
         {
@@ -139,6 +146,13 @@
 
         if (detach)
         {
+            const double releaseEnergy = releaseAtRest
+                ? frozenReleaseSpecificEnergy(s,i,8) : 0.;
+            if (releaseAtRest) {
+                s.puxOld[i] = GPU_OPERATOR_R(0.0);
+                s.puyOld[i] = GPU_OPERATOR_R(0.0);
+                s.puzOld[i] = GPU_OPERATOR_R(0.0);
+            }
             s.pux[i] = s.puxOld[i];
             s.puy[i] = s.puyOld[i];
             s.puz[i] = s.puzOld[i];
@@ -152,6 +166,7 @@
             s.pContactPeakFraction[i] = 0.0;
             clearColdWallParticleState(s, i);
             clearColdWall2DParticleState(s, i);
+            if (releaseAtRest) publishFrozenReleaseEnergy(s,i,releaseEnergy);
         }
         else if (enterLongDeposit)
         {

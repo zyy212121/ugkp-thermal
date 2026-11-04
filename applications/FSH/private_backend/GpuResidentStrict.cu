@@ -1,3 +1,4 @@
+#include "GpuFrozenParticleRelease.cuh"
 #include "gasBoundary/Resident.cuh"
 #include "gasBoundary/Evaluate.H"
 #include "gasTransport/GasMeshUploadValidation.H"
@@ -114,6 +115,8 @@ struct CsrReductionTask
 
 struct DeviceState
 {
+    const void* particleTrackingKernel = nullptr; // host launch selection only
+
     ugkp::boundary::View gasBoundaryProgram;
     ugkp::boundary::Resident* gasBoundaryOwner=nullptr;
     ugkp::diagnostics::DeviceContext* diagnostics = nullptr;
@@ -179,7 +182,7 @@ struct DeviceState
     double particleDiameterFallback = 0.0;
     double particleDiameterMin = 0.0;
     double particleDiameterMax = 0.0;
-    double particleDiameterSigma = 0.0;
+    double particleDiameterN = 1.0;
     double injectionTheta = 0.0;
     double rhoMin = 1.0e-12;
     double TgasMin = 1.0e-12;
@@ -533,6 +536,8 @@ struct DeviceState
     int* csrHeavyInjectionCellTaskCount = nullptr;
     double* csrHeavyInjectionPartials = nullptr;
 
+    bool particleInjectionVelocitySpecified = false;
+    double particleInjectionVelocity[3]{};
     int nBoundarySources = 0;
     int* sourceCell = nullptr;
     int* sourceFace = nullptr;
@@ -2608,7 +2613,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     double particleDiameterFallback,
     double particleDiameterMin,
     double particleDiameterMax,
-    double particleDiameterSigma,
+    double particleDiameterN,
     double injectionTheta,
     double rhoMin,
     double TgasMin,
@@ -2654,7 +2659,14 @@ extern "C" int ugkwpGpuResidentStrictCreate
         return 1;
     }
 
+    if (particleDiameterMax > particleDiameterMin
+        && !(std::isfinite(particleDiameterN) && particleDiameterN > 0))
+    {
+        setLastErrorText("RR diameter shape dn must be finite and positive");
+        return 1;
+    }
     DeviceState* s = new DeviceState;
+    s->particleTrackingKernel = reinterpret_cast<const void*>(trackParticlesLocalFaceWalkKernel<true>);
     s->diagnosticOwner = new ugkp::diagnostics::GpuOwner;
     const auto diagnosticAllocation=s->diagnosticOwner->initialise();
     if(diagnosticAllocation!=cudaSuccess) {
@@ -2718,7 +2730,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->particleDiameterFallback = particleDiameterFallback;
     s->particleDiameterMin = particleDiameterMin;
     s->particleDiameterMax = particleDiameterMax;
-    s->particleDiameterSigma = particleDiameterSigma;
+    s->particleDiameterN = particleDiameterN;
     s->injectionTheta = injectionTheta;
     s->rhoMin = rhoMin;
     s->TgasMin = TgasMin;
@@ -2876,6 +2888,8 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     rc |= copyToDevice(s->planeD, planeD, nPlanes, "cudaMemcpy strict planeD");
     return rc == 0 ? 0 : 1;
 }
+
+#include "GpuParticleInjectionVelocityConfiguration.cuh"
 
 extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 (
@@ -4031,9 +4045,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_ENTER(ProbeTrack);
     if (particleGrid > 0)
     {
-        trackParticlesLocalFaceWalkKernel
-            <<<s->trackingWorkGrid, s->particleBlockThreads>>>(s->deviceState, dt);
-        err = cudaGetLastError();
+        err = launchParticleTracking(s, dt);
         if (err != cudaSuccess)
         {
             setLastError("trackParticlesLocalFaceWalkKernel launch", err);
@@ -4798,6 +4810,10 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
     s->particleStuckModelConfigured = 1;
     s->particleWallHeatTransferEnabled = heatTransferEnabled;
     s->sommerfeldThreshold = sommerfeldThreshold;
+    s->particleTrackingKernel = std::isinf(sommerfeldThreshold) && sommerfeldThreshold > 0
+        ? reinterpret_cast<const void*>(trackParticlesLocalFaceWalkKernel<false>)
+        : reinterpret_cast<const void*>(trackParticlesLocalFaceWalkKernel<true>);
+    if (configureTrackingWorkGrid(s) != 0) return 1;
     s->particleWallMaximumCoverage = maximumCoverage;
     s->particleWallDepositionHeatTransferEfficiency =
         depositionHeatTransferEfficiency;

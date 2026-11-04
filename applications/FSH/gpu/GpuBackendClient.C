@@ -357,7 +357,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     double gravityX, double gravityY, double gravityZ,
     double particleDiameterFallback,
     double particleDiameterMin, double particleDiameterMax,
-    double particleDiameterSigma, double injectionTheta, double rhoMin,
+    double particleDiameterN, double injectionTheta, double rhoMin,
     double TgasMin, double epsSMin, double thetaMin, double TpMin,
     double TpMax, int collisionalPressureEnabled,
     double collisionalRestitution, double pressureKickFraction,
@@ -396,7 +396,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
         dragModelId, particleGasHeatTransferModelId, dragResidualRe,
         gravityX, gravityY, gravityZ,
         particleDiameterFallback, particleDiameterMin,
-        particleDiameterMax, particleDiameterSigma, injectionTheta, rhoMin,
+        particleDiameterMax, particleDiameterN, injectionTheta, rhoMin,
         TgasMin, epsSMin, thetaMin, TpMin, TpMax,
         collisionalPressureEnabled, collisionalRestitution,
         pressureKickFraction, jammingPressureEnabled, packingFraction,
@@ -475,6 +475,18 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     SEND(planeD, s->nCellPlanes);
 #undef SEND
     return finishNoPayload(s);
+}
+
+extern "C" int ugkwpGpuResidentStrictConfigureParticleInjectionVelocity
+(void* handle,int specified,double ux,double uy,double uz)
+{
+ ClientState* s=static_cast<ClientState*>(handle);
+ if(!s)return fail("missing particle injection velocity handle");
+ const double velocity[3]={ux,uy,uz};
+ const auto bytes=WireCodec<CountArgs>::size+3*sizeof(double);
+ if(!startRequest(s,Op::configureParticleInjectionVelocity,bytes)
+    ||!sendObject(s->fd,CountArgs{specified})||!sendArray(s->fd,velocity,3))return -1;
+ return finishNoPayload(s);
 }
 
 extern "C" int ugkwpGpuResidentStrictUploadBoundarySources

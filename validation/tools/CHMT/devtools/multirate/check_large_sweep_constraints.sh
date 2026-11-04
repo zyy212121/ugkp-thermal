@@ -12,7 +12,7 @@ fi
 tests="$validation/devtools/multirate"
 bin=$(mktemp /tmp/chmt-large-sweep-constraints.XXXXXX)
 trap 'rm -f "$bin"' EXIT
-"${CXX:-g++}" -std=c++14 -O2 -Wall -Wextra -Werror -pedantic \
+"${CXX:-g++}" -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
   -I"$root/applications/CHMT" -I"$validation" -I"$root/common" \
   "$tests/test_large_sweep_constraints.cpp" \
   "$root/applications/CHMT/mesh/Geometry.C" -o "$bin"
@@ -27,7 +27,7 @@ if [[ ${1:-} == --stress ]]; then
 fi
 # Keep deliberate global new/delete fault interposition uninlined. GCC
 # diagnoses the malloc/free replacement pair as mismatched after O2 inlining.
-"${CXX:-g++}" -std=c++14 -O0 -Wall -Wextra -Werror -pedantic \
+"${CXX:-g++}" -std=c++17 -O0 -Wall -Wextra -Werror -pedantic \
   -I"$root/applications/CHMT" -I"$validation" -I"$root/common" \
   "$tests/test_sweep_workspace_faults.cpp" "$root/applications/CHMT/mesh/Geometry.C" -o "$bin"
 "$bin" || status=1

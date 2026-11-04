@@ -186,7 +186,7 @@ def ale_probe(tmp_path_factory):
     source.write_text('#include <initializer_list>\n' + SOURCE)
     executable = directory / 'geometry'
     build = subprocess.run([
-        'g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror',
+        'g++', '-std=c++17', '-O2', '-Wall', '-Wextra', '-Werror',
         '-I'+str(ROOT/'common'),
         '-I'+str(ROOT/'common/gasNumerics'), str(source), '-o', str(executable)
     ], text=True, capture_output=True)

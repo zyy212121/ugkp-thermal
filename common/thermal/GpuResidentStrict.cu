@@ -1,3 +1,4 @@
+#include "GpuFrozenParticleRelease.cuh"
 #include "ParticleGasBinding.H"
 #include "gasTransport/MixturePorosity.H"
 #define GPU_GAS_POROSITY_SPECIES(s,c,scale) scaleMixturePorositySpecies(s,c,scale)
@@ -155,7 +156,9 @@ struct DeviceState;
 template<bool Capture> int launchBoundaryLayer(DeviceState*);
 struct DeviceState
 {
+
     GpuWallEnergyState wallEnergy;
+    const void* particleTrackingKernel = nullptr; // host launch selection only
     ugkp::boundary::View gasBoundaryProgram;
     ugkp::boundary::Resident* gasBoundaryOwner=nullptr;
     ugkwp::GasSpeciesState<double,ugkwp::compiledGasSpecies> gasSpecies,gasRejectedView;
@@ -242,7 +245,7 @@ struct DeviceState
     GpuReal particleDiameterFallback = GPU_R(0.0);
     GpuReal particleDiameterMin = GPU_R(0.0);
     GpuReal particleDiameterMax = GPU_R(0.0);
-    GpuReal particleDiameterSigma = GPU_R(0.0);
+    GpuReal particleDiameterN = GPU_R(1.0);
     GpuReal injectionTheta = GPU_R(0.0);
     GpuReal rhoMin = GPU_R(1.0e-12);
     GpuReal TgasMin = GPU_R(1.0e-12);
@@ -548,6 +551,9 @@ struct DeviceState
     GpuReal* puzOld = nullptr;
     GpuReal* pT = nullptr;
     double* pThermalEnthalpyResidual = nullptr;
+    // Source-epoch scratch; rebuilt after drag, never checkpointed or reordered.
+    double* mixtureHeatInitialTemperature = nullptr;
+    double* mixtureHeatFraction = nullptr;
     GpuReal* pTheta = nullptr;
     GpuTime* pContactAge = nullptr;
     GpuReal* pd = nullptr;
@@ -611,6 +617,8 @@ struct DeviceState
     int* csrHeavyInjectionCellTaskCount = nullptr;
     GpuReal* csrHeavyInjectionPartials = nullptr;
 
+    bool particleInjectionVelocitySpecified = false;
+    double particleInjectionVelocity[3]{};
     int nBoundarySources = 0;
     int* sourceCell = nullptr;
     int* sourceFace = nullptr;
@@ -1337,6 +1345,7 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->compactPuzOld);
     release(s->pT);
     release(s->pThermalEnthalpyResidual);
+    release(s->mixtureHeatInitialTemperature);release(s->mixtureHeatFraction);
     release(s->pTheta);
     release(s->pContactAge);
     release(s->pd);
@@ -1687,6 +1696,8 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->compactPuzOld, np, "cudaMalloc strict compact particle old uz");
     rc |= allocate(s->pT, np, "cudaMalloc strict particle T");
     rc |= allocate(s->pThermalEnthalpyResidual, np, "cudaMalloc strict particle thermal enthalpy residual");
+    rc |= allocate(s->mixtureHeatInitialTemperature,np,"allocate mixture heat source temperatures");
+    rc |= allocate(s->mixtureHeatFraction,np,"allocate mixture heat source fractions");
     rc |= allocate(s->pTheta, np, "cudaMalloc strict particle theta");
     rc |= allocate(s->pContactAge, np, "cudaMalloc strict particle theta");
     rc |= allocate(s->pd, np, "cudaMalloc strict particle d");
@@ -3193,7 +3204,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     double particleDiameterFallbackWire,
     double particleDiameterMinWire,
     double particleDiameterMaxWire,
-    double particleDiameterSigmaWire,
+    double particleDiameterNWire,
     double injectionThetaWire,
     double rhoMinWire,
     double TgasMinWire,
@@ -3266,7 +3277,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     const GpuReal particleDiameterFallback = static_cast<GpuReal>(particleDiameterFallbackWire);
     const GpuReal particleDiameterMin = static_cast<GpuReal>(particleDiameterMinWire);
     const GpuReal particleDiameterMax = static_cast<GpuReal>(particleDiameterMaxWire);
-    const GpuReal particleDiameterSigma = static_cast<GpuReal>(particleDiameterSigmaWire);
+    const GpuReal particleDiameterN = static_cast<GpuReal>(particleDiameterNWire);
     const GpuReal injectionTheta = static_cast<GpuReal>(injectionThetaWire);
     const GpuReal rhoMin = static_cast<GpuReal>(rhoMinWire);
     const GpuReal TgasMin = static_cast<GpuReal>(TgasMinWire);
@@ -3295,7 +3306,14 @@ extern "C" int ugkwpGpuResidentStrictCreate
         return 1;
     }
 
+    if (particleDiameterMax > particleDiameterMin
+        && !(std::isfinite(particleDiameterN) && particleDiameterN > 0))
+    {
+        setLastErrorText("RR diameter shape dn must be finite and positive");
+        return 1;
+    }
     DeviceState* s = new DeviceState;
+    s->particleTrackingKernel = reinterpret_cast<const void*>(trackParticlesLocalFaceWalkKernel<true>);
     s->diagnosticOwner = new ugkp::diagnostics::GpuOwner;
     const auto diagnosticAllocation=s->diagnosticOwner->initialise();
     if(diagnosticAllocation!=cudaSuccess) {
@@ -3361,7 +3379,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->particleDiameterFallback = particleDiameterFallback;
     s->particleDiameterMin = particleDiameterMin;
     s->particleDiameterMax = particleDiameterMax;
-    s->particleDiameterSigma = particleDiameterSigma;
+    s->particleDiameterN = particleDiameterN;
     s->injectionTheta = injectionTheta;
     s->rhoMin = rhoMin;
     s->TgasMin = TgasMin;
@@ -3520,6 +3538,8 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     rc |= copyToDevice(s->planeD, planeD, nPlanes, "cudaMemcpy strict planeD");
     return rc == 0 ? 0 : 1;
 }
+
+#include "GpuParticleInjectionVelocityConfiguration.cuh"
 
 extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 (
@@ -4653,15 +4673,17 @@ int advanceResidentThermalParticles(DeviceState* s,double dt,double simulationTi
         if(s->csrCellLocalPathEnabled==0 && binParticlesByCell(s,block)!=0)return 1;
         const bool split=s->csrCellLocalPathEnabled!=0 && s->splitPreDirectoryActive!=0;
         if(s->dragModelId==2)
-            mixtureParticleCouplingKernel<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag,false>
-                <<<grid,block>>>(s->deviceState,dt,dragActive,true,split);
+            err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag,false>
+                (s->deviceState,s->nCells,dt,dragActive,true,split);
         else
-            mixtureParticleCouplingKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag,false>
-                <<<grid,block>>>(s->deviceState,dt,dragActive,true,split);
-        err=cudaGetLastError();
+            err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::SchillerNaumannDeviceDrag,false>
+                (s->deviceState,s->nCells,dt,dragActive,true,split);
         if(err!=cudaSuccess){setLastError("thermal mixture paired drag",err);return 1;}
-        mixtureThermalParticleHeatKernel<<<grid,block>>>(s->deviceState,dt,true,split);
+        if(particleGrid>0)
+            prepareMixtureThermalParticleHeatKernel<<<particleGrid,s->particleBlockThreads>>>(s->deviceState,dt);
         err=cudaGetLastError();
+        if(err!=cudaSuccess){setLastError("prepare mixture particle caloric response",err);return 1;}
+        err=launchMixtureThermalParticleHeatCells(s->deviceState,s->nCells,dt,true,split);
         if(err!=cudaSuccess){setLastError("thermal mixture caloric exchange",err);return 1;}
         if(particleGrid>0)
             mixtureParticleExternalKickKernel<<<particleGrid,s->particleBlockThreads>>>(s->deviceState,dt);
@@ -4781,9 +4803,7 @@ int advanceResidentThermalParticles(DeviceState* s,double dt,double simulationTi
     UGKP_DEV_PROBE_ENTER(ProbeTrack);
     if (particleGrid > 0)
     {
-        trackParticlesLocalFaceWalkKernel
-            <<<s->trackingWorkGrid, s->particleBlockThreads>>>(s->deviceState, dt);
-        err = cudaGetLastError();
+        err = launchParticleTracking(s, dt);
         if (err != cudaSuccess)
         {
             setLastError("trackParticlesLocalFaceWalkKernel launch", err);
@@ -5043,7 +5063,7 @@ int createBoundParticlePhase(const ParticlePhaseConfiguration& p,
     const int code=ugkwpGpuResidentStrictCreate(gas.nCells,gas.nFaces,gas.nInternalFaces,nCellPlanes,
         p.capacity,p.maxFaceWalkHops,p.injectionParcelMass,p.randomSeed,gas.gammaGas,gas.Rgas,p.rhoSolid,p.solveTemperature,
         gas.gasMu,gas.gasPrClamped,p.dragModel,p.heatTransferModel,p.dragResidualRe,
-        gravity[0],gravity[1],gravity[2],p.diameter,p.minimumDiameter,p.maximumDiameter,0.,0.,
+        gravity[0],gravity[1],gravity[2],p.diameter,p.minimumDiameter,p.maximumDiameter,p.dn,0.,
         gas.rhoMin,gas.TgasMin,p.minimumSolidFraction,p.minimumTheta,p.minimumTemperature,p.maximumTemperature,
         p.collisionalPressure,p.collisionalRestitution,p.pressureKickFraction,p.packingPressure,
         p.packingFraction,p.packingIterations,1,0,0,1,gas.sstConfigured?3:0,1.,.9,.325,.17,
@@ -6130,6 +6150,10 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
     s->particleStuckModelConfigured = 1;
     s->particleWallHeatTransferEnabled = heatTransferEnabled;
     s->sommerfeldThreshold = sommerfeldThreshold;
+    s->particleTrackingKernel = std::isinf(sommerfeldThreshold) && sommerfeldThreshold > 0
+        ? reinterpret_cast<const void*>(trackParticlesLocalFaceWalkKernel<false>)
+        : reinterpret_cast<const void*>(trackParticlesLocalFaceWalkKernel<true>);
+    if (configureTrackingWorkGrid(s) != 0) return 1;
     s->particleWallMaximumCoverage = maximumCoverage;
     s->particleWallDepositionHeatTransferEfficiency =
         depositionHeatTransferEfficiency;

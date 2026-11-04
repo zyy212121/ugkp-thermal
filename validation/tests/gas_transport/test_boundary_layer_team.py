@@ -1,4 +1,4 @@
-"""Real slot preparation/publication and persistent-workspace continuation, CPU teams vs HEAD."""
+"""Current scalar/team slot publication, including sticky fatal-operation status."""
 from pathlib import Path
 import shutil
 import subprocess
@@ -15,8 +15,8 @@ BODY=r"""
 #include "gasTransport/GasBoundaryLayerEvaluation.H"
 #undef publishGasBoundaryLayerOutput
 namespace ugkwp {
-template<class S,class R,int N> bool publishGasBoundaryLayerOutput(const S& s,int slot,
- const gaswall::WallInput<R,N>& in,const gaswall::WallOutput<R,N>& out,R area,R sweep){
+template<class S,class R,int N,class Output> bool publishGasBoundaryLayerOutput(const S& s,int slot,
+ const gaswall::WallInput<R,N>& in,const Output& out,R area,R sweep){
  auto supplied=in;if(s.testPublishFailureSlot==slot)supplied.model.thermo.coefficients=nullptr;
  return originalPublishGasBoundaryLayerOutput(s,slot,supplied,out,area,sweep);
 }}
@@ -37,10 +37,10 @@ int main(int argc,char**argv){
  auto&m=s.gasBoundaryLayerModel;m.useSuppliedWallState=true;m.config.nodes=24;
  m.config.model=mode==3?ugkwp::gaswall::BoundaryLayerModel::ConstantTransport:ugkwp::gaswall::BoundaryLayerModel::ReactingSst;
  if(mode==4)m.config.model=static_cast<ugkwp::gaswall::BoundaryLayerModel>(99);
- ugkwp::gaswall::WallInput<Real,2> input[2];ugkwp::gaswall::WallOutput<Real,2> output[2];ugkwp::gaswall::WallStatus modelStatus[2];
+ ugkwp::gaswall::WallInput<Real,2> input[2];ugkwp::gaswall::WallResidentOutput<Real,2> output[2];ugkwp::gaswall::WallStatus modelStatus[2];
  auto* workspace=new ugkwp::gaswall::WallWorkspace<Real,2,24>[1];std::memset(workspace,0xff,sizeof(*workspace));
  int faces[2]={1,2},offsets[3]={0,1,2},matching[2]={1,0};Real weights[2]={1,1};
- m.input=input;m.output=output;m.status=modelStatus;m.workspace=workspace;m.workspaceCount=1;m.workspaceCapacity=24;m.faces=faces;m.matchingOffsets=offsets;m.matchingCells=matching;m.matchingWeights=weights;
+ ugkwp::gaswall::WallOutput<Real,2> evaluation[1];m.evaluationOutput=evaluation;m.input=input;m.output=output;m.status=modelStatus;m.workspace=workspace;m.workspaceCount=1;m.workspaceCapacity=24;m.faces=faces;m.matchingOffsets=offsets;m.matchingCells=matching;m.matchingWeights=weights;
  for(int i=0;i<2;++i){input[i].temperature=500+20*i;input[i].normal[0]=1;input[i].matchingDistance=1.5;input[i].ownerDistance=.5;input[i].quadrature.volume=1;}
  if(mode==1)matching[0]=s.nCells;
  if(mode==2)s.testPublishFailureSlot=0;
@@ -62,7 +62,7 @@ int main(int argc,char**argv){
  for(int i=0;i<2;++i)std::cout<<s.rho[i]<<' '<<s.rhoE[i]<<' '<<s.gasSpecies.rho[i]<<' '<<s.gasSpecies.cellStatus[i]<<' ';
  for(int i=0;i<3;++i)std::cout<<s.gasSpecies.faceStatus[i]<<' ';
  std::cout<<'\n';
- if(mode==1||mode==2){ck(!result[0][0]&&!exchange[0].ready,"failed first slot was published");ck(result[0][1]&&exchange[1].ready,"next slot did not continue on reused workspace");}
+ if(mode==1||mode==2){ck(!result[0][0]&&!exchange[0].ready,"failed first slot was published");ck(!result[0][1]&&!exchange[1].ready&&ugkp::diagnostics::hasFatal(s.diagnostics),"fatal operation continued to publish another slot");}
  if(mode==0||mode==3)ck(result[0][0]&&result[0][1],"valid slot failed");
  if(mode==4)ck(!result[0][0]&&!result[0][1],"unsupported model became a solve");
  delete[] workspace;
@@ -73,9 +73,9 @@ int main(int argc,char**argv){
 def slot_programs(tmp_path_factory):
     tmp=tmp_path_factory.mktemp('wall-slot-team');oracle=tmp/'oracle'
     shutil.copytree(ROOT/'common',oracle/'common')
-    for name in ('common/gasWall/ReactingWallLayer.H','common/gasTransport/GasBoundaryLayerModelState.H'):
-        original=subprocess.run(['git','show','HEAD:'+name],cwd=ROOT,check=True,capture_output=True,text=True).stdout
-        (oracle/name).write_text(original)
+    # Compare current scalar and cooperative execution under the same model
+    # and storage ABI; mixing only two HEAD headers with current dependencies
+    # is neither a frozen historical build nor a valid ownership oracle.
     src=fixture().replace('ugkwp::GasSpeciesState<Real,2> gasSpecies;};','ugkwp::GasSpeciesState<Real,2> gasSpecies;ugkwp::GasBoundaryLayerModelState<Real,2> gasBoundaryLayerModel;int testPublishFailureSlot=-1;};')
     src='#include "gasTransport/GasBoundaryLayerModelState.H"\n'+src
     # Define the fault boundary wrapper before ModelState is first instantiated.

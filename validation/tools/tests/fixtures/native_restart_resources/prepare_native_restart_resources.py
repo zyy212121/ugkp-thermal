@@ -21,7 +21,7 @@ CREATE = dict(
     dragModelId='0', dragModel='0', dragResidualRe='1e-12',
     dragParameter0='0', dragParameter1='0', dragParameter2='0', dragParameter3='0',
     gravityX='0', gravityY='0', gravityZ='0', particleDiameterFallback='.01',
-    particleDiameterMin='.01', particleDiameterMax='.01', particleDiameterSigma='0',
+    particleDiameterMin='.01', particleDiameterMax='.01', particleDiameterN='1',
     injectionTheta='0', rhoMin='1e-12', TgasMin='1', epsSMin='1e-12',
     thetaMin='0', TpMin='1', TpMax='1e5', collisionalPressureEnabled='0',
     collisionalRestitution='.8', pressureKickFraction='1',

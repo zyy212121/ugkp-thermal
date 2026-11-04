@@ -1,3 +1,5 @@
+#include "FoamSommerfeldConfiguration.H"
+#include "FoamParticleInjectionVelocity.H"
 #include "gasBoundary/FoamInput.H"
 #include "gasBoundary/Api.H"
 #ifndef GpuResidentStrict_H
@@ -60,7 +62,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     double particleDiameterFallback,
     double particleDiameterMin,
     double particleDiameterMax,
-    double particleDiameterSigma,
+    double particleDiameterN,
     double injectionTheta,
     double rhoMin,
     double TgasMin,
@@ -535,7 +537,7 @@ protected:
         const scalar particleDiameterFallback,
         const scalar particleDiameterMin,
         const scalar particleDiameterMax,
-        const scalar particleDiameterSigma,
+        const scalar particleDiameterN,
         const scalar injectionTheta,
         const scalar injectionTp,
         const scalar rhoMin,
@@ -671,7 +673,7 @@ protected:
             particleDiameterFallback,
             particleDiameterMin,
             particleDiameterMax,
-            particleDiameterSigma,
+            particleDiameterN,
             injectionTheta,
             rhoMin,
             TgasMin,
@@ -2418,10 +2420,7 @@ protected:
         const scalar sommerfeldThreshold =
             model == nullptr
           ? scalar(20)
-          : model->lookupOrDefault<scalar>
-            (
-                "sommerfeldThreshold", scalar(20)
-            );
+          : readSommerfeldThreshold(*model);
         const bool heatTransfer =
             model != nullptr
          && model->lookupOrDefault<bool>("heatTransfer", false);
@@ -3067,6 +3066,11 @@ protected:
         const scalar TpMin
     )
     {
+        const auto injectionVelocity=readParticleInjectionVelocity(mesh);
+        check(ugkwpGpuResidentStrictConfigureParticleInjectionVelocity
+          (handle_,injectionVelocity.specified,injectionVelocity.value.x(),
+           injectionVelocity.value.y(),injectionVelocity.value.z()),
+          "configure particle injection velocity");
         DynamicList<label> sourceCell;
         DynamicList<label> sourceFace;
         DynamicList<scalar> sourcePx;
@@ -3114,7 +3118,8 @@ protected:
                 const scalar epsBc = max(epsPatch[i], scalar(0));
                 const label faceI = start + i;
                 const vector& Sf = faceAreas[faceI];
-                const scalar massFlux = epsBc*rhoSolid*(UPatch[i] & Sf);
+                const vector particleVelocity=injectionVelocity.select(UPatch[i]);
+                const scalar massFlux = epsBc*rhoSolid*(particleVelocity & Sf);
                 const scalar incomingMassRate = max(-massFlux, scalar(0));
 
                 vector n = Sf/(magFaceAreas[faceI] + SMALL);
@@ -3162,9 +3167,9 @@ protected:
                 sourcePx.append(x.x());
                 sourcePy.append(x.y());
                 sourcePz.append(x.z());
-                sourceUx.append(UPatch[i].x());
-                sourceUy.append(UPatch[i].y());
-                sourceUz.append(UPatch[i].z());
+                sourceUx.append(particleVelocity.x());
+                sourceUy.append(particleVelocity.y());
+                sourceUz.append(particleVelocity.z());
                 sourceT.append(max(Tvalue, max(TpMin, SMALL)));
                 sourceTheta.append(thetaValue);
                 sourceD.append(dValue);
@@ -3557,7 +3562,7 @@ public:
         const scalar particleDiameterFallback,
         const scalar particleDiameterMin,
         const scalar particleDiameterMax,
-        const scalar particleDiameterSigma,
+        const scalar particleDiameterN,
         const scalar injectionTheta,
         const scalar injectionTp,
         const scalar rhoMin,
@@ -3619,7 +3624,7 @@ public:
             particleDiameterFallback,
             particleDiameterMin,
             particleDiameterMax,
-            particleDiameterSigma,
+            particleDiameterN,
             injectionTheta,
             injectionTp,
             rhoMin,

@@ -10,6 +10,7 @@ enum class MaterialFailureOrigin { None,ConductionNumerical,ReactionNumerical,Fi
 struct CpuMaterialControls {
     Real maxSubstep=0,transportCfl=.4,reactionCfl=.1,reactionMaxSubstep=0;
     Real driveRelativeTolerance=.05,driveSourceFraction=.05,driveTractionScale=1;
+    bool retainDonorHistory=true; // Explicit external consumer capability.
     int maxSubsteps=100000,nonlinearMaxIterations=50;
     Real nonlinearRelativeTolerance=1e-10,energyAbsoluteTolerance=1e-10,energyRelativeTolerance=1e-10;
 };

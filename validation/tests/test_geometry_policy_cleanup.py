@@ -7,7 +7,7 @@ from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT
 def geometry_probe(tmp_path_factory):
     executable = tmp_path_factory.mktemp("geometry-policy") / "probe"
     app = SOURCE_ROOT / "applications/CHMT"
-    command = ["g++", "-std=c++14", "-O2", "-Wall", "-Wextra", "-Werror",
+    command = ["g++", "-std=c++17", "-O2", "-Wall", "-Wextra", "-Werror",
                "-Wno-misleading-indentation", "-Wno-mismatched-new-delete",
                "-I" + str(app), "-I" + str(SOURCE_ROOT / "common"),
                str(VALIDATION_ROOT / "tests/fixtures/geometry_policy/probe.cpp"),
@@ -31,7 +31,7 @@ def test_geometry_matches_previous_uncapped_solve(geometry_probe, tmp_path):
         content = subprocess.check_output(["git", "show", revision + ":applications/CHMT/mesh/" + name], cwd=SOURCE_ROOT)
         (tmp_path / "mesh" / name).write_bytes(content)
     baseline = tmp_path / "baseline"
-    command = ["g++", "-std=c++14", "-O2", "-I" + str(tmp_path), "-I" + str(app),
+    command = ["g++", "-std=c++17", "-O2", "-I" + str(tmp_path), "-I" + str(app),
                "-I" + str(SOURCE_ROOT / "common"),
                str(VALIDATION_ROOT / "tests/fixtures/geometry_policy/probe.cpp"),
                str(tmp_path / "mesh/Geometry.C"), "-o", str(baseline)]
@@ -49,7 +49,7 @@ def test_triangle_distance_uses_actual_geometry(tmp_path):
     app = SOURCE_ROOT / "applications/CHMT"
     source = VALIDATION_ROOT / "tests/fixtures/geometry_policy/triangle_distance.cpp"
     executable = tmp_path / "triangle-distance"
-    built = subprocess.run(["g++", "-std=c++14", "-O2", "-Wall", "-Wextra", "-Werror", "-pedantic",
+    built = subprocess.run(["g++", "-std=c++17", "-O2", "-Wall", "-Wextra", "-Werror", "-pedantic",
                             "-I" + str(app), "-I" + str(SOURCE_ROOT / "common"), str(source),
                             "-o", str(executable)], text=True, capture_output=True)
     assert built.returncode == 0, built.stdout + built.stderr

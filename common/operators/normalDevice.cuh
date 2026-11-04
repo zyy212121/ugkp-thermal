@@ -1,3 +1,4 @@
+#include "ParticleDiameterDistribution.H"
 // Exports Gaussian normal sampling, particle-diameter sampling and radialDistribution.
 // These sampling/collision utilities share the caller-provided RNG and precision helpers.
 #pragma once
@@ -36,41 +37,11 @@ __device__ GPU_OPERATOR_REAL sampleDiameterAroundDevice
 )
 {
     const GPU_OPERATOR_REAL dMin = clampMin(s.particleDiameterMin, GPU_OPERATOR_R(1.0e-12));
-    const GPU_OPERATOR_REAL dMax =
-        clampMin(s.particleDiameterMax, clampMin(dMin, GPU_OPERATOR_R(1.0e-12)));
-    const GPU_OPERATOR_REAL dLocal = clampRange
-    (
-        finiteOr(dCenter, s.particleDiameterFallback),
-        dMin,
-        dMax
-    );
-
-    if (dMax <= dMin || s.particleDiameterSigma <= OfSmall)
-    {
-        return dLocal;
-    }
-
-    const GPU_OPERATOR_REAL sigma = s.particleDiameterSigma;
-    const GPU_OPERATOR_REAL lnMin = log(dMin);
-    const GPU_OPERATOR_REAL lnMax = log(dMax);
-    const GPU_OPERATOR_REAL lnD =
-        log(clampMin(dLocal, GPU_OPERATOR_R(1.0e-12)))
-      - GPU_OPERATOR_R(0.5)*sigma*sigma
-      + sigma*normalDevice(rng);
-
-    if (!finiteDevice(lnD))
-    {
-        return lnD < GPU_OPERATOR_R(0.0) ? dMin : dMax;
-    }
-    if (lnD <= lnMin)
-    {
-        return dMin;
-    }
-    if (lnD >= lnMax)
-    {
-        return dMax;
-    }
-    return exp(lnD);
+    const GPU_OPERATOR_REAL dMax = clampMin(s.particleDiameterMax, dMin);
+    if (dMax <= dMin) return dMin;
+    const GPU_OPERATOR_REAL scale = finiteOr(dCenter, s.particleDiameterFallback);
+    return ugkwp::rosinRammlerDiameter
+        (scale, s.particleDiameterN, dMin, dMax, uniform01Device(rng));
 }
 
 __device__ GPU_OPERATOR_REAL sampleDiameterFromPoolMomentDevice

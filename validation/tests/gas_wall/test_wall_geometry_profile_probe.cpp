@@ -82,7 +82,7 @@ int main(){
     expected+=primitive(hi)-primitive(lo);
    }
    const double error=std::abs(actual-expected),threshold=2e-11*(1+std::abs(expected));
-   const int pointBound=2*(nodes+(tet?4:8)+1)+8;
+   const int pointBound=2*(2*nodes+(tet?4:8)+1)+2*opt.firstSegmentGaussOrder;
    std::cout<<std::setprecision(17)<<"{\"geometry\":\""<<names[meshIndex]<<"\",\"profile_nodes\":"<<nodes
     <<",\"quadrature_points\":"<<d.distance.size()<<",\"point_bound\":"<<pointBound
     <<",\"source_integral\":"<<actual<<",\"independent_exact\":"<<expected

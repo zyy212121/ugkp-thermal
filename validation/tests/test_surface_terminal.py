@@ -10,7 +10,7 @@ BASE='89ed80b59020d57c444143245de33fc546846e5e'
 
 def compile_run(tmp_path,name,code,includes=(),owner=None):
     source=tmp_path/(name+'.cpp');source.write_text(code);exe=tmp_path/(name+'.exe')
-    cmd=['g++','-std=c++14','-O2','-ffp-contract=off','-Wall','-Wextra','-Werror','-pedantic',
+    cmd=['g++','-std=c++17','-O2','-ffp-contract=off','-Wall','-Wextra','-Werror','-pedantic',
          '-Wno-misleading-indentation','-Wno-mismatched-new-delete',
          *['-I'+str(p) for p in includes],'-I'+str((VALIDATION_ROOT / 'tests/fixtures/surface_terminal')),
          '-I'+str(APP),'-I'+str(ROOT/'common'),str(source),*([str(owner)] if owner else []),'-o',str(exe)]

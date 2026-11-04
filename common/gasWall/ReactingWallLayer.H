@@ -19,6 +19,7 @@ template<class R,int N> struct LayerContext {
     R tangent[2][3]{},wallU[2]{},edgeU[2]{},mass=0,wallNormal=0,energyReference=0,wallEnthalpy[N]{},enthalpyJump[N]{},scale[N+4]{};
     int dependent=0,independent[N]{};
     bool trialStorageComplete=false;
+    R equilibriumWallTraction[2]{};
     R equilibriumWallStress=0; // fixed constitutive parameter during one transport Newton solve
 };
 template<class R,int N> struct LayerPoint {
@@ -34,6 +35,14 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool applyEquilibriu
     if(c.model!=BoundaryLayerModel::EquilibriumOde)return true;
     p.nut=equilibriumDynamicViscosity(p.rho,ctx.equilibriumWallStress,y,
         p.mu,c.equilibriumKappa,c.equilibriumAPlus)/p.rho;
+    if(c.localStressCorrection&&ctx.mass!=0){
+        // In the wall-relative frame F_u=j*u-tau=-tau_w. Only the
+        // viscosity prefactor changes; the original wall damping survives.
+        const R tx=ctx.equilibriumWallTraction[0]+ctx.mass*p.u[0];
+        const R tz=ctx.equilibriumWallTraction[1]+ctx.mass*p.u[1];
+        p.nut=equilibriumLocalStressViscosity(p.rho,ctx.equilibriumWallStress,
+            ::hypot(tx,tz),y,p.mu,c.equilibriumKappa,c.equilibriumAPlus)/p.rho;
+    }
     return gasFinite(p.nut)&&p.nut>=0;
 }
 // log(b/a) without overflowing b/a or losing a small positive-state jump.
@@ -1256,12 +1265,13 @@ UGKWP_GAS_HD inline bool prepareReactingWallInput(WallInput<R,N,TableReal>&in,
 } // detail
 
 template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> UGKWP_GAS_HD inline bool evaluateReactingWallLayerImpl(
- const WallInput<R,N,TableReal>& originalInput,const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,WallOutput<R,N>& output,WallStatus& status,const Team& team=Team{}){
+ const WallInput<R,N,TableReal>& originalInput,const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,WallOutput<R,N>& output,WallStatus& status,const Team& team=Team{},const R* accepted=nullptr){
     using namespace detail;
     auto in=originalInput;in.model.thermo.diagnostics=in.diagnostics;
     if(!prepareReactingWallInput<M>(in,c,status,team))return false;
     LayerContext<R,N> ctx;if(!team.all(makeContext(in,c,ctx))){if(team.leader())fail(status,WallCode::InvalidThermodynamics);return false;}
     for(int i=team.rank();i<c.nodes;i+=team.size()){const R eta=R(i)/R(c.nodes-1),f=::pow(eta,c.stretch);w.y[i]=in.matchingDistance*f;
+        if(accepted){for(int j=0;j<N+4;++j)w.state[i][j]=accepted[i*(N+4)+j];continue;}
         w.state[i][0]=f*ctx.edgeU[0];w.state[i][1]=f*ctx.edgeU[1];
         w.state[i][2]=f*(in.matching.temperature-in.temperature);
         for(int j=0;j<N-1;++j)w.state[i][3+j]=in.matching.massFraction[ctx.independent[j]];
@@ -1277,8 +1287,9 @@ template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> 
     // composition can share the node coefficient work without extra warnings.
     R seedIndependentSum=0;
     for(int j=0;j<N-1;++j)seedIndependentSum+=in.matching.massFraction[ctx.independent[j]];
-    bool seeded=false;
-    if(seedIndependentSum<=R(1))seeded=seedSstLayer(in,c,ctx,w,team);
+    bool seeded=accepted!=nullptr;
+    if(accepted){}
+    else if(seedIndependentSum<=R(1))seeded=seedSstLayer(in,c,ctx,w,team);
     else if(team.leader())seeded=seedSstLayer(in,c,ctx,w,SerialWallTeam{});
     // Use the positive Picard solution directly, without a shear-based k
     // injection or physical floor. A tiny positive matching k can support a

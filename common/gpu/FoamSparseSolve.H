@@ -8,6 +8,7 @@
 #include "Residuals.H"
 #include "PstreamReduceOps.H"
 #include <vector>
+#include <algorithm>
 namespace ugkp { namespace gpu {
 // Bridge the native FV boundary contract to the shared CUDA sparse solver.
 // This bridge is also the independent assembly reference while cell/face
@@ -19,7 +20,7 @@ inline Foam::solverPerformance solveFoamScalarMatrix(
     auto& temperature=const_cast<volScalarField&>(equation.psi());
     const int count=temperature.size();
     lduInterfaceFieldPtrsList interfaces(temperature.boundaryField().scalarInterfaces());
-    std::vector<int> boundaryOwner,boundaryNeighbour;
+    std::vector<int> boundaryOwner,boundaryNeighbour,interfaceCells;
     std::vector<double> boundaryDiagonal,boundarySource,boundaryJump;
     bool haveJump=false;
     bool haveInterface=false;
@@ -43,25 +44,31 @@ inline Foam::solverPerformance solveFoamScalarMatrix(
             if(!refCast<const cyclicFvPatch>(temperature.mesh().boundary()[patch]).owner())jumpSign=-1;
             if(!haveJump){boundaryJump.resize(boundaryOwner.size(),0);haveJump=true;}
         }
-        if(interfaces.set(patch))haveInterface=true;
+        if(interfaces.set(patch)){haveInterface=true;interfaceCells.insert(interfaceCells.end(),cells.begin(),cells.end());}
         forAll(cells,f){
             if(haveJump)boundaryJump.push_back(jump.valid()?jumpSign*jump()[f]:0);
             boundaryOwner.push_back(cells[f]);boundaryNeighbour.push_back(localCyclic?(*adjacent)[f]:coupled?-2:-1);
             boundaryDiagonal.push_back(equation.internalCoeffs()[patch][f]);boundarySource.push_back(equation.boundaryCoeffs()[patch][f]);
         }
     }
-    struct Context {fvScalarMatrix& equation;const lduInterfaceFieldPtrsList& interfaces;int communicator;};
-    Context context{equation,interfaces,equation.mesh().comm()};SparseCommunication communication;communication.context=&context;
+    std::sort(interfaceCells.begin(),interfaceCells.end());
+    interfaceCells.erase(std::unique(interfaceCells.begin(),interfaceCells.end()),interfaceCells.end());
+    struct Context {fvScalarMatrix& equation;const lduInterfaceFieldPtrsList& interfaces;int communicator;
+        const std::vector<int>& cells;scalarField input,output;};
+    Context context{equation,interfaces,equation.mesh().comm(),interfaceCells,scalarField(count,0),scalarField(count,0)};
+    SparseCommunication communication;communication.context=&context;
+    communication.interfaceCells=interfaceCells.data();communication.interfaceCellCount=int(interfaceCells.size());
     if(Pstream::parRun())communication.globalSum=[](void* data,double* values,int n){
         const auto& context=*static_cast<Context*>(data);
         for(int i=0;i<n;++i)reduce(values[i],sumOp<scalar>(),Pstream::msgType(),context.communicator);
     };
     if(haveInterface)communication.addInterface=[](void* data,const double* x,double* result,int n){
-        const auto& context=*static_cast<Context*>(data);
-        scalarField input(n),output(n);for(int i=0;i<n;++i){input[i]=x[i];output[i]=result[i];}
+        auto& context=*static_cast<Context*>(data);auto& input=context.input;auto& output=context.output;
+        for(int c:context.cells){input[c]=x[c];output[c]=result[c];}
         context.equation.initMatrixInterfaces(context.equation.boundaryCoeffs(),context.interfaces,input,output,0);
         context.equation.updateMatrixInterfaces(context.equation.boundaryCoeffs(),context.interfaces,input,output,0);
-        for(int i=0;i<n;++i)result[i]=output[i];
+        for(int c:context.cells)result[c]=output[c];
+        (void)n;
     };
     ConjugateGradientControls controls;
     controls.maximumIterations=dictionary.lookupOrDefault<label>("maxIter",1000);
