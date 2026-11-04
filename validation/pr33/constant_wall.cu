@@ -8,15 +8,15 @@
 #endif
 using namespace ugkwp;using namespace ugkwp::gaswall;
 struct Result{bool ok=false;double heat=0,residual=0,temperature=0;};
-UGKWP_GAS_HD Result solve(double mass,bool adiabatic=false){
+UGKWP_GAS_HD Result solve(double mass,bool adiabatic=false,double pr=.72,double velocity=100){
  SpeciesThermoData<double> species[2]{};double coefficients[6]={1000,0,0,1000,0,0};
  for(int k=0;k<2;++k){species[k].coefficientOffset=3*k;species[k].molarMass=.028;species[k].minTemperature=1;species[k].maxTemperature=5000;}
  WallInput<double,2> in;in.model.thermo.species=species;in.model.thermo.coefficients=coefficients;in.model.thermo.coefficientCount=6;
- in.model.viscosity=2e-5;in.model.conductivity=2e-5*1000/.72;
+ in.model.viscosity=2e-5;in.model.conductivity=2e-5*1000/pr;
  in.model.diffusivity[0]=in.model.diffusivity[1]=1e-4;
  in.normal[1]=1;in.temperature=in.matching.temperature=300;in.pressure=101325;
  in.matchingDistance=.01;in.ownerDistance=.004;in.matching.massFraction[0]=1;
- in.massFlux[0]=mass;in.matching.velocity[0]=100;
+ in.massFlux[0]=mass;in.matching.velocity[0]=velocity;
  const double rho=in.pressure/(universalGasConstant<double>()/.028*300);
  in.matching.velocity[1]=mass/rho;
  in.adiabatic=adiabatic;
@@ -26,7 +26,7 @@ UGKWP_GAS_HD Result solve(double mass,bool adiabatic=false){
  return {ok,out.conductiveHeatFlux,out.residual,out.traceTemperature};
 }
 #ifdef __CUDACC__
-__global__ void run(double mass,Result* result,bool adiabatic=false){*result=solve(mass,adiabatic);}
+__global__ void run(double mass,Result* result,bool adiabatic=false,double pr=.72,double velocity=100){*result=solve(mass,adiabatic,pr,velocity);}
 #endif
 int main(){
  const double mass[]={0,-.1,-.2,-.4,-2,2};
@@ -60,5 +60,16 @@ int main(){
 #endif
   std::cout<<"PASS adiabatic mass="<<mass<<" temperature="<<result.temperature<<'\n';
  }
+
+ {auto result=solve(.002,true,730,1E-155);assert(result.ok);assert(std::abs(result.temperature-305.04256628205565)<1e-9);
+#ifdef __CUDACC__
+ Result* d;assert(cudaMallocManaged(&d,sizeof(*d))==cudaSuccess);run<<<1,1>>>(.002,d,true,730,1E-155);assert(cudaDeviceSynchronize()==cudaSuccess&&d->ok);assert(std::abs(d->temperature-305.04256628205565)<1e-9);assert(cudaFree(d)==cudaSuccess);
+#endif
+ std::cout<<"PASS scaled temperature="<<result.temperature<<'\n';}
+ {auto result=solve(.002,true,940,1E-200);assert(result.ok);assert(std::abs(result.temperature-362.2904339075141)<1e-9);
+#ifdef __CUDACC__
+ Result* d;assert(cudaMallocManaged(&d,sizeof(*d))==cudaSuccess);run<<<1,1>>>(.002,d,true,940,1E-200);assert(cudaDeviceSynchronize()==cudaSuccess&&d->ok);assert(std::abs(d->temperature-362.2904339075141)<1e-9);assert(cudaFree(d)==cudaSuccess);
+#endif
+ std::cout<<"PASS scaled temperature="<<result.temperature<<'\n';}
 
 }

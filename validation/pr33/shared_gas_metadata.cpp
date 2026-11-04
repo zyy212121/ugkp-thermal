@@ -22,7 +22,8 @@ int main(int argc,char** argv){
  if(test==9||test==10){g.species[0].model=ugkwp::SpeciesThermoModel::NASA7;
  g.species[0].coefficientOffset=int(g.coefficients.size());g.coefficients.resize(g.coefficients.size()+(test==9?14:13));}
  if(test==11){g.elementNames.resize(Ne);g.elementComposition.resize(Ns*Ne);}
- ModelConfig m; m.gasPhase="unchanged";std::string error;
+ ModelConfig m; m.gasPhase="unchanged";
+ if(test==11){m.physics.nElements=Ne;for(int e=0;e<Ne;++e)m.elementNames[e]=g.elementNames[e]="E"+std::to_string(e);}std::string error;
  const bool ok=bindSharedGasModel(g,m,error);assert(ok==(test==0||test==9||test==11));
  if(!ok){assert(!error.empty());assert(m.gasPhase=="unchanged");
  assert(!bindSingleGasModel(g,"S0",m,error));assert(m.gasPhase=="unchanged");}

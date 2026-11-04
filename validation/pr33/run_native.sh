@@ -45,6 +45,6 @@ for unit in gas_particles_native wall_profiles_native chmt_output_cadence cht_na
 done
 python3 validation/pr31/chmt_moving_particles_native.py --output "$O/chmt-moving" > "$O/chmt-moving.log" 2>&1
 python3 validation/pr31/chmt_particles_native.py --output "$O/chmt-contact" --model reboundContact --impact --end-time .001 --restart-check > "$O/chmt-contact.log" 2>&1
-sha256sum bin/gasUGKP bin/gasUGKPSteady bin/CHT bin/CHMT bin/FSHCudaBackend > "$O/applications.sha256"
+sha256sum bin/gasUGKP bin/gasUGKPSteady bin/CHT bin/CHMT bin/FSH bin/FSHCudaBackend > "$O/applications.sha256"
 sha256sum "$O/build"/*.o "$O/build/constant_wall" "$O/build/equilibrium_local_stress" "$O/build/wall_history" "$O/build/particle_coupling" "$O/build/csr_preparation" "$O/build/material_sources" "$O/build/radiation_batches" "$O/build/sparse_interfaces" "$O/build/specular_reflection" "$O/build/conduction_rhs" "$O/build/shared_gas_metadata" "$O/build/model_input" > "$O/probes.sha256"
 echo 'PASS native PR33 operators and four application consumers'

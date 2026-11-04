@@ -16,6 +16,25 @@ inline bool bindSharedGasModel(const ugkwp::GasModelConfiguration& shared,
     if(elements>Ne||shared.elementComposition.size()!=std::size_t(Ns)*elements){
         error="shared gas element tables exceed CHMT capacity or have inconsistent dimensions";return false;
     }
+    const int active=model.physics.nElements;
+    if(active<0||active>Ne||elements!=std::size_t(active)){
+        error="shared gas and material must declare the same active element set";return false;
+    }
+    int gasElement[Ne]{};
+    for(int e=0;e<active;++e){
+        const auto& name=model.elementNames[e];
+        if(name.empty()){error="empty material element name";return false;}
+        for(int prior=0;prior<e;++prior)if(model.elementNames[prior]==name){
+            error="duplicate material element name: "+name;return false;
+        }
+        int found=-1;
+        for(int column=0;column<active;++column)if(shared.elementNames[column]==name){
+            if(found>=0){error="duplicate gas element name: "+name;return false;}
+            found=column;
+        }
+        if(found<0){error="gas element table is missing material element: "+name;return false;}
+        gasElement[e]=found;
+    }
     for(const auto& source:shared.species){
         const std::size_t required=source.model==ugkwp::SpeciesThermoModel::LinearCp?3:
             source.model==ugkwp::SpeciesThermoModel::NASA7?14:0;
@@ -41,7 +60,7 @@ inline bool bindSharedGasModel(const ugkwp::GasModelConfiguration& shared,
         if(source.model==ugkwp::SpeciesThermoModel::LinearCp){target.cp0=coefficients[0];target.cp1=coefficients[1];target.e0=coefficients[2];}
         else for(int i=0;i<14;++i)target.nasa7[i]=coefficients[i];
         for(int e=0;e<static_cast<int>(shared.elementNames.size());++e)
-            target.element[e]=shared.elementComposition[s*shared.elementNames.size()+e]/source.molarMass;
+            target.element[e]=shared.elementComposition[s*elements+gasElement[e]]/source.molarMass;
         model.speciesNames[s]=shared.speciesNames[s];
         physics.gasDiffusivity[s]=shared.diffusionCoefficients[s];
     }
