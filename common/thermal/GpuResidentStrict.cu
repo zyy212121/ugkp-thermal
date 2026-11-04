@@ -1,3 +1,4 @@
+#include "GpuFrozenParticleRelease.cuh"
 #include "ParticleGasBinding.H"
 #include "gasTransport/MixturePorosity.H"
 #define GPU_GAS_POROSITY_SPECIES(s,c,scale) scaleMixturePorositySpecies(s,c,scale)

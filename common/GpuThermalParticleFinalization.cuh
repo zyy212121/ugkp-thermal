@@ -147,6 +147,8 @@ __device__ void finalizeOneThermalizedStuckParticle
             releaseUy -= GPU_OPERATOR_R(2.0)*relativeNormal*outwardNy;
             releaseUz -= GPU_OPERATOR_R(2.0)*relativeNormal*outwardNz;
         }
+        bool frozenRelease = false;
+        double frozenEnergy = 0.;
         if (s.pStuck[i] == Foam::gpuThermal::particleWallTransientRebound)
         {
             const unsigned char model = s.particleStuckCandidateMask[faceI];
@@ -155,8 +157,12 @@ __device__ void finalizeOneThermalizedStuckParticle
                 ? static_cast<GPU_OPERATOR_REAL>(s.pColdFrozenArea[i])
                 : model == Foam::gpuThermal::particleWallColdWall2D
                 ? static_cast<GPU_OPERATOR_REAL>(s.pCold2DFrozenArea[i]) : GPU_OPERATOR_R(0.0);
-            if (frozenArea > GPU_OPERATOR_R(0.0))
+            if (frozenArea > GPU_OPERATOR_R(0.0)) {
+                frozenRelease = true;
+                frozenEnergy = frozenReleaseSpecificEnergy(s,i,
+                    model == Foam::gpuThermal::particleWallSolidifyingDeposition ? 8 : 64);
                 releaseUx = releaseUy = releaseUz = GPU_OPERATOR_R(0.0);
+            }
         }
         s.pux[i] = releaseUx;
         s.puy[i] = releaseUy;
@@ -175,6 +181,7 @@ __device__ void finalizeOneThermalizedStuckParticle
         s.pContactPeakFraction[i] = 0.0f;
         clearColdWallParticleState(s, i);
         clearColdWall2DParticleState(s, i);
+        if (frozenRelease) publishFrozenReleaseEnergy(s,i,frozenEnergy);
     }
     else
     {

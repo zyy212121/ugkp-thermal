@@ -146,6 +146,8 @@
 
         if (detach)
         {
+            const double releaseEnergy = releaseAtRest
+                ? frozenReleaseSpecificEnergy(s,i,8) : 0.;
             if (releaseAtRest) {
                 s.puxOld[i] = GPU_OPERATOR_R(0.0);
                 s.puyOld[i] = GPU_OPERATOR_R(0.0);
@@ -164,6 +166,7 @@
             s.pContactPeakFraction[i] = 0.0;
             clearColdWallParticleState(s, i);
             clearColdWall2DParticleState(s, i);
+            if (releaseAtRest) publishFrozenReleaseEnergy(s,i,releaseEnergy);
         }
         else if (enterLongDeposit)
         {

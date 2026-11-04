@@ -985,6 +985,8 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
             }
         }
 
+        // The release owner reads all updated ring profiles before clearing.
+        __syncwarp(groupMask);
         int transition = 0;
         GpuReal longDepositAreaM2 = GPU_R(0.0);
         if (radialNode == 0 && finiteContact)
@@ -1045,6 +1047,8 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
             transition = detach ? 1 : (enterLongDeposit ? 2 : 0);
             if (transition == 1)
             {
+                const double releaseEnergy = releaseAtRest
+                    ? frozenReleaseSpecificEnergy(s,particleI,64) : 0.;
                 if (releaseAtRest) {
                     s.puxOld[particleI] = GPU_R(0.0);
                     s.puyOld[particleI] = GPU_R(0.0);
@@ -1060,6 +1064,7 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
                 s.pContactDuration[particleI] = 0.0;
                 s.pContactMaximumArea[particleI] = 0.0;
                 s.pContactPeakFraction[particleI] = 0.0;
+                if (releaseAtRest) publishFrozenReleaseEnergy(s,particleI,releaseEnergy);
             }
             else if (transition == 2)
             {

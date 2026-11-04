@@ -1,3 +1,4 @@
+#include "GpuFrozenParticleRelease.cuh"
 #include "gasBoundary/Resident.cuh"
 #include "gasBoundary/Evaluate.H"
 #include "gasTransport/GasMeshUploadValidation.H"
