@@ -1,3 +1,4 @@
+#include "FoamSommerfeldConfiguration.H"
 #ifndef CHMT_CONFIGURATION_MODELIO_H
 #define CHMT_CONFIGURATION_MODELIO_H
 #include "configuration/InputValues.H"
@@ -206,7 +207,7 @@ namespace chmt {
                 if(a.found("contactCoeffs")){
                     const auto& c=a.subDict("contactCoeffs");
 #define CHMT_CONTACT_NUMBER(name) w.name=readNumber(c,#name,w.name)
-                    CHMT_CONTACT_NUMBER(sommerfeldThreshold);CHMT_CONTACT_NUMBER(maximumCoverage);
+                    w.sommerfeldThreshold=Foam::readSommerfeldThreshold(c,w.sommerfeldThreshold);CHMT_CONTACT_NUMBER(maximumCoverage);
                     CHMT_CONTACT_NUMBER(depositionHeatTransferEfficiency);CHMT_CONTACT_NUMBER(reflectionHeatTransferEfficiency);
                     CHMT_CONTACT_NUMBER(adhesionEnergyScale);CHMT_CONTACT_NUMBER(contactAngleDegree);
                     CHMT_CONTACT_NUMBER(meltingTemperature);CHMT_CONTACT_NUMBER(mushyRange);CHMT_CONTACT_NUMBER(latentHeat);

@@ -155,6 +155,8 @@ struct DeviceState;
 template<bool Capture> int launchBoundaryLayer(DeviceState*);
 struct DeviceState
 {
+    const void* particleTrackingKernel = nullptr; // host launch selection only
+
     GpuWallEnergyState wallEnergy;
     ugkp::boundary::View gasBoundaryProgram;
     ugkp::boundary::Resident* gasBoundaryOwner=nullptr;
@@ -3304,6 +3306,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     }
 
     DeviceState* s = new DeviceState;
+    s->particleTrackingKernel = reinterpret_cast<const void*>(trackParticlesLocalFaceWalkKernel<true>);
     s->diagnosticOwner = new ugkp::diagnostics::GpuOwner;
     const auto diagnosticAllocation=s->diagnosticOwner->initialise();
     if(diagnosticAllocation!=cudaSuccess) {
@@ -4793,9 +4796,7 @@ int advanceResidentThermalParticles(DeviceState* s,double dt,double simulationTi
     UGKP_DEV_PROBE_ENTER(ProbeTrack);
     if (particleGrid > 0)
     {
-        trackParticlesLocalFaceWalkKernel
-            <<<s->trackingWorkGrid, s->particleBlockThreads>>>(s->deviceState, dt);
-        err = cudaGetLastError();
+        err = launchParticleTracking(s, dt);
         if (err != cudaSuccess)
         {
             setLastError("trackParticlesLocalFaceWalkKernel launch", err);
@@ -6142,6 +6143,10 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
     s->particleStuckModelConfigured = 1;
     s->particleWallHeatTransferEnabled = heatTransferEnabled;
     s->sommerfeldThreshold = sommerfeldThreshold;
+    s->particleTrackingKernel = std::isinf(sommerfeldThreshold) && sommerfeldThreshold > 0
+        ? reinterpret_cast<const void*>(trackParticlesLocalFaceWalkKernel<false>)
+        : reinterpret_cast<const void*>(trackParticlesLocalFaceWalkKernel<true>);
+    if (configureTrackingWorkGrid(s) != 0) return 1;
     s->particleWallMaximumCoverage = maximumCoverage;
     s->particleWallDepositionHeatTransferEfficiency =
         depositionHeatTransferEfficiency;

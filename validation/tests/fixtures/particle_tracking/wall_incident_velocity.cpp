@@ -67,6 +67,7 @@ struct DeviceState
     double pDepositionArea[1] = {}, pContactMaximumArea[1] = {}, pContactPeakFraction[1] = {};
     GpuTime pContactAge[1] = {0.25};
     ContactTime pContactDuration[1] = {};
+    GpuReal couplingTgasOld[3] = {GPU_R(300),GPU_R(300),GPU_R(300)};
     GpuReal gasMu = GPU_R(1.8e-5), rhoSolid = GPU_R(3000), invRhoSolid = GPU_R(1.0/3000);
     GpuReal gravityX = 0, gravityY = 0, gravityZ = 0;
     GpuReal gradPx[3] = {}, gradPy[3] = {}, gradPz[3] = {};
@@ -82,6 +83,7 @@ void initialiseColdWallParticleState(DeviceState& s, int, GpuReal) { ++s.initial
 void initialiseColdWall2DParticleState(DeviceState& s, int, GpuReal) { ++s.initialized2D; }
 #include "operators/pointInsideCell.cuh"
 #include "GpuParticleTransport.cuh"
+namespace ugkwp { inline GpuReal gasCellMolecularViscosityAt(const DeviceState& s,int,GpuReal){return s.gasMu;} }
 #include "operators/dragInverseTimeDevice.cuh"
 
 void advanceDrag(DeviceState& s, GpuTime dt, GpuReal invTauDrag, GpuReal ugx)
@@ -175,7 +177,7 @@ void run(const char* scenario, unsigned char model, bool deposit)
         dt = 1.0/1024;
         s.gravityX = GPU_R(-9.8125);
         s.pux[0] = GPU_R(9.8125/1024);
-        const GpuReal invTau = dragInverseTimeDevice(s, GPU_R(1), GPU_R(1), s.pd[0],
+        const GpuReal invTau = dragInverseTimeDevice(s, 0, GPU_R(1), GPU_R(1), s.pd[0],
             GPU_R(0), ugkwpGpuDrag::SchillerNaumannDrag{});
         advanceDrag(s, dt, invTau, s.pux[0]);
         require(s.pux[0] == 0, "production forced update has exactly zero endpoint");
@@ -184,7 +186,7 @@ void run(const char* scenario, unsigned char model, bool deposit)
     }
     else if (is("drag_zero_endpoint"))
     {
-        const GpuReal invTau = dragInverseTimeDevice(s, GPU_R(1), GPU_R(1), s.pd[0],
+        const GpuReal invTau = dragInverseTimeDevice(s, 0, GPU_R(1), GPU_R(1), s.pd[0],
             GPU_R(2), ugkwpGpuDrag::SchillerNaumannDrag{});
         dt = std::log(2.0)/invTau;
         advanceDrag(s, dt, invTau, GPU_R(-1));

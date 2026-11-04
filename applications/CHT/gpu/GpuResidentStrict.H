@@ -1,3 +1,4 @@
+#include "FoamSommerfeldConfiguration.H"
 #include "FoamParticleInjectionVelocity.H"
 #include "thermal/ParticleTrackingGeometry.H"
 #include "gasBoundary/FoamInput.H"
@@ -3249,10 +3250,7 @@ protected:
         const scalar sommerfeldThreshold =
             model == nullptr
           ? scalar(20)
-          : model->lookupOrDefault<scalar>
-            (
-                "sommerfeldThreshold", scalar(20)
-            );
+          : readSommerfeldThreshold(*model);
         const bool heatTransfer =
             model != nullptr
          && model->lookupOrDefault<bool>("heatTransfer", false);
