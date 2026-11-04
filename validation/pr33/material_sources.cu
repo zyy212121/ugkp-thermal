@@ -33,6 +33,24 @@ int main(){
   }
   chmt_test::near(mass,2,"two-cell mass closure");chmt_test::near(energy,1000000,"two-cell energy closure");
  }
+ // A terminal source is an implicit-conduction RHS, not yet a thermal state.
+ p->enableReactions=false;rates[0]={};current[0].energy=500000;rates[0].energy=-600000;volumes[0]=.002;
+ *result={};
+ applyMaterialSourcesKernel<<<1,128>>>(1,current,rates,initial,change,candidateChange,nullptr,offsets,nullptr,offsets,nullptr,nullptr,nullptr,volumes,p,1,true,next,nullptr,status,.001,.4,10000);
+ selectSourceFailure<<<1,256>>>(status,1,result);check(cudaDeviceSynchronize());
+ chmt_test::check(!result->phase,"terminal implicit RHS accepted without reaction EOS");
+ chmt_test::near(next[0].energy,-100000,"pending energy unchanged");
+ const double temperature=(next[0].energy+2000*300)/(1000+2000);
+ chmt_test::near(temperature,166.66666666666667,"implicit conduction temperature");
+ chmt_test::near(1000*temperature-next[0].energy,2000*(300-temperature),"implicit energy closure");
+ SolidQ solved=next[0];solved.energy=1000*temperature;MaterialPrimitive terminal;
+ chmt_test::check(recoverMaterial(solved,volumes[0],*p,terminal),"final solved EOS");
+ chmt_test::near(terminal.temperature,temperature,"final thermal state");
+ for(bool reactions:{false,true}){
+  p->enableReactions=reactions;
+  applyMaterialSourcesKernel<<<1,128>>>(1,current,rates,initial,change,candidateChange,nullptr,offsets,nullptr,offsets,nullptr,nullptr,nullptr,volumes,p,1,reactions,next,nullptr,status,.001,.4,10000);
+  check(cudaDeviceSynchronize());chmt_test::check(status[0].phase!=0,"intermediate or reacting invalid state remains rejected");
+ }
  // Failure precedence is phase first, then lowest global cell; empty input
  // and off-block errors exercise the same production reduction.
  const int n=1000003;auto failures=managed<MaterialStepResult>(n);

@@ -32,11 +32,15 @@ CHMT_HD inline MaterialReactionStatus advanceMaterialReactionsMath(const SolidQ&
         ||!(finite(cfl)&&cfl>0)||warningBudget<=0){
         status.code=MaterialReactionCode::InvalidControls;return status;
     }
+    // Disabled reactions are an identity map. In the terminal source stage,
+    // base.energy may be the pending implicit-conduction RHS, not an EOS state.
+    // The caller validates inventory and the conduction solver validates its
+    // final temperature; active reaction integration still requires a valid EOS.
+    if(!p.enableReactions){output=base;return status;}
     SolidQ state=base;MaterialPrimitive material;
     if(!recoverMaterial<false>(state,volume,p,material,nullptr,-1,&status.numericalFailure)){
         status.code=MaterialReactionCode::BaseRecovery;return status;
     }
-    if(!p.enableReactions){output=base;return status;}
     // Preserve count/domain diagnostic precedence before reading the network.
     ReactionStepControl initialControl;
     if(!reactionStepControl(state,volume,p,cfl,initialControl,&status.numericalFailure,

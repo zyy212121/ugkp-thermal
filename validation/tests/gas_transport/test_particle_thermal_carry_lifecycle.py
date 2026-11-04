@@ -154,13 +154,17 @@ swapParticleThermalEnthalpyResidual(other,0);
 def test_cht_direct_backend_matches_public_restart_api(tmp_path):
     source = tmp_path / "api.cpp"
     source.write_text('#include "applications/CHT/gpu/GpuBackendApi.H"\n')
-    subprocess.run(["g++", "-std=c++17", "-fsyntax-only", "-I" + str(ROOT), str(source)], check=True)
+    subprocess.run(["g++", "-std=c++17", "-fsyntax-only", "-I" + str(ROOT), "-I" + str(ROOT / "common"), str(source)], check=True)
     module = contract_module()
     for direction, expected in (("Upload", 30), ("Download", 31)):
         name = f"ugkwpGpuResidentStrict{direction}ParticleRestartMirror"
-        for filename in ("GpuBackendApi.H", "GpuResidentStrict.H", "GpuResidentStrict.cu"):
-            source = (ROOT / "applications/CHT/gpu" / filename).read_text()
-            for call in module.calls(source, name):
+        for filename in ("common/thermal/GpuBackendApi.H", "applications/CHT/gpu/GpuResidentStrict.H", "common/thermal/GpuResidentStrict.cu"):
+            source = (ROOT / filename).read_text()
+            matches=list(module.calls(source,name))
+            assert matches, (filename, name, "missing production declaration/definition/call")
+            if filename.endswith(".cu"):
+                assert module.function_body(source,name), (filename,name,"missing definition body")
+            for call in matches:
                 args = call[call.index("(") + 1:-1]
                 depth, count = 0, 1
                 for char in args:
@@ -380,3 +384,27 @@ int main(){
     v7 = host.index("else if (weightedV7)", v8)
     assert "prepareSchema8ThermalAuthorityForPrecision" not in host[v8:v7]
     assert "prepareSchema8ThermalAuthorityForPrecision" not in host
+
+
+def test_lifecycle_probe_detects_missing_shared_allocation(monkeypatch):
+    import pytest
+    module=contract_module()
+    owner=ROOT/'common/thermal/GpuResidentStrict.cu'
+    original=Path.read_text
+    text=owner.read_text()
+    allocation=next(call for call in module.calls(text,'allocate') if 's->pThermalEnthalpyResidual,' in call)
+    def mutated(path,*args,**kwargs):
+        content=original(path,*args,**kwargs)
+        return content.replace(allocation,'0') if path==owner else content
+    monkeypatch.setattr(Path,'read_text',mutated)
+    meta=json.loads((ROOT/'common/ParticleFieldManifest.json').read_text())
+    with pytest.raises(ValueError,match='allocation closure for pThermalEnthalpyResidual'):
+        module.build_probe(ROOT,meta,'CHT')
+
+
+def test_function_extractor_rejects_call_without_definition():
+    import pytest
+    module=contract_module()
+    with pytest.raises(ValueError,match='missing function'):
+        module.function_body('if (owner(a) != 0) { return 1; }','owner')
+    assert 'return a;' in module.function_body('if (owner(a) != 0) { return 1; } int owner(int a) { return a; }','owner')
