@@ -155,9 +155,9 @@ struct DeviceState;
 template<bool Capture> int launchBoundaryLayer(DeviceState*);
 struct DeviceState
 {
-    const void* particleTrackingKernel = nullptr; // host launch selection only
 
     GpuWallEnergyState wallEnergy;
+    const void* particleTrackingKernel = nullptr; // host launch selection only
     ugkp::boundary::View gasBoundaryProgram;
     ugkp::boundary::Resident* gasBoundaryOwner=nullptr;
     ugkwp::GasSpeciesState<double,ugkwp::compiledGasSpecies> gasSpecies,gasRejectedView;
