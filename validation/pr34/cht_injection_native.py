@@ -9,7 +9,7 @@ import thermal_particle_restart_current as wire
 
 def main():
  parser=argparse.ArgumentParser();parser.add_argument('--output',type=Path,required=True)
- out=parser.parse_args().output;out.mkdir(parents=True,exist_ok=False)
+ out=parser.parse_args().output.resolve();out.mkdir(parents=True,exist_ok=False)
  meta=json.loads((ROOT/'validation/molecular_transport/fixtures.json').read_text())['cht-contact']
  report=[]
  # Inlet outward normal is -x. Gas and particle boundary velocities are independent.
@@ -25,17 +25,22 @@ def main():
   matrix.run([ROOT/'bin/CHT','-case',case],case/'run.log')
   final=matrix.times(case)[-1];chunks=[d for _,d in wire.iter_chunks(final/'gpuResidentStrictParticles.dat')]
   count=sum(len(d['pm']) for d in chunks);mass=sum(float(d['pm'].sum()) for d in chunks)
-  residual=(final/'gpuResidentStrictSourceResidual.dat').read_text().split();remaining=sum(float(x) for x in residual[2:])
+  residual=(final/'gpuResidentStrictSourceResidual.dat').read_text().split();assert residual[0]=='UGKP_SOURCE_RESIDUAL_SCHEMA1' and len(residual)==2+2*int(residual[1])
+  remaining=sum(float(x) for x in residual[3::2])
   velocity=gas if override is None else override
   expected=.001*2800*max(velocity,0)*2e-6
   assert abs(mass+remaining-expected)<1e-15,(name,mass,remaining,expected)
   assert (count>0)==(expected>0),(name,count)
-  error=0
+  error=0;momentum=np.zeros(3);kinetic=0.0
   for d in chunks:
+   speeds=np.column_stack([d[k] for k in ('pux','puy','puz')])
+   momentum+=(d['pm'][:,None]*speeds).sum(axis=0);kinetic+=float((.5*d['pm']*(speeds*speeds).sum(axis=1)).sum())
    error=max(error,float(np.max(np.abs(d['pux']-velocity))))
    assert np.max(np.abs(d['puy']))<1e-6 and np.max(np.abs(d['puz']))<1e-6
   assert error<1e-5,(name,error)
-  report.append(dict(case=name,gas_velocity=gas,override=override,count=count,mass=mass,residual_mass=remaining,expected_mass=expected,maximum_velocity_error=error))
+  assert np.max(np.abs(momentum-np.array([mass*velocity,0,0])))<1e-12
+  assert abs(kinetic-.5*mass*velocity*velocity)<1e-12
+  report.append(dict(case=name,gas_velocity=gas,override=override,count=count,mass=mass,residual_mass=remaining,expected_mass=expected,maximum_velocity_error=error,momentum=momentum.tolist(),kinetic_energy=kinetic))
  (out/'results.json').write_text(json.dumps({'binary_sha256':hashlib.sha256((ROOT/'bin/CHT').read_bytes()).hexdigest(),'cases':report},indent=2))
  print(json.dumps(report))
 if __name__=='__main__':main()
