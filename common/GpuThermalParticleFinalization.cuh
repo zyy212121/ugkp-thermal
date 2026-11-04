@@ -159,8 +159,17 @@ __device__ void finalizeOneThermalizedStuckParticle
                 ? static_cast<GPU_OPERATOR_REAL>(s.pCold2DFrozenArea[i]) : GPU_OPERATOR_R(0.0);
             if (frozenArea > GPU_OPERATOR_R(0.0)) {
                 frozenRelease = true;
+                // The corrected pool velocity is a new mechanical allocation,
+                // separate from the saved impact/rebound reservoir. Thermalize
+                // its remaining lab-frame energy after adhesion and reflection
+                // before enforcing zero-speed release. Fluctuation energy alone
+                // omits the pool mean and cross terms.
+                const double rx = releaseUx, ry = releaseUy, rz = releaseUz;
+                const double cancelledPoolSpecificEnergy =
+                    0.5*(rx*rx + ry*ry + rz*rz);
                 frozenEnergy = frozenReleaseSpecificEnergy(s,i,
-                    model == Foam::gpuThermal::particleWallSolidifyingDeposition ? 8 : 64);
+                    model == Foam::gpuThermal::particleWallSolidifyingDeposition ? 8 : 64)
+                    + cancelledPoolSpecificEnergy;
                 releaseUx = releaseUy = releaseUz = GPU_OPERATOR_R(0.0);
             }
         }
