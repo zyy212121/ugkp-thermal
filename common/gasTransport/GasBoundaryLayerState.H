@@ -125,4 +125,14 @@ template<class State,class R> UGKWP_GAS_HD inline R gasBoundaryLayerWallKFlux(
     }
     return state.gasBoundaryLayer.exchange[slot].k;
 }
+// The equilibrium ODE supplies wall stress/heat, not a local k-omega system.
+// Its auxiliary omega must never replace the independently evolved macro SST
+// inventory (in particular at a quiescent wall, where that auxiliary is zero).
+template<class Wall,class Model> inline void configureEquilibriumOdeMacroSst(Wall& wall,Model& model){
+    if(model.config.model!=gaswall::BoundaryLayerModel::EquilibriumOde)return;
+    wall.useMacroSstInventory=true;
+    model.volumeSstClosure=false;
+    model.config.enableSst=false;
+}
+
 }

@@ -56,6 +56,23 @@ public:
         if(!gas.write(boundaryKind_.data(),kinds)||!gas.write(restitution_.data(),unit)||!gas.write(tangential_.data(),unit)){
             error=gas.error();return false;}
         if(!result(ugkp::thermal::bindParticleSurface(owner_,faces,surface()),error))return false;
+        const auto& inlet=model.particleInlet;
+        if(!inlet.faces.empty()){
+            std::vector<int> cells;std::vector<double> px,py,pz,u(inlet.faces.size(),0),
+                temperature(inlet.faces.size(),inlet.temperature),theta(inlet.faces.size(),inlet.theta),
+                diameter(inlet.faces.size(),config.diameter);
+            for(int f:inlet.faces){
+                const int cell=state.gasMesh.owner.at(f);cells.push_back(cell);
+                const auto x=state.gasMesh.faceCentres.at(f)+(state.gasMesh.cellCentres.at(cell)-state.gasMesh.faceCentres.at(f))*1e-6;
+                px.push_back(x.x);py.push_back(x.y);pz.push_back(x.z);
+            }
+            if(!result(ugkwpGpuResidentStrictUploadBoundarySources(owner_,inlet.faces.size(),cells.data(),inlet.faces.data(),
+                px.data(),py.data(),pz.data(),u.data(),u.data(),u.data(),temperature.data(),theta.data(),diameter.data(),u.data()),error)
+                ||!result(ugkwpGpuResidentStrictConfigureParticleInjectionVelocity(owner_,inlet.velocitySpecified,
+                    inlet.velocity[0],inlet.velocity[1],inlet.velocity[2]),error)
+                ||!result(ugkwpGpuResidentStrictConfigureScheduledInlet(owner_,inlet.faces.size(),inlet.faces.data(),inlet.temperature,
+                    0,nullptr,nullptr,inlet.times.size(),inlet.times.data(),inlet.volumeFraction.data()),error))return false;
+        }
         return load(model,state,gas,stream,error);
     }
     bool refreshGeometry(SharedGasDeviceStorage& gas,cudaStream_t stream,std::string& error){
@@ -83,6 +100,13 @@ public:
         // accepted lagged phase fraction afterwards; do not recompute a restart.
         if(!result(ugkp::thermal::uploadParticleState(owner_,particles.size(),particles.data()),error))return false;
         if(!state.gasVoidFraction.empty()&&!result(ugkwpGpuResidentStrictUploadEpsGPrev(owner_,state.gasVoidFraction.data()),error))return false;
+        if(!model.particleInlet.faces.empty()){
+            if(state.particleSourceFaces!=model.particleInlet.faces||state.particleSourceResidualMass.size()!=state.particleSourceFaces.size()){
+                error="particle source residual layout mismatch";return false;
+            }
+            if(!result(ugkwpGpuResidentStrictUploadSourceResidualMass(owner_,state.particleSourceFaces.size(),
+                state.particleSourceFaces.data(),state.particleSourceResidualMass.data()),error))return false;
+        }
         return true;
     }
     bool mapGeometry(const HostMesh& previous,const HostMesh& next,SharedGasDeviceStorage& gas,
@@ -111,6 +135,11 @@ public:
         if(!owner_)return true;
         std::vector<ugkp::thermal::ParticleState<>> particles;
         if(!result(ugkp::thermal::downloadParticleState(owner_,particles),error))return false;
+        int sources=0;
+        if(!result(ugkwpGpuResidentStrictDownloadSourceResidualMass(owner_,&sources,0,nullptr,nullptr),error))return false;
+        state.particleSourceFaces.resize(sources);state.particleSourceResidualMass.resize(sources);
+        if(sources&&!result(ugkwpGpuResidentStrictDownloadSourceResidualMass(owner_,&sources,sources,
+            state.particleSourceFaces.data(),state.particleSourceResidualMass.data()),error))return false;
         state.particles.clear();state.particles.reserve(particles.size());
         for(const auto& p:particles)state.particles.push_back(ugkp::thermal::adaptParticleState<Vec3>(p));
         return true;

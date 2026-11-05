@@ -316,6 +316,7 @@ struct SurfacePhysicsInput {
     FilmQ film{}, filmBase{}, filmLocalRate{};
     FilmAux aux{};
     bool hasSolid=false, hasFilm=false, useAcceptedFlux=false;
+    bool ablating=true; // fixed conjugate faces exchange heat, not material
     Real solidVolume=0, area=0, gasDistance=0, solidDistance=0, dt=0;
     Vec3 normal{}, baseVelocity{};
     Real gasArea=0, solidArea=0;
@@ -727,7 +728,8 @@ CHMT_HD inline bool surfaceTemperatureConfiguration(const SurfacePhysicsInput& i
             &&p.gasMode!=ugkwp::GasMode::MixtureChemistry)
             return interfaceFailure(p,3869,static_cast<Real>(p.gasMode),-1,ugkp::diagnostics::Code::MissingOperator);
         if(config.model!=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport
-            &&config.model!=ugkwp::gaswall::BoundaryLayerModel::ReactingSst)
+            &&config.model!=ugkwp::gaswall::BoundaryLayerModel::ReactingSst
+            &&config.model!=ugkwp::gaswall::BoundaryLayerModel::EquilibriumOde)
             return interfaceFailure(p,3863,static_cast<Real>(config.model),-1,ugkp::diagnostics::Code::MissingOperator);
         if(config.model!=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport
             &&(!context.workspace||(context.workspaceCapacity!=24&&context.workspaceCapacity!=48&&context.workspaceCapacity!=128)))
@@ -747,6 +749,14 @@ CHMT_HD inline bool surfaceTemperatureConfiguration(const SurfacePhysicsInput& i
         return interfaceFailure(p,3867,p.material.nSurfaceReactions,-1,ugkp::diagnostics::Code::InvalidIndex,Nr);
     return true;
 }
+CHMT_HD inline Real surfaceThermalFluxTolerance(const SurfacePhysicsInput& in,const PhysicsConfig& p,const SurfacePhysicsResult& result) {
+    const Real scale=auditAdd(auditAdd(absValue(result.gasEnergy),absValue(result.poreEnergy)),
+        auditAdd(absValue(result.phaseEnergy),absValue(result.radiationFlux)));
+    const Real relativeFluxTolerance=p.tolerances.relativeEnergy==0?Real(0):
+        (scale==std::numeric_limits<Real>::infinity()?scale:auditProduct(p.tolerances.relativeEnergy,scale));
+    return auditAdd(auditQuotientProduct(p.tolerances.absoluteEnergy,
+        in.area,(in.dt>0?in.dt:Real(1))),relativeFluxTolerance);
+}
 // The owner copies immutable physics once per root solve. CUDA device atomics
 // must never target an automatic/thread-local DeviceContext.
 template<bool Track=false,class Evaluation=LegacySurfaceEvaluation>
@@ -763,12 +773,7 @@ CHMT_HD inline bool bisectFeasibleSurfaceImpl(const SurfacePhysicsInput& in, con
         if(Track){trace->attempted=T;trace->hasAttempt=true;}
         if(!Evaluation::evaluate(in,trialPhysics,material,filmT,T,false,candidate,numericalFailure))return false;
         if(Track){trace->completedState=candidate;trace->hasCompleted=true;}
-        const Real scale=auditAdd(auditAdd(absValue(candidate.gasEnergy),absValue(candidate.poreEnergy)),
-            auditAdd(absValue(candidate.phaseEnergy),absValue(candidate.radiationFlux)));
-        const Real relativeFluxTolerance=p.tolerances.relativeEnergy==0?Real(0):
-            (scale==std::numeric_limits<Real>::infinity()?scale:auditProduct(p.tolerances.relativeEnergy,scale));
-        const Real fluxTolerance=auditAdd(auditQuotientProduct(p.tolerances.absoluteEnergy,
-            in.area,(in.dt>0?in.dt:Real(1))),relativeFluxTolerance);
+        const Real fluxTolerance=surfaceThermalFluxTolerance(in,p,candidate);
         const Real temperatureTolerance=auditTolerance(p.tolerances.absoluteTemperature,p.tolerances.relativeTemperature,T);
         if (absValue(candidate.thermalResidual)<=fluxTolerance
             && (hi-lo<=temperatureTolerance || candidate.thermalResidual==0)) {
@@ -810,7 +815,15 @@ CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const
     if(Track){trace->attempted=preferred;trace->hasAttempt=true;}
     const bool seedValid=Evaluation::evaluate(trialInput,trialPhysics,material,filmT,preferred,false,seed,numericalFailure);
     if(Track&&seedValid){trace->completedState=seed;trace->hasCompleted=true;}
-    if (seedValid&&seed.thermalResidual==0) { out=seed; return true; }
+    // Only a roundoff-sized fraction of the ordinary heat-balance tolerance
+    // qualifies for zero-update convergence. Do not relax the normal coupled
+    // energy and temperature-bracket criteria for a finite physical imbalance.
+    // Tiny nonzero reaction rates need not have a representable temperature
+    // correction, and must not force a scan to a remote state.
+    const Real seedTolerance=std::numeric_limits<Real>::epsilon()*surfaceThermalFluxTolerance(in,p,seed);
+    if(seedValid&&(seed.thermalResidual==0||absValue(seed.thermalResidual)<=seedTolerance)){
+        out=seed;return true;
+    }
     SurfacePhysicsResult last=seed;bool hasValid=seedValid;
     // Invalid samples split feasible components; never bridge an observed hole.
     // Refine bracket discovery without changing the physical time interval.

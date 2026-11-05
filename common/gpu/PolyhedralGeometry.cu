@@ -93,7 +93,7 @@ __global__ void initializeMotion(int count,const Point* boundary,const unsigned 
 // A cooperative grid owns the complete recurrence. Every iteration retains
 // the Jacobi barrier and original ordered neighbour sum, without host polling.
 __global__ void solveMotion(int count,const int* offsets,const int* neighbours,const double* weights,const double* total,
-    const unsigned char* fixed,Point* displacement,Point* next,double* partial,int* errors,MotionControl* control){
+    const unsigned char* fixed,const MotionPenalty* penalties,Point* displacement,Point* next,double* partial,int* errors,MotionControl* control){
     auto grid=cooperative_groups::this_grid();const int index=blockIdx.x*blockDim.x+threadIdx.x,stride=blockDim.x*gridDim.x;
     __shared__ double maxima[256];
     while(control->active){
@@ -102,7 +102,7 @@ __global__ void solveMotion(int count,const int* offsets,const int* neighbours,c
             if(fixed[p]){next[p]=displacement[p];continue;}
             if(errors[p]){atomicMin(&control->errorPoint,p);continue;}
             Point sum;for(int k=offsets[p];k<offsets[p+1];++k)sum+=displacement[neighbours[k]]*weights[k];
-            next[p]=sum/total[p];if(!finite(next[p])){errors[p]=2;atomicMin(&control->errorPoint,p);continue;}
+            next[p]=penalties?motionUpdate(sum,total[p],penalties[p]):sum/total[p];if(!finite(next[p])){errors[p]=2;atomicMin(&control->errorPoint,p);continue;}
             const double residual=magnitude(next[p]-displacement[p]);if(local<residual)local=residual;
         }
         maxima[threadIdx.x]=local;__syncthreads();
@@ -260,7 +260,7 @@ struct HarmonicPointMotion::Implementation {
     int count,blocks,maximumIterations;double tolerance;
     cudaStream_t stream=nullptr;PinnedTransferQueue transfer;
     Array<Point> points,boundary,displacement,next,result;Array<int> offsets,neighbours,preErrors,errors;Array<unsigned char> fixed;
-    Array<double> weights,total,partial;Array<MotionControl> control;
+    Array<double> weights,total,partial;Array<MotionControl> control;Array<MotionPenalty> penalties;
     Implementation(int n,double tol,int limit):count(n),blocks(cooperativeBlocks(solveMotion,std::max(1,(n+255)/256),256)),maximumIterations(limit),tolerance(tol){
         checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);}
     ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
@@ -275,10 +275,12 @@ struct HarmonicPointMotion::Implementation {
     }
 };
 HarmonicPointMotion::HarmonicPointMotion(const std::vector<Point>& points,const std::vector<int>& offsets,const std::vector<int>& neighbours,
-    const std::vector<unsigned char>& fixed,double tolerance,int maximumIterations):data_(new Implementation(points.size(),tolerance,maximumIterations)){
+    const std::vector<unsigned char>& fixed,double tolerance,int maximumIterations,const std::vector<MotionPenalty>& penalties):data_(new Implementation(points.size(),tolerance,maximumIterations)){
     if(fixed.size()!=points.size()||offsets.size()!=points.size()+1||offsets.front()!=0||std::size_t(offsets.back())!=neighbours.size())
         throw std::invalid_argument("harmonic motion CSR shape mismatch");
+    if(!penalties.empty()&&penalties.size()!=points.size())throw std::invalid_argument("motion penalty shape mismatch");
     data_->initialize(points,offsets,neighbours,fixed);
+    if(!penalties.empty()){PinnedTransferQueue::Operation operation(data_->transfer);data_->penalties.upload(penalties,data_->transfer);data_->transfer.finish();}
 }
 HarmonicPointMotion::~HarmonicPointMotion()=default;
 HarmonicResult HarmonicPointMotion::solve(const std::vector<Point>& boundary,bool represented){
@@ -287,7 +289,7 @@ HarmonicResult HarmonicPointMotion::solve(const std::vector<Point>& boundary,boo
     initializeMotion<<<std::max(1,(d.count+255)/256),256,0,d.stream>>>(d.count,d.boundary.pointer,d.fixed.pointer,d.displacement.pointer,d.preErrors.pointer,d.errors.pointer,
         d.control.pointer,d.tolerance,d.maximumIterations);
     void* arguments[]={&d.count,&d.offsets.pointer,&d.neighbours.pointer,&d.weights.pointer,&d.total.pointer,
-        &d.fixed.pointer,&d.displacement.pointer,&d.next.pointer,&d.partial.pointer,&d.errors.pointer,&d.control.pointer};
+        &d.fixed.pointer,&d.penalties.pointer,&d.displacement.pointer,&d.next.pointer,&d.partial.pointer,&d.errors.pointer,&d.control.pointer};
     checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveMotion),d.blocks,256,arguments,0,d.stream));
     MotionControl status;d.transfer.download(&status,d.control.pointer,sizeof(status));d.transfer.finish();
     HarmonicResult result;result.residual=status.residual;result.iterations=status.iterations;

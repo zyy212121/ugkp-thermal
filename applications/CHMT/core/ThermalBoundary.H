@@ -11,6 +11,8 @@ inline ThermalBoundaryKind importedThermalBoundary(const std::string& type,Bound
         if(type=="empty")return ThermalBoundaryKind::ZeroGradient;
     } else if(kind==BoundaryKind::Interface) {
         if(type=="zeroGradient")return ThermalBoundaryKind::ZeroGradient;
+    } else if(kind==BoundaryKind::Slip && (type=="wedge"||type=="symmetry"||type=="symmetryPlane")) {
+        return ThermalBoundaryKind::ZeroGradient;
     } else if(type=="fixedValue" || type=="zeroGradient") {
         return type=="fixedValue"?ThermalBoundaryKind::FixedValue:ThermalBoundaryKind::ZeroGradient;
     }

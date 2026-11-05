@@ -8,6 +8,7 @@
 #include "OStringStream.H"
 #include "../../../common/gasTransport/FoamMolecularTransportIO.H"
 #include <memory>
+#include "../../../common/thermal/ThermalCouplingSchedule.H"
 namespace chmt { namespace io {
 struct CoupledCaseInput {
     ugkwp::GasModelConfiguration gasModel;
@@ -16,6 +17,7 @@ struct CoupledCaseInput {
     ModelConfig model;
     HostState state;
     CouplingControls coupling;
+    ugkp::thermal::CouplingSchedule thermalSchedule{0,1,false};
     CpuMaterialControls material;
     std::unique_ptr<Foam::fvMesh> gasMesh,solidMesh;
 };
@@ -70,10 +72,10 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
         candidate.model.physics.gasMechanismFingerprint=candidate.gasMechanism.mechanismHash;
         candidate.model.gasMechanismSourceSha256=candidate.gasMechanism.sourceSha256;
     }
-    candidate.gasMesh.reset(new Foam::fvMesh(Foam::IOobject(Foam::polyMesh::defaultRegion,time.timeName(),time,Foam::IOobject::MUST_READ)));
+    candidate.gasMesh.reset(new Foam::fvMesh(Foam::IOobject(text(d,"gasRegion",Foam::polyMesh::defaultRegion),time.timeName(),time,Foam::IOobject::MUST_READ)));
     candidate.solidMesh.reset(new Foam::fvMesh(Foam::IOobject(text(d,"solidRegion"),time.timeName(),time,Foam::IOobject::MUST_READ)));
     candidate.gasNumerics=Foam::readGasNumericsConfiguration(candidate.gasMesh->schemes().dict());
-    auto& state=candidate.state;state.time=time.value();
+    auto& state=candidate.state;state.time=time.value();state.radiationTime=state.time;
     state.gasMesh=importMesh(*candidate.gasMesh,d);
     state.solidMesh=importMesh(*candidate.solidMesh,d.found("solidBoundaries")?d.subDict("solidBoundaries"):d);
     importGasFields(*candidate.gasMesh,candidate.model,state);
@@ -81,11 +83,45 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     auto surface=importSurface(*candidate.solidMesh,state.solidMesh,d.subDict("surface"));
     state.surface=surface.mesh;initializeDryInterfaceAux(state);
     attachCoupledSurface(*candidate.gasMesh,d,state);
+    if(candidate.model.physics.enableParticles&&d.subDict("particle").found("inlet")){
+        const auto& inlet=d.subDict("particle").subDict("inlet");
+        auto& config=candidate.model.particleInlet;
+        config.faces=selectedPatchFaces(*candidate.gasMesh,inlet,"patches","patch");
+        config.temperature=readNumber(inlet,"temperature");config.theta=readNumber(inlet,"theta",0);
+        require(finite(config.temperature)&&config.temperature>=candidate.model.particlePhase.minimumTemperature
+            &&config.temperature<=candidate.model.particlePhase.maximumTemperature&&finite(config.theta)&&config.theta>=0,
+            "invalid particle inlet temperature/theta");
+        if(inlet.found("volumeFractionTable")){
+            const Foam::List<Foam::Tuple2<Foam::scalar,Foam::scalar>> rows(inlet.lookup("volumeFractionTable"));
+            for(const auto& row:rows){config.times.push_back(row.first());config.volumeFraction.push_back(row.second());}
+        }else{config.times={0};config.volumeFraction={readNumber(inlet,"volumeFraction")};}
+        require(!config.times.empty(),"empty particle inlet volume-fraction table");
+        for(std::size_t i=0;i<config.times.size();++i)
+            require(finite(config.times[i])&&(!i||config.times[i]>config.times[i-1])
+                &&finite(config.volumeFraction[i])&&config.volumeFraction[i]>=0&&config.volumeFraction[i]<1,
+                "invalid particle inlet volume-fraction table");
+        config.velocitySpecified=inlet.found("velocity");const auto u=readVector(inlet,"velocity");
+        require(finite(u),"invalid particle inlet velocity");
+        config.velocity[0]=u.x;config.velocity[1]=u.y;config.velocity[2]=u.z;
+        state.particleSourceFaces=config.faces;state.particleSourceResidualMass.assign(config.faces.size(),0);
+    }
     importParticles(d,candidate.model,state);
     std::string error;
     require(validateRuntimeState(candidate.model,state,error),error);
     const Real dt=time.controlDict().lookup<Foam::scalar>("deltaT");
-    candidate.coupling=readCouplingControls(d,dt);
+    candidate.state.nextDt=dt;
+    if(text(d,"couplingSchedule","multirate")=="solidThermalCoupling"){
+        Foam::IOdictionary solidProperties(Foam::IOobject("solidRegionProperties",time.constant(),time,
+            Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
+        candidate.thermalSchedule=ugkp::thermal::readCouplingSchedule(solidProperties.subDict("solidThermalCoupling"));
+        Foam::IOdictionary radiationProperties(Foam::IOobject("radiationProperties",time.constant(),time,
+            Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
+        ugkp::thermal::readRadiationSchedule(candidate.thermalSchedule,radiationProperties);
+        require(finite(candidate.thermalSchedule.interval)&&candidate.thermalSchedule.interval>0
+            &&(!candidate.thermalSchedule.radiationEnabled||candidate.thermalSchedule.radiationFrequency>0),"invalid solid thermal coupling schedule");
+    }else require(text(d,"couplingSchedule","multirate")=="multirate","unknown couplingSchedule");
+    if(candidate.thermalSchedule.radiationEnabled)candidate.model.physics.enableRadiation=false; // DO owns radiation; no parallel ambient-grey source
+    candidate.coupling=readCouplingControls(d,dt,candidate.thermalSchedule.interval);
     candidate.material=readCpuMaterialControls(d,candidate.coupling);
     out=std::move(candidate);
 }

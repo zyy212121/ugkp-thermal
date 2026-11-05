@@ -37,7 +37,8 @@ UGKP_RADIATION_HD inline ConservativeBoundaryEnergyScaleResult conservativeBound
     const double acceptedParticleEnergyJ,
     const double rawBoundaryEnergyJ,
     const double grossRawEnergyJ,
-    const double relativeTolerance
+    const double relativeTolerance,
+    const double radiativeEnergyMagnitudeJ = 0
 )
 {
 
@@ -48,7 +49,7 @@ UGKP_RADIATION_HD inline ConservativeBoundaryEnergyScaleResult conservativeBound
     {
         const double roundoffToleranceJ =
             double(4096)*radiationDoubleEpsilon
-           *radiationMaximum(grossRawEnergyJ, double(1));
+           *radiationMaximum(radiationMaximum(grossRawEnergyJ, radiativeEnergyMagnitudeJ), double(1));
         const double zeroToleranceJ =
             relativeTolerance*grossRawEnergyJ + roundoffToleranceJ;
         if (std::abs(rawBoundaryEnergyJ) <= zeroToleranceJ)

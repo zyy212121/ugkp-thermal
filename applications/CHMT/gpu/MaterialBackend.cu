@@ -373,7 +373,7 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
                 ||std::size_t(gf)>=h.gasMesh.faceIds.size()){error="CPU surface gas face outside real mesh";return false;}
             const int gc=h.gasMesh.owner[gf];
             if(gc<0||std::size_t(gc)>=h.gasMesh.volumes.size()){error="CPU surface gas owner outside real mesh";return false;}
-            auto& in=inputs[index];in.bulk=bulk[f];if(!gradients.empty())in.gradient=gradients[f];
+            auto& in=inputs[index];in.ablating=s.ablating.empty()||s.ablating.at(f);in.bulk=bulk[f];if(!gradients.empty())in.gradient=gradients[f];
             in.gasInventory=conservativeGas(bulk[f],gasPhaseVolume(h,gc)*donorShares[f],p);
             if(accepted&&!accepted->empty()){
                 in.useAcceptedFlux=true;const auto& rates=(*accepted)[f];

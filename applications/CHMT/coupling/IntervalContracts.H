@@ -53,7 +53,7 @@ struct GasIntervalRecord {
     std::vector<GasPrimitive> gasTrace{}; // OWNER bulk at gasTraceTime, paired with gradient/traction/matching.
     std::vector<GasGradient> gasGradient{};
     std::vector<Vec3> gasTraction{};
-    std::vector<WallFaceSample> gasAcceptedWall{}; // instantaneous accepted rates at gasTraceTime, not integrated sources.
+    ugkp::SharedSnapshotVector<WallFaceSample> gasAcceptedWall{}; // instantaneous accepted rates at gasTraceTime, not integrated sources.
     std::vector<GasWallMatchingSample> gasWallMatching{}; // populated only for boundaryLayer.
     std::vector<Real> radiationEnergy{};
     std::vector<unsigned> radiationReceiver{};
@@ -100,12 +100,16 @@ class IntervalHistory {
     CouplingInterval interval_{};
     std::vector<GasIntervalRecord> records_{};
     bool started_=false;
+    std::vector<Real> externalRadiationEnergy_;
 public:
     bool begin(const CouplingInterval& w,std::string& error){
-        interval_=w;records_.clear();started_=true;error.clear();return true;
+        interval_=w;records_.clear();externalRadiationEnergy_.clear();started_=true;error.clear();return true;
     }
+    void setExternalRadiationEnergy(const std::vector<Real>& e){externalRadiationEnergy_=e;}
+    const std::vector<Real>& externalRadiationEnergy()const{return externalRadiationEnergy_;}
     const CouplingInterval& interval()const{return interval_;}
     const std::vector<GasIntervalRecord>& records()const{return records_;}
+    std::vector<GasIntervalRecord> releaseRecords(){return std::move(records_);}
     Real end()const{return records_.empty()?interval_.begin:records_.back().end;}
     WindowTime localEnd()const{return records_.empty()?WindowTime{}:records_.back().localEnd;}
     bool complete()const{return started_&&!records_.empty()&&localEnd()==intervalDuration(interval_);}
@@ -115,6 +119,7 @@ public:
         if(input.actualDt==0)input.actualDt=input.end-input.begin;
         if(input.localEnd<WindowTime{})input.localEnd=supplied.actualDt==0?windowOffset(interval_.begin,input.end):input.localBegin+input.actualDt;
         GasIntervalRecord record=std::move(input);
+        if(!records_.empty())record.gasAcceptedWall.shareIdentical(records_.back().gasAcceptedWall);
         records_.push_back(std::move(record));error.clear();return true;
     }
     bool sampleGasDriveLocal(WindowTime time,std::vector<GasPrimitive>& trace,std::vector<Vec3>& traction,std::string& error)const{
@@ -142,7 +147,7 @@ class IntervalCursor {
     WindowTime time_{};
     std::size_t record_=0;
     std::vector<ExchangePacket> used_{};
-    std::vector<Real> radiationUsed_{};
+    std::vector<Real> radiationUsed_{},externalRadiationUsed_{};
 public:
     explicit IntervalCursor(const IntervalHistory& h):history_(&h){}
     Real time()const{return windowAbsolute(history_->interval().begin,time_);}
@@ -171,6 +176,17 @@ public:
             }
             candidate.time_=stop;
             if(last){++candidate.record_;candidate.used_.clear();candidate.radiationUsed_.clear();}
+        }
+        const auto& extra=history_->externalRadiationEnergy();
+        if(!extra.empty()){
+            if(rad.empty())rad.assign(extra.size(),0);
+            if(rad.size()!=extra.size())return intervalFailure(error,"external radiation face layout mismatch");
+            if(candidate.externalRadiationUsed_.empty())candidate.externalRadiationUsed_.assign(extra.size(),0);
+            const Real fraction=windowDuration(target,time_)/windowDuration(intervalDuration(history_->interval()),WindowTime{});
+            for(std::size_t f=0;f<extra.size();++f){
+                const Real part=target==history_->localEnd()?extra[f]-candidate.externalRadiationUsed_[f]:extra[f]*fraction;
+                candidate.externalRadiationUsed_[f]+=part;rad[f]+=part;
+            }
         }
         *this=std::move(candidate);packets=std::move(next);radiation=std::move(rad);error.clear();return true;
     }

@@ -1,6 +1,7 @@
 #ifndef CHMT_CORE_HOSTSTATE_H
 #define CHMT_CORE_HOSTSTATE_H
 #include "Configuration.H"
+#include "../../../common/SharedSnapshotVector.H"
 #include <vector>
 #include <array>
 #include <memory>
@@ -19,6 +20,7 @@ struct HostMesh {
     std::uint64_t geometryVersion=0,topologyHash=0;
 };
 struct SurfaceMesh {
+    std::vector<unsigned char> ablating{}; // empty preserves the historical all-active surface
     std::vector<Vec3> prescribedTopTraction{},prescribedPressureGradient{};
     std::vector<Vec3> edgeOwnerOffset{},edgeNeighbourOffset{}; // edge centre minus face centre in each periodic image [m].
     std::vector<Real> gasDistance{},solidDistance{}; // nFaces, positive normal cell-to-interface distances [m].
@@ -51,6 +53,9 @@ struct GasSstIntegralAudit {
 // Checkpoint serialization remains explicit and retains its existing wire order.
 struct HostDynamicState {
     Real nextDt=0,lastAcceptedDt=0;
+    Real radiationTime=0; // last completed discrete-ordinate radiation event
+    std::vector<int> particleSourceFaces;
+    std::vector<Real> particleSourceResidualMass;
     SurfaceMesh surface{};
     std::vector<ugkwp::ChemistryAudit<Real,Ns>> gasChemistryAudit{};
     std::vector<GasQ> gas{};std::vector<SolidQ> solid{};std::vector<FilmQ> film{};
@@ -65,7 +70,7 @@ struct HostDynamicState {
     std::vector<Real> normalAcceptedWallHeat{}; // nFaces, cumulative accepted J.
     // Trial boundary heat rates are Backend-owned candidate scratch, not state;
     // fractions/accepted heat are rolled back and checkpointed with normal H.
-    std::vector<ExchangePacket> ledger{};std::vector<FilmPressureVolumeUpdate> filmStorage{};
+    ugkp::SharedSnapshotVector<ExchangePacket> ledger{};std::vector<FilmPressureVolumeUpdate> filmStorage{};
     // Reconstructible diagnostic snapshot, not physical state. Deliberately
     // absent from checkpoints; restart output marks it NOT_AVAILABLE until a
     // new accepted gas stage supplies it. Rollback still copies it atomically.

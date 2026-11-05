@@ -1,3 +1,4 @@
+#include "GasBoundaryThermodynamics.H"
 #pragma once
 #include <type_traits>
 #include "../gasBoundary/Evaluate.H"

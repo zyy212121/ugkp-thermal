@@ -444,6 +444,7 @@ private:
             auto& layer=view_.gasBoundaryLayerModel;layer.config=model.physics.wallModel;
             layer.config.enableSst=model.physics.enableSst;layer.config.turbulentPrandtl=model.physics.sst.turbulentPrandtl;
             layer.config.turbulentSchmidt=model.physics.sst.turbulentSchmidt;layer.useSuppliedWallState=true;
+            ugkwp::configureEquilibriumOdeMacroSst(view_.gasBoundaryLayer,layer);
         }else view_.gasBoundaryLayer.enabled=false;
         const std::size_t nc=state.gas.size(),nf=state.gasMesh.owner.size();
         if(nc&&state.gasMesh.volumes.empty()){error="invalid shared gas dimensions";return false;}
@@ -737,14 +738,30 @@ public:
             if(view_.sstConfigured){k[c]=state.sst[c].rhoK/v;omega[c]=state.sst[c].rhoOmega/v;}
         }
         if(!upload(view_.rho,rho)||!upload(view_.rhoUx,px)||!upload(view_.rhoUy,py)||!upload(view_.rhoUz,pz)||!upload(view_.rhoE,energy)||(!state.gasTemperature.empty()&&!upload(view_.Tgas,state.gasTemperature))||(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&!upload(view_.gasSpecies.rho,species))||!upload(view_.rhoK,k)||!upload(view_.rhoOmega,omega)||!clearTrialStatus()){error=fault_.message;return false;}
+        // Restore wave pressure history independently of immutable boundary
+        // configuration. Ordinary window transfers preserve the device values;
+        // restart/import receives the accepted pressure saved in HostMesh.
+        if(state.gasMesh.gasBoundary){
+            for(std::size_t f=0;f<state.gasMesh.gasBoundary->faces.size();++f)if(state.gasMesh.gasBoundary->faces[f].wave){
+                const Real pressure=state.gasMesh.boundaryPrimitive.at(f).pressure;
+                if(!transfers_.upload(view_.gasBoundaryP+f,&pressure,1)||!transfers_.upload(view_.riemannBoundaryP+f,&pressure,1)){
+                    error=fault_.message;return false;
+                }
+            }
+        }
         error.clear();return true;
     }
     bool downloadState(HostState& state,std::string& error){
-        std::vector<Real> rho,px,py,pz,energy,species,k,omega,fraction;const std::size_t n=view_.nCells;
+        std::vector<Real> rho,px,py,pz,energy,species,k,omega,fraction,boundaryPressure;const std::size_t n=view_.nCells;
         if(view_.gasVolumeFraction&&!enqueueRead(view_.gasVolumeFraction,n,fraction)){error=fault_.message;return false;}
         if(!enqueueRead(view_.rho,n,rho)||!enqueueRead(view_.rhoUx,n,px)||!enqueueRead(view_.rhoUy,n,py)||!enqueueRead(view_.rhoUz,n,pz)||!enqueueRead(view_.rhoE,n,energy)||!readTemperature(n)||(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&!enqueueRead(view_.gasSpecies.rho,Ns*n,species))){error=fault_.message;return false;}
         if(view_.sstConfigured&&(!enqueueRead(view_.rhoK,n,k)||!enqueueRead(view_.rhoOmega,n,omega))){error=fault_.message;return false;}
+        bool wave=false;
+        if(state.gasMesh.gasBoundary)for(const auto& face:state.gasMesh.gasBoundary->faces)wave=wave||face.wave;
+        if(wave&&!enqueueRead(view_.gasBoundaryP,view_.nFaces,boundaryPressure)){error=fault_.message;return false;}
         if(!observeDiagnostics()){error=fault_.message;return false;}
+        if(wave)for(std::size_t f=0;f<boundaryPressure.size();++f)if(state.gasMesh.gasBoundary->faces[f].wave)
+            state.gasMesh.boundaryPrimitive[f].pressure=boundaryPressure[f];
         if(view_.gasVolumeFraction)state.gasVoidFraction=std::move(fraction);
         auto candidate=state.gas;candidate.resize(n);
         for(std::size_t c=0;c<n;++c){auto& q=candidate[c];const Real v=gasPhaseVolume(state,c);q.mass=rho[c]*v;q.momentum={px[c]*v,py[c]*v,pz[c]*v};q.energy=energy[c]*v;

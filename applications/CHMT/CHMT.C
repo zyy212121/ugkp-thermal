@@ -1,8 +1,12 @@
+#include "../../common/HostMemory.H"
 #include "DiagnosticsFoam.H"
 #include "configuration/CouplingInput.H"
 #include "ProgressLogging.H"
 #include "io/CoupledOutput.H"
 #include "io/MultirateEvolution.H"
+#ifndef CHMT_FRONTEND_COMPILE_ONLY
+#include "io/CoupledRadiation.H"
+#endif
 #include "gpu/Backend.H"
 #include "restart/Checkpoint.H"
 #include <fstream>
@@ -47,11 +51,21 @@ int main(int argc,char** argv) {
         options.fluxScheme=input.gasNumerics.gasFluxScheme;options.reconstruction=input.gasNumerics.gasReconstruction;
         options.limiter=input.gasNumerics.gasLimiter;options.timeIntegrator=input.gasNumerics.gasTimeIntegrator;
         options.turbulenceModel=input.model.physics.enableSst?3:0;
+        const auto& scheduling=properties.subDict("multirate");
+        options.courantUpdateInterval=scheduling.lookupOrDefault<Foam::label>("courantUpdateInterval",1);
+        options.maximumTimeStepGrowth=chmt::io::readNumber(scheduling,"maximumTimeStepGrowth",1.05);
+        chmt::io::require(options.courantUpdateInterval>0&&std::isfinite(options.maximumTimeStepGrowth)
+            &&options.maximumTimeStepGrowth>=1,"invalid gas Courant scheduling");
         std::unique_ptr<chmt::Backend,void(*)(chmt::Backend*)> backend(
             chmt::createBackend(input.model,input.gasModel,input.gasMechanism,options,input.state,error),chmt::destroyBackend);
         chmt::io::require(bool(backend),error);
         chmt::setDiagnosticsSink(*backend,ugkp::diagnostics::makeFoamSink());
         chmt::CpuMaterialDriver material(input.model,input.solidMesh.get(),&input.gasMechanism);
+        std::unique_ptr<chmt::CoupledRadiation> radiation;
+        if(input.thermalSchedule.radiationEnabled)
+            radiation.reset(new chmt::CoupledRadiation(time,*input.gasMesh,input.model,input.state,input.thermalSchedule.radiationFrequency));
+        std::cout<<"CHMT couplingInterval="<<input.coupling.interval<<" radiationFrequency="
+            <<(radiation?input.thermalSchedule.radiationFrequency:0)<<std::endl;
         const chmt::Real end=time.controlDict().lookup<Foam::scalar>("endTime");
         const Foam::fileName directory=time.path()/chmt::io::text(properties,"outputDirectory","chmtOutput");
         chmt::io::require(!Foam::isDir(directory)&&!Foam::isFile(directory),"output directory already exists");
@@ -93,10 +107,12 @@ int main(int argc,char** argv) {
             if(checkpoint)chmt::io::require(chmt::writeCheckpoint(directory/Foam::fileName("checkpoint-"+suffix),input.model,input.state,error),error);
         };
         if(writeInitial||(writeFinal&&input.state.time>=end))publish(true);
+        input.state.ledger.clear(); // already published audit packets are not PDE state
         while(input.state.time<end){
             chmt::WindowEvolutionReport report;
-            chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error),error);
+            chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error,radiation.get()),error);
             publish(writeFinal&&input.state.time>=end);
+            input.state.ledger.clear();ugkp::releaseUnusedHostPages();
             if
             (
                 ugkwp::logging::progressLogDue

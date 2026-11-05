@@ -29,11 +29,11 @@ int main(int argc,char** argv){
 }
 '''
 def main():
- a=argparse.ArgumentParser();a.add_argument('--output',type=Path,required=True);args=a.parse_args()
+ a=argparse.ArgumentParser();a.add_argument('--output',type=Path,required=True);a.add_argument('--solver',type=Path,default=ROOT/'applications/CHMT/.build/native/CHMT');a.add_argument('--restart-comparator',type=Path);args=a.parse_args()
  out=args.output.resolve();out.mkdir(parents=True,exist_ok=True)
  probe=out/'geometry.cpp';probe.write_text(PROBE);exe=out/'geometry'
  subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT/'applications/CHMT'),'-I'+str(ROOT/'common'),str(probe),'-o',str(exe)],check=True)
- solver=ROOT/'applications/CHMT/.build/native/CHMT';meta=json.loads((ROOT/'validation/molecular_transport/fixtures.json').read_text())['chmt-moving']
+ solver=args.solver.resolve();meta=json.loads((ROOT/'validation/molecular_transport/fixtures.json').read_text())['chmt-moving']
  reports=[]
  for model in ('reboundContact','coldWall1D','coldWall2D'):
   case=out/model;m.prepare(ROOT/'validation/molecular_transport/fixtures/chmt-moving',case,meta)
@@ -68,7 +68,11 @@ specificEnthalpyResidual .125; {profiles}}}
   m.run([solver,'-case',restart],restart/'restart.log')
   identical=(output/f'checkpoint-{last}/state.chmt').read_bytes()==(restart/'chmtOutput'/f'checkpoint-{last}/state.chmt').read_bytes()
   resumed=json.loads(subprocess.check_output([exe,restart/'chmtOutput'/f'checkpoint-{last}'],text=True))
-  assert final==resumed,(final,resumed)
+  if args.restart_comparator:
+   assert final['time']==resumed['time'] and final['particles']==resumed['particles'],(final,resumed)
+   with (restart/'checkpoint-comparison.log').open('w') as log:
+    subprocess.run([str(args.restart_comparator.resolve()),str(output/f'checkpoint-{last}'),str(restart/'chmtOutput'/f'checkpoint-{last}')],stdout=log,stderr=subprocess.STDOUT,check=True)
+  else:assert final==resumed,(final,resumed)
   # The wall heat counters restart at zero. Differencing their cumulative J
   # can change a ledger value by one ulp; all accepted physical histories must
   # still be bit-identical, including every cold-profile node.

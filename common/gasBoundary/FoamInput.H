@@ -82,7 +82,7 @@ template<class Field> void initialiseStaticPatches(Field& field) {
     forAll(field.boundaryField(),patch) {
         const auto type=field.boundaryField()[patch].type();
         if(type=="totalPressure"||type=="totalTemperature"||type=="pressureInletOutletVelocity"
-            ||type=="uniformFixedValue")continue;
+            ||type=="uniformFixedValue"||type=="inletOutlet"||type=="waveTransmissive")continue;
         field.boundaryFieldRef()[patch].evaluate();
     }
 }

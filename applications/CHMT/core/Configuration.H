@@ -1,6 +1,7 @@
 #ifndef CHMT_CORE_CONFIGURATION_H
 #define CHMT_CORE_CONFIGURATION_H
 #include "Types.H"
+#include "../../../common/thermal/ParticleInletConfiguration.H"
 #include "../../../common/thermal/ParticlePhaseConfiguration.H"
 #include "../../../common/Diagnostics.H"
 #include "../../../common/gasTransport/GasModel.H"
@@ -119,13 +120,14 @@ inline bool validateWallModelConfig(const PhysicsConfig& p,std::string& error) {
     if(w.model==BoundaryLayerModel::ConstantTransport){
         if(p.gasViscosityModel!=ugkwp::MolecularViscosityModel::Constant||p.gasTransportCoefficients.prandtlSpecies>=0||p.gasPowerLawEnabled){error="constantTransport wall requires constant transport; select a numerical boundary layer";return false;}
         if(p.enableSst||p.gasMode!=ugkwp::GasMode::MixtureFrozen){error="constantTransport is a frozen laminar analytic limit";return false;}
-    }else if(w.model!=BoundaryLayerModel::ReactingSst){
+    }else if(w.model!=BoundaryLayerModel::ReactingSst&&w.model!=BoundaryLayerModel::EquilibriumOde){
         error="unsupported finite-rate boundaryLayer implementation";return false;}
     error.clear();return true;
 }
 struct ModelConfig {
     PhysicsConfig physics{};
     ugkp::thermal::ParticlePhaseConfiguration particlePhase{};
+    ugkp::thermal::ParticleInletConfiguration particleInlet{};
     ugkp::thermal::ParticleContactConfiguration particleContact{};
     std::array<std::string,Ns> speciesNames{};
     std::array<std::string,Nc> condensedNames{};

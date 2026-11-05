@@ -116,7 +116,8 @@ try
     model.config.stretch=a.stretch;model.config.turbulentPrandtl=a.turbulentPrandtl;
     model.config.turbulentSchmidt=a.turbulentSchmidt;
     // equilibriumOde closes eddy viscosity directly; macro SST remains active.
-    model.config.enableSst=s->hostTurbulenceModel==3&&a.model!=2;
+    model.config.enableSst=s->hostTurbulenceModel==3;
+    ugkwp::configureEquilibriumOdeMacroSst(w,model);
 
 
     if(releaseSharedGasTrialStorage(s->gasTrial)){discardBoundaryLayerCandidate(s,candidate);return 1;}

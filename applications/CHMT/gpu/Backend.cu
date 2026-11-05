@@ -1,3 +1,5 @@
+#include "../../../common/thermal/ParticleRadiationApi.H"
+#include "gasNumerics/GasWindowStep.H"
 #include "gpu/Backend.H"
 #include "gpu/SharedGasDeviceStorage.cuh"
 #include "gpu/ParticleCouplingStorage.cuh"
@@ -58,6 +60,8 @@ struct Backend {
     bool poisoned=false;std::string error;
     GasIntervalRecord record;
     Real microDt=0,microTime=0,stageTime=0,stagePacketDt=0;
+    bool movingWindow=false;
+    std::uint64_t gasSteps=0;Real cachedCourantRate=0;bool courantReady=false;
     WindowTime elapsed{};Real nextGasSeed=0;bool microGeometryPrepared=false;int gasStageIndex=0;
     int nCells=0,nFaces=0,nInternalFaces=0,fixedCellBlockThreads=128,fixedFaceBlockThreads=128;
     int hostTurbulenceModel=0,hostGasFluxScheme=1,hostGasTimeIntegrator=1,hasPeriodicFaces=0;
@@ -142,7 +146,7 @@ struct CoupledTrialPolicy {
         b->record.begin=b->microTime;b->record.actualDt=b->microDt;b->record.localBegin=b->elapsed;b->record.localEnd=b->elapsed+b->microDt;b->record.end=windowAbsolute(b->program.interval.begin,b->record.localEnd);b->record.gasGeometry=b->trial.gasMesh.geometryVersion;b->record.solidGeometry=b->trial.solidMesh.geometryVersion;
         if(!b->storage.clearTrialStatus())return 1;
         if(!b->microGeometryPrepared&&prepareCoupledGeometry(b)!=0)return 1;
-        if(b->model.physics.meshMotion.policy!=MeshMotionPolicy::Static){
+        if(b->movingWindow){
             b->record.gasGeometry=b->endpointGas.geometryVersion;b->record.solidGeometry=b->endpointSolid.geometryVersion;
         }
         b->microGeometryPrepared=false;
@@ -201,14 +205,15 @@ bool downloadCoupledRecord(Backend& b){
             }else b.error="coupled interface trace/packet failed at face "+std::to_string(i);
             return false;
         }
-        b.record.packets.push_back(r.primary);b.record.packets.push_back(r.pore);
+        b.record.packets.push_back(r.primary);
+        if(hasPacketTransfer(r.pore))b.record.packets.push_back(r.pore);
         if(b.particles.active()){
             ExchangePacket contact{};contact.kind=ExchangeKind::ParticleWall;
             contact.step=r.primary.step;contact.geometry=r.primary.geometry;contact.face=r.primary.face;
             contact.stage=2;contact.gasCell=r.primary.gasCell;contact.solidCell=r.primary.solidCell;
             contact.filmFace=r.primary.filmFace;contact.consumerMask=ConsumeParticle;
             contact.energy=contact.conductive=r.particleWallEnergy;
-            b.record.packets.push_back(contact);
+            if(hasPacketTransfer(contact))b.record.packets.push_back(contact);
         }
         b.record.gasTrace.push_back(r.bulk);b.record.gasGradient.push_back(r.gradient);
         b.record.gasAcceptedWall.push_back(r.acceptedWall);
@@ -226,7 +231,7 @@ bool downloadCoupledRecord(Backend& b){
 int prepareCoupledGeometry(Backend* b){
     // CFL and RK stages leave host geometry unchanged until finishCoupledGeometry.
     // Consume that pre-step view directly; endpoint outputs have separate owners.
-    const auto& base=b->trial;const bool moving=b->model.physics.meshMotion.policy!=MeshMotionPolicy::Static;
+    const auto& base=b->trial;const bool moving=b->movingWindow;
     // Static stages borrow the accepted window geometry. Owned endpoint and
     // stage arrays exist only for motion or an explicit history/export request.
     std::vector<Real> gasSweep,solidSweep;
@@ -261,7 +266,7 @@ int prepareCoupledGeometry(Backend* b){
             in.area=surface.area[i];in.gasDistance=surface.gasDistance[i];
             in.normal=surface.normal[i];in.sweptVolume=moving?-b->gasStage.sweptVolume[f]:0;
             const Vec3 support=surface.baseVelocity.empty()?Vec3{}:surface.baseVelocity[i];
-            const Vec3 motion=endpointSurface.meshVelocity.empty()?Vec3{}:endpointSurface.meshVelocity[i];
+            const Vec3 motion=!moving||endpointSurface.meshVelocity.empty()?Vec3{}:endpointSurface.meshVelocity[i];
             in.particleMaterialVelocity=support+in.normal*dot(motion-support,in.normal);
             in.identity.face=surface.persistentId[i];in.identity.stage=1;in.identity.gasCell=base.gasMesh.owner[f];
             in.identity.solidCell=surface.solidCell[i];in.identity.filmFace=int(i);
@@ -274,7 +279,7 @@ int prepareCoupledGeometry(Backend* b){
 int finishCoupledGeometry(Backend* b){
     // Static geometry and boundary topology were published at window start.
     // Re-uploading every mesh array here only creates synchronization work.
-    if(b->model.physics.meshMotion.policy==MeshMotionPolicy::Static)return 0;
+    if(!b->movingWindow)return 0;
     if(!b->particles.mapGeometry(b->trial.gasMesh,b->endpointGas,b->storage,b->gasCaptureStream,b->error))return 1;
     b->trial.gasMesh=b->endpointGas;b->trial.solidMesh=b->endpointSolid;b->trial.surface=b->endpointSurface;
     if(!b->storage.uploadGeometry(b->trial.gasMesh,false)||!b->storage.refreshView()){b->error=b->storage.error();return 1;}
@@ -377,6 +382,9 @@ bool loadGasWindowState(Backend& b,const HostState& snapshot,std::string& error)
 }
 Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfiguration& gas,
  const ugkwp::GasMechanismConfiguration& mechanism,const GasExecutionOptions& options,const HostState& state,std::string& error){
+    if(options.courantUpdateInterval<1||!std::isfinite(options.maximumTimeStepGrowth)||options.maximumTimeStepGrowth<1){
+        error="invalid Courant update interval or time-step growth factor";return nullptr;
+    }
     if(mag(model.physics.gravity)!=0){error="coupled gas gravity source/work ledger is not enabled";return nullptr;}
     if(options.turbulenceModel!=(model.physics.enableSst?3:0))
         std::fprintf(stderr,"CHMT requested physics SST=%d execution turbulence=%d; effective SST=%d\n",
@@ -386,7 +394,7 @@ Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati
     request.residentParticleGeometry=true;request.residentParticleWallCoupling=true;
     const auto supported=ugkwp::validateGasCapabilities(request);if(!supported){error=supported.message;return nullptr;}
     if(gas.mode!=ugkwp::GasMode::SingleLegacy
-        && ((options.fluxScheme!=1&&options.fluxScheme!=2)||(options.reconstruction!=0&&options.reconstruction!=1))) {
+        && (!ugkwp::mixtureGasFluxImplemented(options.fluxScheme)||(options.reconstruction!=0&&options.reconstruction!=1))) {
         error="selected mixture gas operator is unavailable";return nullptr;
     }
     // Outlined calls in CUDA fast-compile builds may exceed the default
@@ -403,7 +411,7 @@ Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati
         if(code==cudaSuccess&&bytes>current)code=cudaDeviceSetLimit(cudaLimitStackSize,static_cast<std::size_t>(bytes));
         if(code!=cudaSuccess){error=std::string("configure CHMT CUDA stack: ")+cudaGetErrorString(code);return nullptr;}
     }
-    std::unique_ptr<Backend> b(new Backend);b->model=model;b->options=options;b->accepted=b->trial=state;
+    std::unique_ptr<Backend> b(new Backend);b->model=model;b->options=options;b->accepted=b->trial=state;b->accepted.ledger.clear();b->trial.ledger.clear();
     if(!b->executionStream.create(b->executionFault)){error=b->executionFault.message;return nullptr;}
     b->gasCaptureStream=b->executionStream.get();b->storage.bindStream(b->gasCaptureStream);
     const auto diagnosticInit=b->diagnostics.initialise(b->gasCaptureStream);
@@ -468,6 +476,19 @@ static bool dispatchHostDiagnostics(Backend& b){
 static bool beginGasWindowImpl(Backend& b,const WallProgram& program,std::string& error){
     if(b.poisoned){error="gas backend is unusable after a failed device operation";return false;}
     b.trial=b.accepted;b.program=program;
+    b.movingWindow=false;
+    if(b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static){
+        const auto changed=[](const std::vector<Vec3>& a,const std::vector<Vec3>& initial){
+            if(a.size()!=initial.size())return true;
+            for(std::size_t i=0;i<a.size();++i)
+                if(a[i].x!=initial[i].x||a[i].y!=initial[i].y||a[i].z!=initial[i].z)return true;
+            return false;
+        };
+        for(const auto& knot:program.knots)b.movingWindow=b.movingWindow
+            ||changed(knot.gasPoints,b.accepted.gasMesh.points)
+            ||changed(knot.solidPoints,b.accepted.solidMesh.points);
+    }
+
     std::vector<WallFaceSample> faces;
     for(const auto& knot:program.knots)faces.insert(faces.end(),knot.faces.begin(),knot.faces.end());
     if(!b.interfaceWallProgram.resize(faces.size(),b.surfaceTransferFault)
@@ -512,16 +533,19 @@ static bool currentGasCourant(Backend& b,Real referenceDt,transport::GasCourantM
         Real* gasFluxPositivityScale;
     } view{b.nCells,b.nFaces,b.nInternalFaces,b.deviceState,v.gasFluxPositivityScale};
     const auto maximum=[&](const double* field,int count,cudaStream_t stream,double& value){
+        CoupledCourantValue reduced{};
         try {
             const auto first=thrust::make_counting_iterator(0);
-            const auto reduced=thrust::transform_reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),first,first+count,
+            reduced=thrust::transform_reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),first,first+count,
                 CoupledCourantRead{field,v.gasSpecies.cellStatus,b.diagnostics.device()},
                 CoupledCourantValue{-std::numeric_limits<double>::infinity(),false},CoupledCourantReduce{});
-            if(!b.storage.observeDiagnostics())return 1;
-            if(reduced.unavailable){transport::setLastErrorText("current Co consumed input unavailable");return 1;}
-            value=reduced.value;
         }
         catch(const std::exception& e){transport::setLastErrorText(e.what());return 1;}
+        // Dispatch outside the Thrust exception adapter: a frontend fatal
+        // carries physical context that std::exception::what() may discard.
+        if(!b.storage.observeDiagnostics())return 1;
+        if(reduced.unavailable){transport::setLastErrorText("current Co consumed input unavailable");return 1;}
+        value=reduced.value;
         const auto code=cudaGetLastError();if(code!=cudaSuccess){transport::setLastError("gas Courant maximum reduction",code);return 1;}return 0;
     };
     return transport::computeGasCurrentCourant(&view,referenceDt,b.microTime,b.fixedCellBlockThreads,b.fixedFaceBlockThreads,b.gasCaptureStream,result,maximum)==0;
@@ -544,17 +568,24 @@ static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,s
     const Real remaining=boundedWindowDuration(nextGasWallKnotLocal(b.program,b.elapsed),b.elapsed);
     if(!finite(cap)||!finite(b.model.physics.maxDt)||!finite(remaining)||!finite(b.nextGasSeed)||b.nextGasSeed<0
         ||!finite(b.trial.lastAcceptedDt)||b.trial.lastAcceptedDt<0){error="invalid gas timestep input or seed";return false;}
-    Real referenceDt=minValue(cap,minValue(b.model.physics.maxDt,remaining));
-    if(b.nextGasSeed>0)referenceDt=minValue(referenceDt,b.nextGasSeed);
+    Real proposedDt=minValue(cap,b.model.physics.maxDt);
+    if(b.nextGasSeed>0)proposedDt=minValue(proposedDt,b.nextGasSeed);
+    const Real referenceDt=minValue(proposedDt,remaining);
     if(!finite(referenceDt)||!(referenceDt>0)||b.elapsed+referenceDt==b.elapsed){error="gas reference timestep is nonfinite, nonpositive or nonadvancing";return false;}
     b.microDt=referenceDt;b.error.clear();transport::lastError.clear();
     if(prepareCoupledGeometry(&b)!=0){error=b.error;return false;}
-    transport::GasCourantMaxima co;
-    if(!currentGasCourant(b,referenceDt,co)){
-        error=b.error.empty()?transport::lastError:b.error;return false;
+    const bool courantRefreshed=!b.courantReady||b.gasSteps%std::uint64_t(b.options.courantUpdateInterval)==0;
+    if(courantRefreshed){
+        transport::GasCourantMaxima co;
+        if(!currentGasCourant(b,referenceDt,co)){
+            error=b.error.empty()?transport::lastError:b.error;return false;
+        }
+        b.cachedCourantRate=co.maximum/referenceDt;b.courantReady=true;
     }
-    const Real growthBase=b.trial.lastAcceptedDt>0?b.trial.lastAcceptedDt:referenceDt;
-    const Real selectedDt=gasCoMaxStep(referenceDt,b.model.physics.cfl,co.maximum,growthBase);
+    const Real stable=b.cachedCourantRate>0?b.model.physics.cfl/b.cachedCourantRate:proposedDt;
+    const auto schedule=ugkwp::selectGasWindowStep(proposedDt,remaining,stable,
+        b.options.maximumTimeStepGrowth,minValue(cap,b.model.physics.maxDt),courantRefreshed);
+    const Real selectedDt=schedule.accepted;
 
 
     if(!finite(selectedDt)||!(selectedDt>0)||b.elapsed+selectedDt==b.elapsed){error="gas CFL-selected timestep is nonfinite, nonpositive or nonadvancing";return false;}
@@ -568,10 +599,10 @@ static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,s
     if(!b.reserve.prepare(b.record,reservation,b.error)){error=b.error;return false;}
     if(!b.history.appendAccepted(b.record,error))return false;
     b.reserve.commitPrepared(std::move(reservation));b.elapsed=b.record.localEnd;
-    if(b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static){
+    if(b.movingWindow){
         b.trial.gasStages={{b.gasStage,b.gasStage}};b.trial.solidStages={{b.solidStage,b.solidStage}};
     }
-    b.nextGasSeed=minValue(b.model.physics.maxDt,1.05*dt);b.trial.nextDt=b.nextGasSeed;b.trial.lastAcceptedDt=dt;
+    ++b.gasSteps;b.nextGasSeed=schedule.next;b.trial.nextDt=b.nextGasSeed;b.trial.lastAcceptedDt=dt;
     report.acceptedDt=dt;report.nextGasDt=b.nextGasSeed;report.time=b.trial.time;report.localTime=b.elapsed;report.microSequence=b.record.microSequence;error.clear();return true;
 }
 bool advanceGasMicrostep(Backend& b,Real cap,GasMicroReport& report,std::string& error){
@@ -581,8 +612,11 @@ bool advanceGasMicrostep(Backend& b,Real cap,GasMicroReport& report,std::string&
     return success&&hostHealthy;
 }
 const IntervalHistory& gasWindowHistory(const Backend& b){return b.history;}
+std::vector<GasIntervalRecord> releaseGasWindowRecords(Backend& b){
+    auto records=b.history.releaseRecords();b.history=IntervalHistory{};return records;
+}
 bool gasWindowStageGeometry(const Backend& b,std::array<HostStageGeometry,2>& gas,std::array<HostStageGeometry,2>& solid,std::string& error){
-    if(b.model.physics.meshMotion.policy==MeshMotionPolicy::Static){
+    if(!b.movingWindow){
         const auto snapshot=[&](const HostMesh& mesh,std::array<HostStageGeometry,2>& stages){
             auto& stage=stages[0];stage.interval=b.microDt;stage.geometryVersion=mesh.geometryVersion;stage.topologyHash=mesh.topologyHash;
             stage.oldVolume=stage.newVolume=stage.evaluationVolume=mesh.volumes;
@@ -624,6 +658,7 @@ static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& err
         if(!b.particles.download(candidate,error))return false;
     }
     HostState newAccepted=candidate,newTrial=candidate;
+    newAccepted.ledger.clear();newTrial.ledger.clear(); // publication diagnostics are frontend-owned
     b.accepted=std::move(newAccepted);b.trial=std::move(newTrial);error.clear();return true;
 }
 bool commitGasWindow(Backend& b,HostState& candidate,std::string& error){
@@ -633,4 +668,26 @@ bool commitGasWindow(Backend& b,HostState& candidate,std::string& error){
     return success&&healthy;
 }
 bool downloadState(const Backend& b,HostState& out,std::string& error){out=b.accepted;error.clear();return true;}
+}
+
+namespace chmt {
+bool downloadRadiationState(Backend& b,ParticleRadiationState& out,std::string& error){
+    out.mass.assign(b.nCells,0);out.temperature.assign(b.nCells,b.model.particlePhase.minimumTemperature);
+    out.diameter.assign(b.nCells,0);out.occupiedArea.assign(b.nFaces,0);
+    if(!b.particles.active())return true;
+    b.executionStream.sync();std::vector<Real> tm(b.nCells),dm(b.nCells);
+    if(!b.particles.result(ugkwpGpuResidentStrictDownloadMobileParticleRadiationSums(b.particles.owner(),b.nCells,out.mass.data(),tm.data(),dm.data()),error)
+        ||!b.particles.result(ugkwpGpuResidentStrictDownloadParticleWallOccupiedArea(b.particles.owner(),b.nFaces,out.occupiedArea.data()),error)
+        ||!b.particles.result(ugkwpGpuResidentStrictParticleRadiationResponse(b.particles.owner(),&out.response),error))return false;
+    for(int c=0;c<b.nCells;++c)if(out.mass[c]>0){out.temperature[c]=tm[c]/out.mass[c];out.diameter[c]=dm[c]/out.mass[c];}
+    return true;
+}
+bool applyRadiationEnergy(Backend& b,const std::vector<Real>& heat,std::vector<Real>& actual,HostState& endpoint,std::string& error){
+    actual.assign(b.nCells,0);if(!b.particles.active())return true;
+    if(heat.size()!=std::size_t(b.nCells)){error="radiation cell layout mismatch";return false;}
+    if(!b.particles.result(ugkwpGpuResidentStrictApplyParticleRadiationEnergy(b.particles.owner(),b.nCells,heat.data(),actual.data()),error)
+        ||!b.particles.result(ugkwpGpuResidentStrictRefreshParticleEnthalpyPacked(b.particles.owner()),error))return false;
+    return b.particles.download(endpoint,error);
+}
+void setWindowRadiationEnergy(Backend& b,const std::vector<Real>& energy){b.history.setExternalRadiationEnergy(energy);}
 }

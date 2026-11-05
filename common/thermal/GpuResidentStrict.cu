@@ -1,3 +1,4 @@
+#include "ParticleRadiationApi.H"
 #include "GpuFrozenParticleRelease.cuh"
 #include "ParticleGasBinding.H"
 #include "gasTransport/MixturePorosity.H"
@@ -2038,6 +2039,34 @@ __global__ void applyParticleRadiationAffineTemperatureKernel
         }
         s.pT[particleI] = candidate.temperature;
         s.pThermalEnthalpyResidual[particleI] = candidate.specificEnthalpyResidual;
+    }
+}
+
+__global__ void radiationEnthalpyCapacityKernel(DeviceState* sp,const Foam::gpuThermal::RadiationAffineTemperatureUpdate* requests) {
+    auto& s=*sp;
+    for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<*s.particleCountDevice;i+=blockDim.x*gridDim.x){
+        if(s.pStatus[i]!=1||s.pStuck[i]!=Foam::gpuThermal::particleWallMobile)continue;
+        const int c=s.pCellId[i];const auto law=particleCaloricDevice(s,i);
+        const double delta=ugkp::gpu::radiationSpecificCapacity(law.enthalpy(double(s.pT[i])),
+            law.enthalpy(s.TpMin),law.enthalpy(s.TpMax),requests[c].scale>=0,s.pThermalEnthalpyResidual[i]);
+        const double cap=fabs(delta);
+        atomicAdd(s.radiationMobileMass+c,double(s.pm[i])*fmax(0.,cap));
+    }
+}
+__global__ void radiationEnthalpyApplyKernel(DeviceState* sp,const Foam::gpuThermal::RadiationAffineTemperatureUpdate* requests) {
+    auto& s=*sp;
+    for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<*s.particleCountDevice;i+=blockDim.x*gridDim.x){
+        if(s.pStatus[i]!=1||s.pStuck[i]!=Foam::gpuThermal::particleWallMobile)continue;
+        const int c=s.pCellId[i];const auto law=particleCaloricDevice(s,i);
+        const double q=requests[c].scale,capacity=s.radiationMobileMass[c];
+        const double fraction=capacity>0?fmin(1.,fabs(q)/capacity):0.;
+        ugkwp::ParticleThermalCarry<GpuReal> candidate{s.pT[i],s.pThermalEnthalpyResidual[i]};
+        const double delta=ugkp::gpu::radiationSpecificCapacity(law.enthalpy(double(candidate.temperature)),
+            law.enthalpy(s.TpMin),law.enthalpy(s.TpMax),q>=0,candidate.specificEnthalpyResidual);
+        const auto publication=ugkwp::publishParticleThermalHeat(candidate,fraction*delta,s.TpMin,s.TpMax,law);
+        if(!publication.valid){asm("trap;");return;}
+        s.pT[i]=candidate.temperature;s.pThermalEnthalpyResidual[i]=candidate.specificEnthalpyResidual;
+        atomicAdd(s.radiationMobileTemperatureMass+c,double(s.pm[i])*publication.acceptedSpecificHeat);
     }
 }
 
@@ -5452,6 +5481,31 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature
         return 1;
     }
     return 0;
+}
+
+extern "C" int ugkwpGpuResidentStrictParticleRadiationResponse(void* handle,ugkp::gpu::ParticleRadiationResponseView* output) {
+    auto* s=asState(handle);if(validateState(s,"particle radiation response")||!output)return 1;
+    *output={true,s->particleCapacity,s->particleCountDevice,s->pCellId,s->pStatus,
+        s->csrCellLocalPathEnabled&&s->preBaseDirectoryReady?s->preBaseCellOffset:nullptr,
+        s->pStuck,s->pm,s->pT,s->pThermalEnthalpyResidual,double(s->TpMin),double(s->TpMax)};
+    return 0;
+}
+
+extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationEnergy(void* handle,int cells,const double* heat,double* accepted) {
+    auto* s=asState(handle);
+    if(validateState(s,"particle radiation enthalpy")||cells!=s->nCells||!heat||!accepted)return 1;
+    std::vector<Foam::gpuThermal::RadiationAffineTemperatureUpdate> requests(cells);
+    for(int c=0;c<cells;++c){if(!std::isfinite(heat[c])){setLastErrorText("nonfinite particle radiation heat");return 1;}requests[c]={heat[c],0};accepted[c]=0;}
+    if(!s->particlesMayBePresent)return 0;
+    if(!s->particleRadiationAffineUpdate&&allocate(s->particleRadiationAffineUpdate,cells,"radiation enthalpy requests"))return 1;
+    if(copyToDevice(s->particleRadiationAffineUpdate,requests.data(),cells,"radiation enthalpy requests"))return 1;
+    auto err=cudaMemset(s->radiationMobileMass,0,cells*sizeof(GpuReal));
+    if(err==cudaSuccess)err=cudaMemset(s->radiationMobileTemperatureMass,0,cells*sizeof(GpuReal));
+    if(err!=cudaSuccess){setLastError("clear radiation enthalpy sums",err);return 1;}
+    radiationEnthalpyCapacityKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,s->particleRadiationAffineUpdate);
+    radiationEnthalpyApplyKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,s->particleRadiationAffineUpdate);
+    if((err=cudaGetLastError())!=cudaSuccess){setLastError("radiation enthalpy launch",err);return 1;}
+    return copyToHost(accepted,s->radiationMobileTemperatureMass,cells,"accepted radiation heat");
 }
 
 extern "C" int ugkwpGpuResidentStrictDownloadMobileParticleRadiationSums
