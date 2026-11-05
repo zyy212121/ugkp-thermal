@@ -1,3 +1,4 @@
+#include "gasNumerics/GasWindowStep.H"
 #include "gpu/Backend.H"
 #include "gpu/SharedGasDeviceStorage.cuh"
 #include "gpu/ParticleCouplingStorage.cuh"
@@ -551,8 +552,9 @@ static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,s
     const Real remaining=boundedWindowDuration(nextGasWallKnotLocal(b.program,b.elapsed),b.elapsed);
     if(!finite(cap)||!finite(b.model.physics.maxDt)||!finite(remaining)||!finite(b.nextGasSeed)||b.nextGasSeed<0
         ||!finite(b.trial.lastAcceptedDt)||b.trial.lastAcceptedDt<0){error="invalid gas timestep input or seed";return false;}
-    Real referenceDt=minValue(cap,minValue(b.model.physics.maxDt,remaining));
-    if(b.nextGasSeed>0)referenceDt=minValue(referenceDt,b.nextGasSeed);
+    Real proposedDt=minValue(cap,b.model.physics.maxDt);
+    if(b.nextGasSeed>0)proposedDt=minValue(proposedDt,b.nextGasSeed);
+    const Real referenceDt=minValue(proposedDt,remaining);
     if(!finite(referenceDt)||!(referenceDt>0)||b.elapsed+referenceDt==b.elapsed){error="gas reference timestep is nonfinite, nonpositive or nonadvancing";return false;}
     b.microDt=referenceDt;b.error.clear();transport::lastError.clear();
     if(prepareCoupledGeometry(&b)!=0){error=b.error;return false;}
@@ -563,9 +565,10 @@ static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,s
         }
         b.cachedCourantRate=co.maximum/referenceDt;b.courantReady=true;
     }
-    const Real growthBase=b.trial.lastAcceptedDt>0?b.trial.lastAcceptedDt:referenceDt;
-    const Real stable=b.cachedCourantRate>0?b.model.physics.cfl/b.cachedCourantRate:referenceDt;
-    const Real selectedDt=minValue(referenceDt,minValue(stable,b.options.maximumTimeStepGrowth*growthBase));
+    const Real stable=b.cachedCourantRate>0?b.model.physics.cfl/b.cachedCourantRate:proposedDt;
+    const auto schedule=ugkwp::selectGasWindowStep(proposedDt,remaining,stable,
+        b.options.maximumTimeStepGrowth,b.model.physics.maxDt);
+    const Real selectedDt=schedule.accepted;
 
 
     if(!finite(selectedDt)||!(selectedDt>0)||b.elapsed+selectedDt==b.elapsed){error="gas CFL-selected timestep is nonfinite, nonpositive or nonadvancing";return false;}
@@ -582,7 +585,7 @@ static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,s
     if(b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static){
         b.trial.gasStages={{b.gasStage,b.gasStage}};b.trial.solidStages={{b.solidStage,b.solidStage}};
     }
-    ++b.gasSteps;b.nextGasSeed=minValue(b.model.physics.maxDt,b.options.maximumTimeStepGrowth*dt);b.trial.nextDt=b.nextGasSeed;b.trial.lastAcceptedDt=dt;
+    ++b.gasSteps;b.nextGasSeed=schedule.next;b.trial.nextDt=b.nextGasSeed;b.trial.lastAcceptedDt=dt;
     report.acceptedDt=dt;report.nextGasDt=b.nextGasSeed;report.time=b.trial.time;report.localTime=b.elapsed;report.microSequence=b.record.microSequence;error.clear();return true;
 }
 bool advanceGasMicrostep(Backend& b,Real cap,GasMicroReport& report,std::string& error){
