@@ -985,6 +985,8 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
             }
         }
 
+        // The release owner reads all updated ring profiles before clearing.
+        __syncwarp(groupMask);
         int transition = 0;
         GpuReal longDepositAreaM2 = GPU_R(0.0);
         if (radialNode == 0 && finiteContact)
@@ -1001,18 +1003,17 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
                 fmax(kinematicAreaM2, frozenFootprintAreaM2) - damageAreaM2;
             bool detach = false;
             bool enterLongDeposit = false;
+            bool releaseAtRest = false;
             if
             (
                 wallState
              == Foam::gpuThermal::particleWallTransientRebound
             )
             {
-                detach = !(effectiveContactAreaM2 > GPU_R(0.0));
-                enterLongDeposit =
-                    !detach
-                 && !(kinematicAreaM2 > GPU_R(0.0))
-                 && frozenFootprintAreaM2 > GPU_R(0.0);
-                longDepositAreaM2 = effectiveContactAreaM2;
+                const auto release = Foam::gpuThermal::reboundContactRelease
+                    (kinematicAreaM2, frozenFootprintAreaM2, damageAreaM2);
+                detach = release.detach;
+                releaseAtRest = release.atRest;
             }
             else
             {
@@ -1046,6 +1047,13 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
             transition = detach ? 1 : (enterLongDeposit ? 2 : 0);
             if (transition == 1)
             {
+                const double releaseEnergy = releaseAtRest
+                    ? frozenReleaseSpecificEnergy(s,particleI,64) : 0.;
+                if (releaseAtRest) {
+                    s.puxOld[particleI] = GPU_R(0.0);
+                    s.puyOld[particleI] = GPU_R(0.0);
+                    s.puzOld[particleI] = GPU_R(0.0);
+                }
                 s.pux[particleI] = s.puxOld[particleI];
                 s.puy[particleI] = s.puyOld[particleI];
                 s.puz[particleI] = s.puzOld[particleI];
@@ -1056,6 +1064,7 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
                 s.pContactDuration[particleI] = 0.0;
                 s.pContactMaximumArea[particleI] = 0.0;
                 s.pContactPeakFraction[particleI] = 0.0;
+                if (releaseAtRest) publishFrozenReleaseEnergy(s,particleI,releaseEnergy);
             }
             else if (transition == 2)
             {

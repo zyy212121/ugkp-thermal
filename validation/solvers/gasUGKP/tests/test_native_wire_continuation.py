@@ -9,7 +9,7 @@ import pytest
 ROOT=SOURCE_ROOT
 def run_cpp(tmp_path,code,app='gasUGKP',flags=(),timeout=30):
     source=tmp_path/'probe.cpp';source.write_text(code);binary=tmp_path/'probe'
-    build=subprocess.run(['g++','-std=c++17','-O0','-pthread','-Wall','-Wextra','-Werror','-ffunction-sections','-fdata-sections','-Wl,--gc-sections','-I',str(ROOT),'-I',str(ROOT/f'applications/{app}/gpu'),*flags,str(source),'-o',str(binary)],capture_output=True,text=True)
+    build=subprocess.run(['g++','-std=c++17','-O0','-pthread','-Wall','-Wextra','-Werror','-ffunction-sections','-fdata-sections','-Wl,--gc-sections','-I',str(ROOT),'-I',str(ROOT/f'applications/{app}/gpu'),'-I',str(ROOT/'common'),*flags,str(source),'-o',str(binary)],capture_output=True,text=True)
     assert build.returncode==0,build.stderr
     run=subprocess.run([str(binary)],capture_output=True,text=True,timeout=timeout)
     assert run.returncode==0,run.stdout+run.stderr
@@ -254,19 +254,6 @@ double out[]={-999,-999};assert(ugkwpGpuResidentStrictDownloadNut(&s,out)!=0);pe
 }
 ''',app)
 
-def test_actual_boundary_zero_wall_clear_needs_no_unconsumed_arrays(tmp_path):
-    run_cpp(tmp_path,r'''
-#include "applications/gasUGKP/gpu/GpuBackendClient.C"
-#include <cassert>
-#include <thread>
-int main(){using namespace ugkwpGpuIpc;int sockets[2];assert(socketpair(AF_UNIX,SOCK_STREAM,0,sockets)==0);ClientState s;s.fd=sockets[0];
-std::thread peer([&]{RequestHeader h{};assert(receiveObject(sockets[1],h));assert(h.payloadBytes==WireCodec<BoundaryLayerConfigV1>::size);
-BoundaryLayerConfigV1 a{};assert(receiveObject(sockets[1],a));assert(a.wallCount==0&&a.version==99);
-assert(sendObject(sockets[1],ResponseHeader{magic,protocolMajor,protocolMinor,0,0,0}));close(sockets[1]);});
-BoundaryLayerConfigV1 a{};a.version=99;a.wallCount=0;a.speciesCount=42;
-assert(ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&s,&a,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr)==0);
-peer.join();close(sockets[0]);}
-''')
 
 @pytest.mark.parametrize('app',['CHT','FSH'])
 def test_zero_restart_and_actual_zero_chunk_are_distinct(tmp_path,app):
@@ -306,23 +293,6 @@ for(int j=0;j<23;++j)for(int i=0;i<4096;++i)assert(payload[j*4096+i]==j+.125+i*.
 server.join();close(sockets[0]);close(sockets[1]);}
 ''',app,timeout=5)
 
-def test_configuration_has_no_dead_capability_query(tmp_path):
-    run_cpp(tmp_path,r'''
-#define main backend_main
-#include "applications/gasUGKP/private_backend/GpuBackendServer.C"
-#undef main
-#include <cassert>
-#include <sys/socket.h>
-static int configured=0,queried=0;
-extern "C" const char* ugkwpGpuResidentStrictLastError(){return "query unavailable";}
-extern "C" int ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1(void*,ugkwpGpuIpc::GasModelCapabilitiesV1*){++queried;return 7;}
-extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1(void*,const ugkwpGpu::GasModelConfigureArgsV1* a,const char* text,const char*){assert(a->modelBytes==5&&std::memcmp(text,"model",5)==0);++configured;return 0;}
-int main(){using namespace ugkwpGpuIpc;int sockets[2];assert(socketpair(AF_UNIX,SOCK_STREAM,0,sockets)==0);ServerState s;s.backend=&s;
-GasModelConfigureArgsV1 a{99,1,42,33,0,0,0,5,0};auto bytes=encodeWire(a);assert(writeAll(sockets[1],bytes.data(),bytes.size()));assert(writeAll(sockets[1],"model",5));
-RequestHeader request{magic,protocolMajor,protocolMinor,unsigned(Op::configureGasModelV1),0,bytes.size()+5};readingFrame=true;frameBytes=frameRemaining=request.payloadBytes;
-assert(handleGasModelConfiguration(sockets[0],request,s));assert(configured==1&&queried==0&&frameRemaining==0);
-ResponseHeader response{};assert(readObject(sockets[1],response));assert(response.status==0);close(sockets[0]);close(sockets[1]);}
-''')
 
 def test_fsh_profile_resizing_executes_wide_actual_products(tmp_path):
     source=(ROOT/'applications/FSH/private_backend/GpuBackendServer.C').read_text()
@@ -382,44 +352,16 @@ assert(std::memcmp(source,output,sizeof(source))==0);}
 ''')
 
 
-def test_boundary_diagnostic_actual_server_required_extent_and_full_output(tmp_path):
-    run_cpp(tmp_path,r"""
-#define main backend_main
-#include "applications/gasUGKP/private_backend/GpuBackendServer.C"
-#undef main
-#include <cassert>
-#include <sys/socket.h>
-static int called=0;
-extern "C" const char* ugkwpGpuResidentStrictLastError(){return "spy";}
-extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1(void*,std::uint32_t walls,std::uint32_t species,double*p){++called;assert(walls==3&&species==2);for(int i=0;i<87;++i)p[i]=i+.125;return 0;}
-int main(){using namespace ugkwpGpuIpc;int sockets[2];assert(socketpair(AF_UNIX,SOCK_STREAM,0,sockets)==0);ServerState s;s.backend=&s;
-for(int frame=0;frame<2;++frame){std::uint32_t dimensions[]={frame?0xffffffffu:3u,frame?0xffffffffu:2u};assert(writeVector(sockets[1],std::vector<std::uint32_t>(dimensions,dimensions+2)));
-RequestHeader request{magic,protocolMajor,protocolMinor,unsigned(Op::downloadBoundaryLayerV1),0,8};readingFrame=true;frameBytes=frameRemaining=8;
-bool result=handleDownloadBoundaryLayer(sockets[0],request,s);assert(result==!frame&&frameRemaining==0);
-ResponseHeader reply{};assert(readObject(sockets[1],reply));if(!frame){assert(reply.status==0&&reply.payloadBytes==87*sizeof(double));std::vector<double> values;assert(readVector(sockets[1],values,87));for(int i=0;i<87;++i)assert(values[i]==i+.125);}else{assert(reply.status!=0&&reply.payloadBytes==0);std::vector<char> text;assert(readVector(sockets[1],text,reply.errorBytes));assert(std::string(text.begin(),text.end()).find("byte extent overflow")!=std::string::npos);}}
-assert(called==1);close(sockets[0]);close(sockets[1]);}
-""")
-
-def test_boundary_diagnostic_actual_client_required_extent_and_full_output(tmp_path):
-    run_cpp(tmp_path,r"""
-#include "applications/gasUGKP/gpu/GpuBackendClient.C"
-#include <cassert>
-#include <thread>
-int main(){using namespace ugkwpGpuIpc;int sockets[2];assert(socketpair(AF_UNIX,SOCK_STREAM,0,sockets)==0);ClientState s;s.fd=sockets[0];
-std::thread peer([&]{RequestHeader request{};assert(receiveObject(sockets[1],request));std::uint32_t dimensions[2];assert(receiveArray(sockets[1],dimensions,2));assert(dimensions[0]==3&&dimensions[1]==2);
-assert(sendObject(sockets[1],ResponseHeader{magic,protocolMajor,protocolMinor,0,0,87*sizeof(double)}));double values[87];for(int i=0;i<87;++i)values[i]=i+.125;assert(sendArray(sockets[1],values,87));});
-double output[87];std::fill(output,output+87,99);assert(ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&s,3,2,output)==0);peer.join();for(int i=0;i<87;++i)assert(output[i]==i+.125);
-assert(ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&s,0xffffffffu,0xffffffffu,output)!=0);assert(lastError.find("byte extent overflow")!=std::string::npos);
-char byte;assert(recv(sockets[1],&byte,1,MSG_DONTWAIT)<0&&(errno==EAGAIN||errno==EWOULDBLOCK));close(sockets[0]);close(sockets[1]);}
-""")
 
 
-def test_boundary_zero_diagnostics_consumes_no_output_buffer(tmp_path):
-    run_cpp(tmp_path,r"""
-#include "applications/gasUGKP/gpu/GpuBackendClient.C"
-#include <cassert>
-int main(){using namespace ugkwpGpuIpc;int sockets[2];assert(socketpair(AF_UNIX,SOCK_STREAM,0,sockets)==0);ClientState s;s.fd=sockets[0];
-assert(sendObject(sockets[1],ResponseHeader{magic,protocolMajor,protocolMinor,0,0,0}));assert(ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&s,0,0xffffffffu,nullptr)==0);
-RequestHeader request{};assert(receiveObject(sockets[1],request));std::uint32_t dims[2];assert(receiveArray(sockets[1],dims,2));assert(dims[0]==0&&dims[1]==0xffffffffu&&!s.responseActive);
-close(sockets[0]);close(sockets[1]);}
-""")
+
+
+def test_gas_direct_owner_replaces_the_removed_wire_layer():
+    # Retire five gas IPC tests: that transport layer no longer exists. Species
+    # configuration/reupload is exercised by the actual adapter probe above.
+    # FSH retains IPC, but its separate tests are outside current maintenance.
+    assert not (ROOT/'applications/gasUGKP/gpu/GpuBackendClient.C').exists()
+    assert not (ROOT/'applications/gasUGKP/private_backend/GpuBackendServer.C').exists()
+    owner=(ROOT/'applications/gasUGKP/private_backend/GpuResidentStrict.cu').read_text()
+    assert '#include "SharedGasAdapter.cuh"' in owner
+    assert '#include "BoundaryLayerAdapter.cuh"' in owner

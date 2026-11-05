@@ -13,7 +13,7 @@ namespace ugkwpGpuIpc
 {
 
 static constexpr std::uint32_t magic = 0x46534842U;          
-static constexpr std::uint16_t protocolMajor = 9;
+static constexpr std::uint16_t protocolMajor = 10;
 static constexpr std::uint16_t protocolMinor = 0;
 static constexpr std::uint64_t maxPayloadBytes = 32ULL*1024ULL*1024ULL*1024ULL;
 
@@ -44,7 +44,8 @@ enum class Op : std::uint32_t
     downloadSst = 23,
     uploadParticleSavedVelocity = 24,
     downloadParticleSavedVelocity = 25,
-    configureBoundary = 26
+    configureBoundary = 26,
+    configureParticleInjectionVelocity = 27
 };
 
 enum class GasFluxScheme : std::int32_t
@@ -138,7 +139,7 @@ struct CreateArgs
     double particleDiameterFallback;
     double particleDiameterMin;
     double particleDiameterMax;
-    double particleDiameterSigma;
+    double particleDiameterN;
     double injectionTheta;
     double rhoMin;
     double TgasMin;
@@ -367,7 +368,7 @@ template<> struct WireCodec<CreateArgs>
         && offsetof(CreateArgs,particleDiameterFallback)==128
         && offsetof(CreateArgs,particleDiameterMin)==136
         && offsetof(CreateArgs,particleDiameterMax)==144
-        && offsetof(CreateArgs,particleDiameterSigma)==152
+        && offsetof(CreateArgs,particleDiameterN)==152
         && offsetof(CreateArgs,injectionTheta)==160
         && offsetof(CreateArgs,rhoMin)==168
         && offsetof(CreateArgs,TgasMin)==176
@@ -422,7 +423,7 @@ template<> struct WireCodec<CreateArgs>
         encodeWireScalar(b+128,v.particleDiameterFallback);
         encodeWireScalar(b+136,v.particleDiameterMin);
         encodeWireScalar(b+144,v.particleDiameterMax);
-        encodeWireScalar(b+152,v.particleDiameterSigma);
+        encodeWireScalar(b+152,v.particleDiameterN);
         encodeWireScalar(b+160,v.injectionTheta);
         encodeWireScalar(b+168,v.rhoMin);
         encodeWireScalar(b+176,v.TgasMin);
@@ -477,7 +478,7 @@ template<> struct WireCodec<CreateArgs>
         decodeWireScalar(b+128,v.particleDiameterFallback);
         decodeWireScalar(b+136,v.particleDiameterMin);
         decodeWireScalar(b+144,v.particleDiameterMax);
-        decodeWireScalar(b+152,v.particleDiameterSigma);
+        decodeWireScalar(b+152,v.particleDiameterN);
         decodeWireScalar(b+160,v.injectionTheta);
         decodeWireScalar(b+168,v.rhoMin);
         decodeWireScalar(b+176,v.TgasMin);

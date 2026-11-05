@@ -70,7 +70,7 @@ gpuResidentParticleCapacity {int(a['particleCapacity']) if particles else 0}; gp
 gpuResidentCourantUpdateInterval 1; gpuResidentMaxDeltaTGrowth 1;
 gpuCsrLevel L0; gpuParticleBlockThreads 128; gpuReductionBlockThreads 128;''')
     write('constant','particleProperties',f'''schemaVersion 1; gpuResidentRandomSeed {int(a['seed'])};
-rhoS 1000; dS {a['diameter']}; dMin {a['diameter']}; dMax {a['diameter']}; dSigma 0;
+rhoS 1000; dS {a['diameter']}; dMin {a['diameter']}; dMax {a['diameter']}; dn 1;
 parcelMass {a['parcelMass']}; injectionParcelMass {a['parcelMass']};
 epsSMin 1e-12; thetaMin 1e-12; TgasMin 1e-9;
 dragModel SchillerNaumann; particleGasHeatTransferModel RanzMarshall;

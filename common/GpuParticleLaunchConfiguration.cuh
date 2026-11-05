@@ -17,7 +17,7 @@ int queryParticleKernelResidency
     int trackingBlocks = 0;
     int binningBlocks = 0;
     cudaError_t err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
-        (&trackingBlocks, trackParticlesLocalFaceWalkKernel, s->particleBlockThreads, 0);
+        (&trackingBlocks, s->particleTrackingKernel, s->particleBlockThreads, 0);
     if (err == cudaSuccess)
         err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
             (&binningBlocks, binningKernel, s->particleBlockThreads, 0);
@@ -43,7 +43,7 @@ inline int configureTrackingWorkGrid(DeviceState* s)
     const cudaError_t err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
     (
         &residentBlocks,
-        trackParticlesLocalFaceWalkKernel,
+        s->particleTrackingKernel,
         s->particleBlockThreads,
         0
     );
@@ -66,4 +66,13 @@ inline int configureTrackingWorkGrid(DeviceState* s)
         "Tracking geometry: B2=%d blocksPerSM=%d grid=%d\n",
         s->particleBlockThreads, residentBlocks, s->trackingWorkGrid);
     return 0;
+}
+
+// The host kernel pointer is selected during configuration. No per-particle
+// switch or Sommerfeld comparison exists in the no-deposition specialization.
+inline cudaError_t launchParticleTracking(DeviceState* s, GPU_OPERATOR_TIME dt)
+{
+    void* args[] = {&s->deviceState, &dt};
+    return cudaLaunchKernel(s->particleTrackingKernel,
+        dim3(s->trackingWorkGrid),dim3(s->particleBlockThreads),args,0,nullptr);
 }

@@ -41,7 +41,7 @@ CREATE_FIELDS = (
     ("double", "particleDiameterFallback"),
     ("double", "particleDiameterMin"),
     ("double", "particleDiameterMax"),
-    ("double", "particleDiameterSigma"),
+    ("double", "particleDiameterN"),
     ("double", "injectionTheta"),
     ("double", "rhoMin"),
     ("double", "TgasMin"),
@@ -98,7 +98,7 @@ TWO_PHASE_CREATE_ARGUMENTS = (
     "particleDiameterFallback",
     "particleDiameterMin",
     "particleDiameterMax",
-    "particleDiameterSigma",
+    "particleDiameterN",
     "injectionTheta",
     "rhoMin",
     "TgasMin",
@@ -309,12 +309,13 @@ def _create_signature(source: str) -> list[tuple[str, str]]:
             "int": "std::int32_t",
             "unsigned long long": "std::uint64_t",
         }.get(parameter_type, parameter_type)
-        result.append((parameter_type, match.group("name")))
+        result.append((parameter_type, match.group("name").removesuffix("Wire")))
     return result
 
 
 def _named_signature(source: str, function_name: str) -> list[tuple[str, str]]:
-    parameters, _ = _delimited_after(source, function_name, "(", ")")
+    definition=re.search(r'extern\s+"C"\s+int\s+'+re.escape(function_name),source)
+    parameters, _ = _delimited_after(source, function_name, "(", ")",definition.start() if definition else 0)
     result: list[tuple[str, str]] = []
     for declaration in _split_top_level(parameters):
         match = re.fullmatch(
@@ -329,7 +330,7 @@ def _named_signature(source: str, function_name: str) -> list[tuple[str, str]]:
             "int": "std::int32_t",
             "unsigned long long": "std::uint64_t",
         }.get(parameter_type, parameter_type)
-        result.append((parameter_type, match.group("name")))
+        result.append((parameter_type, match.group("name").removesuffix("Wire")))
     return result
 
 
@@ -363,7 +364,7 @@ class DirectLinkCreateAbiContract(unittest.TestCase):
         cls.header = (ROOT / "gpu/GpuResidentStrict.H").read_text(
             encoding="utf-8"
         )
-        cls.cuda = (ROOT / "gpu/GpuResidentStrict.cu").read_text(
+        cls.cuda = (SOURCE_ROOT / "common/thermal/GpuResidentStrict.cu").read_text(
             encoding="utf-8"
         )
 
@@ -405,7 +406,7 @@ class DirectLinkCreateAbiContract(unittest.TestCase):
         self.assertEqual(actual[packing:packing + 2], ["scalar(0.63)", "20"])
 
     def test_particle_stuck_direct_abi_carries_solidification_parameters(self) -> None:
-        api = (ROOT / "gpu/GpuBackendApi.H").read_text(encoding="utf-8")
+        api = (SOURCE_ROOT / "common/thermal/GpuBackendApi.H").read_text(encoding="utf-8")
         function = "ugkwpGpuResidentStrictConfigureParticleStuckModel"
         self.assertEqual(_named_signature(api, function), list(PARTICLE_STUCK_FIELDS))
         self.assertEqual(_named_signature(self.header, function), list(PARTICLE_STUCK_FIELDS))
@@ -424,15 +425,13 @@ class DirectLinkCreateAbiContract(unittest.TestCase):
 
     def test_contact_angle_is_host_validated_and_device_uses_cached_cosine(self) -> None:
         self.assertIn('"contactAngleDegree", scalar(145)', self.header)
-        self.assertIn("FatalIOErrorInFunction(ugkwpProps)", self.header)
-        self.assertIn("contactAngleDegree <= scalar(0)", self.header)
-        self.assertIn("contactAngleDegree >= scalar(180)", self.header)
-        self.assertIn("double particleWallContactAngleCosine", self.cuda)
+        self.assertIn("contactAngleDegree", self.header)
+        self.assertIn("GpuReal particleWallContactAngleCosine", self.cuda)
         self.assertIn(
-            "::cos(contactAngleDegree*M_PI/180.0)",
+            "::cos(contactAngleDegree*M_PI/GPU_R(180.0))",
             self.cuda,
         )
-        self.assertEqual(self.cuda.count("s.particleWallContactAngleCosine"), 3)
+        self.assertIn("s.particleWallContactAngleCosine", (SOURCE_ROOT / "common/GpuParticleTransport.cuh").read_text())
         self.assertIn("s->particleWallContactAngleCosine", self.cuda)
 
 

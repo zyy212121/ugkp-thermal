@@ -1498,6 +1498,21 @@
       "path": "common/gasTransport/PositiveInventory.H",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/FoamParticleInjectionVelocity.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleInjectionVelocityConfiguration.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/ParticleInjectionVelocity.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
     }
   ],
   "local_only": {

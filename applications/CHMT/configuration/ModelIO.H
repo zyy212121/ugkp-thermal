@@ -1,3 +1,5 @@
+#include "FoamSommerfeldConfiguration.H"
+#include "FoamParticleDiameterDistribution.H"
 #ifndef CHMT_CONFIGURATION_MODELIO_H
 #define CHMT_CONFIGURATION_MODELIO_H
 #include "configuration/InputValues.H"
@@ -173,6 +175,7 @@ namespace chmt {
 #define CHMT_PARTICLE_NUMBER(name) t.name=readNumber(a,#name,t.name)
                 CHMT_PARTICLE_NUMBER(injectionParcelMass);
                 CHMT_PARTICLE_NUMBER(rhoSolid);CHMT_PARTICLE_NUMBER(diameter);
+                t.dn=Foam::readParticleDiameterShape(a);
                 CHMT_PARTICLE_NUMBER(minimumDiameter);CHMT_PARTICLE_NUMBER(maximumDiameter);
                 CHMT_PARTICLE_NUMBER(minimumTemperature);CHMT_PARTICLE_NUMBER(maximumTemperature);
                 CHMT_PARTICLE_NUMBER(dragResidualRe);CHMT_PARTICLE_NUMBER(minimumSolidFraction);
@@ -206,7 +209,7 @@ namespace chmt {
                 if(a.found("contactCoeffs")){
                     const auto& c=a.subDict("contactCoeffs");
 #define CHMT_CONTACT_NUMBER(name) w.name=readNumber(c,#name,w.name)
-                    CHMT_CONTACT_NUMBER(sommerfeldThreshold);CHMT_CONTACT_NUMBER(maximumCoverage);
+                    w.sommerfeldThreshold=Foam::readSommerfeldThreshold(c,w.sommerfeldThreshold);CHMT_CONTACT_NUMBER(maximumCoverage);
                     CHMT_CONTACT_NUMBER(depositionHeatTransferEfficiency);CHMT_CONTACT_NUMBER(reflectionHeatTransferEfficiency);
                     CHMT_CONTACT_NUMBER(adhesionEnergyScale);CHMT_CONTACT_NUMBER(contactAngleDegree);
                     CHMT_CONTACT_NUMBER(meltingTemperature);CHMT_CONTACT_NUMBER(mushyRange);CHMT_CONTACT_NUMBER(latentHeat);

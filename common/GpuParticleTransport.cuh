@@ -1,5 +1,6 @@
 #pragma once
 // One face-walk algorithm; wall state and coordinate precision are adapters.
+template<bool SommerfeldEnabled = true>
 __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const GPU_OPERATOR_TIME dt)
 {
     if (i >= s.particleCapacity || s.pStatus[i] == 0)
@@ -136,14 +137,6 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
               + (vyStep - ugkwp::particleWallVelocityY(s,globalFaceId))*ny
               + (vzStep - ugkwp::particleWallVelocityZ(s,globalFaceId))*nz
             );
-            const Foam::gpuThermal::SommerfeldImpact impact =
-                Foam::gpuThermal::evaluateSommerfeldImpact
-                (
-                    s.pT[i],
-                    normalSpeed,
-                    s.pd[i],
-                    s.sommerfeldThreshold
-                );
 
             const Foam::gpuThermal::FiniteWallContactImpact finiteImpact =
                 Foam::gpuThermal::evaluateFiniteWallContactImpact
@@ -168,16 +161,17 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
             s.pux[i] = GPU_OPERATOR_R(0.0);
             s.puy[i] = GPU_OPERATOR_R(0.0);
             s.puz[i] = GPU_OPERATOR_R(0.0);
-            s.pStuck[i] =
-                wallInteractionType
-             == Foam::gpuThermal::particleWallReboundContact
-              ? Foam::gpuThermal::particleWallTransientRebound
-              :
-                (
-                    impact.deposit
-                  ? Foam::gpuThermal::particleWallTransientDeposit
-                  : Foam::gpuThermal::particleWallTransientRebound
-                );
+            s.pStuck[i] = Foam::gpuThermal::particleWallTransientRebound;
+            if constexpr (SommerfeldEnabled)
+            {
+                if (wallInteractionType != Foam::gpuThermal::particleWallReboundContact)
+                {
+                    const auto impact = Foam::gpuThermal::evaluateSommerfeldImpact
+                        (s.pT[i], normalSpeed, s.pd[i], s.sommerfeldThreshold);
+                    if (impact.deposit)
+                        s.pStuck[i] = Foam::gpuThermal::particleWallTransientDeposit;
+                }
+            }
             s.pStuckFaceId[i] = globalFaceId;
             s.pTheta[i] = GPU_OPERATOR_R(0.0);
             GPU_RESET_CONTACT_AGE(s, i)

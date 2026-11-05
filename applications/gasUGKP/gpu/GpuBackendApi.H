@@ -18,7 +18,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     double particleThermalRho, double particleCp, double gasMu,
     double gasPr, double particleDiameterFallback,
     double particleDiameterMin, double particleDiameterMax,
-    double particleDiameterSigma, double injectionTheta, double rhoMin,
+    double particleDiameterN, double injectionTheta, double rhoMin,
     double TgasMin, double epsSMin, double thetaMin, double TpMin,
     double TpMax, int collisionalPressureEnabled,
     double collisionalRestitution, double pressureKickFraction,
@@ -56,6 +56,10 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     const double* planeNx, const double* planeNy, const double* planeNz,
     const double* planeD
 );
+
+// Optional global particle-source velocity; unspecified follows gas boundaries.
+extern "C" int ugkwpGpuResidentStrictConfigureParticleInjectionVelocity
+(void* handle, int specified, double ux, double uy, double uz);
 
 extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 (
