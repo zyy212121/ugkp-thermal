@@ -2,7 +2,7 @@
 cd "${0%/*}" || exit 1
 
 echo "=== ugkp-thermal Allwmake ==="
-echo "Building GPU solvers: gasUGKP, gasUGKPSteady, FSH, CHT, CHMT"
+echo "Building GPU solvers: gasUGKP, gasUGKPSteady, CHT, CHMT"
 echo ""
 
 
@@ -64,11 +64,11 @@ echo "CUDA compiler: $CUDA_ROOT/bin/nvcc"
 echo ""
 
 
-SOLVERS=(gasUGKP gasUGKPSteady FSH CHT CHMT)
+# FSH is archived under legacy/; only maintained applications build by default.
+SOLVERS=(gasUGKP gasUGKPSteady CHT CHMT)
 BUILD_SCRIPTS=(
     tool/gasUGKP/build_cuda_solver.sh
     tool/gasUGKPSteady/build_cuda_solver.sh
-    tool/FSH/build_private_backend.sh
     tool/CHT/build_cuda_solver.sh
     applications/CHMT/Allwmake
 )
@@ -100,12 +100,6 @@ if [ ${#FAILED[@]} -eq 0 ]; then
     echo "Executables:"
     for solver in "${SOLVERS[@]}"; do
         EXE="$FOAM_USER_APPBIN/${solver}"
-        if [ -f "$EXE" ]; then
-            echo "  $(sha256sum "$EXE")"
-        fi
-    done
-    for backend in FSHCudaBackend; do
-        EXE="$FOAM_USER_APPBIN/$backend"
         if [ -f "$EXE" ]; then
             echo "  $(sha256sum "$EXE")"
         fi

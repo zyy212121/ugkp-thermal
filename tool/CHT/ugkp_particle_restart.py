@@ -147,7 +147,7 @@ def iter_restart_chunks(path, legacy_parcel_mass=None, text_chunk_particles=2621
     if marker.startswith("UGKP_PARTICLES_"):
         chunks = _iter_legacy_restart_chunks(path, legacy_parcel_mass, text_chunk_particles)
     elif marker.startswith("UGKP_FSH_PARTICLES_SCHEMA") and marker != "UGKP_FSH_PARTICLES_SCHEMA8_FP64_FIELDS_BIN":
-        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "FSH"))
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "legacy" / "tool" / "FSH"))
         from fsh_particle_restart_schema6 import iter_restart_chunks as legacy_fsh_chunks
         chunks = legacy_fsh_chunks(path, legacy_parcel_mass)
     else:
@@ -174,7 +174,7 @@ def input_metadata(path):
         specs += [(name, "<i4", 1) for name in INT_FIELDS] + [(name, "<u8", 1) for name in UINT_FIELDS]
         dtypes = {name: ("ascii" if marker == "UGKP_PARTICLES_SCHEMA4" else dtype) for name, dtype, _ in specs}
     elif marker.startswith("UGKP_FSH_PARTICLES_SCHEMA") and marker != "UGKP_FSH_PARTICLES_SCHEMA8_FP64_FIELDS_BIN":
-        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "FSH"))
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "legacy" / "tool" / "FSH"))
         from fsh_particle_restart_schema6 import _field_specs, SCHEMA_NAMES
         dtypes = {name: dtype for name, dtype, _ in _field_specs(SCHEMA_NAMES[marker])}
     else:

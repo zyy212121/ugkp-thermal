@@ -1,5 +1,5 @@
 #pragma once
-#include "ReactingWallLayer.H"
+#include "WallLayerTransport.H"
 
 namespace ugkwp { namespace gaswall {
 // Local, steady ODE transport with the published semilocal EWM2 viscosity.

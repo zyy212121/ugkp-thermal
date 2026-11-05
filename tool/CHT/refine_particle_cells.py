@@ -424,7 +424,7 @@ def main() -> None:
     with args.source.open("rb") as stream:
         source_header = stream.readline().decode("ascii", errors="replace").split()
     if source_header and source_header[0].startswith("UGKP_FSH_PARTICLES_SCHEMA"):
-        fsh_tools = Path(__file__).resolve().parents[1] / "FSH"
+        fsh_tools = Path(__file__).resolve().parents[2] / "legacy" / "tool" / "FSH"
         sys.path.insert(0, str(fsh_tools))
         from refine_fsh_particle_cells import refine_restart as refine_fsh_restart
 

@@ -23,7 +23,7 @@ SOURCE_SUFFIXES = {
 
 SOURCE_ROOTS = (
     "applications/gasUGKP",
-    "applications/FSH",
+    "legacy/applications/FSH",
     "applications/CHT",
     "common",
     "tool/chemistry/mechanisms",
@@ -34,7 +34,7 @@ EXPLICIT_INPUTS = (
     "Allwmake",
     "tool/compute_source_hash.py",
     "tool/gasUGKP/build_private_backend.sh",
-    "tool/FSH/build_private_backend.sh",
+    "legacy/tool/FSH/build_private_backend.sh",
     "tool/CHT/build_cuda_solver.sh",
 )
 
