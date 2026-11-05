@@ -16,6 +16,7 @@
 #include "GpuChtParticleRestart.H"
 #include "GpuGasBoundarySpec.H"
 #include "GpuParticleRadiationMath.H"
+#include "thermal/ParticleRadiationApi.H"
 #include "cyclicPolyPatch.H"
 #include "emptyPolyPatch.H"
 #include "inletOutletFvPatchFields.H"
@@ -1147,30 +1148,22 @@ public:
                 << "Particle-radiation input is inconsistent with the "
                 << "resident state." << exit(FatalError);
         }
-        List<gpuThermal::RadiationAffineTemperatureUpdate> updates
-        (
-            mesh.nCells()
-        );
-        forAll(updates, cellI)
-        {
-            updates[cellI] = gpuThermal::radiationAffineTemperatureUpdate
-            (
-                deltaParticleRadiationEnergyJ[cellI],
-                frozenParticleMassInCellKg[cellI],
-                particleHeatFactorJkgK,
-                frozenParticleMeanTemperatureK[cellI],
-                residentTpMin_,
-                residentTpMax_
-            );
-        }
-        check
-        (
-            ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature
-            (
-                handle_, int(updates.size()), updates.begin()
-            ),
-            "apply conservative particle-radiation temperature update"
-        );
+        scalarField accepted(mesh.nCells(),scalar(0));
+        check(ugkwpGpuResidentStrictApplyParticleRadiationEnergy
+            (handle_,mesh.nCells(),deltaParticleRadiationEnergyJ.begin(),accepted.begin()),
+            "apply caloric particle-radiation energy");
+        // Source and publication now use the same resident caloric response.
+        // The legacy capacity arguments remain only for source compatibility.
+        (void)particleHeatFactorJkgK;
+    }
+
+    ugkp::gpu::ParticleRadiationResponseView particleRadiationResponse() const
+    {
+        requireInitialised("particleRadiationResponse");
+        ugkp::gpu::ParticleRadiationResponseView response;
+        check(ugkwpGpuResidentStrictParticleRadiationResponse(handle_,&response),
+            "borrow resident particle radiation response");
+        return response;
     }
 
     void downloadMobileParticleRadiationMaterial

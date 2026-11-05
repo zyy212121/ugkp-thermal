@@ -14,18 +14,14 @@ struct CoupledRadiation::Data {
     std::unique_ptr<Foam::gpuThermal::MieTable> table;
     std::unique_ptr<Foam::gpuThermal::MieDoRadiationSolver> solver;
     std::unique_ptr<Foam::gpuThermal::GpuParticleRadiationCoupler> coupler;
-    Foam::labelList patches;Foam::volScalarField wallTemperature;double heatFactor;
+    Foam::labelList patches;Foam::volScalarField wallTemperature;
     std::vector<Vec3> previousPoints;
     Data(Foam::Time& time,Foam::fvMesh& mesh_,const ModelConfig& config,const HostState& state,int every)
       :mesh(mesh_),model(config),frequency(every),
        properties(Foam::IOobject("radiationProperties",time.constant(),time,Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE)),
        wallTemperature(Foam::IOobject("chmtRadiationWallTemperature",time.timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE),
-           mesh,Foam::dimensionedScalar("T",Foam::dimTemperature,300)),heatFactor(0){
+           mesh,Foam::dimensionedScalar("T",Foam::dimTemperature,300)){
         if(frequency<=0)throw std::runtime_error("invalid radiation coupling frequency");
-        Foam::IOdictionary particleProperties(Foam::IOobject("particleProperties",time.constant(),time,Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
-        heatFactor=particleProperties.lookup<Foam::scalar>("particleCp")
-            *particleProperties.lookup<Foam::scalar>("particleRho")/model.particlePhase.rhoSolid;
-        if(!std::isfinite(heatFactor)||heatFactor<=0)throw std::runtime_error("invalid particle radiation heat capacity");
         const auto& m=properties.subDict("model");Foam::fileName path(m.lookup("mieTable"));
         if(!path.isAbsolute())path=time.path()/path;
         table.reset(new Foam::gpuThermal::MieTable(path));
@@ -65,7 +61,7 @@ bool CoupledRadiation::advance(Backend& backend,const WallProgram& program,HostS
         const double area=mag(d.mesh.Sf().boundaryField()[patch][local]);
         emissivity[patch][local]*=std::max(0.,1.-std::min(1.,material.occupiedArea[face]/area));
     }
-    const Foam::gpuThermal::ParticleRadiationMaterialSnapshot snapshot{epsilon,mass,temperature,diameter,d.wallTemperature,emissivity,d.heatFactor,elapsed};
+    const Foam::gpuThermal::ParticleRadiationMaterialSnapshot snapshot{epsilon,mass,temperature,diameter,d.wallTemperature,emissivity,0.,elapsed,material.response};
     auto result=d.coupler->solve(snapshot);
     std::vector<Real> request(result.deltaParticleRadiationEnergyJ.begin(),result.deltaParticleRadiationEnergyJ.end()),actual;
     if(!applyRadiationEnergy(backend,request,actual,state,error))return false;

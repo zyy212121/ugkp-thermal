@@ -1,3 +1,4 @@
+#include "ParticleRadiationApi.H"
 #include "GpuFrozenParticleRelease.cuh"
 #include "ParticleGasBinding.H"
 #include "gasTransport/MixturePorosity.H"
@@ -5478,6 +5479,14 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature
         );
         return 1;
     }
+    return 0;
+}
+
+extern "C" int ugkwpGpuResidentStrictParticleRadiationResponse(void* handle,ugkp::gpu::ParticleRadiationResponseView* output) {
+    auto* s=asState(handle);if(validateState(s,"particle radiation response")||!output)return 1;
+    *output={true,s->particleCapacity,s->particleCountDevice,s->pCellId,s->pStatus,
+        s->csrCellLocalPathEnabled&&s->preBaseDirectoryReady?s->preBaseCellOffset:nullptr,
+        s->pStuck,s->pm,s->pT,s->pThermalEnthalpyResidual,double(s->TpMin),double(s->TpMax)};
     return 0;
 }
 

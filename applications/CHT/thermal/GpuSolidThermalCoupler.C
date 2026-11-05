@@ -1901,7 +1901,8 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
                 Tgas,
                 emissivity,
                 data_->particleHeatFactor,
-                elapsedSinceRadiation
+                elapsedSinceRadiation,
+                data_->resident.particleRadiationResponse()
             };
             radiation.reset
             (

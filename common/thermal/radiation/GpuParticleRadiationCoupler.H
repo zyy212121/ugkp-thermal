@@ -26,6 +26,7 @@ struct ParticleRadiationMaterialSnapshot
     const List<scalarField>& coupledWallEmissivity;
     scalar particleHeatFactorJkgK;
     scalar elapsedCouplingTimeS;
+    ugkp::gpu::ParticleRadiationResponseView response{};
 };
 
 struct ParticleRadiationMaterialResult
@@ -138,7 +139,8 @@ ParticleRadiationMaterialResult solveParticleRadiationTransaction
         snapshot.wallTemperatureK,
         snapshot.coupledWallEmissivity,
         snapshot.particleHeatFactorJkgK,
-        snapshot.elapsedCouplingTimeS
+        snapshot.elapsedCouplingTimeS,
+        snapshot.response
     };
 
     validateParticleRadiationSnapshot(context, canonicalSnapshot);

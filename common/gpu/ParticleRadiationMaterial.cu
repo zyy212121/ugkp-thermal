@@ -2,6 +2,7 @@
 #include "RadiationImplicitMath.H"
 #include "PinnedTransferQueue.cuh"
 #include <cuda_runtime.h>
+#include <cub/device/device_scan.cuh>
 #include <stdexcept>
 #include <string>
 namespace ugkp { namespace gpu { namespace {
@@ -28,13 +29,31 @@ struct MaterialPower {
         return volume*(absorption==0?0:absorption*balance(temperature));
     }
 };
+__global__ void countResponseParticles(ParticleRadiationResponseView view,int cells,int* counts){
+    for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<*view.count;i+=blockDim.x*gridDim.x){
+        if(view.status[i]!=1||view.wallState[i]!=0)continue;
+        const int c=view.cell[i];if(c<0||c>=cells){asm("trap;");return;}
+        atomicAdd(counts+c,1);
+    }
+}
+__global__ void indexResponseParticles(ParticleRadiationResponseView view,int* cursor,int* indices){
+    for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<*view.count;i+=blockDim.x*gridDim.x){
+        if(view.status[i]!=1||view.wallState[i]!=0)continue;
+        indices[atomicAdd(cursor+view.cell[i],1)]=i;
+    }
+}
 __global__ void materialRoots(int count,MieOpticalTableView table,const double* epsilon,const double* mass,const double* temperature,
     const double* diameter,const double* incident,const double* volume,double heatFactor,double elapsed,double minimum,double maximum,double cutoff,
-    double* next,double* energy){
+    ParticleRadiationResponseView response,const int* offsets,const int* indices,double* next,double* energy){
     const int cell=blockIdx.x*blockDim.x+threadIdx.x;if(cell>=count)return;
     const double old=temperature[cell];next[cell]=old;energy[cell]=0;if(!(epsilon[cell]>cutoff))return;
     const double capacity=mass[cell]*heatFactor;
     const MaterialBalance balance{table,diameter[cell],incident[cell]};const MaterialPower power{balance,epsilon[cell],volume[cell]};
+    if(response.enabled){
+        const IndexedParticleRadiationResponse caloric{response,indices,offsets[cell],offsets[cell+1]};
+        const auto root=solveCaloricParticleRadiation(caloric,power,elapsed);
+        next[cell]=root.temperature;energy[cell]=root.energy;return;
+    }
     const auto root=radiationMath::solveBoundedImplicitMaterialTemperature(old,minimum,maximum,capacity,elapsed,100,1e-10,1e-9,balance,power);
     next[cell]=root.temperatureK;energy[cell]=capacity*(root.temperatureK-old);
 }
@@ -57,7 +76,8 @@ __global__ void conservativeMaterialBoundary(int cells,int faces,const double* a
 struct ParticleRadiationMaterial::Implementation {
     MieOpticalProperties optical;cudaStream_t stream=nullptr;PinnedTransferQueue transfer;
     MaterialArray<double> epsilon,mass,temperature,diameter,incident,volume,area,flux,next,energy,raw,boundary,escaped;
-    MaterialArray<unsigned char> coupled;
+    MaterialArray<unsigned char> coupled,scanScratch;
+    MaterialArray<int> responseCounts,responseOffsets,responseCursor,responseIndices;
     explicit Implementation(const MieOpticalTable& table):optical(table){checkedMaterial(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);}
     ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
 };
@@ -69,8 +89,23 @@ ParticleRadiationMaterialResult ParticleRadiationMaterial::solve(const ParticleR
     d.diameter.upload(input.diameter,d.transfer);d.incident.upload(input.incident,d.transfer);d.volume.upload(input.volume,d.transfer);
     d.area.upload(input.boundaryArea,d.transfer);d.flux.upload(input.boundaryFlux,d.transfer);d.coupled.upload(input.coupledBoundary,d.transfer);
     d.next.reserve(cells);d.energy.reserve(cells);d.raw.reserve(faces);d.boundary.reserve(faces);d.escaped.reserve(1);
+    const int* offsets=input.response.cellOffsets;const int* indices=nullptr;
+    if(input.response.enabled&&!offsets){
+        d.responseCounts.reserve(cells+1);d.responseOffsets.reserve(cells+1);d.responseCursor.reserve(cells+1);
+        d.responseIndices.reserve(input.response.capacity);
+        checkedMaterial(cudaMemsetAsync(d.responseCounts.ptr,0,(cells+1)*sizeof(int),d.stream));
+        const int blocks=(input.response.capacity+127)/128;
+        if(blocks)countResponseParticles<<<blocks,128,0,d.stream>>>(input.response,cells,d.responseCounts.ptr);
+        std::size_t bytes=0;
+        checkedMaterial(cub::DeviceScan::ExclusiveSum(nullptr,bytes,d.responseCounts.ptr,d.responseOffsets.ptr,cells+1,d.stream));
+        d.scanScratch.reserve(bytes);
+        checkedMaterial(cub::DeviceScan::ExclusiveSum(d.scanScratch.ptr,bytes,d.responseCounts.ptr,d.responseOffsets.ptr,cells+1,d.stream));
+        checkedMaterial(cudaMemcpyAsync(d.responseCursor.ptr,d.responseOffsets.ptr,(cells+1)*sizeof(int),cudaMemcpyDeviceToDevice,d.stream));
+        if(blocks)indexResponseParticles<<<blocks,128,0,d.stream>>>(input.response,d.responseCursor.ptr,d.responseIndices.ptr);
+        offsets=d.responseOffsets.ptr;indices=d.responseIndices.ptr;
+    }
     if(cells)materialRoots<<<(cells+127)/128,128,0,d.stream>>>(cells,d.optical.deviceTable(),d.epsilon.ptr,d.mass.ptr,d.temperature.ptr,d.diameter.ptr,
-        d.incident.ptr,d.volume.ptr,input.heatFactor,input.elapsed,input.minimumTemperature,input.maximumTemperature,input.activeEpsilonMinimum,d.next.ptr,d.energy.ptr);
+        d.incident.ptr,d.volume.ptr,input.heatFactor,input.elapsed,input.minimumTemperature,input.maximumTemperature,input.activeEpsilonMinimum,input.response,offsets,indices,d.next.ptr,d.energy.ptr);
     if(faces)rawBoundaryEnergy<<<(faces+127)/128,128,0,d.stream>>>(faces,input.elapsed,d.area.ptr,d.flux.ptr,d.raw.ptr);
     conservativeMaterialBoundary<<<1,1,0,d.stream>>>(cells,faces,d.energy.ptr,d.raw.ptr,d.coupled.ptr,d.boundary.ptr,d.escaped.ptr);
     ParticleRadiationMaterialResult result;result.temperature.resize(cells);result.energy.resize(cells);result.boundaryEnergy.resize(faces);

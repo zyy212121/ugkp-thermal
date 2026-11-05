@@ -237,6 +237,7 @@ try
     input.diameter.assign(snapshot.representativeDiameterM.begin(),snapshot.representativeDiameterM.begin()+cells);
     input.incident.assign(radiationResult.incidentRadiationG_Wm2.begin(),radiationResult.incidentRadiationG_Wm2.begin()+cells);
     input.volume.assign(context.mesh.V().begin(),context.mesh.V().end());
+    input.response=snapshot.response;
     input.heatFactor=snapshot.particleHeatFactorJkgK;input.elapsed=couplingDeltaT;
     input.minimumTemperature=max(context.particleTemperatureMinK,context.mieTable.minTemperatureK());
     input.maximumTemperature=min(context.particleTemperatureMaxK,context.mieTable.maxTemperatureK());

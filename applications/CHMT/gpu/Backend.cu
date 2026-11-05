@@ -677,7 +677,8 @@ bool downloadRadiationState(Backend& b,ParticleRadiationState& out,std::string& 
     if(!b.particles.active())return true;
     b.executionStream.sync();std::vector<Real> tm(b.nCells),dm(b.nCells);
     if(!b.particles.result(ugkwpGpuResidentStrictDownloadMobileParticleRadiationSums(b.particles.owner(),b.nCells,out.mass.data(),tm.data(),dm.data()),error)
-        ||!b.particles.result(ugkwpGpuResidentStrictDownloadParticleWallOccupiedArea(b.particles.owner(),b.nFaces,out.occupiedArea.data()),error))return false;
+        ||!b.particles.result(ugkwpGpuResidentStrictDownloadParticleWallOccupiedArea(b.particles.owner(),b.nFaces,out.occupiedArea.data()),error)
+        ||!b.particles.result(ugkwpGpuResidentStrictParticleRadiationResponse(b.particles.owner(),&out.response),error))return false;
     for(int c=0;c<b.nCells;++c)if(out.mass[c]>0){out.temperature[c]=tm[c]/out.mass[c];out.diameter[c]=dm[c]/out.mass[c];}
     return true;
 }
