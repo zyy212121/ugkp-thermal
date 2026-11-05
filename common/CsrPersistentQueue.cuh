@@ -29,5 +29,5 @@ __device__ __forceinline__ void runCsrPersistentQueue
 template<class State>
 inline cudaError_t resetCsrPersistentQueue(State* s)
 {
-    return cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
+    return cudaMemsetAsync(s->csrHeavyTaskCursor, 0, sizeof(int));
 }

@@ -1875,7 +1875,7 @@ int allocateFields(DeviceState* s)
     err = cudaMemset(s->preBaseParticleCountDevice, 0, sizeof(int));
     if (err == cudaSuccess)
     {
-        err = cudaMemset(s->wallBoundParticleCountDevice, 0, sizeof(int));
+        err = cudaMemsetAsync(s->wallBoundParticleCountDevice, 0, sizeof(int));
     }
     if (err == cudaSuccess)
     {
@@ -4641,7 +4641,7 @@ int advanceResidentThermalParticles(DeviceState* s,double dt,double simulationTi
             return 1;
         }
 
-        err = cudaMemset(s->compactCountDevice, 0, sizeof(int));
+        err = cudaMemsetAsync(s->compactCountDevice, 0, sizeof(int));
         if (err != cudaSuccess)
         {
             setLastError("clear selected stuck collision count", err);
@@ -4857,7 +4857,7 @@ int advanceResidentThermalParticles(DeviceState* s,double dt,double simulationTi
     UGKP_DEV_PROBE_ENTER(ProbeMoments);
     if (fusedSurvivorGather)
     {
-        err = cudaMemset(s->wallBoundParticleCountDevice, 0, sizeof(int));
+        err = cudaMemsetAsync(s->wallBoundParticleCountDevice, 0, sizeof(int));
         if (err != cudaSuccess)
         {
             setLastError("reset wall-bound particle directory count", err);
@@ -4883,7 +4883,7 @@ int advanceResidentThermalParticles(DeviceState* s,double dt,double simulationTi
     UGKP_DEV_PROBE_ENTER(ProbeCompaction);
     if (!fusedSurvivorGather)
     {
-    err = cudaMemset(s->wallBoundParticleCountDevice, 0, sizeof(int));
+    err = cudaMemsetAsync(s->wallBoundParticleCountDevice, 0, sizeof(int));
     if (err != cudaSuccess)
     {
         setLastError("reset wall-bound particle directory count", err);

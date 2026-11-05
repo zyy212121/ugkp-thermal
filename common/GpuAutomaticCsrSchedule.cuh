@@ -26,7 +26,7 @@ int runAutomaticCsrSchedule
     if (inspect)
     {
         if (GPU_AUTO_UPDATE_POLICY(s, GPU_DIRECTORY_SELECTOR) != 0) return 1;
-        cudaError_t err = cudaMemset(s->csrMaximumOccupancy, 0, sizeof(int));
+        cudaError_t err = cudaMemsetAsync(s->csrMaximumOccupancy, 0, sizeof(int));
         if (err == cudaSuccess)
         {
             const int grid = (s->nCells + block - 1)/block;
@@ -65,9 +65,9 @@ int runAutomaticCsrSchedule
         }
         if (active == 0)
         {
-            err = cudaMemset(s->csrHeavyTaskCount, 0, sizeof(int));
+            err = cudaMemsetAsync(s->csrHeavyTaskCount, 0, sizeof(int));
             if (err == cudaSuccess)
-                err = cudaMemset(s->csrHeavyCellCount, 0, sizeof(int));
+                err = cudaMemsetAsync(s->csrHeavyCellCount, 0, sizeof(int));
             if (err != cudaSuccess)
             {
                 setLastError("clear inactive automatic CSR schedule", err);

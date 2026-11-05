@@ -6,7 +6,7 @@ struct ContactAwarePressureLaunch
     {
         auto err=ConstrainedPressureLaunch<FullMoments>::limit(s,dt,grid,block);
         if(err!=cudaSuccess || s->csrCellLocalPathEnabled)return err;
-        err=cudaMemset(s->pressureCellHasContact,0,s->nCells*sizeof(int));
+        err=cudaMemsetAsync(s->pressureCellHasContact,0,s->nCells*sizeof(int));
         if(err!=cudaSuccess)return err;
         markPressureContactCellsKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState);
         return cudaGetLastError();

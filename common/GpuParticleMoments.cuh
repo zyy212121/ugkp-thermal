@@ -38,6 +38,17 @@ __global__ void accumulateParticleMomentsSegmentedKernel(DeviceState* sp)
 #else
     if constexpr (HeavyReductionEnabled) return;
 #endif
+// An empty directory has exactly zero moments. Publish all outputs and the
+    // sentinel without a block reduction; the decision is uniform per block.
+    if (start == end)
+    {
+        if (threadIdx.x == 0)
+        {
+            const GPU_MOMENT_REAL sums[8] = {};
+            publishParticleMomentsCell(s, c, sums);
+        }
+        return;
+    }
 #define GPU_MOMENT_BEGIN start
 #define GPU_MOMENT_COUNT_TYPE int
 #define GPU_MOMENT_COUNT survivorCount

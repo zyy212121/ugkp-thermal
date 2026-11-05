@@ -56,14 +56,49 @@ __global__ void boundaryMotionKernel(int count,const Point* areas,const Boundary
     r.displacement=recession+support;r.direction=normalized(r.direction);out[p]=r;
 }
 constexpr double maximumDistance=std::numeric_limits<double>::max();
+// A coordinate-wise lower bound needs no geometric tolerance. Round the
+// subtraction towards zero; triangle evaluation retains extended arithmetic.
+// Do not prune extreme/nonfinite inputs: their existing diagnostic is consumed.
+__device__ double wallBoxLowerBound(Point p,TopologyView t,const Point* points,int face){
+    const double safe=maximumDistance/8;
+    if(!finite(p)||fabs(p.x)>safe||fabs(p.y)>safe||fabs(p.z)>safe)return -1;
+    const int begin=t.faceOffsets[face],end=t.faceOffsets[face+1];
+    if(end-begin<3)return -1;
+    Point lo=points[t.facePoints[begin]],hi=lo;
+    for(int j=begin;j<end;++j){const auto q=points[t.facePoints[j]];
+        if(!finite(q)||fabs(q.x)>safe||fabs(q.y)>safe||fabs(q.z)>safe)return -1;
+        lo.x=fmin(lo.x,q.x);lo.y=fmin(lo.y,q.y);lo.z=fmin(lo.z,q.z);
+        hi.x=fmax(hi.x,q.x);hi.y=fmax(hi.y,q.y);hi.z=fmax(hi.z,q.z);
+    }
+    const double x=fmax(0.,fmax(lo.x-p.x,p.x-hi.x));
+    const double y=fmax(0.,fmax(lo.y-p.y,p.y-hi.y));
+    const double z=fmax(0.,fmax(lo.z-p.z,p.z-hi.z));
+    return nextafter(fmax(x,fmax(y,z)),0.);
+}
 __global__ void wallDistanceKernel(int count,TopologyView t,const Point* points,const Point* centres,
     int wallCount,const int* walls,WallDistanceResult* output){
     const int cell=blockIdx.x;if(cell>=count)return;
     __shared__ double distance[128];__shared__ int invalid[128];
-    double best=maximumDistance;int firstInvalid=INT_MAX;
-    // A block shares one cell's independent triangle queries. Only the finite
-    // minimum is reduced; the first invalid face retains the input list order.
+    // Pick a seed by bounding-box distance, not a mesh- or hardware-tuned
+    // cutoff. The seed's actual triangle distance is a valid upper bound.
+    double lower=maximumDistance;int seed=INT_MAX;
+    for(int i=threadIdx.x;i<wallCount;i+=blockDim.x){const double bound=wallBoxLowerBound(centres[cell],t,points,walls[i]);
+        if(bound>=0&&bound<lower){lower=bound;seed=i;}}
+    distance[threadIdx.x]=lower;invalid[threadIdx.x]=seed;__syncthreads();
+    for(int half=64;half;half/=2){if(threadIdx.x<half&&
+        (distance[threadIdx.x+half]<distance[threadIdx.x]||
+         (distance[threadIdx.x+half]==distance[threadIdx.x]&&invalid[threadIdx.x+half]<invalid[threadIdx.x]))){
+        distance[threadIdx.x]=distance[threadIdx.x+half];invalid[threadIdx.x]=invalid[threadIdx.x+half];}__syncthreads();}
+    if(!threadIdx.x){double upper=maximumDistance;
+        if(invalid[0]!=INT_MAX){const int face=walls[invalid[0]],begin=t.faceOffsets[face],end=t.faceOffsets[face+1];
+            for(int j=begin+1;j+1<end;++j){const double q=extended::triangleDistance(centres[cell],points[t.facePoints[begin]],points[t.facePoints[j]],points[t.facePoints[j+1]]);
+                if(std::isfinite(q)&&q<upper)upper=q;}}
+        distance[0]=upper;
+    }
+    __syncthreads();double best=distance[0];__syncthreads();int firstInvalid=INT_MAX;
     for(int i=threadIdx.x;i<wallCount;i+=blockDim.x){const int face=walls[i],begin=t.faceOffsets[face],end=t.faceOffsets[face+1];
+        const double bound=wallBoxLowerBound(centres[cell],t,points,face);
+        if(bound>nextafter(best,maximumDistance))continue;
         for(int j=begin+1;j+1<end;++j){const double triangle=extended::triangleDistance(centres[cell],points[t.facePoints[begin]],
             points[t.facePoints[j]],points[t.facePoints[j+1]]);
             if(!std::isfinite(triangle)){firstInvalid=i;break;}if(triangle<best)best=triangle;}
