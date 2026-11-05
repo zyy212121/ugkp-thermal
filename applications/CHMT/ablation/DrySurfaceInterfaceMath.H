@@ -73,7 +73,7 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
             }
             for (int c=0; c<Nc; ++c) trial.condensed[c]=in.acceptedCondensed[c];
         } else {
-            if (p.material.enableSurfaceReactions) {
+            if (in.ablating && p.material.enableSurfaceReactions) {
                 if (!in.hasSolid) {if(numericalFailure)*numericalFailure=false;return false;}
                 const auto production=drySurfaceProduction(in,provisional,topT,p);
                 // Core uses CURRENT physical material area. Existing wall proposals
@@ -94,7 +94,7 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
             ? in.solidSweptRate/in.solidArea : trial.solidSpeed;
         if (!in.useAcceptedFlux && in.hasSolid) {
             Real superficial=0;
-            if (p.material.enablePoreOutflow && p.permeability>0) {
+            if (in.ablating && p.material.enablePoreOutflow && p.permeability>0) {
                 superficial=p.permeability/p.poreViscosity
                     *((material.pressure-in.bulk.pressure)/in.solidDistance
                         +material.poreDensity*dot(p.gravity,in.solidNormal));
@@ -105,7 +105,7 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
             std::array<double,Ns> effectiveDiffusivity{};
             for(int species=0;species<Ns;++species){
                 outside.massFraction[species]=Y[species];
-                effectiveDiffusivity[species]=p.poreEffectiveDiffusivity[species];
+                effectiveDiffusivity[species]=in.ablating?p.poreEffectiveDiffusivity[species]:0;
             }
             dryAdapter::completePorePair(inside,outside);
             const auto physical=dry::poreFaceFlux(inside,outside,in.solidDistance,

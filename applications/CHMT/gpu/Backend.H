@@ -8,7 +8,8 @@
 namespace chmt {
 // Gas-window storage/scheduling boundary. All gas numerical stages are common.
 struct Backend;
-struct GasExecutionOptions {int fluxScheme=1,reconstruction=0,limiter=0,timeIntegrator=1,turbulenceModel=0;};
+struct GasExecutionOptions {int fluxScheme=1,reconstruction=0,limiter=0,timeIntegrator=1,turbulenceModel=0;
+    int courantUpdateInterval=1;double maximumTimeStepGrowth=1.05;};
 Backend* createBackend(const ModelConfig&,const ugkwp::GasModelConfiguration&,
     const ugkwp::GasMechanismConfiguration&,const GasExecutionOptions&,const HostState&,std::string&);
 void destroyBackend(Backend*) noexcept;

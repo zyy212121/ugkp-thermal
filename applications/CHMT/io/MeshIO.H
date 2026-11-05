@@ -96,6 +96,19 @@ namespace chmt {
             require(i >= 0, "mesh has no patch "+name);
             return i;
         }
+        inline std::vector<int> selectedPatchFaces(const Foam::fvMesh& mesh,
+            const Foam::dictionary& d,const char* plural,const char* singular) {
+            Foam::wordList names;
+            if(d.found(plural))names=Foam::wordList(d.lookup(plural));
+            else {names.setSize(1);names[0]=text(d,singular);}
+            std::vector<int> faces;std::set<int> seen;
+            for(const auto& name:names){
+                const auto& patch=mesh.boundaryMesh()[patchIndex(mesh,name)];
+                require(seen.insert(patch.index()).second,"duplicate interface patch "+std::string(name));
+                for(int i=0;i<patch.size();++i)faces.push_back(patch.start()+i);
+            }
+            require(!faces.empty(),"selected surface patches are empty");return faces;
+        }
         struct SurfaceImport {
             SurfaceMesh mesh;
             std::vector<int> sourceFaces;
@@ -155,14 +168,13 @@ namespace chmt {
         inline void attachCoupledSurface(const Foam::fvMesh& gasSource, const Foam::dictionary& d,
             HostState& state) {
             const auto& specification = d.subDict("surface");
-            const auto& patch = gasSource.boundaryMesh()[patchIndex(gasSource, text(specification, "gasPatch"))];
+            const auto candidates=selectedPatchFaces(gasSource,specification,"gasPatches","gasPatch");
             auto& surface = state.surface;
             require(state.filmAux.size() == surface.area.size(),
                 "coupled surface requires explicit dry/film geometry auxiliaries");
             std::vector<Real> thickness;
             for (const auto& auxiliary:state.filmAux) thickness.push_back(auxiliary.thickness);
-            std::vector<int> candidates;
-            for (int i = 0; i<patch.size(); ++i) candidates.push_back(patch.start()+i);
+
             std::vector<int> mapping, vertices;
             std::string error;
             const bool strictMapping=mapConformalInterface(state.gasMesh, state.solidMesh, surface.solidFace, thickness,
@@ -185,13 +197,19 @@ namespace chmt {
             const Foam::dictionary& d) {
             SurfaceImport result;
             auto& s = result.mesh;
-            const auto& patch = source.boundaryMesh()[patchIndex(source, text(d, "patch"))];
-            require(patch.size()>0, "selected surface patch is empty");
+            const auto selected=selectedPatchFaces(source,d,"patches","patch");
+            std::set<int> ablating;
+            if(d.found("ablatingPatches")){
+                const auto active=selectedPatchFaces(source,d,"ablatingPatches","patch");
+                for(int f:active){require(std::find(selected.begin(),selected.end(),f)!=selected.end(),
+                    "ablating patch must belong to the coupled surface");ablating.insert(f);}
+            }else ablating.insert(selected.begin(),selected.end());
             const Vec3 base = readVector(d, "baseVelocity"), traction = readVector(d, "prescribedTopTraction"),
                 gradient = readVector(d, "prescribedPressureGradient");
             std::map<std::pair<int, int>, std::vector<std::pair<int, std::pair<int, int>>>> edges;
-            for (int i = 0; i<patch.size(); ++i) {
-                const int f = patch.start()+i;
+            for (int f:selected) {
+                const int i=result.sourceFaces.size();
+                s.ablating.push_back(ablating.count(f)?1:0);
                 result.sourceFaces.push_back(f);
                 result.bounds.push_back(faceBounds(geometry, f));
                 const Real area = mag(geometry.areaVectors[f]);
@@ -344,8 +362,12 @@ namespace chmt {
                 forAll(p.boundaryField(),patch)forAll(p.boundaryField()[patch],face)
                     p.boundaryFieldRef()[patch][face]=state.gasMesh.boundaryPrimitive[mesh.boundaryMesh()[patch].start()+face].pressure;
             }
-            auto boundary=ugkp::boundary::foam::read(mesh,rho,U,p,T,true,&state.gasMesh.boundaryKind);
+            auto boundary=ugkp::boundary::foam::read(mesh,rho,U,p,T,true);
             if(!single)ugkp::boundary::foam::readComposition(mesh,Y,boundary);
+            // A wave outlet carries pressure history independently of owner
+            // density/temperature, including its explicitly supplied initial value.
+            for(std::size_t f=0;f<boundary.faces.size();++f)if(boundary.faces[f].wave)
+                state.gasMesh.boundaryPrimitive[f].pressure=boundary.faces[f].value[ugkp::boundary::Pressure];
             state.gasMesh.gasBoundary=std::make_shared<const ugkp::boundary::Definition>(std::move(boundary));
             if (model.physics.enableSst) {
                 auto k = scalarField(mesh, "k", Foam::sqr(Foam::dimVelocity));
@@ -457,7 +479,7 @@ namespace chmt {
             // boundary prescription and must not masquerade as a temperature.
             for(int patch=0;patch<mesh.boundaryMesh().size();++patch) {
                 const std::string type=energy.boundaryField()[patch].type();
-                require(type=="zeroGradient" || type=="calculated" || type=="cyclic" || type=="empty",
+                require(type=="zeroGradient" || type=="calculated" || type=="cyclic" || type=="empty" || type=="wedge",
                     "solidEnergyDensity boundary operator "+type+" is unsupported; prescribe fixed temperature with solidTemperature [K]");
             }
             for (int c = 0; c<n; ++c) {

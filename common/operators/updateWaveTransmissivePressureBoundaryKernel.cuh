@@ -44,9 +44,23 @@ __global__ void updateWaveTransmissivePressureBoundaryKernel
         boundaryUx*s.Sfx[f]
       + boundaryUy*s.Sfy[f]
       + boundaryUz*s.Sfz[f];
-    const GPU_OPERATOR_REAL psi =
+    GPU_OPERATOR_REAL psi =
         s.gasBoundaryRho[f]
        /clampMin(s.gasBoundaryP[f], OfSmall);
+    // Frozen mixtures use the boundary EOS, not owner rho divided by a
+    // separately evolved boundary pressure. Gamma remains the user-specified
+    // waveTransmissive parameter, as in the single-gas boundary law.
+    if constexpr(ugkwp::GasStateTraits<GasState>::speciesCount>0)if(ugkwp::mixtureGasActive(s)){
+        constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
+        GPU_OPERATOR_REAL y[Ns];
+        for(int k=0;k<Ns;++k)y[k]=s.gasSpecies.compositionBoundaryFixed[f]
+            ?s.gasSpecies.boundaryMassFraction[k*s.nFaces+f]:s.gasSpecies.rho[k*s.nCells+own]/s.rho[own];
+        const GPU_OPERATOR_REAL rt=ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo)*s.gasBoundaryT[f];
+        if(!ugkwp::gasFinite(rt)||!(rt>0)){
+            ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);return;
+        }
+        psi=GPU_OPERATOR_R(1)/rt;
+    }
     GPU_OPERATOR_REAL w =
         phip/area
       + sqrt(clampMin(s.gasBoundaryPWaveGamma[f]/clampMin(psi, OfSmall), GPU_OPERATOR_R(0.0)));

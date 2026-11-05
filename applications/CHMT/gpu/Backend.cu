@@ -58,6 +58,7 @@ struct Backend {
     bool poisoned=false;std::string error;
     GasIntervalRecord record;
     Real microDt=0,microTime=0,stageTime=0,stagePacketDt=0;
+    std::uint64_t gasSteps=0;Real cachedCourantRate=0;bool courantReady=false;
     WindowTime elapsed{};Real nextGasSeed=0;bool microGeometryPrepared=false;int gasStageIndex=0;
     int nCells=0,nFaces=0,nInternalFaces=0,fixedCellBlockThreads=128,fixedFaceBlockThreads=128;
     int hostTurbulenceModel=0,hostGasFluxScheme=1,hostGasTimeIntegrator=1,hasPeriodicFaces=0;
@@ -377,6 +378,9 @@ bool loadGasWindowState(Backend& b,const HostState& snapshot,std::string& error)
 }
 Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfiguration& gas,
  const ugkwp::GasMechanismConfiguration& mechanism,const GasExecutionOptions& options,const HostState& state,std::string& error){
+    if(options.courantUpdateInterval<1||!std::isfinite(options.maximumTimeStepGrowth)||options.maximumTimeStepGrowth<1){
+        error="invalid Courant update interval or time-step growth factor";return nullptr;
+    }
     if(mag(model.physics.gravity)!=0){error="coupled gas gravity source/work ledger is not enabled";return nullptr;}
     if(options.turbulenceModel!=(model.physics.enableSst?3:0))
         std::fprintf(stderr,"CHMT requested physics SST=%d execution turbulence=%d; effective SST=%d\n",
@@ -386,7 +390,7 @@ Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati
     request.residentParticleGeometry=true;request.residentParticleWallCoupling=true;
     const auto supported=ugkwp::validateGasCapabilities(request);if(!supported){error=supported.message;return nullptr;}
     if(gas.mode!=ugkwp::GasMode::SingleLegacy
-        && ((options.fluxScheme!=1&&options.fluxScheme!=2)||(options.reconstruction!=0&&options.reconstruction!=1))) {
+        && (!ugkwp::mixtureGasFluxImplemented(options.fluxScheme)||(options.reconstruction!=0&&options.reconstruction!=1))) {
         error="selected mixture gas operator is unavailable";return nullptr;
     }
     // Outlined calls in CUDA fast-compile builds may exceed the default
@@ -512,16 +516,19 @@ static bool currentGasCourant(Backend& b,Real referenceDt,transport::GasCourantM
         Real* gasFluxPositivityScale;
     } view{b.nCells,b.nFaces,b.nInternalFaces,b.deviceState,v.gasFluxPositivityScale};
     const auto maximum=[&](const double* field,int count,cudaStream_t stream,double& value){
+        CoupledCourantValue reduced{};
         try {
             const auto first=thrust::make_counting_iterator(0);
-            const auto reduced=thrust::transform_reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),first,first+count,
+            reduced=thrust::transform_reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),first,first+count,
                 CoupledCourantRead{field,v.gasSpecies.cellStatus,b.diagnostics.device()},
                 CoupledCourantValue{-std::numeric_limits<double>::infinity(),false},CoupledCourantReduce{});
-            if(!b.storage.observeDiagnostics())return 1;
-            if(reduced.unavailable){transport::setLastErrorText("current Co consumed input unavailable");return 1;}
-            value=reduced.value;
         }
         catch(const std::exception& e){transport::setLastErrorText(e.what());return 1;}
+        // Dispatch outside the Thrust exception adapter: a frontend fatal
+        // carries physical context that std::exception::what() may discard.
+        if(!b.storage.observeDiagnostics())return 1;
+        if(reduced.unavailable){transport::setLastErrorText("current Co consumed input unavailable");return 1;}
+        value=reduced.value;
         const auto code=cudaGetLastError();if(code!=cudaSuccess){transport::setLastError("gas Courant maximum reduction",code);return 1;}return 0;
     };
     return transport::computeGasCurrentCourant(&view,referenceDt,b.microTime,b.fixedCellBlockThreads,b.fixedFaceBlockThreads,b.gasCaptureStream,result,maximum)==0;
@@ -549,12 +556,16 @@ static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,s
     if(!finite(referenceDt)||!(referenceDt>0)||b.elapsed+referenceDt==b.elapsed){error="gas reference timestep is nonfinite, nonpositive or nonadvancing";return false;}
     b.microDt=referenceDt;b.error.clear();transport::lastError.clear();
     if(prepareCoupledGeometry(&b)!=0){error=b.error;return false;}
-    transport::GasCourantMaxima co;
-    if(!currentGasCourant(b,referenceDt,co)){
-        error=b.error.empty()?transport::lastError:b.error;return false;
+    if(!b.courantReady||b.gasSteps%std::uint64_t(b.options.courantUpdateInterval)==0){
+        transport::GasCourantMaxima co;
+        if(!currentGasCourant(b,referenceDt,co)){
+            error=b.error.empty()?transport::lastError:b.error;return false;
+        }
+        b.cachedCourantRate=co.maximum/referenceDt;b.courantReady=true;
     }
     const Real growthBase=b.trial.lastAcceptedDt>0?b.trial.lastAcceptedDt:referenceDt;
-    const Real selectedDt=gasCoMaxStep(referenceDt,b.model.physics.cfl,co.maximum,growthBase);
+    const Real stable=b.cachedCourantRate>0?b.model.physics.cfl/b.cachedCourantRate:referenceDt;
+    const Real selectedDt=minValue(referenceDt,minValue(stable,b.options.maximumTimeStepGrowth*growthBase));
 
 
     if(!finite(selectedDt)||!(selectedDt>0)||b.elapsed+selectedDt==b.elapsed){error="gas CFL-selected timestep is nonfinite, nonpositive or nonadvancing";return false;}
@@ -571,7 +582,7 @@ static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,s
     if(b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static){
         b.trial.gasStages={{b.gasStage,b.gasStage}};b.trial.solidStages={{b.solidStage,b.solidStage}};
     }
-    b.nextGasSeed=minValue(b.model.physics.maxDt,1.05*dt);b.trial.nextDt=b.nextGasSeed;b.trial.lastAcceptedDt=dt;
+    ++b.gasSteps;b.nextGasSeed=minValue(b.model.physics.maxDt,b.options.maximumTimeStepGrowth*dt);b.trial.nextDt=b.nextGasSeed;b.trial.lastAcceptedDt=dt;
     report.acceptedDt=dt;report.nextGasDt=b.nextGasSeed;report.time=b.trial.time;report.localTime=b.elapsed;report.microSequence=b.record.microSequence;error.clear();return true;
 }
 bool advanceGasMicrostep(Backend& b,Real cap,GasMicroReport& report,std::string& error){

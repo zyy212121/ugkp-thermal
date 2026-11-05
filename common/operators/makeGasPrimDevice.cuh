@@ -174,15 +174,14 @@ __device__ GasPrimDevice riemannBoundaryState
                 if(before!=Y[k])recordWarning(s.diagnostics,makeRecord(Code::FiniteYClip,2605,26,0,EntityKind::Face,f,k,before,Y[k],Y[k],Quantity::MassFraction));
             }
             const GPU_OPERATOR_REAL R=ugkwp::mixtureGasConstant(Y,s.gasSpecies.thermo);
-            if(s.riemannBoundaryUFix[f]==3 || s.riemannBoundaryPWave[f]!=0 || s.nScheduledInletFaces>0)
+            if(s.riemannBoundaryUFix[f]==3 || s.nScheduledInletFaces>0)
             {
                 using namespace ugkp::diagnostics;
                 // This rejection is a missing mixture boundary operator, not a
                 // soft numerical residual. Preserve the precise producer before
                 // the coarse face status makes the flux caller return false.
-                const int mode=s.riemannBoundaryUFix[f]==3?0:(s.riemannBoundaryPWave[f]!=0?1:2);
-                const int selector=mode==0?s.riemannBoundaryUFix[f]:
-                    (mode==1?s.riemannBoundaryPWave[f]:s.nScheduledInletFaces);
+                const int mode=s.riemannBoundaryUFix[f]==3?0:2;
+                const int selector=mode==0?s.riemannBoundaryUFix[f]:s.nScheduledInletFaces;
                 recordFatal(s.diagnostics,makeRecord(Code::MissingOperator,30420,26,nativeRefinement?1:0,
                     EntityKind::Face,f,mode,selector));
                 ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::UnsupportedConfiguration);
@@ -208,7 +207,7 @@ __device__ GasPrimDevice riemannBoundaryState
                 return GasPrimDevice{boundary.rho,boundary.ux,boundary.uy,boundary.uz,boundary.p,boundary.T};
             }
             GasPrimDevice out=ownerState;
-            const bool rf=s.riemannBoundaryRhoFix[f]!=0,pf=s.riemannBoundaryPFix[f]!=0 || (!nativeRefinement && s.riemannBoundaryPWave[f]!=0),tf=s.riemannBoundaryTFix[f]!=0;
+            const bool rf=s.riemannBoundaryRhoFix[f]!=0,pf=s.riemannBoundaryPFix[f]!=0 || s.riemannBoundaryPWave[f]!=0,tf=s.riemannBoundaryTFix[f]!=0;
             if(rf)out.rho=s.riemannBoundaryRho[f];
             if(pf)out.p=s.riemannBoundaryP[f];
             if(tf)out.T=s.riemannBoundaryT[f];

@@ -19,6 +19,7 @@ struct HostMesh {
     std::uint64_t geometryVersion=0,topologyHash=0;
 };
 struct SurfaceMesh {
+    std::vector<unsigned char> ablating{}; // empty preserves the historical all-active surface
     std::vector<Vec3> prescribedTopTraction{},prescribedPressureGradient{};
     std::vector<Vec3> edgeOwnerOffset{},edgeNeighbourOffset{}; // edge centre minus face centre in each periodic image [m].
     std::vector<Real> gasDistance{},solidDistance{}; // nFaces, positive normal cell-to-interface distances [m].
@@ -51,6 +52,8 @@ struct GasSstIntegralAudit {
 // Checkpoint serialization remains explicit and retains its existing wire order.
 struct HostDynamicState {
     Real nextDt=0,lastAcceptedDt=0;
+    std::vector<int> particleSourceFaces;
+    std::vector<Real> particleSourceResidualMass;
     SurfaceMesh surface{};
     std::vector<ugkwp::ChemistryAudit<Real,Ns>> gasChemistryAudit{};
     std::vector<GasQ> gas{};std::vector<SolidQ> solid{};std::vector<FilmQ> film{};

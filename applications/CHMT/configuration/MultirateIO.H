@@ -19,7 +19,7 @@ inline CouplingControls readCouplingControls(const Foam::dictionary& d, Real con
     CouplingControls controls;
     controls.interval = readNumber(m, "couplingInterval");
     // deltaT is a gas cap only. Neither it nor a material local step limits H.
-    controls.gasMaxDt = std::min(controlDeltaT, readNumber(m, "gasMaxDt", controlDeltaT));
+    controls.gasMaxDt = readNumber(m, "gasMaxDt", controlDeltaT);
     controls.materialMaxSubstep = readNumber(m, "materialMaxSubstep", 0);
     return controls;
 }

@@ -47,6 +47,11 @@ int main(int argc,char** argv) {
         options.fluxScheme=input.gasNumerics.gasFluxScheme;options.reconstruction=input.gasNumerics.gasReconstruction;
         options.limiter=input.gasNumerics.gasLimiter;options.timeIntegrator=input.gasNumerics.gasTimeIntegrator;
         options.turbulenceModel=input.model.physics.enableSst?3:0;
+        const auto& scheduling=properties.subDict("multirate");
+        options.courantUpdateInterval=scheduling.lookupOrDefault<Foam::label>("courantUpdateInterval",1);
+        options.maximumTimeStepGrowth=chmt::io::readNumber(scheduling,"maximumTimeStepGrowth",1.05);
+        chmt::io::require(options.courantUpdateInterval>0&&std::isfinite(options.maximumTimeStepGrowth)
+            &&options.maximumTimeStepGrowth>=1,"invalid gas Courant scheduling");
         std::unique_ptr<chmt::Backend,void(*)(chmt::Backend*)> backend(
             chmt::createBackend(input.model,input.gasModel,input.gasMechanism,options,input.state,error),chmt::destroyBackend);
         chmt::io::require(bool(backend),error);

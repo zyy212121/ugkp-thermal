@@ -1860,6 +1860,16 @@ namespace chmt {
         }
         for (auto& direction:directions) direction=normalized(direction);
 #endif
+        if(!reference.ablating.empty()){
+            if(reference.ablating.size()!=std::size_t(ns))return errorAt(error,"surface ablation mask size mismatch",-1);
+            for(int i=0;i<ns;++i)if(!reference.ablating[i]){
+                if(solidTargets[i]!=0)return errorAt(error,"fixed conjugate face has material recession",i);
+                const int f=reference.solidFace[i];
+                for(int k=oldSolid.faceOffsets[f];k<oldSolid.faceOffsets[f+1];++k){
+                    const int v=oldSolid.facePoints[k];displacement[v]={};directions[v]={};fixedSolid[v]=1;
+                }
+            }
+        }
         HostMesh gas,solid;
         std::vector<Real> gasSweeps,solidSweeps;
         auto buildGas=[&](const HostMesh& trialSolid,std::string& failure,ugkp::diagnostics::DeviceContext* diagnostics,bool& recoverable) {

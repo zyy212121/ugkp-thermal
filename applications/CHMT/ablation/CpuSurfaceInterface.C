@@ -35,7 +35,7 @@ bool evaluateCpuSurfaceImpl(const HostState& h,const PhysicsConfig& p,
         if((static_cast<std::size_t>(gf)>=h.gasMesh.owner.size()||static_cast<std::size_t>(gf)>=h.gasMesh.areaVectors.size()
             ||static_cast<std::size_t>(gf)>=h.gasMesh.faceIds.size())){error="CPU surface gas face outside real mesh";return false;}
         const int gc=h.gasMesh.owner[gf];if((gc<0||static_cast<std::size_t>(gc)>=h.gasMesh.volumes.size())){error="CPU surface gas owner outside real mesh";return false;}
-        SurfacePhysicsInput input;input.bulk=bulk[f];if(!gradients.empty())input.gradient=gradients[f];
+        SurfacePhysicsInput input;input.ablating=surface.ablating.empty()||surface.ablating.at(f);input.bulk=bulk[f];if(!gradients.empty())input.gradient=gradients[f];
         input.gasInventory=conservativeGas(bulk[f],gasPhaseVolume(h,gc)*donorShares[f],p);
         if(wallContexts){input.wallContext=(*wallContexts)[f];input.bulk.pressure=input.wallContext.matchingPressure;}input.area=surface.area[f];input.normal=surface.normal[f];
         input.gasArea=mag(h.gasMesh.areaVectors[gf]);input.gasNormal=-h.gasMesh.areaVectors[gf]/input.gasArea;
