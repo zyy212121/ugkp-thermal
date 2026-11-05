@@ -1,5 +1,7 @@
 #pragma once
 #include <initializer_list>
+#include <cstring>
+#include <type_traits>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -18,6 +20,15 @@ public:
         if(!storage_)storage_=std::make_shared<std::vector<T>>();
         else if(!storage_.unique())storage_=std::make_shared<std::vector<T>>(*storage_);
         return *storage_;
+    }
+    // Share only bit-identical payloads. No tolerances, rounding, or numerical
+    // interpolation: distinct signed zeros and NaN payloads remain distinct.
+    // Padding may prevent sharing, but can never erase a physical difference.
+    void shareIdentical(const SharedSnapshotVector& other){
+        static_assert(std::is_trivially_copyable<T>::value,"bit sharing requires a plain value type");
+        if(storage_==other.storage_||size()!=other.size())return;
+        if(empty()||std::memcmp(values().data(),other.values().data(),size()*sizeof(T))==0)
+            storage_=other.storage_;
     }
     void clear(){storage_.reset();}
     std::size_t size()const{return values().size();}

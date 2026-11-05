@@ -53,7 +53,7 @@ struct GasIntervalRecord {
     std::vector<GasPrimitive> gasTrace{}; // OWNER bulk at gasTraceTime, paired with gradient/traction/matching.
     std::vector<GasGradient> gasGradient{};
     std::vector<Vec3> gasTraction{};
-    std::vector<WallFaceSample> gasAcceptedWall{}; // instantaneous accepted rates at gasTraceTime, not integrated sources.
+    ugkp::SharedSnapshotVector<WallFaceSample> gasAcceptedWall{}; // instantaneous accepted rates at gasTraceTime, not integrated sources.
     std::vector<GasWallMatchingSample> gasWallMatching{}; // populated only for boundaryLayer.
     std::vector<Real> radiationEnergy{};
     std::vector<unsigned> radiationReceiver{};
@@ -119,6 +119,7 @@ public:
         if(input.actualDt==0)input.actualDt=input.end-input.begin;
         if(input.localEnd<WindowTime{})input.localEnd=supplied.actualDt==0?windowOffset(interval_.begin,input.end):input.localBegin+input.actualDt;
         GasIntervalRecord record=std::move(input);
+        if(!records_.empty())record.gasAcceptedWall.shareIdentical(records_.back().gasAcceptedWall);
         records_.push_back(std::move(record));error.clear();return true;
     }
     bool sampleGasDriveLocal(WindowTime time,std::vector<GasPrimitive>& trace,std::vector<Vec3>& traction,std::string& error)const{
