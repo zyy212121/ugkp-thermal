@@ -1,5 +1,6 @@
 #pragma once
 #include "gasTransport/GasStateView.H"
+#include "gasTransport/GasBoundaryThermodynamics.H"
 #include "gasTransport/GasCapabilities.H"
 #include "gasTransport/GasGeometryValidation.H"
 // Called only after an actual face evaluation fails, never for a residual
@@ -208,11 +209,11 @@ __device__ GasPrimDevice riemannBoundaryState
             }
             GasPrimDevice out=ownerState;
             const bool rf=s.riemannBoundaryRhoFix[f]!=0,pf=s.riemannBoundaryPFix[f]!=0 || s.riemannBoundaryPWave[f]!=0,tf=s.riemannBoundaryTFix[f]!=0;
-            if(rf)out.rho=s.riemannBoundaryRho[f];
-            if(pf)out.p=s.riemannBoundaryP[f];
-            if(tf)out.T=s.riemannBoundaryT[f];
-            if(rf&&pf&&!tf)out.T=out.p/(out.rho*R);
-            else if(rf&&!pf)out.p=out.rho*R*out.T;
+            const auto thermo=ugkwp::mixtureBoundaryThermodynamics(
+                ugkwp::BoundaryThermodynamics<GPU_OPERATOR_REAL>{out.rho,out.p,out.T},
+                ugkwp::BoundaryThermodynamics<GPU_OPERATOR_REAL>{s.riemannBoundaryRho[f],s.riemannBoundaryP[f],s.riemannBoundaryT[f]},
+                rf,pf,tf,R);
+            out.rho=thermo.rho;out.p=thermo.pressure;out.T=thermo.temperature;
             GPU_OPERATOR_REAL density=out.rho;
             const auto status=nativeRefinement
                 ? ugkwp::mixtureDensityFromPressureTemperatureImpl<true>(out.p,out.T,Y,s.gasSpecies.thermo,density,s.gasSpecies.densityClosureTolerance)

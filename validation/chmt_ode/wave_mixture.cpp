@@ -64,20 +64,23 @@ int main(){
  s.gasSpecies.thermo.species=species;s.gasSpecies.thermo.coefficients=coeff;s.gasSpecies.thermo.coefficientCount=6;
  Real density[]={1.5,.5},boundaryY[]={.2,.8};int fixed[]={0};s.gasSpecies.rho=density;s.gasSpecies.boundaryMassFraction=boundaryY;s.gasSpecies.compositionBoundaryFixed=fixed;
  blockIdx.x=threadIdx.x=0;blockDim.x=1;int count=0;
- for(bool mixture:{false,true})for(int composition:{0,1})for(double velocity:{-1000.,0.,100.})for(double farLength:{0.,.2}){
+ for(bool mixture:{false,true})for(int composition:{0,1})for(double velocity:{-1000.,0.,100.})for(double farLength:{0.,.2})for(int thermoPolicy:{0,1,2}){
   ugkp::diagnostics::reset(diagnostics,1,1,0,0);s.gasSpecies.mode=mixture?ugkwp::GasMode::MixtureFrozen:ugkwp::GasMode::SingleLegacy;
   fixed[0]=composition;Ux[0]=velocity;gasBoundaryUx[0]=velocity;gasBoundaryPWaveLInf[0]=farLength;gasBoundaryP[0]=riemannBoundaryP[0]=150000;
   const long double y0=composition?.2L:.75L,y1=1-y0;
   const long double R=8.31446261815324L*(y0/.028L+y1/.044L);
-  const long double psi=mixture?1/(R*600):2.L/150000;
+  riemannBoundaryRhoFix[0]=thermoPolicy==1;riemannBoundaryTFix[0]=thermoPolicy==0;
+  riemannBoundaryRho[0]=gasBoundaryRho[0]=2;
+  const long double boundaryT=thermoPolicy==1?150000/(2*R):600;
+  const long double psi=mixture?1/(R*boundaryT):2.L/150000;
   const long double speed=std::max(0.L,velocity+std::sqrt(1.2L/psi));
   const long double alpha=speed*1e-5L*20,k=farLength>0?speed*1e-5L/farLength:0;
   const long double expected=(150000+alpha*300000+k*101325)/(1+alpha+k);
   updateWaveTransmissivePressureBoundaryKernel(&s,1e-5);
   if(std::abs(gasBoundaryP[0]-expected)>1e-9L)throw std::runtime_error("wave pressure equation mismatch");
   if(mixture)for(bool refined:{false,true}){
-   auto q=riemannBoundaryState(s,0,GasPrimDevice{2,velocity,0,0,300000,500},nullptr,refined);
-   if(ugkp::diagnostics::hasFatal(&diagnostics)||std::abs(q.p-expected)>1e-9L||std::abs(q.rho-expected/(R*600))>1e-12L)
+   auto q=riemannBoundaryState(s,0,GasPrimDevice{2,velocity,0,0,300000,600},nullptr,refined);
+   if(ugkp::diagnostics::hasFatal(&diagnostics)||std::abs(q.p-expected)>1e-9L||std::abs(q.rho-(thermoPolicy==1?2:expected/(R*600)))>1e-12L)
     throw std::runtime_error("mixture boundary EOS/wave-pressure consumption mismatch");
   }
   ++count;

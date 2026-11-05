@@ -1,5 +1,6 @@
 #pragma once
 #include "gasTransport/GasPseudoTime.H"
+#include "gasTransport/GasBoundaryThermodynamics.H"
 template<class GasState>
 __global__ void updateWaveTransmissivePressureBoundaryKernel
 (
@@ -55,7 +56,12 @@ __global__ void updateWaveTransmissivePressureBoundaryKernel
         GPU_OPERATOR_REAL y[Ns];
         for(int k=0;k<Ns;++k)y[k]=s.gasSpecies.compositionBoundaryFixed[f]
             ?s.gasSpecies.boundaryMassFraction[k*s.nFaces+f]:s.gasSpecies.rho[k*s.nCells+own]/s.rho[own];
-        const GPU_OPERATOR_REAL rt=ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo)*s.gasBoundaryT[f];
+        const auto R=ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo);
+        const auto thermo=ugkwp::mixtureBoundaryThermodynamics(
+            ugkwp::BoundaryThermodynamics<GPU_OPERATOR_REAL>{s.rho[own],s.p[own],s.gasBoundaryT[f]},
+            ugkwp::BoundaryThermodynamics<GPU_OPERATOR_REAL>{s.gasBoundaryRho[f],s.gasBoundaryP[f],s.gasBoundaryT[f]},
+            s.riemannBoundaryRhoFix[f]!=0,true,s.riemannBoundaryTFix[f]!=0,R);
+        const GPU_OPERATOR_REAL rt=R*thermo.temperature;
         if(!ugkwp::gasFinite(rt)||!(rt>0)){
             ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);return;
         }

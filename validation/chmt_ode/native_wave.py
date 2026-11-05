@@ -33,6 +33,8 @@ int main(int argc,char** argv){
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--solver',type=Path,default=ROOT/'applications/CHMT/.build/native/CHMT')
+    parser.add_argument('--fixed-density',action='store_true')
     args = parser.parse_args()
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
@@ -55,7 +57,9 @@ boundaryField {
  outlet {type waveTransmissive; psi psi; gamma 1.2; fieldInf 101325; lInf 0.1; value uniform 150000;}
 }
 ''')
-    solver = ROOT/'applications/CHMT/.build/native/CHMT'
+    if args.fixed_density:
+        rho=case/'0/rho';rho.write_text(re.sub(r'outlet\s*\{[^}]*\}', 'outlet {type fixedValue; value uniform 2;}',rho.read_text()))
+    solver = args.solver.resolve()
     m.run([solver, '-case', case], case/'run.log')
     patch = re.search(r'\boutlet\s*\{([^}]+)', (case/'constant/polyMesh/boundary').read_text())[1]
     first = re.search(r'startFace\s+(\d+)', patch)[1]
