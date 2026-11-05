@@ -5,6 +5,10 @@
 
 namespace chmt {
 struct Backend;
+struct WindowRadiation {
+    virtual ~WindowRadiation()=default;
+    virtual bool advance(Backend&,const WallProgram&,HostState&,Real& externalHeat,std::string&)=0;
+};
 struct MicrostepGeometryReport {
     std::uint64_t microSequence=0;
     Real begin=0,end=0;
@@ -20,6 +24,6 @@ struct WindowEvolutionReport {
 // failed/replayed window never becomes output or restart authority.
 bool advanceCoupledWindow(Backend&,CpuMaterialDriver&,const ModelConfig&,
     const CouplingControls&,const CpuMaterialControls&,Real targetTime,
-    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport&,std::string& error);
+    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport&,std::string& error,WindowRadiation* radiation=nullptr);
 }
 #endif

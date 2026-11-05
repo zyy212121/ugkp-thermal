@@ -100,10 +100,13 @@ class IntervalHistory {
     CouplingInterval interval_{};
     std::vector<GasIntervalRecord> records_{};
     bool started_=false;
+    std::vector<Real> externalRadiationEnergy_;
 public:
     bool begin(const CouplingInterval& w,std::string& error){
-        interval_=w;records_.clear();started_=true;error.clear();return true;
+        interval_=w;records_.clear();externalRadiationEnergy_.clear();started_=true;error.clear();return true;
     }
+    void setExternalRadiationEnergy(const std::vector<Real>& e){externalRadiationEnergy_=e;}
+    const std::vector<Real>& externalRadiationEnergy()const{return externalRadiationEnergy_;}
     const CouplingInterval& interval()const{return interval_;}
     const std::vector<GasIntervalRecord>& records()const{return records_;}
     Real end()const{return records_.empty()?interval_.begin:records_.back().end;}
@@ -142,7 +145,7 @@ class IntervalCursor {
     WindowTime time_{};
     std::size_t record_=0;
     std::vector<ExchangePacket> used_{};
-    std::vector<Real> radiationUsed_{};
+    std::vector<Real> radiationUsed_{},externalRadiationUsed_{};
 public:
     explicit IntervalCursor(const IntervalHistory& h):history_(&h){}
     Real time()const{return windowAbsolute(history_->interval().begin,time_);}
@@ -171,6 +174,17 @@ public:
             }
             candidate.time_=stop;
             if(last){++candidate.record_;candidate.used_.clear();candidate.radiationUsed_.clear();}
+        }
+        const auto& extra=history_->externalRadiationEnergy();
+        if(!extra.empty()){
+            if(rad.empty())rad.assign(extra.size(),0);
+            if(rad.size()!=extra.size())return intervalFailure(error,"external radiation face layout mismatch");
+            if(candidate.externalRadiationUsed_.empty())candidate.externalRadiationUsed_.assign(extra.size(),0);
+            const Real fraction=windowDuration(target,time_)/windowDuration(intervalDuration(history_->interval()),WindowTime{});
+            for(std::size_t f=0;f<extra.size();++f){
+                const Real part=target==history_->localEnd()?extra[f]-candidate.externalRadiationUsed_[f]:extra[f]*fraction;
+                candidate.externalRadiationUsed_[f]+=part;rad[f]+=part;
+            }
         }
         *this=std::move(candidate);packets=std::move(next);radiation=std::move(rad);error.clear();return true;
     }

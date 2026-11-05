@@ -1,3 +1,5 @@
+#include "../../../common/thermal/radiation/RadiationControls.H"
+#include "../../../common/thermal/ThermalCouplingSchedule.H"
 #include "GpuSolidThermalCoupler.H"
 #include "../../../common/gpu/FoamSparseSolve.H"
 #include "../../../common/gpu/FoamImplicitDiffusion.H"
@@ -863,22 +865,6 @@ SolidPatchPair readSolidSolidPatchPair
     return result;
 }
 
-MieDoControls readDoControls(const dictionary& doDictionary)
-{
-    return MieDoControls
-    {
-        exactLookup<label>(doDictionary, "nTheta"),
-        exactLookup<label>(doDictionary, "nPhi"),
-        exactLookup<label>(doDictionary, "maxSourceIterations"),
-        exactLookup<scalar>(doDictionary, "sourceRelativeTolerance"),
-        exactLookup<scalar>(doDictionary, "phaseBalanceTolerance"),
-        exactLookup<label>(doDictionary, "maxPhaseBalanceIterations"),
-        exactLookup<scalar>(doDictionary, "radiationActiveEpsilonMin"),
-        exactLookup<scalar>(doDictionary, "conservationRelativeTolerance"),
-        exactLookup<scalar>(doDictionary, "maxPhaseScalingCorrection"),
-        doDictionary.lookupOrDefault<label>("angleParallelThreads", 1)
-    };
-}
 
 GpuSolidThermalControls readSolidControls(const dictionary& coupling)
 {
@@ -1025,18 +1011,10 @@ public:
         threeRegion = formatVersion == 2
           || (formatVersion != 1
            && coupling.found("solidSolidInterfaces", false, false));
-        const scalar legacyCouplingInterval =
-            exactLookup<scalar>(coupling, "couplingInterval");
-        radiationEnabled =
-            coupling.lookupOrDefault<bool>("radiationEnabled", true);
-        solidContactCouplingInterval = coupling.lookupOrDefault<scalar>
-        (
-            "solidContactCouplingInterval", legacyCouplingInterval
-        );
-        radiationCouplingFrequency = coupling.lookupOrDefault<label>
-        (
-            "radiationCouplingFrequency", 1
-        );
+        const auto schedule=ugkp::thermal::readCouplingSchedule(coupling);
+        radiationEnabled=schedule.radiationEnabled;
+        solidContactCouplingInterval=schedule.interval;
+        radiationCouplingFrequency=schedule.radiationFrequency;
         if
         (
             radiationEnabled && radiationCouplingFrequency == 0
@@ -1249,7 +1227,7 @@ public:
                 new MieDoRadiationSolver
                 (
                     fluidMesh, doDictionary, mieTable(),
-                    mapper->fluidPatchIds(), readDoControls(doDictionary)
+                    mapper->fluidPatchIds(), readRadiationControls(doDictionary)
                 )
             );
             particleRadiationCoupler.reset

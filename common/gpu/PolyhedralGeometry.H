@@ -1,6 +1,7 @@
 #ifndef UGKP_GPU_POLYHEDRAL_GEOMETRY_H
 #define UGKP_GPU_POLYHEDRAL_GEOMETRY_H
 #include "PolyhedralGeometryMath.H"
+#include "PointMotionMath.H"
 #include <memory>
 #include <vector>
 namespace ugkp { namespace gpu { namespace geometry {
@@ -74,7 +75,7 @@ class HarmonicPointMotion {
 public:
     HarmonicPointMotion(const std::vector<Point>& points,const std::vector<int>& offsets,
         const std::vector<int>& neighbours,const std::vector<unsigned char>& fixed,
-        double tolerance,int maximumIterations=20000);
+        double tolerance,int maximumIterations=20000,const std::vector<MotionPenalty>& penalties={});
     ~HarmonicPointMotion();
     HarmonicResult solve(const std::vector<Point>& boundary,bool representedDisplacement=false);
 };

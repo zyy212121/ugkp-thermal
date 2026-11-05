@@ -283,6 +283,21 @@ struct DiscreteOrdinateRadiation::Implementation {
 DiscreteOrdinateRadiation::DiscreteOrdinateRadiation(const RadiationGeometry& geometry,const MieOpticalTable& table,const RadiationControls& controls):
     data_(new Implementation(geometry,table,controls)){data_->initialize();}
 DiscreteOrdinateRadiation::~DiscreteOrdinateRadiation()=default;
+void DiscreteOrdinateRadiation::updateGeometry(const RadiationGeometry& geometry){
+    auto& d=*data_;const auto& old=d.geometry;
+    if(geometry.cells!=old.cells||geometry.directions!=old.directions
+        ||geometry.owner!=old.owner||geometry.neighbour!=old.neighbour
+        ||geometry.cellOffsets!=old.cellOffsets||geometry.cellFaces!=old.cellFaces
+        ||geometry.boundaryOwner!=old.boundaryOwner||geometry.boundaryPatch!=old.boundaryPatch
+        ||geometry.boundaryFace!=old.boundaryFace||geometry.weights!=old.weights
+        ||geometry.directionCosines!=old.directionCosines)
+        throw std::invalid_argument("radiation metric update requires unchanged topology and angular quadrature");
+    d.transfers.finish();checked(cudaStreamSynchronize(d.stream));
+    // Direction graphs capture metric addresses and upwind order. Rebuild them
+    // even when a face changes its sign relative to an ordinate.
+    d.directions.clear();d.geometry=geometry;d.initialize();
+}
+
 RadiationResult DiscreteOrdinateRadiation::solve(const RadiationSnapshot& snapshot,bool warmStart){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);
     d.epsilon.upload(snapshot.epsilon,d.transfers);d.temperature.upload(snapshot.temperature,d.transfers);d.diameter.upload(snapshot.diameter,d.transfers);

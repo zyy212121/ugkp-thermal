@@ -495,7 +495,12 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     aux[f].normalVelocity=aux[f].solidNormalVelocity;
                     aux[f].solidFront=state.filmAux[f].solidFront+dt*aux[f].solidNormalVelocity;aux[f].gasFront=state.filmAux[f].gasFront+dt*aux[f].normalVelocity;}
                 if(!error.empty())break;
-                if(p.meshMotion.policy==MeshMotionPolicy::CoupledRecession&&!target.empty()){SweepConstraintReport motion;
+                // Local reaction/transport steps follow the already executed gas trajectory.
+                // Solve the material-volume correction and harmonic mesh only at
+                // the macro endpoint. The signed sweep carry accumulates every
+                // accepted transfer exactly, including intermediate substeps.
+                if(p.meshMotion.policy==MeshMotionPolicy::CoupledRecession&&!target.empty()
+                    &&(!executedProgram||trialElapsed==windowEnd)){SweepConstraintReport motion;
                     bool numerical=false;
                     if(!moveCoupledMeshesConstrained(state,aux,target,dt,trial.gasMesh,trial.solidMesh,trial.surface,motion,error,SweepConstraintControls{},p.tolerances,&numerical)){
                         lastFailure=numerical?MaterialFailureOrigin::GeometryNumerical:MaterialFailureOrigin::None;
@@ -511,7 +516,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                         stageSweepsReady=true;
                     }
                 }
-                if(executedProgram&&p.meshMotion.policy==MeshMotionPolicy::CoupledRecession){WallKnot executed;
+                if(executedProgram&&p.meshMotion.policy==MeshMotionPolicy::CoupledRecession&&!stageSweepsReady){WallKnot executed;
                     if(!intervalSampleWallLocal(*executedProgram,trialElapsed,executed,error))break;
                     const bool close=materialPointsClose(trial.gasMesh,executed.gasPoints,p.tolerances)&&materialPointsClose(trial.solidMesh,executed.solidPoints,p.tolerances);
                     if(close){if(!stageGeometry(state.gasMesh,executed.gasPoints,dt,trial.gasMesh,gasSweep,lastFailure)||!stageGeometry(state.solidMesh,executed.solidPoints,dt,trial.solidMesh,solidSweep,lastFailure)||!trajectorySurface(state,trial.gasMesh,trial.solidMesh,dt,trial.surface,lastFailure))break;

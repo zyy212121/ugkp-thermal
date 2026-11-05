@@ -27,5 +27,10 @@ bool gasWindowStageGeometry(const Backend&,std::array<HostStageGeometry,2>&,std:
 bool downloadGasWindow(Backend&,HostState&,std::string&);
 bool commitGasWindow(Backend&,HostState&,std::string&);
 bool downloadState(const Backend&,HostState&,std::string&);
+struct ParticleRadiationState {std::vector<Real> mass,temperature,diameter,occupiedArea;};
+bool downloadRadiationState(Backend&,ParticleRadiationState&,std::string&);
+bool applyRadiationEnergy(Backend&,const std::vector<Real>&,std::vector<Real>&,HostState&,std::string&);
+void setWindowRadiationEnergy(Backend&,const std::vector<Real>&);
+
 }
 #endif

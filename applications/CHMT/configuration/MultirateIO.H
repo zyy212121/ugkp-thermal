@@ -12,12 +12,12 @@ inline ExecutionMode readExecutionMode(const Foam::dictionary& d,const HostState
     return ExecutionMode::Multirate;
 }
 
-inline CouplingControls readCouplingControls(const Foam::dictionary& d, Real controlDeltaT) {
-    require(d.found("multirate") && d.subDict("multirate").found("couplingInterval"),
+inline CouplingControls readCouplingControls(const Foam::dictionary& d, Real controlDeltaT, Real thermalInterval=0) {
+    require(d.found("multirate") && (thermalInterval>0||d.subDict("multirate").found("couplingInterval")),
         "multirate.couplingInterval is required for executionMode Multirate");
     const auto& m = d.subDict("multirate");
     CouplingControls controls;
-    controls.interval = readNumber(m, "couplingInterval");
+    controls.interval = thermalInterval>0?thermalInterval:readNumber(m, "couplingInterval");
     // deltaT is a gas cap only. Neither it nor a material local step limits H.
     controls.gasMaxDt = readNumber(m, "gasMaxDt", controlDeltaT);
     controls.materialMaxSubstep = readNumber(m, "materialMaxSubstep", 0);

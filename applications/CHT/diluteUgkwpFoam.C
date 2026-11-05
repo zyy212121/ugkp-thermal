@@ -1,3 +1,4 @@
+#include "../../common/gasNumerics/GasWindowStep.H"
 #include "FoamParticleDiameterDistribution.H"
 #include "fvCFD.H"
 #include "physicoChemicalConstants.H"
@@ -445,9 +446,8 @@ int main(int argc, char *argv[])
                     {
                         const scalar requestedDt =
                             oldDt*maxCo/max(lastMeasuredCo, SMALL);
-                        const scalar growthLimitedDt =
-                            min(requestedDt, oldDt*gpuResidentMaxDeltaTGrowth);
-                        runTime.setDeltaT(min(growthLimitedDt, maxDeltaT));
+                        runTime.setDeltaT(ugkwp::selectCourantTimeStep(
+                            oldDt, requestedDt, gpuResidentMaxDeltaTGrowth, maxDeltaT, true));
                     }
                     stepsSinceCourant = 1;
                 }
@@ -726,9 +726,8 @@ int main(int argc, char *argv[])
                 {
                     const scalar requestedDt =
                         oldDt*maxCo/max(lastMeasuredCo, SMALL);
-                    const scalar growthLimitedDt =
-                        min(requestedDt, oldDt*gpuResidentMaxDeltaTGrowth);
-                    runTime.setDeltaT(min(growthLimitedDt, maxDeltaT));
+                    runTime.setDeltaT(ugkwp::selectCourantTimeStep(
+                        oldDt, requestedDt, gpuResidentMaxDeltaTGrowth, maxDeltaT, true));
                 }
                 stepsSinceCourant = 1;
             }

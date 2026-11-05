@@ -52,6 +52,7 @@ struct GasSstIntegralAudit {
 // Checkpoint serialization remains explicit and retains its existing wire order.
 struct HostDynamicState {
     Real nextDt=0,lastAcceptedDt=0;
+    Real radiationTime=0; // last completed discrete-ordinate radiation event
     std::vector<int> particleSourceFaces;
     std::vector<Real> particleSourceResidualMass;
     SurfaceMesh surface{};

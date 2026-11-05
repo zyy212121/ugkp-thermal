@@ -4,11 +4,12 @@
 #include "DiagnosticsFoam.H"
 #include <algorithm>
 #include <exception>
+#include <iostream>
 
 namespace chmt {
 bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const ModelConfig& model,
     const CouplingControls& controls,const CpuMaterialControls& materialControls,Real targetTime,
-    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport& report,std::string& error) {
+    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport& report,std::string& error,WindowRadiation* radiation) {
     report=WindowEvolutionReport{};
     try {
         const HostState& base=accepted;
@@ -19,31 +20,37 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         CpuMaterialReport prediction;
         if(!material.predictWall(base,interval,program,error,&prediction))return false;
         if(!beginGasWindow(backend,program,error))return false;
-        Real gasTime=interval.begin,nextGasCap=controls.gasMaxDt;WindowTime gasElapsed{};
+        Real gasTime=interval.begin;WindowTime gasElapsed{};
         // Ordinary physical gas microsteps remain. A failed operation returns
         // directly to the frontend fatal boundary, without rollback or replay.
         while(gasElapsed<intervalDuration(interval)) {
             GasMicroReport micro;
-            if(!advanceGasMicrostep(backend,nextGasCap,micro,error))return false;
+            if(!advanceGasMicrostep(backend,controls.gasMaxDt,micro,error))return false;
             report.nextGasDt=micro.nextGasDt;
+            if(micro.microSequence%1000==0)std::cout<<"CHMT_GAS window="<<interval.identity.sequence
+                <<" microstep="<<micro.microSequence<<" time="<<micro.time<<" nextDt="<<micro.nextGasDt<<std::endl;
             if(retainStageGeometry) {
                 MicrostepGeometryReport geometry;geometry.microSequence=micro.microSequence;
                 geometry.begin=gasTime;geometry.end=micro.time;
                 if(!gasWindowStageGeometry(backend,geometry.gas,geometry.solid,error))return false;
                 report.geometry.push_back(std::move(geometry));
             }
-            gasTime=micro.time;gasElapsed=micro.localTime;nextGasCap=std::min(controls.gasMaxDt,micro.nextGasDt);
+            gasTime=micro.time;gasElapsed=micro.localTime;
         }
         // The backend owns the completed immutable history until the next
         // window begins. All material/ledger consumers finish before then.
         const IntervalHistory& history=gasWindowHistory(backend);
         HostState gasEndpoint;
         if(!downloadGasWindow(backend,gasEndpoint,error))return false;
+        Real externalRadiationHeat=0;
+        if(radiation&&!radiation->advance(backend,program,gasEndpoint,externalRadiationHeat,error))return false;
         HostState candidate;WallProgram corrected;CpuMaterialReport cpu;
         ++report.materialSolves;
         auto executionControls=materialControls;
         executionControls.retainDonorHistory=false; // Corrected donor history is not replayed in this single-pass driver.
         if(!material.advanceCandidate(base,gasEndpoint,history,executionControls,candidate,corrected,cpu,error,&program))return false;
+        candidate.radiationTime=gasEndpoint.radiationTime;
+        candidate.budget.radiation+=externalRadiationHeat;
         WallProgramComparison comparison;
         if(!compareWallPrograms(program,corrected,model.physics.tolerances,comparison,error))return false;
         const Real residual=std::max(comparison.geometryError,std::max(comparison.thermalError,comparison.massPredictionError));

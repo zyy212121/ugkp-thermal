@@ -3,6 +3,9 @@
 #include "ProgressLogging.H"
 #include "io/CoupledOutput.H"
 #include "io/MultirateEvolution.H"
+#ifndef CHMT_FRONTEND_COMPILE_ONLY
+#include "io/CoupledRadiation.H"
+#endif
 #include "gpu/Backend.H"
 #include "restart/Checkpoint.H"
 #include <fstream>
@@ -57,6 +60,11 @@ int main(int argc,char** argv) {
         chmt::io::require(bool(backend),error);
         chmt::setDiagnosticsSink(*backend,ugkp::diagnostics::makeFoamSink());
         chmt::CpuMaterialDriver material(input.model,input.solidMesh.get(),&input.gasMechanism);
+        std::unique_ptr<chmt::CoupledRadiation> radiation;
+        if(input.thermalSchedule.radiationEnabled)
+            radiation.reset(new chmt::CoupledRadiation(time,*input.gasMesh,input.model,input.state,input.thermalSchedule.radiationFrequency));
+        std::cout<<"CHMT couplingInterval="<<input.coupling.interval<<" radiationFrequency="
+            <<(radiation?input.thermalSchedule.radiationFrequency:0)<<std::endl;
         const chmt::Real end=time.controlDict().lookup<Foam::scalar>("endTime");
         const Foam::fileName directory=time.path()/chmt::io::text(properties,"outputDirectory","chmtOutput");
         chmt::io::require(!Foam::isDir(directory)&&!Foam::isFile(directory),"output directory already exists");
@@ -100,7 +108,7 @@ int main(int argc,char** argv) {
         if(writeInitial||(writeFinal&&input.state.time>=end))publish(true);
         while(input.state.time<end){
             chmt::WindowEvolutionReport report;
-            chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error),error);
+            chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error,radiation.get()),error);
             publish(writeFinal&&input.state.time>=end);
             if
             (

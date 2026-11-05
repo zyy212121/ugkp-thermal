@@ -52,6 +52,9 @@ public:
     DiscreteOrdinateRadiation(const RadiationGeometry&,const MieOpticalTable&,const RadiationControls&);
     ~DiscreteOrdinateRadiation();
     RadiationResult solve(const RadiationSnapshot&,bool warmStart);
+    // Same topology/angular quadrature: refresh metric/transport graphs while
+    // retaining optical tables and angular intensities on the device.
+    void updateGeometry(const RadiationGeometry&);
     // Explicit diagnostic export; ordinary solves retain angular fields on GPU.
     void downloadIntensities(std::vector<double>&)const;
     void uploadIntensities(const std::vector<double>&);

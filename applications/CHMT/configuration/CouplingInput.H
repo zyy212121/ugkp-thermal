@@ -8,6 +8,7 @@
 #include "OStringStream.H"
 #include "../../../common/gasTransport/FoamMolecularTransportIO.H"
 #include <memory>
+#include "../../../common/thermal/ThermalCouplingSchedule.H"
 namespace chmt { namespace io {
 struct CoupledCaseInput {
     ugkwp::GasModelConfiguration gasModel;
@@ -16,6 +17,7 @@ struct CoupledCaseInput {
     ModelConfig model;
     HostState state;
     CouplingControls coupling;
+    ugkp::thermal::CouplingSchedule thermalSchedule{0,1,false};
     CpuMaterialControls material;
     std::unique_ptr<Foam::fvMesh> gasMesh,solidMesh;
 };
@@ -73,7 +75,7 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     candidate.gasMesh.reset(new Foam::fvMesh(Foam::IOobject(text(d,"gasRegion",Foam::polyMesh::defaultRegion),time.timeName(),time,Foam::IOobject::MUST_READ)));
     candidate.solidMesh.reset(new Foam::fvMesh(Foam::IOobject(text(d,"solidRegion"),time.timeName(),time,Foam::IOobject::MUST_READ)));
     candidate.gasNumerics=Foam::readGasNumericsConfiguration(candidate.gasMesh->schemes().dict());
-    auto& state=candidate.state;state.time=time.value();
+    auto& state=candidate.state;state.time=time.value();state.radiationTime=state.time;
     state.gasMesh=importMesh(*candidate.gasMesh,d);
     state.solidMesh=importMesh(*candidate.solidMesh,d.found("solidBoundaries")?d.subDict("solidBoundaries"):d);
     importGasFields(*candidate.gasMesh,candidate.model,state);
@@ -108,7 +110,18 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     require(validateRuntimeState(candidate.model,state,error),error);
     const Real dt=time.controlDict().lookup<Foam::scalar>("deltaT");
     candidate.state.nextDt=dt;
-    candidate.coupling=readCouplingControls(d,dt);
+    if(text(d,"couplingSchedule","multirate")=="solidThermalCoupling"){
+        Foam::IOdictionary solidProperties(Foam::IOobject("solidRegionProperties",time.constant(),time,
+            Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
+        candidate.thermalSchedule=ugkp::thermal::readCouplingSchedule(solidProperties.subDict("solidThermalCoupling"));
+        Foam::IOdictionary radiationProperties(Foam::IOobject("radiationProperties",time.constant(),time,
+            Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
+        ugkp::thermal::readRadiationSchedule(candidate.thermalSchedule,radiationProperties);
+        require(finite(candidate.thermalSchedule.interval)&&candidate.thermalSchedule.interval>0
+            &&(!candidate.thermalSchedule.radiationEnabled||candidate.thermalSchedule.radiationFrequency>0),"invalid solid thermal coupling schedule");
+    }else require(text(d,"couplingSchedule","multirate")=="multirate","unknown couplingSchedule");
+    if(candidate.thermalSchedule.radiationEnabled)candidate.model.physics.enableRadiation=false; // DO owns radiation; no parallel ambient-grey source
+    candidate.coupling=readCouplingControls(d,dt,candidate.thermalSchedule.interval);
     candidate.material=readCpuMaterialControls(d,candidate.coupling);
     out=std::move(candidate);
 }

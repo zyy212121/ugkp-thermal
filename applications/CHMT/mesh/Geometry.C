@@ -1,4 +1,5 @@
 #include "mesh/Geometry.H"
+#include "../../../common/gpu/PointMotionMath.H"
 #ifdef CHMT_DEVICE_GEOMETRY
 #include "mesh/GeometryGpu.H"
 #endif
@@ -697,7 +698,8 @@ namespace chmt {
     namespace {
     bool harmonicPointMotionRepresentedImpl(const HostMesh& mesh, const std::vector<Vec3>& prescribedDisplacement,
         const std::vector<unsigned char>& prescribed, std::vector<Vec3>& output, std::string& error,
-        const empty_detail::Extrusion* knownExtrusion,bool* numericalFailure=nullptr,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
+        const empty_detail::Extrusion* knownExtrusion,bool* numericalFailure=nullptr,ugkp::diagnostics::DeviceContext* diagnostics=nullptr,
+        const std::vector<ugkp::gpu::geometry::MotionPenalty>& penalties={},Real normalLengthScale=0) {
         if(numericalFailure)*numericalFailure=true;
 
         const int np = static_cast<int>(mesh.points.size());
@@ -734,10 +736,11 @@ namespace chmt {
             if ((adjacency[p].empty()))return errorAt(error, "isolated mesh point", p);
         }
         if ((np && !any))return errorAt(error, "harmonic motion lacks Dirichlet anchor", -1);
-        const Real tolerance = 1e-12*meshScale(mesh.points);
+        Real tolerance = 1e-12*meshScale(mesh.points);
+        if(normalLengthScale>0)tolerance=std::min(tolerance,1e-10*normalLengthScale);
 #ifdef CHMT_DEVICE_GEOMETRY
         std::vector<int> offsets,neighbours;geometry_device::adjacency(adjacency,offsets,neighbours);
-        geometry_device::backend::HarmonicPointMotion device(geometry_device::pack(mesh.points),offsets,neighbours,prescribed,tolerance);
+        geometry_device::backend::HarmonicPointMotion device(geometry_device::pack(mesh.points),offsets,neighbours,prescribed,tolerance,20000,penalties);
         const auto result=device.solve(geometry_device::pack(prescribedDisplacement));
         if(result.errorPoint>=0)return errorAt(error,result.errorKind==1?"zero-length motion edge":"nonfinite harmonic displacement",result.errorPoint);
         if(np && !(result.residual<=tolerance))geometryWarning(diagnostics,result.residual,tolerance,-1,false);
@@ -761,7 +764,8 @@ namespace chmt {
                     sum += displacement[other]*weight;
                     total += weight;
                 }
-                next[p] = sum/total;
+                if(penalties.empty())next[p]=sum/total;
+                else {const auto q=ugkp::gpu::geometry::motionUpdate({sum.x,sum.y,sum.z},total,penalties[p]);next[p]={q.x,q.y,q.z};}
                 if (!finite(next[p]))return errorAt(error,"nonfinite harmonic displacement",p);
                 residual = std::max(residual, mag(next[p]-displacement[p]));
             }
@@ -1898,7 +1902,33 @@ namespace chmt {
                 fixedGas[gv]=1;
             }
             std::vector<Vec3> gasPoints;
-            const bool harmonicOk=harmonicPointMotion(oldGas,gasDisplacement,fixedGas,gasPoints,failure,diagnostics);
+            // Preserve each wall-adjacent point's own initial normal distance.
+            // Soft constraints accommodate fixed seams and curved corners; all
+            // prescribed wall points remain exact. No global length tolerance.
+            using namespace ugkp::gpu::geometry;
+            std::vector<MotionPenalty> penalties(oldGas.points.size());
+            Real minimumNormalHeight=std::numeric_limits<Real>::infinity();
+            const auto& ref=oldGas.referencePoints.empty()?oldGas.points:oldGas.referencePoints;
+            for(int f:reference.gasFace)if(f>=0){
+                Vec3 c0{},c1{},a0{},a1{};const int lo=oldGas.faceOffsets[f],hi=oldGas.faceOffsets[f+1];
+                for(int k=lo;k<hi;++k){const int v=oldGas.facePoints[k];c0+=ref[v];c1+=oldGas.points[v]+gasDisplacement[v];}
+                c0=c0/Real(hi-lo);c1=c1/Real(hi-lo);
+                for(int k=lo;k<hi;++k){const int v=oldGas.facePoints[k],w=oldGas.facePoints[k+1==hi?lo:k+1];
+                    a0+=cross(ref[v]-c0,ref[w]-c0);a1+=cross(oldGas.points[v]+gasDisplacement[v]-c1,oldGas.points[w]+gasDisplacement[w]-c1);}
+                const Vec3 n0=normalized(a0)*-1,n1=normalized(a1)*-1;
+                std::set<int> vertices;const int cell=oldGas.owner[f];
+                for(int k=oldGas.cellFaceOffsets[cell];k<oldGas.cellFaceOffsets[cell+1];++k){const int cf=oldGas.cellFaces[k];
+                    for(int j=oldGas.faceOffsets[cf];j<oldGas.faceOffsets[cf+1];++j)vertices.insert(oldGas.facePoints[j]);}
+                for(int v:vertices)if(!fixedGas[v]){
+                    const Real h0=dot(ref[v]-c0,n0);
+                    if(h0>1e-12*mag(ref[v]-c0)){
+                        minimumNormalHeight=std::min(minimumNormalHeight,h0);
+                        const Real target=h0-dot(oldGas.points[v]-c1,n1);
+                        addNormalHeight(penalties[v],{n1.x,n1.y,n1.z},target,h0);
+                    }
+                }
+            }
+            const bool harmonicOk=harmonicPointMotionRepresentedImpl(oldGas,gasDisplacement,fixedGas,gasPoints,failure,nullptr,nullptr,diagnostics,penalties,minimumNormalHeight);
             if(!harmonicOk || !stage(gasPoints))return false;
             // Keep the existing reduced-film boundary: moving curved offset
             // interfaces with unequal areas/normals are not a liquid-volume model.
