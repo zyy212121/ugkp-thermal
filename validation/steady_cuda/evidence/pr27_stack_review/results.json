@@ -1,0 +1,134 @@
+{
+  "status": "PASS: suitable as a draft serial merge candidate after PR27; not merged",
+  "source_branch": {
+    "name": "pr26B",
+    "sha": "d2d2cd7af021e90041b375aaa8274b16a30e930e",
+    "pr_existed": false
+  },
+  "base": {
+    "branch": "feature/gpu-coupled-pipeline-20261026",
+    "sha": "2228479afb22845e2372f67da737ba48a6db6548",
+    "pr": 27
+  },
+  "fix_commit": "924f0d8bc9f693617ca3ee417e5e959b150dbea5",
+  "candidate_branch": "feature/steady-on-gpu-pipeline-20261028",
+  "integration": {
+    "original_steady_cherry_pick": "ddd52949c91865d3c3049de364b6dc79d3fba2ab",
+    "conflicts": false,
+    "readme_changed": false,
+    "production_case_specific_paths_added": false,
+    "application_roles_changed": false
+  },
+  "resolved_finding": {
+    "priority": "P1",
+    "description": "Particle temperature previously widened the gas caloric search interval; an out-of-domain nonmonotone gas polynomial could produce conserved zero exchange.",
+    "change": "Use the shared gas validity interval and safeguarded caloric inversion for the centered equation E(T)-Eold+(A/V)*(T-Tref)=sum(w*(Tp-Tref))/V, with derivative Cv(T)+A/V. Preserve actual parcel input temperatures and independent parcel limits. Verify the root residual, including floating-point representation error, before publishing exchange; propagate unresolved solve status through existing per-cell status storage. No new host stopping gate, step retry or fallback.",
+    "conservation": "Reverse the actual represented parcel heat to the conserved gas energy as before. Independent tests check the exchange equation as well as total two-phase energy.",
+    "ordinary_caloric_policy": "Unchanged; only its temperature-bound intersection is factored into a common helper."
+  },
+  "counterexample": {
+    "gas_bounds_K": [
+      100,
+      3000
+    ],
+    "initial_gas_K": 1000,
+    "initial_parcel_K": 10000,
+    "dt_s": 2e-05,
+    "actual_gas_K": 1000.0000001916364,
+    "actual_parcel_K": 9999.935200233282,
+    "parcel_equation_residual_K": 8.283495214083704e-13,
+    "caloric_equation_residual_J": -9.526361653597556e-11,
+    "two_phase_energy_residual_J": 2.256711013534702e-11,
+    "reference": "Independent long-double analytic root for the fixture linear-Cp polynomial; not another invocation of production inversion.",
+    "controls": [
+      "constant Cp",
+      "parcel within gas domain",
+      "strong heat transfer dt=100"
+    ],
+    "cuda_memcheck_errors": 0
+  },
+  "tests": {
+    "host_suites": [
+      {
+        "suite": "fixed-repo-targeted-tests",
+        "tests": 46,
+        "seconds": "37.723"
+      },
+      {
+        "suite": "fixed-shared-thermo-tests",
+        "tests": 16,
+        "seconds": "13.552"
+      },
+      {
+        "suite": "restored-reference-tests",
+        "tests": 6,
+        "seconds": "0.034"
+      }
+    ],
+    "host_total": 68,
+    "native_steady_cases": 6,
+    "iterations_each": 20000,
+    "particle_windows_each": 20,
+    "gas_particle_fields_tolerance": {
+      "rtol": 1e-08,
+      "atol": 1e-10
+    },
+    "coupled_application_pairs": 17,
+    "coupled_application_runs": 34,
+    "four_application_builds": "PASS",
+    "restored_cpu_reference_builds": [
+      "gas",
+      "gas plus particles"
+    ]
+  },
+  "reference_scope": "The six native cases compare against frozen corrected serial CPU executions of production headers in the preserved steady-validation/repair workspace. Their original reference tools and inputs are restored in validation/steady_cpu. These full open-boundary sampling comparisons are not a certification of total mixture energy closure: intrinsic gas FV boundary exchange differs from a porosity-weighted two-phase budget. Closed local transaction tests and the analytic counterexample independently verify conservation.",
+  "performance": {
+    "case": "native mixture_particles, 3000 iterations, three alternating pairs",
+    "median_seconds": {
+      "before": 21.524543118999873,
+      "after": 15.297710601000063
+    },
+    "speedup": 1.4070434250202604,
+    "scope": "Paired 3000-iteration native mixture+particle case, same fast compile flags; includes process startup and output; no production-optimization claim",
+    "all_final_field_comparisons_pass": true,
+    "full_case_execution_times": "Recorded separately in native_cases.json; concurrent compilation makes them unsuitable for speedup claims."
+  },
+  "known_scope_limits": [
+    "Reacting mixtures with particles remain unsupported by the steady application; frozen mixtures plus inert particles are tested.",
+    "Existing PR27 limitations, warnings and performance regressions are not resolved or superseded by this stack review.",
+    "No universal speedup claim; native builds use matched fast-compile gas flags on the 16 GB host."
+  ],
+  "build_flags": "O3, fmad=true, Ofast-compile=max, host fno-tree-fre; functional review, not performance benchmark",
+  "binary_sha256": {
+    "gasUGKPSteady": "f0160dcee5d124c7cd1e6eb7b34ce5dd11f6bba47c02845719b9c3cb47dc10d4",
+    "gasUGKP": "d4dd8fa926d1a276f162d952a96e53308fe3de75969bc76518a29e25e7343d9b",
+    "CHT": "57f6ba3b2c603a1ba6a6dbeeef9e8b0fe1595abd8c08655c7788a85cf3a5d706",
+    "CHMT": "27cb682a7db83df3827dffb38ea88245bf923ae40337c3955b7a2a9b5ab9ecaa"
+  },
+  "production_sha256": {
+    "applications/gasUGKPSteady/private_backend/SteadyMixtureParticleCoupling.cuh": "955f66d3b6d24232bd4e58db6a72f776ebe4a6c1166ff387e9f62dd31cad8d4f",
+    "common/gasTransport/MixtureThermo.H": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0",
+    "common/gasTransport/MixtureHeatExchange.H": "6595c638b83e34b52ae9605de8516f18fa3ea0ba44b0a575fc35c74283db298a"
+  },
+  "reference_csv_sha256": {
+    "cpu-corrected/mixture_particles.csv": "6a55927565701498e8c5cca71de9ac99fe5cfaac63ddd2d68e198215400a2bd3",
+    "cpu-corrected/particles.csv": "ff202e93f4c21459bea3964bf2af33571e3c76caa11ea22992ba569c7712c555",
+    "cpu/mixture_diffusion.csv": "20afade44d1f3e5fda91fbc6eaa1964d7a81134ba827ac2bd3b1c937d152b6a1",
+    "cpu/mixture_sst.csv": "64ace10ed5136eb5dbf2b5908c6b0c210269e9fb2500c1031e8951ea882cfdae",
+    "cpu/reservoir.csv": "8f6164a583bf39c567e476221aca2b930163cadf1a4b13064017b3a3b859da31",
+    "cpu/reconstructed.csv": "7729b394acf61832f3d273cfca0fb632b72f7876ada5f015b760479ef5410892"
+  },
+  "evidence_notes": [
+    "Native run reports record the parent commit because the tested fix was then uncommitted; production hashes above identify the tested source, committed as fix_commit.",
+    "Initial review failure and original source worktree remain preserved. The first fix attempt exposed the large-formation-energy roundoff criterion; corrected implementation passes the retained regression.",
+    "The first timing attempt completed its solver run but lacked reference-input.json for export; its case is retained locally. All six reported timing runs completed both export and numerical comparison."
+  ],
+  "local_evidence_directory": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review",
+  "reproduction": {
+    "cuda": "bash validation/steady_cuda/check_heat_domain.sh /tmp/steady-heat-check",
+    "memcheck": "compute-sanitizer --tool memcheck --error-exitcode 99 /tmp/steady-heat-check/steady_mixture_heat_domain 0.00002",
+    "host": "python3 -m pytest validation/tests/gas_transport/test_steady_mixture_particle_coupling.py validation/tests/gas_transport/test_steady_sampling_moments.py validation/tests/gas_transport/test_steady_restart_state.py validation/tests/gas_transport/test_gas_pseudo_time.py validation/tests/gas_transport/test_steady_gas_residual.py validation/tests/gas_transport/test_steady_chemistry_time.py validation/tests/gas_transport/test_mixture_heat_exchange.py validation/tests/gas_transport/test_mixture_state.py validation/tests/gas_transport/test_mixture_transport.py validation/tests/gas_transport/test_review_thermo_budget.py validation/steady_cpu/test_of_cases.py -q",
+    "cpu_reference": "python3 validation/steady_cpu/build.py --output /tmp/steady-particle-reference --particles; inputs are validation/steady_cpu/cases/*.cfg",
+    "application_cases": "validation/steady_cuda/evidence/cases; field and window comparison tools are validation/steady_cpu/compare_application.py and compare_window_budgets.py"
+  }
+}

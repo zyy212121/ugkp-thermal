@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+exec /usr/local/cuda/bin/nvcc -v -Xptxas=--allow-expensive-optimizations=false "$@"

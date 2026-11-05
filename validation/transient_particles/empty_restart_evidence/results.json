@@ -1,0 +1,660 @@
+{
+  "parent": "503d484f089fc5b95dc7de997a0c94424830bbba",
+  "fix": "cd00fb372a729898b03a5f70860004598716e357",
+  "findings": {
+    "PR29-P2-001": "Confirmed natively in both drivers; restore the sticky coupled-path flag on successful epsGPrev upload when any entry differs from 1. Preserve the history and the original source operator. Inherited from shared PR28 path.",
+    "PR29-P3-001": "Confirmed original test: 3 pass/1 fail. Update canonical drag location and assert exact compatibility forwarding header; all four owner tests pass."
+  },
+  "native_runs": {
+    "before": 4,
+    "after": 14,
+    "restart_pairs": 6,
+    "heat_failures_rejected": 2
+  },
+  "host_tests": {
+    "passed": 5,
+    "includes": "Four ownership tests plus existing steady restart-state test",
+    "warning": "Existing pytest version reports unknown pythonpath config option."
+  },
+  "math": "No operator mathematics changed. Both fixed continuous outflow results equal original continuous results. All six rho/rhoY/rhoE restart comparisons agree exactly at written precision.",
+  "scope": [
+    "Serial OpenFOAM 10/CUDA, Ns=2, sm_89; one-cell controls with real binary checkpoint and native tracking.",
+    "Uniform gas starts at 1000 K; pre-fix energy density mismatch is approximately 100 J/m3, rather than the independent review different-state value of 70 J/m3.",
+    "No throughput or MPI/CHT/CHMT claim. Original explicit porosity discretization is unchanged.",
+    "Scan only at history upload, no new per-step scan, synchronization, fallback, or stop gate.",
+    "Development attempt review-after-r1 stopped on an overly strict exact epsilonS test comparison (0.00010000000000000002 vs 0.0001); corrected test uses 1e-15 absolute tolerance. Empty-input setup also changed to dictionary substitution. No production change followed either build."
+  ],
+  "source_sha256": {
+    "applications/gasUGKP/private_backend/GpuResidentStrict.cu": "ce69e6926b520aa748944ced68a07061a56729c0cb6c26871a37f740c064205a",
+    "applications/gasUGKPSteady/private_backend/GpuSteadyBackend.cu": "2283c9abc8610adb72818b6e0845293b342705449c3439cc71d45f2fff084401",
+    "common/operators/applyGasVolumeFractionSourceKernel.cuh": "fe3e1d6395b5dae90de6be3dea8d114cad44d92df5df2d400fa62d04b3eed13b",
+    "common/gasTransport/MixturePorosity.H": "c3827ee9bb733271c2bae02c20c207bded310ed724a423f212a65b4982a56f1b",
+    "common/gasTransport/MixtureParticleCoupling.cuh": "6f168262d76e8b44dd4c0e8d2892636aef04a6c035d328c575259c0616b8ef76",
+    "validation/transient_particles/check_empty_restart.py": "6f68c2ca76631ba0e8571513639eb46403265a3556dd87d93b518121ed6209f6",
+    "validation/solvers/gasUGKP/tests/test_common_gas_numerics_source_contract.py": "e30082fc3ca9b40284992765a106131b2ae66e6dcae2d72c82b92a5863596991"
+  },
+  "before": {
+    "expect_before": true,
+    "runs": [
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/candidate-r2-bin/gasUGKP",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-before-r2/transient-exit"
+        ],
+        "exit": 0,
+        "seconds": 2.2523460760021408,
+        "log_sha256": "9cc557b03bede8a85f21062860c73aa8eb76ccce800287bc00c2f77f49b481f2",
+        "case": "transient-exit",
+        "driver": "transient"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/candidate-r2-bin/gasUGKP",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-before-r2/transient-exit-restart"
+        ],
+        "exit": 0,
+        "seconds": 0.3715052879997529,
+        "log_sha256": "32b571f3fd05a5870e939986bb7accd06789f0941aa81a1c41f2290191252526",
+        "case": "transient-exit-restart",
+        "driver": "transient"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/steady-r2-bin/gasUGKPSteady",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-before-r2/steady-exit"
+        ],
+        "exit": 0,
+        "seconds": 0.41723637799805147,
+        "log_sha256": "b6a105bbba3231cdd11b922223e0e0b81d2845aff4d2cf68fdbf7d6b9fcb8dbd",
+        "case": "steady-exit",
+        "driver": "steady"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/steady-r2-bin/gasUGKPSteady",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-before-r2/steady-exit-restart"
+        ],
+        "exit": 0,
+        "seconds": 0.3235496779998357,
+        "log_sha256": "edb8b97f25b72a387f60d7c3b2cf4b3589d283dfec5818b8204118175caf5a30",
+        "case": "steady-exit-restart",
+        "driver": "steady"
+      }
+    ],
+    "comparisons": [
+      {
+        "driver": "transient",
+        "kind": "exit",
+        "checkpoint": "2e-05",
+        "checkpoint_parcels": 0,
+        "checkpoint_epsGPrev": 0.9999,
+        "continuous": {
+          "rho": 0.9999000000000011,
+          "rhoY_A": 0.899910000000001,
+          "rhoY_B": 0.09999000000000012,
+          "rhoE": 702954.9064966714
+        },
+        "restart": {
+          "rho": 1.0,
+          "rhoY_A": 0.9,
+          "rhoY_B": 0.1,
+          "rhoE": 703054.9064966704
+        },
+        "continuous_epsGPrev": 1.0,
+        "restart_epsGPrev": 0.9999,
+        "expected_source_result": {
+          "rho": 0.9999000000000011,
+          "rhoY_A": 0.899910000000001,
+          "rhoY_B": 0.09999000000000012,
+          "rhoE": 702954.9064967119
+        },
+        "source_error": {
+          "rho": 0.0,
+          "rhoY_A": 0.0,
+          "rhoY_B": 0.0,
+          "rhoE": 4.0512531995773315e-08
+        }
+      },
+      {
+        "driver": "steady",
+        "kind": "exit",
+        "checkpoint": "1",
+        "checkpoint_parcels": 0,
+        "checkpoint_epsGPrev": 0.9999,
+        "continuous": {
+          "rho": 0.9999000000000011,
+          "rhoY_A": 0.899910000000001,
+          "rhoY_B": 0.09999000000000012,
+          "rhoE": 702954.9064966714
+        },
+        "restart": {
+          "rho": 1.0,
+          "rhoY_A": 0.9,
+          "rhoY_B": 0.1,
+          "rhoE": 703054.9064966704
+        },
+        "continuous_epsGPrev": 1.0,
+        "restart_epsGPrev": 0.9999,
+        "expected_source_result": {
+          "rho": 0.9999000000000011,
+          "rhoY_A": 0.899910000000001,
+          "rhoY_B": 0.09999000000000012,
+          "rhoE": 702954.9064967119
+        },
+        "source_error": {
+          "rho": 0.0,
+          "rhoY_A": 0.0,
+          "rhoY_B": 0.0,
+          "rhoE": 4.0512531995773315e-08
+        }
+      }
+    ],
+    "binaries": {
+      "transient": {
+        "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/candidate-r2-bin/gasUGKP",
+        "sha256": "0e062ebc4c2ccb2c387ef963fd319f5ca4e5eac55444ed5c82a30c24298af309"
+      },
+      "steady": {
+        "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/steady-r2-bin/gasUGKPSteady",
+        "sha256": "ff55c6d813e2509bf00d3e2c8243fbd394fa9544d745a9f8eeabe52ae7690226"
+      }
+    },
+    "pass": true
+  },
+  "after": {
+    "expect_before": false,
+    "runs": [
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-bin/gasUGKP",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-after-r2/transient-exit"
+        ],
+        "exit": 0,
+        "seconds": 3.435962585001107,
+        "log_sha256": "ca4fc1306da71c34a54d046ae192cd32ab5b0c984d22be3367a2f64752f155ad",
+        "case": "transient-exit",
+        "driver": "transient"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-bin/gasUGKP",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-after-r2/transient-exit-restart"
+        ],
+        "exit": 0,
+        "seconds": 0.4744745299976785,
+        "log_sha256": "3fa20d41aff47e0131f3e6a42e18fdd671ad82031c7d7d72b57d73f818685374",
+        "case": "transient-exit-restart",
+        "driver": "transient"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-bin/gasUGKP",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-after-r2/transient-nonempty"
+        ],
+        "exit": 0,
+        "seconds": 0.4169096890000219,
+        "log_sha256": "c9affe1cd34371d50dc82078c8e72967e406430537f79033b8d5563b0e7f7e0f",
+        "case": "transient-nonempty",
+        "driver": "transient"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-bin/gasUGKP",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-after-r2/transient-nonempty-restart"
+        ],
+        "exit": 0,
+        "seconds": 1.177692132001539,
+        "log_sha256": "025fc0b9cb9a69019e6407e788668f22866223b406308a023f711c8120bad524",
+        "case": "transient-nonempty-restart",
+        "driver": "transient"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-bin/gasUGKP",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-after-r2/transient-empty"
+        ],
+        "exit": 0,
+        "seconds": 0.6045318729993596,
+        "log_sha256": "5093d7e354cf3992a7245a97cc8180abb41941565fea279cca9d473b48691e1d",
+        "case": "transient-empty",
+        "driver": "transient"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-bin/gasUGKP",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-after-r2/transient-empty-restart"
+        ],
+        "exit": 0,
+        "seconds": 1.062189517000661,
+        "log_sha256": "3c998d05dafdc9fcdc0cd1e157221a31e37db3aa4f19f420b28c39e5f21f0218",
+        "case": "transient-empty-restart",
+        "driver": "transient"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-bin/gasUGKP",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-after-r2/transient-heat-failure"
+        ],
+        "exit": 1,
+        "seconds": 0.4725104889985232,
+        "log_sha256": "824382ad4c10f246882a93372bc786ad8a6619dd7add10d5a2fcfb605de46ecd",
+        "case": "transient-heat-failure",
+        "driver": "transient"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-steady-bin/gasUGKPSteady",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-after-r2/steady-exit"
+        ],
+        "exit": 0,
+        "seconds": 0.6088411830023688,
+        "log_sha256": "a1f7358f00a6450ad235b79bb735799891ab58a5e4c865785b73556debfdcddc",
+        "case": "steady-exit",
+        "driver": "steady"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-steady-bin/gasUGKPSteady",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-after-r2/steady-exit-restart"
+        ],
+        "exit": 0,
+        "seconds": 0.5442953289966681,
+        "log_sha256": "e7ec21201f4305fb73da125c4273878a6a5474bc34d670f0c2e5cbcf3d609f61",
+        "case": "steady-exit-restart",
+        "driver": "steady"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-steady-bin/gasUGKPSteady",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-after-r2/steady-nonempty"
+        ],
+        "exit": 0,
+        "seconds": 0.7743379099993035,
+        "log_sha256": "533821c40378f6feccba9fc0fd179e2dda4362fea712d5dd795b16372f1f03ac",
+        "case": "steady-nonempty",
+        "driver": "steady"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-steady-bin/gasUGKPSteady",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-after-r2/steady-nonempty-restart"
+        ],
+        "exit": 0,
+        "seconds": 0.5143233150010929,
+        "log_sha256": "8ce9e19b492fbba7b5d232dfadba1aad3342c83892b13ccc55d97611af856573",
+        "case": "steady-nonempty-restart",
+        "driver": "steady"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-steady-bin/gasUGKPSteady",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-after-r2/steady-empty"
+        ],
+        "exit": 0,
+        "seconds": 0.5608870739997656,
+        "log_sha256": "6e8230fed3592f5913e45570fc4daeff6c78be70037775616b3a3b784751d7ec",
+        "case": "steady-empty",
+        "driver": "steady"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-steady-bin/gasUGKPSteady",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-after-r2/steady-empty-restart"
+        ],
+        "exit": 0,
+        "seconds": 0.5634509349984,
+        "log_sha256": "85b1b6e9e62a38c9b3f947b49531212bf0422a623a4ba4370a9d312fcc784530",
+        "case": "steady-empty-restart",
+        "driver": "steady"
+      },
+      {
+        "command": [
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-steady-bin/gasUGKPSteady",
+          "-case",
+          "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-after-r2/steady-heat-failure"
+        ],
+        "exit": 1,
+        "seconds": 0.4782144539967703,
+        "log_sha256": "3460469fc5ecd78df325df5b4013d19d93bba9e5427485ccde19e9ab2d772a3b",
+        "case": "steady-heat-failure",
+        "driver": "steady"
+      }
+    ],
+    "comparisons": [
+      {
+        "driver": "transient",
+        "kind": "exit",
+        "checkpoint": "2e-05",
+        "checkpoint_parcels": 0,
+        "checkpoint_epsGPrev": 0.9999,
+        "continuous": {
+          "rho": 0.9999000000000011,
+          "rhoY_A": 0.899910000000001,
+          "rhoY_B": 0.09999000000000012,
+          "rhoE": 702954.9064966714
+        },
+        "restart": {
+          "rho": 0.9999000000000011,
+          "rhoY_A": 0.899910000000001,
+          "rhoY_B": 0.09999000000000012,
+          "rhoE": 702954.9064966714
+        },
+        "continuous_epsGPrev": 1.0,
+        "restart_epsGPrev": 1.0,
+        "comparison": {
+          "fields_max_scaled_error": {
+            "rho": 0.0,
+            "rhoU": 0.0,
+            "rhoE": 0.0,
+            "U": 0.0,
+            "p": 0.0,
+            "T": 0.0,
+            "epsilonS": 0.0,
+            "rhoUs": 0.0,
+            "rhoEs": 0.0,
+            "rhoDs": 0.0,
+            "Tp": 0.0,
+            "theta": 0.0,
+            "dMeanCell": 0.0,
+            "Y_A": 0.0,
+            "Y_B": 0.0,
+            "rhoY_A": 0.0,
+            "rhoY_B": 0.0,
+            "k": 0.0,
+            "omega": 0.0,
+            "nut": 0.0
+          },
+          "parcels": 0,
+          "parcel_max_scaled_error": 0
+        },
+        "expected_source_result": {
+          "rho": 0.9999000000000011,
+          "rhoY_A": 0.899910000000001,
+          "rhoY_B": 0.09999000000000012,
+          "rhoE": 702954.9064967119
+        },
+        "source_error": {
+          "rho": 0.0,
+          "rhoY_A": 0.0,
+          "rhoY_B": 0.0,
+          "rhoE": 4.0512531995773315e-08
+        }
+      },
+      {
+        "driver": "transient",
+        "kind": "nonempty",
+        "checkpoint": "2e-05",
+        "checkpoint_parcels": 1,
+        "checkpoint_epsGPrev": 0.9999,
+        "continuous": {
+          "rho": 1.0,
+          "rhoY_A": 0.9,
+          "rhoY_B": 0.1,
+          "rhoE": 703054.9064988543
+        },
+        "restart": {
+          "rho": 1.0,
+          "rhoY_A": 0.9,
+          "rhoY_B": 0.1,
+          "rhoE": 703054.9064988543
+        },
+        "continuous_epsGPrev": 0.9999,
+        "restart_epsGPrev": 0.9999,
+        "comparison": {
+          "fields_max_scaled_error": {
+            "rho": 0.0,
+            "rhoU": 0.0,
+            "rhoE": 0.0,
+            "U": 0.0,
+            "p": 0.0,
+            "T": 0.0,
+            "epsilonS": 0.0,
+            "rhoUs": 0.0,
+            "rhoEs": 0.0,
+            "rhoDs": 0.0,
+            "Tp": 0.0,
+            "theta": 0.0,
+            "dMeanCell": 0.0,
+            "Y_A": 0.0,
+            "Y_B": 0.0,
+            "rhoY_A": 0.0,
+            "rhoY_B": 0.0,
+            "k": 0.0,
+            "omega": 0.0,
+            "nut": 0.0
+          },
+          "parcels": 1,
+          "parcel_max_scaled_error": 0
+        }
+      },
+      {
+        "driver": "transient",
+        "kind": "empty",
+        "checkpoint": "2e-05",
+        "checkpoint_parcels": 0,
+        "checkpoint_epsGPrev": 1.0,
+        "continuous": {
+          "rho": 1.0,
+          "rhoY_A": 0.9,
+          "rhoY_B": 0.1,
+          "rhoE": 703054.9064945271
+        },
+        "restart": {
+          "rho": 1.0,
+          "rhoY_A": 0.9,
+          "rhoY_B": 0.1,
+          "rhoE": 703054.9064945271
+        },
+        "continuous_epsGPrev": 1.0,
+        "restart_epsGPrev": 1.0,
+        "comparison": {
+          "fields_max_scaled_error": {
+            "rho": 0.0,
+            "rhoU": 0.0,
+            "rhoE": 0.0,
+            "U": 0.0,
+            "p": 0.0,
+            "T": 0.0,
+            "epsilonS": 0.0,
+            "rhoUs": 0.0,
+            "rhoEs": 0.0,
+            "rhoDs": 0.0,
+            "Tp": 0.0,
+            "theta": 0.0,
+            "dMeanCell": 0.0,
+            "Y_A": 0.0,
+            "Y_B": 0.0,
+            "rhoY_A": 0.0,
+            "rhoY_B": 0.0,
+            "k": 0.0,
+            "omega": 0.0,
+            "nut": 0.0
+          },
+          "parcels": 0,
+          "parcel_max_scaled_error": 0
+        }
+      },
+      {
+        "driver": "steady",
+        "kind": "exit",
+        "checkpoint": "1",
+        "checkpoint_parcels": 0,
+        "checkpoint_epsGPrev": 0.9999,
+        "continuous": {
+          "rho": 0.9999000000000011,
+          "rhoY_A": 0.899910000000001,
+          "rhoY_B": 0.09999000000000012,
+          "rhoE": 702954.9064966714
+        },
+        "restart": {
+          "rho": 0.9999000000000011,
+          "rhoY_A": 0.899910000000001,
+          "rhoY_B": 0.09999000000000012,
+          "rhoE": 702954.9064966714
+        },
+        "continuous_epsGPrev": 1.0,
+        "restart_epsGPrev": 1.0,
+        "comparison": {
+          "fields_max_scaled_error": {
+            "rho": 0.0,
+            "rhoU": 0.0,
+            "rhoE": 0.0,
+            "U": 0.0,
+            "p": 0.0,
+            "T": 0.0,
+            "epsilonS": 0.0,
+            "rhoUs": 0.0,
+            "rhoEs": 0.0,
+            "rhoDs": 0.0,
+            "Tp": 0.0,
+            "theta": 0.0,
+            "dMeanCell": 0.0,
+            "Y_A": 0.0,
+            "Y_B": 0.0,
+            "rhoY_A": 0.0,
+            "rhoY_B": 0.0,
+            "k": 0.0,
+            "omega": 0.0,
+            "nut": 0.0
+          },
+          "parcels": 0,
+          "parcel_max_scaled_error": 0
+        },
+        "expected_source_result": {
+          "rho": 0.9999000000000011,
+          "rhoY_A": 0.899910000000001,
+          "rhoY_B": 0.09999000000000012,
+          "rhoE": 702954.9064967119
+        },
+        "source_error": {
+          "rho": 0.0,
+          "rhoY_A": 0.0,
+          "rhoY_B": 0.0,
+          "rhoE": 4.0512531995773315e-08
+        }
+      },
+      {
+        "driver": "steady",
+        "kind": "nonempty",
+        "checkpoint": "1",
+        "checkpoint_parcels": 1,
+        "checkpoint_epsGPrev": 0.9999,
+        "continuous": {
+          "rho": 1.0,
+          "rhoY_A": 0.9,
+          "rhoY_B": 0.1,
+          "rhoE": 703054.9064988543
+        },
+        "restart": {
+          "rho": 1.0,
+          "rhoY_A": 0.9,
+          "rhoY_B": 0.1,
+          "rhoE": 703054.9064988543
+        },
+        "continuous_epsGPrev": 0.9999,
+        "restart_epsGPrev": 0.9999,
+        "comparison": {
+          "fields_max_scaled_error": {
+            "rho": 0.0,
+            "rhoU": 0.0,
+            "rhoE": 0.0,
+            "U": 0.0,
+            "p": 0.0,
+            "T": 0.0,
+            "epsilonS": 0.0,
+            "rhoUs": 0.0,
+            "rhoEs": 0.0,
+            "rhoDs": 0.0,
+            "Tp": 0.0,
+            "theta": 0.0,
+            "dMeanCell": 0.0,
+            "Y_A": 0.0,
+            "Y_B": 0.0,
+            "rhoY_A": 0.0,
+            "rhoY_B": 0.0,
+            "k": 0.0,
+            "omega": 0.0,
+            "nut": 0.0
+          },
+          "parcels": 1,
+          "parcel_max_scaled_error": 0
+        }
+      },
+      {
+        "driver": "steady",
+        "kind": "empty",
+        "checkpoint": "1",
+        "checkpoint_parcels": 0,
+        "checkpoint_epsGPrev": 1.0,
+        "continuous": {
+          "rho": 1.0,
+          "rhoY_A": 0.9,
+          "rhoY_B": 0.1,
+          "rhoE": 703054.9064945271
+        },
+        "restart": {
+          "rho": 1.0,
+          "rhoY_A": 0.9,
+          "rhoY_B": 0.1,
+          "rhoE": 703054.9064945271
+        },
+        "continuous_epsGPrev": 1.0,
+        "restart_epsGPrev": 1.0,
+        "comparison": {
+          "fields_max_scaled_error": {
+            "rho": 0.0,
+            "rhoU": 0.0,
+            "rhoE": 0.0,
+            "U": 0.0,
+            "p": 0.0,
+            "T": 0.0,
+            "epsilonS": 0.0,
+            "rhoUs": 0.0,
+            "rhoEs": 0.0,
+            "rhoDs": 0.0,
+            "Tp": 0.0,
+            "theta": 0.0,
+            "dMeanCell": 0.0,
+            "Y_A": 0.0,
+            "Y_B": 0.0,
+            "rhoY_A": 0.0,
+            "rhoY_B": 0.0,
+            "k": 0.0,
+            "omega": 0.0,
+            "nut": 0.0
+          },
+          "parcels": 0,
+          "parcel_max_scaled_error": 0
+        }
+      }
+    ],
+    "binaries": {
+      "transient": {
+        "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-bin/gasUGKP",
+        "sha256": "2a052e5eae02835d00936d187d76db1ea0d9de88bb944e538bb097b00367e2dd"
+      },
+      "steady": {
+        "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-steady-bin/gasUGKPSteady",
+        "sha256": "5856efbb9ebf9e7093a6d4e40576776d88cb334b3ae0dbf2454d930874cb19a4"
+      }
+    },
+    "pass": true
+  }
+}

@@ -17,4 +17,13 @@ template<class R> UGKWP_GAS_HD inline R equilibriumDynamicViscosity(
     const R damping=-::expm1(-yStar/aPlus);
     return kappa*y*momentumScale*damping*damping;
 }
+// The local-stress extension retains the baseline semilocal wall damping.
+// It follows j*u-tau=constant, without adding a second advective source.
+template<class R> UGKWP_GAS_HD inline R equilibriumLocalStressViscosity(
+ R rho,R wallStress,R localStress,R y,R molecularViscosity,R kappa,R aPlus){
+    if(y==0||wallStress==0||localStress==0||kappa==0)return R(0);
+    const R yStar=y*::sqrt(rho*wallStress)/molecularViscosity;
+    const R damping=-::expm1(-yStar/aPlus);
+    return kappa*y*::sqrt(rho*localStress)*damping*damping;
+}
 }}}

@@ -1,0 +1,36 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/before-bin/gasUGKP -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/native-r3/before-rejected
+Date   : Oct 28 2026
+Time   : 22:12:45
+Host   : "lss"
+PID    : 26179
+I/O    : uncollated
+Case   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/native-r3/before-rejected
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+gasUGKP: weighted-parcel configurable-block dynamic-heavy resident CUDA solver
+Create mesh for time = 0
+
+
+
+--> FOAM FATAL ERROR: 
+Unsupported shared gas model: mixture particle thermal and void-fraction closure is not enabled
+
+    From function void Foam::SharedGasModelInput::validateNumerics(Foam::label, Foam::label, Foam::label, Foam::label, Foam::label, bool, Foam::label, Foam::label) const
+    in file ../../common/gasTransport/FoamGasModelInput.H at line 138.
+
+FOAM exiting
+

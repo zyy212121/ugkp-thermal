@@ -1,0 +1,895 @@
+{
+  "schema_version": 1,
+  "layer": 1,
+  "scope": "Interface exchange; layer 2 through 5 are not covered.",
+  "raw_evidence_root": "../../../gpu-coupled-validation",
+  "path_basis": "All evidence paths are relative to raw_evidence_root, which is relative to this JSON file directory. Raw evidence is preserved outside Git; SHA256 binds each referenced file.",
+  "source": {
+    "baseline_commit": "88bc5434ee7199ec0bd7b986bbf121d693022245",
+    "interface_commit": "f730354cbfddd7dcd0a603ad0a4367dbaad693a7",
+    "particle_fix_commit": "8e723b90",
+    "harness_commit": "381554aba3e1cfb580da3be3ae8a6b4156b7f982",
+    "note": "Final native binaries were built from recorded uncommitted source snapshots before these commits; exact source digests, flags and binary hashes below take precedence over commit labels."
+  },
+  "environment": {
+    "os": "Ubuntu 22.04 under WSL2",
+    "openfoam": "10",
+    "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU, 8188 MiB",
+    "cuda": "13.1.115",
+    "arch": "sm_89",
+    "Ns": 2,
+    "gas_precision": "FP64",
+    "particle_storage": "Existing mixed precision retained, including FP32 cold profile nodes and FP64 enthalpy residual.",
+    "OMP_NUM_THREADS": 4,
+    "CHMT_CUDA_STACK_BYTES": 65536,
+    "optimization": "--Ofast-compile=max plus -Xcompiler=-fno-tree-fre; repository CHMT -O2 and CHT -O3 --fmad=false retained. These are fast-compile executable measurements, not successful default production builds."
+  },
+  "builds": {
+    "baseline_CHMT": {
+      "provenance": {
+        "path": "baseline/provenance-CHMT.json",
+        "sha256": "b291a6f25da69fd0cdae55f1f9c0f2f083287cceb912a4f60f83043bb97cafcf"
+      },
+      "binary": {
+        "path": "baseline/bin/CHMT",
+        "sha256": "b46093caca587435ba2694c13695e06a41e058b282fcc4e2a13a303411c4e700"
+      },
+      "source_commit_at_build": "88bc5434ee7199ec0bd7b986bbf121d693022245",
+      "source_snapshot_sha256": "11d2a45265e3af58358c6f9ab1c161a81bbcacca1a49c2cc00528e3155f5bd81",
+      "uncommitted_source_at_build": false,
+      "additional_nvcc_flags": [
+        "--Ofast-compile=max",
+        "-Xcompiler=-fno-tree-fre"
+      ]
+    },
+    "baseline_CHT": {
+      "provenance": {
+        "path": "baseline/provenance-CHT.json",
+        "sha256": "40ef96a7b3201fff04ca90ecd7eb027f5f10cce722a6f6f69294583147f4921b"
+      },
+      "binary": {
+        "path": "baseline/bin/CHT",
+        "sha256": "398b72d74a098f97ddb20e5e90c1906eabf6e6e5146a4dc4b9d24b859bcc1e91"
+      },
+      "source_commit_at_build": "88bc5434ee7199ec0bd7b986bbf121d693022245",
+      "source_snapshot_sha256": "11d2a45265e3af58358c6f9ab1c161a81bbcacca1a49c2cc00528e3155f5bd81",
+      "uncommitted_source_at_build": false,
+      "additional_nvcc_flags": [
+        "--Ofast-compile=max",
+        "-Xcompiler=-fno-tree-fre"
+      ]
+    },
+    "candidate_CHMT_v2": {
+      "provenance": {
+        "path": "candidate-v2/provenance-CHMT.json",
+        "sha256": "6fc30eb8d6f1ae74845e15443f5e14d66a7fad9092d15c6bd1121dc1c4478c2d"
+      },
+      "binary": {
+        "path": "candidate-v2/bin/CHMT",
+        "sha256": "6b6152dfe017f3af2a9c3854c69b1325688eb012188abbeae276afe21eddf3c7"
+      },
+      "source_commit_at_build": "88bc5434ee7199ec0bd7b986bbf121d693022245",
+      "source_snapshot_sha256": "206c887532afa3c6030f89c9a648b42fd821e1b95fe321f65311d3998bff401e",
+      "uncommitted_source_at_build": true,
+      "additional_nvcc_flags": [
+        "--Ofast-compile=max",
+        "-Xcompiler=-fno-tree-fre"
+      ]
+    },
+    "candidate_CHT_v3": {
+      "provenance": {
+        "path": "candidate-v3/provenance-CHT.json",
+        "sha256": "849dbd9225f213ccfdc2b957ef6c6f171479507acf968096f57411d0ce34356a"
+      },
+      "binary": {
+        "path": "candidate-v3/bin/CHT",
+        "sha256": "274edbd5cfe38dfde7558b82fbf6a7efa0d056aa554dd5143fdedade654a945f"
+      },
+      "source_commit_at_build": "f730354cbfddd7dcd0a603ad0a4367dbaad693a7",
+      "source_snapshot_sha256": "174c8e91b7a037b5b76122b7a5d61628d60c7e3e6d23981051353664c1249c0a",
+      "uncommitted_source_at_build": true,
+      "additional_nvcc_flags": [
+        "--Ofast-compile=max",
+        "-Xcompiler=-fno-tree-fre"
+      ]
+    }
+  },
+  "acceptance": {
+    "CHMT_CSV": "Every numeric CSV column, including species, momentum and decomposed energy fluxes: abs+rel tolerance 2e-10; metadata exact. Physical checkpoint equality reported additionally, not the sole acceptance criterion.",
+    "CHT_fields": "Existing independent native_matrix field oracle, tolerance 2e-12; every written time and field.",
+    "conservation": "Independent closed gas/material or gas/solid/particle inventories and signed interface ledgers. Open moving cases report changes and compare baseline; reacting individual species are not incorrectly required to remain constant.",
+    "diagnostic_NaN": "Only existing optional owner_k_source_integral NaN is permitted when both baseline and candidate match. Physical inventories and particle states must be finite.",
+    "warnings": "Existing waveform mismatch, porosity clipping and solid iteration-budget warnings remain visible per case; no new runtime gate or fallback was added."
+  },
+  "native_numerical": {
+    "CHMT": {
+      "report": {
+        "path": "chmt-v2-numerical/results.json",
+        "sha256": "b3a9c4ec6135f6120cb06d55c35acc9a2865fbc577d803a1033bc337791ca4da"
+      },
+      "grid": 2,
+      "cases": {
+        "chmt-single": {
+          "runs": 2,
+          "maximum_scaled_error": 0.0,
+          "maximum_budget_residuals": {
+            "max_mass_residual": 0,
+            "max_energy_residual": 0,
+            "max_species_sum_residual": 0,
+            "max_packet_energy_residual": 0,
+            "max_gas_exchange_residual": 7.03227476250845e-11,
+            "max_material_exchange_residual": 2.9811163204662705e-08
+          },
+          "configuration": {
+            "end_time": 0.001,
+            "delta_t": 1e-05,
+            "grid": 2,
+            "gas_max_dt": 1e-05,
+            "coupling_interval": 0.0005,
+            "accepted_windows": 2
+          },
+          "warnings_per_run": {
+            "foam_warning_count": 2,
+            "wall_waveform_mismatch": 2,
+            "solid_iteration_budget": 0
+          },
+          "checkpoint_payload_bitwise_equal": true
+        },
+        "chmt-mixture": {
+          "runs": 2,
+          "maximum_scaled_error": 0.0,
+          "maximum_budget_residuals": {
+            "max_mass_residual": 0,
+            "max_energy_residual": 0,
+            "max_species_sum_residual": 0,
+            "max_packet_energy_residual": 0,
+            "max_gas_exchange_residual": 7.032252558047958e-11,
+            "max_material_exchange_residual": 2.981116292710695e-08
+          },
+          "configuration": {
+            "end_time": 0.001,
+            "delta_t": 1e-05,
+            "grid": 2,
+            "gas_max_dt": 1e-05,
+            "coupling_interval": 0.0005,
+            "accepted_windows": 2
+          },
+          "warnings_per_run": {
+            "foam_warning_count": 2,
+            "wall_waveform_mismatch": 2,
+            "solid_iteration_budget": 0
+          },
+          "checkpoint_payload_bitwise_equal": true
+        },
+        "chmt-diffusion": {
+          "runs": 2,
+          "maximum_scaled_error": 0.0,
+          "maximum_budget_residuals": {
+            "max_mass_residual": 0,
+            "max_energy_residual": 0,
+            "max_species_sum_residual": 1.8041124150158794e-16,
+            "max_packet_energy_residual": 0,
+            "max_gas_exchange_residual": 7.032213700242096e-11,
+            "max_material_exchange_residual": 2.9811163204662705e-08
+          },
+          "configuration": {
+            "end_time": 0.001,
+            "delta_t": 1e-05,
+            "grid": 2,
+            "gas_max_dt": 1e-05,
+            "coupling_interval": 0.0005,
+            "accepted_windows": 2
+          },
+          "warnings_per_run": {
+            "foam_warning_count": 2,
+            "wall_waveform_mismatch": 2,
+            "solid_iteration_budget": 0
+          },
+          "checkpoint_payload_bitwise_equal": true
+        },
+        "chmt-moving-short": {
+          "runs": 2,
+          "maximum_scaled_error": 0.0,
+          "maximum_budget_residuals": {
+            "max_mass_residual": 2.220446049250313e-16,
+            "max_energy_residual": 8.149072527885437e-10,
+            "max_species_sum_residual": 5.421010862427522e-20,
+            "max_packet_energy_residual": 3.308722450212111e-24,
+            "max_gas_exchange_residual": 0,
+            "max_material_exchange_residual": 0
+          },
+          "configuration": {
+            "end_time": 5.960464477539063e-08,
+            "delta_t": 7.450580596923828e-09,
+            "grid": 2,
+            "gas_max_dt": 1e-05,
+            "coupling_interval": 7.450580596923828e-09,
+            "accepted_windows": 8
+          },
+          "warnings_per_run": {
+            "foam_warning_count": 4,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 0
+          },
+          "checkpoint_payload_bitwise_equal": true
+        }
+      }
+    },
+    "CHT": {
+      "report": {
+        "path": "cht-v3-numerical/results.json",
+        "sha256": "e416cae538419443c8c1440289aeddfee0591c9de5023bcb8b4803859f82bda0"
+      },
+      "grid": 2,
+      "cases": {
+        "cht-contact": {
+          "runs": 2,
+          "maximum_scaled_error": 0.0,
+          "maximum_budget_residuals": {
+            "max_energy_residual": 5.960464477539063e-08,
+            "max_mass_residual": 0,
+            "max_gas_exchange_residual": 8.782002902663066e-12,
+            "max_solid_exchange_residual": 2.7698064591907823e-08
+          },
+          "configuration": {
+            "end_time": 4e-05,
+            "delta_t": 1e-05,
+            "grid": 2
+          },
+          "warnings_per_run": {
+            "foam_warning_count": 0,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 0
+          }
+        },
+        "cht-mixture": {
+          "runs": 2,
+          "maximum_scaled_error": 0.0,
+          "maximum_budget_residuals": {
+            "max_energy_residual": 5.960464477539063e-08,
+            "max_mass_residual": 0,
+            "max_gas_exchange_residual": 2.6381799522745553e-11,
+            "max_solid_exchange_residual": 7.599282335346569e-08
+          },
+          "configuration": {
+            "end_time": 4e-05,
+            "delta_t": 1e-05,
+            "grid": 2
+          },
+          "warnings_per_run": {
+            "foam_warning_count": 1,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 1
+          }
+        },
+        "cht-pure": {
+          "runs": 2,
+          "maximum_scaled_error": 0.0,
+          "maximum_budget_residuals": {
+            "max_energy_residual": 0,
+            "max_mass_residual": 0,
+            "max_gas_exchange_residual": 4.123740585115776e-11,
+            "max_solid_exchange_residual": 3.0226746269151894e-08
+          },
+          "configuration": {
+            "end_time": 4e-05,
+            "delta_t": 1e-05,
+            "grid": 2
+          },
+          "warnings_per_run": {
+            "foam_warning_count": 0,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 0
+          }
+        },
+        "cht-wall": {
+          "runs": 2,
+          "maximum_scaled_error": 0.0,
+          "maximum_budget_residuals": {},
+          "configuration": {
+            "end_time": 4e-05,
+            "delta_t": 1e-05,
+            "grid": 2
+          },
+          "warnings_per_run": {
+            "foam_warning_count": 1,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 1
+          }
+        },
+        "cht-ode": {
+          "runs": 2,
+          "maximum_scaled_error": 0.0,
+          "maximum_budget_residuals": {},
+          "configuration": {
+            "end_time": 4e-05,
+            "delta_t": 1e-05,
+            "grid": 2
+          },
+          "warnings_per_run": {
+            "foam_warning_count": 1,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 1
+          }
+        },
+        "cht-wallfunction": {
+          "runs": 2,
+          "maximum_scaled_error": 0.0,
+          "maximum_budget_residuals": {},
+          "configuration": {
+            "end_time": 4e-05,
+            "delta_t": 1e-05,
+            "grid": 2
+          },
+          "warnings_per_run": {
+            "foam_warning_count": 1,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 1
+          }
+        }
+      }
+    },
+    "prepared_wall": {
+      "report": {
+        "path": "wall-microsteps-v2/report.json",
+        "sha256": "9ca6475f9b8487b78d8917fc9ca2e457dea7f0735285f23cdf1f3d8b4ca7cea5"
+      },
+      "cases": {
+        "constantTransport": {
+          "parity": {
+            "maximum_scaled_error": 0.0,
+            "compared_scalar_channels": 42,
+            "checkpoint_payload_bitwise_equal": true
+          },
+          "windows": 8,
+          "microsteps": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "maximum_budget_residuals": {
+            "max_mass_residual": 2.220446049250313e-16,
+            "max_energy_residual": 6.984919309616089e-10,
+            "max_species_sum_residual": 2.710505431213761e-20,
+            "max_packet_energy_residual": 8.271806125530277e-25,
+            "max_gas_exchange_residual": 0,
+            "max_material_exchange_residual": 0
+          }
+        },
+        "reactingSst": {
+          "parity": {
+            "maximum_scaled_error": 0.0,
+            "compared_scalar_channels": 41,
+            "checkpoint_payload_bitwise_equal": true
+          },
+          "windows": 8,
+          "microsteps": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "maximum_budget_residuals": {
+            "max_mass_residual": 2.220446049250313e-16,
+            "max_energy_residual": 8.149072527885437e-10,
+            "max_species_sum_residual": 2.710505431213761e-20,
+            "max_packet_energy_residual": 8.271806125530277e-25,
+            "max_gas_exchange_residual": 0,
+            "max_material_exchange_residual": 0
+          }
+        }
+      }
+    },
+    "SSPRK3": {
+      "report": {
+        "path": "chmt-ssprk3-v2/report.json",
+        "sha256": "d1972a51ec86263fc598aa951039f0b083968f02276e41b43d4305fa3e565023"
+      },
+      "cases": {
+        "mixture": {
+          "parity": {
+            "maximum_scaled_error": 0.0,
+            "compared_scalar_channels": 23,
+            "checkpoint_payload_bitwise_equal": true
+          },
+          "windows": 2,
+          "microsteps": [
+            50,
+            50
+          ],
+          "maximum_budget_residuals": {
+            "max_mass_residual": 0,
+            "max_energy_residual": 5.960464477539063e-08,
+            "max_species_sum_residual": 0,
+            "max_packet_energy_residual": 0,
+            "max_gas_exchange_residual": 1.3896707673488606e-09,
+            "max_material_exchange_residual": 4.395409708424225e-08
+          }
+        },
+        "moving-microsteps": {
+          "parity": {
+            "maximum_scaled_error": 0.0,
+            "compared_scalar_channels": 42,
+            "checkpoint_payload_bitwise_equal": true
+          },
+          "windows": 8,
+          "microsteps": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "maximum_budget_residuals": {
+            "max_mass_residual": 2.220446049250313e-16,
+            "max_energy_residual": 6.984919309616089e-10,
+            "max_species_sum_residual": 1.3552527156068805e-19,
+            "max_packet_energy_residual": 1.6543612251060553e-24,
+            "max_gas_exchange_residual": 0,
+            "max_material_exchange_residual": 0
+          }
+        }
+      }
+    },
+    "CHMT_long": {
+      "report": {
+        "path": "v2-long-repeat/results.json",
+        "sha256": "e7a5d132efc9f9f572e22ea7417936c92f59a7520f91eda7e290e1c7f29364ee"
+      },
+      "input_provenance": {
+        "path": "v2-long-repeat/provenance.json",
+        "sha256": "b29210e78191842e67b4b53ac5949e0be77017763e85fcaeb5019d12ca7c4a0c"
+      },
+      "grid": 16,
+      "duration_s": 0.005,
+      "coupling_windows": 10,
+      "scope": "unchanged-input numerical repeat; not a performance comparison",
+      "parity": {
+        "maximum_scaled_error": 0.0,
+        "compared_scalar_channels": 23,
+        "checkpoint_payload_bitwise_equal": true
+      },
+      "maximum_budget_residuals": {
+        "max_mass_residual": 0,
+        "max_energy_residual": 5.960464477539063e-08,
+        "max_species_sum_residual": 0,
+        "max_packet_energy_residual": 0,
+        "max_gas_exchange_residual": 3.915907598184276e-10,
+        "max_material_exchange_residual": 4.262018160616776e-08
+      },
+      "warnings": {
+        "foam_warning_count": 10
+      }
+    },
+    "particle_const": {
+      "report": {
+        "path": "cht-particle-const-v3-performance-r2/results.json",
+        "sha256": "d68ea8ca3537ce5e23ec26d2eecc1fcf6254de9035e5feb1b3ac7d5d1f2c2ef2"
+      },
+      "configuration": "See performance.CHT_particles_16cubed; every timing run also passed numerical and conservation checks."
+    },
+    "particle_sutherland": {
+      "report": {
+        "path": "cht-particle-sutherland-v3/audit-existing.json",
+        "sha256": "d7aafd534a111e4a5dad18212ee2194d96191c619f4e6f53ed4583b0b3114531"
+      },
+      "maximum_budget_residuals": {
+        "max_absolute_residual.total_energy": 1.1920928955078125e-07,
+        "max_absolute_residual.gas_exchange": 3.287171035371017e-09,
+        "max_absolute_residual.particle_exchange": 2.211772431870429e-16,
+        "max_absolute_residual.solid_exchange": 2.8691629128108076e-08,
+        "max_absolute_residual.mass": 3.774758283725532e-15,
+        "max_particle_wall_power_W": 276.95934407615755
+      },
+      "scope": "Read-only audit of complete candidate outputs through 0.0002 s. The original outer Python harness exited with SIGSEGV after output generation; this is not a clean end-to-end process-exit claim. Baseline none/none Sutherland has an existing invalid-temperature defect repaired by the separately recorded shared particle fix."
+    }
+  },
+  "performance": {
+    "method": "Five alternating baseline/candidate repetitions after one warmup pair; complete solver-process elapsed time includes normal startup and output, excludes mesh generation. No concurrent GPU workload or heavy build. Failed cohort preserved in full and excluded as a cohort, not silently resampled.",
+    "CHMT_16cubed": {
+      "runs": 12,
+      "maximum_scaled_error": 0.0,
+      "maximum_budget_residuals": {
+        "max_mass_residual": 0,
+        "max_energy_residual": 5.960464477539063e-08,
+        "max_species_sum_residual": 0,
+        "max_packet_energy_residual": 0,
+        "max_gas_exchange_residual": 2.843769664195861e-11,
+        "max_material_exchange_residual": 2.8376900829130136e-08
+      },
+      "configuration": {
+        "end_time": 0.001,
+        "delta_t": 1e-05,
+        "grid": 16,
+        "gas_max_dt": 1e-05,
+        "coupling_interval": 0.0005,
+        "accepted_windows": 2
+      },
+      "warnings_per_run": {
+        "foam_warning_count": 2,
+        "wall_waveform_mismatch": 2,
+        "solid_iteration_budget": 0
+      },
+      "checkpoint_payload_bitwise_equal": true,
+      "samples": {
+        "candidate": [
+          40.992053638998186,
+          43.54901587500353,
+          43.56910713901743,
+          42.32254056300735,
+          42.32457960798638
+        ],
+        "baseline": [
+          41.486444565001875,
+          43.700239409983624,
+          42.889858194976114,
+          43.63632935899659,
+          43.14226760901511
+        ]
+      },
+      "median_seconds": {
+        "candidate": 42.32457960798638,
+        "baseline": 43.14226760901511
+      },
+      "speedup": 1.0193194594867148,
+      "report": {
+        "path": "chmt-v2-performance16/results.json",
+        "sha256": "1e980fbebea0bb6a5121a35c284b81fe122e5e0d469eac4c2b27e2c144e1b3b7"
+      }
+    },
+    "CHT_particles_16cubed": {
+      "report": {
+        "path": "cht-particle-const-v3-performance-r2/results.json",
+        "sha256": "d68ea8ca3537ce5e23ec26d2eecc1fcf6254de9035e5feb1b3ac7d5d1f2c2ef2"
+      },
+      "configuration": {
+        "grid": 16,
+        "particles": 256,
+        "model": "coldWall1D",
+        "viscosity_model": "const",
+        "initial_particle_profile_energy_J": 3.4202964,
+        "statistical_mass_kg": 2.5600000000000005e-06,
+        "duration_s": 0.0002,
+        "coupling_interval_s": 2e-05
+      },
+      "runs": 12,
+      "samples_seconds": {
+        "baseline": [
+          1.3564076670154463,
+          1.2326489109836984,
+          1.3977992760192137,
+          1.4002365430060308,
+          1.2931805979751516
+        ],
+        "candidate": [
+          1.2612155379902106,
+          1.4106113809975795,
+          1.2548147779889405,
+          1.3514818190014921,
+          1.4505560389952734
+        ]
+      },
+      "median_seconds": {
+        "baseline": 1.3564076670154463,
+        "candidate": 1.3514818190014921
+      },
+      "speedup": 1.0036447756415943,
+      "maximum_scaled_error": 0.0,
+      "maximum_budget_residuals": {
+        "max_absolute_residual.total_energy": 5.960464477539063e-08,
+        "max_absolute_residual.gas_exchange": 3.248083718654371e-09,
+        "max_absolute_residual.particle_exchange": 3.1051550219984847e-16,
+        "max_absolute_residual.solid_exchange": 5.5562701967160066e-08,
+        "max_absolute_residual.mass": 3.9968028886505635e-15,
+        "max_particle_wall_power_W": 276.95934407615755
+      }
+    },
+    "interpretation": "CHMT median 43.1423 to 42.3246 s (~1.90% elapsed reduction); deposited-particle CHT 1.35641 to 1.35148 s (~0.36%). Ranges overlap. These runs establish no substantial or universal whole-application speedup. Early pure-gas CHT grids 2 and 16 were slightly slower.",
+    "earlier_exploratory_CHT": [
+      {
+        "report": {
+          "path": "cht-performance2/results.json",
+          "sha256": "bfb7bd618ed7e3001b63e80c46ac6ddcd65e92554ca151ca23b26acc586e13a6"
+        },
+        "cases": {
+          "cht-contact": {
+            "samples": {
+              "candidate": [
+                0.6975625529885292,
+                0.6218927570153028,
+                0.7015654980205,
+                0.7006567069911398,
+                0.7435809439921286
+              ],
+              "baseline": [
+                0.6438292399980128,
+                0.6311345279973466,
+                0.6675448369933292,
+                0.6759441680042073,
+                0.709936850995291
+              ]
+            },
+            "median_seconds": {
+              "candidate": 0.7006567069911398,
+              "baseline": 0.6675448369933292
+            },
+            "speedup": 0.9527416641167908
+          }
+        }
+      },
+      {
+        "report": {
+          "path": "cht-performance16/results.json",
+          "sha256": "50199231f06af2532cd116e2826664e81ee561fa6a03ffa3129c60c3392da4df"
+        },
+        "cases": {
+          "cht-contact": {
+            "samples": {
+              "candidate": [
+                1.5839237330073956,
+                1.2574612330063246,
+                1.2114624819951132,
+                1.2037077030108776,
+                1.2446840880147647
+              ],
+              "baseline": [
+                0.9675706859852653,
+                1.1382274130010046,
+                1.2655911790207028,
+                1.2034403659927193,
+                1.153942694014404
+              ]
+            },
+            "median_seconds": {
+              "candidate": 1.2446840880147647,
+              "baseline": 1.153942694014404
+            },
+            "speedup": 0.927096847405601
+          }
+        }
+      }
+    ],
+    "interface_microbenchmark": {
+      "report": {
+        "path": "cht-interface-benchmark.log",
+        "sha256": "24dae39549a16451e70b79166e4d953eb6fd2ee535ccd0caee2a124f846b34c6"
+      },
+      "mesh_faces": 262144,
+      "interface_faces": 4096,
+      "solid_faces": 2305,
+      "repetitions": 100,
+      "old_ms": 0.862268,
+      "gpu_ms": 0.065543,
+      "speedup": 13.156,
+      "scope": "Isolated ledger transfer and mapping, not end-to-end solver speedup."
+    }
+  },
+  "transfer_profiles": {
+    "profiles-chmt-v2/results.json": {
+      "report": {
+        "path": "profiles-chmt-v2/results.json",
+        "sha256": "f450260fe8c605bd35dd1e2507f2e12ec7f3d5f8460cc915b27f6cab0c233e8c"
+      },
+      "scope": "whole native run including initialization and normal output",
+      "cases": {
+        "chmt-mixture": {
+          "baseline": {
+            "Host-to-Device": {
+              "count": 291,
+              "bytes": 62984,
+              "duration_ns": 438265
+            },
+            "Device-to-Host": {
+              "count": 718,
+              "bytes": 356200,
+              "duration_ns": 682180
+            }
+          },
+          "candidate": {
+            "Host-to-Device": {
+              "count": 196,
+              "bytes": 46648,
+              "duration_ns": 315822
+            },
+            "Device-to-Host": {
+              "count": 418,
+              "bytes": 393000,
+              "duration_ns": 399294
+            }
+          }
+        }
+      }
+    },
+    "profiles-cht/results.json": {
+      "report": {
+        "path": "profiles-cht/results.json",
+        "sha256": "ff2cd5c9c7af85de8df0bafcd9f79c867f3042e28701428f6b049c73d974634a"
+      },
+      "scope": "whole native run including initialization and normal output",
+      "cases": {
+        "cht-contact": {
+          "baseline": {
+            "Host-to-Device": {
+              "count": 88,
+              "bytes": 33316,
+              "duration_ns": 31609
+            },
+            "Device-to-Host": {
+              "count": 85,
+              "bytes": 14372,
+              "duration_ns": 77493
+            }
+          },
+          "candidate": {
+            "Host-to-Device": {
+              "count": 92,
+              "bytes": 33760,
+              "duration_ns": 31882
+            },
+            "Device-to-Host": {
+              "count": 85,
+              "bytes": 14052,
+              "duration_ns": 75050
+            }
+          }
+        }
+      }
+    }
+  },
+  "memory_checks": [
+    {
+      "report": {
+        "path": "sanitizer-chmt-v2.log",
+        "sha256": "be3ddee1b84fe3113a9d5efaf386ac4b5381b8eb8f85fd84285a9f903930bd96"
+      },
+      "errors": 0,
+      "leaked_bytes": 0,
+      "scope": "Final v2 CHMT interface native case"
+    },
+    {
+      "report": {
+        "path": "sanitizer-cht.log",
+        "sha256": "e50c47e929090085a15aae8d73cf211e63b9865fd04bee716dcb5a8cdafe8fd3"
+      },
+      "errors": 0,
+      "leaked_bytes": 0,
+      "scope": "CHT interface native case before the independent particle-switch fix"
+    }
+  ],
+  "independent_regressions": {
+    "CHMT_CUDA": {
+      "report": {
+        "path": "chmt-interface-v2-oracle.log",
+        "sha256": "1e104ac1651fbf594e8f5bbe02a03ba732ab351cae62a964ea044e56f65a1833"
+      },
+      "variants": 4,
+      "faces": 257,
+      "integration": "SSPRK3; mass, species, momentum, energy, pore sweep and radiation"
+    },
+    "CHT_CUDA": {
+      "report": {
+        "path": "cht-interface-benchmark.log",
+        "sha256": "24dae39549a16451e70b79166e4d953eb6fd2ee535ccd0caee2a124f846b34c6"
+      },
+      "scope": "Mapping, cancellation, empty rows, particles/radiation switches, pending ledger and restore"
+    },
+    "particle_switches": [
+      {
+        "report": {
+          "path": "particle-relaxation-switches-host.log",
+          "sha256": "8adef53b9e398f787fa8233e28b202bfce3c29f8f1d0d199ef66463633e09a21"
+        },
+        "passed": 4
+      },
+      {
+        "report": {
+          "path": "particle-relaxation-switches-cuda.log",
+          "sha256": "d7b3bd76520fdf0e97d0ff154470967a2e31bfc3b18541e0b523c4c70ad1d45a"
+        },
+        "passed": 4
+      }
+    ],
+    "focused_legacy_host": {
+      "baseline": {
+        "path": "baseline/host-regressions.log",
+        "sha256": "17d96979274e85dd1ab36bbb4071e382d304aeab9cdec0a7bb3650112f69d6d7"
+      },
+      "candidate": {
+        "path": "candidate/host-regressions.log",
+        "sha256": "b8719af1565773b939bdace23f5ed96bee32720acf1398df1d52a65b28802b05"
+      },
+      "passed_each": 27,
+      "failed_each": 17,
+      "same_failed_test_ids": true,
+      "cause": "Existing host CUDA shim/API incompatibilities; this is not an all-repository green result."
+    }
+  },
+  "retained_failures_and_limits": [
+    {
+      "kind": "CHMT v1 exploratory output SIGSEGV",
+      "evidence": [
+        {
+          "path": "scale16-probe/chmt-mixture-candidate-0/run.log",
+          "sha256": "c373959d6cb428c4bf18e1801815da1f07ba65b14d7d11102e8df05d35f34781"
+        },
+        {
+          "path": "debug-v1/reproduction-results.json",
+          "sha256": "9b83eeadf4316e27c098fa46f601865c31479f020333c6226d4ee961b29d1355"
+        }
+      ],
+      "disposition": "Occurred formatting gas-8.csv. Same-input host-ASAN and original-release cuda-gdb runs subsequently completed with identical physical outputs. Not reproduced or root-caused; do not attribute to hardware or claim a demonstrated fix."
+    },
+    {
+      "kind": "Interrupted CHT particle timing cohort",
+      "evidence": [
+        {
+          "path": "cht-particle-const-v3-performance/results.json",
+          "sha256": "29b22d298bfee5ad6fa9439e0f53494324b5057270adbbb535763723a568a2e3"
+        },
+        {
+          "path": "cht-particle-const-v3-performance/baseline-1/run.log",
+          "sha256": "eef73a8d9eda71a065250c1276752534db3eae399b9bdf4b149e8907d4eaf0ad"
+        }
+      ],
+      "disposition": "Unmodified baseline SIGSEGV in floating-point OpenFOAM output. All three previously completed runs retained; no median computed for this incomplete cohort. Entire fresh r2 cohort completed separately."
+    },
+    {
+      "kind": "Sutherland particle outer harness SIGSEGV",
+      "evidence": [
+        {
+          "path": "cht-particle-sutherland-v3.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "cht-particle-sutherland-v3/audit-existing.json",
+          "sha256": "d7aafd534a111e4a5dad18212ee2194d96191c619f4e6f53ed4583b0b3114531"
+        }
+      ],
+      "disposition": "Complete candidate outputs independently re-audited read-only; cause unlocalized. User asked to stop extra diagnosis of nonreproducible failures without evidence linking this change."
+    },
+    {
+      "kind": "Default optimized CHMT build unavailable",
+      "evidence": [
+        {
+          "path": "baseline-production/build-chmt.oom-attempt1.log",
+          "sha256": "d6bfb01a36193501de242dffadd48e4bd30cb4f5ba380b82601f33d1e84fe33b"
+        },
+        {
+          "path": "baseline-production/build-chmt.compiler-crash-attempt2.log",
+          "sha256": "4bd35d1d63afc5f0a85f2be9009d41f37dd2575c4f0c62f60db30448307d8c9d"
+        },
+        {
+          "path": "baseline-production/build-chmt.compiler-crash-attempt3.log",
+          "sha256": "f2cd459487e8f7b9e229bbd0f1ae523cb4707051bc798ce76fb1dc9ded202906"
+        }
+      ],
+      "disposition": "First ptxas attempt Linux OOM exit137, maxRSS11407808 KiB; two later cicc SIGSEGV exits139 with roughly1.5GiB RSS. No successful default optimization performance claim."
+    },
+    {
+      "kind": "Initial fast CHT compiler failure",
+      "evidence": [
+        {
+          "path": "candidate/build-cht.attempt1.log",
+          "sha256": "9dbd9b4c2018d7ef270ca02b43d4b5d4c5a94552cd3ea269a2cf76b18622270a"
+        }
+      ],
+      "disposition": "Compiler exit139; subsequent serial build succeeded. Successful binaries and flags are hashed above."
+    },
+    {
+      "kind": "Coverage limit",
+      "disposition": "No new gasUGKP complete-application build/regression is claimed by this layer1 report. Shared particle CPU/CUDA regressions passed; gasUGKP end-to-end regression remains in the complete-application phase."
+    }
+  ]
+}

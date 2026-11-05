@@ -38,7 +38,7 @@ __global__ void computeGasEddyViscosityKernel(GasState* sp)
                 EntityKind::Cell,c,-1,0,0,0,Quantity::LinearSystem));
             return;
         }
-        const GPU_OPERATOR_REAL inputs[] = {s.rho[c],s.rhoMin,s.gasMu,s.k[c],s.omega[c],
+        const GPU_OPERATOR_REAL inputs[] = {s.rho[c],s.rhoMin,ugkwp::gasCellMolecularViscosity(s,c),s.k[c],s.omega[c],
             s.sstWallDistance[c],s.sstCoefficients.betaStar,s.sstCoefficients.a1,s.sstCoefficients.b1};
         for(int i=0;i<9;++i) if(!gasEddyFinite(s,c,inputs[i],30302,i)) return;
         GPU_OPERATOR_REAL divU = GPU_OPERATOR_R(0.0);
@@ -55,7 +55,7 @@ __global__ void computeGasEddyViscosityKernel(GasState* sp)
                 EntityKind::Cell,c,-1,rhoSafe,0,0,Quantity::Density));
             return;
         }
-        const GPU_OPERATOR_REAL nu = s.gasMu/rhoSafe;
+        const GPU_OPERATOR_REAL nu = ugkwp::gasCellMolecularViscosity(s,c)/rhoSafe;
         if(!gasEddyFinite(s,c,nu,30305)) return;
         // Inspect the actual F2 operands before its finite min/max caps can erase a fault.
         const auto omegaSafe=ugkwp::sstPositive(s.omega[c],GPU_OPERATOR_R(1e-300));

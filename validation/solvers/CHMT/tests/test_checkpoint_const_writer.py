@@ -82,7 +82,7 @@ bool measuredWriteCheckpoint(const std::string& directory,const ModelConfig& con
 '''
     (directory / 'probe.cpp').write_text(prelude + fixture)
     executable = directory / 'probe'
-    command = ['g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror', '-pedantic',
+    command = ['g++', '-std=c++17', '-O2', '-Wall', '-Wextra', '-Werror', '-pedantic',
                '-Wno-mismatched-new-delete', '-DPROBE_OUTPUT="'+str(directory / 'write-')+'"',
                '-I'+str(APP), '-I'+str(VALIDATION_ROOT / 'solvers/CHMT'), '-I'+str((VALIDATION_ROOT / 'solvers/CHMT/tests')), '-I'+str(APP/'restart'),
                '-I'+str(REPO/'common'), str(directory/'probe.cpp'),
@@ -104,8 +104,10 @@ bool measuredWriteCheckpoint(const std::string& directory,const ModelConfig& con
 
 def test_const_writer_exact_bytes_and_fewer_allocations(tmp_path):
     baseline = (APP/'restart/Checkpoint.C').read_text()
-    baseline = baseline.replace('Encoder configData,payload;configData(config);payload(state);',
-                                'ModelConfig model=config;HostState copy=state;Encoder configData,payload;configData(model);payload(copy);')
+    marker='Encoder configData,payload;'
+    assert baseline.count(marker)==1, 'copy-reference insertion must execute once'
+    baseline = baseline.replace(marker,'ModelConfig model=config;HostState copy=state;'+marker)
+    baseline = baseline.replace('configData(config);','configData(model);').replace('payload(state);','payload(copy);')
     before = _probe(tmp_path, 'base', baseline)
     after = _probe(tmp_path, 'current', (APP/'restart/Checkpoint.C').read_text())
     receipt = dict(base=BASE, before=before, after=after)
@@ -135,7 +137,7 @@ int main(){
 }
 ''')
     executable = tmp_path/'const'
-    subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic',
+    subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror','-pedantic',
                     '-I'+str(APP), '-I'+str(VALIDATION_ROOT / 'solvers/CHMT'),'-I'+str(REPO/'common'),str(source),'-o',str(executable)],
                    check=True,env=dict(os.environ,TMPDIR=str(tmp_path)))
     subprocess.run([str(executable)],check=True)

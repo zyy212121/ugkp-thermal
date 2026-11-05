@@ -1,0 +1,28 @@
+FoamFile { version 2.0; format ascii; class dictionary; object chmtProperties; }
+schemaVersion 1; executionMode Multirate; modelName coupledInputFixture;
+materialSource syntheticControlledV1; mechanismSource controlledSurfaceConversion;
+condensedNames (C0 C1); elements (X);
+minDt 1e-12; maxDt 0.001; cfl 0.4;
+gasConductivity 0.03; gasViscosity 1.8e-05;
+condensedThermo {
+C0 { rho 1000; cp0 1000; cp1 0; e0 0; conductivity 1; Tmin 100; Tmax 3000; element (35.714285714285715); }
+C1 { rho 1000; cp0 1000; cp1 0; e0 0; conductivity 1; Tmin 100; Tmax 3000; element (35.714285714285715); }
+}
+solidRegion solid;
+surface { patch interface; gasPatch wall; }
+multirate { couplingInterval 1.0000000000000002e-06; gasMaxDt 0.00001; }
+
+material { gasContactResistance 0; solidContactResistance 0; enableMelting false; enablePoreOutflow false; evaporation Disabled;
+enableSurfaceReactions true;
+surfaceReactions { conversion { A 0.035714285714285712; temperaturePower 0; activationEnergy 0; condensedNu (-0.028000000000000001 0); gasNu (0.028000000000000001 0); order (0 0); gasOrder (0 0); } }
+}
+
+meshMotion { policy CoupledRecession; }
+emissivity 0; ambientTemperature 300; permeability 0; poreViscosity 1.8e-05;
+
+enableSst true;
+sst {  wallTreatment boundaryLayer;
+boundaryLayer { model reactingSst; nodes 8; maxIterations 60; relativeTolerance 1e-8; absoluteTolerance 1e-10; stretch 2; }
+  }
+boundaries { sides {kind Slip;} inlet { kind Inlet; } outlet { kind Outlet; } wall { kind Interface; } top { kind Slip; } }
+modelFingerprint "c528e318d513b79ef126c051ed848fa9b339853e37480a6782abdd68d5f96bf8";

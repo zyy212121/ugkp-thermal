@@ -19,10 +19,6 @@ ROOT = SOURCE_ROOT
 def contact_routes_executable(request, tmp_path_factory):
     fsh = request.param
     build = tmp_path_factory.mktemp(f"contact_routes_{fsh}")
-    conductivity_source = (ROOT / "common/operators/updateLegacyGasBoundaryMirrorKernel.cuh").read_text()
-    start = conductivity_source.index("template<class GasState>\n__device__ GPU_OPERATOR_REAL molecularGasConductivity")
-    end = conductivity_source.index("\n}", start) + 2
-    (build / "route_conductivity.cuh").write_text('#include "gasTransport/GasStateView.H"\n' + conductivity_source[start:end])
     executable = build / "contact_routes"
     result = subprocess.run(
         ["g++", "-std=c++20", "-O2", "-pthread", "-Wall", "-Wextra",

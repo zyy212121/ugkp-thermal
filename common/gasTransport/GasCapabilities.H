@@ -33,6 +33,10 @@ struct GasCapabilityRequest
     int turbulenceModel = 0;
     bool movingGeometry = false;
     bool particleCoupling = false;
+    // Explicit capability of the application owner, not a case option.
+    bool pairedMixtureParticleCoupling = false;
+    bool residentParticleGeometry = false;
+    bool residentParticleWallCoupling = false;
     int sstWallTreatment = 0; // 0 lowRe, 1 wallFunction, 2 boundaryLayer
     int boundaryLayerModel = 1; // 0 restricted constantTransport, 1 reactingSst, 2 equilibriumOde
 };
@@ -47,16 +51,16 @@ UGKWP_GAS_HD inline GasCapabilityResult validateGasCapabilities(const GasCapabil
 {
     if (r.sstWallTreatment == 2)
     {
-        if (r.mode == GasMode::SingleLegacy || r.particleCoupling)
+        if (r.mode == GasMode::SingleLegacy || (r.particleCoupling&&!r.residentParticleWallCoupling))
             return {GasTransportCode::UnsupportedConfiguration, "boundaryLayer requires shared mixture thermo and gas-only storage"};
         if (r.boundaryLayerModel != 0 && r.boundaryLayerModel != 1 && r.boundaryLayerModel != 2)
             return {GasTransportCode::UnsupportedConfiguration, "selected boundaryLayer model has no implementation"};
     }
-    if (r.movingGeometry && r.particleCoupling)
+    if (r.movingGeometry && r.particleCoupling&&!r.residentParticleGeometry)
         return {GasTransportCode::UnsupportedConfiguration, "ALE particle void-fraction closure is not enabled"};
     if (r.mode == GasMode::SingleLegacy)
         return {GasTransportCode::Success, "legacy gas capabilities"};
-    if (r.particleCoupling)
+    if (r.particleCoupling && !(r.pairedMixtureParticleCoupling && r.mode==GasMode::MixtureFrozen))
         return {GasTransportCode::UnsupportedConfiguration, "mixture particle thermal and void-fraction closure is not enabled"};
     return {GasTransportCode::Success, "mixture shared Rusanov, Kurganov/HLL, HLLC or SLAU2 with firstOrder or MUSCL"};
 }

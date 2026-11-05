@@ -1,4 +1,5 @@
 #pragma once
+#include "gasTransport/GasPseudoTime.H"
 #include <cfloat>
 #include "gasStencilDiagnostics.cuh"
 #include "gasTransport/GasStateView.H"
@@ -51,8 +52,8 @@ __device__ void sstInternalRhoDiffusivities
     (
         s.faceWeight[f], GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0)
     );
-    const GPU_OPERATOR_REAL nuOwn = s.gasMu/clampMin(s.rho[own], s.rhoMin);
-    const GPU_OPERATOR_REAL nuNei = s.gasMu/clampMin(s.rho[nei], s.rhoMin);
+    const GPU_OPERATOR_REAL nuOwn = ugkwp::gasCellMolecularViscosity(s,own)/clampMin(s.rho[own], s.rhoMin);
+    const GPU_OPERATOR_REAL nuNei = ugkwp::gasCellMolecularViscosity(s,nei)/clampMin(s.rho[nei], s.rhoMin);
     rhoDk =
         weight*s.rho[own]
        *(nuOwn + ugkwp::sstAlphaK(s.sstF1[own], s.sstCoefficients)*s.nut[own])
@@ -138,7 +139,7 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
     const GPU_OPERATOR_REAL f1Face = nei >= 0
       ? ownerWeight*s.sstF1[own] + (GPU_OPERATOR_R(1.0) - ownerWeight)*s.sstF1[nei]
       : s.sstF1[own];
-    const GPU_OPERATOR_REAL nuFace = s.gasMu/clampMin(rhoFace, s.rhoMin);
+    const GPU_OPERATOR_REAL nuFace = ugkwp::gasFaceMolecularViscosity(s,f,own,nei)/clampMin(rhoFace, s.rhoMin);
     GPU_OPERATOR_REAL nutFace = nei >= 0
       ? ownerWeight*s.nut[own] + (GPU_OPERATOR_R(1.0) - ownerWeight)*s.nut[nei]
       : s.nut[own];
@@ -405,7 +406,7 @@ __device__ GPU_OPERATOR_REAL sstKProductionForCell
             s.k[c],
             magGradU,
             y,
-            s.gasMu/clampMin(riemannFacePrimitiveForGradient(s, c, f).rho, s.rhoMin),
+            ugkwp::gasFaceMolecularViscosity(s,f,c,-1)/clampMin(riemannFacePrimitiveForGradient(s, c, f).rho, s.rhoMin),
             s.sstCoefficients.beta1,
             s.sstWallCmu,
             s.sstWallKappa,
@@ -498,7 +499,7 @@ template<class GasState>
 __global__ void applySstFluxAndSourceKernel
 (
     GasState* sp,
-    const GPU_OPERATOR_TIME dt,
+    const GPU_OPERATOR_TIME stepDt,
     const bool nativeRefinement=false
 )
 {
@@ -511,6 +512,8 @@ __global__ void applySstFluxAndSourceKernel
     {
         return;
     }
+
+    const GPU_OPERATOR_TIME dt = ugkwp::gasCellTimeStep(s, c, stepDt);
 
     GPU_OPERATOR_REAL oldVolume=s.V[c],newVolume=s.V[c];
     const bool moving=ugkwp::gasMovingGeometry(s);
@@ -810,7 +813,7 @@ __global__ void computeGasConvectiveCourantByCellKernel
 }
 
 template<class GasState>
-__global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERATOR_TIME dt, const bool nativeRefinement=false)
+__global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERATOR_TIME stepDt, const bool nativeRefinement=false)
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
@@ -821,6 +824,8 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
     {
         return;
     }
+
+    const GPU_OPERATOR_TIME dt = ugkwp::gasCellTimeStep(s, c, stepDt);
 
     GPU_OPERATOR_REAL dRho = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL dRhoUx = GPU_OPERATOR_R(0.0);
@@ -905,6 +910,22 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
         dRhoUy += sign*s.gasPhiRhoUy[faceI];
         dRhoUz += sign*s.gasPhiRhoUz[faceI];
         dRhoE += Energy(sign)*Energy(s.gasPhiRhoE[faceI]);
+    }
+
+    // In the steady application gravity belongs to the same old-state RHS as
+    // transport, so every RK stage targets the reported spatial residual.
+    // Transient applications retain their original exact split gravity update.
+    if constexpr (ugkwp::HasGasSteadyTime<GasState>::value)
+    {
+        if (s.gasSteadyMode)
+        {
+            dRhoUx += s.rho[c]*s.gravityX*s.V[c];
+            dRhoUy += s.rho[c]*s.gravityY*s.V[c];
+            dRhoUz += s.rho[c]*s.gravityZ*s.V[c];
+            dRhoE += (Energy(s.rhoUx[c])*Energy(s.gravityX)
+                    + Energy(s.rhoUy[c])*Energy(s.gravityY)
+                    + Energy(s.rhoUz[c])*Energy(s.gravityZ))*Energy(s.V[c]);
+        }
     }
 
     GPU_OPERATOR_REAL scale;

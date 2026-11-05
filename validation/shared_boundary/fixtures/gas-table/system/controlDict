@@ -1,0 +1,8 @@
+FoamFile { version 2.0; format ascii; class dictionary; object controlDict; }
+application gasUGKP; startFrom startTime; startTime 0; stopAt endTime; endTime 2e-7;
+deltaT 1e-7; writeControl timeStep; writeInterval 1; purgeWrite 0;
+writeFormat ascii; writePrecision 17; writeCompression off; timeFormat general; timePrecision 17;
+runTimeModifiable false; adjustTimeStep false;
+steadyGas { maxCo .01; maxDeltaT 1e-7; boundaryTime 0; relativeTolerance 0; absoluteTolerance 0;
+minimumIterations 100; residualInterval 1; samplingDeltaT 1e-7; windowSamples 1;
+minimumWindows 100; stableWindows 2; meanTolerance 0; inventoryTolerance 0; }

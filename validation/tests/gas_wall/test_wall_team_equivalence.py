@@ -70,12 +70,15 @@ int main(int argc,char**argv){std::cout<<std::hexfloat;int mode=std::atoi(argv[1
 def programs(tmp_path_factory):
     tmp=tmp_path_factory.mktemp('wall-team')
     oracle=tmp/'oracle'
-    shutil.copytree(SOURCE_ROOT/'common',oracle/'common')
-    # Independent unchanged committed implementation is the numerical oracle.
-    original=subprocess.run(['git','show','HEAD:common/gasWall/ReactingWallLayer.H'],cwd=SOURCE_ROOT,check=True,capture_output=True,text=True).stdout
-    (oracle/'common/gasWall/ReactingWallLayer.H').write_text(original)
-    original_model=subprocess.run(['git','show','HEAD:common/gasTransport/GasBoundaryLayerModelState.H'],cwd=SOURCE_ROOT,check=True,capture_output=True,text=True).stdout
-    (oracle/'common/gasTransport/GasBoundaryLayerModelState.H').write_text(original_model)
+    # Keep the oracle's dependent types and operators at the same revision.
+    # Mixing an old LayerPoint with current consumers is not a valid baseline.
+    import io, tarfile
+    archive=subprocess.run(['git','archive','HEAD','common'],cwd=SOURCE_ROOT,check=True,capture_output=True).stdout
+    with tarfile.open(fileobj=io.BytesIO(archive)) as files:
+        for entry in files:
+            if entry.isfile():
+                path=oracle/entry.name;path.parent.mkdir(parents=True,exist_ok=True)
+                path.write_bytes(files.extractfile(entry).read())
     cpp=tmp/'team.cpp';cpp.write_text(BASE+TEAM)
     executables=[]
     for root,enabled in ((oracle,0),(SOURCE_ROOT,1)):

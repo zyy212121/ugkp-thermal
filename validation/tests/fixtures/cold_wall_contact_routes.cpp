@@ -78,6 +78,7 @@ template<class T> T sqr3(T x,T y,T z) {return x*x+y*y+z*z;}
 template<class T> bool finiteDevice(T x) {return x==x && std::abs(x)<(ROUTE_FSH?1.e300:(sizeof(T)==8?1.e300:1.e30));}
 template<class T> bool nonFiniteDevice(T x) {return !finiteDevice(x);}
 struct DeviceState {
+ int particleStuckModelConfigured=1;
     int coldWallSolidificationEnabled=1, nCells=1, nFaces=1, nInternalFaces=0;
     int particleCapacity=1, solveParticleTemperature=1, particleGasHeatTransferModelId=1;
     int particleWallHeatTransferEnabled=1, dragModelId=0;
@@ -127,13 +128,12 @@ struct DeviceState {
         GPU_R(.25),GPU_R(0),0,12};
 };
 #include "operators/particleSpecificHeatDevice.cuh"
-// Exact production conductivity function extracted by the fixture generator;
-// its owning header also contains unrelated large gas-boundary implementations.
-#include "route_conductivity.cuh"
+// Use the shared production conductivity implementation directly.
+#include "gasTransport/GasMolecularConductivity.cuh"
 // Drag is explicitly disabled in these thermal tests. Fail if accidentally used.
 bool gasDragModelActive(int model) {return model!=0;}
 GpuReal solidEpsFromMomentDevice(const DeviceState&,int) {throw DeviceTrap{};}
-template<class T> GpuReal dragInverseTimeDevice(const DeviceState&,GpuReal,GpuReal,GpuReal,GpuReal,T) {throw DeviceTrap{};}
+template<class T> GpuReal dragInverseTimeDevice(const DeviceState&,int,GpuReal,GpuReal,GpuReal,GpuReal,T) {throw DeviceTrap{};}
 void clearColdWall2DParticleState(DeviceState&,int) {}
 #include "GpuWallContactDirectory.cuh"
 #include "operators/atomicAddParticleWallEnergyByFace.cuh"
@@ -313,7 +313,7 @@ void run(const char* mode) {
         require(s.pStuck[0]==particleWallMobile,"shrink-damaged contact detaches in generic finalizer");
         profileCleared(s);
         if(!std::strcmp(mode,"detach_then_mobile")) {
-            const GpuReal expected=particleTemperatureAfterGasRelaxation(s,s.pT[0],s.couplingTgasOld[0],0,s.pd[0],s.rhoSolid*particleSpecificHeatDevice(s.pT[0]),dt);
+            const GpuReal expected=particleTemperatureAfterGasRelaxation(s,0,s.pT[0],s.couplingTgasOld[0],0,s.pd[0],s.rhoSolid*particleSpecificHeatDevice(s.pT[0]),dt);
             coldStep(s,dt);genericStep(s,dt);
             near(s.pT[0],expected,.002,"next step applies ordinary mobile gas relaxation exactly once");
             profileCleared(s);
@@ -452,7 +452,7 @@ void run(const char* mode) {
         profileCleared(s);
         const GpuReal old=s.pT[0];
         const GpuReal re=s.couplingRhoOld[0]*s.pd[0]*std::sqrt(sqr3(s.pux[0],s.puy[0],s.puz[0]))/s.gasMu;
-        const GpuReal expected=particleTemperatureAfterGasRelaxation(s,old,s.couplingTgasOld[0],re,s.pd[0],s.rhoSolid*particleSpecificHeatDevice(old),dt);
+        const GpuReal expected=particleTemperatureAfterGasRelaxation(s,0,old,s.couplingTgasOld[0],re,s.pd[0],s.rhoSolid*particleSpecificHeatDevice(old),dt);
         coldStep(s,dt);near(s.pT[0],old,0,"cold kernel skips collision-released mobile particle");
         genericStep(s,dt);near(s.pT[0],expected,.002,"collision-released particle receives normal mobile gas exactly once");
         profileCleared(s);near(s.reflected[0]+s.deposited[0],0,0,"collision-released particle has no wall heat");

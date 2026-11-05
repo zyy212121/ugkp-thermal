@@ -133,7 +133,7 @@ int main(){
 '''
 
 def test_live_radiation_and_material_contributions(tmp_path):
-    text=(ROOT/'applications/CHT/gpu/GpuResidentStrict.cu').read_text()
+    text=(ROOT/'common/thermal/GpuResidentStrict.cu').read_text()
     def body(signature):
         start=text.index(signature)
         brace=text.index('{',start)

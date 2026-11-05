@@ -1,0 +1,746 @@
+{
+  "schema_version": 1,
+  "layer": 3,
+  "status": "Numerical, conservation, restart, memory and repeated timing validation passed. Performance is workload-dependent; small-grid regressions are retained below. Layers four and five remain pending.",
+  "raw_evidence_root": "../../../gpu-coupled-validation",
+  "baseline": {
+    "independent_math_commit": "88bc5434ee7199ec0bd7b986bbf121d693022245",
+    "CHMT": "candidate-layer2-batch/bin/CHMT (accepted layer two, CPU solid conduction)",
+    "CHT": "candidate-v3/bin/CHT (accepted layer one, CPU solid conduction)"
+  },
+  "candidate": {
+    "binaries": {
+      "CHMT": "102d3706b4ea59c8c5fe6a42bcd9b75dff496ef5b75be596874f7b169c9c3337",
+      "CHT": "653d2b282ad6e7dcd32e2602532ebecdadb331b168fd35785c5463d69dc544be"
+    },
+    "provenance": {
+      "path": "candidate-layer3-device-loop/provenance.json",
+      "sha256": "733fd6f8480e66dc7cf6e367b727978ac29721e0a49be93d09b2f4b4d61e59ac"
+    },
+    "cuda": "13.1, sm_89, FP64; new thermal CUDA units standard -O2 --fmad=false",
+    "gas_build": "unchanged fast-compile objects reused from accepted layers 1-2; these are not production-optimization end-to-end performance claims",
+    "material_build": "standard -O2 --fmad=false --expt-relaxed-constexpr; resident conduction material object reused from candidate-layer3-resident"
+  },
+  "mathematics": [
+    "The original implicit finite-volume equation, boundary conditions, corrected nonorthogonal flux, material conservative volume versus native FV volume, caloric integral and nonlinear stopping tolerances are retained.",
+    "The shared FP64 solver uses diagonal-preconditioned CG instead of native DIC-PCG. This changes linear iteration counts and rounding, but not the equation or requested residual tolerances. Independent native matrix, true residual and heat-flux oracles bound the resulting error.",
+    "Local scalar cyclic boundaries are assembled in CSR. Processor and other coupled interfaces retain native communication, with CUDA local arithmetic. Empty MPI partitions are supported.",
+    "The local CG recurrence and every stopping decision execute inside a conditional CUDA graph. Thirty scaled matrix comparisons plus min/max-iteration and relative-tolerance cases match an unbatched execution of the same recurrence bitwise.",
+    "Material conduction uses the accepted GPU inventory. Endpoint energy and EOS publish only after all cells succeed, preserving the existing candidate transaction semantics.",
+    "Table properties, exact piecewise caloric integrals, material polynomial/NASA7 secants and Aitken history retain their original formulas. Ordered Aitken and host conservation reductions preserve their established summation order."
+  ],
+  "remaining_host_work": [
+    "OpenFOAM field and matrix mirrors, selected boundary policy calls, mesh geometry and MPI communication still execute on the host.",
+    "Ordered diagnostic conservation reductions remain on the host. Some interface property consumers outside the nonlinear conduction owner still use their original CPU helpers.",
+    "Radiation and geometry migration are separate subsequent layers; this is not a claim of a completely resident five-layer application."
+  ],
+  "validation": {
+    "layer3-kernel-suite-device-loop/sparse-test.log": {
+      "evidence": {
+        "path": "layer3-kernel-suite-device-loop/sparse-test.log",
+        "sha256": "8e06d3a573795cbbbdde95495b96015ef61de12a73916237c1840fa6883023f3"
+      },
+      "scope": "30 scaled structured/periodic systems, reuse, true residual, exact input, min/max iteration and relative stopping tests"
+    },
+    "layer3-kernel-suite-device-loop/property-test.log": {
+      "evidence": {
+        "path": "layer3-kernel-suite-device-loop/property-test.log",
+        "sha256": "c18d584b7de80abe71d10d026be0370eddd6696a89cd8cb280b8306026d32820"
+      },
+      "scope": "Independent frozen original CHT property implementation; table/clamp/extrapolation/secant/energy and Aitken parity"
+    },
+    "layer3-kernel-suite-device-loop/material-test-2.log": {
+      "evidence": {
+        "path": "layer3-kernel-suite-device-loop/material-test-2.log",
+        "sha256": "61acf68fb20cb736aa65339e0458403ea87e904b84e0a612ebf5120337b394e1"
+      },
+      "scope": "Ns=2 material implicit coefficients; polynomial/NASA7 secants and distinct native/conservative volumes"
+    },
+    "layer3-kernel-suite-device-loop/material-test-3.log": {
+      "evidence": {
+        "path": "layer3-kernel-suite-device-loop/material-test-3.log",
+        "sha256": "1942ca4c988b9bfb7030e008b766e1ed23e1cff15864b971d661e31086f210eb"
+      },
+      "scope": "Ns=3 material implicit coefficients; polynomial/NASA7 secants and distinct native/conservative volumes"
+    },
+    "layer3-resident-transaction/test.log": {
+      "evidence": {
+        "path": "layer3-resident-transaction/test.log",
+        "sha256": "f426a5a55e3afb038121620c80b41bc68f1516146ba2041df751c2a8d29c48e7"
+      },
+      "scope": "Resident material preparation, endpoint EOS, rejection without partial commit and subsequent reuse"
+    },
+    "layer3-sparse-device-loop-r2/memcheck.log": {
+      "evidence": {
+        "path": "layer3-sparse-device-loop-r2/memcheck.log",
+        "sha256": "53b7f91ef831721f9b7ad60c55ef76327ac9848fc49650169136aa01f50b7a3b"
+      },
+      "errors": 0
+    },
+    "layer3-resident-transaction/memcheck.log": {
+      "evidence": {
+        "path": "layer3-resident-transaction/memcheck.log",
+        "sha256": "68d87e8dc96000768959af50910036c3bd1516278ec60a55ed9fb8a6ec9ad7ff"
+      },
+      "errors": 0
+    },
+    "native_mesh": {
+      "evidence": {
+        "path": "layer3-mesh-suite-device-loop/results.json",
+        "sha256": "d1f0195bcf31c475fd7c9d4d3bb6f39d69b678a910fe4761b8efaaa270990fc5"
+      },
+      "cases": 6,
+      "scope": "Independent original OpenFOAM operators and physical residual/heat-flux comparisons; isolated exploratory timings only.",
+      "mpi": "PASS: two partitions, processor exchange plus local cyclic interfaces"
+    },
+    "CHMT": {
+      "evidence": {
+        "path": "layer3-native-device-loop/results.json",
+        "sha256": "e0be43ba37690513a3da809b51daa98ef669d51505fbd8985e162a3e62227ace"
+      },
+      "runs": 10,
+      "metadata_correction": "This reused layer2 runner originally described its baseline role as layer one. The binary path/hash identifies accepted layer two; no results were rewritten. The runner now accepts --baseline-role for later-layer reuse.",
+      "checkpoint_payload_bitwise_equal": true
+    },
+    "CHT": {
+      "evidence": {
+        "path": "layer3-cht-device-loop/results.json",
+        "sha256": "ad6b96f56fe2dfb2263f6128c177b290967ebe075def875d8caa991c4fa911c5"
+      },
+      "runs": 12,
+      "maximum_scaled_field_error": 0.0,
+      "warnings_by_run": [
+        {
+          "case": "cht-contact",
+          "kind": "baseline",
+          "warnings": {
+            "foam_warning_count": 0,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 0
+          }
+        },
+        {
+          "case": "cht-contact",
+          "kind": "candidate",
+          "warnings": {
+            "foam_warning_count": 0,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 0
+          }
+        },
+        {
+          "case": "cht-mixture",
+          "kind": "baseline",
+          "warnings": {
+            "foam_warning_count": 1,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 1
+          }
+        },
+        {
+          "case": "cht-mixture",
+          "kind": "candidate",
+          "warnings": {
+            "foam_warning_count": 1,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 1
+          }
+        },
+        {
+          "case": "cht-pure",
+          "kind": "baseline",
+          "warnings": {
+            "foam_warning_count": 0,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 0
+          }
+        },
+        {
+          "case": "cht-pure",
+          "kind": "candidate",
+          "warnings": {
+            "foam_warning_count": 0,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 0
+          }
+        },
+        {
+          "case": "cht-wall",
+          "kind": "baseline",
+          "warnings": {
+            "foam_warning_count": 1,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 1
+          }
+        },
+        {
+          "case": "cht-wall",
+          "kind": "candidate",
+          "warnings": {
+            "foam_warning_count": 1,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 1
+          }
+        },
+        {
+          "case": "cht-ode",
+          "kind": "baseline",
+          "warnings": {
+            "foam_warning_count": 1,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 1
+          }
+        },
+        {
+          "case": "cht-ode",
+          "kind": "candidate",
+          "warnings": {
+            "foam_warning_count": 1,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 1
+          }
+        },
+        {
+          "case": "cht-wallfunction",
+          "kind": "baseline",
+          "warnings": {
+            "foam_warning_count": 1,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 1
+          }
+        },
+        {
+          "case": "cht-wallfunction",
+          "kind": "candidate",
+          "warnings": {
+            "foam_warning_count": 1,
+            "wall_waveform_mismatch": 0,
+            "solid_iteration_budget": 1
+          }
+        }
+      ]
+    },
+    "layer3-restart-device-loop": {
+      "evidence": {
+        "path": "layer3-restart-device-loop/results.json",
+        "sha256": "349dc1606ce515e8a4afe8bd5643b6c825edd805d27fa433bdf90c77b038f201"
+      }
+    },
+    "layer3-restart-cht-contact-r2": {
+      "evidence": {
+        "path": "layer3-restart-cht-contact-r2/results.json",
+        "sha256": "3ebaf806017e6f3f047ae36845bf1cc65983904f3bc526a95434c9de9753bae4"
+      }
+    },
+    "layer3-restart-cht-mixture-r2": {
+      "evidence": {
+        "path": "layer3-restart-cht-mixture-r2/results.json",
+        "sha256": "8569729f3f3d25c5cb646f73924db87e54adf4676183d2437f675bdd94a6e551"
+      }
+    },
+    "layer3-restart-cht-wall-r2": {
+      "evidence": {
+        "path": "layer3-restart-cht-wall-r2/results.json",
+        "sha256": "8569729f3f3d25c5cb646f73924db87e54adf4676183d2437f675bdd94a6e551"
+      }
+    },
+    "layer3-cht-memcheck-device-loop": {
+      "evidence": {
+        "path": "layer3-cht-memcheck-device-loop/results.json",
+        "sha256": "db18fba9abf025aa66822f19e6b31158b255eaa46da127758ab55db5653cd063"
+      }
+    },
+    "CHMT_memcheck": {
+      "evidence": {
+        "path": "layer3-memcheck-device-loop/results.json",
+        "sha256": "2bb1000f3ecd9d8a9a8fc3bfd2ed5d993da3fbd0ac51cd7affeb3e6f9a4686ab"
+      }
+    },
+    "thermal_and_restart_probes": {
+      "evidence": {
+        "path": "layer3-thermal-probes-device-loop.log",
+        "sha256": "c1595148a35f79b6f6a7dc51664475d3b0a6caa8787c68c0c7682a53135e45eb"
+      },
+      "passed": 122,
+      "scope": "Original continuation, surface, full-exchange and restart-compatibility fixtures, linked against final conditional-graph CUDA operators."
+    },
+    "strong_conduction_binaries": {
+      "baseline": {
+        "path": "layer3-strong-conduction-device-loop/baseline",
+        "sha256": "fe156f6398bde502d5043b1b2c0afc482800ae01d2ca02d5cd33541d0fe39498"
+      },
+      "candidate": {
+        "path": "layer3-strong-conduction-device-loop/candidate",
+        "sha256": "82f6f262c79eb85bd143e727d0f024afcabb7de08debce00dda6b702bc21c902"
+      }
+    }
+  },
+  "performance": {
+    "CHMT_grid8": {
+      "evidence": {
+        "path": "layer3-performance8-device-loop/results.json",
+        "sha256": "72f1b292a8bffdd04f6cf839b4ea05d225048b50a7de42cd375be057b8456417"
+      },
+      "scope": "GNU time elapsed wall seconds (0.01 s resolution), then process exit status; process startup and normal output included, input copying and audits excluded.",
+      "samples_seconds": {
+        "baseline": [
+          4.23,
+          4.32,
+          4.35,
+          5.53,
+          5.26
+        ],
+        "candidate": [
+          4.32,
+          4.43,
+          4.44,
+          4.49,
+          4.3
+        ]
+      },
+      "median_seconds": {
+        "baseline": 4.35,
+        "candidate": 4.43
+      },
+      "speedup": 0.9819413092550789
+    },
+    "CHMT_grid16": {
+      "evidence": {
+        "path": "layer3-performance16-device-loop/results.json",
+        "sha256": "b4703ae30ce6f998e881bfabf60d75ec388d5c8abf32af2b80b43db5ae83332c"
+      },
+      "scope": "GNU time elapsed wall seconds (0.01 s resolution), then process exit status; process startup and normal output included, input copying and audits excluded.",
+      "samples_seconds": {
+        "baseline": [
+          62.12,
+          63.57,
+          66.58,
+          66.58,
+          64.38
+        ],
+        "candidate": [
+          62.08,
+          69.82,
+          67.74,
+          67.18,
+          64.61
+        ]
+      },
+      "median_seconds": {
+        "baseline": 64.38,
+        "candidate": 67.18
+      },
+      "speedup": 0.9583209288478712
+    },
+    "CHT_grid8": {
+      "evidence": {
+        "path": "layer3-cht-performance8/results.json",
+        "sha256": "328992092db0811a1053c27d92d0f02d28d9f4694d0c6d68234fa33ba83e38b6"
+      },
+      "scope": "native process elapsed; mesh excluded; startup and normal output included",
+      "samples_seconds": {
+        "baseline": [
+          1.2788957699667662,
+          1.2716073979972862,
+          1.2357080830261111,
+          0.7166488969814964,
+          0.6922074939939193
+        ],
+        "candidate": [
+          1.4729436920024455,
+          1.4586316319764592,
+          1.5504284470225684,
+          1.5633058099774644,
+          0.8473731090198271
+        ]
+      },
+      "median_seconds": {
+        "baseline": 1.2357080830261111,
+        "candidate": 1.4729436920024455
+      },
+      "speedup": 0.8389377609854074
+    },
+    "layer3-strong-conduction-device-loop-r1": {
+      "evidence": {
+        "path": "layer3-strong-conduction-device-loop-r1/results.json",
+        "sha256": "a5eae5bd69fd49cb2d9e090b281b2782a13ca5132f8281c3ee5180a87ade6fd4"
+      },
+      "scope": "Nonuniform variable-property solid solves against the frozen native owner.\n\nTimings include property/assembly/nonlinear work. With --repeats, discard one\nwarmup and measure repeated solves in the same resident owner. These are not\ncomplete gas-solid application timings or alternating process pairs.\n",
+      "cases": [
+        {
+          "grid": 8,
+          "shear": "0",
+          "aitken": false,
+          "maximum_temperature_error": 5.326228347257711e-11,
+          "samples_seconds": {
+            "baseline": [
+              0.001919975,
+              0.001431164,
+              0.00146759,
+              0.001868991,
+              0.001842598
+            ],
+            "candidate": [
+              0.016114959,
+              0.01718173,
+              0.017041311,
+              0.01558,
+              0.017111636
+            ]
+          },
+          "median_seconds": {
+            "baseline": 0.001842598,
+            "candidate": 0.017041311
+          },
+          "speedup": 0.10812536664579386,
+          "maximum_absolute_energy_residual": 1.2077541744481834e-10,
+          "maximum_wall_flux_error": 7.37720995402924e-11
+        },
+        {
+          "grid": 8,
+          "shear": "0",
+          "aitken": true,
+          "maximum_temperature_error": 3.007016857736744e-11,
+          "samples_seconds": {
+            "baseline": [
+              0.001547809,
+              0.001601412,
+              0.001611236,
+              0.002994286,
+              0.00248128
+            ],
+            "candidate": [
+              0.017439422,
+              0.019512343,
+              0.017375928,
+              0.019524147,
+              0.020152993
+            ]
+          },
+          "median_seconds": {
+            "baseline": 0.001611236,
+            "candidate": 0.019512343
+          },
+          "speedup": 0.08257521918305762,
+          "maximum_absolute_energy_residual": 1.4799925174280304e-11,
+          "maximum_wall_flux_error": 1.2537526572486968e-11
+        },
+        {
+          "grid": 8,
+          "shear": "0.35",
+          "aitken": false,
+          "maximum_temperature_error": 4.5645265345228836e-11,
+          "samples_seconds": {
+            "baseline": [
+              0.00332693,
+              0.003545148,
+              0.003394356,
+              0.003335668,
+              0.003409905
+            ],
+            "candidate": [
+              0.033430931,
+              0.034754538,
+              0.030212945,
+              0.030662702,
+              0.029140404
+            ]
+          },
+          "median_seconds": {
+            "baseline": 0.003394356,
+            "candidate": 0.030662702
+          },
+          "speedup": 0.11069983330236194,
+          "maximum_absolute_energy_residual": 8.50516185257888e-11,
+          "maximum_wall_flux_error": 1.936255600298864e-10
+        },
+        {
+          "grid": 8,
+          "shear": "0.35",
+          "aitken": true,
+          "maximum_temperature_error": 4.189359970041551e-11,
+          "samples_seconds": {
+            "baseline": [
+              0.004017864,
+              0.003753323,
+              0.003512796,
+              0.00357089,
+              0.003515293
+            ],
+            "candidate": [
+              0.032453774,
+              0.033500175,
+              0.032991724,
+              0.03338477,
+              0.032345862
+            ]
+          },
+          "median_seconds": {
+            "baseline": 0.00357089,
+            "candidate": 0.032991724
+          },
+          "speedup": 0.10823593213861755,
+          "maximum_absolute_energy_residual": 4.9435594506874736e-11,
+          "maximum_wall_flux_error": 6.109601713433221e-11
+        },
+        {
+          "grid": 32,
+          "shear": "0",
+          "aitken": false,
+          "maximum_temperature_error": 1.8133050616597757e-11,
+          "samples_seconds": {
+            "baseline": [
+              0.189050937,
+              0.18576174,
+              0.18200414,
+              0.175643272,
+              0.179755403
+            ],
+            "candidate": [
+              0.268290395,
+              0.282278714,
+              0.272446889,
+              0.284656325,
+              0.277028167
+            ]
+          },
+          "median_seconds": {
+            "baseline": 0.18200414,
+            "candidate": 0.277028167
+          },
+          "speedup": 0.6569878506253121,
+          "maximum_absolute_energy_residual": 8.231096360056256e-12,
+          "maximum_wall_flux_error": 6.477485214873013e-12
+        },
+        {
+          "grid": 32,
+          "shear": "0",
+          "aitken": true,
+          "maximum_temperature_error": 1.5006662579253316e-11,
+          "samples_seconds": {
+            "baseline": [
+              0.22092037,
+              0.235898093,
+              0.2321449,
+              0.228122313,
+              0.222210063
+            ],
+            "candidate": [
+              0.297450099,
+              0.302774245,
+              0.28056007,
+              0.267215322,
+              0.256257655
+            ]
+          },
+          "median_seconds": {
+            "baseline": 0.228122313,
+            "candidate": 0.28056007
+          },
+          "speedup": 0.813096150852828,
+          "maximum_absolute_energy_residual": 4.0881326102137905e-11,
+          "maximum_wall_flux_error": 4.929123775809785e-11
+        },
+        {
+          "grid": 32,
+          "shear": "0.35",
+          "aitken": false,
+          "maximum_temperature_error": 2.262368070660159e-11,
+          "samples_seconds": {
+            "baseline": [
+              0.417179577,
+              0.422639039,
+              0.424772275,
+              0.413844832,
+              0.4070275
+            ],
+            "candidate": [
+              0.522910684,
+              0.529620399,
+              0.466931831,
+              0.479625389,
+              0.467936578
+            ]
+          },
+          "median_seconds": {
+            "baseline": 0.417179577,
+            "candidate": 0.479625389
+          },
+          "speedup": 0.8698029473998509,
+          "maximum_absolute_energy_residual": 1.8971310633553173e-11,
+          "maximum_wall_flux_error": 1.1359446716596722e-10
+        },
+        {
+          "grid": 32,
+          "shear": "0.35",
+          "aitken": true,
+          "maximum_temperature_error": 1.8246737454319373e-11,
+          "samples_seconds": {
+            "baseline": [
+              0.470455713,
+              0.451247338,
+              0.442226882,
+              0.433350187,
+              0.441832054
+            ],
+            "candidate": [
+              0.504011943,
+              0.525632003,
+              0.518813638,
+              0.493167832,
+              0.499429116
+            ]
+          },
+          "median_seconds": {
+            "baseline": 0.442226882,
+            "candidate": 0.504011943
+          },
+          "speedup": 0.877413498116254,
+          "maximum_absolute_energy_residual": 2.6204802217044687e-11,
+          "maximum_wall_flux_error": 3.322342401190781e-11
+        }
+      ]
+    },
+    "layer3-strong-conduction-device-loop64": {
+      "evidence": {
+        "path": "layer3-strong-conduction-device-loop64/results.json",
+        "sha256": "b3f88cd698bc52bd7e5c00a2fb418a2485fede2faeb7af0c198d0791ff625857"
+      },
+      "scope": "Nonuniform variable-property solid solves against the frozen native owner.\n\nTimings include property/assembly/nonlinear work. With --repeats, discard one\nwarmup and measure repeated solves in the same resident owner. These are not\ncomplete gas-solid application timings or alternating process pairs.\n",
+      "cases": [
+        {
+          "grid": 64,
+          "shear": "0",
+          "aitken": false,
+          "maximum_temperature_error": 2.2225776774575934e-11,
+          "samples_seconds": {
+            "baseline": [
+              2.892725964,
+              2.825100767,
+              2.762906687,
+              2.820093966,
+              3.047954155
+            ],
+            "candidate": [
+              1.817877564,
+              1.939405115,
+              1.850104756,
+              1.850873056,
+              1.833528005
+            ]
+          },
+          "median_seconds": {
+            "baseline": 2.825100767,
+            "candidate": 1.850104756
+          },
+          "speedup": 1.5269950297884647,
+          "maximum_absolute_energy_residual": 4.677938592045905e-12,
+          "maximum_wall_flux_error": 7.911449273478866e-12
+        },
+        {
+          "grid": 64,
+          "shear": "0",
+          "aitken": true,
+          "maximum_temperature_error": 1.1652900866465643e-11,
+          "samples_seconds": {
+            "baseline": [
+              3.486129022,
+              3.59811951,
+              3.308895147,
+              3.358332409,
+              3.691867953
+            ],
+            "candidate": [
+              1.999886943,
+              1.883578714,
+              1.89156358,
+              1.910760626,
+              1.923437323
+            ]
+          },
+          "median_seconds": {
+            "baseline": 3.486129022,
+            "candidate": 1.910760626
+          },
+          "speedup": 1.824471875002934,
+          "maximum_absolute_energy_residual": 6.028373633615303e-11,
+          "maximum_wall_flux_error": 5.6414872773302704e-11
+        },
+        {
+          "grid": 64,
+          "shear": "0.35",
+          "aitken": false,
+          "maximum_temperature_error": 1.404032445861958e-11,
+          "samples_seconds": {
+            "baseline": [
+              6.21941523,
+              6.054107737,
+              5.915461112,
+              5.915853142,
+              5.810823746
+            ],
+            "candidate": [
+              3.751221453,
+              3.77910932,
+              3.787014975,
+              3.766658896,
+              3.959069206
+            ]
+          },
+          "median_seconds": {
+            "baseline": 5.915853142,
+            "candidate": 3.77910932
+          },
+          "speedup": 1.5654093705868237,
+          "maximum_absolute_energy_residual": 1.2826795181553052e-11,
+          "maximum_wall_flux_error": 1.2467582521935583e-10
+        },
+        {
+          "grid": 64,
+          "shear": "0.35",
+          "aitken": true,
+          "maximum_temperature_error": 1.5802470443304628e-11,
+          "samples_seconds": {
+            "baseline": [
+              7.047673928,
+              6.792228637,
+              6.764053779,
+              7.011606891,
+              7.068805409
+            ],
+            "candidate": [
+              4.295634572,
+              4.265545214,
+              4.391419037,
+              4.174937964,
+              4.167979228
+            ]
+          },
+          "median_seconds": {
+            "baseline": 7.011606891,
+            "candidate": 4.265545214
+          },
+          "speedup": 1.643777416304747,
+          "maximum_absolute_energy_residual": 1.678597538745663e-11,
+          "maximum_wall_flux_error": 3.322209174427826e-11
+        }
+      ]
+    }
+  },
+  "requirements": {
+    "README_changed": false,
+    "new_runtime_stop_gate": false,
+    "CPU_retry_or_fallback": false,
+    "case_specific_production_dispatch": false,
+    "applications": "gasUGKP remains pure gas; CHT conjugate heat; CHMT heat/mass/ablation. Shared thermal CUDA operators serve CHT and CHMT.",
+    "conditional_graph_API": "Validated with CUDA 13.1 on sm_89; uses conditional graph APIs and requires a toolkit/runtime providing them."
+  },
+  "limitations_and_retained_failures": [
+    "An initial resident-version CHMT timing cohort stopped on an intermittent libstdc++ floating-output SIGSEGV. The incomplete cohort is retained in layer3-performance8-resident and excluded. The final complete paired cohorts below did not use retries or omit completed samples.",
+    "Earlier standalone compile attempts exposed a CUDA graph API signature error and a duplicate test link command; both were fixed before the reported runs. Their build logs remain in the evidence tree.",
+    "Legacy test expectations for unused invalid surface certificates were inconsistent with frozen 88bc behavior. Baseline controls proved this before updating test-only expectations. Consumed invalid properties still use existing production diagnostics.",
+    "Original restart semantics do not restore the empty-particle dMeanCell diagnostic. Both baseline and candidate show the same continuous-versus-restart difference; restarted baseline versus restarted candidate is checked strictly for every published field.",
+    "The restart probe permits only candidateResidual cancellation differences below 1e-10 J, tighter than its existing 1e-8 J energy tolerance. Published fields, ledgers, clocks and nonlinear iteration counts retain bitwise checks.",
+    "Mixed unchanged fast gas objects were used in native timing binaries. Reported measurements compare identical gas build modes and are not production-optimized whole-application performance claims."
+  ]
+}

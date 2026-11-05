@@ -750,6 +750,41 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/gasBoundary/Api.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasBoundary/BackendApi.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasBoundary/Definition.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasBoundary/Evaluate.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasBoundary/FoamInput.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasBoundary/Resident.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasBoundary/Wire.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "common/gasNumerics/CharacteristicMuscl.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
@@ -1115,6 +1150,11 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/operators/evaluateResidentBoundary.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "common/operators/gasFaceSubgridTransportProperties.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
@@ -1286,6 +1326,191 @@
     },
     {
       "path": "tests/fixtures/shared_operators/schema7_wire_golden.json",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPreparePressureProjection.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPublishParticleEnthalpyMoment.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuGasWallExposedArea.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/MolecularConductivity.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureProjectionTypes.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureAnalyticPhysics.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureContactProjection.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureContactLaunch.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleHeatMomentView.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuMobileParticleHeat.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/WallHeatExposure.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/GpuWallEnergy64.cu",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/GpuResidentStrict.cu",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/GpuParticleRadiationMath.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/GpuBackendApi.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/GpuWallEnergy64.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuMixtureThermalParticleHeat.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/ParticleCaloricHeatResponse.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/MixtureParticleDirectory.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/ParticleHeatReservoir.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/AttachedParticleGeometry.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/ParticleGasBinding.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/ParticleGasFields.inc",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/ParticleGeometryAdapter.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/ParticleGeometryApi.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/ParticleInitialization.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/ParticlePhaseConfiguration.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/ParticleState.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/ParticleStateAdapter.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/ParticleStateApi.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/ParticleStateFields.inc",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/ParticleSurfaceState.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/thermal/ParticleTrackingGeometry.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/PositiveInventory.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/FoamParticleInjectionVelocity.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleInjectionVelocityConfiguration.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/ParticleInjectionVelocity.H",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     }

@@ -7,7 +7,7 @@
 namespace ugkwpGpuDrag
 {
 
-struct DragInput
+struct ThermalDragInput
 {
     GpuReal gasDensity;
     GpuReal gasVolumeFraction;
@@ -19,7 +19,7 @@ struct DragInput
 
 struct SchillerNaumannDrag
 {
-    __device__ static GpuReal inverseRelaxationTime(const DragInput& in)
+    __device__ static GpuReal inverseRelaxationTime(const ThermalDragInput& in)
     {
         return
             ugkwpGpuDragAlgebra::fshChtSchillerNaumannInverseRelaxationTime
@@ -37,7 +37,7 @@ struct GidaspowErgunWenYuDrag
 {
     GpuReal residualRe;
 
-    __device__ GpuReal inverseRelaxationTime(const DragInput& in) const
+    __device__ GpuReal inverseRelaxationTime(const ThermalDragInput& in) const
     {
         return
             ugkwpGpuDragAlgebra::fshChtGidaspowInverseRelaxationTime

@@ -30,6 +30,7 @@ public:
  const word& particleStuckWallHeatFluxFieldName()const{static word n("particleStuckWallHeatFlux");return n;}
  const word& particleReflectedWallHeatFluxFieldName()const{static word n("particleReflectedWallHeatFlux");return n;}
  void configureGasWallEnergyLedger(const fvMesh& m,const labelList& patches){label n=0;forAll(patches,p)n+=m.boundary()[patches[p]].size();faces.setSize(n);label j=0;forAll(patches,p){const auto& patch=m.boundaryMesh()[patches[p]];forAll(patch,f){faces[j++]=patch.start()+f;gas[patch.start()+f]=zeroAtConfigure?0:50;deposited[patch.start()+f]=(zeroAtConfigure||!heatEnabled)?0:20;reflected[patch.start()+f]=(zeroAtConfigure||!heatEnabled)?0:-5;}}}
+ #include "InterfaceExchangeResident.inc"
  const labelList& configuredGasWallEnergyFaceIds()const{return faces;}
  void restorePendingWallEnergyLedgers(const scalarField& g,const scalarField& d,const scalarField& r){++restoreCalls;forAll(faces,i){gas[faces[i]]=g[i];deposited[faces[i]]=d[i];reflected[faces[i]]=r[i];}}
  void peekPendingWallEnergyLedgers(scalarField& g,scalarField& d,scalarField& r)const{g.setSize(faces.size());d.setSize(faces.size());r.setSize(faces.size());forAll(faces,i){g[i]=gas[faces[i]];d[i]=deposited[faces[i]];r[i]=reflected[faces[i]];}}
@@ -45,6 +46,7 @@ public:
  scalarField particleWallOccupiedContactArea()const{return scalarField(mesh_.nFaces(),0);}
  void applyParticleRadiationEnergy(const fvMesh&,const scalarField& energy,const scalarField&,const scalarField& mean,scalar){radiationEnergy=energy;radiationMean=mean;++radiationApplications;}
  void refreshParticleEnthalpyAfterRadiation(){++enthalpyRefreshes;}
+ void downloadSharedGasSpecies(const volScalarField&)const{}
  void downloadToHostMirror(Time&,volScalarField&,volVectorField&,volScalarField&,volVectorField&,volScalarField&,volScalarField&,volScalarField&,volVectorField&,volScalarField&,volScalarField&,volScalarField&,volVectorField&,volScalarField&,volScalarField&,volScalarField&,bool)const{}
  GpuThermalRestartMirrorMetadata stageThermalRestartMirrors(const Time& t,bool)const{
   mkDir(t.timePath());GpuThermalRestartMirrorMetadata m;

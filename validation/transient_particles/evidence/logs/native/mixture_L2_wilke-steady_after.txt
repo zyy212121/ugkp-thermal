@@ -1,0 +1,257 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/steady-r2-bin/gasUGKPSteady -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/native-r3/mixture_L2_wilke-steady_after
+Date   : Oct 28 2026
+Time   : 22:17:15
+Host   : "lss"
+PID    : 27513
+I/O    : uncollated
+Case   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/native-r3/mixture_L2_wilke-steady_after
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+gasUGKPSteady: gas LTS / physical-step particle statistical steady solver
+Create mesh for time = 0
+
+GPU particle forces: dragModel=SchillerNaumann particleGasHeatTransferModel=RanzMarshall gravity=(0 0 0) m/s^2
+Particle cell path: csrCellLocalPath=1 heavyReductionMode=1 B2=128 B3=128 heavyAutoInterval=100 warpAggregatedBinning=1 splitPreDirectory=1
+[cuda-runtime] stackLimitBytes=65536 requested=65536
+Tracking geometry: B2=128 blocksPerSM=6 grid=79
+Launch geometry: B1cell=128 B1face=128 (ToolB1 pending) B2=128 B3=128 SM=24 hardwareMaxThreadsPerBlock=1024 hardwareMaxBlocksPerSM=24 particleBlocksPerSM=6 lightBlocksPerSM=4 heavyBlocksPerSM=4
+Shared gas model: api=1 Ns=2 mode=1 speciesOrderHash=12445161613445958710 thermoHash=8310305270766128250 mechanismHash=0
+Particle statistical steady sampling: physical dt=2.0000000000000002e-05, fixed external boundary time=0, samples/window=20
+Gas and particle operators share this physical step; no particle LTS acceleration.
+Time directory labels count samples. Window RMS is reported, not used as a stationarity gate.
+Steady restart metadata loaded=0; samplingTime=0; samples=0; statistics windows start afresh (no convergence history reused).
+Steady sampling window 1 physicalDuration=0.00040000000000000002 totalSamplingTime=0.00040000000000000002
+  rho meanChange=1 relativeRms=4.780065942634534e-09 inventoryBegin=2 inventoryEnd=1.9999999982763943 inventoryDrift=8.6180285246895901e-10
+  rhoUx meanChange=0.043867505745045755 relativeRms=2.8942411540117524e-09 inventoryBegin=40 inventoryEnd=40.000000611933046 inventoryDrift=6.710993450531639e-10
+  rhoUy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoE meanChange=8.3459424674823435 relativeRms=0.014785674952225759 inventoryBegin=3184676.8690923383 inventoryEnd=3184297.8600171134 inventoryDrift=0.00091080991962621876
+  rhoK meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoOmega meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoSolid meanChange=1 relativeRms=0.54916964736527574 inventoryBegin=0 inventoryEnd=3.9999999999999998e-06 inventoryDrift=1.9047619047619044
+  rhoUsx meanChange=0.74243428709861303 relativeRms=0.40772237567359987 inventoryBegin=0 inventoryEnd=8.0000000017901025e-05 inventoryDrift=1.4141605469537242
+  rhoUsy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUsz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoEs meanChange=1 relativeRms=0.549169643171602 inventoryBegin=0 inventoryEnd=0.00080005998383104906 inventoryDrift=1.9047618925126053
+  rhoHp meanChange=1 relativeRms=0.54920367397303937 inventoryBegin=0 inventoryEnd=1.2002129525705025 inventoryDrift=1.9048638323819944
+  rhoDs meanChange=1 relativeRms=0.54916964736527529 inventoryBegin=0 inventoryEnd=4.0000000000000002e-09 inventoryDrift=1.9047619047619044
+  rhoY0 meanChange=1 relativeRms=0.004036483787869403 inventoryBegin=0.59999999999999998 inventoryEnd=0.60012633503907042 inventoryDrift=0.00021053950436375973
+  rhoY1 meanChange=1 relativeRms=0.00156681454129023 inventoryBegin=1.3999999999999999 inventoryEnd=1.3998736632373241 inventoryDrift=9.0244015777482333e-05
+  gasIntrinsicFvBoundaryExchange (not porosity-weighted mixture flux): -1.2804055207044605e-09 6.2079704665762847e-07 0 0 -379.00891108148801 0.0001263351771010608 -0.00012633645750658156
+  particleInjected mass/momentumXYZ/mechanicalEnergy/materialHeat: 3.9999999999999719e-06 7.9999999999999803e-05 0 0 0.00080005999999999589 1.1999999999999929
+  particleTrackingBoundaryExchange (outflow plus wall impulse/heat): -1.4889251025954498e-22 9.4714165370791796e-19 0 0 -2.5012882932419489e-18 -4.0896105946153227e-15
+  particleInventoryMinusBoundaryExchange (coupling/collision/internal effects): 2.8100979769651456e-20 1.7900274270672988e-14 0 0 -1.6168944322508588e-11 0.00021295257051377314
+  windowStationary=0 consecutive=0 maxMeanChange=8.3459424674823435 maxInventoryDrift=1.9048638323819944
+Steady sampling window 2 physicalDuration=0.00040000000000000002 totalSamplingTime=0.0008000000000000008
+  rho meanChange=4.6168024692798893e-09 relativeRms=1.3207907491445052e-09 inventoryBegin=1.9999999982763943 inventoryEnd=1.999999995752167 inventoryDrift=1.262113638926541e-09
+  rhoUx meanChange=5.3769946710939964e-09 relativeRms=1.6028050006693624e-09 inventoryBegin=40.000000611933046 inventoryEnd=40.000001298092428 inventoryDrift=7.5250244279676512e-10
+  rhoUy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoE meanChange=0.049559398755484249 relativeRms=0.013798983042639603 inventoryBegin=3184297.8600171134 inventoryEnd=3183619.8230590075 inventoryDrift=0.0016294142501049121
+  rhoK meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoOmega meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoSolid meanChange=0.65573770491803274 relativeRms=0.18905840319132464 inventoryBegin=3.9999999999999998e-06 inventoryEnd=8.0000000000000013e-06 inventoryDrift=0.65573770491803307
+  rhoUsx meanChange=0.65573770497647965 relativeRms=0.18905840323726236 inventoryBegin=8.0000000017901025e-05 inventoryEnd=0.00016000000006259605 inventoryDrift=0.65573770507233742
+  rhoUsy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUsz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoEs meanChange=0.65573769875661658 relativeRms=0.18905839769927932 inventoryBegin=0.00080005998383104906 inventoryEnd=0.0016001199360327462 inventoryDrift=0.65573768651333664
+  rhoHp meanChange=0.65578984723035927 relativeRms=0.18910540269068327 inventoryBegin=1.2002129525705025 inventoryEnd=2.4008317373964685 inventoryDrift=0.65589517594189573
+  rhoDs meanChange=0.65573770491803274 relativeRms=0.18905840319132447 inventoryBegin=4.0000000000000002e-09 inventoryEnd=8.0000000000000005e-09 inventoryDrift=0.65573770491803285
+  rhoY0 meanChange=0.013349088384016416 relativeRms=0.0037168296805734245 inventoryBegin=0.60012633503907042 inventoryEnd=0.60035234525892434 inventoryDrift=0.00037531062551456707
+  rhoY1 meanChange=0.0051842351641345017 relativeRms=0.0014254854421335594 inventoryBegin=1.3998736632373241 inventoryEnd=1.3996476504932427 inventoryDrift=0.00016121868018175036
+  gasIntrinsicFvBoundaryExchange (not porosity-weighted mixture flux): -1.7690275885330099e-09 7.012633824743375e-07 0 0 -678.03582960447261 0.00022601045252970093 -0.00022601222155728959
+  particleInjected mass/momentumXYZ/mechanicalEnergy/materialHeat: 3.9999999999999719e-06 7.9999999999999532e-05 0 0 0.00080005999999999567 1.1999999999999822
+  particleTrackingBoundaryExchange (outflow plus wall impulse/heat): -1.4889251025954498e-22 -1.4388972191482427e-19 0 0 3.7667555164398736e-18 6.3430163899091951e-15
+  particleInventoryMinusBoundaryExchange (coupling/collision/internal effects): 2.9795045664160057e-20 4.4695633061443251e-14 0 0 -4.7798302289075165e-11 0.0006187848259774217
+  windowStationary=0 consecutive=0 maxMeanChange=0.65578984723035927 maxInventoryDrift=0.65589517594189573
+Steady sampling window 3 physicalDuration=0.00040000000000000002 totalSamplingTime=0.0012000000000000018
+  rho meanChange=3.3329152614522443e-09 relativeRms=9.6942612675080618e-10 inventoryBegin=1.999999995752167 inventoryEnd=1.9999999928425938 inventoryDrift=1.454786630016082e-09
+  rhoUx meanChange=4.0770628332933348e-09 relativeRms=1.1967081329502096e-09 inventoryBegin=40.000001298092428 inventoryEnd=40.000001692926418 inventoryDrift=4.330095163992779e-10
+  rhoUy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoE meanChange=0.046200690188648356 relativeRms=0.012846713707168942 inventoryBegin=3183619.8230590075 inventoryEnd=3182793.0314800944 inventoryDrift=0.0019868916682052131
+  rhoK meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoOmega meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoSolid meanChange=0.396039603960396 relativeRms=0.11418378806604745 inventoryBegin=8.0000000000000013e-06 inventoryEnd=1.2e-05 inventoryDrift=0.39603960396039595
+  rhoUsx meanChange=0.39603960405117639 relativeRms=0.11418378810710152 inventoryBegin=0.00016000000006259605 inventoryEnd=0.00024000000012869066 inventoryDrift=0.39603960410000039
+  rhoUsy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUsz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoEs meanChange=0.39603959230614361 relativeRms=0.11418378245827637 inventoryBegin=0.0016001199360327462 inventoryEnd=0.0024001798567458979 inventoryDrift=0.39603958489960039
+  rhoHp meanChange=0.39613951223153832 relativeRms=0.11423190769842879 inventoryBegin=2.4008317373964685 inventoryEnd=3.6018566408654529 inventoryDrift=0.39620315435051978
+  rhoDs meanChange=0.39603960396039611 relativeRms=0.11418378806604752 inventoryBegin=8.0000000000000005e-09 inventoryEnd=1.2000000000000002e-08 inventoryDrift=0.39603960396039611
+  rhoY0 meanChange=0.012291442660292378 relativeRms=0.0034177983980458178 inventoryBegin=0.60035234525892434 inventoryEnd=0.60062793996043617 inventoryDrift=0.0004576240116226435
+  rhoY1 meanChange=0.0046887243945288896 relativeRms=0.0012922552051242084 inventoryBegin=1.3996476504932427 inventoryEnd=1.3993720528821578 inventoryDrift=0.00019664530943168688
+  gasIntrinsicFvBoundaryExchange (not porosity-weighted mixture flux): -1.6423733502205808e-09 4.201779884027701e-07 0 0 -826.78912862403263 0.00027559508979866455 -0.0002755967321720152
+  particleInjected mass/momentumXYZ/mechanicalEnergy/materialHeat: 3.9999999999999719e-06 8.000000000000311e-05 0 0 0.00080006000000000261 1.1999999999999971
+  particleTrackingBoundaryExchange (outflow plus wall impulse/heat): -1.4889251025954498e-22 -3.2293660509662234e-18 0 0 4.2664202520251854e-17 -2.1902618607683166e-14
+  particleInventoryMinusBoundaryExchange (coupling/collision/internal effects): 2.7253946822397156e-20 6.6094730127834461e-14 0 0 -7.928689362043641e-11 0.0010249034690092175
+  windowStationary=0 consecutive=0 maxMeanChange=0.39613951223153832 maxInventoryDrift=0.39620315435051978
+Steady sampling window 4 physicalDuration=0.00040000000000000002 totalSamplingTime=0.0016000000000000029
+  rho meanChange=2.6932895802897089e-09 relativeRms=7.8228631695577211e-10 inventoryBegin=1.9999999928425938 inventoryEnd=1.9999999895405594 inventoryDrift=1.6510172204769014e-09
+  rhoUx meanChange=3.3245727109066178e-09 relativeRms=9.6667183177383797e-10 inventoryBegin=40.000001692926418 inventoryEnd=40.000001783804038 inventoryDrift=9.9664353750492265e-11
+  rhoUy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoE meanChange=0.042967124499508798 relativeRms=0.011938361406884548 inventoryBegin=3182793.0314800944 inventoryEnd=3181884.0897198524 inventoryDrift=0.0021843096375255572
+  rhoK meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoOmega meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoSolid meanChange=0.28368794326241137 relativeRms=0.081791224075679375 inventoryBegin=1.2e-05 inventoryEnd=1.6000000000000003e-05 inventoryDrift=0.28368794326241148
+  rhoUsx meanChange=0.28368794335761977 relativeRms=0.081791224111335881 inventoryBegin=0.00024000000012869066 inventoryEnd=0.00032000000021165001 inventoryDrift=0.28368794338450937
+  rhoUsy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUsz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoEs meanChange=0.2836879292745545 relativeRms=0.081791218428341445 inventoryBegin=0.0024001798567458979 inventoryEnd=0.0032002397458895746 inventoryDrift=0.28368792395466813
+  rhoHp meanChange=0.28380794192412895 relativeRms=0.081839658875651936 inventoryBegin=3.6018566408654529 inventoryEnd=4.8032878041267342 inventoryDrift=0.28385353662205515
+  rhoDs meanChange=0.28368794326241131 relativeRms=0.081791224075679389 inventoryBegin=1.2000000000000002e-08 inventoryEnd=1.6000000000000001e-08 inventoryDrift=0.28368794326241131
+  rhoY0 meanChange=0.011301975325683424 relativeRms=0.0031402396436760634 inventoryBegin=0.60062793996043617 inventoryEnd=0.60093091766426432 inventoryDrift=0.00050294585607848369
+  rhoY1 meanChange=0.0042650959353146825 relativeRms=0.0011744832707104053 inventoryBegin=1.3993720528821578 inventoryEnd=1.3990690718762955 inventoryDrift=0.00021624096139897199
+  gasIntrinsicFvBoundaryExchange (not porosity-weighted mixture flux): -1.5228349367103766e-09 1.2646161895446539e-07 0 0 -908.93798802059177 0.00030297824772489314 -0.00030297977055982974
+  particleInjected mass/momentumXYZ/mechanicalEnergy/materialHeat: 3.9999999999999719e-06 8.0000000000003598e-05 0 0 0.00080006000000003026 1.2000000000000406
+  particleTrackingBoundaryExchange (outflow plus wall impulse/heat): -1.4889251025954498e-22 -5.6206459401835201e-18 0 0 -4.6674903525500966e-17 1.0091667085321276e-13
+  particleInventoryMinusBoundaryExchange (coupling/collision/internal effects): 3.0642078611414357e-20 8.2961371204703769e-14 0 0 -1.1085630682730954e-10 0.0014311632611397921
+  windowStationary=0 consecutive=0 maxMeanChange=0.28380794192412895 maxInventoryDrift=0.28385353662205515
+Steady sampling window 5 physicalDuration=0.00040000000000000002 totalSamplingTime=0.0020000000000000039
+  rho meanChange=2.2827220030021279e-09 relativeRms=6.6320877308044979e-10 inventoryBegin=1.9999999895405594 inventoryEnd=1.9999999858292654 inventoryDrift=1.8556469820965975e-09
+  rhoUx meanChange=2.9110362461357972e-09 relativeRms=8.4558457460370583e-10 inventoryBegin=40.000001783804038 inventoryEnd=40.000001569804567 inventoryDrift=2.3469055376661873e-10
+  rhoUy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoE meanChange=0.039932473460778321 relativeRms=0.011098799227234848 inventoryBegin=3181884.0897198524 inventoryEnd=3180933.5368799409 inventoryDrift=0.0022843066796552126
+  rhoK meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoOmega meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoSolid meanChange=0.22099447513812151 relativeRms=0.063715815440170062 inventoryBegin=1.6000000000000003e-05 inventoryEnd=1.9999999999999998e-05 inventoryDrift=0.22099447513812132
+  rhoUsx meanChange=0.22099447522628368 relativeRms=0.063715815469881656 inventoryBegin=0.00032000000021165001 inventoryEnd=0.00040000000030622333 inventoryDrift=0.22099447524030882
+  rhoUsy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUsz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoEs meanChange=0.22099445984590035 relativeRms=0.063715809769783013 inventoryBegin=0.0032002397458895746 inventoryEnd=0.0040002996033695164 inventoryDrift=0.22099445568926845
+  rhoHp meanChange=0.22112552983523126 relativeRms=0.063764380460500467 inventoryBegin=4.8032878041267342 inventoryEnd=6.0051253243114822 inventoryDrift=0.22116105037338135
+  rhoDs meanChange=0.22099447513812151 relativeRms=0.063715815440170159 inventoryBegin=1.6000000000000001e-08 inventoryEnd=2e-08 inventoryDrift=0.22099447513812151
+  rhoY0 meanChange=0.010394566866172445 relativeRms=0.0028890579228704116 inventoryBegin=0.60093091766426432 inventoryEnd=0.60124776532551993 inventoryDrift=0.00052579266806280567
+  rhoY1 meanChange=0.0038836596449457585 relativeRms=0.001071394069300062 inventoryBegin=1.3990690718762955 inventoryEnd=1.3987522205037459 inventoryDrift=0.00022620485000241782
+  gasIntrinsicFvBoundaryExchange (not porosity-weighted mixture flux): -1.4200945951396877e-09 -1.6817546644176673e-07 0 0 -950.54774515532108 0.00031684836059383707 -0.00031684978068843216
+  particleInjected mass/momentumXYZ/mechanicalEnergy/materialHeat: 3.9999999999999719e-06 8.0000000000004208e-05 0 0 0.00080006000000000055 1.200000000000041
+  particleTrackingBoundaryExchange (outflow plus wall impulse/heat): -1.4889251025954498e-22 1.4533497188107692e-18 0 0 -4.7667626139683006e-17 -7.1287593883528899e-14
+  particleInventoryMinusBoundaryExchange (coupling/collision/internal effects): 2.3865815033379954e-20 9.4567661016987475e-14 0 0 -1.425200111294662e-10 0.0018375201847782409
+  windowStationary=0 consecutive=0 maxMeanChange=0.22112552983523126 maxInventoryDrift=0.22116105037338135
+Steady sampling window 6 physicalDuration=0.00040000000000000002 totalSamplingTime=0.002400000000000005
+  rho meanChange=2.0540951084670392e-09 relativeRms=6.23493743261313e-10 inventoryBegin=1.9999999858292654 inventoryEnd=1.9999999816937364 inventoryDrift=2.0677645329696012e-09
+  rhoUx meanChange=2.9471862164243138e-09 relativeRms=8.5650799918318857e-10 inventoryBegin=40.000001569804567 inventoryEnd=40.000001049552125 inventoryDrift=5.7055437417647905e-10
+  rhoUy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoE meanChange=0.037149178296875029 relativeRms=0.01033281350281782 inventoryBegin=3180933.5368799409 inventoryEnd=3179968.7422708906 inventoryDrift=0.0023185315784186485
+  rhoK meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoOmega meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoSolid meanChange=0.18099547511312225 relativeRms=0.052183541152356593 inventoryBegin=1.9999999999999998e-05 inventoryEnd=2.4000000000000001e-05 inventoryDrift=0.18099547511312225
+  rhoUsx meanChange=0.18099547518862436 relativeRms=0.052183541175917496 inventoryBegin=0.00040000000030622333 inventoryEnd=0.00048000000040712221 inventoryDrift=0.18099547519443968
+  rhoUsy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUsz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoEs meanChange=0.18099545897969049 relativeRms=0.052183535464682754 inventoryBegin=0.0040002996033695164 inventoryEnd=0.0048003594290915042 inventoryDrift=0.18099545556530305
+  rhoHp meanChange=0.18113352233621152 relativeRms=0.052232171033233153 inventoryBegin=6.0051253243114822 inventoryEnd=7.2073692721601912 inventoryDrift=0.18116261370809764
+  rhoDs meanChange=0.18099547511312214 relativeRms=0.05218354115235653 inventoryBegin=2e-08 inventoryEnd=2.4e-08 inventoryDrift=0.18099547511312214
+  rhoY0 meanChange=0.0095855139168166525 relativeRms=0.0026759985019164318 inventoryBegin=0.60124776532551993 inventoryEnd=0.60156935983001558 inventoryDrift=0.00053347700981235381
+  rhoY1 meanChange=0.0035504898051726226 relativeRms=0.00098125502580378369 inventoryBegin=1.3987522205037459 inventoryEnd=1.3984306218637217 inventoryDrift=0.00022966176605745335
+  gasIntrinsicFvBoundaryExchange (not porosity-weighted mixture flux): -1.332329263624768e-09 -4.6418843879791893e-07 0 0 -964.78819105696232 0.000321595359064543 -0.00032159669139380658
+  particleInjected mass/momentumXYZ/mechanicalEnergy/materialHeat: 3.9999999999999719e-06 7.9999999999997391e-05 0 0 0.00080006000000010539 1.2000000000000983
+  particleTrackingBoundaryExchange (outflow plus wall impulse/heat): -1.4889251025954498e-22 -2.856089219023094e-19 0 0 1.1968914357882166e-16 1.0921905740923776e-13
+  particleInventoryMinusBoundaryExchange (coupling/collision/internal effects): 3.0642078611414357e-20 1.0090177763171987e-13 0 0 -1.7427823723411727e-10 0.0022439478485014866
+  windowStationary=0 consecutive=0 maxMeanChange=0.18113352233621152 maxInventoryDrift=0.18116261370809764
+Steady sampling window 7 physicalDuration=0.00040000000000000002 totalSamplingTime=0.002800000000000006
+  rho meanChange=2.2038486532351265e-09 relativeRms=6.5224903132996334e-10 inventoryBegin=1.9999999816937364 inventoryEnd=1.999999977079348 inventoryDrift=2.3071942379160128e-09
+  rhoUx meanChange=2.963139421285842e-09 relativeRms=8.5776561690909412e-10 inventoryBegin=40.000001049552125 inventoryEnd=40.000000197482372 inventoryDrift=9.344542899066021e-10
+  rhoUy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoE meanChange=0.034609451555976098 relativeRms=0.0096694038320634113 inventoryBegin=3179968.7422708906 inventoryEnd=3179009.0713259019 inventoryDrift=0.0023062187302378984
+  rhoK meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoOmega meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoSolid meanChange=0.15325670498084287 relativeRms=0.044186063581114148 inventoryBegin=2.4000000000000001e-05 inventoryEnd=2.8000000000000003e-05 inventoryDrift=0.15325670498084298
+  rhoUsx meanChange=0.15325670504078773 relativeRms=0.04418606359846329 inventoryBegin=0.00048000000040712221 inventoryEnd=0.00056000000050910519 inventoryDrift=0.15325670504092503
+  rhoUsy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUsz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoEs meanChange=0.15325668825460559 relativeRms=0.044186057878762834 inventoryBegin=0.0048003594290915042 inventoryEnd=0.0056004192229628866 inventoryDrift=0.15325668535503931
+  rhoHp meanChange=0.15339957036623295 relativeRms=0.044234729243881804 inventoryBegin=7.2073692721601912 inventoryEnd=8.4100197032379587 inventoryDrift=0.1534242023697252
+  rhoDs meanChange=0.15325670498084301 relativeRms=0.044186063581114154 inventoryBegin=2.4e-08 inventoryEnd=2.8000000000000003e-08 inventoryDrift=0.15325670498084301
+  rhoY0 meanChange=0.0089164998574377246 relativeRms=0.0024913167159440136 inventoryBegin=0.60156935983001558 inventoryEnd=0.60188924598609272 inventoryDrift=0.00053044463017929333
+  rhoY1 meanChange=0.0032836315721259993 relativeRms=0.00091460900647400561 inventoryBegin=1.3984306218637217 inventoryEnd=1.3981107310932557 inventoryDrift=0.00022850994492637131
+  gasIntrinsicFvBoundaryExchange (not porosity-weighted mixture flux): -1.2991894504654766e-09 -7.8576574580324632e-07 0 0 -959.66320305888075 0.00031988716566282578 -0.0003198884648522763
+  particleInjected mass/momentumXYZ/mechanicalEnergy/materialHeat: 3.9999999999999719e-06 7.9999999999997852e-05 0 0 0.00080005999999980518 1.2000000000001441
+  particleTrackingBoundaryExchange (outflow plus wall impulse/heat): -1.4889251025954498e-22 7.0192561547779801e-18 0 0 2.1461104377992757e-16 9.2012335251023813e-14
+  particleInventoryMinusBoundaryExchange (coupling/collision/internal effects): 3.0642078611414357e-20 1.0197810573298814e-13 0 0 -2.0612863742681909e-10 0.002650431077531404
+  windowStationary=0 consecutive=0 maxMeanChange=0.15339957036623295 maxInventoryDrift=0.1534242023697252
+Steady sampling window 8 physicalDuration=0.00040000000000000002 totalSamplingTime=0.0032000000000000071
+  rho meanChange=2.2924241357811841e-09 relativeRms=2.1257611401765779e-09 inventoryBegin=1.999999977079348 inventoryEnd=1.9999999718799064 inventoryDrift=2.5997208053684494e-09
+  rhoUx meanChange=2.981777284700938e-09 relativeRms=8.6118218339741215e-10 inventoryBegin=40.000000197482372 inventoryEnd=39.999998902258909 inventoryDrift=1.4204554499222339e-09
+  rhoUy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoE meanChange=0.032524457021105298 relativeRms=0.0090910826307615423 inventoryBegin=3179009.0713259019 inventoryEnd=3178068.5201795395 inventoryDrift=0.0022602712837046035
+  rhoK meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoOmega meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoSolid meanChange=1 relativeRms=2.2360679774997894 inventoryBegin=2.8000000000000003e-05 inventoryEnd=3.1999999999999999e-05 inventoryDrift=0.13289036544850483
+  rhoUsx meanChange=0.17677009433030536 relativeRms=0.39526994730791887 inventoryBegin=0.00056000000050910519 inventoryEnd=0.00064000000055883385 inventoryDrift=0.13086561543476294
+  rhoUsy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUsz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoEs meanChange=1 relativeRms=2.23606797585738 inventoryBegin=0.0056004192229628866 inventoryEnd=0.0064004789839304408 inventoryDrift=0.13289034559879201
+  rhoHp meanChange=1 relativeRms=2.2360755321745431 inventoryBegin=8.4100197032379587 inventoryEnd=9.6130766109984886 inventoryDrift=0.13305810154895373
+  rhoDs meanChange=1 relativeRms=2.2360679774997894 inventoryBegin=2.8000000000000003e-08 inventoryEnd=3.2000000000000002e-08 inventoryDrift=0.13289036544850497
+  rhoY0 meanChange=0.0083102675256564451 relativeRms=0.0023228459815421848 inventoryBegin=0.60188924598609272 inventoryEnd=0.60220275832077164 inventoryDrift=0.00051967893145744252
+  rhoY1 meanChange=0.0030865250047897581 relativeRms=0.00086273092311853715 inventoryBegin=1.3981107310932557 inventoryEnd=1.3977972135591354 inventoryDrift=0.00022402292590311413
+  gasIntrinsicFvBoundaryExchange (not porosity-weighted mixture flux): -1.3799220357959413e-09 -1.2188330620332977e-06 0 0 -940.54209630774938 0.00031351349763651893 -0.00031351487755855499
+  particleInjected mass/momentumXYZ/mechanicalEnergy/materialHeat: 3.9999999999999719e-06 7.9999999999999573e-05 0 0 0.00080005999999984345 1.2000000000000464
+  particleTrackingBoundaryExchange (outflow plus wall impulse/heat): -1.4889251025954498e-22 -8.0977937944287214e-18 0 0 4.7725224380096298e-17 -1.5497759325855398e-13
+  particleInventoryMinusBoundaryExchange (coupling/collision/internal effects): 2.3865815033379954e-20 4.9737185286659905e-14 0 0 -2.3903233691300934e-10 0.0030569077606385957
+  windowStationary=0 consecutive=0 maxMeanChange=1 maxInventoryDrift=0.13305810154895373
+Steady sampling window 9 physicalDuration=0.00040000000000000002 totalSamplingTime=0.0036000000000000081
+  rho meanChange=1.0533268051572987e-08 relativeRms=8.7030557384609266e-10 inventoryBegin=1.9999999718799064 inventoryEnd=1.9999999666173831 inventoryDrift=2.6312616925556652e-09
+  rhoUx meanChange=7.594965490601296e-09 relativeRms=2.5603716198387007e-09 inventoryBegin=39.999998902258909 inventoryEnd=39.999996984652945 inventoryDrift=2.103014599008978e-09
+  rhoUy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoE meanChange=0.030583592437192459 relativeRms=0.0085492222918147238 inventoryBegin=3178068.5201795395 inventoryEnd=3177157.2620436028 inventoryDrift=0.0021898762369133608
+  rhoK meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoOmega meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoSolid meanChange=0.96551724137931039 relativeRms=0.39767457223002728 inventoryBegin=3.1999999999999999e-05 inventoryEnd=3.6000000000000001e-05 inventoryDrift=0.11730205278592382
+  rhoUsx meanChange=0.82492711582660005 relativeRms=0.33976869978366642 inventoryBegin=0.00064000000055883385 inventoryEnd=0.00072000000003784911 inventoryDrift=0.11562618685144352
+  rhoUsy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUsz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoEs meanChange=0.9655172408017888 relativeRms=0.39767456677283386 inventoryBegin=0.0064004789839304408 inventoryEnd=0.0072005387016790511 inventoryDrift=0.11730203138055635
+  rhoHp meanChange=0.96552126022600482 relativeRms=0.39771559808471535 inventoryBegin=9.6130766109984886 inventoryEnd=10.816537034756829 inventoryDrift=0.1174696859167349
+  rhoDs meanChange=0.96551724137931028 relativeRms=0.39767457223002711 inventoryBegin=3.2000000000000002e-08 inventoryEnd=3.6000000000000005e-08 inventoryDrift=0.11730205278592383
+  rhoY0 meanChange=0.0077537644603192981 relativeRms=0.0021674573902024045 inventoryBegin=0.60220275832077164 inventoryEnd=0.6025065062124666 inventoryDrift=0.00050330470995696083
+  rhoY1 meanChange=0.0029113257881161121 relativeRms=0.00081382107998836668 inventoryBegin=1.3977972135591354 inventoryEnd=1.3974934604049172 inventoryDrift=0.000217107776046809
+  gasIntrinsicFvBoundaryExchange (not porosity-weighted mixture flux): -1.2689231350241671e-09 -1.837734084020326e-06 0 0 -911.24836500214201 0.00030374910554944719 -0.00030375037447258189
+  particleInjected mass/momentumXYZ/mechanicalEnergy/materialHeat: 3.9999999999999719e-06 7.9999999999998638e-05 0 0 0.00080005999999997832 1.2000000000000861
+  particleTrackingBoundaryExchange (outflow plus wall impulse/heat): -1.4889251025954498e-22 -4.3277454374063967e-17 0 0 8.0637536578609392e-18 -5.0598154138770113e-13
+  particleInventoryMinusBoundaryExchange (coupling/collision/internal effects): 3.0642078611414357e-20 -5.2094009834346587e-13 0 0 -2.8225137617486195e-10 0.0034604237587600424
+  windowStationary=0 consecutive=0 maxMeanChange=0.96552126022600482 maxInventoryDrift=0.1174696859167349
+Steady sampling window 10 physicalDuration=0.00040000000000000002 totalSamplingTime=0.0040000000000000088
+  rho meanChange=3.0753821428142829e-09 relativeRms=1.0005096348444522e-09 inventoryBegin=1.9999999666173831 inventoryEnd=1.9999999606194228 inventoryDrift=2.9989802294095596e-09
+  rhoUx meanChange=3.4011154959849523e-09 relativeRms=1.1492629696787576e-09 inventoryBegin=39.999996984652945 inventoryEnd=39.999995030742298 inventoryDrift=2.1428295020874874e-09
+  rhoUy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoE meanChange=0.028758300908524097 relativeRms=0.0080379327912696082 inventoryBegin=3177157.2620436028 inventoryEnd=3176282.6373265646 inventoryDrift=0.0021018411991399941
+  rhoK meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoOmega meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoSolid meanChange=0.57971014492753625 relativeRms=0.16713858832856215 inventoryBegin=3.6000000000000001e-05 inventoryEnd=3.9999999999999996e-05 inventoryDrift=0.10498687664041984
+  rhoUsx meanChange=0.57971014459527148 relativeRms=0.16713858811385582 inventoryBegin=0.00072000000003784911 inventoryEnd=0.00079999999956922635 inventoryDrift=0.1049868759840238
+  rhoUsy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUsz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoEs meanChange=0.57971013636049362 relativeRms=0.16713858229752168 inventoryBegin=0.0072005387016790511 inventoryEnd=0.008000598388661186 inventoryDrift=0.104986855538284
+  rhoHp meanChange=0.57977645820501089 relativeRms=0.16718594989385202 inventoryBegin=10.816537034756829 inventoryEnd=12.020404183627678 inventoryDrift=0.1051547023176132
+  rhoDs meanChange=0.57971014492753614 relativeRms=0.16713858832856229 inventoryBegin=3.6000000000000005e-08 inventoryEnd=4.0000000000000001e-08 inventoryDrift=0.10498687664041984
+  rhoY0 meanChange=0.0072382261015129937 relativeRms=0.0020230807533709993 inventoryBegin=0.6025065062124666 inventoryEnd=0.60279804223944755 inventoryDrift=0.00048289300431152756
+  rhoY1 meanChange=0.0027455652740441794 relativeRms=0.00076738433245673485 inventoryBegin=1.3974934604049172 inventoryEnd=1.397201918379976 inventoryDrift=0.00020843723408388456
+  gasIntrinsicFvBoundaryExchange (not porosity-weighted mixture flux): -2.0043604297462735e-09 -1.8740386584781277e-06 0 0 -874.61453608643899 0.00029153723973776742 -0.0002915392440981976
+  particleInjected mass/momentumXYZ/mechanicalEnergy/materialHeat: 3.9999999999999719e-06 8.0000000000035568e-05 0 0 0.00080006000000015711 1.2000000000002691
+  particleTrackingBoundaryExchange (outflow plus wall impulse/heat): -1.4889251025954498e-22 -2.2415932855697008e-17 0 0 -1.5116488789879146e-16 -3.8695522480702849e-13
+  particleInventoryMinusBoundaryExchange (coupling/collision/internal effects): 2.3865815033379954e-20 -4.6863591290042809e-13 0 0 -3.1301787103608057e-10 0.0038671488709666616
+  windowStationary=0 consecutive=0 maxMeanChange=0.57977645820501089 maxInventoryDrift=0.1051547023176132
+Particle steady driver finished: criteriaReached=0 physicalSamplingTime=0.0040000000000000088 samples=200

@@ -27,7 +27,10 @@ def test_moving_active_limiter_selects_old_volume_and_preserves_equations(tmp_pa
 int main(){State s;initialise(s);Real oldV[2]={1,1};s.V=nullptr;s.gasGeometry.enabled=true;s.gasGeometry.oldVolume=oldV;s.gasGeometry.newVolume=nullptr;s.gasGeometry.faceSweptVolume=nullptr;
 if(!BULK)s.rho=nullptr;if(!SPECIES)s.gasSpecies.rho=nullptr;s.gasPhiRho[0]=BULK?Real(2):Real(0);s.gasSpecies.flux[0]=SPECIES?Real(1.8):Real(0);s.gasSpecies.flux[3]=SPECIES?Real(.2):Real(0);threadIdx.x=0;computeGasFluxPositivityScaleKernel(&s,1.);
 ck(s.gasSpecies.cellStatus[0]==0,"moving active limiter read unused static V");const Real expected=BULK?clampRange(Real(.999)*clampMin(s.rho[0]-s.rhoMin,Real(0))/(Real(2)+GPU_OPERATOR_TINY(1.0e-300)),Real(0),Real(1)):Real(1);
-ck(s.gasFluxPositivityScale[0]==expected,"active bulk arithmetic changed");ck(s.gasSpecies.positivityScale[0]==(SPECIES?Real(.999)*Real(.9)/Real(1.8):Real(1))&&s.gasSpecies.positivityScale[2]==(SPECIES?Real(.999)*Real(.1)/Real(.2):Real(1)),"active species arithmetic changed");}
+// Range-scaled ratio arithmetic may differ by a few ulps, including the
+// directed one-ulp reserve; the inventory equation and 0.999 margin remain.
+auto same=[](Real a,Real b){return fabs(a-b)<=Real(4)*std::numeric_limits<Real>::epsilon()*fmax(fabs(a),fabs(b));};
+ck(same(s.gasFluxPositivityScale[0],expected),"active bulk equation changed");ck(same(s.gasSpecies.positivityScale[0],SPECIES?Real(.999)*Real(.9)/Real(1.8):Real(1))&&same(s.gasSpecies.positivityScale[2],SPECIES?Real(.999)*Real(.1)/Real(.2):Real(1)),"active species equation changed");}
 '''.replace('BULK','true' if mode!='species' else 'false').replace('SPECIES','true' if mode!='bulk' else 'false'))
 
 @pytest.mark.parametrize('moving',[False,True])

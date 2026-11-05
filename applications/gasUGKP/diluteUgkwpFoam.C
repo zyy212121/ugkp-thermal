@@ -1,3 +1,4 @@
+#include "FoamParticleDiameterDistribution.H"
 #include "fvCFD.H"
 #include "physicoChemicalConstants.H"
 #include "zeroGradientFvPatchFields.H"
@@ -42,7 +43,11 @@ int main(int argc, char *argv[])
 
     const label progressLogInterval =
         ugkwp::logging::progressLogInterval(runTime.controlDict());
+#ifdef UGKWP_STEADY_APPLICATION
+    Info<< "gasUGKPSteady: gas LTS / physical-step particle statistical steady solver" << nl;
+#else
     Info<< "gasUGKP: weighted-parcel configurable-block dynamic-heavy resident CUDA solver" << nl;
+#endif
     #include "createMesh.H"
     #include "createFields.H"
 
@@ -104,8 +109,8 @@ int main(int argc, char *argv[])
             max(ugkwpProps.lookupOrDefault<scalar>("dMin", dS.value()), SMALL);
         const scalar dMaxStrict =
             max(ugkwpProps.lookupOrDefault<scalar>("dMax", dS.value()), dMinStrict);
-        const scalar dSigmaStrict =
-            max(ugkwpProps.lookupOrDefault<scalar>("dSigma", scalar(0)), scalar(0));
+        const scalar dnStrict =
+            readParticleDiameterShape(ugkwpProps);
         const scalar gpuResidentInjectionTheta =
             max
             (
@@ -320,6 +325,7 @@ int main(int argc, char *argv[])
                 &sharedGasModel
             );
             configureResidentSst(resident);
+            resident.configureMolecularTransport(molecularTransport.config());
             resident.configureBoundaryLayer(boundaryLayerInput, runTime, mesh, Tgas);
 
             configureScheduledBoundary(resident);
@@ -327,6 +333,9 @@ int main(int argc, char *argv[])
             scalar lastMeasuredCo = scalar(0);
             label stepsSinceCourant = gpuResidentCourantUpdateInterval;
 
+#ifdef UGKWP_STEADY_APPLICATION
+            #include "../gasUGKPSteady/steadyGasLoop.H"
+#else
             while (runTime.run())
             {
                 #include "readTimeControls.H"
@@ -423,6 +432,8 @@ int main(int argc, char *argv[])
                 }
             }
 
+#endif
+
             if (sharedGasModel.active()) Info<< "End" << nl;
             return 0;
         }
@@ -474,7 +485,7 @@ int main(int argc, char *argv[])
             dS.value(),
             dMinStrict,
             dMaxStrict,
-            dSigmaStrict,
+            dnStrict,
             gpuResidentInjectionTheta,
             gpuResidentInjectionTp,
             rhoMinStrict,
@@ -488,13 +499,18 @@ int main(int argc, char *argv[])
             g.value(),
             gpuScheduling,
             ugkwpProps
+            , &sharedGasModel
         );
         configureResidentSst(resident);
         configureScheduledBoundary(resident);
 
         scalar lastMeasuredCo = scalar(0);
+        resident.configureMolecularTransport(molecularTransport.config());
         label stepsSinceCourant = gpuResidentCourantUpdateInterval;
 
+#ifdef UGKWP_STEADY_APPLICATION
+        #include "../gasUGKPSteady/steadyParticleLoop.H"
+#else
         while (runTime.run())
         {
             #include "readTimeControls.H"
@@ -570,6 +586,7 @@ int main(int argc, char *argv[])
                     Tp,
                     dMeanCell
                 );
+                resident.downloadSharedGasSpecies(sharedGasModel,rho);
                 if (gasTurbulenceModel == 3)
                 {
                     resident.downloadSstToHostMirror
@@ -589,6 +606,8 @@ int main(int argc, char *argv[])
                 (void)resident.writeParticleRestartMirror(runTime);
             }
         }
+
+#endif
 
         return 0;
 #endif

@@ -1,0 +1,56 @@
+diff --git a/applications/CHT/gpu/GpuResidentStrict.cu b/applications/CHT/gpu/GpuResidentStrict.cu
+index 8870d47c..140dd4ea 100644
+--- a/applications/CHT/gpu/GpuResidentStrict.cu
++++ b/applications/CHT/gpu/GpuResidentStrict.cu
+@@ -3187,6 +3187,34 @@ extern "C" int ugkwpGpuResidentStrictCreate
+     const GpuReal gammaGas = static_cast<GpuReal>(gammaGasWire);
+     const GpuReal Rgas = static_cast<GpuReal>(RgasWire);
+     const GpuReal rhoSolid = static_cast<GpuReal>(rhoSolidWire);
++    { cudaError_t err=cudaSuccess;
++    if (const char* requestedStack = std::getenv("CHT_CUDA_STACK_BYTES"))
++    {
++        char* end = nullptr;
++        errno = 0;
++        const auto bytes = std::strtoull(requestedStack, &end, 10);
++        if (errno || end == requestedStack || *end || requestedStack[0] == '-'
++            || requestedStack[0] < '0' || requestedStack[0] > '9'
++            || bytes == 0 || bytes > std::numeric_limits<std::size_t>::max())
++        {
++            setLastErrorText("invalid CHT_CUDA_STACK_BYTES (expected positive byte count)");
++            return 1;
++        }
++        std::size_t stackBytes = 0;
++        err = cudaDeviceGetLimit(&stackBytes, cudaLimitStackSize);
++        if (err == cudaSuccess && bytes > stackBytes)
++            err = cudaDeviceSetLimit(cudaLimitStackSize, static_cast<std::size_t>(bytes));
++        if (err == cudaSuccess)
++            err = cudaDeviceGetLimit(&stackBytes, cudaLimitStackSize);
++        if (err != cudaSuccess)
++        {
++            setLastError("configure CUDA thread stack", err);
++            return 1;
++        }
++        std::fprintf(stderr, "[cuda-runtime] stackLimitBytes=%zu requested=%llu\n",
++            stackBytes, bytes);
++    }
++    }
+     const GpuReal gasMu = static_cast<GpuReal>(gasMuWire);
+     const GpuReal gasPr = static_cast<GpuReal>(gasPrWire);
+     const GpuReal dragResidualRe = static_cast<GpuReal>(dragResidualReWire);
+--- a/tool/CHT/build_cuda_solver.sh
++++ b/tool/CHT/build_cuda_solver.sh
+@@ -30,12 +30,12 @@
+         probe_flags=(-DUGKP_DEVELOPMENT_PROBES=1)
+     fi
+     echo "[cuda-build] physical=64 time=64"
+-    "${cuda_home}/bin/nvcc" -std=c++17 -O3 -lineinfo --fmad=false \
++    "${NVCC:-$cuda_home/bin/nvcc}" -std=c++17 -O3 -lineinfo --fmad=false \
+         -arch="${cuda_arch}" -Xcompiler -fPIC "${probe_flags[@]}" \
+         -I"${solver_root}/thermal" -I"${solver_root}/../../common" \
+         -c "${solver_root}/gpu/GpuResidentStrict.cu" \
+         -o "${obj_dir}/GpuResidentStrict.o"
+-    "${cuda_home}/bin/nvcc" -std=c++17 -O3 -lineinfo --fmad=false \
++    "${NVCC:-$cuda_home/bin/nvcc}" -std=c++17 -O3 -lineinfo --fmad=false \
+         -arch="${cuda_arch}" -Xcompiler -fPIC \
+         -c "${solver_root}/gpu/GpuWallEnergy64.cu" \
+         -o "${obj_dir}/GpuWallEnergy64.o"

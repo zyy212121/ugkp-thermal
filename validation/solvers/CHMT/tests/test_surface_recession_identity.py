@@ -69,7 +69,7 @@ int main(){
 }
 '''.replace('PRODUCTION_LOOP', loop)
     src=tmp_path/'recession.cpp';src.write_text(cpp);binary=tmp_path/'recession'
-    build=subprocess.run(['g++','-std=c++14','-O2','-I',str(APP), '-I', str(VALIDATION_ROOT / 'solvers/CHMT'),'-I',str(APP.parents[1]/'common'),str(src),'-o',str(binary)],capture_output=True,text=True)
+    build=subprocess.run(['g++','-std=c++17','-O2','-I',str(APP), '-I', str(VALIDATION_ROOT / 'solvers/CHMT'),'-I',str(APP.parents[1]/'common'),str(src),'-o',str(binary)],capture_output=True,text=True)
     assert build.returncode==0,build.stderr
     run=subprocess.run([str(binary)],capture_output=True,text=True)
     assert run.returncode==0,run.stdout+run.stderr

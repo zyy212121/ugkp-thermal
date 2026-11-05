@@ -12,15 +12,17 @@ template<class S,int N> UGKWP_GAS_HD inline WallInput<WallReal,N,S> wallComputat
     for(int d=0;d<3;++d){dst.velocity[d]=src.velocity[d];dst.normal[d]=src.normal[d];dst.matching.velocity[d]=src.matching.velocity[d];}
     for(int j=0;j<N;++j){dst.massFlux[j]=src.massFlux[j];dst.matching.massFraction[j]=src.matching.massFraction[j];dst.model.diffusivity[j]=src.model.diffusivity[j];}
     dst.model.thermo=src.model.thermo;dst.model.mechanism=src.model.mechanism;dst.model.mode=src.model.mode;
+    dst.model.molecularViscosity=src.model.molecularViscosity;
     dst.model.viscosity=src.model.viscosity;dst.model.conductivity=src.model.conductivity;dst.model.molecularPrandtl=src.model.molecularPrandtl;
     dst.model.sstCoefficients=src.model.sstCoefficients;dst.quadrature=src.quadrature;dst.coarseReactionIntegral=src.coarseReactionIntegral;
-    dst.integrateOwnerKSource=src.integrateOwnerKSource;dst.volumeSstClosure=src.volumeSstClosure;
+    dst.adiabatic=src.adiabatic;dst.integrateOwnerKSource=src.integrateOwnerKSource;dst.volumeSstClosure=src.volumeSstClosure;
     for(int i=0;i<3;++i)for(int j=0;j<2;++j)dst.sstTangentialGradient[i][j]=src.sstTangentialGradient[i][j];
     return dst;
 }
 template<class S> UGKWP_GAS_HD inline WallModelConfig<WallReal> wallComputationConfig(const WallModelConfig<S>& src){
     WallModelConfig<WallReal> dst;dst.family=src.family;dst.model=src.model;dst.nodes=src.nodes;dst.maxIterations=src.maxIterations;
     dst.relativeTolerance=src.relativeTolerance;dst.absoluteTolerance=src.absoluteTolerance;dst.stretch=src.stretch;
+    dst.localStressCorrection=src.localStressCorrection;
     dst.equilibriumKappa=src.equilibriumKappa;dst.equilibriumAPlus=src.equilibriumAPlus;
     dst.turbulentPrandtl=src.turbulentPrandtl;dst.turbulentSchmidt=src.turbulentSchmidt;dst.enableSst=src.enableSst;dst.coherentDiscretization=src.coherentDiscretization;return dst;
 }

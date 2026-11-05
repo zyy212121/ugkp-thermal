@@ -33,7 +33,7 @@ int main(){
 '''
 def test_conservative_stiff_reactor(tmp_path):
  src=tmp_path/'reactor.cpp';src.write_text(SOURCE);exe=tmp_path/'reactor'
- built=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
+ built=subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
  assert built.returncode==0,built.stderr
  run=subprocess.run([str(exe)],capture_output=True,text=True)
  assert run.returncode==0,run.stderr
@@ -54,7 +54,7 @@ __global__ void reactor(const ugkwp::ClosedReactorInput<double,10>* b,
  *status=ugkwp::advanceClosedReactor(*b,1e-6,t,m,c,*r);
 }
 ''')
-    run=subprocess.run([nvcc,'-std=c++14','-I',str(ROOT),'-c',str(src),'-o',str(tmp_path/'reactor.o')],capture_output=True,text=True)
+    run=subprocess.run([nvcc,'-std=c++17','-I',str(ROOT),'-c',str(src),'-o',str(tmp_path/'reactor.o')],capture_output=True,text=True)
     assert run.returncode==0,run.stderr
 
 
@@ -66,7 +66,7 @@ int main(){Model a;ClosedReactorInput<double,2> b;b.speciesMass[0]=.028;b.totalM
 ChemistryControls<double> c;c.relativeTolerance=1e-3;c.absoluteMassFractionTolerance=1e-7;c.absoluteTemperatureTolerance=.01;c.relativeConservationTolerance=1e-5;c.thermo.relativeEnergyTolerance=1e-5;c.thermo.absoluteTemperatureTolerance=.01;c.thermo.relativeTemperatureTolerance=1e-5;
 ClosedReactorResult<double,2> r;auto status=advanceClosedReactor(b,.25,a.t,a.m,c,r);assert(status);assert(std::abs(r.speciesMass[0]-.028*std::exp(-.5))<2e-5);assert(std::abs(r.temperature-700.)<.02);}
 ''')
-    run=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-I',str(ROOT),str(src),'-o',str(tmp_path/'double')],capture_output=True,text=True)
+    run=subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror','-I',str(ROOT),str(src),'-o',str(tmp_path/'double')],capture_output=True,text=True)
     assert run.returncode==0,run.stderr
     run=subprocess.run([str(tmp_path/'double')],capture_output=True,text=True)
     assert run.returncode==0,run.stderr
@@ -97,7 +97,7 @@ int main(){
 }
 ''')
     exe=tmp_path/'empty_fast_mode'
-    built=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
+    built=subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
     assert built.returncode==0,built.stderr
     run=subprocess.run([str(exe)],capture_output=True,text=True)
     assert run.returncode==0,run.stderr

@@ -72,7 +72,7 @@ def run_probe(folder, root, source, args=()):
     path = folder / "probe.cpp"
     path.write_text(source)
     exe = folder / "probe"
-    result = subprocess.run(["g++", "-std=c++14", "-O2", "-ffp-contract=off", "-Wall", "-Wextra", "-Werror", "-pedantic", "-I" + str(root / "common"), "-I" + str(root / "applications/CHMT"), str(path), "-o", str(exe)], capture_output=True, text=True)
+    result = subprocess.run(["g++", "-std=c++17", "-O2", "-ffp-contract=off", "-Wall", "-Wextra", "-Werror", "-pedantic", "-I" + str(root / "common"), "-I" + str(root / "applications/CHMT"), str(path), "-o", str(exe)], capture_output=True, text=True)
     (folder / "build.log").write_text(result.stdout + result.stderr)
     assert result.returncode == 0, result.stderr
     result = subprocess.run([str(exe), *args], capture_output=True, text=True)

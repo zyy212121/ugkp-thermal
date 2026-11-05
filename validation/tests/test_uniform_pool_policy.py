@@ -7,7 +7,7 @@ import re, subprocess
 ROOT=SOURCE_ROOT
 ENTRIES=['applications/gasUGKP/private_backend/GpuResidentStrict.cu',
          'applications/FSH/private_backend/GpuResidentStrict.cu',
-         'applications/CHT/gpu/GpuResidentStrict.cu']
+         'common/thermal/GpuResidentStrict.cu']
 OWNERS={
     'accumulateOnePoolParticle':'GpuCollisionPoolParticle.cuh',
     'accumulateCsrSplitLogicalPoolParticle':'GpuCollisionPoolSplitParticle.cuh',

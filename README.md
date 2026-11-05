@@ -4,16 +4,22 @@ GPU-Riemann-UGKP is an open-source GPU-resident solver package for
 compressible gas-particle flows and multiscale heat-transfer simulations. It
 is implemented as a set of OpenFOAM 10 applications with CUDA backends.
 
-The package contains three maintained solvers:
+The package contains the following applications:
 
 | Solver | Purpose |
 | --- | --- |
 | `gasUGKP` | Compressible gas flow, UGKP particle transport, statistical particle collisions, and two-way gas-particle momentum and sensible-heat coupling |
 | `FSH` | Extends `gasUGKP` with finite-duration particle-wall contact, spreading and retraction, rebound or deposition, particle internal heat conduction, solidification, and wall heat transfer |
 | `CHT` | Flow and finite-contact particle-wall heat transfer with two-way solid coupling, transient solid conduction, and particle radiation |
+| `CHMT` | Conjugate gas/material heat and mass transfer, pyrolysis, pore transport, and ablation |
 
-The three solvers share the numerical and physical implementations under
-`common/`.
+The applications share numerical and physical implementations under `common/`.
+`gasUGKP`, `CHT`, and `CHMT` share optional GPU Sutherland/Wilke molecular
+viscosity; absent configuration retains constant transport. See the
+[configuration and reproduction guide](validation/molecular_transport/README.md)
+and [native validation results and limitations](validation/molecular_transport/RESULTS.md).
+`CHMT` has a separate build entry point: `bash applications/CHMT/Allwmake`
+after loading the OpenFOAM/CUDA environment.
 
 ## Requirements
 
@@ -223,15 +229,26 @@ The principal input files are:
 
 ### Particle distribution and injection
 
-The particle-size distribution is controlled by:
+Particle diameters use a doubly truncated Rosin–Rammler (RR) distribution:
 
-- `dS`: characteristic particle diameter;
-- `dMin`: lower diameter limit;
-- `dMax`: upper diameter limit;
-- `dSigma`: logarithmic distribution-width parameter.
+- `dS`: the untruncated 63.212% diameter scale;
+- `dMin` and `dMax`: the lower and upper truncation limits;
+- `dn`: the finite, positive shape exponent (default `1`).
 
-`parcelMass` or `injectionParcelMass` specifies the physical particle mass
-represented by one computational parcel.
+Where `dMeanCell` or a boundary diameter field supplies the local injection
+scale, that value is used instead of the global `dS`. Equal-mass computational
+parcels sample the represented **mass CDF**, not the number CDF. `parcelMass`
+or `injectionParcelMass` specifies the physical mass represented by one parcel.
+
+To migrate old lognormal configurations, remove `dSigma` (including `dSigma 0`)
+and specify the intended RR shape with `dn`; there is no automatic equivalent
+mapping from the old width to the new exponent. For a single diameter, set
+`dMin` and `dMax` equal to that diameter. Omitting both the old `dSigma` and the
+new `dn` now selects RR with `dn=1` when the limits differ, whereas the old
+omitted width selected a local single diameter. Thus old default configurations
+can change their distribution without a deprecated-key error. RR also consumes
+a different number of random draws, so cross-version stochastic trajectories
+are not guaranteed to match even with the same seed.
 
 Time-dependent inlet pressure and particle volume fraction are specified by
 `gpuResidentPressureTable` and `gpuResidentVolumeFractionTable`. The GPU uses

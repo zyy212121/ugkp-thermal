@@ -230,6 +230,6 @@ for(int repeat=0;repeat<10;++repeat){recoverGasPrimitivesKernel(&s);
 
 def test_production_cht_owner_has_double_live_and_rk_authority():
     from pathlib import Path
-    owner=((SOURCE_ROOT / 'applications/CHT/gpu/GpuResidentStrict.cu')).read_text()
+    owner=((SOURCE_ROOT / 'common/thermal/GpuResidentStrict.cu')).read_text()
     assert "double* rhoE = nullptr" in owner
     assert "double* rhoENext = nullptr" in owner

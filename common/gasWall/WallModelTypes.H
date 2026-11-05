@@ -4,6 +4,7 @@
 #include "../Diagnostics.H"
 #include <type_traits>
 #include "../gasTransport/MixtureThermo.H"
+#include "../gasTransport/MolecularViscosity.H"
 #include "../chemistry/GasRates.H"
 #include "../gasNumerics/GpuSstAlgebra.cuh"
 
@@ -21,6 +22,7 @@ template<class R> struct WallModelConfig {
     R relativeTolerance=R(1e-8),absoluteTolerance=R(1e-10),stretch=R(defaultWallStretch);
     R turbulentPrandtl=R(.9),turbulentSchmidt=R(.7);
     R equilibriumKappa=R(.41),equilibriumAPlus=R(17);
+    bool localStressCorrection=true; // blowing/suction local stress; wall damping retained
     bool enableSst=false;
     // Internal route selection, set only on a coherent solver/profile config copy.
     // Legacy, analytic and unrelated template routes retain their original math.
@@ -30,6 +32,7 @@ template<class R,int N> struct WallMatchingState {
     R temperature=0,velocity[3]{},massFraction[N]{},k=0,omega=0;
 };
 template<class R,int N,class TableReal=R> struct WallGasModel {
+    MolecularViscosityView<TableReal> molecularViscosity;
     SpeciesThermoView<TableReal,N> thermo;
     GasMechanismView<TableReal,N> mechanism;
     GasMode mode=GasMode::MixtureFrozen;
@@ -48,6 +51,9 @@ template<class R,int N,class TableReal=R> struct WallInput {
     std::int64_t diagnosticEntity=-1;
     std::uint32_t diagnosticNode=0;
     R pressure=0,temperature=0,massFlux[N]{},velocity[3]{},normal[3]{};
+    // False: prescribed wall temperature. True: solve wall temperature from
+    // zero conductive heat flux; temperature then supplies the coordinate origin.
+    bool adiabatic=false;
     R matchingDistance=0,ownerDistance=0;
     WallMatchingState<R,N> matching;
     WallGasModel<R,N,TableReal> model;
@@ -63,7 +69,7 @@ template<class R,int N,class TableReal=R> struct WallInput {
     // Absence sets chemistryMismatchAvailable=false and mismatch values to NaN.
     const TableReal* coarseReactionIntegral=nullptr;
 };
-template<class R,int N> struct WallOutput {
+template<class R,int N> struct WallExchangeOutput {
     R traceTemperature=0,traceDensity=0,traceMassFraction[N]{},traceVelocity[3]{};
     R conductiveHeatFlux=0,traction[3]{},wallSpeciesFlux[N]{},matchingSpeciesFlux[N]{};
     R reactionIntegral[N]{},chemistryMismatch[N]{},speciesBalanceResidual[N]{};
@@ -71,13 +77,34 @@ template<class R,int N> struct WallOutput {
     R ownerKContent=0,ownerKDestruction=0,ownerKBalanceResidual=0; // integral rho*k and betaStar*rho*k*omega
     // Persistent total normal k transport and omega diffusion; workspace is pooled.
     // Faces interpolate these shared fluxes, preserving owner/neighbour antisymmetry.
-    R kFluxHeight[129]{},kTransportFlux[129]{},omegaDiffusiveFlux[129]{};
     int kFluxCount=0;
     R heatConduction=0,heatViscous=0,heatTransport=0,heatBalanceResidual=0;
     bool chemistryMismatchAvailable=false;
     int iterations=0;
     R residual=0;
 };
+// Full results remain useful at standalone entrypoints and in a bounded worker
+// pool. Resident faces keep only exchange scalars plus model-sized flux arrays.
+template<class R,int N> struct WallOutput : WallExchangeOutput<R,N> {
+    R kFluxHeight[129]{},kTransportFlux[129]{},omegaDiffusiveFlux[129]{};
+};
+template<class R,int N> struct WallResidentOutput : WallExchangeOutput<R,N> {
+    R* kFluxHeight=nullptr;
+    R* kTransportFlux=nullptr;
+    R* omegaDiffusiveFlux=nullptr;
+};
+template<class R,int N> UGKWP_GAS_HD inline void storeWallResidentOutput(
+ const WallOutput<R,N>& source,WallResidentOutput<R,N>& target,R* flux,int capacity){
+    static_cast<WallExchangeOutput<R,N>&>(target)=source;
+    target.kFluxHeight=flux;
+    target.kTransportFlux=flux?flux+capacity:nullptr;
+    target.omegaDiffusiveFlux=flux?flux+2*capacity:nullptr;
+    for(int i=0;i<source.kFluxCount;++i){
+        target.kFluxHeight[i]=source.kFluxHeight[i];
+        target.kTransportFlux[i]=source.kTransportFlux[i];
+        target.omegaDiffusiveFlux[i]=source.omegaDiffusiveFlux[i];
+    }
+}
 // Caller-owned FP64 scratch, independent of outer/table storage precision.
 // No inventory, recursion, allocation or persistent gas state.
 // Dense blocks form a block-tridiagonal Jacobian: storage O(MaxNodes*(N+4)^2),
@@ -92,6 +119,17 @@ template<int N,int MaxNodes> struct WallWorkspaceStorage {
     R lower[MaxNodes][blockSize][blockSize]{},diagonal[MaxNodes][blockSize][blockSize]{},upper[MaxNodes][blockSize][blockSize]{};
 };
 template<class StateReal,int N,int MaxNodes=48> using WallWorkspace=WallWorkspaceStorage<N,MaxNodes>;
+template<class R,int N,class T> UGKWP_GAS_HD inline R wallMolecularViscosity(
+ const WallInput<R,N,T>& in,R temperature,const R* Y){
+ return ugkwp::molecularViscosity<N>(in.model.molecularViscosity,in.model.viscosity,temperature,Y);
+}
+template<class R,int N,class T> UGKWP_GAS_HD inline R wallMolecularPrandtl(const WallInput<R,N,T>& in,const R* Y){
+    // An explicitly supplied conductivity retains the existing precedence.
+    return in.model.molecularPrandtl>0?ugkwp::molecularPrandtl<N>(in.model.molecularViscosity,in.model.molecularPrandtl,Y):R(0);
+}
+template<class R,int N,class T> UGKWP_GAS_HD inline R wallMolecularDiffusivity(const WallInput<R,N,T>& in,int j,R temperature,R pressure){
+    return ugkwp::molecularDiffusivity(in.model.molecularViscosity,j,in.model.diffusivity[j],temperature,pressure);
+}
 namespace detail {
 template<class R> UGKWP_GAS_HD inline R abs(R x){return x<0?-x:x;}
 template<class R> UGKWP_GAS_HD inline R max(R x,R y){return x>y?x:y;}
@@ -107,7 +145,7 @@ template<class R> UGKWP_GAS_HD inline bool wallTangentBasis(const R* normal,R ta
     tangent[1][1]=normal[2]*tangent[0][0]-normal[0]*tangent[0][2];
     tangent[1][2]=normal[0]*tangent[0][1]-normal[1]*tangent[0][0];return true;
 }
-template<class R> UGKWP_GAS_HD inline R expRatio(R x){return abs(x)<R(1e-5)?R(1)-x/R(2)+x*x/R(12)-x*x*x*x/R(720):x/::expm1(x);}
+template<class R> UGKWP_GAS_HD inline R expRatio(R x){return abs(x)<R(1e-5)?R(1)-x/R(2)+x*x/R(12)-x*x*x*x/R(720):(x>R(50)?x*::exp(-x)/(-::expm1(-x)):x/::expm1(x));}
 
 
 template<class R,int N,class T> UGKWP_GAS_HD inline bool wallFatal(const WallInput<R,N,T>& in,

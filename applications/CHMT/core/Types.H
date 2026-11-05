@@ -2,6 +2,8 @@
 #define CHMT_CORE_TYPES_H
 
 #include <cmath>
+#include "../../../common/gasBoundary/Definition.H"
+#include "../../../common/thermal/ParticleState.H"
 #include <cstdint>
 #include <limits>
 #include <type_traits>
@@ -32,9 +34,10 @@ constexpr std::uint64_t defaultSpeciesNameHash() {
     return h;
 }
 constexpr std::uint64_t defaultSpeciesHash=defaultSpeciesNameHash();
-// Schema 4 adds immutable tagged gas thermo, NASA7 coefficients and entropy references.
+// Schema 10 appends complete common particle thermal/contact history.
+// Schemas 6--9 remain readable; absent history is explicitly uninitialized.
 // Borrowed shared-thermo views are rebuilt and never serialized.
-constexpr std::uint64_t checkpointSchema=8;
+constexpr std::uint64_t checkpointSchema=12;
 
 CHMT_HD inline bool finite(Real x) { return x==x && x<=std::numeric_limits<Real>::max() && x>=-std::numeric_limits<Real>::max(); }
 CHMT_HD inline Real absValue(Real x) { return x<0 ? -x : x; }
@@ -88,13 +91,8 @@ struct FilmAux {
     Real area=0,normalVelocity=0,solidNormalVelocity=0,solidFront=0,gasFront=0;
     // normalVelocity/solidNormalVelocity: physical outward m/s. Fronts: accumulated normal displacement m.
 };
-struct ParticleQ {
-    Vec3 contactRelativeVelocity{}; // captured wall-relative incoming velocity, m/s.
-    Real contactMechanicalEnergy=0; // ideal elastic dwell reservoir J, separate from thermal energy.
-    std::uint64_t id=0;int cell=-1,face=-1,state=0;Vec3 position{},velocity{};
-    Real mass=0,energy=0,diameter=0,contactAge=0,contactDuration=0,contactArea=0;
-    std::uint64_t rng=0;
-};
+using ParticleQ=ugkp::thermal::ParticleState<Vec3>;
+
 struct SstQ { Real rhoK=0,rhoOmega=0; }; // cell integrals [J] and [kg/s].
 struct SstPrimitive {
     Real k=0,omega=0,eddyViscosity=0,blend1=0,blend2=0;
@@ -114,7 +112,7 @@ struct Reaction {
     Real A=0,temperaturePower=0,activationEnergy=0,condensedNu[Nc]{},gasNu[Ns]{},order[Nc]{};
     // nu kg/mol extent; order acts on condensed kg/m^3, fixing A's units.
 };
-enum class BoundaryKind { Internal,Periodic,Slip,NoSlip,Inlet,Outlet,Interface,Empty };
+using BoundaryKind = ugkp::boundary::Kind;
 enum class ThermalBoundaryKind { ZeroGradient,FixedValue };
 CHMT_HD inline bool fixedTemperature(const ThermalBoundaryKind* policy,int face) {
     return policy && policy[face]==ThermalBoundaryKind::FixedValue;

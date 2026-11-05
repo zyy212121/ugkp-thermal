@@ -1,0 +1,545 @@
+=== ugkp-thermal Allwmake ===
+Building GPU solvers: gasUGKP, gasUGKPSteady, FSH, CHT, CHMT
+
+OpenFOAM: OpenFOAM (10)
+
+Detecting CUDA...
+CUDA found: /usr/local/cuda
+UGKWP_CUDA_EXE_INC=-I/usr/local/cuda/include -DUGKWP_USE_CUDA
+CUDA compiler: /usr/local/cuda/bin/nvcc
+Build cuda_13.1.r13.1/compiler.37061995_0
+
+============================================
+Building gasUGKP via tool/gasUGKP/build_cuda_solver.sh...
+============================================
+[cuda-build] fast-compile=min; optimization level and FP flags preserved
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/gasUGKP/private_backend/GpuResidentStrict.cu(5189): warning #177-D: variable "runBinPre" was declared but never referenced
+      const bool runBinPre = s->csrCellLocalPathEnabled != 0;
+                 ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/gasUGKP/private_backend/GpuResidentStrict.cu(5028): warning #177-D: variable "warpCount" was declared but never referenced
+      const int warpCount = (block + 31)/32;
+                ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/GasBoundaryLayerModelState.H(314): warning #177-D: variable "Ns" was declared but never referenced
+      constexpr int Ns=GasStateTraits<State>::speciesCount;
+                    ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int) [with Capture=false, State=<unnamed>::DeviceState]" at line 16 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/operators/evaluateGasBoundaryLayerKernel.cuh
+            instantiation of "void <unnamed>::evaluateGasBoundaryLayerKernel(GasState *) [with Capture=false, GasState=<unnamed>::DeviceState]" at line 10 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/ResidentWallLaunch.inl
+            instantiation of "int <unnamed>::launchBoundaryLayer<Capture>(<unnamed>::DeviceState *) [with Capture=false]" at line 147 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/gasUGKP/private_backend/GpuResidentStrict.cu
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/../gasWall/WallCoherentSolver.H(116): warning #177-D: variable "l" was declared but never referenced
+   norm=scaledClosure;for(int i=0;i<cfg.nodes;++i){double high[6];for(int j=0;j<6;++j)high[j]=low[i][j];if(i>0&&i<cfg.nodes-1){double integralK=0,integralO=0;for(int side=0;side<2;++side){int l=i-1+side;double lo=side?w.y[i]:(w.y[i-1]+w.y[i])/2,hi=side?(w.y[i]+w.y[i+1])/2:w.y[i];const double g[2]={-.57735026918962576451,.57735026918962576451},wt[2]={1,1};for(int q=0;q<2;++q){double y=(hi+lo)/2+(hi-lo)/2*g[q];auto v=basePhysical(p,y);physical::Face<double,2>f;physical::Source<double,2>s;if(!trackedEvaluate(in,cfg,v,y,in.normal,ctx.wallNormal,f,s))return false;integralK+=(hi-lo)/2*wt[q]*s.k;integralO+=(hi-lo)/2*wt[q]*s.omega;}}
+                                                                                                                                                                                                ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gaswall::coherent::ScalarEngine<M>::solve(const ugkwp::gaswall::reconstruction::Input &, const ugkwp::gaswall::reconstruction::Config &, ugkwp::gaswall::coherent::ScalarEngine<M>::W &, ugkwp::gaswall::coherent::Cache<M> &, ugkwp::gaswall::WallOutput<double, 2> &, Stats &) [with M=24, Stats=ugkwp::gaswall::coherent::SolveStats]" at line 97 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/GasCoherentBoundaryLayer.H
+            instantiation of "__nv_bool ugkwp::evaluateGasCoherentWallWorkspace(const ugkwp::gaswall::WallInput<double, 2, double> &, const ugkwp::gaswall::WallModelConfig<ugkwp::gaswall::WallReal> &, ugkwp::gaswall::WallWorkspace<double, 2, M> &, ugkwp::gaswall::coherent::Scratch<M> &, ugkwp::gaswall::coherent::PersistentWallState<M> &, const double *, ugkwp::gaswall::WallOutput<double, 2> &, ugkwp::gaswall::WallStatus &, ugkwp::gaswall::WallReferenceStats &, const Team &) [with M=24, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 116 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerWorkspace(const ugkwp::gaswall::WallInput<Real, Ns, Real> &, const ugkwp::gaswall::WallModelConfig<Real> &, ugkwp::gaswall::WallWorkspace<Real, Ns, Capacity> &, ugkwp::gaswall::WallOutput<Real, Ns> &, ugkwp::gaswall::WallStatus &, Real *, const Team &, ugkwp::gaswall::WallReferenceScratch<Ns, Capacity> *, const Real *, ugkwp::gaswall::WallReferenceStats *, ugkwp::gaswall::coherent::Scratch<Capacity> *, ugkwp::gaswall::coherent::PersistentWallState<Capacity> *) [with Capture=false, Real=double, Ns=2, Capacity=24, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 191 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerHistory<Capture,Capacity,State,Team>(State &, int, int, const Team &) [with Capture=false, Capacity=24, State=<unnamed>::DeviceState, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 342 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int, const Team &) [with Capture=false, Capacity=0, State=<unnamed>::DeviceState, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 361 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int) [with Capture=false, State=<unnamed>::DeviceState]" at line 16 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/operators/evaluateGasBoundaryLayerKernel.cuh
+            instantiation of "void <unnamed>::evaluateGasBoundaryLayerKernel(GasState *) [with Capture=false, GasState=<unnamed>::DeviceState]" at line 10 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/ResidentWallLaunch.inl
+            instantiation of "int <unnamed>::launchBoundaryLayer<Capture>(<unnamed>::DeviceState *) [with Capture=false]" at line 147 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/gasUGKP/private_backend/GpuResidentStrict.cu
+
+Making dependency list for source file diluteUgkwpFoam.C
+could not open file MolecularTransportIO.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file FoamMolecularTransportIO.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file GasModel.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file GasModelIO.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file ../chemistry/MechanismValidation.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file MixtureThermo.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file ../chemistry/ChemistryTypes.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file WallResolutionDefaults.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file WallModelTypes.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file ../gasWall/WallResolutionDefaults.H for source file diluteUgkwpFoam.C due to No such file or directory
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -std=c++17 -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c diluteUgkwpFoam.C -o Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -std=c++17 -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -fuse-ld=bfd -Xlinker --add-needed -Xlinker --no-as-needed Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o -L/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib \
+    -lfiniteVolume -lmeshTools -lmomentumTransportModels -lOpenFOAM /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/gasUGKP/private_backend/build/linux64GccDPInt32Opt/libugkwp_cuda_backend.a -L/usr/local/cuda/lib64 -Wl,-rpath,/usr/local/cuda/lib64 -lcudart -lOpenFOAM -ldl  \
+     -lm -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/gasUGKP
+Built resident single-process solver: /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/gasUGKP
+✓ gasUGKP built successfully
+
+============================================
+Building gasUGKPSteady via tool/gasUGKPSteady/build_cuda_solver.sh...
+============================================
+[cuda-build] fast-compile=min; optimization level and FP flags preserved
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/gasUGKPSteady/private_backend/../../gasUGKP/private_backend/GpuResidentStrict.cu(5189): warning #177-D: variable "runBinPre" was declared but never referenced
+      const bool runBinPre = s->csrCellLocalPathEnabled != 0;
+                 ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/gasUGKPSteady/private_backend/../../gasUGKP/private_backend/GpuResidentStrict.cu(5028): warning #177-D: variable "warpCount" was declared but never referenced
+      const int warpCount = (block + 31)/32;
+                ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/GasBoundaryLayerModelState.H(314): warning #177-D: variable "Ns" was declared but never referenced
+      constexpr int Ns=GasStateTraits<State>::speciesCount;
+                    ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int) [with Capture=false, State=<unnamed>::DeviceState]" at line 16 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/operators/evaluateGasBoundaryLayerKernel.cuh
+            instantiation of "void <unnamed>::evaluateGasBoundaryLayerKernel(GasState *) [with Capture=false, GasState=<unnamed>::DeviceState]" at line 10 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/ResidentWallLaunch.inl
+            instantiation of "int <unnamed>::launchBoundaryLayer<Capture>(<unnamed>::DeviceState *) [with Capture=false]" at line 147 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/gasUGKPSteady/private_backend/../../gasUGKP/private_backend/GpuResidentStrict.cu
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/../gasWall/WallCoherentSolver.H(116): warning #177-D: variable "l" was declared but never referenced
+   norm=scaledClosure;for(int i=0;i<cfg.nodes;++i){double high[6];for(int j=0;j<6;++j)high[j]=low[i][j];if(i>0&&i<cfg.nodes-1){double integralK=0,integralO=0;for(int side=0;side<2;++side){int l=i-1+side;double lo=side?w.y[i]:(w.y[i-1]+w.y[i])/2,hi=side?(w.y[i]+w.y[i+1])/2:w.y[i];const double g[2]={-.57735026918962576451,.57735026918962576451},wt[2]={1,1};for(int q=0;q<2;++q){double y=(hi+lo)/2+(hi-lo)/2*g[q];auto v=basePhysical(p,y);physical::Face<double,2>f;physical::Source<double,2>s;if(!trackedEvaluate(in,cfg,v,y,in.normal,ctx.wallNormal,f,s))return false;integralK+=(hi-lo)/2*wt[q]*s.k;integralO+=(hi-lo)/2*wt[q]*s.omega;}}
+                                                                                                                                                                                                ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gaswall::coherent::ScalarEngine<M>::solve(const ugkwp::gaswall::reconstruction::Input &, const ugkwp::gaswall::reconstruction::Config &, ugkwp::gaswall::coherent::ScalarEngine<M>::W &, ugkwp::gaswall::coherent::Cache<M> &, ugkwp::gaswall::WallOutput<double, 2> &, Stats &) [with M=24, Stats=ugkwp::gaswall::coherent::SolveStats]" at line 97 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/GasCoherentBoundaryLayer.H
+            instantiation of "__nv_bool ugkwp::evaluateGasCoherentWallWorkspace(const ugkwp::gaswall::WallInput<double, 2, double> &, const ugkwp::gaswall::WallModelConfig<ugkwp::gaswall::WallReal> &, ugkwp::gaswall::WallWorkspace<double, 2, M> &, ugkwp::gaswall::coherent::Scratch<M> &, ugkwp::gaswall::coherent::PersistentWallState<M> &, const double *, ugkwp::gaswall::WallOutput<double, 2> &, ugkwp::gaswall::WallStatus &, ugkwp::gaswall::WallReferenceStats &, const Team &) [with M=24, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 116 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerWorkspace(const ugkwp::gaswall::WallInput<Real, Ns, Real> &, const ugkwp::gaswall::WallModelConfig<Real> &, ugkwp::gaswall::WallWorkspace<Real, Ns, Capacity> &, ugkwp::gaswall::WallOutput<Real, Ns> &, ugkwp::gaswall::WallStatus &, Real *, const Team &, ugkwp::gaswall::WallReferenceScratch<Ns, Capacity> *, const Real *, ugkwp::gaswall::WallReferenceStats *, ugkwp::gaswall::coherent::Scratch<Capacity> *, ugkwp::gaswall::coherent::PersistentWallState<Capacity> *) [with Capture=false, Real=double, Ns=2, Capacity=24, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 191 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerHistory<Capture,Capacity,State,Team>(State &, int, int, const Team &) [with Capture=false, Capacity=24, State=<unnamed>::DeviceState, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 342 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int, const Team &) [with Capture=false, Capacity=0, State=<unnamed>::DeviceState, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 361 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int) [with Capture=false, State=<unnamed>::DeviceState]" at line 16 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/operators/evaluateGasBoundaryLayerKernel.cuh
+            instantiation of "void <unnamed>::evaluateGasBoundaryLayerKernel(GasState *) [with Capture=false, GasState=<unnamed>::DeviceState]" at line 10 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/common/gasTransport/ResidentWallLaunch.inl
+            instantiation of "int <unnamed>::launchBoundaryLayer<Capture>(<unnamed>::DeviceState *) [with Capture=false]" at line 147 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/gasUGKPSteady/private_backend/../../gasUGKP/private_backend/GpuResidentStrict.cu
+
+In file included from tmpxft_000144d5_00000000-6_GpuSteadyBackend.cudafe1.stub.c:1:
+/tmp/tmpxft_000144d5_00000000-6_GpuSteadyBackend.cudafe1.stub.c:66:325: warning: ‘using plus = struct cuda::std::__4::plus<double>’ is deprecated: Use cuda::std::plus instead [-Wdeprecated-declarations]
+   66 | extern __attribute__((visibility("hidden"))) void __device_stub__Z29injectBoundaryParticlesKernelPN52_GLOBAL__N__57d3e5d9_19_GpuSteadyBackend_cu_c309ccbe11DeviceStateEdd( _ZN52_GLOBAL__N__57d3e5d9_19_GpuSteadyBackend_cu_c309ccbe11DeviceStateE *, const double, const double);
+      |                                                                                                                                                                                                                                                                                                                                     ^           
+/usr/local/cuda-13.1/targets/x86_64-linux/include/cccl/thrust/functional.h:59:33: note: declared here
+   59 | template <class T = void>
+      |                                 ^   
+In file included from tmpxft_000144d5_00000000-6_GpuSteadyBackend.cudafe1.stub.c:1:
+/tmp/tmpxft_000144d5_00000000-6_GpuSteadyBackend.cudafe1.stub.c:72:306: warning: ‘using plus = struct cuda::std::__4::plus<double>’ is deprecated: Use cuda::std::plus instead [-Wdeprecated-declarations]
+   72 | static void __device_stub__Z33relaxParticlesToResidentGasKernelIN12ugkwpGpuDrag28GidaspowErgunWenYuDeviceDragEEvPN52_GLOBAL__N__57d3e5d9_19_GpuSteadyBackend_cu_c309ccbe11DeviceStateEd( _ZN52_GLOBAL__N__57d3e5d9_19_GpuSteadyBackend_cu_c309ccbe11DeviceStateE *, const double);
+      |                                                                                                                                                                                                                                                                                                                  ^           
+/usr/local/cuda-13.1/targets/x86_64-linux/include/cccl/thrust/functional.h:59:33: note: declared here
+   59 | template <class T = void>
+      |                                 ^   
+In file included from tmpxft_000144d5_00000000-6_GpuSteadyBackend.cudafe1.stub.c:1:
+/tmp/tmpxft_000144d5_00000000-6_GpuSteadyBackend.cudafe1.stub.c:78:318: warning: ‘using plus = struct cuda::std::__4::plus<double>’ is deprecated: Use cuda::std::plus instead [-Wdeprecated-declarations]
+   78 | extern __attribute__((visibility("hidden"))) void __device_stub__Z35finalizeCsrSegmentedPoolCellsKernelPN52_GLOBAL__N__57d3e5d9_19_GpuSteadyBackend_cu_c309ccbe11DeviceStateE( _ZN52_GLOBAL__N__57d3e5d9_19_GpuSteadyBackend_cu_c309ccbe11DeviceStateE *);
+      |                                                                                                                                                                                                                                                                                                                              ^           
+/usr/local/cuda-13.1/targets/x86_64-linux/include/cccl/thrust/functional.h:59:33: note: declared here
+   59 | template <class T = void>
+      |                                 ^   
+In file included from tmpxft_000144d5_00000000-6_GpuSteadyBackend.cudafe1.stub.c:1:
+/tmp/tmpxft_000144d5_00000000-6_GpuSteadyBackend.cudafe1.stub.c:84:341: warning: ‘using plus = struct cuda::std::__4::plus<double>’ is deprecated: Use cuda::std::plus instead [-Wdeprecated-declarations]
+   84 | static void __device_stub__Z47accumulateCsrSegmentedPoolTasksPersistentKernelILb0ELN52_GLOBAL__N__57d3e5d9_19_GpuSteadyBackend_cu_c309ccbe18HeavyDirectoryKindE1EEvPNS0_11DeviceStateEd( _ZN52_GLOBAL__N__57d3e5d9_19_GpuSteadyBackend_cu_c309ccbe11DeviceStateE *, const double);
+      |                                                                                                                                                                                                                                                                                                                                                     ^           
+/usr/local/cuda-13.1/targets/x86_64-linux/include/cccl/thrust/functional.h:59:33: note: declared here
+   59 | template <class T = void>
+      |                                 ^   
+In file included from tmpxft_000144d5_00000000-6_GpuSteadyBackend.cudafe1.stub.c:1:
+/tmp/tmpxft_000144d5_00000000-6_GpuSteadyBackend.cudafe1.stub.c:90:322: warning: ‘using plus = struct cuda::std::__4::plus<double>’ is deprecated: Use cuda::std::plus instead [-Wdeprecated-declarations]
+   90 | extern __attribute__((visibility("hidden"))) void __device_stub__Z35commitSelectedParticleBuffersKernelPN52_GLOBAL__N__57d3e5d9_19_GpuSteadyBackend_cu_c309ccbe11DeviceStateE( _ZN52_GLOBAL__N__57d3e5d9_19_GpuSteadyBackend_cu_c309ccbe11DeviceStateE *);
+      |                                                                                                                                                                                                                                                                                                                                  ^           
+/usr/local/cuda-13.1/targets/x86_64-linux/include/cccl/thrust/functional.h:59:33: note: declared here
+   59 | template <class T = void>
+      |                                 ^   
+In file included from tmpxft_000144d5_00000000-6_GpuSteadyBackend.cudafe1.stub.c:1:
+/tmp/tmpxft_000144d5_00000000-6_GpuSteadyBackend.cudafe1.stub.c:96:324: warning: ‘using plus = struct cuda::std::__4::plus<double>’ is deprecated: Use cuda::std::plus instead [-Wdeprecated-declarations]
+   96 | static void __device_stub__Z49accumulateCsrSegmentedMomentTasksPersistentKernelILb0EEvPN52_GLOBAL__N__57d3e5d9_19_GpuSteadyBackend_cu_c309ccbe11DeviceStateE( _ZN52_GLOBAL__N__57d3e5d9_19_GpuSteadyBackend_cu_c309ccbe11DeviceStateE *);
+      |                                                                                                                                                                                                                                                                                                                                    ^           
+/usr/local/cuda-13.1/targets/x86_64-linux/include/cccl/thrust/functional.h:59:33: note: declared here
+   59 | template <class T = void>
+      |                                 ^   
+Making dependency list for source file gasUGKPSteady.C
+could not open file MolecularTransportIO.H for source file gasUGKPSteady.C due to No such file or directory
+could not open file FoamMolecularTransportIO.H for source file gasUGKPSteady.C due to No such file or directory
+could not open file GasModel.H for source file gasUGKPSteady.C due to No such file or directory
+could not open file GasModelIO.H for source file gasUGKPSteady.C due to No such file or directory
+could not open file ../chemistry/MechanismValidation.H for source file gasUGKPSteady.C due to No such file or directory
+could not open file MixtureThermo.H for source file gasUGKPSteady.C due to No such file or directory
+could not open file ../chemistry/ChemistryTypes.H for source file gasUGKPSteady.C due to No such file or directory
+could not open file WallResolutionDefaults.H for source file gasUGKPSteady.C due to No such file or directory
+could not open file WallModelTypes.H for source file gasUGKPSteady.C due to No such file or directory
+could not open file ../gasWall/WallResolutionDefaults.H for source file gasUGKPSteady.C due to No such file or directory
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../gasUGKP -I../../common -I../gasUGKP/gpu -std=c++17 -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c gasUGKPSteady.C -o Make/linux64GccDPInt32Opt/gasUGKPSteady.o
+In file included from gasUGKPSteady.C:5:
+../gasUGKP/diluteUgkwpFoam.C: In function ‘int main(int, char**)’:
+../gasUGKP/diluteUgkwpFoam.C:331:20: warning: unused variable ‘lastMeasuredCo’ [-Wunused-variable]
+  331 |             scalar lastMeasuredCo = scalar(0);
+      |                    ^~~~~~~~~~~~~~
+../gasUGKP/diluteUgkwpFoam.C:333:15: warning: unused variable ‘stepsSinceCourant’ [-Wunused-variable]
+  333 |         label stepsSinceCourant = gpuResidentCourantUpdateInterval;
+      |               ^~~~~~~~~~~~~~~~~
+../gasUGKP/diluteUgkwpFoam.C:96:22: warning: unused variable ‘gpuResidentMaxDeltaTGrowth’ [-Wunused-variable]
+   96 |         const scalar gpuResidentMaxDeltaTGrowth =
+      |                      ^~~~~~~~~~~~~~~~~~~~~~~~~~
+../gasUGKP/diluteUgkwpFoam.C:288:14: warning: unused variable ‘adjustTimeStep’ [-Wunused-variable]
+  288 |         bool adjustTimeStep = false;
+      |              ^~~~~~~~~~~~~~
+../gasUGKP/diluteUgkwpFoam.C:289:16: warning: unused variable ‘maxCo’ [-Wunused-variable]
+  289 |         scalar maxCo = 0.5;
+      |                ^~~~~
+../gasUGKP/diluteUgkwpFoam.C:290:16: warning: unused variable ‘maxDeltaT’ [-Wunused-variable]
+  290 |         scalar maxDeltaT = GREAT;
+      |                ^~~~~~~~~
+In file included from gasUGKPSteady.C:5:
+../gasUGKP/diluteUgkwpFoam.C:506:16: warning: unused variable ‘lastMeasuredCo’ [-Wunused-variable]
+  506 |         scalar lastMeasuredCo = scalar(0);
+      |                ^~~~~~~~~~~~~~
+../gasUGKP/diluteUgkwpFoam.C:508:15: warning: unused variable ‘stepsSinceCourant’ [-Wunused-variable]
+  508 |         label stepsSinceCourant = gpuResidentCourantUpdateInterval;
+      |               ^~~~~~~~~~~~~~~~~
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../gasUGKP -I../../common -I../gasUGKP/gpu -std=c++17 -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -fuse-ld=bfd -Xlinker --add-needed -Xlinker --no-as-needed Make/linux64GccDPInt32Opt/gasUGKPSteady.o -L/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib \
+    -lfiniteVolume -lmeshTools -lmomentumTransportModels -lOpenFOAM /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/gasUGKPSteady/private_backend/build/linux64GccDPInt32Opt/libugkwp_steady_backend.a -L/usr/local/cuda/lib64 -Wl,-rpath,/usr/local/cuda/lib64 -lcudart -lOpenFOAM -ldl  \
+     -lm -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/gasUGKPSteady
+✓ gasUGKPSteady built successfully
+
+============================================
+Building FSH via tool/FSH/build_private_backend.sh...
+============================================
+[cuda-build] fast-compile=min; optimization level and FP flags preserved
+[separated-build] solver_root=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH
+[separated-build] cuda_home=/usr/local/cuda
+[separated-build] cuda_arch=sm_89
+[separated-build] development_probes=0
+[separated-build] fmad=1
+[separated-build] WM_OPTIONS=linux64GccDPInt32Opt
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/CharacteristicMuscl.cuh(41): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("failedIncrement") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      const GpuReal value = std::numeric_limits<GpuReal>::quiet_NaN();
+                            ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/CharacteristicMuscl.cuh(60): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("boundedTowardAdjacent") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/OpenFoamWallFunctions.cuh(86): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("wallYPlusLaminar") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/OpenFoamWallFunctions.cuh(164): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("spaldingWallStateFromNormalGradient") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          const GpuReal nan=std::numeric_limits<GpuReal>::quiet_NaN();return {nan,nan,nan};
+                            ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/OpenFoamWallFunctions.cuh(182): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("spaldingWallStateFromNormalGradient") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              const GpuReal nan=std::numeric_limits<GpuReal>::quiet_NaN();return {nan,nan,nan};
+                                ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/OpenFoamWallFunctions.cuh(190): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("spaldingWallStateFromNormalGradient") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+                  const GpuReal nan=std::numeric_limits<GpuReal>::quiet_NaN();return {nan,nan,nan};
+                                    ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/OpenFoamWallFunctions.cuh(335): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("jayatillekeThermalYPlus") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      const GpuReal nan=std::numeric_limits<GpuReal>::quiet_NaN();
+                        ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/OpenFoamWallFunctions.cuh(475): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("jayatillekeWallHeatFluxPrecomputed") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return JayatillekeWallHeatState{std::numeric_limits<GpuReal>::quiet_NaN(), std::numeric_limits<GpuReal>::quiet_NaN(), thermalYPlus, 0};
+                                          ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/OpenFoamWallFunctions.cuh(475): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("jayatillekeWallHeatFluxPrecomputed") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return JayatillekeWallHeatState{std::numeric_limits<GpuReal>::quiet_NaN(), std::numeric_limits<GpuReal>::quiet_NaN(), thermalYPlus, 0};
+                                                                                     ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/OpenFoamWallFunctions.cuh(487): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("jayatillekeWallHeatFluxPrecomputed") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return JayatillekeWallHeatState{std::numeric_limits<GpuReal>::quiet_NaN(), temperaturePlus, thermalYPlus, 0};
+                                          ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(111): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(119): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(148): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(163): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              return std::numeric_limits<GpuReal>::quiet_NaN();
+                     ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(171): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              return std::numeric_limits<GpuReal>::quiet_NaN();
+                     ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(189): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              return std::numeric_limits<GpuReal>::quiet_NaN();
+                     ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/GpuResidentStrict.cu(3655): warning #177-D: variable "warpCount" was declared but never referenced
+      const int warpCount = (block + 31)/32;
+                ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/../thermal/GpuAluminaProperties.H(40): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteAluminaValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return value == value && value >= -std::numeric_limits<Real>::max()
+                                         ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteAluminaValue(Real) noexcept [with Real=GpuReal]" at line 167
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/../thermal/GpuAluminaProperties.H(41): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteAluminaValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && value <= std::numeric_limits<Real>::max();
+                      ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteAluminaValue(Real) noexcept [with Real=GpuReal]" at line 167
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/../thermal/GpuParticleWallContactHeat.H(46): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteParticleWallContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return value == value && value >= -std::numeric_limits<Real>::max()
+                                         ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteParticleWallContactValue(Real) noexcept [with Real=GpuReal]" at line 127
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/../thermal/GpuParticleWallContactHeat.H(47): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteParticleWallContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && value <= std::numeric_limits<Real>::max();
+                      ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteParticleWallContactValue(Real) noexcept [with Real=GpuReal]" at line 127
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(58): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return x == x && x >= -std::numeric_limits<Real>::max()
+                             ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteContactValue(Real) noexcept [with Real=GpuReal]" at line 108
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(59): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && x <= std::numeric_limits<Real>::max();
+                  ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteContactValue(Real) noexcept [with Real=GpuReal]" at line 108
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/../../../common/wall/GpuColdWallSolidification.H(64): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteColdWallValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return value == value && value >= -std::numeric_limits<Real>::max()
+                                         ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteColdWallValue(Real) noexcept [with Real=GpuReal]" at line 282
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/../../../common/wall/GpuColdWallSolidification.H(65): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteColdWallValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && value <= std::numeric_limits<Real>::max();
+                      ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteColdWallValue(Real) noexcept [with Real=GpuReal]" at line 282
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/../../common/gasTransport/MixtureThermo.H(16): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("gasFinite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return x == x && x <= (std::numeric_limits<Real>::max)()
+                            ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gasFinite(Real) noexcept [with Real=double]" at line 52 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/../../common/operators/gasStencilDiagnostics.cuh
+            instantiation of "__nv_bool <unnamed>::gasProducerScalarValid(const GasState &, int, Scalar, unsigned int, __nv_bool) [with GasState=<unnamed>::DeviceState, Scalar=double]" at line 1305 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/../../common/operators/computeSstFaceFluxKernel.cuh
+            instantiation of "void <unnamed>::recoverGasPrimitiveCell(GasState &, int, __nv_bool) [with GasState=<unnamed>::DeviceState]" at line 12 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/../../common/operators/recoverPrimitivesKernel.cuh
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/../../common/gasTransport/MixtureThermo.H(17): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("gasFinite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && x >= -(std::numeric_limits<Real>::max)();
+                   ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gasFinite(Real) noexcept [with Real=double]" at line 52 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/../../common/operators/gasStencilDiagnostics.cuh
+            instantiation of "__nv_bool <unnamed>::gasProducerScalarValid(const GasState &, int, Scalar, unsigned int, __nv_bool) [with GasState=<unnamed>::DeviceState, Scalar=double]" at line 1305 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/../../common/operators/computeSstFaceFluxKernel.cuh
+            instantiation of "void <unnamed>::recoverGasPrimitiveCell(GasState &, int, __nv_bool) [with GasState=<unnamed>::DeviceState]" at line 12 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/../../common/operators/recoverPrimitivesKernel.cuh
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/../../common/gasTransport/MixtureThermo.H(63): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("invalidValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+  { return std::numeric_limits<Real>::quiet_NaN(); }
+           ^
+          detected during:
+            instantiation of "Real ugkwp::gasThermoDetail::invalidValue<Real>() noexcept [with Real=double]" at line 668 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/../../common/operators/computeSstFaceFluxKernel.cuh
+            instantiation of "void <unnamed>::computeGasCourantFieldKernel(GasState *, double, __nv_bool) [with GasState=<unnamed>::DeviceState]" at line 3584 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/GpuResidentStrict.cu
+
+Making dependency list for source file GpuBackendClient.C
+Making dependency list for source file diluteUgkwpFoam.C
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -DUGKWP_USE_CUDA -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c diluteUgkwpFoam.C -o Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -DUGKWP_USE_CUDA -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c gpu/GpuBackendClient.C -o Make/linux64GccDPInt32Opt/gpu/GpuBackendClient.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -DUGKWP_USE_CUDA -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -fuse-ld=bfd -Xlinker --add-needed -Xlinker --no-as-needed Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o Make/linux64GccDPInt32Opt/gpu/GpuBackendClient.o -L/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib \
+    -lfiniteVolume -lmeshTools -lmomentumTransportModels -lOpenFOAM -lOpenFOAM -ldl  \
+     -lm -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/FSH
+[separated-build] frontend=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/FSH
+[separated-build] backend=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/FSHCudaBackend
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/FSH/private_backend/build_logs/fsh_finite_contact/separated_build_20261029_011140.log
+✓ FSH built successfully
+
+============================================
+Building CHT via tool/CHT/build_cuda_solver.sh...
+============================================
+[cuda-build] fast-compile=min; optimization level and FP flags preserved
+[cuda-build] solver_root=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT
+[cuda-build] cuda_home=/usr/local/cuda
+[cuda-build] cuda_arch=sm_89
+[cuda-build] WM_OPTIONS=linux64GccDPInt32Opt
+[cuda-build] physical=64 time=64
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/gpu/GpuResidentStrict.cu(4472): warning #177-D: variable "warpCount" was declared but never referenced
+      const int warpCount = (block + 31)/32;
+                ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/../../common/gasTransport/GasBoundaryLayerModelState.H(314): warning #177-D: variable "Ns" was declared but never referenced
+      constexpr int Ns=GasStateTraits<State>::speciesCount;
+                    ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int) [with Capture=false, State=<unnamed>::DeviceState]" at line 16 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/../../common/operators/evaluateGasBoundaryLayerKernel.cuh
+            instantiation of "void evaluateGasBoundaryLayerKernel(GasState *) [with Capture=false, GasState=<unnamed>::DeviceState]" at line 10 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/../../common/gasTransport/ResidentWallLaunch.inl
+            instantiation of "int <unnamed>::launchBoundaryLayer<Capture>(<unnamed>::DeviceState *) [with Capture=false]" at line 152 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/gpu/GpuResidentStrict.cu
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/../../common/gasTransport/../gasWall/WallCoherentSolver.H(116): warning #177-D: variable "l" was declared but never referenced
+   norm=scaledClosure;for(int i=0;i<cfg.nodes;++i){double high[6];for(int j=0;j<6;++j)high[j]=low[i][j];if(i>0&&i<cfg.nodes-1){double integralK=0,integralO=0;for(int side=0;side<2;++side){int l=i-1+side;double lo=side?w.y[i]:(w.y[i-1]+w.y[i])/2,hi=side?(w.y[i]+w.y[i+1])/2:w.y[i];const double g[2]={-.57735026918962576451,.57735026918962576451},wt[2]={1,1};for(int q=0;q<2;++q){double y=(hi+lo)/2+(hi-lo)/2*g[q];auto v=basePhysical(p,y);physical::Face<double,2>f;physical::Source<double,2>s;if(!trackedEvaluate(in,cfg,v,y,in.normal,ctx.wallNormal,f,s))return false;integralK+=(hi-lo)/2*wt[q]*s.k;integralO+=(hi-lo)/2*wt[q]*s.omega;}}
+                                                                                                                                                                                                ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gaswall::coherent::ScalarEngine<M>::solve(const ugkwp::gaswall::reconstruction::Input &, const ugkwp::gaswall::reconstruction::Config &, ugkwp::gaswall::coherent::ScalarEngine<M>::W &, ugkwp::gaswall::coherent::Cache<M> &, ugkwp::gaswall::WallOutput<double, 2> &, Stats &) [with M=24, Stats=ugkwp::gaswall::coherent::SolveStats]" at line 97 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/../../common/gasTransport/GasCoherentBoundaryLayer.H
+            instantiation of "__nv_bool ugkwp::evaluateGasCoherentWallWorkspace(const ugkwp::gaswall::WallInput<double, 2, double> &, const ugkwp::gaswall::WallModelConfig<ugkwp::gaswall::WallReal> &, ugkwp::gaswall::WallWorkspace<double, 2, M> &, ugkwp::gaswall::coherent::Scratch<M> &, ugkwp::gaswall::coherent::PersistentWallState<M> &, const double *, ugkwp::gaswall::WallOutput<double, 2> &, ugkwp::gaswall::WallStatus &, ugkwp::gaswall::WallReferenceStats &, const Team &) [with M=24, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 116 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/../../common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerWorkspace(const ugkwp::gaswall::WallInput<Real, Ns, Real> &, const ugkwp::gaswall::WallModelConfig<Real> &, ugkwp::gaswall::WallWorkspace<Real, Ns, Capacity> &, ugkwp::gaswall::WallOutput<Real, Ns> &, ugkwp::gaswall::WallStatus &, Real *, const Team &, ugkwp::gaswall::WallReferenceScratch<Ns, Capacity> *, const Real *, ugkwp::gaswall::WallReferenceStats *, ugkwp::gaswall::coherent::Scratch<Capacity> *, ugkwp::gaswall::coherent::PersistentWallState<Capacity> *) [with Capture=false, Real=double, Ns=2, Capacity=24, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 191 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/../../common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerHistory<Capture,Capacity,State,Team>(State &, int, int, const Team &) [with Capture=false, Capacity=24, State=<unnamed>::DeviceState, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 342 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/../../common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int, const Team &) [with Capture=false, Capacity=0, State=<unnamed>::DeviceState, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 361 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/../../common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int) [with Capture=false, State=<unnamed>::DeviceState]" at line 16 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/../../common/operators/evaluateGasBoundaryLayerKernel.cuh
+            instantiation of "void evaluateGasBoundaryLayerKernel(GasState *) [with Capture=false, GasState=<unnamed>::DeviceState]" at line 10 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/../../common/gasTransport/ResidentWallLaunch.inl
+            instantiation of "int <unnamed>::launchBoundaryLayer<Capture>(<unnamed>::DeviceState *) [with Capture=false]" at line 152 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/gpu/GpuResidentStrict.cu
+
+Making dependency list for source file GpuSolidThermalCoupler.C
+could not open file SparseConjugateGradient.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+could not open file ImplicitDiffusion.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+could not open file FoamThermalFieldOperators.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+could not open file SolidThermalMath.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+could not open file MieOpticalProperties.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+could not open file MieOpticalMath.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+could not open file MolecularTransportIO.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+could not open file FoamMolecularTransportIO.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+could not open file GasModel.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+could not open file MixtureThermo.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+could not open file ../chemistry/ChemistryTypes.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+could not open file WallResolutionDefaults.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+could not open file WallModelTypes.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+could not open file GasModelIO.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+could not open file ../chemistry/MechanismValidation.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+could not open file ../gasWall/WallResolutionDefaults.H for source file thermal/GpuSolidThermalCoupler.C due to No such file or directory
+Making dependency list for source file GpuThermalExchangeState.C
+Making dependency list for source file GpuSolidPatchMapper.C
+Making dependency list for source file GpuSolidThermalProperties.C
+Making dependency list for source file GpuParticleRadiationCoupler.C
+could not open file MieOpticalProperties.H for source file thermal/GpuParticleRadiationCoupler.C due to No such file or directory
+could not open file MieOpticalMath.H for source file thermal/GpuParticleRadiationCoupler.C due to No such file or directory
+Making dependency list for source file MieDoRadiationSolver.C
+could not open file MieOpticalProperties.H for source file thermal/MieDoRadiationSolver.C due to No such file or directory
+could not open file MieOpticalMath.H for source file thermal/MieDoRadiationSolver.C due to No such file or directory
+Making dependency list for source file MieTable.C
+could not open file MieOpticalMath.H for source file thermal/MieTable.C due to No such file or directory
+Making dependency list for source file diluteUgkwpFoam.C
+could not open file MolecularTransportIO.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file FoamMolecularTransportIO.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file SolidThermalMath.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file GasModel.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file MixtureThermo.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file ../chemistry/ChemistryTypes.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file WallResolutionDefaults.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file WallModelTypes.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file GasModelIO.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file ../chemistry/MechanismValidation.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file ../gasWall/WallResolutionDefaults.H for source file diluteUgkwpFoam.C due to No such file or directory
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c diluteUgkwpFoam.C -o Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o
+In file included from ../../common/gasTransport/GasWallApi.H:3,
+                 from gpu/GpuBackendApi.H:1,
+                 from ../../common/gasTransport/FoamBoundaryLayerInput.H:6,
+                 from gpu/GpuResidentStrict.H:1,
+                 from diluteUgkwpFoam.C:15:
+../../common/gasTransport/../gasWall/WallResolutionDefaults.H:5:1: warning: inline variables are only available with ‘-std=c++17’ or ‘-std=gnu++17’
+    5 | inline constexpr int defaultWallNodes=8;
+      | ^~~~~~
+../../common/gasTransport/../gasWall/WallResolutionDefaults.H:6:1: warning: inline variables are only available with ‘-std=c++17’ or ‘-std=gnu++17’
+    6 | inline constexpr double defaultWallStretch=3.0;
+      | ^~~~~~
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/MieTable.C -o Make/linux64GccDPInt32Opt/thermal/MieTable.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/MieDoRadiationSolver.C -o Make/linux64GccDPInt32Opt/thermal/MieDoRadiationSolver.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuParticleRadiationCoupler.C -o Make/linux64GccDPInt32Opt/thermal/GpuParticleRadiationCoupler.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuSolidThermalProperties.C -o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalProperties.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuSolidPatchMapper.C -o Make/linux64GccDPInt32Opt/thermal/GpuSolidPatchMapper.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuThermalExchangeState.C -o Make/linux64GccDPInt32Opt/thermal/GpuThermalExchangeState.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuSolidThermalCoupler.C -o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalCoupler.o
+In file included from ../../common/gasTransport/GasWallApi.H:3,
+                 from gpu/GpuBackendApi.H:1,
+                 from ../../common/gasTransport/FoamBoundaryLayerInput.H:6,
+                 from thermal/../gpu/GpuResidentStrict.H:1,
+                 from thermal/GpuSolidThermalCoupler.C:34:
+../../common/gasTransport/../gasWall/WallResolutionDefaults.H:5:1: warning: inline variables are only available with ‘-std=c++17’ or ‘-std=gnu++17’
+    5 | inline constexpr int defaultWallNodes=8;
+      | ^~~~~~
+../../common/gasTransport/../gasWall/WallResolutionDefaults.H:6:1: warning: inline variables are only available with ‘-std=c++17’ or ‘-std=gnu++17’
+    6 | inline constexpr double defaultWallStretch=3.0;
+      | ^~~~~~
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -fuse-ld=bfd -Xlinker --add-needed -Xlinker --no-as-needed Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o Make/linux64GccDPInt32Opt/thermal/MieTable.o Make/linux64GccDPInt32Opt/thermal/MieDoRadiationSolver.o Make/linux64GccDPInt32Opt/thermal/GpuParticleRadiationCoupler.o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalProperties.o Make/linux64GccDPInt32Opt/thermal/GpuSolidPatchMapper.o Make/linux64GccDPInt32Opt/thermal/GpuThermalExchangeState.o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalCoupler.o -L/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib \
+    -fopenmp -lfiniteVolume -lmeshTools -lmomentumTransportModels -lOpenFOAM /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/gpu/libugkpcht_cuda_internal.a -L/usr/local/cuda/lib64 -lcudart -lOpenFOAM -ldl  \
+     -lm -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/CHT
+[cuda-build] cuda binary=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/CHT
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHT/docs/build_logs/ugkpcht_upgrade/cuda_solver_build_20261029_011213.log
+✓ CHT built successfully
+
+============================================
+Building CHMT via applications/CHMT/Allwmake...
+============================================
+[cuda-build] fast-compile=min; optimization level and FP flags preserved
+9f33f4973e72c977e2d6680895b4ca93a2d2b3a1fc8b6548da7fa867fe519a07
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/gpu/../../../common/gasTransport/GasBoundaryLayerModelState.H(314): warning #177-D: variable "Ns" was declared but never referenced
+      constexpr int Ns=GasStateTraits<State>::speciesCount;
+                    ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int) [with Capture=false, State=chmt::SharedGasDeviceView]" at line 16 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/gpu/../../../common/operators/evaluateGasBoundaryLayerKernel.cuh
+            instantiation of "void chmt::transport::evaluateGasBoundaryLayerKernel(GasState *) [with Capture=false, GasState=chmt::SharedGasDeviceView]" at line 254 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/gpu/Backend.cu
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/gpu/../../../common/gasTransport/../gasWall/WallCoherentSolver.H(116): warning #177-D: variable "l" was declared but never referenced
+   norm=scaledClosure;for(int i=0;i<cfg.nodes;++i){double high[6];for(int j=0;j<6;++j)high[j]=low[i][j];if(i>0&&i<cfg.nodes-1){double integralK=0,integralO=0;for(int side=0;side<2;++side){int l=i-1+side;double lo=side?w.y[i]:(w.y[i-1]+w.y[i])/2,hi=side?(w.y[i]+w.y[i+1])/2:w.y[i];const double g[2]={-.57735026918962576451,.57735026918962576451},wt[2]={1,1};for(int q=0;q<2;++q){double y=(hi+lo)/2+(hi-lo)/2*g[q];auto v=basePhysical(p,y);physical::Face<double,2>f;physical::Source<double,2>s;if(!trackedEvaluate(in,cfg,v,y,in.normal,ctx.wallNormal,f,s))return false;integralK+=(hi-lo)/2*wt[q]*s.k;integralO+=(hi-lo)/2*wt[q]*s.omega;}}
+                                                                                                                                                                                                ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gaswall::coherent::ScalarEngine<M>::solve(const ugkwp::gaswall::reconstruction::Input &, const ugkwp::gaswall::reconstruction::Config &, ugkwp::gaswall::coherent::ScalarEngine<M>::W &, ugkwp::gaswall::coherent::Cache<M> &, ugkwp::gaswall::WallOutput<chmt::Real, 2> &, Stats &) [with M=24, Stats=ugkwp::gaswall::coherent::SolveStats]" at line 97 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/gpu/../../../common/gasTransport/GasCoherentBoundaryLayer.H
+            instantiation of "__nv_bool ugkwp::evaluateGasCoherentWallWorkspace(const ugkwp::gaswall::WallInput<chmt::Real, 2, chmt::Real> &, const ugkwp::gaswall::WallModelConfig<chmt::Real> &, ugkwp::gaswall::WallWorkspace<double, 2, M> &, ugkwp::gaswall::coherent::Scratch<M> &, ugkwp::gaswall::coherent::PersistentWallState<M> &, const double *, ugkwp::gaswall::WallOutput<chmt::Real, 2> &, ugkwp::gaswall::WallStatus &, ugkwp::gaswall::WallReferenceStats &, const Team &) [with M=24, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 116 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/gpu/../../../common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerWorkspace(const ugkwp::gaswall::WallInput<Real, Ns, Real> &, const ugkwp::gaswall::WallModelConfig<Real> &, ugkwp::gaswall::WallWorkspace<Real, Ns, Capacity> &, ugkwp::gaswall::WallOutput<Real, Ns> &, ugkwp::gaswall::WallStatus &, Real *, const Team &, ugkwp::gaswall::WallReferenceScratch<Ns, Capacity> *, const Real *, ugkwp::gaswall::WallReferenceStats *, ugkwp::gaswall::coherent::Scratch<Capacity> *, ugkwp::gaswall::coherent::PersistentWallState<Capacity> *) [with Capture=false, Real=chmt::Real, Ns=2, Capacity=24, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 191 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/gpu/../../../common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerHistory<Capture,Capacity,State,Team>(State &, int, int, const Team &) [with Capture=false, Capacity=24, State=chmt::SharedGasDeviceView, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 342 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/gpu/../../../common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int, const Team &) [with Capture=false, Capacity=0, State=chmt::SharedGasDeviceView, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 361 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/gpu/../../../common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int) [with Capture=false, State=chmt::SharedGasDeviceView]" at line 16 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/gpu/../../../common/operators/evaluateGasBoundaryLayerKernel.cuh
+            instantiation of "void chmt::transport::evaluateGasBoundaryLayerKernel(GasState *) [with Capture=false, GasState=chmt::SharedGasDeviceView]" at line 254 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/gpu/Backend.cu
+
+Warning #20208-D: 'long double' is treated as 'double' in device code
+
+Warning #20208-D: 'long double' is treated as 'double' in device code
+
+Warning #20208-D: 'long double' is treated as 'double' in device code
+
+Warning #20208-D: 'long double' is treated as 'double' in device code
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/materials/../../../common/gpu/ExtendedAccumulator.H(42): warning #20012-D: __host__ annotation is ignored on a non-virtual function("ExtendedAccumulator") that is explicitly defaulted on its first declaration
+      __attribute__((host)) __attribute__((device)) ExtendedAccumulator()=default;
+                     ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/materials/../../../common/gpu/ExtendedAccumulator.H(42): warning #20012-D: __device__ annotation is ignored on a non-virtual function("ExtendedAccumulator") that is explicitly defaulted on its first declaration
+      __attribute__((host)) __attribute__((device)) ExtendedAccumulator()=default;
+                                           ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/materials/../../../common/gpu/ExtendedAccumulator.H(42): warning #20012-D: __host__ annotation is ignored on a non-virtual function("ExtendedAccumulator") that is explicitly defaulted on its first declaration
+      __attribute__((host)) __attribute__((device)) ExtendedAccumulator()=default;
+                     ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/materials/../../../common/gpu/ExtendedAccumulator.H(42): warning #20012-D: __device__ annotation is ignored on a non-virtual function("ExtendedAccumulator") that is explicitly defaulted on its first declaration
+      __attribute__((host)) __attribute__((device)) ExtendedAccumulator()=default;
+                                           ^
+
+NATIVE_BUILD: /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/applications/CHMT/.build/native/CHMT. Run the actual coupled acceptance cases before claiming GPU verification.
+✓ CHMT built successfully
+
+============================================
+Build summary
+============================================
+✓ All solvers built successfully.
+
+Executables:
+  dc4c07e634e489986075fb9306c4b3c7fa58e717fdaf485e6d0a297880bb1e33  /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/gasUGKP
+  750caba99903ef66941367eb980f18fc73f132c57f4959e809ab28ad8c1b62d5  /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/gasUGKPSteady
+  73a94fc1c2b3fa328957b370925e69a69a3b1a8df6d93cc7457fd0f81bafef98  /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/FSH
+  d6ecb79366df6ee3b966cc9d7b48f6910b3c87645126f4920cec28122e52c8fe  /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/CHT
+  720301ea31a4d68ea2092526612a8230c2776f8a500eb9ddceb90911181eb7cf  /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/CHMT
+  da7b50e9c59ef137a36691f06ff2b439807172758ca0e9f0d6631576597db289  /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/bin/FSHCudaBackend
+	Command being timed: "bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr29build/solver/tool/build_local.sh"
+	User time (seconds): 430.60
+	System time (seconds): 17.89
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 7:31.97
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 1495148
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 25
+	Minor (reclaiming a frame) page faults: 11722583
+	Voluntary context switches: 15599
+	Involuntary context switches: 82820
+	Swaps: 0
+	File system inputs: 8960
+	File system outputs: 2251264
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

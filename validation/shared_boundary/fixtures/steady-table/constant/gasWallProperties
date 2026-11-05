@@ -1,0 +1,2 @@
+FoamFile { version 2.0; format ascii; class dictionary; object gasWallProperties; }
+patches { wall { speciesFluxFields { Air uniform 0; CO2 nonuniform List<scalar> 4 (0.01 0.02 0.1 0.4); } } }

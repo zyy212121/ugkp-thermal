@@ -1,3 +1,4 @@
+#include "gasBoundary/Wire.H"
 #include "../../../common/DiagnosticsCodec.H"
 #include "GpuBackendApi.H"
 #include "GpuBackendProtocol.H"
@@ -356,7 +357,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     double gravityX, double gravityY, double gravityZ,
     double particleDiameterFallback,
     double particleDiameterMin, double particleDiameterMax,
-    double particleDiameterSigma, double injectionTheta, double rhoMin,
+    double particleDiameterN, double injectionTheta, double rhoMin,
     double TgasMin, double epsSMin, double thetaMin, double TpMin,
     double TpMax, int collisionalPressureEnabled,
     double collisionalRestitution, double pressureKickFraction,
@@ -395,7 +396,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
         dragModelId, particleGasHeatTransferModelId, dragResidualRe,
         gravityX, gravityY, gravityZ,
         particleDiameterFallback, particleDiameterMin,
-        particleDiameterMax, particleDiameterSigma, injectionTheta, rhoMin,
+        particleDiameterMax, particleDiameterN, injectionTheta, rhoMin,
         TgasMin, epsSMin, thetaMin, TpMin, TpMax,
         collisionalPressureEnabled, collisionalRestitution,
         pressureKickFraction, jammingPressureEnabled, packingFraction,
@@ -474,6 +475,18 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     SEND(planeD, s->nCellPlanes);
 #undef SEND
     return finishNoPayload(s);
+}
+
+extern "C" int ugkwpGpuResidentStrictConfigureParticleInjectionVelocity
+(void* handle,int specified,double ux,double uy,double uz)
+{
+ ClientState* s=static_cast<ClientState*>(handle);
+ if(!s)return fail("missing particle injection velocity handle");
+ const double velocity[3]={ux,uy,uz};
+ const auto bytes=WireCodec<CountArgs>::size+3*sizeof(double);
+ if(!startRequest(s,Op::configureParticleInjectionVelocity,bytes)
+    ||!sendObject(s->fd,CountArgs{specified})||!sendArray(s->fd,velocity,3))return -1;
+ return finishNoPayload(s);
 }
 
 extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
@@ -628,6 +641,23 @@ extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
      || !sendObject(s->fd, CountArgs{count})
      || !sendArray(s->fd, sourceFace, count)
      || !sendArray(s->fd, residualMass, count)) return -1;
+    return finishNoPayload(s);
+}
+
+extern "C" int ugkwpGpuResidentStrictConfigureBoundary(void* handle,int nf,
+    const ugkp::boundary::Face* faces,int nfun,const ugkp::boundary::Function* fun,
+    int nt,const ugkp::boundary::Term* terms)
+{
+    ClientState* s=static_cast<ClientState*>(handle);
+    if(!s||nf!=s->nFaces||nf<0||nfun<0||nt<0||(nf&&!faces)||(nfun&&!fun)||(nt&&!terms))
+        return fail("invalid shared boundary configuration");
+    ugkp::boundary::Definition d;
+    if(nf)d.faces.assign(faces,faces+nf);if(nfun)d.functions.assign(fun,fun+nfun);if(nt)d.terms.assign(terms,terms+nt);
+    std::vector<int> iv;std::vector<double> rv;ugkp::boundary::encode(d,iv,rv);
+    const int counts[]={int(iv.size()),int(rv.size())};
+    const std::uint64_t bytes=(2+iv.size())*sizeof(int)+rv.size()*sizeof(double);
+    if(!startRequest(s,Op::configureBoundary,bytes)||!sendArray(s->fd,counts,2)
+        ||!sendArray(s->fd,iv.data(),iv.size())||!sendArray(s->fd,rv.data(),rv.size()))return -1;
     return finishNoPayload(s);
 }
 

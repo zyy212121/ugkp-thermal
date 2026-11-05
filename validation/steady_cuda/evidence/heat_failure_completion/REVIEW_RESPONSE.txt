@@ -1,0 +1,28 @@
+PR28-P2-001: accepted after reproduction and fixed.
+
+The reviewer correctly distinguished a failed physical exchange from a closed
+zero-exchange energy budget. The native final-step executable now confirms the
+previously inferred output defect: the old solver wrote time 1 and restart.
+The fixed solver reports failure before accepting the sample. The existing
+completion/diagnostic protocol is reused; root mathematics and ranges are unchanged.
+
+65 host tests, four production CUDA controls and five native configurations per
+binary are recorded. The native default-EOS tolerance and the stricter caloric
+energy check are distinguished in results.json. The original 10000 K dilute
+parcel control remains 9999.9352002332816 K with gas 1000.0000001916364 K.
+
+Three 3000-step timing pairs preserve compared final fields. Median wall time
+15.098688 -> 15.439290 seconds (2.26% slower). This small-case measurement includes
+startup/output and uses fast compile flags. No speedup is claimed for this fix.
+
+Reproduction: source /opt/openfoam10/etc/bashrc, build with the existing
+ tool/gasUGKPSteady/build_cuda_solver.sh (two species, sm_89), then run
+ python3 validation/steady_cuda/check_heat_failure.py --binary /path/to/gasUGKPSteady --output /new/output
+Use --expect-before only with the preserved old binary. The runner requires a
+fresh output and preserves all inputs, mesh logs, solver logs and hashes.
+Exact executed build/test commands and the NVCC wrapper are included beside this
+file; their absolute paths identify the recorded local runs.
+
+Scope remains serial gasUGKPSteady. No full CHT/CHMT, MPI or new production-grade
+speedup claim; previous review limitations are not closed by this change.
+PR27 sparse-jump and build-newline fixes remain in the candidate ancestry.

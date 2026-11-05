@@ -1,6 +1,8 @@
 #ifndef CHMT_GPU_SHAREDGASDEVICESTORAGE_CUH
 #define CHMT_GPU_SHAREDGASDEVICESTORAGE_CUH
 #include "gpu/HostTransferQueue.H"
+#include "../../../common/thermal/ParticleSurfaceState.H"
+#include "../../../common/gasBoundary/Resident.cuh"
 #if defined(__CUDACC__)
 #include "../../../common/gasTransport/GasStatusCompletion.cuh"
 #endif
@@ -19,6 +21,9 @@
 #include <climits>
 namespace chmt {
 struct SharedGasDeviceView:ugkwp::GasStateView<Real,Real,ugkwp::SstCoefficients> {
+    // Borrowed from the common particle owner; null is the particle-free phase.
+    const Real* gasVolumeFraction=nullptr;
+    ugkp::thermal::ParticleWallExchangeView particleWall;
     ugkwp::GasSpeciesState<Real,Ns> gasSpecies;
     ugkwp::GasBoundaryLayerModelState<Real,Ns> gasBoundaryLayerModel;
 };
@@ -43,12 +48,16 @@ class SharedGasDeviceStorage {
     Buffer<unsigned long long> statusFirst_;
     ugkp::diagnostics::GpuOwner* diagnostics_=nullptr;
     SharedGasDeviceView view_{};
+    ugkp::boundary::Resident boundary_;
     Buffer<SharedGasDeviceView> device_;
 #define UGKWP_GAS_STATE_FIELD(Type,Name) GasAllocation<Type> owner_##Name;
 #include "../../../common/gasTransport/GasStateFields.inc"
 #undef UGKWP_GAS_STATE_FIELD
     Buffer<Real> speciesRho_,speciesInitial_,speciesFlux_,speciesGX_,speciesGY_,speciesGZ_,speciesLimiter_,speciesBoundary_,speciesScale_,diffusivity_,sound_,cp_,r_,thermoCoeff_,elements_,basis_;
     Buffer<int> compositionFixed_,cellStatus_,faceStatus_;
+    Buffer<ugkwp::SutherlandSpecies<Real>> viscosityData_;
+    Buffer<ugkwp::PowerLawDiffusivity<Real>> powerLawData_;
+    Buffer<Real> viscosityQuarter_,viscosityDenominator_;
     Buffer<ugkwp::SpeciesThermoData<Real>> thermoData_;
     Buffer<ugkwp::GasReactionData<Real>> reactions_;
     Buffer<ugkwp::GasStoichTerm<Real>> reactants_,products_;
@@ -73,8 +82,12 @@ class SharedGasDeviceStorage {
     Buffer<ugkwp::GasBoundaryLayerExchange<Real>> wallExchange_;
     Buffer<ugkwp::GasBoundaryLayerSstClosure<Real>> wallSst_;
     Buffer<ugkwp::gaswall::WallInput<Real,Ns>> wallInput_;
-    Buffer<ugkwp::gaswall::WallOutput<Real,Ns>> wallOutput_;
+    Buffer<ugkwp::gaswall::WallResidentOutput<Real,Ns>> wallOutput_;
+    Buffer<ugkwp::gaswall::WallOutput<Real,Ns>> wallEvaluationOutput_;
+    Buffer<Real> wallFluxProfile_;
     Buffer<ugkwp::gaswall::WallStatus> wallModelStatus_;
+    Buffer<Real> wallAcceptedHistory_,wallCandidateHistory_;
+    Buffer<ugkwp::gaswall::WallHistoryFrame<Ns>> wallAcceptedFrame_,wallCandidateFrame_;
     Buffer<unsigned char> wallWorkspace_;
     static std::size_t count(const char* name,std::size_t cells,std::size_t faces,std::size_t addressing){
         if(!std::strcmp(name,"cellFaceId"))return addressing;
@@ -93,7 +106,10 @@ class SharedGasDeviceStorage {
     }
     template<class T>bool allocateSpecies(Buffer<T>& owner,T*& pointer,std::size_t n){const bool fresh=owner.size()!=n;if(!owner.resize(n,fault_)||(fresh&&!owner.zero(transfers_.stream())))return false;pointer=owner.data();return true;}
     static bool meshField(const char* name){
-        const char* fields[]={"Cx","Cy","Cz","V","cellLength","sstWallDistance","cellPlaneStart","cellPlaneCount","cellFaceId","faceOwner","faceNeighbour","facePeriodicPair","Sfx","Sfy","Sfz","magSf","faceCx","faceCy","faceCz","facePeriodicDx","facePeriodicDy","facePeriodicDz","deltaCoeffs","faceWeight","gasBoundaryKind","riemannBoundaryKind","sstBoundaryK","sstBoundaryOmega","sstBoundaryKMode","sstBoundaryOmegaMode","gasBoundaryRho","gasBoundaryP","gasBoundaryT","gasBoundaryUx","gasBoundaryUy","gasBoundaryUz","gasBoundaryUFix","gasBoundaryTFix","gasBoundaryRhoFix","gasBoundaryPFix","riemannBoundaryRho","riemannBoundaryP","riemannBoundaryT","riemannBoundaryUx","riemannBoundaryUy","riemannBoundaryUz","riemannBoundaryUFix","riemannBoundaryTFix","riemannBoundaryRhoFix","riemannBoundaryPFix"};
+        // Boundary configuration and its evaluated mirrors keep ownership across
+        // coordinate-only mesh updates; topology changes rebuild the storage.
+        if(!std::strncmp(name,"gasBoundary",11)||!std::strncmp(name,"riemannBoundary",15))return false;
+        const char* fields[]={"Cx","Cy","Cz","V","cellLength","sstWallDistance","cellPlaneStart","cellPlaneCount","cellFaceId","faceOwner","faceNeighbour","facePeriodicPair","Sfx","Sfy","Sfz","magSf","faceCx","faceCy","faceCz","facePeriodicDx","facePeriodicDy","facePeriodicDz","deltaCoeffs","faceWeight","gasBoundaryKind","riemannBoundaryKind","sstBoundaryK","sstBoundaryOmega","sstBoundaryKMode","sstBoundaryOmegaMode","gasBoundaryRho","gasBoundaryP","gasBoundaryT","gasBoundaryUx","gasBoundaryUy","gasBoundaryUz","gasBoundaryUFix","gasBoundaryTFix","gasBoundaryRhoFix","gasBoundaryPFix","riemannBoundaryRho","riemannBoundaryP","riemannBoundaryT","riemannBoundaryUx","riemannBoundaryUy","riemannBoundaryUz","riemannBoundaryUFix","riemannBoundaryTFix","riemannBoundaryRhoFix","riemannBoundaryPFix","gasBoundaryPWave","gasBoundaryPWaveGamma","gasBoundaryPWaveFieldInf","gasBoundaryPWaveLInf","riemannBoundaryPWave","riemannBoundaryPWaveGamma","riemannBoundaryPWaveFieldInf","riemannBoundaryPWaveLInf"};
         for(const char* field:fields)if(!std::strcmp(name,field))return true;
         return false;
     }
@@ -121,7 +137,7 @@ class SharedGasDeviceStorage {
         thermoCoeff_.rebindFault(fault_);
         elements_.rebindFault(fault_);
         basis_.rebindFault(fault_);
-        thermoData_.rebindFault(fault_);
+        thermoData_.rebindFault(fault_);viscosityData_.rebindFault(fault_);powerLawData_.rebindFault(fault_);viscosityQuarter_.rebindFault(fault_);viscosityDenominator_.rebindFault(fault_);
         reactions_.rebindFault(fault_);
         reactants_.rebindFault(fault_);
         products_.rebindFault(fault_);
@@ -140,7 +156,10 @@ class SharedGasDeviceStorage {
         wallSst_.rebindFault(fault_);
         wallInput_.rebindFault(fault_);
         wallOutput_.rebindFault(fault_);
+        wallEvaluationOutput_.rebindFault(fault_);wallFluxProfile_.rebindFault(fault_);
         wallModelStatus_.rebindFault(fault_);
+        wallAcceptedHistory_.rebindFault(fault_);wallCandidateHistory_.rebindFault(fault_);
+        wallAcceptedFrame_.rebindFault(fault_);wallCandidateFrame_.rebindFault(fault_);
         speciesBoundary_.rebindFault(fault_);
         compositionFixed_.rebindFault(fault_);
         device_.rebindFault(fault_);
@@ -168,7 +187,9 @@ class SharedGasDeviceStorage {
         geometryOld_.swap(other.geometryOld_);
         geometryNew_.swap(other.geometryNew_);
         geometrySweeps_.swap(other.geometrySweeps_);
-        if(mesh){speciesBoundary_.swap(other.speciesBoundary_);compositionFixed_.swap(other.compositionFixed_);volume_.swap(other.volume_);wallFaceArea_.swap(other.wallFaceArea_);}
+        boundary_.swap(other.boundary_);
+        speciesBoundary_.swap(other.speciesBoundary_);compositionFixed_.swap(other.compositionFixed_);
+        if(mesh){volume_.swap(other.volume_);wallFaceArea_.swap(other.wallFaceArea_);}
         if(wall){
             wallFaceSlot_.swap(other.wallFaceSlot_);
             wallOwnerSlot_.swap(other.wallOwnerSlot_);
@@ -184,7 +205,10 @@ class SharedGasDeviceStorage {
             wallSst_.swap(other.wallSst_);
             wallInput_.swap(other.wallInput_);
             wallOutput_.swap(other.wallOutput_);
+            wallEvaluationOutput_.swap(other.wallEvaluationOutput_);wallFluxProfile_.swap(other.wallFluxProfile_);
             wallModelStatus_.swap(other.wallModelStatus_);
+            wallAcceptedHistory_.swap(other.wallAcceptedHistory_);wallCandidateHistory_.swap(other.wallCandidateHistory_);
+            wallAcceptedFrame_.swap(other.wallAcceptedFrame_);wallCandidateFrame_.swap(other.wallCandidateFrame_);
             wallGeometry_.swap(other.wallGeometry_);wallFaces_.swap(other.wallFaces_);wallHostInput_.swap(other.wallHostInput_);
             std::swap(wallGeometryVersion_,other.wallGeometryVersion_);std::swap(wallGeometryReady_,other.wallGeometryReady_);std::swap(wallModelFailed_,other.wallModelFailed_);std::swap(wallInputDirty_,other.wallInputDirty_);
         }
@@ -195,7 +219,7 @@ class SharedGasDeviceStorage {
         thermoCoeff_.swap(other.thermoCoeff_);
         elements_.swap(other.elements_);
         basis_.swap(other.basis_);
-        thermoData_.swap(other.thermoData_);
+        thermoData_.swap(other.thermoData_);viscosityData_.swap(other.viscosityData_);powerLawData_.swap(other.powerLawData_);viscosityQuarter_.swap(other.viscosityQuarter_);viscosityDenominator_.swap(other.viscosityDenominator_);
         reactions_.swap(other.reactions_);
         reactants_.swap(other.reactants_);
         products_.swap(other.products_);
@@ -243,7 +267,7 @@ class SharedGasDeviceStorage {
         ok=thermoCoeff_.release()&&ok;
         ok=elements_.release()&&ok;
         ok=basis_.release()&&ok;
-        ok=thermoData_.release()&&ok;
+        ok=thermoData_.release()&&ok;ok=viscosityData_.release()&&ok;ok=powerLawData_.release()&&ok;ok=viscosityQuarter_.release()&&ok;ok=viscosityDenominator_.release()&&ok;
         ok=reactions_.release()&&ok;
         ok=reactants_.release()&&ok;
         ok=products_.release()&&ok;
@@ -262,7 +286,10 @@ class SharedGasDeviceStorage {
         ok=wallSst_.release()&&ok;
         ok=wallInput_.release()&&ok;
         ok=wallOutput_.release()&&ok;
+        ok=wallEvaluationOutput_.release()&&ok;ok=wallFluxProfile_.release()&&ok;
         ok=wallModelStatus_.release()&&ok;
+        ok=wallAcceptedHistory_.release()&&ok;ok=wallCandidateHistory_.release()&&ok;
+        ok=wallAcceptedFrame_.release()&&ok;ok=wallCandidateFrame_.release()&&ok;
         ok=speciesBoundary_.release()&&ok;
         ok=compositionFixed_.release()&&ok;
         ok=device_.release()&&ok;
@@ -461,6 +488,16 @@ private:
         }
         identity_=gas.speciesOrderHash;thermoIdentity_=gas.thermoHash;mechanismIdentity_=mechanism.mechanismHash;
         view_.rhoMin=1e-30;view_.TgasMin=1e-12;view_.gasMu=model.physics.gasViscosity;
+        const auto& transport=model.physics;const int count=transport.gasViscositySpecies;
+        const std::vector<ugkwp::SutherlandSpecies<Real>> data(transport.gasSutherland,transport.gasSutherland+count);
+        const std::vector<Real> quarter(transport.gasMassRatioQuarter,transport.gasMassRatioQuarter+count*count);
+        const std::vector<Real> denominator(transport.gasWilkeDenominator,transport.gasWilkeDenominator+count*count);
+        if(!uploadBuffer(viscosityData_,data)||!uploadBuffer(viscosityQuarter_,quarter)||!uploadBuffer(viscosityDenominator_,denominator)){error=fault_.message;return false;}
+        const std::vector<ugkwp::PowerLawDiffusivity<Real>> diffusion(transport.gasPowerLaw,transport.gasPowerLaw+(transport.gasPowerLawEnabled?Ns:0));
+        if(!uploadBuffer(powerLawData_,diffusion)){error=fault_.message;return false;}
+        view_.gasViscosity=molecularTransportView(transport);view_.gasViscosity.species=viscosityData_.data();
+        view_.gasViscosity.massRatioQuarter=viscosityQuarter_.data();view_.gasViscosity.wilkeDenominator=viscosityDenominator_.data();
+        view_.gasViscosity.diffusion=transport.gasPowerLawEnabled?powerLawData_.data():nullptr;
         view_.gasPrClamped=1;
         view_.gasThermalConductivity=model.physics.gasConductivity;
         // CHMT uses zero for disabled conduction, never a negative unset sentinel.
@@ -482,10 +519,10 @@ private:
         }
         if(initialize){if(!uploadState(state,error))return false;}
         else{
-            if(importSpecies){std::vector<Real> values(Ns*nc);for(std::size_t c=0;c<nc;++c)for(int s=0;s<Ns;++s)values[s*nc+c]=state.gas[c].species[s]/volume_[c];
+            if(importSpecies){std::vector<Real> values(Ns*nc);for(std::size_t c=0;c<nc;++c)for(int s=0;s<Ns;++s)values[s*nc+c]=state.gas[c].species[s]/gasPhaseVolume(state,c);
                 if(!upload(sp.rho,values)){error=fault_.message;return false;}}
             if(importSst){if(nc&&state.sst.empty()){error="missing supplied SST inventory";return false;}
-                std::vector<Real> k(nc),omega(nc);for(std::size_t c=0;c<nc;++c){k[c]=state.sst[c].rhoK/volume_[c];omega[c]=state.sst[c].rhoOmega/volume_[c];}
+                std::vector<Real> k(nc),omega(nc);for(std::size_t c=0;c<nc;++c){k[c]=state.sst[c].rhoK/gasPhaseVolume(state,c);omega[c]=state.sst[c].rhoOmega/gasPhaseVolume(state,c);}
                 if(!upload(view_.rhoK,k)||!upload(view_.rhoOmega,omega)){error=fault_.message;return false;}}
         }
         sstInitialized_=sstInitialized_||model.physics.enableSst;
@@ -519,6 +556,8 @@ public:
         if(wallWorkspace_.size()!=sizing.bytes)wallWorkspace_.swap(previousWorkspace_);
         if(!wallWorkspace_.resize(sizing.bytes,fault_)){error=fault_.message;return false;}
         layer.workspaceCount=sizing.slots;layer.workspace=wallWorkspace_.data();
+        if(!wallEvaluationOutput_.resize(sizing.slots,fault_))return false;
+        layer.evaluationOutput=wallEvaluationOutput_.data();
         std::fprintf(stderr,"CHMT boundaryLayer workspace requested=%d resolved=%d capacity=%d bytes=%zu\n",
             physics.wallWorkspaceSlots,layer.workspaceCount,layer.workspaceCapacity,sizing.bytes);
         return true;
@@ -550,6 +589,17 @@ public:
         auto& wall=view_.gasBoundaryLayer;wall.faceSlot=wallFaceSlot_.data();wall.ownerSlot=wallOwnerSlot_.data();
         wall.exchange=wallExchange_.data();wall.sst=wallSst_.data();wall.status=wallStatus_.data();wall.speciesFlux=wallSpecies_.data();
         auto& layer=view_.gasBoundaryLayerModel;layer.input=wallInput_.data();layer.output=wallOutput_.data();layer.status=wallModelStatus_.data();
+        const std::size_t fluxCount=layer.volumeSstClosure&&layer.config.enableSst?std::size_t(count)*3*(layer.config.nodes+1):0;
+        if(!wallFluxProfile_.resize(fluxCount,fault_))return false;
+        layer.fluxProfile=wallFluxProfile_.data();
+        if(layer.config.model!=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport){
+            const std::size_t values=std::size_t(count)*layer.config.nodes*(Ns+4);
+            if(!wallAcceptedHistory_.resize(values,fault_)||!wallCandidateHistory_.resize(values,fault_)
+                ||!wallAcceptedFrame_.resize(count,fault_)||!wallCandidateFrame_.resize(count,fault_)
+                ||!wallAcceptedFrame_.zero(transfers_.stream())||!wallCandidateFrame_.zero(transfers_.stream()))return false;
+            layer.acceptedHistory=wallAcceptedHistory_.data();layer.candidateHistory=wallCandidateHistory_.data();
+            layer.acceptedFrame=wallAcceptedFrame_.data();layer.candidateFrame=wallCandidateFrame_.data();
+        }
         layer.faces=wallFaceList_.data();layer.matchingOffsets=wallMatchOffsets_.data();layer.matchingCells=wallMatchCells_.data();layer.matchingWeights=wallMatchWeights_.data();
         wallInputDirty_=false;wallGeometryReady_=true;wallGeometryVersion_=mesh.geometryVersion;
         return wallExchange_.zero(transfers_.stream())&&wallStatus_.zero(transfers_.stream())&&wallModelStatus_.zero(transfers_.stream());
@@ -577,7 +627,7 @@ public:
     bool downloadWallOutputs(std::vector<ugkwp::gaswall::WallOutput<Real,Ns>>& output,std::vector<GasWallMatchingSample>& matching){
         std::vector<ugkwp::gaswall::WallInput<Real,Ns>> inputs;
         std::vector<ugkwp::GasBoundaryLayerExchange<Real>> exchange;
-        std::vector<ugkwp::gaswall::WallOutput<Real,Ns>> candidate;
+        std::vector<ugkwp::gaswall::WallResidentOutput<Real,Ns>> candidate;
         if(!enqueueRead(wallExchange_.data(),wallExchange_.size(),exchange)
             ||!enqueueRead(wallOutput_.data(),wallOutput_.size(),candidate)
             ||!enqueueRead(wallInput_.data(),wallInput_.size(),inputs)||!observeDiagnostics())return false;
@@ -590,7 +640,18 @@ public:
             if(f<modelStatus.size())fault_.message+=" wall code "+std::to_string(int(modelStatus[f].code))+" node "+std::to_string(modelStatus[f].node)+" iteration "+std::to_string(modelStatus[f].iteration)+" residual "+(std::isfinite(modelStatus[f].residual)?std::to_string(modelStatus[f].residual):"NOT_AVAILABLE");
             return false;
         }
-        output=std::move(candidate);
+        std::vector<Real> flux;
+        if(wallFluxProfile_.size()&&(!enqueueRead(wallFluxProfile_.data(),wallFluxProfile_.size(),flux)||!observeDiagnostics()))return false;
+        output.resize(candidate.size());
+        for(std::size_t i=0;i<candidate.size();++i){
+            static_cast<ugkwp::gaswall::WallExchangeOutput<Real,Ns>&>(output[i])=candidate[i];
+            const int n=view_.gasBoundaryLayerModel.config.nodes+1;
+            for(int j=0;j<candidate[i].kFluxCount;++j){
+                output[i].kFluxHeight[j]=flux[(3*i)*n+j];
+                output[i].kTransportFlux[j]=flux[(3*i+1)*n+j];
+                output[i].omegaDiffusiveFlux[j]=flux[(3*i+2)*n+j];
+            }
+        }
         matching.resize(inputs.size());for(std::size_t f=0;f<inputs.size();++f){matching[f].pressure=inputs[f].pressure;matching[f].mechanicalPressure=0;matching[f].state=inputs[f].matching;}return true;
     }
     bool uploadGeometry(const HostMesh& mesh,bool publish=true){
@@ -598,6 +659,7 @@ public:
         const bool rebound=owner_V.values.size()!=nc||owner_faceOwner.values.size()!=nf
             ||owner_cellFaceId.values.size()!=mesh.cellFaces.size();
         if(rebound&&!transfers_.drain())return false;
+        const bool boundaryRebound=!boundary_.view().faces||boundary_.view().count!=int(nf);
 
 
 
@@ -618,13 +680,13 @@ public:
         }
         if(!upload(view_.Cx,cx)||!upload(view_.Cy,cy)||!upload(view_.Cz,cz)||!upload(view_.V,mesh.volumes)||!upload(view_.cellLength,length)||!upload(view_.sstWallDistance,distance)
             ||!upload(view_.cellPlaneStart,start)||!upload(view_.cellPlaneCount,counts)||!upload(view_.cellFaceId,mesh.cellFaces)||!upload(view_.faceOwner,mesh.owner)||!upload(view_.faceNeighbour,neighbours)||!upload(view_.facePeriodicPair,mesh.periodicPartner))return false;
-        std::vector<Real> sx(nf),sy(nf),sz(nf),area(nf),fx(nf),fy(nf),fz(nf),dx(nf),dy(nf),dz(nf),delta(nf),weight(nf,.5),rho(nf),pressure(nf),temp(nf),ux(nf),uy(nf),uz(nf),Y(Ns*nf);
-        std::vector<int> kind(nf),fixU(nf),fixT(nf),fixR(nf),fixP(nf),fixedY(nf),kMode(nf),omegaMode(nf);
+        std::vector<Real> sx(nf),sy(nf),sz(nf),area(nf),fx(nf),fy(nf),fz(nf),dx(nf),dy(nf),dz(nf),delta(nf),weight(nf,.5),Y(boundaryRebound?Ns*nf:0);
+        std::vector<int> fixedY(boundaryRebound?nf:0),kMode(nf),omegaMode(nf);
         std::vector<Real> kBoundary(nf),omegaBoundary(nf);
         for(std::size_t f=0;f<nf;++f){auto a=mesh.areaVectors[f];sx[f]=a.x;sy[f]=a.y;sz[f]=a.z;area[f]=mag(a);fx[f]=mesh.faceCentres[f].x;fy[f]=mesh.faceCentres[f].y;fz[f]=mesh.faceCentres[f].z;
             const int o=mesh.owner[f],n=mesh.neighbour[f];Vec3 chord=mesh.faceCentres[f]-mesh.cellCentres[o];
             if(n>=0)chord=mesh.cellCentres[n]-mesh.cellCentres[o];
-            const auto b=mesh.boundaryKind[f];kind[f]=b==BoundaryKind::Internal?0:b==BoundaryKind::NoSlip||b==BoundaryKind::Interface?2:b==BoundaryKind::Slip?1:b==BoundaryKind::Periodic?5:b==BoundaryKind::Empty?4:0;
+            const auto b=mesh.boundaryKind[f];
             if(b==BoundaryKind::Periodic){const int pair=mesh.periodicPartner[f];const Vec3 shift=mesh.faceCentres[f]-mesh.faceCentres[pair];dx[f]=shift.x;dy[f]=shift.y;dz[f]=shift.z;chord=mesh.cellCentres[mesh.owner[pair]]+shift-mesh.cellCentres[o];}
             delta[f]=1/maxValue(absValue(dot(chord,a/area[f])),.05*mag(chord));
             if(n>=0||b==BoundaryKind::Periodic){
@@ -633,28 +695,43 @@ public:
                 const Real other=absValue(dot(mappedNeighbour-mesh.faceCentres[f],a/area[f]));
                 weight[f]=(own+other)>0?other/(own+other):.5;
             }
-            const auto& w=mesh.boundaryPrimitive[f];rho[f]=w.rho;pressure[f]=w.pressure;temp[f]=w.temperature;ux[f]=w.velocity.x;uy[f]=w.velocity.y;uz[f]=w.velocity.z;
-            const bool inlet=b==BoundaryKind::Inlet;fixU[f]=inlet||b==BoundaryKind::NoSlip;fixT[f]=fixedTemperature(mesh.thermalBoundary.empty()?nullptr:mesh.thermalBoundary.data(),int(f));fixR[f]=inlet;fixP[f]=inlet||b==BoundaryKind::Outlet;fixedY[f]=inlet;
-            for(int s=0;s<Ns;++s)Y[s*nf+f]=w.Y[s];
+            const auto& w=mesh.boundaryPrimitive[f];
+            const bool inlet=mesh.gasBoundary?ugkp::boundary::prescribesInflow(mesh.gasBoundary->faces[f]):b==BoundaryKind::Inlet;
+            if(boundaryRebound)fixedY[f]=mesh.gasBoundary&&mesh.gasBoundary->faces[f].compositionMode>=0?mesh.gasBoundary->faces[f].compositionMode:inlet;
+            if(boundaryRebound)for(int s=0;s<Ns;++s)Y[s*nf+f]=w.Y[s];
             kMode[f]=omegaMode[f]=inlet?1:0;
             if(mesh.boundarySst.size()==nf){kBoundary[f]=mesh.boundarySst[f].k;omegaBoundary[f]=mesh.boundarySst[f].omega;}
         }
 #define PUT(Name,Source) if(!upload(view_.Name,Source))return false
         PUT(Sfx,sx);PUT(Sfy,sy);PUT(Sfz,sz);PUT(magSf,area);PUT(faceCx,fx);PUT(faceCy,fy);PUT(faceCz,fz);PUT(facePeriodicDx,dx);PUT(facePeriodicDy,dy);PUT(facePeriodicDz,dz);PUT(deltaCoeffs,delta);PUT(faceWeight,weight);
-        PUT(gasBoundaryKind,kind);PUT(riemannBoundaryKind,kind);
         PUT(sstBoundaryK,kBoundary);PUT(sstBoundaryOmega,omegaBoundary);PUT(sstBoundaryKMode,kMode);PUT(sstBoundaryOmegaMode,omegaMode);
-#define BOUNDARY(Name,Source) PUT(gasBoundary##Name,Source);PUT(riemannBoundary##Name,Source)
-        BOUNDARY(Rho,rho);BOUNDARY(P,pressure);BOUNDARY(T,temp);BOUNDARY(Ux,ux);BOUNDARY(Uy,uy);BOUNDARY(Uz,uz);BOUNDARY(UFix,fixU);BOUNDARY(TFix,fixT);BOUNDARY(RhoFix,fixR);BOUNDARY(PFix,fixP);
-#undef BOUNDARY
 #undef PUT
+        if(boundaryRebound) {
+        ugkp::boundary::Definition definition=mesh.gasBoundary?*mesh.gasBoundary:ugkp::boundary::Definition{};
+        if(definition.faces.empty()) {
+            definition.faces.resize(nf);
+            for(std::size_t f=0;f<nf;++f) {
+                const auto& w=mesh.boundaryPrimitive[f];
+                definition.faces[f]=ugkp::boundary::prescribed(mesh.boundaryKind[f],
+                    fixedTemperature(mesh.thermalBoundary.empty()?nullptr:mesh.thermalBoundary.data(),int(f)),
+                    w.rho,w.velocity.x,w.velocity.y,w.velocity.z,w.pressure,w.temperature);
+            }
+        }
+            std::string error;
+            if(!boundary_.configure(definition,transfers_.stream(),error)){fault_.message=error;return false;}
+            view_.gasBoundaryProgram=boundary_.view();
+        if(!ugkp::boundary::publish(definition,view_,[&](auto* dst,const auto& values){return upload(dst,values);}))return false;
+        }
         if(view_.gasBoundaryLayer.enabled)wallFaceArea_=area;
-        if(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy
+        if(boundaryRebound&&view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy
             &&(!upload(view_.gasSpecies.boundaryMassFraction,Y)||!upload(view_.gasSpecies.compositionBoundaryFixed,fixedY)))return false;
         return !publish||!rebound||refreshView();
     }
     bool uploadState(const HostState& state,std::string& error){
-        const std::size_t n=state.gas.size();if(!state.gasTemperature.empty()&&state.gasTemperature.size()!=n){error="missing supplied gas temperature backing";return false;}if(view_.sstConfigured&&n&&state.sst.empty()){error="missing supplied SST inventory";return false;}std::vector<Real> rho(n),px(n),py(n),pz(n),energy(n),species(Ns*n),k(n),omega(n);
-        for(std::size_t c=0;c<n;++c){const auto& q=state.gas[c];const Real v=volume_[c];
+        const std::size_t n=state.gas.size();
+        if(!state.gasVoidFraction.empty()&&state.gasVoidFraction.size()!=n){error="gas phase fraction count differs from gas cells";return false;}
+        if(!state.gasTemperature.empty()&&state.gasTemperature.size()!=n){error="missing supplied gas temperature backing";return false;}if(view_.sstConfigured&&n&&state.sst.empty()){error="missing supplied SST inventory";return false;}std::vector<Real> rho(n),px(n),py(n),pz(n),energy(n),species(Ns*n),k(n),omega(n);
+        for(std::size_t c=0;c<n;++c){const auto& q=state.gas[c];const Real v=gasPhaseVolume(state,c);
             for(int s=0;s<Ns;++s)species[s*n+c]=q.species[s]/v;
             rho[c]=q.mass/v;px[c]=q.momentum.x/v;py[c]=q.momentum.y/v;pz[c]=q.momentum.z/v;energy[c]=q.energy/v;
             if(view_.sstConfigured){k[c]=state.sst[c].rhoK/v;omega[c]=state.sst[c].rhoOmega/v;}
@@ -663,17 +740,19 @@ public:
         error.clear();return true;
     }
     bool downloadState(HostState& state,std::string& error){
-        std::vector<Real> rho,px,py,pz,energy,species,k,omega;const std::size_t n=view_.nCells;
+        std::vector<Real> rho,px,py,pz,energy,species,k,omega,fraction;const std::size_t n=view_.nCells;
+        if(view_.gasVolumeFraction&&!enqueueRead(view_.gasVolumeFraction,n,fraction)){error=fault_.message;return false;}
         if(!enqueueRead(view_.rho,n,rho)||!enqueueRead(view_.rhoUx,n,px)||!enqueueRead(view_.rhoUy,n,py)||!enqueueRead(view_.rhoUz,n,pz)||!enqueueRead(view_.rhoE,n,energy)||!readTemperature(n)||(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&!enqueueRead(view_.gasSpecies.rho,Ns*n,species))){error=fault_.message;return false;}
         if(view_.sstConfigured&&(!enqueueRead(view_.rhoK,n,k)||!enqueueRead(view_.rhoOmega,n,omega))){error=fault_.message;return false;}
         if(!observeDiagnostics()){error=fault_.message;return false;}
+        if(view_.gasVolumeFraction)state.gasVoidFraction=std::move(fraction);
         auto candidate=state.gas;candidate.resize(n);
-        for(std::size_t c=0;c<n;++c){auto& q=candidate[c];q.mass=rho[c]*volume_[c];q.momentum={px[c]*volume_[c],py[c]*volume_[c],pz[c]*volume_[c]};q.energy=energy[c]*volume_[c];
-            for(int s=0;s<Ns;++s)q.species[s]=view_.gasSpecies.mode==ugkwp::GasMode::SingleLegacy?(s==activeSpecies_?q.mass:0):species[s*n+c]*volume_[c];
+        for(std::size_t c=0;c<n;++c){auto& q=candidate[c];const Real v=gasPhaseVolume(state,c);q.mass=rho[c]*v;q.momentum={px[c]*v,py[c]*v,pz[c]*v};q.energy=energy[c]*v;
+            for(int s=0;s<Ns;++s)q.species[s]=view_.gasSpecies.mode==ugkwp::GasMode::SingleLegacy?(s==activeSpecies_?q.mass:0):species[s*n+c]*v;
         }
         auto sst=state.sst;
         if(view_.sstConfigured){
-            sst.resize(n);for(std::size_t c=0;c<n;++c){sst[c]={k[c]*volume_[c],omega[c]*volume_[c]};
+            sst.resize(n);for(std::size_t c=0;c<n;++c){sst[c]={k[c]*gasPhaseVolume(state,c),omega[c]*gasPhaseVolume(state,c)};
             }
         }
         state.gas=std::move(candidate);state.sst=std::move(sst);state.gasTemperature.swap(temperatureStaging_);error.clear();return true;

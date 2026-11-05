@@ -13,17 +13,18 @@ CHMT_HD inline Real gasPacketSpeciesWithdrawal(const ExchangePacket& packet,int 
 // are per reference-surface area. No material state or material RHS is an input.
 struct GasWallInput {
     GasWallClosureContext wallContext{};
-    const ugkwp::gaswall::WallOutput<Real,Ns>* preparedLayer=nullptr;
+    const ugkwp::gaswall::WallExchangeOutput<Real,Ns>* preparedLayer=nullptr;
 
     const ugkwp::gaswall::WallMatchingState<Real,Ns>* preparedMatching=nullptr;
     const Real* preparedMatchingPressure=nullptr;
     GasPrimitive bulk{}; GasGradient gradient{};
     Real temperature=0,gasDistance=0,area=0,gasArea=0,dt=0,normalSpeed=0,sweptVolume=0;
+    Real exposedGasHeatFraction=1;
     Vec3 normal{},velocity{};
     ExchangeKind primaryKind=ExchangeKind::GasSolid;
     Real speciesRate[Ns]{},condensedRate[Nc]{},poreRate[Ns]{},poreSweepRate[Ns]{};
 };
-struct GasWallResult { ExchangePacket primary{},pore{}; GasPrimitive trace{}; Vec3 traction{}; ugkwp::gaswall::WallOutput<Real,Ns> layer{}; };
+struct GasWallResult { ExchangePacket primary{},pore{}; GasPrimitive trace{}; Vec3 traction{}; ugkwp::gaswall::WallExchangeOutput<Real,Ns> layer{}; };
 CHMT_HD inline bool evaluateGasWall(const GasWallInput& in,const SurfacePacketIdentity& identity,
     const PhysicsConfig& p,GasWallResult& output) {
     const Real ratio=in.area/in.gasArea;
@@ -98,7 +99,7 @@ CHMT_HD inline bool evaluateGasWall(const GasWallInput& in,const SurfacePacketId
         if(identity.solidCell>=0||in.poreRate[s]!=0||in.poreSweepRate[s]!=0){result.pore.species[s]=result.pore.pore[s]=scale*in.poreRate[s];result.pore.poreSweep[s]=scale*in.poreSweepRate[s];result.pore.mass+=result.pore.species[s];result.pore.advective+=result.pore.species[s]*(h+kinetic);}
     }
     for(int c=0;c<Nc;++c)result.primary.condensed[c]=scale*in.condensedRate[c];
-    result.primary.conductive=gasScale*closure.conductiveHeatFlux;
+    result.primary.conductive=gasScale*closure.conductiveHeatFlux*in.exposedGasHeatFraction;
     result.primary.pressureWork=mechanicalPressure*in.sweptVolume;
     result.primary.viscousWork=-gasScale*dot(result.traction,result.trace.velocity);
     result.primary.energy=result.primary.advective+result.primary.conductive+result.primary.pressureWork+result.primary.viscousWork;

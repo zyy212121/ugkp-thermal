@@ -2,12 +2,79 @@
 #include "WallPrecision.H"
 #include "WallModelTypes.H"
 namespace ugkwp { namespace gaswall {
+namespace detail {
+template<class R> UGKWP_GAS_HD inline R scaledExponentialIntegral(R x){
+    const R a=abs(x);return a==0?R(1):-::expm1(-a)/a;
+}
+// Integral of exp(2*a*x) times the thermal Green function, multiplied by
+// expRatio(a)^2. Exponential factors are combined before evaluation.
+template<class R> UGKWP_GAS_HD inline bool constantWallHeatingEvaluation(R a,R b,R& value,bool normalizeConductance,bool logarithmic){
+    const R aa=abs(a);
+    if(abs(b)>=R(.01)){
+        const R da=-::expm1(-aa),db=-::expm1(-abs(b));
+        const R ratio=aa==0?R(1):aa/da;
+        const R positive=R(2)*max(a,R(0)),negative=R(2)*min(a,R(0));
+        const R e0=b>0?(normalizeConductance?max(b-positive,negative):max(-positive,negative-b)):R(0);
+        const R e1=b>0?(normalizeConductance?negative:negative-b):max(b-positive,negative);
+        const R e=max(e0,e1);
+        const R f0=scaledExponentialIntegral(b>0?R(2)*a-b:R(2)*a);
+        const R f1=scaledExponentialIntegral(b>0?R(2)*a:R(2)*a-b);
+        const R integral=(::exp(e0-e)*f0-::exp(e1-e)*f1)/db;
+        if(!(integral>0))return false;
+        // For an adiabatic wall, form F/expRatio(b) before exponentiation.
+        // F and expRatio(b) can both underflow although their ratio is finite.
+        const R normalization=normalizeConductance?::log(abs(b)/db):R(0);
+        value=e+R(2)*::log(ratio)+::log(integral)-normalization;
+        if(!logarithmic)value=::exp(value);
+        return gasFinite(value);
+    }
+    // Near b=0 the closed-form difference loses digits. Integrate in the
+    // exponential boundary-layer coordinate, with an explicit refinement test.
+    // The omitted exp(-80) tail is below double precision relative accuracy.
+    const R scale=max(R(1),R(2)*aa),end=min(scale,R(80));
+    const R ratio=aa==0?R(1):aa/(-::expm1(-aa));
+    R previous=-1;
+    for(int intervals=16;intervals<=32768;intervals*=2){
+        R sum=0;
+        for(int i=0;i<=intervals;++i){
+            const R z=end*R(i)/R(intervals),x=a>0?R(1)-z/scale:z/scale;
+            const R t=R(1)-x;
+            const R kernel=b==0?t:(::expm1(b*t)/::expm1(b));
+            const R f=::exp(R(2)*a*x-R(2)*max(a,R(0)))*kernel;
+            sum+=R(i==0||i==intervals?1:i%2?4:2)*f;
+        }
+        const R current=sum*end/(R(3)*R(intervals)*scale);
+        if(previous>=0&&abs(current-previous)/R(15)<=R(1e-12)*max(abs(current),R(1e-300))){
+            if(logarithmic){
+                value=R(2)*::log(ratio)+::log(current);
+                if(normalizeConductance)value-=::log(expRatio(b));
+            }else{
+                value=ratio*(ratio*current);
+                if(normalizeConductance)value/=expRatio(b);
+            }
+            return gasFinite(value);
+        }
+        previous=current;
+    }
+    return false;
+}
+template<class R> UGKWP_GAS_HD inline bool constantWallHeatingLogFactor(R a,R b,R& value,bool normalizeConductance=false){
+    return constantWallHeatingEvaluation(a,b,value,normalizeConductance,true);
+}
+// Keep the existing fixed-temperature factor arithmetic. Only adiabatic
+// temperature needs the logarithmic interface to combine all scales first.
+template<class R> UGKWP_GAS_HD inline bool constantWallHeatingFactor(R a,R b,R& value,bool normalizeConductance=false){
+    return constantWallHeatingEvaluation(a,b,value,normalizeConductance,false);
+}
+}
 // Analytic frozen-composition constant-cp/transport limit, not the reacting SST model.
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstantTransportWallImpl(
  const WallInput<R,N,TableReal>& originalInput,const WallModelConfig<R>& c,WallOutput<R,N>& output,WallStatus& status){
     auto in=originalInput;in.model.thermo.diagnostics=in.diagnostics;
     for(int j=0;j<N;++j)if(!detail::wallFraction(in,in.matching.massFraction[j],in.matching.massFraction[j],j))return false;
     if(!detail::validateInput(in,c,status))return false;
+    if((in.model.molecularViscosity.model!=MolecularViscosityModel::Constant||in.model.molecularViscosity.prandtlSpecies>=0||in.model.molecularViscosity.diffusion))
+        return detail::fail(status,WallCode::Unsupported);
     R m=0,cp=0;for(int j=0;j<N;++j)m+=in.massFlux[j];
     for(int j=0;j<N;++j){bool available=false;const R value=detail::wallProperty<false>(j,in.temperature,in.model.thermo,&available);
         if(!available){detail::fail(status,WallCode::InvalidThermodynamics);return detail::wallFatal(in,ugkp::diagnostics::Code::NonFinite,2412,value);}
@@ -16,21 +83,32 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstan
     const R length=in.matchingDistance,mu=in.model.viscosity,lambda=in.model.molecularPrandtl>0?mu*cp/in.model.molecularPrandtl:in.model.conductivity;
     if(mu==0||lambda==0)return detail::wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,2430,mu==0?mu:lambda);
     const R a=m*length/mu,b=m*cp*length/lambda;
-    R du[3],normalDifference=0,speed2=0;for(int d=0;d<3;++d){du[d]=in.matching.velocity[d]-in.velocity[d];normalDifference+=du[d]*in.normal[d];}
-    for(int d=0;d<3;++d){du[d]-=normalDifference*in.normal[d];speed2+=du[d]*du[d];out.traction[d]=mu/length*detail::expRatio(a)*du[d];}
-    // Green-function integral of molecular dissipation. Composite Simpson is
-    // used only for the finite-blowing mechanical-heating term; zero-blowing
-    // and pure thermal blowing remain exact analytic limits.
-    R heating=0;
-    if(speed2>0){if(m==0)heating=mu*speed2/(R(2)*length);
-      else {const int intervals=64;R sum=0;
-        for(int i=0;i<=intervals;++i){const R x=R(i)/intervals;
-          const R weight=(i==0||i==intervals)?1:(i%2?4:2);
-          const R gradient=detail::expRatio(a)*::exp(a*x)/length;
-          const R kernel=detail::abs(b)<R(1e-8)?(R(1)-x): ::exp(-b*x)*(-::expm1(-b*(R(1)-x)))/(-::expm1(-b));
-          sum+=weight*mu*speed2*gradient*gradient*kernel;}
-        heating=length*sum/(R(3)*intervals);}}
-    out.conductiveHeatFlux=-lambda/length*detail::expRatio(b)*(in.matching.temperature-in.temperature)-heating;
+    R du[3],normalDifference=0,speedScale=0;for(int d=0;d<3;++d){du[d]=in.matching.velocity[d]-in.velocity[d];normalDifference+=du[d]*in.normal[d];}
+    for(int d=0;d<3;++d){du[d]-=normalDifference*in.normal[d];speedScale=detail::max(speedScale,detail::abs(du[d]));out.traction[d]=mu/length*detail::expRatio(a)*du[d];}
+    R heating=0,adiabaticRise=0;
+    if(in.adiabatic&&speedScale>0){
+        R logFactor=0,scaledSpeed2=0;
+        for(int d=0;d<3;++d){const R component=du[d]/speedScale;scaledSpeed2+=component*component;}
+        if(!detail::constantWallHeatingLogFactor(a,b,logFactor,in.adiabatic))return detail::fail(status,WallCode::NonConvergence);
+        // Do not square tiny velocities or materialize an overflowing factor.
+        const R logSpeed2=R(2)*::log(speedScale)+::log(scaledSpeed2);
+        const R value=::exp(logFactor+logSpeed2+::log(mu)-::log(in.adiabatic?lambda:length));
+        if(!gasFinite(value))return detail::fail(status,WallCode::InadmissibleState);
+        adiabaticRise=value;
+    }else if(!in.adiabatic){
+        R speed2=0;for(int d=0;d<3;++d)speed2+=du[d]*du[d];
+        if(speed2>0){
+            R factor=0;
+            if(!detail::constantWallHeatingFactor(a,b,factor))return detail::fail(status,WallCode::NonConvergence);
+            heating=mu*speed2/length*factor;
+        }
+    }
+    const R thermalConductance=lambda/length*detail::expRatio(b);
+    if(in.adiabatic){
+        in.temperature=in.matching.temperature+adiabaticRise;
+        if(!detail::trace(in,in.matching.massFraction,out,true))return detail::fail(status,WallCode::InvalidThermodynamics);
+    }
+    out.conductiveHeatFlux=in.adiabatic?R(0):-thermalConductance*(in.matching.temperature-in.temperature)-heating;
     for(int j=0;j<N;++j){out.matchingSpeciesFlux[j]=in.massFlux[j];
         out.chemistryMismatch[j]=in.coarseReactionIntegral?-in.coarseReactionIntegral[j]:std::numeric_limits<R>::quiet_NaN();}
     out.chemistryMismatchAvailable=in.coarseReactionIntegral!=nullptr;

@@ -10,6 +10,7 @@ enum class MaterialFailureOrigin { None,ConductionNumerical,ReactionNumerical,Fi
 struct CpuMaterialControls {
     Real maxSubstep=0,transportCfl=.4,reactionCfl=.1,reactionMaxSubstep=0;
     Real driveRelativeTolerance=.05,driveSourceFraction=.05,driveTractionScale=1;
+    bool retainDonorHistory=true; // Explicit external consumer capability.
     int maxSubsteps=100000,nonlinearMaxIterations=50;
     Real nonlinearRelativeTolerance=1e-10,energyAbsoluteTolerance=1e-10,energyRelativeTolerance=1e-10;
 };
@@ -19,7 +20,7 @@ struct CpuMaterialReport {
     bool recoverable=false,geometryCorrection=false;Real eventTime=0,eventDuration=0;
     MaterialDonorPlan donorPlan{};
 };
-// Owns CPU numerical machinery, not a second copy of accepted inventories.
+// Orchestrates resident CUDA material updates and the native implicit conduction solve.
 // Candidate solve never mutates the accepted native mesh: it builds an unregistered full-topology fvMesh for the real sparse solve.
 
 class CpuMaterialDriver {

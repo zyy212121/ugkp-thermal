@@ -4,7 +4,8 @@
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>
-int main(int argc,char**argv){CompositionWallCase m;m.in.integrateOwnerKSource=false;WallModelConfig<double> c;c.nodes=16;c.maxIterations=80;c.relativeTolerance=1e-8;c.enableSst=false;int index=argc>1?std::atoi(argv[1]):11;
+int main(int argc,char**argv){CompositionWallCase m;m.in.integrateOwnerKSource=false;WallModelConfig<double> c;c.nodes=16;c.stretch=2; // Preserve this captured fixture's original node grid.
+c.maxIterations=80;c.relativeTolerance=1e-8;c.enableSst=false;int index=argc>1?std::atoi(argv[1]):11;
 configureCompositionCase(m,index);
 ugkp::diagnostics::DeviceContext d{};m.in.diagnostics=&d;m.in.model.thermo.diagnostics=&d;WallWorkspace<double,2,128>w;WallOutput<double,2>out;WallStatus status;
 bool ok=evaluateWallModel(m.in,c,w,out,status);detail::LayerContext<double,2> ctx;assert(detail::makeContext(m.in,c,ctx));double residual=0;

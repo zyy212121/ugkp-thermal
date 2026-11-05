@@ -1,0 +1,4 @@
+cell 0: migrated residual=0, native fixedJump residual=-10
+cell 1: migrated residual=0, native fixedJump residual=10
+native T=298,302; migrated T=300,300
+HOST MODEL: actual migrated assembly kernel body; independent OF10 jump Amul term. No CUDA/OpenFOAM runtime used.

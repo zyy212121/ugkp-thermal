@@ -3,7 +3,7 @@ from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
 from pathlib import Path
 
 
-SOURCE = (SOURCE_ROOT / 'applications/CHT/gpu/GpuResidentStrict.cu')
+SOURCE = (SOURCE_ROOT / 'common/thermal/GpuResidentStrict.cu')
 
 
 def source_text():
@@ -17,25 +17,17 @@ def function_body(text, signature, next_signature):
 
 
 def test_contact_area_is_converted_to_exposed_fraction_on_device():
-    text = source_text()
-    body = function_body(
-        text,
-        "__device__ double gasWallExposedAreaFraction",
-        "__device__ void gasFaceSubgridTransportProperties",
-    )
+    body=(SOURCE_ROOT/'common/GpuGasWallExposedArea.cuh').read_text()
+    formula=(SOURCE_ROOT/'common/gasTransport/WallHeatExposure.H').read_text()
     assert "s.particleStuckCandidateMask[f] == 0" in body
     assert "s.particleWallRepresentedContactArea[f]" in body
     assert "s.particleWallContactAreaScale[f]" in body
-    assert "1.0 - occupiedArea/faceArea" in body
+    assert "ugkwp::wallHeatExposedFraction" in body
+    assert "Real(1)-occupied/faceArea" in formula
 
 
 def test_only_wall_thermal_energy_flux_is_area_scaled():
-    text = source_text()
-    body = function_body(
-        text,
-        "template<bool IncludeTurbulence>\n__device__ bool computeRiemannGasFaceFluxDevice",
-        "template<bool IncludeTurbulence>\n__global__ void computeGasInternalFaceFluxKernel",
-    )
+    body=(SOURCE_ROOT/'common/operators/computeRiemannGasFaceFluxDevice.cuh').read_text()
     assert "wallThermalAreaFraction*directWallHeatFlux" in body
     assert "wallThermalAreaFraction\n                   *kEffective*normalTemperatureGradient" in body
     assert "momentumFluxX -= traction.x;" in body
@@ -50,7 +42,7 @@ def test_contact_area_is_prepared_before_gas_flux_without_duplicate_particle_cal
         'extern "C" int ugkwpGpuResidentStrictDownload',
     )
     preparation = body.index("prepareParticleWallContactAreaScale(s, block)")
-    gas_advance = body.index("advanceGasFluxStage(s, dt, simulationTime)")
-    collision = body.index("UGKP_DEV_PROBE_ENTER(ProbeCollisionPool)")
+    gas_advance = body.index("advanceGasFluxStage(s, dt, simulationTime-dt)")
+    collision = body.index("advanceResidentThermalParticles(s,dt,simulationTime")
     assert preparation < gas_advance < collision
     assert body.count("prepareParticleWallContactAreaScale(s, block)") == 1

@@ -1,6 +1,6 @@
 """Exact original public radiation results, including nontrapping IEEE outputs.
 
-This exercises real OpenFOAM production TUs; no GPU execution is claimed.
+This exercises real OpenFOAM production TUs and the current CUDA owners.
 """
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
 
@@ -14,6 +14,7 @@ import tarfile
 
 import numpy as np
 import pytest
+from validation.tools.cht_thermal_cuda import link_thermal_cuda
 
 ROOT=SOURCE_ROOT
 ORIGINAL='d6110c02745a8ad726208a426c4bb3a28233c1fd'
@@ -40,6 +41,7 @@ def probes(tmp_path_factory,original):
   thermal=root/'applications/CHT/thermal';omp='-fopenmp' if os.environ.get('T13_OPENMP') else ''
   (p/'Make/files').write_text(f'probe.C\n{thermal}/MieTable.C\n{thermal}/MieDoRadiationSolver.C\n{thermal}/GpuParticleRadiationCoupler.C\nEXE = {p}/probe\n')
   (p/'Make/options').write_text(f'EXE_INC = {omp} -std=c++17 -I{thermal} -I{root}/common -I{root}/common/wall -I{root}/applications/CHT/gpu -I$(LIB_SRC)/finiteVolume/lnInclude -I$(LIB_SRC)/meshTools/lnInclude\nEXE_LIBS = {omp} -lfiniteVolume -lmeshTools -lOpenFOAM\n')
+  link_thermal_cuda(p, root)
   r=subprocess.run(['wmake'],cwd=p,capture_output=True,text=True);(p/'build.log').write_text(r.stdout+r.stderr);assert r.returncode==0,r.stdout+r.stderr
   result.append(p/'probe')
  return result

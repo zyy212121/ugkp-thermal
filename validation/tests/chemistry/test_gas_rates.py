@@ -70,5 +70,5 @@ int main(){
 def test_rates_validation_and_derivatives(tmp_path):
     src=tmp_path/'rates.cpp';src.write_text(SOURCE)
     exe=tmp_path/'rates'
-    subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],check=True,capture_output=True,text=True)
+    subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],check=True,capture_output=True,text=True)
     subprocess.run([str(exe)],check=True,capture_output=True,text=True)

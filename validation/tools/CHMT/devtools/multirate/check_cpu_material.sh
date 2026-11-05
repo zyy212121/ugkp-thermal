@@ -8,7 +8,7 @@ runners="$root/validation/tools/CHMT"
 build=$(mktemp -d /tmp/chmt-cpu-material.XXXXXX)
 trap 'rm -rf "$build"' EXIT
 cxx=${CXX:-g++}
-flags=(-std=c++14 -Wall -Wextra -Werror -pedantic -I"$app" -I"$validation" -I"$app/../../common")
+flags=(-std=c++17 -Wall -Wextra -Werror -pedantic -I"$app" -I"$validation" -I"$app/../../common")
 "$cxx" "${flags[@]}" "$validation/devtools/multirate/test_cpu_material.cpp" -o "$build/caloric"
 "$cxx" "${flags[@]}" "$validation/devtools/multirate/test_material_transport.cpp" "$app/materials/MaterialTransport.C" -o "$build/transport"
 "$cxx" "${flags[@]}" "$validation/devtools/multirate/test_cpu_surface.cpp" "$app/ablation/CpuSurfaceInterface.C" -o "$build/surface"

@@ -3,8 +3,10 @@
 #include "Configuration.H"
 #include <vector>
 #include <array>
+#include <memory>
 namespace chmt {
 struct HostMesh {
+    std::shared_ptr<const ugkp::boundary::Definition> gasBoundary;
     std::vector<Vec3> referencePoints{}; // immutable prescribed-motion reference, persisted.
     std::vector<Vec3> points{},oldPoints{},cellCentres{},faceCentres{},areaVectors{},meshVelocity{};
     std::vector<Real> volumes{},oldVolumes{},wallDistance{};
@@ -44,11 +46,12 @@ struct HostStageGeometry {
 struct GasSstIntegralAudit {
     Real transportK=0,transportOmega=0,sourceK=0,sourceOmega=0,constraintK=0,constraintOmega=0;
 };
-struct HostState {
-    std::array<HostStageGeometry,2> gasStages{},solidStages{};
+// Separating dynamic fields from mesh ownership lets material microsteps reuse
+// immutable static geometry without hand-maintaining a list of physical fields.
+// Checkpoint serialization remains explicit and retains its existing wire order.
+struct HostDynamicState {
     Real nextDt=0,lastAcceptedDt=0;
-
-    HostMesh gasMesh{},solidMesh{};SurfaceMesh surface{};
+    SurfaceMesh surface{};
     std::vector<ugkwp::ChemistryAudit<Real,Ns>> gasChemistryAudit{};
     std::vector<GasQ> gas{};std::vector<SolidQ> solid{};std::vector<FilmQ> film{};
     std::vector<Real> gasTemperature{};
@@ -71,6 +74,15 @@ struct HostState {
     GasSstIntegralAudit gasSstAudit{};
     Real time=0;std::uint64_t acceptedSteps=0,rejectedSteps=0,commitSequence=0;Budget budget{};
 };
+struct HostState : HostDynamicState {
+    std::array<HostStageGeometry,2> gasStages{},solidStages{};
+    HostMesh gasMesh{},solidMesh{};
+};
+// GasQ/SstQ store physical cell integrals. The resident common gas operators
+// use intrinsic gas densities, with the lagged phase volume carried explicitly.
+inline Real gasPhaseVolume(const HostState& state,std::size_t cell) {
+    return state.gasMesh.volumes[cell]*(state.gasVoidFraction.empty()?Real(1):state.gasVoidFraction[cell]);
+}
 struct StepReport {
     Real acceptedDt=0,nextDt=0,couplingResidual=0,gclResidual=0,minimumVolume=0,minimumMass=0,minimumTemperature=0;
     Real filmReducedResidual=0,filmKineticDefect=0;int iterations=0,rejectedTrials=0;

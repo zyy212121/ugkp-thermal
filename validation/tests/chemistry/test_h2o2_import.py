@@ -98,7 +98,7 @@ int main(int argc,char**argv) {
 }
 '''.replace("SCALAR", 'double'))
     binary = tmp_path / "check"
-    subprocess.run(["g++", "-std=c++14", "-Wall", "-Wextra", "-pedantic", "-I", str(ROOT), str(source), "-o", str(binary)], check=True)
+    subprocess.run(["g++", "-std=c++17", "-Wall", "-Wextra", "-pedantic", "-I", str(ROOT), str(source), "-o", str(binary)], check=True)
     subprocess.run([str(binary), str((SOURCE_ROOT / 'tool/chemistry/mechanisms/h2o2.gasModelProperties'))], check=True)
 
 
@@ -191,7 +191,7 @@ int main() {
 }
 ''')
     binary = directory / "rates"
-    subprocess.run(["g++", "-O2", "-std=c++14", "-I", str(ROOT), str(source), "-o", str(binary)], check=True)
+    subprocess.run(["g++", "-O2", "-std=c++17", "-I", str(ROOT), str(source), "-o", str(binary)], check=True)
     def run(states):
         data = "\n".join(" ".join(format(v, ".17g") for v in [t]+list(c)) for t, c in states)+"\n"
         result = subprocess.run([str(binary)], input=data, text=True, capture_output=True)

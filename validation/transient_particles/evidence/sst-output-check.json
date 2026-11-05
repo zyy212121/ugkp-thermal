@@ -1,0 +1,1685 @@
+{
+  "pass": true,
+  "comparisons": [
+    {
+      "case": "mixture_L0",
+      "reference_time": "20",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "20",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "20",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "40",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "40",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "40",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "60",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "60",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "60",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "80",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "80",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "80",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "100",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "100",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "100",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "120",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "120",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "120",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "140",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "140",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "140",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "160",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "160",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "160",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "180",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "180",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "180",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "200",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "200",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "200",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "20",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "20",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "20",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "40",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "40",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "40",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "60",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "60",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "60",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "80",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "80",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "80",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "100",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "100",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "100",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "120",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "120",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "120",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "140",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "140",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "140",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "160",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "160",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "160",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "180",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "180",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "180",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "200",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "200",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L0",
+      "reference_time": "200",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "20",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "20",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "20",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "40",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "40",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "40",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "60",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "60",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "60",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "80",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "80",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "80",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "100",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "100",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "100",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "120",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "120",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "120",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "140",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "140",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "140",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "160",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "160",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "160",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "180",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "180",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "180",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "200",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "200",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "200",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "20",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "20",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "20",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "40",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "40",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "40",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "60",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "60",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "60",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "80",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "80",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "80",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "100",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "100",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "100",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "120",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "120",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "120",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "140",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "140",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "140",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "160",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "160",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "160",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "180",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "180",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "180",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "200",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "200",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L1",
+      "reference_time": "200",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "20",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "20",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "20",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "40",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "40",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "40",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "60",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "60",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "60",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "80",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "80",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "80",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "100",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "100",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "100",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "120",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "120",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "120",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "140",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "140",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "140",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "160",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "160",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "160",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "180",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "180",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "180",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "200",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "200",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "200",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "20",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "20",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "20",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "40",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "40",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "40",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "60",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "60",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "60",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "80",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "80",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "80",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "100",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "100",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "100",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "120",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "120",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "120",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "140",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "140",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "140",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "160",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "160",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "160",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "180",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "180",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "180",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "200",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "200",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_L2_wilke",
+      "reference_time": "200",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "20",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "20",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "20",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "40",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "40",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "40",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "60",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "60",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "60",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "80",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "80",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "80",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "100",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "100",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "100",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "120",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "120",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "120",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "140",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "140",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "140",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "160",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "160",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "160",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "180",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "180",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "180",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "200",
+      "binary": "candidate",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "200",
+      "binary": "candidate",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "200",
+      "binary": "candidate",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "20",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "20",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "20",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "40",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "40",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "40",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "60",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "60",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "60",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "80",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "80",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "80",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "100",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "100",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "100",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "120",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "120",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "120",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "140",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "140",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "140",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "160",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "160",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "160",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "180",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "180",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "180",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "200",
+      "binary": "steady_after",
+      "field": "k",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "200",
+      "binary": "steady_after",
+      "field": "omega",
+      "max_scaled_error": 0.0
+    },
+    {
+      "case": "mixture_sst",
+      "reference_time": "200",
+      "binary": "steady_after",
+      "field": "nut",
+      "max_scaled_error": 0.0
+    }
+  ]
+}

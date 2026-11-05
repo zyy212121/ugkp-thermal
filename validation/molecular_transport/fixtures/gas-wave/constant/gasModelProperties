@@ -1,0 +1,30 @@
+FoamFile { version 2.0; format ascii; class dictionary; object gasModelProperties; }
+
+schemaVersion 1;
+gasMode mixtureFrozen;
+species (A B);
+speciesThermo
+{
+ A
+ {
+  model linearCp;
+  molarMass 0.028;
+  minTemperature 100;
+  maxTemperature 4000;
+  coefficients (1040 0 0);
+ }
+ B
+ {
+  model linearCp;
+  molarMass 0.028;
+  minTemperature 100;
+  maxTemperature 4000;
+  coefficients (1040 0 0);
+ }
+}
+diffusion
+{
+ model constant;
+ coefficients (0.02 0.02);
+ turbulentSchmidt 0.7;
+}

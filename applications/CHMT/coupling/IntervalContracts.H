@@ -23,6 +23,7 @@ struct WallFaceSample {
     ExchangeKind primaryKind=ExchangeKind::GasSolid;
     Real speciesRate[Ns]{},condensedRate[Nc]{},poreRate[Ns]{},poreSweepRate[Ns]{};
     Real radiationFlux=0,solidNormalVelocity=0,normalVelocity=0;
+    Real materialEffusivity=0;
 }; // rates kg/(reference-surface m^2 s), radiation W/m^2; proposals, not transfers.
 struct WallKnot {
     Real time=0; WindowTime localTime{-1}; std::vector<WallFaceSample> faces{};
@@ -52,6 +53,7 @@ struct GasIntervalRecord {
     std::vector<GasPrimitive> gasTrace{}; // OWNER bulk at gasTraceTime, paired with gradient/traction/matching.
     std::vector<GasGradient> gasGradient{};
     std::vector<Vec3> gasTraction{};
+    std::vector<WallFaceSample> gasAcceptedWall{}; // instantaneous accepted rates at gasTraceTime, not integrated sources.
     std::vector<GasWallMatchingSample> gasWallMatching{}; // populated only for boundaryLayer.
     std::vector<Real> radiationEnergy{};
     std::vector<unsigned> radiationReceiver{};
@@ -67,7 +69,7 @@ inline unsigned intervalProducerMask(ExchangeKind kind){
     return ConsumeGas;
 }
 // Scale only physical integral fields; identity and consumer mask are untouched.
-inline ExchangePacket scaledIntervalPacket(const ExchangePacket& p,Real scale){
+CHMT_HD inline ExchangePacket scaledIntervalPacket(const ExchangePacket& p,Real scale){
     ExchangePacket q=p;
     q.mass*=scale;q.momentum=q.momentum*scale;q.energy*=scale;
     q.conductive*=scale;q.advective*=scale;q.pressureWork*=scale;
@@ -85,7 +87,7 @@ inline ExchangePacket subtractIntervalPacket(const ExchangePacket& p,const Excha
     for(int c=0;c<Nc;++c)q.condensed[c]-=used.condensed[c];
     return q;
 }
-inline void addIntervalPacket(ExchangePacket& q,const ExchangePacket& p){
+CHMT_HD inline void addIntervalPacket(ExchangePacket& q,const ExchangePacket& p){
     q.mass+=p.mass;q.momentum+=p.momentum;q.energy+=p.energy;
     q.conductive+=p.conductive;q.advective+=p.advective;q.pressureWork+=p.pressureWork;
     q.viscousWork+=p.viscousWork;q.radiation+=p.radiation;q.liquidKineticAdvection+=p.liquidKineticAdvection;

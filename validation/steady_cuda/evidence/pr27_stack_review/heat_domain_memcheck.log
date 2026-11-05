@@ -1,0 +1,4 @@
+========= COMPUTE-SANITIZER
+expected gas target 1000.0000001916368 particle 9999.9352002332816; actual gas 1000.0000001916364 particle 9999.9352002332816 status 0; minimum valid Cv 43.054906494527188
+parcel equation residual 8.283495214083704e-13 K; caloric equation residual -9.5263616535975564e-11 J; gas heat 5.1839835941791529e-05 J; parcel heat -5.1839813374681394e-05 J; budget residual 2.2567110135347019e-11 J; roundoff budget 1.1798943960064006e-09 J
+========= ERROR SUMMARY: 0 errors

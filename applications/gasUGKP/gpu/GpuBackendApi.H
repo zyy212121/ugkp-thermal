@@ -1,3 +1,5 @@
+#include "gasBoundary/Api.H"
+#include "gasTransport/GasSpeciesApi.H"
 #ifndef UGKWP_GPU_BACKEND_API_H
 #define UGKWP_GPU_BACKEND_API_H
 
@@ -5,19 +7,6 @@
                                                                          
 
 #include "GpuBackendTypes.H"
-
-extern "C" int ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1
-(void* handle, ugkwpGpu::GasModelCapabilitiesV1* capabilities);
-extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
-(void* handle, const ugkwpGpu::GasModelConfigureArgsV1* configuration,
- const char* modelText, const char* mechanismText);
-extern "C" int ugkwpGpuResidentStrictUploadSpeciesV1
-(void* handle, const ugkwpGpu::GasSpeciesIdentityV1* identity, const double* speciesDensity);
-extern "C" int ugkwpGpuResidentStrictDownloadSpeciesV1
-(void* handle, const ugkwpGpu::GasSpeciesIdentityV1* identity, double* speciesDensity);
-extern "C" int ugkwpGpuResidentStrictUploadSpeciesBoundaryV1
-(void* handle, const ugkwpGpu::GasSpeciesIdentityV1* identity,
- const int* compositionFixed, const double* massFraction);
 
 extern "C" int ugkwpGpuResidentStrictCreate
 (
@@ -29,7 +18,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     double particleThermalRho, double particleCp, double gasMu,
     double gasPr, double particleDiameterFallback,
     double particleDiameterMin, double particleDiameterMax,
-    double particleDiameterSigma, double injectionTheta, double rhoMin,
+    double particleDiameterN, double injectionTheta, double rhoMin,
     double TgasMin, double epsSMin, double thetaMin, double TpMin,
     double TpMax, int collisionalPressureEnabled,
     double collisionalRestitution, double pressureKickFraction,
@@ -67,6 +56,10 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     const double* planeNx, const double* planeNy, const double* planeNz,
     const double* planeD
 );
+
+// Optional global particle-source velocity; unspecified follows gas boundaries.
+extern "C" int ugkwpGpuResidentStrictConfigureParticleInjectionVelocity
+(void* handle, int specified, double ux, double uy, double uz);
 
 extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 (
@@ -226,23 +219,26 @@ extern "C" void ugkwpGpuResidentStrictRelease(void* handle);
 extern "C" const char* ugkwpGpuResidentStrictLastError();
 
 // Geometry rows: inward normal xyz, ownerDistance, matchingDistance, volume, firstMoment.
-extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
-(void* handle,const ugkwpGpu::BoundaryLayerConfigV1* config,const int* faces,
- const int* quadratureOffsets,const int* matchingOffsets,const int* matchingCells,
- const double* geometry,const double* quadratureDistance,const double* quadratureWeight,
- const double* matchingWeight,const double* speciesFlux);
-extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
-(void* handle,std::uint32_t wallCount,std::uint32_t speciesCount,double* diagnostics);
 
-// Startup-only opt-in; downloaded rows are face-major, node-major y,U[3],T,k,omega,Y[Ns].
-extern "C" int ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(void* handle);
-extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1
-(void* handle,std::uint32_t walls,std::uint32_t nodes,std::uint32_t species,double* profiles,double* stageTime);
 
 #include "../../../common/DiagnosticsHost.H"
 extern "C" int ugkwpGpuResidentStrictSetDiagnosticOperation(void*,std::uint64_t,std::int64_t,double);
 extern "C" void ugkwpGpuResidentStrictReleaseDiagnostics(void*,ugkp::diagnostics::Snapshot*);
 extern "C" int ugkwpGpuResidentStrictCollectDiagnostics(void*,ugkp::diagnostics::Snapshot*);
 extern "C" void ugkwpGpuResidentStrictSetDiagnosticSink(void*,const ugkp::diagnostics::HostSink*);
+
+#ifdef UGKWP_STEADY_APPLICATION
+#include "../../gasUGKPSteady/gpu/GpuSteadySampling.H"
+extern "C" int ugkwpGpuResidentStrictConfigureSteadySampling(void*, double);
+extern "C" int ugkwpGpuResidentStrictBeginSamplingWindow(void*);
+extern "C" int ugkwpGpuResidentStrictAccumulateSamplingWindow(void*,double);
+extern "C" int ugkwpGpuResidentStrictFinishSamplingWindow(void*,double,GpuSteadySamplingReport*);
+extern "C" int ugkwpGpuResidentStrictDownloadSamplingMean(void*,double*);
+
+// Steady-only driving API. Existing transient entry points are unchanged.
+extern "C" int ugkwpGpuResidentStrictConfigureSteady(void*, double);
+extern "C" int ugkwpGpuResidentStrictPrepareSteadyStep(void*, double, double);
+extern "C" int ugkwpGpuResidentStrictSteadyResidual(void*, double*);
+#endif
 
 #endif

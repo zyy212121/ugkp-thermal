@@ -35,8 +35,12 @@ UGKWP_GAS_HD inline bool correctedSpeciesDiffusion
     const Real tolerance=Real(64*Ns)*std::numeric_limits<Real>::epsilon();
     if(gasThermoDetail::absValue(sumY-Real(1))>tolerance)
         recordWarning(thermo.diagnostics,makeRecord(Code::ConservationResidual,10005,0,0,EntityKind::None,-1,-1,sumY,1,sumY,Quantity::Conservation));
-    int dependent=Ns-1;
-    if(Y[dependent]==Real(0))for(int k=0;k<Ns;++k)if(Y[k]>Y[dependent])dependent=k;
+    // Close on the largest carrier, including when the last species is a
+    // nonzero trace. Subtracting carrier-sized raw fluxes first loses the
+    // trace channel to roundoff; assigning that remainder to a trace creates
+    // an outflow unrelated to its inventory and can suppress the bulk flux.
+    int dependent=0;
+    for(int k=1;k<Ns;++k)if(Y[k]>Y[dependent])dependent=k;
     Real sumCorrected=0,energy=0;
     for(int k=0;k<Ns;++k){corrected[k]=raw[k]-Y[k]*sumRaw;if(k!=dependent)sumCorrected+=corrected[k];}
     // Original conservative diffusion closure, not composition renormalization.

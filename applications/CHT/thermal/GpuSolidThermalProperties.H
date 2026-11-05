@@ -6,6 +6,8 @@
 #include "word.H"
 
 #include <stdexcept>
+#include <array>
+#include "../../../common/gpu/SolidThermalMath.H"
 
 namespace Foam
 {
@@ -93,6 +95,8 @@ public:
     scalar Csec(scalar trialTemperature, scalar oldTemperature) const;
 
     scalar referenceTemperature() const noexcept;
+    std::array<ugkp::gpu::ThermalPropertyTable,4> deviceTables() const;
+    const scalarField& caloricKnots() const noexcept { return rhoCpKnots_; }
 };
 
 }                        

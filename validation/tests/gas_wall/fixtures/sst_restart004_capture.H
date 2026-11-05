@@ -6,7 +6,7 @@ struct CapturedSstWall {
  double coefficients[6]={1004.675,0,0,843.68062566560013,0,0};
  ugkwp::gaswall::WallInput<double,2> input{};
  ugkwp::gaswall::WallModelConfig<double> config{};
- CapturedSstWall(){
+ UGKWP_GAS_HD CapturedSstWall(){
  species[0].model=static_cast<ugkwp::SpeciesThermoModel>(0);
  species[0].coefficientOffset=0;
  species[0].molarMass=0.028965206821645145;

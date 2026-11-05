@@ -1,0 +1,7 @@
+FoamFile {version 2.0; format ascii; class dictionary; object gasTransportProperties;}
+viscosityModel sutherland;
+species (S0 S1);
+sutherland {
+S0 {muRef 1.8e-05; TRef 300; S 110.4; molarMass 0.028;}
+S1 {muRef 2.8000000000000003e-05; TRef 300; S 130.4; molarMass 0.028;}
+}

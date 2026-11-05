@@ -1,4 +1,5 @@
 #pragma once
+#include "evaluateResidentBoundary.cuh"
 // One operator implementation; scalar/time adapters are compile-time only.
 template<class GasState>
 __global__ void updateLegacyGasBoundaryMirrorKernel
@@ -15,7 +16,8 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
         return;
     }
 
-    if (scheduledInletFaceDevice(s, f))
+    const bool scheduled = scheduledInletFaceDevice(s, f);
+    if (scheduled)
     {
         const GPU_OPERATOR_REAL temperature = clampMin
         (
@@ -34,8 +36,10 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
         s.riemannBoundaryP[f] = pressure;
         s.riemannBoundaryRho[f] = density;
         s.riemannBoundaryT[f] = temperature;
-        return;
+        // A pressure/temperature schedule does not prescribe velocity. Keep
+        // the owner-following velocity mirror current for particle injection.
     }
+    else if(evaluateResidentBoundary(s,f,simulationTime))return;
 
     const int kind = s.gasBoundaryKind[f];
     if (kind == 3 || kind == 4)
@@ -50,7 +54,7 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
         return;
     }
 
-    if (s.gasBoundaryRhoFix[f] == 0)
+    if (!scheduled && s.gasBoundaryRhoFix[f] == 0)
     {
         s.gasBoundaryRho[f] = s.rho[mirrorCell];
     }
@@ -60,18 +64,18 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
         s.gasBoundaryUy[f] = s.Uy[mirrorCell];
         s.gasBoundaryUz[f] = s.Uz[mirrorCell];
     }
-    if (s.gasBoundaryTFix[f] == 0)
+    if (!scheduled && s.gasBoundaryTFix[f] == 0)
     {
         s.gasBoundaryT[f] = s.Tgas[mirrorCell];
     }
-    if (s.gasBoundaryPFix[f] == 0 && s.gasBoundaryPWave[f] == 0)
+    if (!scheduled && s.gasBoundaryPFix[f] == 0 && s.gasBoundaryPWave[f] == 0)
     {
         s.gasBoundaryP[f] = s.p[mirrorCell];
     }
 }
 
 template<class GasState>
-__global__ void updateRiemannBoundaryMirrorKernel(GasState* sp)
+__global__ void updateRiemannBoundaryMirrorKernel(GasState* sp, const GPU_OPERATOR_TIME simulationTime=GPU_OPERATOR_TIME(0))
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
@@ -80,6 +84,8 @@ __global__ void updateRiemannBoundaryMirrorKernel(GasState* sp)
     {
         return;
     }
+
+    if(evaluateResidentBoundary(s,f,simulationTime))return;
 
     const int kind = s.riemannBoundaryKind[f];
     if (kind == 3 || kind == 4)
@@ -196,10 +202,4 @@ __device__ GasPrimDevice reconstructGasCellToFace
     );
 }
 
-template<class GasState>
-__device__ GPU_OPERATOR_REAL molecularGasConductivity(const GasState& s)
-{
-    if constexpr (ugkwp::GasDirectConductivity<GasState>::value)
-        if (ugkwp::gasHasDirectConductivity(s)) return s.gasThermalConductivity;
-    return s.gasMu*s.gasCp/s.gasPrClamped;
-}
+#include "gasTransport/GasMolecularConductivity.cuh"

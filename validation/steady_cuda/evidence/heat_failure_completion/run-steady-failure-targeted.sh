@@ -1,0 +1,4 @@
+set -eo pipefail
+O=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review
+cd "$O/stacked"
+python3 -m pytest validation/tests/gas_transport/test_steady_mixture_particle_coupling.py validation/tests/gas_transport/test_steady_sampling_moments.py validation/tests/gas_transport/test_steady_restart_state.py validation/tests/gas_transport/test_gas_pseudo_time.py validation/tests/gas_transport/test_steady_gas_residual.py validation/tests/gas_transport/test_steady_chemistry_time.py validation/tests/gas_transport/test_mixture_heat_exchange.py -q --junitxml="$O/failure-fixed-repo-targeted-tests.xml" --basetemp="$O/failure-fixed-repo-test-tmp" > "$O/failure-fixed-repo-targeted-tests.log" 2>&1

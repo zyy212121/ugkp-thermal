@@ -1,0 +1,43 @@
+FoamFile { version 2.0; format ascii; class volScalarField; object dMeanCell; }
+dimensions [0 1 0 0 0 0 0];
+internalField nonuniform List<scalar>
+32
+(
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001
+0.001);
+boundaryField
+{
+left { type fixedValue; value uniform 0.001; }
+right { type zeroGradient; value uniform 0.001; }
+sides { type empty; }
+}

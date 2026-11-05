@@ -82,7 +82,7 @@ int main(){std::vector<int> faces{17};std::vector<double> centres{.1,.2,.3},geom
 
 def test_profile_switch_is_startup_only_and_download_stays_in_write_path():
     from test_wall_model import ROOT
-    adapter=(ROOT/'applications/gasUGKP/gpu/BoundaryLayerInput.H').read_text()
+    adapter=(ROOT/'common/gasTransport/FoamBoundaryLayerInput.H').read_text()
     driver=(ROOT/'applications/gasUGKP/diluteUgkwpFoam.C').read_text()
     assert adapter.count('lookupOrDefault<bool>("writeProfiles",false)')==1
     constructor=adapter.split('    BoundaryLayerInput(',1)[1].split('    bool active()',1)[0]

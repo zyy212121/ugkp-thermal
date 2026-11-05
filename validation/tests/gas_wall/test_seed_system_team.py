@@ -62,7 +62,7 @@ def seed_program(tmp_path_factory):
     seed=original[start:end].replace('bool seedScalar(','bool originalSeedScalar(',1)
     source=tmp/'seed.cpp';source.write_text(CPP.replace('TEAM_TYPES',types).replace('ORIGINAL_SEED_FUNCTION',seed))
     exe=tmp/'seed'
-    result=subprocess.run(['g++','-std=c++14','-Werror','-O2','-pthread','-I'+str(root),'-I'+str(root/'common'),str(source),'-o',str(exe)],capture_output=True,text=True)
+    result=subprocess.run(['g++','-std=c++17','-Werror','-O2','-pthread','-I'+str(root),'-I'+str(root/'common'),str(source),'-o',str(exe)],capture_output=True,text=True)
     assert result.returncode==0,result.stderr
     return exe
 

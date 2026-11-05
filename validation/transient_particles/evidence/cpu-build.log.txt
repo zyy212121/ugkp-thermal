@@ -1,0 +1,14 @@
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/cpu-reference.cpp: In function ‘void initialise(DeviceState&, const Input&)’:
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/cpu-reference.cpp:236:59: warning: argument 1 value ‘18446744073709551600’ exceeds maximum object size 9223372036854775807 [-Walloc-size-larger-than=]
+  236 |  g.mode=ugkwp::GasMode::MixtureFrozen;g.rho=new Real[2*n]{};g.initial=new Real[2*n]{};g.flux=new Real[2*(n+1)]{};g.gradX=new Real[2*n]{};g.gradY=new Real[2*n]{};g.gradZ=new Real[2*n]{};g.limiter=new Real[n]{};g.boundaryMassFraction=new Real[2*(n+1)]{};g.compositionBoundaryFixed=new int[n+1]{};g.positivityScale=new Real[2*n]{};g.soundSpeed=new Real[n]{};g.heatCapacity=new Real[n]{};g.gasConstant=new Real[n]{};g.diffusivity=new Real[2]{a.diffusivity0,a.diffusivity1};
+      |                                                           ^
+In file included from /usr/include/c++/11/bits/exception_ptr.h:40,
+                 from /usr/include/c++/11/exception:153,
+                 from /usr/include/c++/11/ios:39,
+                 from /usr/include/c++/11/istream:38,
+                 from /usr/include/c++/11/fstream:38,
+                 from /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/cpu-reference.cpp:69:
+/usr/include/c++/11/new:128:26: note: in a call to allocation function ‘void* operator new [](std::size_t)’ declared here
+  128 | _GLIBCXX_NODISCARD void* operator new[](std::size_t) _GLIBCXX_THROW (std::bad_alloc)
+      |                          ^~~~~~~~
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/cpu-reference

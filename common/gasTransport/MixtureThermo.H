@@ -461,6 +461,23 @@ struct MixtureEnergyEvaluator
     { return evaluateMixtureEnergy<Refinement,Real,Ns,TableReal,false>(speciesMass,T,thermo,energy,capacity); }
 };
 
+// Shared intersection of species validity ranges and optional tighter controls.
+template<class Real,int Ns,class TableReal>
+UGKWP_GAS_HD inline void mixtureTemperatureBounds
+(const SpeciesThermoView<TableReal,Ns>& view,
+ const ThermoInversionControls<Real>& controls,Real& lo,Real& hi) noexcept
+{
+    using namespace gasThermoDetail;
+    lo=maxValue(Real(0),controls.minTemperature);
+    hi=controls.maxTemperature>Real(0)?controls.maxTemperature
+        :(std::numeric_limits<Real>::max)();
+    for(int s=0;s<Ns;++s)
+    {
+        lo=maxValue(lo,Real(view.species[s].minTemperature));
+        hi=minValue(hi,Real(view.species[s].maxTemperature));
+    }
+}
+
 template<bool Refinement=false,class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline ThermoStatus invertMixtureEnergy
 (
@@ -471,12 +488,8 @@ UGKWP_GAS_HD inline ThermoStatus invertMixtureEnergy
     using namespace gasThermoDetail;
     if(evaluatedTemperature)*evaluatedTemperature=false;
     if(!view.species || !speciesMass) return ThermoStatus::InvalidModel;
-    Real lo=Real(0),hi=(std::numeric_limits<Real>::max)();
-    for(int s=0;s<Ns;++s)
-    {
-        lo=maxValue(lo,Real(view.species[s].minTemperature));
-        hi=minValue(hi,Real(view.species[s].maxTemperature));
-    }
+    Real lo,hi;
+    mixtureTemperatureBounds(view,controls,lo,hi);
     const MixtureEnergyEvaluator<Real,Ns,TableReal,Refinement> evaluator{speciesMass,view};
     return invertCaloricEnergy<Refinement>(evaluator,internalEnergy,lo,hi,controls,temperature,evaluatedTemperature,view.diagnostics);
 }

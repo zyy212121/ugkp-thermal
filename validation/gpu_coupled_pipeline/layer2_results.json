@@ -1,0 +1,1454 @@
+{
+  "schema_version": 1,
+  "layer": 2,
+  "status": "Numerical, conservation, restart and memcheck validation passed; exclusive-GPU repeated 8^3/16^3 dry timing completed. Reacting boundary-layer performance remains a limitation.",
+  "raw_evidence_root": "../../../gpu-coupled-validation",
+  "baseline": {
+    "independent_math_commit": "88bc5434ee7199ec0bd7b986bbf121d693022245",
+    "incremental_native_binary": {
+      "path": "candidate-v2/bin/CHMT",
+      "sha256": "6b6152dfe017f3af2a9c3854c69b1325688eb012188abbeae276afe21eddf3c7"
+    },
+    "role": "Accepted layer-one interface migration with CPU material computation."
+  },
+  "mathematics": [
+    "Original first-order independent reaction clocks, shared extent limiter, ordered Darcy/ALE/species diffusion and accepted gas packets are retained.",
+    "When a common reaction extent mathematically exhausts its controlling donor, that donor is assigned exact zero. This removes a negative roundoff residue while retaining the original extent, other species and energy; tied controls and nonlimiting tiny inventories are tested on CPU/CUDA.",
+    "Ordered packet accumulation emulates the original x86 binary80 64-bit significand before narrowing, including the original negative-donor roundoff bound.",
+    "Whole-window backward-Euler native OpenFOAM conduction remains unchanged until layer three. Geometry and its host inventory mirror remain pending layer five.",
+    "Independent source-variation history samples are batched within bounded temporary storage. Their constitutive math, physical time interval and sequential result checks remain unchanged."
+  ],
+  "oracles": {
+    "reaction_surface": {
+      "evidence": {
+        "path": "layer2-reaction-surface-cuda-r4.log",
+        "sha256": "b77827da8ab7680826c1647b93136b3dda618ebd00ceb862018aed5bf6c67a3c"
+      },
+      "passed": 2,
+      "scope": "Eight reaction variants on 257 cells and five wall/material variants with permuted owners, inactive faces and private workspace reuse. Existing CPU stagnation cases are parity evidence, not a claim of converged closure."
+    },
+    "transport": {
+      "evidence": {
+        "path": "material-transport-cuda.log",
+        "sha256": "3ef91f1201d51b900481391faefb167995decbd08524294320f56281c5b25791"
+      },
+      "passed": 4,
+      "scope": "Ns=2/3, host/CUDA against preserved 88bc implementation; eight scenarios plus failure-order and workspace-reuse checks, zero observed field differences."
+    },
+    "packet_wide": {
+      "evidence": {
+        "path": "material-packet-wide-cuda.log",
+        "sha256": "668df3f31f2417f50378a3cf96a91b51221abc29e6b873e201a47c5f75d5aaca"
+      },
+      "passed": 6,
+      "scope": "Ns=2/3; 37 ordered packet batches each, binary80 host/CUDA arithmetic, subnormals, overflow, cancellation, negative-donor bounds and original failure semantics."
+    },
+    "cpu_candidate": {
+      "evidence": {
+        "path": "layer2-cpu-candidate/results.json",
+        "sha256": "92a75b30610b60c118c3f40ec2c2509d62f5a33362e3febebecd76b1caa74ae6"
+      },
+      "passed_cases": 19,
+      "baseline": {
+        "path": "layer2-cpu-baseline/results.json",
+        "sha256": "b78a0c05ac40659e057bcadc312e106bfa3e3f774465030d2bd7fa4a4ef9d607"
+      }
+    },
+    "backend_commit_and_history": {
+      "evidence": {
+        "path": "layer2-backend-transaction.log",
+        "sha256": "889a0123cf911b21e05be55b468f06aae32986bd19eee28f1317caed7e0b087a"
+      },
+      "scope": "Real resident backend: rejected and uncommitted updates preserve inventory, cumulative transfers and host outputs; nine independent history samples equal sequential surface calls, including an inactive first face."
+    }
+  },
+  "native_batched": {
+    "evidence": {
+      "path": "layer2-native-batch-r2/results.json",
+      "sha256": "d17cf734937ea80340338b7938cb18fabcee395ffbbe08cf9a5d1eddf9917f4c"
+    },
+    "status": "PASS",
+    "candidate_runs": [
+      {
+        "scenario": "thermal",
+        "status": "PASS",
+        "elapsed_seconds": 0.9061122720013373,
+        "parity": {
+          "maximum_scaled_csv_errors": {
+            "time": 0.0,
+            "mass": 0.0,
+            "energy": 0.0,
+            "conductive": 0.0,
+            "advective": 0.0,
+            "pressure_work": 0.0,
+            "viscous_work": 0.0,
+            "radiation": 0.0,
+            "liquid_kinetic_advection": 0.0,
+            "volume": 0.0,
+            "momentum_x": 0.0,
+            "momentum_y": 0.0,
+            "momentum_z": 0.0,
+            "total_energy": 0.0,
+            "temperature": 0.0,
+            "pressure": 0.0,
+            "mass_S0": 0.0,
+            "mass_S1": 0.0,
+            "porosity": 0.0,
+            "mass_C0": 0.0,
+            "mass_C1": 0.0,
+            "mass_pore_S0": 0.0,
+            "mass_pore_S1": 0.0
+          },
+          "checkpoint_payload_bitwise_equal": true
+        },
+        "checkpoint_material_maximum_scaled_errors": {
+          "cell": 0.0,
+          "volume": 0.0,
+          "energy": 0.0,
+          "porosity": 0.0,
+          "condensed_0": 0.0,
+          "condensed_1": 0.0,
+          "progress_0": 0.0,
+          "progress_1": 0.0,
+          "progress_2": 0.0,
+          "progress_3": 0.0,
+          "progress_4": 0.0,
+          "progress_5": 0.0,
+          "progress_6": 0.0,
+          "progress_7": 0.0,
+          "pore_0": 0.0,
+          "pore_1": 0.0
+        },
+        "audit": {
+          "maximum_absolute_residuals": {
+            "mass": 0.0,
+            "energy": 0.0,
+            "gas_mass_exchange": 3.3306690738754696e-16,
+            "gas_energy_exchange": 1.62503788203594e-10,
+            "material_energy_exchange": 2.9811163260173856e-08
+          },
+          "states": [
+            {
+              "step": 0,
+              "mass": 1001.0,
+              "gas_mass": 1.0,
+              "gas_energy": 445832.94389671634,
+              "material_energy": 300000000.0,
+              "condensed_0": 1000.0,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 1.0,
+              "energy": 300445832.9438967
+            },
+            {
+              "step": 1,
+              "mass": 1001.0,
+              "gas_mass": 0.9999999999999997,
+              "gas_energy": 445832.64389744936,
+              "material_energy": 300000000.29999924,
+              "condensed_0": 1000.0,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 1.0,
+              "energy": 300445832.9438967
+            },
+            {
+              "step": 2,
+              "mass": 1001.0,
+              "gas_mass": 0.9999999999999996,
+              "gas_energy": 445832.3438987546,
+              "material_energy": 300000000.59999794,
+              "condensed_0": 1000.0,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 1.0,
+              "energy": 300445832.9438967
+            }
+          ],
+          "scope": "Closed inventories, signed interface mass/energy, and dry-case stoichiometric yields/progress; source-rate CPU/GPU parity is covered separately by kernel oracles."
+        },
+        "warnings": {
+          "foam_warning_count": 2
+        }
+      },
+      {
+        "scenario": "single",
+        "status": "PASS",
+        "elapsed_seconds": 0.8268736619793344,
+        "parity": {
+          "maximum_scaled_csv_errors": {
+            "time": 0.0,
+            "mass": 0.0,
+            "energy": 0.0,
+            "conductive": 0.0,
+            "advective": 0.0,
+            "pressure_work": 0.0,
+            "viscous_work": 0.0,
+            "radiation": 0.0,
+            "liquid_kinetic_advection": 0.0,
+            "volume": 0.0,
+            "momentum_x": 0.0,
+            "momentum_y": 0.0,
+            "momentum_z": 0.0,
+            "total_energy": 0.0,
+            "temperature": 0.0,
+            "pressure": 0.0,
+            "mass_S0": 0.0,
+            "mass_S1": 0.0,
+            "porosity": 0.0,
+            "mass_C0": 0.0,
+            "mass_C1": 0.0,
+            "mass_pore_S0": 0.0,
+            "mass_pore_S1": 0.0
+          },
+          "checkpoint_payload_bitwise_equal": true
+        },
+        "checkpoint_material_maximum_scaled_errors": {
+          "cell": 0.0,
+          "volume": 0.0,
+          "energy": 0.0,
+          "porosity": 0.0,
+          "condensed_0": 0.0,
+          "condensed_1": 0.0,
+          "progress_0": 0.0,
+          "progress_1": 0.0,
+          "progress_2": 0.0,
+          "progress_3": 0.0,
+          "progress_4": 0.0,
+          "progress_5": 0.0,
+          "progress_6": 0.0,
+          "progress_7": 0.0,
+          "pore_0": 0.0,
+          "pore_1": 0.0
+        },
+        "audit": {
+          "maximum_absolute_residuals": {
+            "mass": 0.0,
+            "energy": 0.0,
+            "gas_mass_exchange": 3.3306690738754696e-16,
+            "gas_energy_exchange": 1.6250351064783786e-10,
+            "material_energy_exchange": 2.981116348221846e-08
+          },
+          "states": [
+            {
+              "step": 0,
+              "mass": 1001.0,
+              "gas_mass": 1.0,
+              "gas_energy": 445832.94389671634,
+              "material_energy": 300000000.0,
+              "condensed_0": 1000.0,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 1.0,
+              "energy": 300445832.9438967
+            },
+            {
+              "step": 1,
+              "mass": 1001.0,
+              "gas_mass": 0.9999999999999997,
+              "gas_energy": 445832.64389744936,
+              "material_energy": 300000000.29999924,
+              "condensed_0": 1000.0,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 1.0,
+              "energy": 300445832.9438967
+            },
+            {
+              "step": 2,
+              "mass": 1001.0,
+              "gas_mass": 0.9999999999999996,
+              "gas_energy": 445832.3438987546,
+              "material_energy": 300000000.59999794,
+              "condensed_0": 1000.0,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 1.0,
+              "energy": 300445832.9438967
+            }
+          ],
+          "scope": "Closed inventories, signed interface mass/energy, and dry-case stoichiometric yields/progress; source-rate CPU/GPU parity is covered separately by kernel oracles."
+        },
+        "warnings": {
+          "foam_warning_count": 2
+        }
+      },
+      {
+        "scenario": "diffusion",
+        "status": "PASS",
+        "elapsed_seconds": 1.1072239549830556,
+        "parity": {
+          "maximum_scaled_csv_errors": {
+            "time": 0.0,
+            "mass": 0.0,
+            "energy": 0.0,
+            "conductive": 0.0,
+            "advective": 0.0,
+            "pressure_work": 0.0,
+            "viscous_work": 0.0,
+            "radiation": 0.0,
+            "liquid_kinetic_advection": 0.0,
+            "volume": 0.0,
+            "momentum_x": 0.0,
+            "momentum_y": 0.0,
+            "momentum_z": 0.0,
+            "total_energy": 0.0,
+            "temperature": 0.0,
+            "pressure": 0.0,
+            "mass_S0": 0.0,
+            "mass_S1": 0.0,
+            "porosity": 0.0,
+            "mass_C0": 0.0,
+            "mass_C1": 0.0,
+            "mass_pore_S0": 0.0,
+            "mass_pore_S1": 0.0
+          },
+          "checkpoint_payload_bitwise_equal": true
+        },
+        "checkpoint_material_maximum_scaled_errors": {
+          "cell": 0.0,
+          "volume": 0.0,
+          "energy": 0.0,
+          "porosity": 0.0,
+          "condensed_0": 0.0,
+          "condensed_1": 0.0,
+          "progress_0": 0.0,
+          "progress_1": 0.0,
+          "progress_2": 0.0,
+          "progress_3": 0.0,
+          "progress_4": 0.0,
+          "progress_5": 0.0,
+          "progress_6": 0.0,
+          "progress_7": 0.0,
+          "pore_0": 0.0,
+          "pore_1": 0.0
+        },
+        "audit": {
+          "maximum_absolute_residuals": {
+            "mass": 0.0,
+            "energy": 0.0,
+            "gas_mass_exchange": 3.3306690738754696e-16,
+            "gas_energy_exchange": 1.6250345513668663e-10,
+            "material_energy_exchange": 2.981116353772961e-08
+          },
+          "states": [
+            {
+              "step": 0,
+              "mass": 1001.0,
+              "gas_mass": 1.0,
+              "gas_energy": 445832.94389671646,
+              "material_energy": 300000000.0,
+              "condensed_0": 1000.0,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 1.0,
+              "energy": 300445832.9438967
+            },
+            {
+              "step": 1,
+              "mass": 1001.0,
+              "gas_mass": 0.9999999999999997,
+              "gas_energy": 445832.6438974495,
+              "material_energy": 300000000.29999924,
+              "condensed_0": 1000.0,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 1.0,
+              "energy": 300445832.9438967
+            },
+            {
+              "step": 2,
+              "mass": 1001.0,
+              "gas_mass": 0.9999999999999996,
+              "gas_energy": 445832.34389875474,
+              "material_energy": 300000000.59999794,
+              "condensed_0": 1000.0,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 1.0,
+              "energy": 300445832.9438967
+            }
+          ],
+          "scope": "Closed inventories, signed interface mass/energy, and dry-case stoichiometric yields/progress; source-rate CPU/GPU parity is covered separately by kernel oracles."
+        },
+        "warnings": {
+          "foam_warning_count": 2
+        }
+      },
+      {
+        "scenario": "dry",
+        "status": "PASS",
+        "elapsed_seconds": 1.1991934360121377,
+        "parity": {
+          "maximum_scaled_csv_errors": {
+            "time": 0.0,
+            "mass": 0.0,
+            "energy": 0.0,
+            "conductive": 0.0,
+            "advective": 0.0,
+            "pressure_work": 0.0,
+            "viscous_work": 0.0,
+            "radiation": 0.0,
+            "liquid_kinetic_advection": 0.0,
+            "volume": 0.0,
+            "momentum_x": 0.0,
+            "momentum_y": 0.0,
+            "momentum_z": 0.0,
+            "total_energy": 0.0,
+            "temperature": 0.0,
+            "pressure": 0.0,
+            "mass_S0": 0.0,
+            "mass_S1": 0.0,
+            "porosity": 0.0,
+            "mass_C0": 0.0,
+            "mass_C1": 0.0,
+            "mass_pore_S0": 0.0,
+            "mass_pore_S1": 0.0
+          },
+          "checkpoint_payload_bitwise_equal": true
+        },
+        "checkpoint_material_maximum_scaled_errors": {
+          "cell": 0.0,
+          "volume": 0.0,
+          "energy": 0.0,
+          "porosity": 0.0,
+          "condensed_0": 0.0,
+          "condensed_1": 0.0,
+          "progress_0": 0.0,
+          "progress_1": 0.0,
+          "progress_2": 0.0,
+          "progress_3": 0.0,
+          "progress_4": 0.0,
+          "progress_5": 0.0,
+          "progress_6": 0.0,
+          "progress_7": 0.0,
+          "pore_0": 0.0,
+          "pore_1": 0.0
+        },
+        "audit": {
+          "maximum_absolute_residuals": {
+            "mass": 0.0,
+            "energy": 5.960464477539063e-08,
+            "reaction_progress_invariant": 0.0,
+            "C1_yield_invariant": 2.842170943040401e-14,
+            "S0_yield_invariant": 1.4210854715202004e-14,
+            "S1_yield_invariant": 0.0,
+            "gas_mass_exchange": 1.037476658741405e-16,
+            "gas_energy_exchange": 4.6310733026189155e-11,
+            "material_energy_exchange": 6.002399532967218e-08
+          },
+          "states": [
+            {
+              "step": 0,
+              "mass": 501.5,
+              "gas_mass": 1.0,
+              "gas_energy": 445832.94389671634,
+              "material_energy": 150113685.32417548,
+              "condensed_0": 500.0,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.5,
+              "volume": 1.0,
+              "energy": 150559518.2680722,
+              "reaction_progress_invariant": 500.0,
+              "C1_yield_invariant": 150.0,
+              "S0_yield_invariant": 101.3,
+              "S1_yield_invariant": 250.2
+            },
+            {
+              "step": 1,
+              "mass": 501.5,
+              "gas_mass": 0.9999997505661216,
+              "gas_energy": 445832.5271624173,
+              "material_energy": 150113685.74090976,
+              "condensed_0": 499.5,
+              "condensed_1": 0.15,
+              "progress_0": 0.5,
+              "pore_mass": 0.8500002494338785,
+              "volume": 1.0,
+              "energy": 150559518.26807216,
+              "reaction_progress_invariant": 500.0,
+              "C1_yield_invariant": 150.0,
+              "S0_yield_invariant": 101.30000000000001,
+              "S1_yield_invariant": 250.2
+            },
+            {
+              "step": 2,
+              "mass": 501.5,
+              "gas_mass": 0.9999996523776251,
+              "gas_energy": 445832.18125747144,
+              "material_energy": 150113686.08681476,
+              "condensed_0": 499.0005,
+              "condensed_1": 0.29985,
+              "progress_0": 0.9995,
+              "pore_mass": 1.199650347622375,
+              "volume": 1.0,
+              "energy": 150559518.26807225,
+              "reaction_progress_invariant": 500.0,
+              "C1_yield_invariant": 149.99999999999997,
+              "S0_yield_invariant": 101.3,
+              "S1_yield_invariant": 250.2
+            }
+          ],
+          "scope": "Closed inventories, signed interface mass/energy, and dry-case stoichiometric yields/progress; source-rate CPU/GPU parity is covered separately by kernel oracles."
+        },
+        "warnings": {
+          "foam_warning_count": 110
+        }
+      },
+      {
+        "scenario": "receding",
+        "status": "PASS",
+        "elapsed_seconds": 12.646795659995405,
+        "parity": {
+          "maximum_scaled_csv_errors": {
+            "time": 0.0,
+            "mass": 0.0,
+            "energy": 0.0,
+            "conductive": 0.0,
+            "advective": 0.0,
+            "pressure_work": 0.0,
+            "viscous_work": 0.0,
+            "radiation": 0.0,
+            "liquid_kinetic_advection": 0.0,
+            "volume": 0.0,
+            "momentum_x": 0.0,
+            "momentum_y": 0.0,
+            "momentum_z": 0.0,
+            "total_energy": 0.0,
+            "temperature": 0.0,
+            "pressure": 0.0,
+            "mass_S0": 0.0,
+            "mass_S1": 0.0,
+            "porosity": 0.0,
+            "mass_C0": 0.0,
+            "mass_C1": 0.0,
+            "mass_pore_S0": 0.0,
+            "mass_pore_S1": 0.0
+          },
+          "checkpoint_payload_bitwise_equal": true
+        },
+        "checkpoint_material_maximum_scaled_errors": {
+          "cell": 0.0,
+          "volume": 0.0,
+          "energy": 0.0,
+          "porosity": 0.0,
+          "condensed_0": 0.0,
+          "condensed_1": 0.0,
+          "progress_0": 0.0,
+          "progress_1": 0.0,
+          "progress_2": 0.0,
+          "progress_3": 0.0,
+          "progress_4": 0.0,
+          "progress_5": 0.0,
+          "progress_6": 0.0,
+          "progress_7": 0.0,
+          "pore_0": 0.0,
+          "pore_1": 0.0
+        },
+        "audit": {
+          "maximum_absolute_residuals": {
+            "mass": 0.0,
+            "energy": 2.384185791015625e-07,
+            "gas_mass_exchange": 1.0834671596455245e-15,
+            "gas_energy_exchange": 5.417910564631256e-10,
+            "material_energy_exchange": 2.0598885941414125e-07
+          },
+          "states": [
+            {
+              "step": 0,
+              "mass": 1000.4874638549882,
+              "gas_mass": 0.48746385498816874,
+              "gas_energy": 253548.6864313869,
+              "material_energy": 700000000.0,
+              "condensed_0": 1000.0,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 1.0,
+              "energy": 700253548.6864314
+            },
+            {
+              "step": 1,
+              "mass": 1000.4874638549882,
+              "gas_mass": 0.4874648549881684,
+              "gas_energy": 253549.40655056885,
+              "material_energy": 699999999.2798808,
+              "condensed_0": 999.999999,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 0.9999999990000004,
+              "energy": 700253548.6864313
+            },
+            {
+              "step": 2,
+              "mass": 1000.4874638549882,
+              "gas_mass": 0.48746585498816847,
+              "gas_energy": 253550.12666970433,
+              "material_energy": 699999998.5597616,
+              "condensed_0": 999.999998,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 0.9999999980000005,
+              "energy": 700253548.6864313
+            },
+            {
+              "step": 3,
+              "mass": 1000.4874638549882,
+              "gas_mass": 0.48746685498816955,
+              "gas_energy": 253550.84678880547,
+              "material_energy": 699999997.8396425,
+              "condensed_0": 999.999997,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 0.9999999970000005,
+              "energy": 700253548.6864313
+            },
+            {
+              "step": 4,
+              "mass": 1000.4874638549882,
+              "gas_mass": 0.48746785498816864,
+              "gas_energy": 253551.566907869,
+              "material_energy": 699999997.1195234,
+              "condensed_0": 999.999996,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 0.9999999960000006,
+              "energy": 700253548.6864313
+            },
+            {
+              "step": 5,
+              "mass": 1000.4874638549882,
+              "gas_mass": 0.4874688549881685,
+              "gas_energy": 253552.2870268861,
+              "material_energy": 699999996.3994043,
+              "condensed_0": 999.999995,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 0.9999999950000005,
+              "energy": 700253548.6864312
+            },
+            {
+              "step": 6,
+              "mass": 1000.4874638549882,
+              "gas_mass": 0.4874698549881692,
+              "gas_energy": 253553.00714585328,
+              "material_energy": 699999995.6792855,
+              "condensed_0": 999.999994,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 0.9999999940000005,
+              "energy": 700253548.6864314
+            },
+            {
+              "step": 7,
+              "mass": 1000.4874638549882,
+              "gas_mass": 0.4874708549881681,
+              "gas_energy": 253553.72726477013,
+              "material_energy": 699999994.9591665,
+              "condensed_0": 999.999993,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 0.9999999930000004,
+              "energy": 700253548.6864313
+            },
+            {
+              "step": 8,
+              "mass": 1000.4874638549882,
+              "gas_mass": 0.4874718549881686,
+              "gas_energy": 253554.44738363856,
+              "material_energy": 699999994.2390476,
+              "condensed_0": 999.999992,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 0.9999999920000004,
+              "energy": 700253548.6864313
+            },
+            {
+              "step": 9,
+              "mass": 1000.4874638549882,
+              "gas_mass": 0.4874728549881689,
+              "gas_energy": 253555.167502459,
+              "material_energy": 699999993.5189288,
+              "condensed_0": 999.999991,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 0.9999999910000005,
+              "energy": 700253548.6864312
+            },
+            {
+              "step": 10,
+              "mass": 1000.4874638549882,
+              "gas_mass": 0.48747385498816825,
+              "gas_energy": 253555.8876212316,
+              "material_energy": 699999992.7988101,
+              "condensed_0": 999.99999,
+              "condensed_1": 0.0,
+              "progress_0": 0.0,
+              "pore_mass": 0.0,
+              "volume": 0.9999999900000004,
+              "energy": 700253548.6864314
+            }
+          ],
+          "scope": "Closed inventories, signed interface mass/energy, and dry-case stoichiometric yields/progress; source-rate CPU/GPU parity is covered separately by kernel oracles."
+        },
+        "warnings": {
+          "foam_warning_count": 10
+        }
+      }
+    ]
+  },
+  "wall_batched": {
+    "evidence": {
+      "path": "layer2-wall-batch/report.json",
+      "sha256": "461074357838474f4ab0f76e92144e20f4d1ec36f8e2715cbfef564e95e5d9c0"
+    },
+    "cases": {
+      "constantTransport": {
+        "runs": {
+          "baseline": {
+            "elapsed_seconds": 1.592443933011964,
+            "coupling_windows": 8,
+            "microsteps_per_window": [
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4
+            ],
+            "wall_output_snapshots": 9,
+            "audit": {
+              "snapshots": 9,
+              "closed_domain": false,
+              "max_mass_residual": 2.220446049250313e-16,
+              "max_energy_residual": 6.984919309616089e-10,
+              "max_species_sum_residual": 2.710505431213761e-20,
+              "max_packet_energy_residual": 8.271806125530277e-25,
+              "max_gas_exchange_residual": 0.0,
+              "max_material_exchange_residual": 0.0,
+              "initial_inventory": [
+                1.0019498554199529,
+                701015.0721806646,
+                1015.0721806645265,
+                700000.0000000001
+              ],
+              "final_inventory": [
+                1.001949855419953,
+                701015.0721806639,
+                1015.0721815313494,
+                699999.9999991326
+              ],
+              "component_mass_residuals": {
+                "mass_S1": 5.637851296924623e-18,
+                "mass_pore_S1": 0.0,
+                "mass_pore_S0": 0.0,
+                "mass_S0": 1.1920870920164445e-12,
+                "mass_C0": 1.191935439237568e-12,
+                "mass_C1": 0.0
+              }
+            }
+          },
+          "candidate": {
+            "elapsed_seconds": 1.6539679499983322,
+            "coupling_windows": 8,
+            "microsteps_per_window": [
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4
+            ],
+            "wall_output_snapshots": 9,
+            "audit": {
+              "snapshots": 9,
+              "closed_domain": false,
+              "max_mass_residual": 2.220446049250313e-16,
+              "max_energy_residual": 6.984919309616089e-10,
+              "max_species_sum_residual": 2.710505431213761e-20,
+              "max_packet_energy_residual": 8.271806125530277e-25,
+              "max_gas_exchange_residual": 0.0,
+              "max_material_exchange_residual": 0.0,
+              "initial_inventory": [
+                1.0019498554199529,
+                701015.0721806646,
+                1015.0721806645265,
+                700000.0000000001
+              ],
+              "final_inventory": [
+                1.001949855419953,
+                701015.0721806639,
+                1015.0721815313494,
+                699999.9999991326
+              ],
+              "component_mass_residuals": {
+                "mass_S1": 5.637851296924623e-18,
+                "mass_pore_S1": 0.0,
+                "mass_pore_S0": 0.0,
+                "mass_S0": 1.1920870920164445e-12,
+                "mass_C0": 1.191935439237568e-12,
+                "mass_C1": 0.0
+              }
+            }
+          }
+        },
+        "parity": {
+          "maximum_scaled_csv_errors": {
+            "time": 0.0,
+            "mass": 0.0,
+            "energy": 0.0,
+            "conductive": 0.0,
+            "advective": 0.0,
+            "pressure_work": 0.0,
+            "viscous_work": 0.0,
+            "radiation": 0.0,
+            "liquid_kinetic_advection": 0.0,
+            "volume": 0.0,
+            "momentum_x": 0.0,
+            "momentum_y": 0.0,
+            "momentum_z": 0.0,
+            "total_energy": 0.0,
+            "temperature": 0.0,
+            "pressure": 0.0,
+            "mass_S0": 0.0,
+            "mass_S1": 0.0,
+            "porosity": 0.0,
+            "mass_C0": 0.0,
+            "mass_C1": 0.0,
+            "mass_pore_S0": 0.0,
+            "mass_pore_S1": 0.0,
+            "accepted_time": 0.0,
+            "stage_time": 0.0,
+            "wall_temperature": 0.0,
+            "wall_density": 0.0,
+            "wall_mass_fraction": 0.0,
+            "wall_species_flux": 0.0,
+            "matching_species_flux": 0.0,
+            "reaction_integral": 0.0,
+            "species_balance_residual": 0.0,
+            "chemistry_mismatch_available": 0.0,
+            "conductive_heat_flux": 0.0,
+            "traction_x": 0.0,
+            "traction_y": 0.0,
+            "traction_z": 0.0,
+            "wall_k_flux": 0.0,
+            "owner_k_source_integral": 0.0,
+            "owner_omega": 0.0,
+            "iterations": 0.0,
+            "residual": 0.0
+          },
+          "checkpoint_payload_bitwise_equal": true
+        }
+      },
+      "reactingSst": {
+        "runs": {
+          "baseline": {
+            "elapsed_seconds": 37.50343210500432,
+            "coupling_windows": 8,
+            "microsteps_per_window": [
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4
+            ],
+            "wall_output_snapshots": 9,
+            "audit": {
+              "snapshots": 9,
+              "closed_domain": false,
+              "max_mass_residual": 2.220446049250313e-16,
+              "max_energy_residual": 8.149072527885437e-10,
+              "max_species_sum_residual": 2.710505431213761e-20,
+              "max_packet_energy_residual": 8.271806125530277e-25,
+              "max_gas_exchange_residual": 0.0,
+              "max_material_exchange_residual": 0.0,
+              "initial_inventory": [
+                1.0019498554199529,
+                701015.0721806646,
+                1015.0721806645265,
+                700000.0000000001
+              ],
+              "final_inventory": [
+                1.001949855419953,
+                701015.0721806638,
+                1015.0721815100288,
+                699999.9999991538
+              ],
+              "component_mass_residuals": {
+                "mass_S1": 1.951563910473908e-18,
+                "mass_pore_S1": 0.0,
+                "mass_pore_S0": 0.0,
+                "mass_S0": 1.1920879322731281e-12,
+                "mass_C0": 1.191935439237568e-12,
+                "mass_C1": 0.0
+              }
+            }
+          },
+          "candidate": {
+            "elapsed_seconds": 194.2697222220013,
+            "coupling_windows": 8,
+            "microsteps_per_window": [
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4
+            ],
+            "wall_output_snapshots": 9,
+            "audit": {
+              "snapshots": 9,
+              "closed_domain": false,
+              "max_mass_residual": 2.220446049250313e-16,
+              "max_energy_residual": 8.149072527885437e-10,
+              "max_species_sum_residual": 2.710505431213761e-20,
+              "max_packet_energy_residual": 8.271806125530277e-25,
+              "max_gas_exchange_residual": 0.0,
+              "max_material_exchange_residual": 0.0,
+              "initial_inventory": [
+                1.0019498554199529,
+                701015.0721806646,
+                1015.0721806645265,
+                700000.0000000001
+              ],
+              "final_inventory": [
+                1.001949855419953,
+                701015.0721806638,
+                1015.0721815100288,
+                699999.9999991538
+              ],
+              "component_mass_residuals": {
+                "mass_S1": 1.951563910473908e-18,
+                "mass_pore_S1": 0.0,
+                "mass_pore_S0": 0.0,
+                "mass_S0": 1.1920879322731281e-12,
+                "mass_C0": 1.191935439237568e-12,
+                "mass_C1": 0.0
+              }
+            }
+          }
+        },
+        "parity": {
+          "maximum_scaled_csv_errors": {
+            "time": 0.0,
+            "mass": 0.0,
+            "energy": 0.0,
+            "conductive": 0.0,
+            "advective": 0.0,
+            "pressure_work": 0.0,
+            "viscous_work": 0.0,
+            "radiation": 0.0,
+            "liquid_kinetic_advection": 0.0,
+            "volume": 0.0,
+            "momentum_x": 0.0,
+            "momentum_y": 0.0,
+            "momentum_z": 0.0,
+            "total_energy": 0.0,
+            "temperature": 0.0,
+            "pressure": 0.0,
+            "mass_S0": 0.0,
+            "mass_S1": 0.0,
+            "porosity": 0.0,
+            "mass_C0": 0.0,
+            "mass_C1": 0.0,
+            "mass_pore_S0": 0.0,
+            "mass_pore_S1": 0.0,
+            "accepted_time": 0.0,
+            "stage_time": 0.0,
+            "wall_temperature": 0.0,
+            "wall_density": 0.0,
+            "wall_mass_fraction": 0.0,
+            "wall_species_flux": 0.0,
+            "matching_species_flux": 0.0,
+            "reaction_integral": 0.0,
+            "species_balance_residual": 0.0,
+            "chemistry_mismatch_available": 0.0,
+            "conductive_heat_flux": 0.0,
+            "traction_x": 0.0,
+            "traction_y": 0.0,
+            "traction_z": 0.0,
+            "wall_k_flux": 0.0,
+            "owner_omega": 0.0,
+            "iterations": 0.0,
+            "residual": 0.0
+          },
+          "checkpoint_payload_bitwise_equal": true
+        }
+      }
+    }
+  },
+  "rk_batched": {
+    "evidence": {
+      "path": "layer2-rk-batch/report.json",
+      "sha256": "10e4ab4c6bb2b2115e32a7946501f912af2401fdeb56a9313c1853430de4b9a7"
+    },
+    "cases": {
+      "mixture": {
+        "runs": {
+          "baseline": {
+            "elapsed_seconds": 1.6089809120167047,
+            "coupling_windows": 2,
+            "microsteps_per_window": [
+              50,
+              50
+            ],
+            "checked_rk_stage_snapshots": 0,
+            "audit": {
+              "snapshots": 3,
+              "closed_domain": true,
+              "max_mass_residual": 0.0,
+              "max_energy_residual": 5.960464477539063e-08,
+              "max_species_sum_residual": 0.0,
+              "max_packet_energy_residual": 0.0,
+              "max_gas_exchange_residual": 1.3896707673488606e-09,
+              "max_material_exchange_residual": 4.395409708424225e-08,
+              "initial_inventory": [
+                1001.0,
+                300445832.9438967,
+                445832.94389671634,
+                300000000.0
+              ],
+              "final_inventory": [
+                1001.0,
+                300445832.94389665,
+                445832.3438987746,
+                300000000.5999979
+              ],
+              "component_mass_residuals": {
+                "mass_C0": 0.0,
+                "mass_S0": 6.106226635438361e-15,
+                "mass_C1": 0.0,
+                "mass_pore_S1": 0.0,
+                "mass_pore_S0": 0.0,
+                "mass_S1": 0.0
+              }
+            }
+          },
+          "candidate": {
+            "elapsed_seconds": 1.5967286989907734,
+            "coupling_windows": 2,
+            "microsteps_per_window": [
+              50,
+              50
+            ],
+            "checked_rk_stage_snapshots": 0,
+            "audit": {
+              "snapshots": 3,
+              "closed_domain": true,
+              "max_mass_residual": 0.0,
+              "max_energy_residual": 5.960464477539063e-08,
+              "max_species_sum_residual": 0.0,
+              "max_packet_energy_residual": 0.0,
+              "max_gas_exchange_residual": 1.3896707673488606e-09,
+              "max_material_exchange_residual": 4.395409708424225e-08,
+              "initial_inventory": [
+                1001.0,
+                300445832.9438967,
+                445832.94389671634,
+                300000000.0
+              ],
+              "final_inventory": [
+                1001.0,
+                300445832.94389665,
+                445832.3438987746,
+                300000000.5999979
+              ],
+              "component_mass_residuals": {
+                "mass_C0": 0.0,
+                "mass_S0": 6.106226635438361e-15,
+                "mass_C1": 0.0,
+                "mass_pore_S1": 0.0,
+                "mass_pore_S0": 0.0,
+                "mass_S1": 0.0
+              }
+            }
+          }
+        },
+        "parity": {
+          "maximum_scaled_csv_errors": {
+            "time": 0.0,
+            "mass": 0.0,
+            "energy": 0.0,
+            "conductive": 0.0,
+            "advective": 0.0,
+            "pressure_work": 0.0,
+            "viscous_work": 0.0,
+            "radiation": 0.0,
+            "liquid_kinetic_advection": 0.0,
+            "volume": 0.0,
+            "momentum_x": 0.0,
+            "momentum_y": 0.0,
+            "momentum_z": 0.0,
+            "total_energy": 0.0,
+            "temperature": 0.0,
+            "pressure": 0.0,
+            "mass_S0": 0.0,
+            "mass_S1": 0.0,
+            "porosity": 0.0,
+            "mass_C0": 0.0,
+            "mass_C1": 0.0,
+            "mass_pore_S0": 0.0,
+            "mass_pore_S1": 0.0
+          },
+          "checkpoint_payload_bitwise_equal": true
+        }
+      },
+      "moving-microsteps": {
+        "runs": {
+          "baseline": {
+            "elapsed_seconds": 1.233435786998598,
+            "coupling_windows": 8,
+            "microsteps_per_window": [
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4
+            ],
+            "checked_rk_stage_snapshots": 8,
+            "audit": {
+              "snapshots": 9,
+              "closed_domain": false,
+              "max_mass_residual": 2.220446049250313e-16,
+              "max_energy_residual": 6.984919309616089e-10,
+              "max_species_sum_residual": 1.3552527156068805e-19,
+              "max_packet_energy_residual": 1.6543612251060553e-24,
+              "max_gas_exchange_residual": 0.0,
+              "max_material_exchange_residual": 0.0,
+              "initial_inventory": [
+                1.0019498554199529,
+                701015.0721806646,
+                1015.0721806645265,
+                700000.0000000001
+              ],
+              "final_inventory": [
+                1.001949855419953,
+                701015.0721806639,
+                1015.0721815313486,
+                699999.9999991326
+              ],
+              "component_mass_residuals": {
+                "mass_C0": 1.191935439237568e-12,
+                "mass_S0": 1.1920867125456841e-12,
+                "mass_C1": 0.0,
+                "mass_pore_S1": 0.0,
+                "mass_pore_S0": 0.0,
+                "mass_S1": 7.37257477290143e-18
+              }
+            }
+          },
+          "candidate": {
+            "elapsed_seconds": 1.9527057179948315,
+            "coupling_windows": 8,
+            "microsteps_per_window": [
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4
+            ],
+            "checked_rk_stage_snapshots": 8,
+            "audit": {
+              "snapshots": 9,
+              "closed_domain": false,
+              "max_mass_residual": 2.220446049250313e-16,
+              "max_energy_residual": 6.984919309616089e-10,
+              "max_species_sum_residual": 1.3552527156068805e-19,
+              "max_packet_energy_residual": 1.6543612251060553e-24,
+              "max_gas_exchange_residual": 0.0,
+              "max_material_exchange_residual": 0.0,
+              "initial_inventory": [
+                1.0019498554199529,
+                701015.0721806646,
+                1015.0721806645265,
+                700000.0000000001
+              ],
+              "final_inventory": [
+                1.001949855419953,
+                701015.0721806639,
+                1015.0721815313486,
+                699999.9999991326
+              ],
+              "component_mass_residuals": {
+                "mass_C0": 1.191935439237568e-12,
+                "mass_S0": 1.1920867125456841e-12,
+                "mass_C1": 0.0,
+                "mass_pore_S1": 0.0,
+                "mass_pore_S0": 0.0,
+                "mass_S1": 7.37257477290143e-18
+              }
+            }
+          }
+        },
+        "parity": {
+          "maximum_scaled_csv_errors": {
+            "time": 0.0,
+            "mass": 0.0,
+            "energy": 0.0,
+            "conductive": 0.0,
+            "advective": 0.0,
+            "pressure_work": 0.0,
+            "viscous_work": 0.0,
+            "radiation": 0.0,
+            "liquid_kinetic_advection": 0.0,
+            "volume": 0.0,
+            "momentum_x": 0.0,
+            "momentum_y": 0.0,
+            "momentum_z": 0.0,
+            "total_energy": 0.0,
+            "temperature": 0.0,
+            "pressure": 0.0,
+            "mass_S0": 0.0,
+            "mass_S1": 0.0,
+            "porosity": 0.0,
+            "mass_C0": 0.0,
+            "mass_C1": 0.0,
+            "mass_pore_S0": 0.0,
+            "mass_pore_S1": 0.0,
+            "accepted_time": 0.0,
+            "stage_time": 0.0,
+            "wall_temperature": 0.0,
+            "wall_density": 0.0,
+            "wall_mass_fraction": 0.0,
+            "wall_species_flux": 0.0,
+            "matching_species_flux": 0.0,
+            "reaction_integral": 0.0,
+            "species_balance_residual": 0.0,
+            "chemistry_mismatch_available": 0.0,
+            "conductive_heat_flux": 0.0,
+            "traction_x": 0.0,
+            "traction_y": 0.0,
+            "traction_z": 0.0,
+            "wall_k_flux": 0.0,
+            "owner_k_source_integral": 0.0,
+            "owner_omega": 0.0,
+            "iterations": 0.0,
+            "residual": 0.0
+          },
+          "checkpoint_payload_bitwise_equal": true
+        }
+      }
+    }
+  },
+  "performance_status": "Exclusive-GPU five-pair dry medians: 8^3 5.74 to 4.37 seconds (1.3135x), 16^3 69.37 to 62.98 seconds (1.1015x). All 24 warmup/timed runs passed audits. Reacting-SST is slower at four and 64 interface faces; no universal speedup is claimed.",
+  "experiments": [
+    {
+      "name": "all-fast-compile",
+      "native": {
+        "path": "layer2-native-r2/results.json",
+        "sha256": "b8dc6a07dcaaa21fd46e43ab5df424350c21bb5a1277f707d1fda2347f9ab56b"
+      },
+      "profile": {
+        "path": "layer2-profile-r3/results.json",
+        "sha256": "1e16801921f180acb972c123b2d17b6327029e3859bd03820cf3915bd6a4530b"
+      },
+      "finding": "All four native cases exactly match, but surface root solves are slow; mixture surface kernels account for 5.31 seconds. Replaced by production optimization for the separate material translation unit."
+    },
+    {
+      "name": "standard-material-unbatched",
+      "native": {
+        "path": "layer2-native-optimized/results.json",
+        "sha256": "a8fdee3e482a086d66ce774a8ba6c82c961cb63fe27959cdbebfb78387d96582"
+      },
+      "finding": "Four exact native matches. Dry-case exploratory elapsed time falls from 47.09 to 3.37 seconds but remains slower than the CPU baseline."
+    },
+    {
+      "name": "bounded-history-batching",
+      "provenance": {
+        "path": "candidate-layer2-batch/provenance-CHMT.json",
+        "sha256": "389665ae182574061c004abd9b35a9963d39c9d53f0d00b33fcae3f525cecd4f"
+      },
+      "finding": "Five native cases plus both boundary-layer models and SSPRK3 match bitwise. Dry-case exploratory time is 1.20 seconds. Small reacting-SST case is 194.27 versus baseline 37.50 seconds; this regression is not concealed."
+    },
+    {
+      "name": "temperature-device-noinline",
+      "result": {
+        "path": "layer2-wall-leaf/results.json",
+        "sha256": "267e4be9e1940f305e94632c16b8dbb788bd5c500c7d57cf520bbcec885e85a9"
+      },
+      "retained": false,
+      "finding": "No useful register/stack reduction; source annotation removed. Other GPU work overlapped the later exploratory run, so it is not a controlled timing comparison."
+    },
+    {
+      "name": "hardware-work-count-launch-spreading",
+      "retained": false,
+      "result": {
+        "path": "layer2-spread-probe/results.json",
+        "sha256": "2d15e6678be51ef746fca6ba4949d6bb9a2d6c2b7c12f7aa11ec43f096386e65"
+      },
+      "finding": "Exclusive GPU two-window reacting-SST probe matches bitwise but remains slower (11.52 s baseline, 47.29 s candidate). The simpler, already validated 32-thread launch layout is retained."
+    }
+  ],
+  "retained_failed_attempts": [
+    {
+      "path": "candidate-layer2/build-chmt.log",
+      "reason": "Compiler internal segmentation fault; subsequent full fast build succeeded."
+    },
+    {
+      "path": "candidate-layer2-optimized/build-chmt.log",
+      "reason": "Compiler segmentation fault; second standard-material build succeeded."
+    },
+    {
+      "path": "layer2-native-batch.log",
+      "reason": "Outer Python verification process crashed during the cohort; solver outputs and incomplete report preserved. New complete ten-run numerical cohort is separate."
+    },
+    {
+      "path": "candidate-layer2-leaf/build-chmt.log",
+      "reason": "Compiler segmentation fault; second experimental build succeeded."
+    },
+    {
+      "path": "layer2-profile-r2.log",
+      "reason": "Profiling runner received a relative output path; mesh utility rejected its relative dictionary path. Reran with an absolute output directory."
+    },
+    {
+      "path": "layer2-restart-batch/results.json",
+      "reason": "Final restart output matched bitwise, but the initial validation helper incorrectly applied a nonreacting per-species conservation check to dry pyrolysis. Replaced with the existing reaction-aware stoichiometric audit; no numerical tolerance changed."
+    },
+    {
+      "path": "layer2-performance8-batch/results.json",
+      "reason": "Outer Python SIGSEGV before one timing was persisted. Entire incomplete timing cohort excluded. New durable GNU-time cohort stores every solver status/time separately from isolated audits."
+    },
+    {
+      "path": "layer2-sst64-durable",
+      "reason": "Input preparation retained empty mesh patches despite the existing fixture requiring slip side fields. Restored the original three-dimensional-side fixture preparation and ran a new separate cohort; solver math unchanged."
+    }
+  ],
+  "limitations": [
+    "Native gas backend uses matched fast-compile=max while the separate material backend uses standard optimization with fmad=false and relaxed constexpr. This is not a fully production-optimized end-to-end benchmark.",
+    "Reacting boundary-layer GPU root solves remain slower: original four-face probe 37.50 to 194.27 seconds; exclusive 64-face single-pair probe 60.66 to 79.74 seconds. Further general-path optimization is needed; no case-specific CPU path or fallback is introduced.",
+    "Third through fifth migration layers are not implemented."
+  ],
+  "restart": {
+    "evidence": {
+      "path": "layer2-restart-batch-r2/results.json",
+      "sha256": "dc33ee8195d921ad6fbcc5796a837362fe4e73338504a5732e4135d7e1e1099c"
+    },
+    "scope": "Resume accepted dry checkpoint 1 to endpoint 2; final physical checkpoint payload is bitwise equal, with stoichiometric and mass/energy/exchange audits."
+  },
+  "memcheck": {
+    "evidence": {
+      "path": "layer2-memcheck-batch/results.json",
+      "sha256": "0e40c503976a171842c9b332dd18862f314518ffc3fd1552c40b9c34efff51e5"
+    },
+    "log": {
+      "path": "layer2-memcheck-batch/run.log",
+      "sha256": "5bee0b4eaf2cb22b0bc56e04961b04f346b2561deabf448136a8cb399f2b4f02"
+    },
+    "result": "0 errors; 0 leaked bytes in 0 allocations; numerical parity and reaction-aware budgets pass."
+  },
+  "formal_performance": {
+    "grid8": {
+      "evidence": {
+        "path": "layer2-performance8-durable/results.json",
+        "sha256": "fbcdb07c4c1a27cdd291303cc075482ab3b2b5a5a69602e8e7e1e97e73f8066b"
+      },
+      "performance": {
+        "samples_seconds": {
+          "baseline": [
+            5.48,
+            5.74,
+            5.69,
+            6.6,
+            5.91
+          ],
+          "candidate": [
+            4.34,
+            4.37,
+            4.36,
+            5.86,
+            5.21
+          ]
+        },
+        "median_seconds": {
+          "baseline": 5.74,
+          "candidate": 4.37
+        },
+        "speedup": 1.3135011441647597
+      },
+      "warmup_pairs": 1,
+      "timed_pairs": 5,
+      "method": "GNU time elapsed wall seconds (0.01 s resolution), then process exit status; process startup and normal output included, input copying and audits excluded."
+    },
+    "grid16": {
+      "evidence": {
+        "path": "layer2-performance16-durable/results.json",
+        "sha256": "e62e1d8be4f697f8c54966953f6942fc75058c43434c6b60efec3c2868532eed"
+      },
+      "performance": {
+        "samples_seconds": {
+          "baseline": [
+            69.06,
+            69.48,
+            69.37,
+            68.82,
+            70.91
+          ],
+          "candidate": [
+            62.7,
+            61.95,
+            64.14,
+            62.98,
+            63.55
+          ]
+        },
+        "median_seconds": {
+          "baseline": 69.37,
+          "candidate": 62.98
+        },
+        "speedup": 1.1014607812003812
+      },
+      "warmup_pairs": 1,
+      "timed_pairs": 5,
+      "method": "GNU time elapsed wall seconds (0.01 s resolution), then process exit status; process startup and normal output included, input copying and audits excluded."
+    }
+  },
+  "reacting_wall_scaling_probe": {
+    "evidence": {
+      "path": "layer2-sst64-durable-r2/results.json",
+      "sha256": "67334a9a3b8b92368546ad6912c7555a6b87a38008f7ae2608613212d05b874c"
+    },
+    "performance": {
+      "scope": "Exploratory single pair, no warmup, not a repeated-timing estimate",
+      "elapsed_seconds": {
+        "baseline": 60.66,
+        "candidate": 79.74
+      },
+      "speedup": 0.7607223476297968
+    },
+    "scope": "64 interface faces, gas 64x16x1, material 64x8x1, same reacting-SST physics; two windows with four microsteps each; all CSV/checkpoints and sealed-material exchange budgets audited."
+  }
+}

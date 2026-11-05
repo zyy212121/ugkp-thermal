@@ -1,0 +1,12 @@
+FoamFile {version 2.0; format ascii; class dictionary; object solidRegionProperties;}
+schemaVersion 1;
+solidThermalCoupling {
+ formatVersion 1; couplingInterval .00002; solidContactCouplingInterval .00002;
+ radiationEnabled false; mapping oneToOneConformal; solidRegion solid;
+ fluidPatch left; solidPatch right;
+ coupledInterfaces ({fluidPatch left; solidPatch right;});
+ properties {rho {type constant;value 1000;} Cp {type constant;value 1000;}
+ kappa {type constant;value 10;} emissivity {type constant;value 0;}}
+ nonlinearMaxIterations 100; nonlinearRelativeTolerance 1e-10;
+ energyRelativeTolerance 1e-8; energyAbsoluteTolerance 1e-10;
+}

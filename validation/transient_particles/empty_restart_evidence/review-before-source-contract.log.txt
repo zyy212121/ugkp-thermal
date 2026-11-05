@@ -1,0 +1,16 @@
+test_common_particle_drag_and_les_algebra_have_one_owner (original_contract.CommonGasNumericsSourceContract) ... FAIL
+test_shared_subset_cuda_sources_have_one_entity (original_contract.CommonGasNumericsSourceContract) ... ok
+test_three_solver_cuda_sources_have_one_entity (original_contract.CommonGasNumericsSourceContract) ... ok
+test_three_solver_host_interfaces_have_one_entity (original_contract.CommonGasNumericsSourceContract) ... ok
+
+======================================================================
+FAIL: test_common_particle_drag_and_les_algebra_have_one_owner (original_contract.CommonGasNumericsSourceContract)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "original_contract.py", line 112, in test_common_particle_drag_and_les_algebra_have_one_owner
+AssertionError: 'GpuDragAlgebra.cuh' not found in '#pragma once\n#include "../../../common/gasNumerics/GpuDragModels.cuh"\n'
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.011s
+
+FAILED (failures=1)

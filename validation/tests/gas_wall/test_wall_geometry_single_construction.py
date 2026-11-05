@@ -28,16 +28,16 @@ def test_concave_origin_rule_is_selected_before_tracing_even_when_centroid_is_in
  ''')
 
 
-def test_finite_projection_budget_reports_residual_without_restarting(tmp_path):
+def test_kernel_uses_boundary_triangles_instead_of_cached_polygon_normals(tmp_path):
     compile_run(tmp_path,r'''
  auto m=cubes();wallGeometryDetail::Context<double> ctx;WallStatus s;WallGeometryOptions<double> options;
  assert(wallGeometryDetail::prepare(m,ctx,s,options));
- // Opposing supports expose the terminal residual of the single projection solve.
+ // The current kernel clips actual triangles; stale aggregate face metadata
+ // must not replace these planes or create an artificial iteration warning.
  ctx.faces[0].normal={1,0,0};ctx.faces[0].centre={0,0,0};
  ctx.faces[1].normal={-1,0,0};ctx.faces[1].centre={0,0,0};
  ugkp::diagnostics::DeviceContext diagnostics{};V seed;double scale=0;
  assert(wallGeometryDetail::cellSeed(m,ctx,0,seed,scale,&diagnostics));
- assert(!diagnostics.fatalClaim&&diagnostics.warnings[1].count==1);
- assert(diagnostics.warnings[1].sample.sourceSiteId==2830);
- assert(diagnostics.warnings[1].sample.observed>0&&std::isfinite(seed[0]));
+ assert(!diagnostics.fatalClaim&&diagnostics.warnings[1].count==0);
+ for(int k=0;k<3;++k)assert(seed[k]==m.cellCentres[0][k]);
  ''')

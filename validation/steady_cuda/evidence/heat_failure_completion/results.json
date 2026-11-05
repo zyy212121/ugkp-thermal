@@ -1,0 +1,497 @@
+{
+  "finding": "PR28-P2-001",
+  "status": "fixed and verified; PR remains draft, not merged",
+  "reviewed_head": "fc2bb29ca9791b6e39866ff34c6fd99021d45bde",
+  "fix_parent": "bf40d7a1b39844c0e923b6b60fe25cf847826dbe",
+  "fix_commit": "75369184d152af53585cb73db50b3856319c4098",
+  "source_sha256": {
+    "applications/gasUGKPSteady/private_backend/SteadyMixtureParticleCoupling.cuh": "b1effe658e177248534e59c423972d058af09a7fa2680fdb15f5044774615a88",
+    "applications/gasUGKPSteady/private_backend/SteadyParticleDriver.cuh": "ab53ad28663bc1c4ca13503bc7a2c1f78281af57c82f83cdfd0c36f76175e76f",
+    "common/gasTransport/MixtureHeatExchange.H": "6595c638b83e34b52ae9605de8516f18fa3ea0ba44b0a575fc35c74283db298a",
+    "validation/steady_cuda/check_heat_failure.py": "3e440cd07f0e80ff8da21496199b6feed6f716fdce8e02b6134db182b4e4bbc5",
+    "validation/tests/gas_transport/steady_mixture_heat_domain.cu": "725f8f9909304883d404c5e713db80c71bb7304f228e0eb05ef0169705fcd1d5"
+  },
+  "binaries": {
+    "before": {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/fixed-bin/gasUGKPSteady",
+      "sha256": "f0160dcee5d124c7cd1e6eb7b34ce5dd11f6bba47c02845719b9c3cb47dc10d4",
+      "production_fix_commit": "924f0d8bc9f693617ca3ee417e5e959b150dbea5",
+      "note": "Preserved prior P1 fixed executable; steady heat/driver production matches the reviewed fc2bb29c. Later PR27 sparse-jump/build changes are unrelated to gas-only particle sampling."
+    },
+    "after": {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/failure-fixed-r3-bin/gasUGKPSteady",
+      "sha256": "b3f7e30627833764739b3c8af378e65a529cd3d567c31cca422fded6efc999e1"
+    },
+    "cuda_control": {
+      "sha256": "c0f8f70bf6c2850cad9a91baa3f88f64cc42ba206e7499de8137dd42500d6ea4"
+    }
+  },
+  "change": "Publish a fatal InvalidPhysicalState record at the failed paired heat solve with cell and ThermoStatus detail. Consume existing SharedGasTrialPolicy completion before accumulation, frontend sampling-time advancement, or output. No equation, caloric range, parcel-temperature limit, retry or fallback change.",
+  "native": {
+    "configurations": 5,
+    "executions": 10,
+    "failure_cases": [
+      "final partial window",
+      "final full window",
+      "nonfinal step with immediate write"
+    ],
+    "before": "Final failure cases exit 0 and write time 1 and restart. Nonfinal failure writes time 1 before the following flux detects it.",
+    "after": "All three failures exit 1 with code 7/detailCode 4/site 30700 and cell 0 at step 0. No accumulated window report, success completion, new time directory or restart.",
+    "valid": "Both hot dilute parcel controls succeed and match the independent constant-Cp exchange and energy balance. Ordinary gas EOS default tolerance may leave printed T at 1000; conserved caloric T matches the resolved root to 2e-9 K. Detailed actual values are retained."
+  },
+  "host_regression": {
+    "passed": 65,
+    "new_tests": 3,
+    "new_coverage": "Failure diagnostic visible immediately for scan, CSR and split directory, preserving failed-cell identity and raw thermo status; no next flux required."
+  },
+  "cuda_controls": {
+    "passed": 4,
+    "cases": [
+      "nonlinear Cp, hot parcel 10000 K",
+      "strong exchange",
+      "constant Cp",
+      "in-domain parcel 2500 K"
+    ],
+    "hot_parcel_K": 9999.935200233282,
+    "gas_K": 1000.0000001916364,
+    "energy_residual_J": 2.256711013534702e-11
+  },
+  "timing": {
+    "scope": "Paired 3000-iteration native mixture+particle case, same fast compile flags; includes process startup and output; no production-optimization claim",
+    "runs": [
+      {
+        "label": "before",
+        "repetition": 0,
+        "seconds": 16.61438266299956,
+        "exit_code": 0
+      },
+      {
+        "label": "after",
+        "repetition": 0,
+        "seconds": 15.439289640000425,
+        "exit_code": 0
+      },
+      {
+        "label": "after",
+        "repetition": 1,
+        "seconds": 15.34767234300125,
+        "exit_code": 0
+      },
+      {
+        "label": "before",
+        "repetition": 1,
+        "seconds": 15.098688078998748,
+        "exit_code": 0
+      },
+      {
+        "label": "before",
+        "repetition": 2,
+        "seconds": 14.980395946999124,
+        "exit_code": 0
+      },
+      {
+        "label": "after",
+        "repetition": 2,
+        "seconds": 15.545192544001111,
+        "exit_code": 0
+      }
+    ],
+    "binaries": {
+      "before": "f0160dcee5d124c7cd1e6eb7b34ce5dd11f6bba47c02845719b9c3cb47dc10d4",
+      "after": "b3f7e30627833764739b3c8af378e65a529cd3d567c31cca422fded6efc999e1"
+    },
+    "comparisons": [
+      {
+        "matching_rows": 32,
+        "missing_candidate_keys": [],
+        "extra_candidate_keys": [],
+        "duplicate_reference_keys": [],
+        "duplicate_candidate_keys": [],
+        "fields": {
+          "rho": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUx": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUy": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUz": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoE": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "Ux": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "Uy": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "Uz": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "p": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "T": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoY0": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoY1": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoSolid": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUsx": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUsy": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUsz": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoEs": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoHp": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoDs": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          }
+        },
+        "unavailable": [],
+        "pass": true,
+        "scope": "Only explicitly selected actual field values; no claim of CUDA validation or unexported budget closure."
+      },
+      {
+        "matching_rows": 32,
+        "missing_candidate_keys": [],
+        "extra_candidate_keys": [],
+        "duplicate_reference_keys": [],
+        "duplicate_candidate_keys": [],
+        "fields": {
+          "rho": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUx": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUy": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUz": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoE": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "Ux": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "Uy": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "Uz": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "p": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "T": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoY0": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoY1": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoSolid": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUsx": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUsy": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUsz": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoEs": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoHp": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoDs": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          }
+        },
+        "unavailable": [],
+        "pass": true,
+        "scope": "Only explicitly selected actual field values; no claim of CUDA validation or unexported budget closure."
+      },
+      {
+        "matching_rows": 32,
+        "missing_candidate_keys": [],
+        "extra_candidate_keys": [],
+        "duplicate_reference_keys": [],
+        "duplicate_candidate_keys": [],
+        "fields": {
+          "rho": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUx": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUy": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUz": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoE": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "Ux": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "Uy": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "Uz": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "p": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "T": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoY0": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoY1": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoSolid": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUsx": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUsy": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoUsz": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoEs": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoHp": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          },
+          "rhoDs": {
+            "max_absolute": 0.0,
+            "max_scaled": 0.0,
+            "mismatches": 0,
+            "samples": 32
+          }
+        },
+        "unavailable": [],
+        "pass": true,
+        "scope": "Only explicitly selected actual field values; no claim of CUDA validation or unexported budget closure."
+      }
+    ],
+    "median_seconds": {
+      "before": 15.098688078998748,
+      "after": 15.439289640000425
+    },
+    "speedup": 0.9779392984429,
+    "status": "PASS"
+  },
+  "build": "Successful third clean output build exit 0. First NVCC process exit 139; second GCC internal segmentation fault; logs preserved. Same arguments, no production workaround. Build flags use the existing --Ofast-compile=max and host -fno-tree-fre wrapper; not a production-optimized performance benchmark.",
+  "limits": [
+    "Serial native gasUGKPSteady only; no new MPI/full CHT/CHMT coverage.",
+    "Prior PR27 limitations and earlier PR28 historical evidence scope remain.",
+    "Three timing pairs show a 2.26 percent median slowdown, not an efficiency gain from this correctness fix.",
+    "Existing PR27 fixes 5a8b3e35 and 619688ed are ancestors of the fix."
+  ]
+}

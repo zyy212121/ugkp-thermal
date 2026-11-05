@@ -28,5 +28,5 @@ int main(){std::string error;std::vector<SolidQ> solid(1);solid[0].condensed[0]=
 '''
 def test_sparse_reserve_uses_actual_endpoint_without_admission_scans(tmp_path):
     src=tmp_path/'reserve.cpp';src.write_text(SOURCE);exe=tmp_path/'reserve'
-    subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic','-I'+str(APP), '-I'+str(VALIDATION_ROOT / 'solvers/CHMT'),str(src),'-o',str(exe)],check=True)
+    subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror','-pedantic','-I'+str(APP), '-I'+str(VALIDATION_ROOT / 'solvers/CHMT'),str(src),'-o',str(exe)],check=True)
     subprocess.run([str(exe)],check=True)

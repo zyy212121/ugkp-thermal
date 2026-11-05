@@ -1,0 +1,115 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/fixed-bin/gasUGKPSteady -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/failure-timing/before-1
+Date   : Oct 28 2026
+Time   : 20:37:13
+Host   : "lss"
+PID    : 14765
+I/O    : uncollated
+Case   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/failure-timing/before-1
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+gasUGKPSteady: gas LTS / physical-step particle statistical steady solver
+Create mesh for time = 0
+
+GPU particle forces: dragModel=SchillerNaumann particleGasHeatTransferModel=RanzMarshall gravity=(0 0 0) m/s^2
+Particle cell path: csrCellLocalPath=0 heavyReductionMode=0 B2=128 B3=128 heavyAutoInterval=100 warpAggregatedBinning=0 splitPreDirectory=0
+[cuda-runtime] stackLimitBytes=65536 requested=65536
+Tracking geometry: B2=128 blocksPerSM=6 grid=79
+Launch geometry: B1cell=128 B1face=128 (ToolB1 pending) B2=128 B3=128 SM=24 hardwareMaxThreadsPerBlock=1024 hardwareMaxBlocksPerSM=24 particleBlocksPerSM=6 lightBlocksPerSM=5 heavyBlocksPerSM=0
+Shared gas model: api=1 Ns=2 mode=1 speciesOrderHash=12445161613445958710 thermoHash=8310305270766128250 mechanismHash=0
+Particle statistical steady sampling: physical dt=2.0000000000000002e-05, fixed external boundary time=0, samples/window=1000
+Gas and particle operators share this physical step; no particle LTS acceleration.
+Time directory labels count samples. Window RMS is reported, not used as a stationarity gate.
+Steady restart metadata loaded=0; samplingTime=0; samples=0; statistics windows start afresh (no convergence history reused).
+--> FOAM Warning : 
+    From function gasCellResidualDiagnostic
+    in file common/operators/computeSstFaceFluxKernel.cuh at line 36
+    historical representative sample: conservation residual [code=101, detailCode=0, site=2621, operator=28, stage=0, instance=1, operation=725, step=723, time=0, quantity=conservation residual(10), entityKind=1, entity=1, component=-1] observed=1.0000000393162916 reference=1.0000000393162771 corrected=1.0000000393162916 at common/operators/computeSstFaceFluxKernel.cuh:36 in gasCellResidualDiagnostic: diagnostic at gasCellResidualDiagnostic new occurrences=1520
+Steady sampling window 1 physicalDuration=0.019999999999999522 totalSamplingTime=0.019999999999999522
+  rho meanChange=1 relativeRms=6.1765158941058609e-08 inventoryBegin=2 inventoryEnd=1.9999998800527443 inventoryDrift=5.9973633063945108e-08
+  rhoUx meanChange=0.043867515453548528 relativeRms=2.5977896092723773e-08 inventoryBegin=40 inventoryEnd=39.999972569973629 inventoryDrift=3.0082171021181458e-08
+  rhoUy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoE meanChange=7.8297119345307005 relativeRms=0.20169574791543204 inventoryBegin=3184676.8690923383 inventoryEnd=3169902.279585287 inventoryDrift=0.035505336016358593
+  rhoK meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoOmega meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoSolid meanChange=1 relativeRms=8.7133849291234142 inventoryBegin=0 inventoryEnd=0.00019000000000000001 inventoryDrift=1.9999999999999567
+  rhoUsx meanChange=1 relativeRms=0.69786862607927203 inventoryBegin=0 inventoryEnd=0.0037999999827167388 inventoryDrift=1.3287893427338913
+  rhoUsy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUsz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoEs meanChange=1 relativeRms=8.7133849291234196 inventoryBegin=0 inventoryEnd=0.03800283124895297 inventoryDrift=1.9999996540335454
+  rhoHp meanChange=1 relativeRms=8.7133849332851803 inventoryBegin=0 inventoryEnd=57.235391948619466 inventoryDrift=2.0028756760276742
+  rhoDs meanChange=1 relativeRms=8.7133849291234178 inventoryBegin=0 inventoryEnd=1.9000000000000003e-07 inventoryDrift=1.9999999999999722
+  rhoY0 meanChange=1 relativeRms=0.048576079816174574 inventoryBegin=0.59999999999999998 inventoryEnd=0.60492473720630136 inventoryDrift=0.0081501196702914412
+  rhoY1 meanChange=1 relativeRms=0.019645722766787901 inventoryBegin=1.3999999999999999 inventoryEnd=1.3950751428464452 inventoryDrift=0.0035284754637550874
+  gasIntrinsicFvBoundaryExchange (not porosity-weighted mixture flux): 5.8804632803520062e-08 -2.385500166468546e-05 0 0 -14774.072562194558 0.0049247910794099573 -0.0049247322747771501
+  particleInjected mass/momentumXYZ/mechanicalEnergy/materialHeat: 0.00019000000000000001 0.0038 0 0 0.038002849999999866 57.000000000000028
+  particleTrackingBoundaryExchange (outflow plus wall impulse/heat): -2.3716922523120409e-20 3.7133924407628527e-18 0 0 2.4156024402977039e-16 5.773159728050814e-14
+  particleInventoryMinusBoundaryExchange (coupling/collision/internal effects): 2.3716922523120409e-20 -1.728326490713257e-11 0 0 -1.8751047137308824e-08 0.2353919486193794
+  windowStationary=0 consecutive=0 maxMeanChange=7.8297119345307005 maxInventoryDrift=2.0028756760276742
+--> FOAM Warning : 
+    From function gasCellResidualDiagnostic
+    in file common/operators/computeSstFaceFluxKernel.cuh at line 36
+    historical representative sample: conservation residual [code=101, detailCode=0, site=2621, operator=28, stage=0, instance=1, operation=725, step=723, time=0, quantity=conservation residual(10), entityKind=1, entity=1, component=-1] observed=1.0000000393162916 reference=1.0000000393162771 corrected=1.0000000393162916 at common/operators/computeSstFaceFluxKernel.cuh:36 in gasCellResidualDiagnostic: diagnostic at gasCellResidualDiagnostic new occurrences=2032
+Steady sampling window 2 physicalDuration=0.019999999999999522 totalSamplingTime=0.03999999999999871
+  rho meanChange=3.0139307720730281e-07 relativeRms=1.458611740896684e-07 inventoryBegin=1.9999998800527443 inventoryEnd=2.0000001027690342 inventoryDrift=1.1135815221564164e-07
+  rhoUx meanChange=3.9974921982765163e-08 relativeRms=4.6438519831297853e-08 inventoryBegin=39.999972569973629 inventoryEnd=39.999962560268955 inventoryDrift=1.0977519642572857e-08
+  rhoUy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoE meanChange=0.20030618902445735 relativeRms=0.012108443302544602 inventoryBegin=3169902.279585287 inventoryEnd=3178109.2115252009 inventoryDrift=0.019722369890639687
+  rhoK meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoOmega meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoSolid meanChange=1 relativeRms=3.7151042019120557 inventoryBegin=0.00019000000000000001 inventoryEnd=0.00039000000000000005 inventoryDrift=0.67796610169491112
+  rhoUsx meanChange=1 relativeRms=0.70568093810319121 inventoryBegin=0.0037999999827167388 inventoryEnd=0.0077999999198973052 inventoryDrift=0.57402000122801122
+  rhoUsy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUsz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoEs meanChange=1 relativeRms=3.7151041898212434 inventoryBegin=0.03800283124895297 inventoryEnd=0.078005773139308884 inventoryDrift=0.67796562890057632
+  rhoHp meanChange=1 relativeRms=3.7151741457210008 inventoryBegin=57.235391948619466 inventoryEnd=117.96591918932752 inventoryDrift=0.68190629718556917
+  rhoDs meanChange=1 relativeRms=3.7151042019120548 inventoryBegin=1.9000000000000003e-07 inventoryEnd=3.9000000000000008e-07 inventoryDrift=0.67796610169491034
+  rhoY0 meanChange=0.046053270504425141 relativeRms=0.0026778363330258719 inventoryBegin=0.60492473720630136 inventoryEnd=0.6021891932995882 inventoryDrift=0.0044632743705874233
+  rhoY1 meanChange=0.019747445510012722 relativeRms=0.0012038778191016221 inventoryBegin=1.3950751428464452 inventoryEnd=1.3978109094694486 inventoryDrift=0.0019468968888112503
+  gasIntrinsicFvBoundaryExchange (not porosity-weighted mixture flux): 4.2239596308412926e-07 -6.016164926236911e-06 0 0 8207.9804150811578 -0.002735484021699599 0.002735906417662688
+  particleInjected mass/momentumXYZ/mechanicalEnergy/materialHeat: 0.00019999999999999998 0.0039999999999999879 0 0 0.040002999999999837 60.000000000000128
+  particleTrackingBoundaryExchange (outflow plus wall impulse/heat): -2.3716922523120409e-20 -1.3444106938820255e-17 0 0 4.5970172113385388e-16 2.6378899065093719e-13
+  particleInventoryMinusBoundaryExchange (coupling/collision/internal effects): 7.7927031147395631e-20 -6.2819408095521334e-11 0 0 -5.8109644382811632e-08 0.73052724070766484
+  windowStationary=0 consecutive=0 maxMeanChange=1 maxInventoryDrift=0.68190629718556917
+--> FOAM Warning : 
+    From function gasCellResidualDiagnostic
+    in file common/operators/computeSstFaceFluxKernel.cuh at line 36
+    historical representative sample: conservation residual [code=101, detailCode=0, site=2621, operator=28, stage=0, instance=1, operation=725, step=723, time=0, quantity=conservation residual(10), entityKind=1, entity=1, component=-1] observed=1.0000000393162916 reference=1.0000000393162771 corrected=1.0000000393162916 at common/operators/computeSstFaceFluxKernel.cuh:36 in gasCellResidualDiagnostic: diagnostic at gasCellResidualDiagnostic new occurrences=11699
+Steady sampling window 3 physicalDuration=0.019999999999999522 totalSamplingTime=0.059999999999997895
+  rho meanChange=5.5732223350339064e-07 relativeRms=2.0980994080083338e-07 inventoryBegin=2.0000001027690342 inventoryEnd=2.0000006153511842 inventoryDrift=2.5629104350979842e-07
+  rhoUx meanChange=5.1926947000782842e-08 relativeRms=5.3498271449964671e-08 inventoryBegin=39.999962560268955 inventoryEnd=39.99997239276658 inventoryDrift=1.0783178270963946e-08
+  rhoUy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoE meanChange=0.023934700172871907 relativeRms=0.0042326057870644643 inventoryBegin=3178109.2115252009 inventoryEnd=3182061.539153045 inventoryDrift=0.0094979804195605526
+  rhoK meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoOmega meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoSolid meanChange=1 relativeRms=2.7375228257137421 inventoryBegin=0.00039000000000000005 inventoryEnd=0.00059000000000000003 inventoryDrift=0.40404040404040226
+  rhoUsx meanChange=1 relativeRms=0.70497854432396378 inventoryBegin=0.0077999999198973052 inventoryEnd=0.011799999803362953 inventoryDrift=0.36561920383167368
+  rhoUsy meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoUsz meanChange=0 relativeRms=0 inventoryBegin=0 inventoryEnd=0 inventoryDrift=0
+  rhoEs meanChange=1 relativeRms=2.7375228037460548 inventoryBegin=0.078005773139308884 inventoryEnd=0.1180086759797658 inventoryDrift=0.40403992167275349
+  rhoHp meanChange=1 relativeRms=2.7376572252725446 inventoryBegin=117.96591918932752 inventoryEnd=179.18980554813496 inventoryDrift=0.40805711818166357
+  rhoDs meanChange=1 relativeRms=2.7375228257137341 inventoryBegin=3.9000000000000008e-07 inventoryEnd=5.9000000000000007e-07 inventoryDrift=0.40404040404040253
+  rhoY0 meanChange=0.0054833762338272855 relativeRms=0.00096966122199700772 inventoryBegin=0.6021891932995882 inventoryEnd=0.60087204413352668 inventoryDrift=0.0021826844187990821
+  rhoY1 meanChange=0.0023750458753507915 relativeRms=0.00042011548342562764 inventoryBegin=1.3978109094694486 inventoryEnd=1.3991285712176598 inventoryDrift=0.00094215110992531441
+  gasIntrinsicFvBoundaryExchange (not porosity-weighted mixture flux): 7.1226165459419358e-07 1.3825985099913396e-05 0 0 3953.869571478866 -0.0013170893176133473 0.0013178015792679432
+  particleInjected mass/momentumXYZ/mechanicalEnergy/materialHeat: 0.00019999999999999998 0.0040000000000000634 0 0 0.040002999999999858 59.999999999998948
+  particleTrackingBoundaryExchange (outflow plus wall impulse/heat): -2.3716922523120409e-20 -3.8949963046541747e-17 0 0 -3.8510861166685117e-16 9.7655217246028769e-13
+  particleInventoryMinusBoundaryExchange (coupling/collision/internal effects): 2.3716922523120409e-20 -1.16534376847768e-10 0 0 -9.7159542553765244e-08 1.2238863588075088
+  windowStationary=0 consecutive=0 maxMeanChange=1 maxInventoryDrift=0.40805711818166357
+Particle steady driver finished: criteriaReached=0 physicalSamplingTime=0.059999999999997895 samples=3000

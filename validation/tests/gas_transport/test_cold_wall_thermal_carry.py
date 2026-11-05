@@ -186,6 +186,7 @@ void full_1d_wrapper(double dt,bool wide=false) {
  if(wide){actual.particleWallDepositionHeatTransferEfficiency=GPU_R(1.01);reference.particleWallDepositionHeatTransferEfficiency=GPU_R(1.01);}
  const double before=particleEffectiveSpecificEnthalpyDevice(actual,0);
  const auto proposal=pairedParticleHeatCandidate(actual,0,dt);
+ actual.particleContactHeatCandidate[0]=reference.particleContactHeatCandidate[0]=proposal.specificHeat;
  const GpuReal volume=(finiteContactPi/GPU_R(6))*actual.pd[0]*actual.pd[0]*actual.pd[0];
  const GpuReal oldPhysicalMass=liquidAluminaProperties(actual.pT[0]).densityKgM3*volume;
  const GpuReal oldMultiplicity=actual.pm[0]/oldPhysicalMass;
@@ -228,7 +229,7 @@ void mixed_cell(double dt,bool nearFloor=false,bool counterflow=false,int coldes
  s.rhoE[0]=double(s.rho[0])*cv*double(s.couplingTgasOld[0]);
  if(nearFloor)s.rhoE[0]=pairedGasEnergyFloor(s,0)+1.e-3;
  for(int i=0;i<3;++i){
-  s.pStatus[i]=1;s.pCellId[i]=0;s.pStuck[i]=i==0?particleWallMobile:particleWallDeposited;
+  s.pStatus[i]=1;s.pCellId[i]=0;s.pStuck[i]=particleWallDeposited;
   s.pStuckFaceId[i]=i==0?-1:i;s.particleStuckCandidateMask[i]=i==2?particleWallColdWall2D:particleWallSolidifyingDeposition;
   s.pT[i]=counterflow?(i==0?GPU_R(5000):(i==1?GPU_R(4800):GPU_R(2800))):(i==0?GPU_R(2800):(i==1?GPU_R(3200):GPU_R(2336.9)));s.pd[i]=GPU_R(1.e-4)*(GPU_R(1)+GPU_R(.1)*i);
   const GpuReal vol=(finiteContactPi/GPU_R(6))*s.pd[i]*s.pd[i]*s.pd[i];s.pm[i]=GPU_R(7)*liquidAluminaProperties(s.pT[i]).densityKgM3*vol;
@@ -502,7 +503,7 @@ def cold_carry_binary(tmp_path_factory):
     fixture=((VALIDATION_ROOT / 'tests/fixtures/cold_wall_contact_routes.cpp')).read_text()
     prefix=fixture[:fixture.index('#include "GpuThermalParticleRelaxation.cuh"')]
     prefix=prefix.replace('#include <thread>','#include <thread>\n#include <string>\n#include "GpuColdWall2DSolidification.H"\n#define GPU_PAIRED_PARTICLE_HEAT 1')
-    prefix=prefix.replace('struct DeviceState {','struct DeviceState {\n double pThermalEnthalpyResidual[1]{}; double heatBudget[1]{}; double heatCoefficient[1]{1.}; double* particleHeatBudget=heatBudget; double* particleHeatCoefficient=heatCoefficient;\n int coldWall2DEnabled=1;\n float cold2DH[64]{}; GpuTime cold2DAge[8]{};\n float* pCold2DNodeSpecificEnthalpy=cold2DH;\n GpuTime* pCold2DRingContactAge=cold2DAge;')
+    prefix=prefix.replace('struct DeviceState {','struct DeviceState {\n double particleContactHeatCandidate[1]{};unsigned char particleContactHeatEpoch[1]{};\n double pThermalEnthalpyResidual[1]{}; double heatBudget[1]{}; double heatCoefficient[1]{1.}; double* particleHeatBudget=heatBudget; double* particleHeatCoefficient=heatCoefficient;\n int coldWall2DEnabled=1;\n float cold2DH[64]{}; GpuTime cold2DAge[8]{};\n float* pCold2DNodeSpecificEnthalpy=cold2DH;\n GpuTime* pCold2DRingContactAge=cold2DAge;')
     prefix=prefix.replace('struct DeviceTrap {};','struct DeviceTrap {};\nvoid __syncwarp(unsigned){lanes.arrive_and_wait();}')
 
     prefix=prefix.replace('T atomicAdd(T* target,T value) {', 'T atomicAdd(T* target,T value) {if(!target)throw DeviceTrap{};')
@@ -531,10 +532,7 @@ def cold_carry_binary(tmp_path_factory):
     (build/'actual_2d_group.cuh').write_text(two)
     helpers=fixture[fixture.index('void require('):fixture.index('double meanH(')]
     (build/'test.cpp').write_text(prefix+'\n#include "actual_2d_group.cuh"\n#include "GpuParticleThermalConsumerDevice.cuh"\n'+helpers+HARNESS)
-    conductivity=(ROOT/'common/operators/updateLegacyGasBoundaryMirrorKernel.cuh').read_text()
-    start=conductivity.index('template<class GasState>\n__device__ GPU_OPERATOR_REAL molecularGasConductivity')
-    end=conductivity.index('\n}',start)+2
-    (build/'route_conductivity.cuh').write_text('#include "gasTransport/GasStateView.H"\n'+conductivity[start:end])
+    (build/'route_conductivity.cuh').write_text('#include "gasTransport/GasMolecularConductivity.cuh"\n')
     binary=build/'test'
     run=subprocess.run(['g++','-std=c++20','-O2','-pthread','-DROUTE_FSH=0','-I',str((VALIDATION_ROOT / 'tests/fixtures')),'-I',str(build),'-I',str(ROOT/'common'),'-I',str(ROOT/'common/wall'),'-I',str((VALIDATION_ROOT / 'tests/gas_transport')),str(build/'test.cpp'),'-o',str(binary)],capture_output=True,text=True,timeout=90)
     assert run.returncode==0,run.stdout+run.stderr

@@ -1,0 +1,338 @@
+{
+  "schema_version": 1,
+  "layer": 2,
+  "status": "Completed layer-two evidence is recorded in layer2_results.json; numerical and conservation audits pass, dry cases improve, reacting boundary-layer timing regressions remain disclosed.",
+  "raw_evidence_root": "../../../gpu-coupled-validation",
+  "commands_working_directory": "repository root, with OpenFOAM10 sourced first",
+  "baseline": {
+    "incremental_native": {
+      "binary": {
+        "path": "candidate-v2/bin/CHMT",
+        "sha256": "6b6152dfe017f3af2a9c3854c69b1325688eb012188abbeae276afe21eddf3c7"
+      },
+      "provenance": {
+        "path": "candidate-v2/provenance-CHMT.json",
+        "sha256": "6fc30eb8d6f1ae74845e15443f5e14d66a7fad9092d15c6bd1121dc1c4478c2d"
+      },
+      "role": "Accepted layer-one interface GPU path with CPU materials; controls interface changes during layer-two timing."
+    },
+    "independent_math": {
+      "commit": "88bc5434ee7199ec0bd7b986bbf121d693022245",
+      "source_checkout": "../gpu-coupled-baseline-88bc5434",
+      "role": "Untouched original CPU dry math and validation driver."
+    },
+    "final_full_pipeline_comparison": "Must additionally compare final all-layer applications against 88bc5434."
+  },
+  "frozen_external_generators": [
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-cases/test/tools/CHMT/coupled_runtime/make_case.py",
+      "sha256": "1c41bc34c47c1d767fe6cd2636ec304eec6c6e46d206c61be13371ce4bfe8828"
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-cases/test/tools/CHMT/coupled_runtime/check_case.py",
+      "sha256": "09f844b05137497b47dad310a61e539872b97c9f39982d775afbbb1b8fca418d"
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-cases/test/tools/chmt_wall_suite/generate.py",
+      "sha256": "7664784cec608888fbc5875ae6a42cb7368c506c25b483b260dcf974d50b6fee"
+    }
+  ],
+  "external_source_note": "Cases root is a local non-Git directory; file hashes identify the exact tools, with no invented commit.",
+  "cpu_oracle": {
+    "result": {
+      "path": "layer2-cpu-baseline/results.json",
+      "sha256": "b78a0c05ac40659e057bcadc312e106bfa3e3f774465030d2bd7fa4a4ef9d607"
+    },
+    "provenance": {
+      "path": "layer2-cpu-baseline/provenance.json",
+      "sha256": "7b4f923940d85c1af9d5d6120c04a81367eb6cf534b13a799929e36b3da00577"
+    },
+    "passed_cases": 19,
+    "assessment": {
+      "isothermal": {
+        "first_order_time_convergence": [
+          1.0050008219777584,
+          1.0024914871492079
+        ]
+      },
+      "adiabatic": {
+        "first_order_time_convergence": [
+          1.0050008219777584,
+          1.0024914871492079
+        ]
+      },
+      "darcy": {
+        "first_order_flux_convergence": [
+          0.9741318306506698,
+          0.9869148801634428
+        ]
+      },
+      "unequal_diffusion": {
+        "spatial_orders": [
+          0.8757080587170804,
+          0.9364071753641696,
+          0.9678497969681128,
+          0.9838372186190899
+        ],
+        "asymptotic_grid": "80/160/320"
+      }
+    },
+    "cases": {
+      "isothermal_adiabatic": {
+        "grids": [
+          8
+        ],
+        "dt_s": [
+          0.02,
+          0.01,
+          0.005
+        ],
+        "end_s": 1,
+        "checks": "Independent exponential parent mass, closed caloric temperature, mass/element/energy balances, first-order time convergence."
+      },
+      "surface": {
+        "grids": [
+          10,
+          20,
+          40
+        ],
+        "checks": "Analytic thermal resistance plus surface mass action and ALE pressure work; wall temperature, consumption rate, recession, element and energy balances."
+      },
+      "darcy": {
+        "grids": [
+          20,
+          40,
+          80
+        ],
+        "checks": "Compressible p-squared solution, first-order upwind donor flux, discrete divergence, core flux equivalence."
+      },
+      "unequal_diffusion": {
+        "grids": [
+          20,
+          40,
+          80,
+          160,
+          320
+        ],
+        "checks": "Independent integrated mixture potential, zero-sum common correction and first-order asymptotic spatial convergence."
+      },
+      "zero_support": {
+        "grids": [
+          8,
+          16
+        ],
+        "dt_s": 0.0001,
+        "end_s": 0.01,
+        "checks": "Three-species unequal diffusion, nonnegative inventory, each-species and energy closure, temperature preservation; no floors or limiters."
+      }
+    },
+    "command": [
+      "python3",
+      "validation/gpu_coupled_pipeline/layer2_cpu.py",
+      "--source",
+      "../gpu-coupled-baseline-88bc5434",
+      "--work",
+      "../gpu-coupled-validation/layer2-cpu-baseline"
+    ]
+  },
+  "native_baseline": {
+    "result": {
+      "path": "layer2-native-baseline-matrix/results.json",
+      "sha256": "baf001a3aec29ae003b09f89f6cc6205cacd2d78dec19f956b6fca7fd6b6c13f"
+    },
+    "grid": 2,
+    "runs": [
+      {
+        "scenario": "thermal",
+        "status": "PASS",
+        "input_sha256": "00d932f2c2587dc374795c371ccc5eb2a58c372b73fdc7f8a1d9723e132d905e",
+        "elapsed_seconds": 2.7028890859801322,
+        "maximum_absolute_residuals": {
+          "mass": 0.0,
+          "energy": 0.0,
+          "gas_mass_exchange": 3.3306690738754696e-16,
+          "gas_energy_exchange": 1.62503788203594e-10,
+          "material_energy_exchange": 2.9811163260173856e-08
+        },
+        "warnings": {
+          "foam_warning_count": 2
+        }
+      },
+      {
+        "scenario": "single",
+        "status": "PASS",
+        "input_sha256": "73a29b99088cdbd5ca2f13aa123bf9949e70668c0376f0c893d22fa7339bedad",
+        "elapsed_seconds": 1.0015010719944257,
+        "maximum_absolute_residuals": {
+          "mass": 0.0,
+          "energy": 0.0,
+          "gas_mass_exchange": 3.3306690738754696e-16,
+          "gas_energy_exchange": 1.6250351064783786e-10,
+          "material_energy_exchange": 2.981116348221846e-08
+        },
+        "warnings": {
+          "foam_warning_count": 2
+        }
+      },
+      {
+        "scenario": "diffusion",
+        "status": "PASS",
+        "input_sha256": "8546032729511107ec1f5bfc5b7201386dfc7a0d9ac346436db337fd7accb821",
+        "elapsed_seconds": 0.9026776289974805,
+        "maximum_absolute_residuals": {
+          "mass": 0.0,
+          "energy": 0.0,
+          "gas_mass_exchange": 3.3306690738754696e-16,
+          "gas_energy_exchange": 1.6250345513668663e-10,
+          "material_energy_exchange": 2.981116353772961e-08
+        },
+        "warnings": {
+          "foam_warning_count": 2
+        }
+      },
+      {
+        "scenario": "dry",
+        "status": "PASS",
+        "input_sha256": "f74f9167ba2c5936e9ea85836c7ba224b2386fcc2c5cb824d4abe518cd3a976f",
+        "elapsed_seconds": 1.0338040819915477,
+        "maximum_absolute_residuals": {
+          "mass": 0.0,
+          "energy": 5.960464477539063e-08,
+          "reaction_progress_invariant": 0.0,
+          "C1_yield_invariant": 2.842170943040401e-14,
+          "S0_yield_invariant": 1.4210854715202004e-14,
+          "S1_yield_invariant": 0.0,
+          "gas_mass_exchange": 1.037476658741405e-16,
+          "gas_energy_exchange": 4.6310733026189155e-11,
+          "material_energy_exchange": 6.002399532967218e-08
+        },
+        "warnings": {
+          "foam_warning_count": 106
+        }
+      }
+    ],
+    "native_checks": "All CSV fields including momentum and species plus per-cell condensed masses, 8 reaction-progress channels, pore masses, energy, volume and porosity from every checkpoint. Final checkpoint bitwise identity is additional evidence, not required numerical acceptance.",
+    "dry_stoichiometry": "C0 -> 0.3 C1 + 0.2 S0 + 0.5 S1. Each invariant includes gas and pore inventories; reaction progress + C0 is constant. No false requirement of individual-species conservation under reaction.",
+    "original_analytic_tolerance": "Final C0 versus 500*exp(-2*t): abs error < .002 kg; original first-order integrator unchanged.",
+    "observed_dry_progress": 0.9995,
+    "command": [
+      "python3",
+      "validation/gpu_coupled_pipeline/layer2_native.py",
+      "--baseline",
+      "../gpu-coupled-validation/candidate-v2/bin/CHMT",
+      "--source",
+      "../gpu-coupled-baseline-88bc5434",
+      "--cases-root",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-cases",
+      "--inspector",
+      "../gpu-coupled-validation/layer2-cpu-baseline/bin/checkpoint_material",
+      "--work",
+      "../gpu-coupled-validation/layer2-native-baseline-matrix"
+    ]
+  },
+  "schema_adapter": {
+    "source": "validation/gpu_coupled_pipeline/check_coupled_schema9.py",
+    "supported_schema9_field_FNV64": 2786795666536209721,
+    "verification": "Fixed fingerprint independently recalculated from frozen 88bc FieldSchema literal; unchanged state-tail offsets, body checksum and original external numeric assertions.",
+    "retained_original_failure": {
+      "path": "layer2-native-cpu-material/thermal-0/independent-check.json",
+      "sha256": "3e3bbc891bec3e05419dbcf2a3444a69beea4807a89b4d169588e4dbbf83a63d"
+    },
+    "adapted_existing_output_pass": {
+      "path": "layer2-native-cpu-material/thermal-0/schema9-independent-check.json",
+      "sha256": "f089f96761da5a0957081546772526cac919ff922f2ac4cfa4388b43000bb00e"
+    },
+    "note": "Original schema8-only wrapper rejects both old and new schema9 executables before physics assertions. No original test file or tolerance was modified."
+  },
+  "candidate_matrix": [
+    {
+      "name": "native_material_core",
+      "command": [
+        "python3",
+        "validation/gpu_coupled_pipeline/layer2_native.py",
+        "--baseline",
+        "../gpu-coupled-validation/candidate-v2/bin/CHMT",
+        "--source",
+        "../gpu-coupled-baseline-88bc5434",
+        "--cases-root",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-cases",
+        "--inspector",
+        "../gpu-coupled-validation/layer2-cpu-baseline/bin/checkpoint_material",
+        "--candidate",
+        "CANDIDATE_CHMT",
+        "--work",
+        "FRESH_OUTPUT"
+      ],
+      "checks": "Four original thermal/single/diffusion/dry cases; physical tolerance and closure applied to every run."
+    },
+    {
+      "name": "surface_and_prepared_wall",
+      "baseline_evidence": [
+        {
+          "path": "wall-microsteps-v2/report.json",
+          "sha256": "9ca6475f9b8487b78d8917fc9ca2e457dea7f0735285f23cdf1f3d8b4ca7cea5"
+        },
+        {
+          "path": "chmt-ssprk3-v2/report.json",
+          "sha256": "d1972a51ec86263fc598aa951039f0b083968f02276e41b43d4305fa3e565023"
+        }
+      ],
+      "recipe": "Use unchanged chmt-moving-short and stored constantTransport/reactingSst 8-window, 4-microstep inputs against v2 and candidate. Repeat Euler and SSPRK3; audit condensed withdrawal, emitted species, pressure/viscous work, total energy and recession geometry.",
+      "status": "Candidate pending."
+    },
+    {
+      "name": "dry_restart",
+      "recipe": "Restart candidate from each selected mid-window accepted checkpoint generated by original dry input; compare final CSV and per-cell progress/condensed/pore/energy with its continuous run. Original checkpoint bytes retained.",
+      "status": "Pending candidate integration."
+    },
+    {
+      "name": "failure_semantics",
+      "recipe": "Reaction and transport CUDA oracles cover positivity exhaustion, empty pore support, workspace reuse, and original rejected-domain semantics; preserve diagnostics and never add a production fallback.",
+      "status": "Agent-owned oracle reports to be attached after final source stabilizes."
+    }
+  ],
+  "timing": {
+    "prepared_inputs": {
+      "path": "layer2-performance-inputs/provenance.json",
+      "sha256": "c73cf6ff3644569e81348e21ef1b908d4e55f310cd4f032d29b2d29b84332477"
+    },
+    "grids": [
+      8,
+      16
+    ],
+    "duration_s": 0.001,
+    "coupling_windows": 2,
+    "configured_gas_max_dt_s": 1e-05,
+    "physics": "Original dry mechanism and material parameters; only uniform mesh refinement. CPU implicit conduction participates unchanged.",
+    "formal_method": "After correctness passes, five alternating baseline/candidate samples and one excluded warmup pair. Complete solver process time includes startup/output; mesh/audit excluded. Serialize GPU jobs and heavy compiles. Preserve entire failed cohorts; no silent retry or dropped samples.",
+    "command": [
+      "python3",
+      "validation/gpu_coupled_pipeline/layer2_native.py",
+      "--baseline",
+      "../gpu-coupled-validation/candidate-v2/bin/CHMT",
+      "--source",
+      "../gpu-coupled-baseline-88bc5434",
+      "--cases-root",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-cases",
+      "--inspector",
+      "../gpu-coupled-validation/layer2-cpu-baseline/bin/checkpoint_material",
+      "--candidate",
+      "CANDIDATE_CHMT",
+      "--scenarios",
+      "dry",
+      "--grid",
+      "16",
+      "--repeats",
+      "5",
+      "--work",
+      "FRESH_OUTPUT"
+    ],
+    "status": "Inputs prepared and meshed only; no formal layer-two speed claim."
+  },
+  "scope_limits": [
+    "CPU dryMaterialFoam tests are mathematical oracles, not evidence that GPU production integration is complete.",
+    "Source-rate kernels, surface closure and transport buffers require separate frozen CPU/CUDA comparisons from owning agents.",
+    "No third-layer assembly/solver or thermal model change is made by this validation work.",
+    "All native binaries currently available use fast-compile=max; default-production compiler limitations remain recorded in layer1_results.json."
+  ]
+}

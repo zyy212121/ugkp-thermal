@@ -23,6 +23,11 @@ __device__ void relaxOneParticleToResidentGas
         return;
     }
 
+#if defined(GPU_MIXTURE_PARTICLE_COUPLING)
+    // Free mixture parcels have already received the cell-owned paired source
+    // and external kick. Contact particles still advance their own lifecycle.
+    if(ugkwp::mixtureGasActive(s) && s.pStuck[i]==Foam::gpuThermal::particleWallMobile)return;
+#endif
 #if defined(GPU_PAIRED_PARTICLE_HEAT)
     if (particleColdProfileNodeCountDevice(s,i) != 8)
         publishPairedParticleGasHeat(s,i,dt);
@@ -83,13 +88,11 @@ __device__ void relaxOneParticleToResidentGas
             GPU_OPERATOR_R(1.0e-12)
         );
 #endif
-    const GPU_OPERATOR_REAL mu = clampMin(s.gasMu, GPU_OPERATOR_R(1.0e-30));
-    const GPU_OPERATOR_REAL re = rhoG*dPart*relMag/mu;
     if (gasDragModelActive(s.dragModelId))
     {
     const GPU_OPERATOR_REAL invTauDrag = dragInverseTimeDevice
     (
-        s,
+        s, c,
         rhoG,
         clampRange(GPU_OPERATOR_R(1.0) - solidEpsFromMomentDevice(s, c), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0)),
         dPart,
@@ -129,6 +132,14 @@ __device__ void relaxOneParticleToResidentGas
 
 #endif
 
+#if defined(GPU_CELL_MEAN_MOBILE_HEAT)
+    if (!stuck && s.solveParticleTemperature != 0 && s.particleGasHeatTransferModelId != 0
+        && (!s.particleStuckModelConfigured || !s.particleContactHeatEpoch[i]))
+    {
+        const auto mu=clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]),GPU_R(1e-30));
+        relaxMobileParticleThermalState(s,i,c,rhoG*dPart*relMag/mu,dPart,dt);
+    }
+#endif
 #if !defined(GPU_PAIRED_PARTICLE_HEAT)
     if
     (
@@ -137,12 +148,16 @@ __device__ void relaxOneParticleToResidentGas
      && !coldWallContact
     )
     {
+        // With both particle/gas models disabled, no temperature snapshot exists.
+        // Only this heat law needs Reynolds here; drag evaluates its own mu.
+        const GPU_OPERATOR_REAL mu = clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]), GPU_OPERATOR_R(1.0e-30));
+        const GPU_OPERATOR_REAL re = rhoG*dPart*relMag/mu;
         const GPU_OPERATOR_REAL tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
         const GPU_OPERATOR_REAL particleCp = particleSpecificHeatDevice(tpOld);
         const GPU_OPERATOR_REAL gasTemperatureK = clampRange
             (finiteOr(s.couplingTgasOld[c], s.TgasMin), s.TgasMin, GPU_OPERATOR_R(1.0e30));
         s.pT[i] = particleTemperatureAfterGasRelaxation
-            (s, tpOld, gasTemperatureK, re, dPart, s.rhoSolid*particleCp, dt);
+            (s, c, tpOld, gasTemperatureK, re, dPart, s.rhoSolid*particleCp, dt);
     }
 
 #endif

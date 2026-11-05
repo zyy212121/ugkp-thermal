@@ -1,3 +1,12 @@
+#include "FoamSommerfeldConfiguration.H"
+#include "FoamParticleInjectionVelocity.H"
+#include "thermal/ParticleTrackingGeometry.H"
+#include "gasBoundary/FoamInput.H"
+#include "gasBoundary/Api.H"
+#include "gasTransport/FoamBoundaryLayerInput.H"
+#include "gasTransport/FoamGasModelInput.H"
+#include "gasTransport/MolecularTransportApi.H"
+#include "gasTransport/FoamMolecularTransportInput.H"
 #ifndef GpuResidentStrict_H
 #define GpuResidentStrict_H
 
@@ -59,7 +68,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     double particleDiameterFallback,
     double particleDiameterMin,
     double particleDiameterMax,
-    double particleDiameterSigma,
+    double particleDiameterN,
     double injectionTheta,
     double rhoMin,
     double TgasMin,
@@ -241,6 +250,16 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger
     void* handle,
     int nEnabledFaces,
     const int* enabledFaceIds
+);
+
+extern "C" int ugkwpGpuResidentStrictConfigureInterfaceExchange
+(
+    void* handle, int nSolidFaces, const int* rowOffsets,
+    const int* sourceIndices, const double* areas
+);
+extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchange
+(
+    void* handle, double deltaT, const double* radiationEnergy, double* preview
 );
 
 extern "C" int ugkwpGpuResidentStrictPeekWallEnergyLedgerRange
@@ -497,6 +516,7 @@ struct GpuThermalRestartMirrorMetadata
 class GpuResidentStrictBase
 {
 protected:
+    SharedGasModelInput* sharedGasModel_=nullptr;
     void* handle_;
     const Time* diagnosticTime_=nullptr;
     mutable std::uint64_t diagnosticSequence_=0;
@@ -517,10 +537,34 @@ protected:
     label gasWallEnergyMeshFaces_;
     labelList gasWallEnergyFaceIds_;
     labelList gasWallEnergyPatchSizes_;
+    labelList interfaceSolidPatchSizes_;
     bool gasWallEnergyConfigured_;
     bool particleStateCellLocalPacked_;
 
 public:
+    void configureBoundaryLayer(BoundaryLayerInput& input,const Time& time,
+        const fvMesh& mesh,const volScalarField& temperature)
+    {
+        requireInitialised("configure boundaryLayer");
+        input.prepare(time,mesh,temperature);
+        input.configureResident(handle_);
+    }
+
+    void writeBoundaryLayerDiagnostics(const BoundaryLayerInput& input,const Time& time)
+    {
+        requireInitialised("write boundaryLayer diagnostics");
+        input.writeDiagnostics(time,handle_);
+    }
+
+
+    void useSharedGasModel(SharedGasModelInput& model){sharedGasModel_=&model;}
+    void downloadSharedGasSpecies(const volScalarField& rho){if(sharedGasModel_)sharedGasModel_->downloadSpecies(handle_,rho);}
+
+    void configureMolecularTransport(const ugkwp::MolecularTransportConfiguration& config){
+        if(ugkwpGpuResidentStrictConfigureMolecularTransport(handle_,&config))
+            FatalErrorInFunction << "configure molecular transport: " << ugkwpGpuResidentStrictLastError() << exit(FatalError);
+    }
+
     GpuResidentStrictBase()
     :
         handle_(nullptr),
@@ -544,6 +588,7 @@ public:
         gasWallEnergyMeshFaces_(0),
         gasWallEnergyFaceIds_(),
         gasWallEnergyPatchSizes_(),
+        interfaceSolidPatchSizes_(),
         gasWallEnergyConfigured_(false),
         particleStateCellLocalPacked_(false)
     {}
@@ -680,6 +725,107 @@ public:
         gasWallEnergyFaceIds_.transfer(faceIds);
         gasWallEnergyPatchSizes_.transfer(patchSizes);
         gasWallEnergyConfigured_ = !gasWallEnergyFaceIds_.empty();
+    }
+
+    void configureInterfaceExchange
+    (
+        const labelList& solidPatchSizes,
+        const List<labelList>& solidFaceForFluidFace,
+        const scalarField& fluidFaceAreas
+    )
+    {
+        requireInitialised("configureInterfaceExchange");
+        interfaceSolidPatchSizes_ = solidPatchSizes;
+        label solidCount = 0;
+        forAll(solidPatchSizes, pairI) solidCount += solidPatchSizes[pairI];
+        labelList rowOffsets(solidCount + 1, 0);
+        label solidOffset = 0;
+        forAll(solidFaceForFluidFace, pairI)
+        {
+            forAll(solidFaceForFluidFace[pairI], faceI)
+                ++rowOffsets[solidOffset + solidFaceForFluidFace[pairI][faceI] + 1];
+            solidOffset += solidPatchSizes[pairI];
+        }
+        for (label row=0; row<solidCount; ++row)
+            rowOffsets[row+1] += rowOffsets[row];
+        labelList cursor(rowOffsets);
+        labelList sources(gasWallEnergyFaceIds_.size());
+        label fluidOffset = 0;
+        solidOffset = 0;
+        forAll(solidFaceForFluidFace, pairI)
+        {
+            forAll(solidFaceForFluidFace[pairI], faceI)
+                sources[cursor[solidOffset + solidFaceForFluidFace[pairI][faceI]]++]
+                    = fluidOffset + faceI;
+            fluidOffset += gasWallEnergyPatchSizes_[pairI];
+            solidOffset += solidPatchSizes[pairI];
+        }
+        check
+        (
+            ugkwpGpuResidentStrictConfigureInterfaceExchange
+            (
+                handle_, int(solidCount),
+                reinterpret_cast<const int*>(rowOffsets.begin()),
+                reinterpret_cast<const int*>(sources.begin()),
+                fluidFaceAreas.begin()
+            ),
+            "configure GPU interface exchange"
+        );
+    }
+
+    void previewInterfaceExchange
+    (
+        scalar deltaT,
+        const scalarField& radiationEnergy,
+        List<scalarField>& solidEnergy,
+        List<scalarField>& gasHeatFlux,
+        List<scalarField>& depositedHeatFlux,
+        List<scalarField>& reflectedHeatFlux
+    ) const
+    {
+        requireInitialised("previewInterfaceExchange");
+        const label count = gasWallEnergyFaceIds_.size();
+        label solidCount = 0;
+        forAll(interfaceSolidPatchSizes_, pairI)
+            solidCount += interfaceSolidPatchSizes_[pairI];
+        scalarField preview(3*count + solidCount);
+        check
+        (
+            ugkwpGpuResidentStrictPreviewInterfaceExchange
+            (
+                handle_, deltaT,
+                radiationEnergy.empty() ? nullptr : radiationEnergy.begin(),
+                preview.begin()
+            ),
+            "preview compact GPU interface exchange"
+        );
+        const label pairs = gasWallEnergyPatchSizes_.size();
+        solidEnergy.setSize(pairs);
+        gasHeatFlux.setSize(pairs);
+        depositedHeatFlux.setSize(pairs);
+        reflectedHeatFlux.setSize(pairs);
+        label fluidOffset = 0;
+        label solidOffset = 3*count;
+        forAll(gasWallEnergyPatchSizes_, pairI)
+        {
+            const label fluidSize = gasWallEnergyPatchSizes_[pairI];
+            gasHeatFlux[pairI].setSize(fluidSize);
+            depositedHeatFlux[pairI].setSize(fluidSize);
+            reflectedHeatFlux[pairI].setSize(fluidSize);
+            for (label faceI=0; faceI<fluidSize; ++faceI)
+            {
+                const label slot = fluidOffset + faceI;
+                gasHeatFlux[pairI][faceI] = preview[slot];
+                depositedHeatFlux[pairI][faceI] = preview[count + slot];
+                reflectedHeatFlux[pairI][faceI] = preview[2*count + slot];
+            }
+            const label solidSize = interfaceSolidPatchSizes_[pairI];
+            solidEnergy[pairI].setSize(solidSize);
+            for (label faceI=0; faceI<solidSize; ++faceI)
+                solidEnergy[pairI][faceI] = preview[solidOffset + faceI];
+            fluidOffset += fluidSize;
+            solidOffset += solidSize;
+        }
     }
 
     const labelList& configuredGasWallEnergyFaceIds() const
@@ -1145,7 +1291,7 @@ protected:
         const scalar particleDiameterFallback,
         const scalar particleDiameterMin,
         const scalar particleDiameterMax,
-        const scalar particleDiameterSigma,
+        const scalar particleDiameterN,
         const scalar injectionTheta,
         const scalar injectionTp,
         const scalar rhoMin,
@@ -1281,7 +1427,7 @@ protected:
             particleDiameterFallback,
             particleDiameterMin,
             particleDiameterMax,
-            particleDiameterSigma,
+            particleDiameterN,
             injectionTheta,
             rhoMin,
             TgasMin,
@@ -1319,6 +1465,7 @@ protected:
         const auto diagnosticSink=ugkp::diagnostics::makeFoamSink();
         ugkwpGpuResidentStrictSetDiagnosticSink(handle_,&diagnosticSink);
         updateDiagnosticOperation(mesh.time().value());
+        if(sharedGasModel_)sharedGasModel_->configureResident(handle_);
 
         uploadMesh(mesh, nCellPlanes, particleWallProps);
         if (enableParticleModule)
@@ -1355,7 +1502,8 @@ protected:
                 thetaMin,
                 injectionTheta,
                 injectionTp,
-                TpMin
+                TpMin,
+                *particleWallProps
             );
         }
         if (enableParticleModule)
@@ -1437,6 +1585,7 @@ protected:
         }
 
         uploadFields(rho, rhoU, rhoE, U, p, Tgas);
+        if(sharedGasModel_)sharedGasModel_->uploadInitialSpecies(handle_);
 
         if (enableParticleModule)
         {
@@ -1566,6 +1715,7 @@ protected:
         const auto diagnosticSink=ugkp::diagnostics::makeFoamSink();
         ugkwpGpuResidentStrictSetDiagnosticSink(handle_,&diagnosticSink);
         updateDiagnosticOperation(mesh.time().value());
+        if(sharedGasModel_)sharedGasModel_->configureResident(handle_);
 
         uploadMesh(mesh, nCellPlanes, nullptr);
         uploadGasBoundaryFields
@@ -1579,6 +1729,7 @@ protected:
             strictOpenFoamGasBoundaries
         );
         uploadGasOnlyFields(rho, rhoU, rhoE, U, p, Tgas);
+        if(sharedGasModel_)sharedGasModel_->uploadInitialSpecies(handle_);
     }
 
 public:
@@ -3099,10 +3250,7 @@ protected:
         const scalar sommerfeldThreshold =
             model == nullptr
           ? scalar(20)
-          : model->lookupOrDefault<scalar>
-            (
-                "sommerfeldThreshold", scalar(20)
-            );
+          : readSommerfeldThreshold(*model);
         const bool heatTransfer =
             model != nullptr
          && model->lookupOrDefault<bool>("heatTransfer", false);
@@ -3549,11 +3697,9 @@ protected:
             forAll(cFaces, i)
             {
                 const label faceI = cFaces[i];
-                vector n = faceAreas[faceI]/(magFaceAreas[faceI] + SMALL);
-                if (owner[faceI] != cellI)
-                {
-                    n = -n;
-                }
+                const auto plane=ugkp::thermal::particleTrackingPlane(
+                    int(cellI),int(owner[faceI]),faceAreas[faceI].x(),faceAreas[faceI].y(),faceAreas[faceI].z(),
+                    magFaceAreas[faceI],faceCentres[faceI].x(),faceCentres[faceI].y(),faceCentres[faceI].z(),scalar(SMALL));
 
                 label neighbor = -1;
                 label kind = 0;
@@ -3636,10 +3782,10 @@ protected:
                 cellFaceKind[planeI] = kind;
                 cellFaceRestitution[planeI] = restitution;
                 cellFaceTangential[planeI] = tangential;
-                planeNx[planeI] = n.x();
-                planeNy[planeI] = n.y();
-                planeNz[planeI] = n.z();
-                planeD[planeI] = n & faceCentres[faceI];
+                planeNx[planeI] = plane.x;
+                planeNy[planeI] = plane.y;
+                planeNz[planeI] = plane.z;
+                planeD[planeI] = plane.d;
                 ++planeI;
             }
         }
@@ -3696,319 +3842,12 @@ protected:
         const bool strictOpenFoamGasBoundaries
     )
     {
-        const label nFaces = mesh.nFaces();
-        labelList kind(nFaces, 0);
-        labelList rhoFix(nFaces, 0);
-        labelList UFix(nFaces, 0);
-        labelList pFix(nFaces, 0);
-        labelList TFix(nFaces, 0);
-        labelList pWave(nFaces, 0);
-        scalarField pWaveGamma(nFaces, scalar(0));
-        scalarField pWaveFieldInf(nFaces, scalar(0));
-        scalarField pWaveLInf(nFaces, scalar(-GREAT));
-        scalarField bRho(nFaces, scalar(0));
-        scalarField bUx(nFaces, scalar(0));
-        scalarField bUy(nFaces, scalar(0));
-        scalarField bUz(nFaces, scalar(0));
-        scalarField bP(nFaces, scalar(0));
-        scalarField bT(nFaces, scalar(0));
-
-        forAll(mesh.boundaryMesh(), patchI)
-        {
-            const polyPatch& pp = mesh.boundaryMesh()[patchI];
-            const label start = pp.start();
-            const label size = pp.size();
-            label patchKind = static_cast<label>
-            (
-                ugkpboundary::PatchGeometry::standard
-            );
-
-            if (pp.coupled() && !isA<cyclicPolyPatch>(pp))
-            {
-                FatalErrorInFunction
-                    << "UGKP is a serial resident solver and does not "
-                    << "implement coupled boundary transport. Patch '"
-                    << pp.name() << "' has type '" << pp.type() << "'."
-                    << exit(FatalError);
-            }
-
-            if (isA<emptyPolyPatch>(pp))
-            {
-                patchKind = static_cast<label>
-                (
-                    ugkpboundary::PatchGeometry::empty
-                );
-            }
-            else if
-            (
-                isA<wedgePolyPatch>(pp)
-             || isA<symmetryPlanePolyPatch>(pp)
-             || isA<symmetryPolyPatch>(pp)
-            )
-            {
-                patchKind = static_cast<label>
-                (
-                    ugkpboundary::PatchGeometry::symmetry
-                );
-            }
-            else if (isA<wallPolyPatch>(pp))
-            {
-                patchKind = static_cast<label>
-                (
-                    ugkpboundary::PatchGeometry::wall
-                );
-            }
-            else if (isA<processorPolyPatch>(pp))
-            {
-                patchKind = static_cast<label>
-                (
-                    ugkpboundary::PatchGeometry::processor
-                );
-            }
-            else if (isA<cyclicPolyPatch>(pp))
-            {
-                patchKind = static_cast<label>
-                (
-                    ugkpboundary::PatchGeometry::cyclic
-                );
-            }
-
-            if
-            (
-                patchKind == 4
-             || rho.boundaryField()[patchI].size() != size
-             || U.boundaryField()[patchI].size() != size
-             || p.boundaryField()[patchI].size() != size
-             || Tgas.boundaryField()[patchI].size() != size
-            )
-            {
-                for (label i = 0; i < size; ++i)
-                {
-                    kind[start + i] = 4;
-                }
-                continue;
-            }
-
-            const scalarField& rhoPatch = rho.boundaryField()[patchI];
-            const vectorField& UPatch = U.boundaryField()[patchI];
-            const scalarField& pPatch = p.boundaryField()[patchI];
-            const scalarField& TPatch = Tgas.boundaryField()[patchI];
-            const bool pIsWaveTransmissive =
-                isA<waveTransmissiveFvPatchField<scalar>>
-                (
-                    p.boundaryField()[patchI]
-                );
-            const ugkpboundary::ScalarOperator rhoOperator =
-                ugkpboundary::scalarOperator
-                (
-                    rho.boundaryField()[patchI].type(),
-                    rho.boundaryField()[patchI].fixesValue(),
-                    false
-                );
-            const bool UIsInletOutlet =
-                isA<inletOutletFvPatchField<vector>>
-                (
-                    U.boundaryField()[patchI]
-                );
-            const ugkpboundary::VelocityOperator UOperator =
-                ugkpboundary::velocityOperator
-                (
-                    U.boundaryField()[patchI].type(),
-                    U.boundaryField()[patchI].fixesValue(),
-                    UIsInletOutlet
-                );
-            const ugkpboundary::ScalarOperator pOperator =
-                ugkpboundary::scalarOperator
-                (
-                    p.boundaryField()[patchI].type(),
-                    p.boundaryField()[patchI].fixesValue(),
-                    pIsWaveTransmissive
-                );
-            const ugkpboundary::ScalarOperator TOperator =
-                ugkpboundary::scalarOperator
-                (
-                    Tgas.boundaryField()[patchI].type(),
-                    Tgas.boundaryField()[patchI].fixesValue(),
-                    false
-                );
-
-            if
-            (
-                strictOpenFoamGasBoundaries
-             && patchKind
-                == static_cast<label>
-                (
-                    ugkpboundary::PatchGeometry::standard
-                )
-             &&
-                (
-                    rhoOperator
-                        == ugkpboundary::ScalarOperator::unsupported
-                 || UOperator
-                        == ugkpboundary::VelocityOperator::unsupported
-                 || pOperator
-                        == ugkpboundary::ScalarOperator::unsupported
-                 || TOperator
-                        == ugkpboundary::ScalarOperator::unsupported
-                )
-            )
-            {
-                FatalErrorInFunction
-                    << "Unsupported OpenFOAM gas boundary field on patch '"
-                    << pp.name() << "': rho="
-                    << rho.boundaryField()[patchI].type()
-                    << ", U=" << U.boundaryField()[patchI].type()
-                    << ", p=" << p.boundaryField()[patchI].type()
-                    << ", T=" << Tgas.boundaryField()[patchI].type()
-                    << ". Supported standard-patch operators are "
-                    << "fixedValue, zeroGradient, calculated(rho only), "
-                    << "inletOutlet(U only), and "
-                    << "waveTransmissive(p only)."
-                    << exit(FatalError);
-            }
-
-            if
-            (
-                strictOpenFoamGasBoundaries
-             && patchKind
-                == static_cast<label>
-                (
-                    ugkpboundary::PatchGeometry::wall
-                )
-            )
-            {
-                if
-                (
-                    UOperator
-                 != ugkpboundary::VelocityOperator::fixedValue
-                )
-                {
-                    FatalErrorInFunction
-                        << "OpenFOAM wall patch requires noSlip or fixedValue U"
-                        << " in UGKP. Patch '" << pp.name()
-                        << "' uses U type '"
-                        << U.boundaryField()[patchI].type() << "'."
-                        << exit(FatalError);
-                }
-                if
-                (
-                    pOperator
-                        != ugkpboundary::ScalarOperator::zeroGradient
-                 || (
-                        rhoOperator
-                            != ugkpboundary::ScalarOperator::zeroGradient
-                     && rhoOperator
-                            != ugkpboundary::ScalarOperator::calculated
-                    )
-                 || (
-                        TOperator
-                            != ugkpboundary::ScalarOperator::fixedValue
-                     && TOperator
-                            != ugkpboundary::ScalarOperator::zeroGradient
-                    )
-                )
-                {
-                    FatalErrorInFunction
-                        << "Unsupported OpenFOAM gas boundary field on wall "
-                        << "patch '" << pp.name() << "': rho="
-                        << rho.boundaryField()[patchI].type()
-                        << ", p=" << p.boundaryField()[patchI].type()
-                        << ", T=" << Tgas.boundaryField()[patchI].type()
-                        << ". UGKP wall support is p zeroGradient, rho "
-                        << "zeroGradient/calculated, and T "
-                        << "fixedValue/zeroGradient."
-                        << exit(FatalError);
-                }
-            }
-
-            const label rhoFixes =
-                rhoOperator == ugkpboundary::ScalarOperator::fixedValue
-              ? 1 : 0;
-            const label UFixes =
-                UOperator == ugkpboundary::VelocityOperator::inletOutlet
-              ? 2
-              : (
-                    UOperator
-                        == ugkpboundary::VelocityOperator::fixedValue
-                  ? 1 : 0
-                );
-            const vectorField* UBoundaryValues = &UPatch;
-            if (UIsInletOutlet)
-            {
-                UBoundaryValues =
-                    &refCast<const inletOutletFvPatchField<vector>>
-                    (
-                        U.boundaryField()[patchI]
-                    ).refValue();
-            }
-            const label pFixes =
-                pOperator == ugkpboundary::ScalarOperator::fixedValue
-              ? 1 : 0;
-            const label TFixes =
-                TOperator == ugkpboundary::ScalarOperator::fixedValue
-              ? 1 : 0;
-            scalar waveGamma = scalar(0);
-            scalar waveFieldInf = scalar(0);
-            scalar waveLInf = scalar(-GREAT);
-
-            if (pIsWaveTransmissive)
-            {
-                const waveTransmissiveFvPatchField<scalar>& wavePatch =
-                    refCast<const waveTransmissiveFvPatchField<scalar>>
-                    (
-                        p.boundaryField()[patchI]
-                    );
-                waveGamma = wavePatch.gamma();
-                waveFieldInf = wavePatch.fieldInf();
-                waveLInf = wavePatch.lInf();
-            }
-
-
-
-            for (label i = 0; i < size; ++i)
-            {
-                const label faceI = start + i;
-                kind[faceI] = patchKind;
-                rhoFix[faceI] = rhoFixes;
-                UFix[faceI] = UFixes;
-                pFix[faceI] = pFixes;
-                TFix[faceI] = TFixes;
-                pWave[faceI] = pIsWaveTransmissive ? 1 : 0;
-                pWaveGamma[faceI] = waveGamma;
-                pWaveFieldInf[faceI] = waveFieldInf;
-                pWaveLInf[faceI] = waveLInf;
-                bRho[faceI] = rhoPatch[i];
-                bUx[faceI] = (*UBoundaryValues)[i].x();
-                bUy[faceI] = (*UBoundaryValues)[i].y();
-                bUz[faceI] = (*UBoundaryValues)[i].z();
-                bP[faceI] = pPatch[i];
-                bT[faceI] = TPatch[i];
-            }
-        }
-
-        check
-        (
-            ugkwpGpuResidentStrictUploadGasBoundaryFields
-            (
-                handle_,
-                reinterpret_cast<const int*>(kind.begin()),
-                reinterpret_cast<const int*>(rhoFix.begin()),
-                reinterpret_cast<const int*>(UFix.begin()),
-                reinterpret_cast<const int*>(pFix.begin()),
-                reinterpret_cast<const int*>(TFix.begin()),
-                reinterpret_cast<const int*>(pWave.begin()),
-                pWaveGamma.begin(),
-                pWaveFieldInf.begin(),
-                pWaveLInf.begin(),
-                bRho.begin(),
-                bUx.begin(),
-                bUy.begin(),
-                bUz.begin(),
-                bP.begin(),
-                bT.begin()
-            ),
-            "upload GPU resident gas boundary fields"
-        );
+        const auto boundary=ugkp::boundary::foam::read(mesh,rho,U,p,Tgas,
+            strictOpenFoamGasBoundaries);
+        check(ugkwpGpuResidentStrictConfigureBoundary(handle_,int(boundary.faces.size()),
+            boundary.faces.data(),int(boundary.functions.size()),boundary.functions.data(),
+            int(boundary.terms.size()),boundary.terms.data()),
+            "configure shared resident gas boundary library");
     }
 
     void uploadBoundarySources
@@ -4024,9 +3863,15 @@ protected:
         const scalar thetaMin,
         const scalar injectionTheta,
         const scalar injectionTp,
-        const scalar TpMin
+        const scalar TpMin,
+        const dictionary& particleProperties
     )
     {
+        const auto injectionVelocity=readParticleInjectionVelocity(particleProperties);
+        check(ugkwpGpuResidentStrictConfigureParticleInjectionVelocity
+          (handle_,injectionVelocity.specified,injectionVelocity.value.x(),
+           injectionVelocity.value.y(),injectionVelocity.value.z()),
+          "configure particle injection velocity");
         DynamicList<label> sourceCell;
         DynamicList<label> sourceFace;
         DynamicList<scalar> sourcePx;
@@ -4074,7 +3919,8 @@ protected:
                 const scalar epsBc = max(epsPatch[i], scalar(0));
                 const label faceI = start + i;
                 const vector& Sf = faceAreas[faceI];
-                const scalar massFlux = epsBc*rhoSolid*(UPatch[i] & Sf);
+                const vector particleVelocity=injectionVelocity.select(UPatch[i]);
+                const scalar massFlux = epsBc*rhoSolid*(particleVelocity & Sf);
                 const scalar incomingMassRate = max(-massFlux, scalar(0));
 
                 vector n = Sf/(magFaceAreas[faceI] + SMALL);
@@ -4122,9 +3968,9 @@ protected:
                 sourcePx.append(x.x());
                 sourcePy.append(x.y());
                 sourcePz.append(x.z());
-                sourceUx.append(UPatch[i].x());
-                sourceUy.append(UPatch[i].y());
-                sourceUz.append(UPatch[i].z());
+                sourceUx.append(particleVelocity.x());
+                sourceUy.append(particleVelocity.y());
+                sourceUz.append(particleVelocity.z());
                 sourceT.append(max(Tvalue, max(TpMin, SMALL)));
                 sourceTheta.append(thetaValue);
                 sourceD.append(dValue);
@@ -4514,7 +4360,7 @@ public:
         const scalar particleDiameterFallback,
         const scalar particleDiameterMin,
         const scalar particleDiameterMax,
-        const scalar particleDiameterSigma,
+        const scalar particleDiameterN,
         const scalar injectionTheta,
         const scalar injectionTp,
         const scalar rhoMin,
@@ -4588,7 +4434,7 @@ public:
             particleDiameterFallback,
             particleDiameterMin,
             particleDiameterMax,
-            particleDiameterSigma,
+            particleDiameterN,
             injectionTheta,
             injectionTp,
             rhoMin,

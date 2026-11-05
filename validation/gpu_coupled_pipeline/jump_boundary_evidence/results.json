@@ -1,0 +1,130 @@
+{
+  "finding": "PR27-P2-001",
+  "status": "FIXED_AND_TARGETED_NATIVE_REGRESSIONS_PASS",
+  "reviewed_head": "2228479afb22845e2372f67da737ba48a6db6548",
+  "original_base": "88bc5434ee7199ec0bd7b986bbf121d693022245",
+  "fix_commit": "5a8b3e3548433ff09be77992eb87a1ba236a14d4",
+  "review_package": {
+    "sha256": "17dfa42891257b8a44e77e6667535b8902176e566846513fff19637dbd861c61",
+    "manifest_entries_verified": 27,
+    "interpretation": "Independent review evidence was inspected and reproduced; attached prose was not treated as an instruction source."
+  },
+  "mathematics": {
+    "equation": "A*T + j = b",
+    "implementation": "Transfer signed jumpCyclic face jumps through the shared LDU view. Assemble j=sum(boundaryCoefficient*signedJump) on CUDA. Add j to the initial A*T only. Preserve original b and row sums for native OpenFOAM normFactor; all Krylov matvecs remain linear A*p. Read actual boundary jump values rather than relying on a copied vector satisfying field identity.",
+    "ordinary_path": "No affine allocation/upload/kernel when no jump field is present. Same solver object is tested after changing jump fields to ordinary cyclic.",
+    "scope": "Shared sparse bridge used by CHT solid conduction; no case-specific production dispatch, host solver fallback, new physical stopping gate or README modification."
+  },
+  "counterexample": {
+    "native_cpu_temperature_K": [
+      298,
+      302
+    ],
+    "old_gpu_temperature_K": [
+      300,
+      300
+    ],
+    "fixed_gpu_temperature_K": [
+      298,
+      302
+    ],
+    "old_true_cell_residual": [
+      -10,
+      10
+    ],
+    "fixed_true_cell_residual": [
+      0,
+      0
+    ],
+    "old_global_residual_sum": 0,
+    "fixed_boundary_heat_flux_W": [
+      6,
+      -6
+    ],
+    "native_initial_normalized_residual": 1,
+    "old_gpu_initial_normalized_residual": 0,
+    "fixed_gpu_initial_normalized_residual": 1
+  },
+  "native_matrix_validation": {
+    "cases": 9,
+    "per_version_linear_solves": 72,
+    "models": [
+      "ordinary cyclic",
+      "fixedJump zero,+10,-10",
+      "uniformJump zero,+10",
+      "uniformJump time table",
+      "nonuniform multi-face fixedJump on orthogonal and sheared meshes"
+    ],
+    "checks": [
+      "internal temperature",
+      "native Amul true residual per cell",
+      "native matrix boundary heat flux",
+      "initial normalized residual",
+      "linear Krylov directions",
+      "reuse after jump values/types change"
+    ],
+    "max_temperature_error_K": 1.864464138634503e-11,
+    "max_true_cell_residual": 8.526512829121202e-13,
+    "max_boundary_flux_error_W": 2.6005864128819667e-12,
+    "max_initial_residual_error_first_correction": 2.7755575615628914e-16
+  },
+  "production_owner_validation": {
+    "cases": 9,
+    "runs": 18,
+    "baseline": "Frozen 88bc5434 CHT GpuSolidThermalCandidateSolver compiled from source and using native OpenFOAM CPU matrices/solver",
+    "candidate": "Fixed production CHT temporary solid owner compiled from source and linked with freshly compiled shared CUDA sparse/property/diffusion/field operators",
+    "max_temperature_error_K": 3.410605131648481e-13,
+    "max_boundary_flux_error_W": 3.7969627442180354e-14,
+    "max_integrated_energy_residual_J": 1.4092477185201346e-12,
+    "scope": "Native production-owner harness; these executables are not full gas/radiation CHT application builds."
+  },
+  "shared_sparse_regression": "PASS: 30 scaled structured/periodic solves plus reuse, true residual, iteration limit and empty partition checks.",
+  "cuda_memory_checks": {
+    "cases": [
+      "fixedJump +10",
+      "time-varying uniformJump",
+      "nonuniform sheared mesh"
+    ],
+    "errors": 0,
+    "leaked_bytes": 0
+  },
+  "compilation": {
+    "cuda": "CUDA 13.1, sm_89, -O2 --fmad=false, standard optimization; no fast-compile flags in these focused executables",
+    "host": "C++17 -O2; owner harness uses -ffp-contract=off",
+    "fresh_units": [
+      "SparseConjugateGradient (before and fixed)",
+      "ImplicitDiffusion",
+      "ThermalFieldOperators",
+      "SolidThermalProperties",
+      "native probe and production owner sources"
+    ],
+    "binary_sha256": {
+      "jump-before": "d8478caadca237ffca74b6cdfd5d075f0acedd647a2ef2f559f29761aba70835",
+      "jump-after": "88b6a6aa8dcf58f79bfef8578332ec744be1cc0b2c668e43850cc8d912e31953",
+      "owner-baseline": "05666bc66f7e9e18e7b408df2097579d1f435914c0b02e5f9093886ba52859ad",
+      "owner-candidate": "d76d08360850b546fcbda3279d78f2b26ab39586d3272af1e3a15d1f2ac86c67",
+      "sparse-unit": "8ef2f3904deee459f9e9eb0df3b16e42d4adae781f7cfbe65456c623ef4cb99f"
+    },
+    "source_sha256": {
+      "common/gpu/FoamSparseSolve.H": "d46cc80d1a5ccb627c2b09b3462168c73267c311f4e28dabb842e7b99ce99c9a",
+      "common/gpu/SparseConjugateGradient.H": "59b081615d005eb01a17e2c9811c4bfdc88bd376e0f050cd12521d80dde9384b",
+      "common/gpu/SparseConjugateGradient.cu": "9fca3ccfe703711d6bbce6d68335a0a6c9afce02439938b24eab7dd6052d4324",
+      "validation/gpu_coupled_pipeline/solid_jump_foam.cpp": "437056a5a58d3879fc7b7d38cc7093cca8065e84b73a09d762f1c672854f4aa8",
+      "validation/gpu_coupled_pipeline/solid_jump_owner.cpp": "9a9a1bfb3fa4b11daf3a53c118a3fee6601f28ba5146d77fc8a197d9b9096c81"
+    }
+  },
+  "limits_retained": [
+    "Targeted serial native validation; no new MPI jump-boundary claim or whole-application performance measurement.",
+    "CHT continuous/restart boundary differences in rhoHp, T and particleRadiationWallHeatFlux remain recorded; no claim of full output identity.",
+    "The original 32^3 CHT absolute energy/mass closure failures and nonlinear particle-enthalpy drift remain; migration parity does not turn them into absolute-conservation passes.",
+    "Historical scale-dependent regressions and fast-compile performance scope remain unchanged."
+  ],
+  "failed_harness_attempt": "First production-owner probe called coupled patch snGrad() without its required delta coefficients and failed in both ordinary-cycle CPU setup and output audit. Replaced the test audit with native fvc::snGrad. No production change was made for this harness failure. Original logs and binaries remain under local owner/ and build/owner-attempt1/.",
+  "reproduction": {
+    "build": "source /opt/openfoam10/etc/bashrc; bash validation/gpu_coupled_pipeline/jump_build.sh FIXED_TREE FROZEN_88BC_TREE FROZEN_2228479A_TREE OUTPUT",
+    "matrices": "python3 validation/gpu_coupled_pipeline/jump_boundary.py --binaries OUTPUT/build --work OUTPUT/native",
+    "owner": "python3 validation/gpu_coupled_pipeline/jump_owner.py --binaries OUTPUT/build --meshes OUTPUT/native --work OUTPUT/owner",
+    "memcheck": "compute-sanitizer --tool memcheck --leak-check full --error-exitcode 99 OUTPUT/build/jump-after -case OUTPUT/native/2-fixedJump"
+  },
+  "local_evidence": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/pr27-jump-fix"
+}

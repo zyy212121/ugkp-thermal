@@ -53,6 +53,18 @@ const dictionary* gpuSolutionControls =
   ? &fvSolutionDict.subDict("UGKP")
   : nullptr;
 
+SharedGasModelInput sharedGasModel(runTime,mesh);
+// Application capability: shared mixture operators remain available to gasUGKP/CHMT.
+if (sharedGasModel.model().mode != ugkwp::GasMode::SingleLegacy)
+{
+    FatalErrorInFunction
+        << "CHT supports single-component gas, with or without particles. "
+        << "Use CHMT for frozen-mixture material coupling."
+        << exit(FatalError);
+}
+
+MolecularTransportInput molecularTransport(runTime,mesh,sharedGasModel.model());
+
 scalar gammaGasValue = 0;
 scalar specificGasConstantValue = 0;
 scalar gasMuValue = 0;
@@ -615,6 +627,7 @@ else if (gasTurbulenceModelName == "kOmegaSST")
     {
         sstWallTreatment = 1;
     }
+    else if(sstWallTreatmentName=="boundaryLayer")sstWallTreatment=2;
     else
     {
         FatalErrorInFunction
@@ -633,4 +646,9 @@ else
         << exit(FatalError);
 }
 
+BoundaryLayerInput boundaryLayerInput(momentumTransportProperties,sharedGasModel.model(),gasTurbulenceModel,
+    gpuScheduling.pureGasOnly,turbulentPrandtl);
+if(boundaryLayerInput.active()){sstWallTreatment=2;sstWallTreatmentName="boundaryLayer";}
+sharedGasModel.validateNumerics(gasFluxScheme,gasReconstruction,gasLimiter,gasTimeIntegrator,
+    gasTurbulenceModel,!gpuScheduling.pureGasOnly,sstWallTreatment);
 #endif

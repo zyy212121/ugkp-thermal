@@ -834,13 +834,13 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
                 const GpuReal ugz = finiteOr(s.couplingUzOld[cellI], GPU_R(0.0));
                 const GpuReal re =
                     rhoG*particleDiameterM*sqrt(sqr3(ugx, ugy, ugz))
-                   /clampMin(s.gasMu, GPU_R(1.0e-30));
+                   /clampMin(ugkwp::gasCellMolecularViscosityAt(s,cellI,gasTemperatureK), GPU_R(1.0e-30));
                 const GpuReal nusselt =
-                    GPU_R(2.0) + GPU_R(0.6)*sqrt(clampMin(re, GPU_R(0.0)))*s.gasPrOneThird;
+                    GPU_R(2.0) + GPU_R(0.6)*sqrt(clampMin(re, GPU_R(0.0)))*ugkwp::gasCellPrandtlOneThird(s,cellI);
                 const GpuReal particleCp =
                     particleSpecificHeatDevice(particleTemperatureK);
                 const GpuReal rate =
-                    GPU_R(6.0)*nusselt*molecularGasConductivity(s)
+                    GPU_R(6.0)*nusselt*molecularGasConductivity(s,cellI,gasTemperatureK)
                    /(
                         s.rhoSolid*particleCp
                        *particleDiameterM*particleDiameterM
@@ -852,14 +852,14 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
                 gasConductanceWK=static_cast<GpuReal>(scaledConductance);
 #endif
             }
-            wallEffusivity = s.particleWallEffusivityByFace != nullptr
+            wallEffusivity = ugkwp::particleWallEffusivity(s,wallFaceI,s.particleWallEffusivityByFace != nullptr
               ? s.particleWallEffusivityByFace[wallFaceI]
               : sqrt
                 (
                     s.particleWallDensityKgM3
                    *s.particleWallSpecificHeatJkgK
                    *s.particleWallConductivityWmK
-                );
+                ));
             maximumAreaM2 = static_cast<GpuReal>
             (
                 s.pContactMaximumArea[particleI]
@@ -956,7 +956,7 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
                 maximumAreaM2,
                 intrinsicAreaM2,
                 thermalDeltaTS,
-                s.gasBoundaryT[wallFaceI],
+                ugkwp::particleWallTemperature(s,wallFaceI),
                 wallEffusivity,
                 thermalAreaFactor,
                 gasTemperatureK,
@@ -985,6 +985,8 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
             }
         }
 
+        // The release owner reads all updated ring profiles before clearing.
+        __syncwarp(groupMask);
         int transition = 0;
         GpuReal longDepositAreaM2 = GPU_R(0.0);
         if (radialNode == 0 && finiteContact)
@@ -1001,18 +1003,17 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
                 fmax(kinematicAreaM2, frozenFootprintAreaM2) - damageAreaM2;
             bool detach = false;
             bool enterLongDeposit = false;
+            bool releaseAtRest = false;
             if
             (
                 wallState
              == Foam::gpuThermal::particleWallTransientRebound
             )
             {
-                detach = !(effectiveContactAreaM2 > GPU_R(0.0));
-                enterLongDeposit =
-                    !detach
-                 && !(kinematicAreaM2 > GPU_R(0.0))
-                 && frozenFootprintAreaM2 > GPU_R(0.0);
-                longDepositAreaM2 = effectiveContactAreaM2;
+                const auto release = Foam::gpuThermal::reboundContactRelease
+                    (kinematicAreaM2, frozenFootprintAreaM2, damageAreaM2);
+                detach = release.detach;
+                releaseAtRest = release.atRest;
             }
             else
             {
@@ -1046,6 +1047,13 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
             transition = detach ? 1 : (enterLongDeposit ? 2 : 0);
             if (transition == 1)
             {
+                const double releaseEnergy = releaseAtRest
+                    ? frozenReleaseSpecificEnergy(s,particleI,64) : 0.;
+                if (releaseAtRest) {
+                    s.puxOld[particleI] = GPU_R(0.0);
+                    s.puyOld[particleI] = GPU_R(0.0);
+                    s.puzOld[particleI] = GPU_R(0.0);
+                }
                 s.pux[particleI] = s.puxOld[particleI];
                 s.puy[particleI] = s.puyOld[particleI];
                 s.puz[particleI] = s.puzOld[particleI];
@@ -1056,6 +1064,7 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
                 s.pContactDuration[particleI] = 0.0;
                 s.pContactMaximumArea[particleI] = 0.0;
                 s.pContactPeakFraction[particleI] = 0.0;
+                if (releaseAtRest) publishFrozenReleaseEnergy(s,particleI,releaseEnergy);
             }
             else if (transition == 2)
             {

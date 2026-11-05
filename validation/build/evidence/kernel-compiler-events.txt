@@ -1,0 +1,8 @@
+[Wed Oct 28 20:36:11 2026] ptxas[11254]: segfault at 64d36936fa88 ip 000064d3153a7404 sp 00007fffcd130a50 error 4 in ptxas[64d314600000+2263000] likely on CPU 3 (core 1, socket 0)
+[Thu Oct 29 00:26:47 2026] cicc[36805]: segfault at fa330 ip 000000000149ee0e sp 00007fff5f4668d0 error 4 in cicc[406000+37fc000] likely on CPU 1 (core 0, socket 0)
+[Thu Oct 29 00:36:52 2026] avahi-daemon invoked oom-killer: gfp_mask=0x140cca(GFP_HIGHUSER_MOVABLE|__GFP_COMP), order=0, oom_score_adj=0
+[Thu Oct 29 00:36:52 2026] oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=/,mems_allowed=0,global_oom,task_memcg=/,task=ptxas,pid=80584,uid=1000
+[Thu Oct 29 00:36:52 2026] Out of memory: Killed process 80584 (ptxas) total-vm:15697492kB, anon-rss:11533804kB, file-rss:2048kB, shmem-rss:0kB, UID:1000 pgtables:30768kB oom_score_adj:0
+[Thu Oct 29 01:11:18 2026] python3 invoked oom-killer: gfp_mask=0x140cca(GFP_HIGHUSER_MOVABLE|__GFP_COMP), order=0, oom_score_adj=0
+[Thu Oct 29 01:11:18 2026] oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=/,mems_allowed=0,global_oom,task_memcg=/,task=ptxas,pid=82347,uid=1000
+[Thu Oct 29 01:11:18 2026] Out of memory: Killed process 82347 (ptxas) total-vm:15688288kB, anon-rss:11558116kB, file-rss:0kB, shmem-rss:0kB, UID:1000 pgtables:30760kB oom_score_adj:0

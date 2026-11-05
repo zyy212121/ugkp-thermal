@@ -1,0 +1,148 @@
+{
+  "command": [
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/cpu-reference",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/cpu-check/input.cfg",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/cpu-check/cpu.csv"
+  ],
+  "cpu_binary_sha256": "6f2de46eed075d6ea3ad96387d542a8e42d3c18934d9c54d2173147e4b5985d3",
+  "gas": {
+    "matching_rows": 320,
+    "missing_candidate_keys": [],
+    "extra_candidate_keys": [],
+    "duplicate_reference_keys": [],
+    "duplicate_candidate_keys": [],
+    "fields": {
+      "rho": {
+        "max_absolute": 1.0187073407053049e-11,
+        "max_scaled": 0.0009260975847252509,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "rhoUx": {
+        "max_absolute": 4.771770534262032e-09,
+        "max_scaled": 0.023740150979399136,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "rhoUy": {
+        "max_absolute": 0.0,
+        "max_scaled": 0.0,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "rhoUz": {
+        "max_absolute": 0.0,
+        "max_scaled": 0.0,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "rhoE": {
+        "max_absolute": 1.8136342987418175e-05,
+        "max_scaled": 0.001162709767948024,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "Ux": {
+        "max_absolute": 4.7110724210597255e-09,
+        "max_scaled": 0.023438170261273192,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "Uy": {
+        "max_absolute": 0.0,
+        "max_scaled": 0.0,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "Uz": {
+        "max_absolute": 0.0,
+        "max_scaled": 0.0,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "p": {
+        "max_absolute": 1.628429163247347e-05,
+        "max_scaled": 0.007834196780193627,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "T": {
+        "max_absolute": 5.5620034800085705e-08,
+        "max_scaled": 0.007944584410705094,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "rhoY0": {
+        "max_absolute": 3.1235014574804154e-12,
+        "max_scaled": 0.0007602815765915729,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "rhoY1": {
+        "max_absolute": 7.063460927270171e-12,
+        "max_scaled": 0.0008950548178102167,
+        "mismatches": 0,
+        "samples": 320
+      }
+    },
+    "unavailable": [],
+    "pass": true,
+    "scope": "Only explicitly selected actual field values; no claim of CUDA validation or unexported budget closure."
+  },
+  "particles": {
+    "matching_rows": 320,
+    "missing_candidate_keys": [],
+    "extra_candidate_keys": [],
+    "duplicate_reference_keys": [],
+    "duplicate_candidate_keys": [],
+    "fields": {
+      "momRhoP": {
+        "max_absolute": 0.0,
+        "max_scaled": 0.0,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "momRhoUPx": {
+        "max_absolute": 1.4179629692634421e-14,
+        "max_scaled": 1.2937618330858712e-05,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "momRhoUPy": {
+        "max_absolute": 0.0,
+        "max_scaled": 0.0,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "momRhoUPz": {
+        "max_absolute": 0.0,
+        "max_scaled": 0.0,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "momRhoEP": {
+        "max_absolute": 2.825378819792945e-13,
+        "max_scaled": 0.00014414669204719348,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "momRhoHpP": {
+        "max_absolute": 1.0022728247349733e-07,
+        "max_scaled": 0.06949671526355512,
+        "mismatches": 0,
+        "samples": 320
+      },
+      "momRhoPD": {
+        "max_absolute": 0.0,
+        "max_scaled": 0.0,
+        "mismatches": 0,
+        "samples": 320
+      }
+    },
+    "unavailable": [],
+    "pass": true,
+    "scope": "Only explicitly selected actual field values; no claim of CUDA validation or unexported budget closure."
+  },
+  "pass": true,
+  "scope": "Serial execution of shared production gas/parcel headers, separate from native CUDA/OpenFOAM driver; not an independent discretization. rhoHp reconstructed from actual weighted parcel restart records; no fabricated exchange."
+}

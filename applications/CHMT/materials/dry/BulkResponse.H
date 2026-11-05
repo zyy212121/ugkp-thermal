@@ -9,7 +9,7 @@ namespace chmt { namespace dry {
 // https://pato.ac/wp-content/uploads/2017/06/Lachaud_2014_JTHT.pdf). A finite-rate source transfers constituent mass but
 // does not add a separate reaction heat: formation energy is already in e.
 template<std::size_t Nc, std::size_t Ns, class GasThermo>
-CaloricState caloricState(const MaterialState<Nc,Ns>& q,
+CHMT_DRY_HD CaloricState caloricState(const MaterialState<Nc,Ns>& q,
     const std::array<CondensedThermo,Nc>& solid, const GasThermo& gas, double T)
 {
     CaloricState out;
@@ -34,7 +34,7 @@ struct TemperatureSolve {
     bool converged=false;
 };
 template<std::size_t Nc, std::size_t Ns, class GasThermo>
-TemperatureSolve recoverTemperature(const MaterialState<Nc,Ns>& q,
+CHMT_DRY_HD TemperatureSolve recoverTemperature(const MaterialState<Nc,Ns>& q,
     const std::array<CondensedThermo,Nc>& solid, const GasThermo& gas,
     double initialTemperature, double absoluteTolerance=1e-10,
     double relativeTolerance=1e-12, int maximumIterations=30)
@@ -54,7 +54,7 @@ TemperatureSolve recoverTemperature(const MaterialState<Nc,Ns>& q,
 }
 
 template<std::size_t Nc, std::size_t Ns, class GasThermo>
-MaterialPrimitive primitive(const MaterialState<Nc,Ns>& q, double volume,
+CHMT_DRY_HD MaterialPrimitive primitive(const MaterialState<Nc,Ns>& q, double volume,
     double temperature, const std::array<CondensedThermo,Nc>& solid,
     const GasThermo& gas, double poreGasConductivity)
 {
@@ -88,6 +88,16 @@ struct Reaction {
     double preExponential=0, temperaturePower=0, activationEnergy=0; // Ea J/mol
 };
 
+// Borrowed immutable mechanism; both host containers and resident device
+// tables use the same source assembly and preserve reaction iteration order.
+template<std::size_t Nc, std::size_t Ns>
+struct ReactionView {
+    const Reaction<Nc,Ns>* data=nullptr;
+    std::size_t count=0;
+    CHMT_DRY_HD const Reaction<Nc,Ns>* begin()const{return data;}
+    CHMT_DRY_HD const Reaction<Nc,Ns>* end()const{return count?data+count:data;}
+};
+
 // Rate is extent/(m3 bulk s), matching production coefficients kg/extent.
 // State-based pyrolysis uses MASS concentrations [kg/m3], just as existing
 // CHMT data: A has units extent/(m3 s K^b (kg/m3)^sum(orders)).
@@ -97,7 +107,7 @@ struct Reaction {
 // pore-gas mechanism expressed per pore volume needs a separate phi conversion.
 // An empty mechanism means frozen pore chemistry, not frozen species transport.
 template<std::size_t Nc, std::size_t Ns>
-double reactionRate(const Reaction<Nc,Ns>& reaction,
+CHMT_DRY_HD double reactionRate(const Reaction<Nc,Ns>& reaction,
     const std::array<double,Nc>& condensedConcentration,
     const std::array<double,Ns>& poreConcentration, double temperature)
 {
@@ -112,7 +122,7 @@ double reactionRate(const Reaction<Nc,Ns>& reaction,
 }
 
 template<std::size_t Nc, std::size_t Ns>
-MaterialState<Nc,Ns> reactionSourceFromConcentrations(const std::vector<Reaction<Nc,Ns>>& network,
+CHMT_DRY_HD MaterialState<Nc,Ns> reactionSourceFromConcentrations(ReactionView<Nc,Ns> network,
     const std::array<double,Nc>& condensedConcentration,
     const std::array<double,Ns>& poreConcentration,
     double temperature, double volume)
@@ -136,8 +146,8 @@ MaterialState<Nc,Ns> reactionSourceFromConcentrations(const std::vector<Reaction
 // volume; gas reactants use intrinsic pore partial density. Existing bulk
 // pyrolysis has poreOrder=0 and is therefore unchanged by pore composition.
 template<std::size_t Nc, std::size_t Ns>
-MaterialState<Nc,Ns> reactionSource(const MaterialState<Nc,Ns>& q,
-    const std::vector<Reaction<Nc,Ns>>& network, double volume,
+CHMT_DRY_HD MaterialState<Nc,Ns> reactionSource(const MaterialState<Nc,Ns>& q,
+    ReactionView<Nc,Ns> network, double volume,
     const std::array<CondensedThermo,Nc>& solid, double temperature)
 {
     std::array<double,Nc> condensedConcentration{};
@@ -160,7 +170,7 @@ MaterialState<Nc,Ns> reactionSource(const MaterialState<Nc,Ns>& q,
 // Return accepted extent fraction for existing warning/accuracy reporting.
 // Subcycling/refinement of this first-order map is the time integrator's job.
 template<std::size_t Nc, std::size_t Ns>
-double reactionEuler(MaterialState<Nc,Ns>& q,
+CHMT_DRY_HD double reactionEuler(MaterialState<Nc,Ns>& q,
     const MaterialState<Nc,Ns>& source, double dt)
 {
     double fraction=1;
@@ -172,10 +182,23 @@ double reactionEuler(MaterialState<Nc,Ns>& q,
         const double available=q.poreMass[s]/(-dt*source.poreMass[s]);
         if(available<fraction)fraction=available;
     }
-    for(std::size_t c=0;c<Nc;++c)
-        q.condensedMass[c]+=dt*fraction*source.condensedMass[c];
-    for(std::size_t s=0;s<Ns;++s)
-        q.poreMass[s]+=dt*fraction*source.poreMass[s];
+    // A donor that set the common extent is mathematically exhausted. The
+    // rounded quotient/product can leave a signed last-bit remainder; express
+    // that exact balance as zero for precisely the original limiting donors
+    // (including ties). There is no tolerance, independent species floor, or
+    // change to the common extent or any nonlimiting inventory.
+    for(std::size_t c=0;c<Nc;++c) {
+        const bool limiting=fraction<1 && source.condensedMass[c]<0
+            && q.condensedMass[c]/(-dt*source.condensedMass[c])==fraction;
+        if(limiting)q.condensedMass[c]=0;
+        else q.condensedMass[c]+=dt*fraction*source.condensedMass[c];
+    }
+    for(std::size_t s=0;s<Ns;++s) {
+        const bool limiting=fraction<1 && source.poreMass[s]<0
+            && q.poreMass[s]/(-dt*source.poreMass[s])==fraction;
+        if(limiting)q.poreMass[s]=0;
+        else q.poreMass[s]+=dt*fraction*source.poreMass[s];
+    }
     return fraction;
 }
 
@@ -184,7 +207,7 @@ double reactionEuler(MaterialState<Nc,Ns>& q,
 // chooses extents; this operation never clips species independently (which
 // would destroy reaction mass/element/energy balance).
 template<std::size_t Nc, std::size_t Ns>
-void applyExtent(MaterialState<Nc,Ns>& q,
+CHMT_DRY_HD void applyExtent(MaterialState<Nc,Ns>& q,
     const Stoichiometry<Nc,Ns>& production, double extent)
 {
     for(std::size_t c=0;c<Nc;++c)q.condensedMass[c]+=extent*production.condensed[c];
@@ -194,7 +217,7 @@ void applyExtent(MaterialState<Nc,Ns>& q,
 
 
 template<std::size_t Nc, std::size_t Ns>
-double massResidual(const Stoichiometry<Nc,Ns>& reaction)
+CHMT_DRY_HD double massResidual(const Stoichiometry<Nc,Ns>& reaction)
 {
     double residual=0;
     for(double x:reaction.condensed)residual+=x;
@@ -202,7 +225,7 @@ double massResidual(const Stoichiometry<Nc,Ns>& reaction)
     return residual;
 }
 template<std::size_t Nc, std::size_t Ns, std::size_t Ne>
-std::array<double,Ne> elementResidual(const Stoichiometry<Nc,Ns>& reaction,
+CHMT_DRY_HD std::array<double,Ne> elementResidual(const Stoichiometry<Nc,Ns>& reaction,
     const std::array<std::array<double,Ne>,Nc>& solidElementMassFractions,
     const std::array<std::array<double,Ne>,Ns>& gasElementMassFractions)
 {
@@ -214,6 +237,22 @@ std::array<double,Ne> elementResidual(const Stoichiometry<Nc,Ns>& reaction,
             residual[e]+=reaction.gas[s]*gasElementMassFractions[s][e];
     }
     return residual;
+}
+// Keep the independent CPU callers' vector API; no arithmetic is duplicated.
+template<std::size_t Nc, std::size_t Ns>
+MaterialState<Nc,Ns> reactionSourceFromConcentrations(const std::vector<Reaction<Nc,Ns>>& network,
+    const std::array<double,Nc>& condensedConcentration,
+    const std::array<double,Ns>& poreConcentration,double temperature,double volume)
+{
+    return reactionSourceFromConcentrations(ReactionView<Nc,Ns>{network.data(),network.size()},
+        condensedConcentration,poreConcentration,temperature,volume);
+}
+template<std::size_t Nc, std::size_t Ns>
+MaterialState<Nc,Ns> reactionSource(const MaterialState<Nc,Ns>& q,
+    const std::vector<Reaction<Nc,Ns>>& network,double volume,
+    const std::array<CondensedThermo,Nc>& solid,double temperature)
+{
+    return reactionSource(q,ReactionView<Nc,Ns>{network.data(),network.size()},volume,solid,temperature);
 }
 } }
 #endif

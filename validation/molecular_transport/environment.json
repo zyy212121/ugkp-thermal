@@ -1,0 +1,29 @@
+{
+  "baseline": "82ea1d90fc164fac27bc056e7b967feaa0406a5b",
+  "system": "WSL Ubuntu 22.04, OpenFOAM 10, NVIDIA RTX 4060 Laptop 8GB",
+  "cuda": "13.1.115",
+  "arch": "sm_89",
+  "native_nvcc_additional_flags": [
+    "--Ofast-compile=max",
+    "-Xcompiler=-fno-tree-fre"
+  ],
+  "runtime_stack_bytes": 65536,
+  "application_species_count": 2,
+  "standalone_cuda_test_species_count": 3,
+  "baseline_cht_patch": "baseline-cht-build.patch",
+  "targeted_pytest": "30 passed, 3 skipped",
+  "checkpoint_pytest": "5 passed",
+  "wall_pytest_baseline_and_candidate": {
+    "passed": 562,
+    "failed": 346,
+    "errors": 24,
+    "new_failure_ids": []
+  },
+  "compute_sanitizer": {
+    "gas-wall": "0 errors, 0 leaks",
+    "cht-ode": "0 errors, 0 leaks",
+    "chmt-mixture": "0 errors, 0 leaks"
+  },
+  "normal_optimization_build": "baseline and candidate processes killed by system; candidate also retried alone and killed",
+  "performance_note": "end-to-end process timings; five alternating repetitions after one warmup; startup/output included; host regression jobs overlapped part of the run"
+}

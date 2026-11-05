@@ -67,6 +67,8 @@ const dictionary* gpuSolutionControls =
   ? &fvSolutionDict.subDict("UGKP")
   : nullptr;
 
+MolecularTransportInput molecularTransport(runTime,mesh,sharedGasModel.model());
+
 scalar gammaGasValue = 0;
 scalar specificGasConstantValue = 0;
 scalar gasMuValue = 0;
@@ -343,8 +345,11 @@ if (boundaryLayerInput.active())
 sharedGasModel.validateNumerics
 (
     gasFluxScheme, gasReconstruction, gasLimiter, gasTimeIntegrator,
-    gasTurbulenceModel, !gpuScheduling.pureGasOnly, sstWallTreatment,
-    boundaryLayerInput.model()
+    gasTurbulenceModel,
+    !gpuScheduling.pureGasOnly,
+    sstWallTreatment,
+    boundaryLayerInput.model(),
+    true // gasUGKP and gasUGKPSteady share the paired physical-time source
 );
 
 #endif

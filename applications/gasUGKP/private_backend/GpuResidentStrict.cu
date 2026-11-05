@@ -1,3 +1,9 @@
+#include "gasBoundary/Resident.cuh"
+#include "gasBoundary/Evaluate.H"
+#include "gasTransport/MixturePorosity.H"
+#define GPU_GAS_POROSITY_SPECIES(s,c,scale) scaleMixturePorositySpecies(s,c,scale)
+#include "gasTransport/GasPseudoTime.H"
+#include "gasTransport/MolecularTransportDevice.cuh"
 #include "gasTransport/GasMeshUploadValidation.H"
 #include "../../../common/GpuDiagnosticsOwner.cuh"
 #include "../../../common/gasTransport/GasStatusCompletion.cuh"
@@ -118,16 +124,18 @@ struct CsrReductionTask
     int source;
 };
 
-struct PressureProjectionCell
-{
-    double ux0, uy0, uz0, ux1, uy1, uz1, theta1, thermalScale, thetaScale;
-    bool active, resolved;
-};
+#include "GpuPressureProjectionTypes.H"
 
 struct DeviceState;
 template<bool Capture> int launchBoundaryLayer(DeviceState*);
 struct DeviceState
 {
+    const void* particleTrackingKernel = nullptr; // host launch selection only
+
+    ugkp::boundary::View gasBoundaryProgram;
+    ugkp::boundary::Resident* gasBoundaryOwner=nullptr;
+    ugkwp::MolecularViscosityView<double> gasViscosity;
+    ugkwp::MolecularTransportDevice* gasTransportOwner=nullptr;
     ugkp::diagnostics::DeviceContext* diagnostics = nullptr;
     ugkp::diagnostics::GpuOwner* diagnosticOwner = nullptr;
 #include "GpuAutomaticCsrScheduleFields.inl"
@@ -215,7 +223,7 @@ struct DeviceState
     double particleDiameterFallback = 0.0;
     double particleDiameterMin = 0.0;
     double particleDiameterMax = 0.0;
-    double particleDiameterSigma = 0.0;
+    double particleDiameterN = 1.0;
     double injectionTheta = 0.0;
     double rhoMin = 1.0e-12;
     double TgasMin = 1.0e-12;
@@ -238,6 +246,7 @@ struct DeviceState
     cudaGraphExec_t gasGraphExec = nullptr;
     std::vector<cudaGraphNode_t> gasGraphTimeNodes;
     std::vector<cudaKernelNodeParams> gasGraphTimeParams;
+    std::vector<double> gasGraphTimeOffsets;
     double gasGraphDt = -1;
     int gasGraphMode = -1;
     int particleBlockThreads = 128;
@@ -288,6 +297,20 @@ struct DeviceState
     double* planeNy = nullptr;
     double* planeNz = nullptr;
     double* planeD = nullptr;
+
+#ifdef UGKWP_STEADY_APPLICATION
+    // Allocated only by the steady application; transient ABI calls retain null.
+    double* gasPseudoDt = nullptr;
+    double gasPseudoReferenceDt = 1.0;
+    bool gasSteadyMode = false;
+    bool gasSteadyBoundaryFrozen = false;
+    double *steadySampleSum=nullptr,*steadySampleSquare=nullptr;
+    double *steadySampleMean=nullptr,*steadySampleBegin=nullptr;
+    double *steadySampleScratch=nullptr,*steadyBoundaryBudget=nullptr;
+    double gasSteadyBoundaryTime = 0.0;
+    double* gasSteadyResidual = nullptr;
+
+#endif
 
     double* rho = nullptr;
     double* rhoUx = nullptr;
@@ -537,6 +560,8 @@ struct DeviceState
     int* preInjectionHeavyCellTaskCount = nullptr;
     double* preInjectionHeavyPartials = nullptr;
 
+    bool particleInjectionVelocitySpecified = false;
+    double particleInjectionVelocity[3]{};
     int nBoundarySources = 0;
     int* sourceCell = nullptr;
     int* sourceFace = nullptr;
@@ -963,7 +988,7 @@ void scrubHostCalculationScalars(DeviceState* s)
     s->particleDiameterFallback = 0.0;
     s->particleDiameterMin = 0.0;
     s->particleDiameterMax = 0.0;
-    s->particleDiameterSigma = 0.0;
+    s->particleDiameterN = 1.0;
     s->injectionTheta = 0.0;
     s->rhoMin = 0.0;
     s->TgasMin = 0.0;
@@ -976,7 +1001,7 @@ void scrubHostCalculationScalars(DeviceState* s)
 #include "SharedGasStorage.cuh"
 #include "BoundaryLayerStorage.cuh"
 
-int releaseSharedGasTrialStorage(SharedGasTrialStorage& storage);
+
 
 void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=nullptr)
 {
@@ -1028,6 +1053,13 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->particleCountDevice);
 #ifdef UGKP_DEVELOPMENT_PROBES
     release(s->diagnosticPreTransportParticleCount);
+#endif
+#ifdef UGKWP_STEADY_APPLICATION
+    release(s->steadySampleSum);release(s->steadySampleSquare);
+    release(s->steadySampleMean);release(s->steadySampleBegin);
+    release(s->steadySampleScratch);release(s->steadyBoundaryBudget);
+    release(s->gasPseudoDt);
+    release(s->gasSteadyResidual);
 #endif
     release(s->rho);
     release(s->rhoUx);
@@ -1290,7 +1322,9 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
         s->diagnosticOwner->dispatchPending();
         if(finalDiagnostics)s->diagnosticOwner->finish(*finalDiagnostics);
     }
+    delete s->gasBoundaryOwner;
     delete s->diagnosticOwner;
+    delete s->gasTransportOwner;
     delete s;
 }
 
@@ -1848,7 +1882,12 @@ int applyGasGravitySource
     const bool nativeRefinement=false
 )
 {
-    if (!s->hostGravityActive)
+    // Steady gravity is an unsplit old-state RHS in each shared RK substage.
+    if (!s->hostGravityActive
+#ifdef UGKWP_STEADY_APPLICATION
+        || s->gasSteadyMode
+#endif
+    )
     {
         return 0;
     }
@@ -1970,156 +2009,7 @@ __global__ void accumulateCollisionalPressureKickByCellKernel
 #include "GpuPressureLimiter.cuh"
 
 
-#include "GpuPressureParticleUpdate.cuh"
-template<bool CompactParticles = false>
-__device__ inline void applyCollisionalPressureProjectionOneParticle
-(
-    DeviceState& s,
-    const int i,
-    const int c,
-    const double ux0,
-    const double uy0,
-    const double uz0,
-    const double ux1,
-    const double uy1,
-    const double uz1,
-    const double theta1,
-    const bool resolved,
-    const double thermalScale,
-    const double thetaScale
-)
-{
-    if
-    (
-        i < 0
-     || i >= s.particleCapacity
-     || (CompactParticles ? s.compactPStatus : s.pStatus)[i] == 0
-     || (CompactParticles ? s.compactPCellId : s.pCellId)[i] != c
-    )
-    {
-        return;
-    }
-    updateMobilePressureParticle<CompactParticles>
-        (s,i,ux0,uy0,uz0,ux1,uy1,uz1,theta1,thermalScale,thetaScale,resolved);
-}
-
-__device__ PressureProjectionCell preparePressureProjectionCell
-(DeviceState& s, const int c, const double kickDt)
-{
-    PressureProjectionCell projection{};
-    double scaledDelta[4];
-
-    accumulatePressureFaceDelta(s,c,kickDt,
-        scaledDelta[0],scaledDelta[1],scaledDelta[2],scaledDelta[3]);
-        s.pressureDeltaMomX[c] = scaledDelta[0];
-        s.pressureDeltaMomY[c] = scaledDelta[1];
-        s.pressureDeltaMomZ[c] = scaledDelta[2];
-        s.pressureDeltaEnergy[c] = scaledDelta[3];
-
-
-
-    projection.active = false;
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
-    if (rhoP <= s.epsSMin*s.rhoSolid)
-    {
-        return projection;
-    }
-    const double px0 = finiteOr(s.momRhoUPx[c], 0.0);
-    const double py0 = finiteOr(s.momRhoUPy[c], 0.0);
-    const double pz0 = finiteOr(s.momRhoUPz[c], 0.0);
-    const double e0 = clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0);
-    const double px1 = px0 + scaledDelta[0];
-    const double py1 = py0 + scaledDelta[1];
-    const double pz1 = pz0 + scaledDelta[2];
-    const double e1 = e0 + scaledDelta[3];
-    const double ux0 = px0/rhoP;
-    const double uy0 = py0/rhoP;
-    const double uz0 = pz0/rhoP;
-    const double ux1 = px1/rhoP;
-    const double uy1 = py1/rhoP;
-    const double uz1 = pz1/rhoP;
-    const double theta0 =
-        clampMin(pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)/(1.5*rhoP), 0.0);
-    const double theta1 =
-        clampMin(pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(1.5*rhoP), 0.0);
-    const bool resolved = theta0 > 10.0*s.thetaMin;
-    const double thermalScale =
-        resolved ? sqrt(clampMin(theta1/theta0, 0.0)) : 0.0;
-    const double thetaScale = resolved ? thermalScale*thermalScale : 0.0;
-
-
-    projection =
-        {ux0, uy0, uz0, ux1, uy1, uz1, theta1, thermalScale, thetaScale, true, resolved};
-
-    publishPressureCellState(s,c,rhoP,px1,py1,pz1,e1,theta1);
-
-    // The atomic path historically publishes the cell update, then reads it
-    // back and reconstructs the old state. Preserve its rounding and clamps:
-    // (e0 + de) - de is not equivalent to e0 near the resolved-theta threshold.
-    if (!s.csrCellLocalPathEnabled)
-    {
-        const double ax1 = finiteOr(px1, 0.0);
-        const double ay1 = finiteOr(py1, 0.0);
-        const double az1 = finiteOr(pz1, 0.0);
-        const double ae1 = clampMin(finiteOr(e1, 0.0), 0.0);
-        const UnsortedPressureKinematics recovered = recoverUnsortedPressureKinematics
-        (
-            rhoP,ax1,ay1,az1,ae1,scaledDelta[0],scaledDelta[1],
-            scaledDelta[2],scaledDelta[3],s.thetaMin
-        );
-        projection =
-        {
-            recovered.ux0,recovered.uy0,recovered.uz0,
-            recovered.ux1,recovered.uy1,recovered.uz1,
-            recovered.theta1,recovered.thermalScale,recovered.thetaScale,
-            true,recovered.resolved
-        };
-    }
-    return projection;
-}
-
-#include "GpuPressureCellTraversal.cuh"
-#include "GpuPressureAnalyticAdapter.cuh"
-template<bool SplitDirectory, bool CompactParticles = false>
-__global__ void applyCollisionalPressureProjectionKernel(DeviceState* sp,const double dt)
-{
-    runCellPressureProjection<AnalyticPressureOperation,
-        SplitDirectory?PressureDirectory::Split:PressureDirectory::Full,CompactParticles>(sp,dt);
-}
-
-__global__ void preparePressureProjectionCacheKernel
-(DeviceState* sp, const double kickDt)
-{
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
-    if (c < s.nCells)
-        s.pressureProjectionCache[c] = preparePressureProjectionCell(s, c, kickDt);
-}
-
-__global__ void applyCachedPressureProjectionParticlesKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int nParticles = clampRange(*s.particleCountDevice, 0, s.particleCapacity);
-    for (int i = blockIdx.x*blockDim.x + threadIdx.x; i < nParticles; i += blockDim.x*gridDim.x)
-    {
-        if (s.pStatus[i] == 0) continue;
-        const int c = s.pCellId[i];
-        if (c < 0 || c >= s.nCells) continue;
-        const PressureProjectionCell q = s.pressureProjectionCache[c];
-        if (!q.active) continue;
-        applyCollisionalPressureProjectionOneParticle(s, i, c,
-            q.ux0, q.uy0, q.uz0, q.ux1, q.uy1, q.uz1, q.theta1,
-            q.resolved, q.thermalScale, q.thetaScale);
-    }
-}
-
-
-                                                                               
-                                                                            
-                                                                    
-
-
-
+#include "GpuPressureAnalyticPhysics.cuh"
 
 #include "GpuPressureAnalyticLaunch.cuh"
 #include "GpuPressurePipeline.cuh"
@@ -2152,73 +2042,13 @@ constexpr double mobilePackingJacobiOmega = 0.8;
 #include "ConservativeWallProjection.cuh"
 #include "../../../common/GpuGasHostPolicy.cuh"
 
-namespace
-{
-// Define the callback in the same internal namespace as its forward declaration.
-template<bool Capture> int launchBoundaryLayer(DeviceState* s)
-{
-        const bool analytic=s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::ConstantTransport;
-        const int workers=analytic?s->gasBoundaryLayer.count:s->gasBoundaryLayerModel.workspaceCount,block=32;
-        if(workers<=0){setLastErrorText("boundaryLayer scratch pool is empty");return 1;}
-        if(analytic)
-            evaluateGasBoundaryLayerKernel<Capture><<<(workers+block-1)/block,block,0,s->gasCaptureStream>>>(s->deviceState);
-        else if(s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::EquilibriumOde
-            &&s->gasBoundaryLayerModel.config.nodes==8&&s->gasBoundaryLayerModel.workspaceCapacity==24
-            &&!s->gasBoundaryLayerModel.conservative.enabled)
-            evaluateGasBoundaryLayerTile8Kernel<Capture><<<(workers+3)/4,32,0,s->gasCaptureStream>>>(s->deviceState);
-        else
-        {
-#define LAUNCH_WALL_CAPACITY(N) case N: evaluateGasBoundaryLayerTeamKernel<Capture,N><<<workers,ugkwp::gaswall::detail::wallWarpWidth,0,s->gasCaptureStream>>>(s->deviceState);break
-            switch(s->gasBoundaryLayerModel.workspaceCapacity)
-            {
-                LAUNCH_WALL_CAPACITY(24);
-                LAUNCH_WALL_CAPACITY(48);
-                LAUNCH_WALL_CAPACITY(128);
-                default:evaluateGasBoundaryLayerTeamKernel<Capture><<<workers,ugkwp::gaswall::detail::wallWarpWidth,0,s->gasCaptureStream>>>(s->deviceState);
-            }
-#undef LAUNCH_WALL_CAPACITY
-        }
-        const auto error=cudaGetLastError();
-        if(error!=cudaSuccess){setLastError("prepare sparse boundaryLayer profiles",error);return 1;}
-        if(s->gasBoundaryLayerModel.conservative.enabled){
-#define RECONSTRUCT_WALL_CAPACITY(N) case N: reconstructConservativeWallPool<N><<<workers,32,0,s->gasCaptureStream>>>(s->deviceState);break
-            switch(s->gasBoundaryLayerModel.workspaceCapacity){RECONSTRUCT_WALL_CAPACITY(24);RECONSTRUCT_WALL_CAPACITY(48);RECONSTRUCT_WALL_CAPACITY(128);}
-#undef RECONSTRUCT_WALL_CAPACITY
-            const auto reconstructionError=cudaGetLastError();if(reconstructionError!=cudaSuccess){setLastError("reconstruct conservative wall profiles",reconstructionError);return 1;}
-        }
-        return 0;
-}
-} // namespace
-
-struct GasHostPolicy:GasHostWithoutWallEnergy<double,double>
-{
-    template<class HostState> static int applyFaceSources(HostState*s,double,double){
-        if(!s->gasBoundaryLayerModel.conservative.enabled)return 0;
-        if(prepareConservativeProjection(s))return 1;
-        int b=s->fixedFaceBlockThreads;assembleConservativeWallFlux<<<(s->nFaces+b-1)/b,b,0,s->gasCaptureStream>>>(s->deviceState);
-        auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("assemble conservative wall flux",error);return 1;}return 0;
-    }
-    template<class HostState> static int applySstFaceSources(HostState*s,double dt){
-        if(!s->gasBoundaryLayerModel.conservative.enabled)return 0;
-        int b=s->fixedFaceBlockThreads;
-        int cb=s->fixedCellBlockThreads;conservativeKFluxBudget<<<(s->nCells+cb-1)/cb,cb,0,s->gasCaptureStream>>>(s->deviceState,dt);
-        applyConservativeKFluxBudget<<<(s->nFaces+b-1)/b,b,0,s->gasCaptureStream>>>(s->deviceState);
-        auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("assemble conservative wall SST flux",error);return 1;}return 0;
-    }
-
-    template<class HostState> static int prepareBoundaryLayer(HostState* s,double,double stageTime)
-    {
-        if(!s->gasBoundaryLayer.enabled)return 0;
-        s->gasBoundaryLayerStageTime=stageTime;
-        if(s->gasBoundaryLayerModel.conservative.enabled){
-            int block=s->fixedCellBlockThreads,grid=(s->nCells+block-1)/block;
-            computeGasGradientLimiterKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
-            computeSstGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
-            prepareConservativeWallMatching<<<(s->gasBoundaryLayer.count+63)/64,64,0,s->gasCaptureStream>>>(s->deviceState);
-        }
-        return s->gasBoundaryLayerLaunch(s);
-    }
-};
+#include "gasTransport/ResidentWallLaunch.inl"
+#ifdef UGKWP_STEADY_APPLICATION
+#include "../../gasUGKPSteady/private_backend/SteadyParticleStatistics.cuh"
+using GasHostPolicy=ResidentWallGasHostPolicy<GasHostWithWallEnergy<double,double,auditSteadyGasBoundaryFlux>>;
+#else
+using GasHostPolicy=ResidentWallGasHostPolicy<GasHostWithoutWallEnergy<double,double>>;
+#endif
 #include "../../../common/GpuMobilePackingHost.cuh"
 
 #include "operators/granularCollisionTauFromCellDevice.cuh"
@@ -2269,7 +2099,7 @@ __device__ void relaxOneParticleToResidentGas(DeviceState& s, const int i, const
             finiteOr(s.pd[i], s.particleDiameterFallback),
             1.0e-12
         );
-    const double mu = clampMin(s.gasMu, 1.0e-30);
+    const double mu = clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]), 1.0e-30);
     const ugkwpGpuDrag::DragInput dragInput =
     {
         rhoG,
@@ -2311,7 +2141,7 @@ __device__ void relaxOneParticleToResidentGas(DeviceState& s, const int i, const
         const double tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
         const double tgOld = clampRange(finiteOr(s.couplingTgasOld[c], s.TgasMin), s.TgasMin, 1.0e30);
         s.pT[i] = particleTemperatureAfterGasRelaxation
-            (s, tpOld, tgOld, re, dPart, s.particleThermalCapacity, dt);
+            (s, c, tpOld, tgOld, re, dPart, s.particleThermalCapacity, dt);
     }
 }
 
@@ -2329,6 +2159,30 @@ __global__ void relaxParticlesToResidentGasKernel(DeviceState* sp, const double 
     {
         relaxOneParticleToResidentGas<DragModel>(s, i, dt);
     }
+}
+
+#include "../../../common/gasTransport/MixtureParticleCoupling.cuh"
+int binParticlesByCell(DeviceState*,const int,const bool);
+int launchMixtureParticleCoupling(DeviceState* s,double dt)
+{
+    // Atomic moment mode still owns the standard indexing allocations. Build
+    // the existing full directory here instead of scanning the entire parcel
+    // population for every cell in the new paired source.
+    if(s->csrCellLocalPathEnabled==0 && binParticlesByCell(s,s->reductionBlockThreads,false))return 1;
+    cudaError_t err=cudaSuccess;
+    const bool dragActive=gasDragModelActive(s->hostDragModel);
+    if(s->hostDragModel==1)
+        err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag>
+            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0);
+    else
+        err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::SchillerNaumannDeviceDrag>
+            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0);
+    if(err!=cudaSuccess){setLastError("paired mixture/particle source",err);return 1;}
+    if(s->particleWorkGrid>0)
+        mixtureParticleExternalKickKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,dt);
+    err=cudaGetLastError();
+    if(err!=cudaSuccess){setLastError("external particle force",err);return 1;}
+    return 0;
 }
 
 int launchParticleDragRelaxation
@@ -3864,7 +3718,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     double particleDiameterFallback,
     double particleDiameterMin,
     double particleDiameterMax,
-    double particleDiameterSigma,
+    double particleDiameterN,
     double injectionTheta,
     double rhoMin,
     double TgasMin,
@@ -3951,7 +3805,14 @@ extern "C" int ugkwpGpuResidentStrictCreate
             stackBytes, bytes);
     }
 
+    if (particleDiameterMax > particleDiameterMin
+        && !(std::isfinite(particleDiameterN) && particleDiameterN > 0))
+    {
+        setLastErrorText("RR diameter shape dn must be finite and positive");
+        return 1;
+    }
     DeviceState* s = new DeviceState;
+    s->particleTrackingKernel = reinterpret_cast<const void*>(trackParticlesLocalFaceWalkKernel<true>);
     s->diagnosticOwner = new ugkp::diagnostics::GpuOwner;
     const auto diagnosticAllocation=s->diagnosticOwner->initialise();
     if(diagnosticAllocation!=cudaSuccess) {
@@ -4026,7 +3887,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->particleDiameterFallback = particleDiameterFallback;
     s->particleDiameterMin = particleDiameterMin;
     s->particleDiameterMax = particleDiameterMax;
-    s->particleDiameterSigma = particleDiameterSigma;
+    s->particleDiameterN = particleDiameterN;
     s->injectionTheta = injectionTheta;
     s->rhoMin = rhoMin;
     s->TgasMin = TgasMin;
@@ -4187,6 +4048,8 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     rc |= copyToDevice(s->planeD, planeD, nPlanes, "cudaMemcpy strict planeD");
     return rc == 0 ? 0 : 1;
 }
+
+#include "GpuParticleInjectionVelocityConfiguration.cuh"
 
 extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 (
@@ -4569,89 +4432,7 @@ extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
     );
 }
 
-extern "C" int ugkwpGpuResidentStrictUploadGasBoundaryFields
-(
-    void* handle,
-    const int* gasBoundaryKind,
-    const int* gasBoundaryRhoFix,
-    const int* gasBoundaryUFix,
-    const int* gasBoundaryPFix,
-    const int* gasBoundaryTFix,
-    const int* gasBoundaryPWave,
-    const double* gasBoundaryPWaveGamma,
-    const double* gasBoundaryPWaveFieldInf,
-    const double* gasBoundaryPWaveLInf,
-    const double* gasBoundaryRho,
-    const double* gasBoundaryUx,
-    const double* gasBoundaryUy,
-    const double* gasBoundaryUz,
-    const double* gasBoundaryP,
-    const double* gasBoundaryT
-)
-{
-    DeviceState* s = asState(handle);
-    if (validateState(s, "gas boundary upload") != 0)
-    {
-        return 1;
-    }
-
-    if
-    (
-        gasBoundaryKind == nullptr
-     || gasBoundaryRhoFix == nullptr
-     || gasBoundaryUFix == nullptr
-     || gasBoundaryPFix == nullptr
-     || gasBoundaryTFix == nullptr
-     || gasBoundaryPWave == nullptr
-     || gasBoundaryPWaveGamma == nullptr
-     || gasBoundaryPWaveFieldInf == nullptr
-     || gasBoundaryPWaveLInf == nullptr
-     || gasBoundaryRho == nullptr
-     || gasBoundaryUx == nullptr
-     || gasBoundaryUy == nullptr
-     || gasBoundaryUz == nullptr
-     || gasBoundaryP == nullptr
-     || gasBoundaryT == nullptr
-    )
-    {
-        setLastErrorText("null GPU resident gas boundary array");
-        return 1;
-    }
-
-    const size_t nf = static_cast<size_t>(s->nFaces);
-    int rc = 0;
-    rc |= copyToDevice(s->gasBoundaryKind, gasBoundaryKind, nf, "cudaMemcpy strict gasBoundaryKind");
-    rc |= copyToDevice(s->gasBoundaryRhoFix, gasBoundaryRhoFix, nf, "cudaMemcpy strict gasBoundaryRhoFix");
-    rc |= copyToDevice(s->gasBoundaryUFix, gasBoundaryUFix, nf, "cudaMemcpy strict gasBoundaryUFix");
-    rc |= copyToDevice(s->gasBoundaryPFix, gasBoundaryPFix, nf, "cudaMemcpy strict gasBoundaryPFix");
-    rc |= copyToDevice(s->gasBoundaryTFix, gasBoundaryTFix, nf, "cudaMemcpy strict gasBoundaryTFix");
-    rc |= copyToDevice(s->gasBoundaryPWave, gasBoundaryPWave, nf, "cudaMemcpy strict gasBoundaryPWave");
-    rc |= copyToDevice(s->gasBoundaryPWaveGamma, gasBoundaryPWaveGamma, nf, "cudaMemcpy strict gasBoundaryPWaveGamma");
-    rc |= copyToDevice(s->gasBoundaryPWaveFieldInf, gasBoundaryPWaveFieldInf, nf, "cudaMemcpy strict gasBoundaryPWaveFieldInf");
-    rc |= copyToDevice(s->gasBoundaryPWaveLInf, gasBoundaryPWaveLInf, nf, "cudaMemcpy strict gasBoundaryPWaveLInf");
-    rc |= copyToDevice(s->gasBoundaryRho, gasBoundaryRho, nf, "cudaMemcpy strict gasBoundaryRho");
-    rc |= copyToDevice(s->gasBoundaryUx, gasBoundaryUx, nf, "cudaMemcpy strict gasBoundaryUx");
-    rc |= copyToDevice(s->gasBoundaryUy, gasBoundaryUy, nf, "cudaMemcpy strict gasBoundaryUy");
-    rc |= copyToDevice(s->gasBoundaryUz, gasBoundaryUz, nf, "cudaMemcpy strict gasBoundaryUz");
-    rc |= copyToDevice(s->gasBoundaryP, gasBoundaryP, nf, "cudaMemcpy strict gasBoundaryP");
-    rc |= copyToDevice(s->gasBoundaryT, gasBoundaryT, nf, "cudaMemcpy strict gasBoundaryT");
-    rc |= copyToDevice(s->riemannBoundaryKind, gasBoundaryKind, nf, "cudaMemcpy strict riemannBoundaryKind");
-    rc |= copyToDevice(s->riemannBoundaryRhoFix, gasBoundaryRhoFix, nf, "cudaMemcpy strict riemannBoundaryRhoFix");
-    rc |= copyToDevice(s->riemannBoundaryUFix, gasBoundaryUFix, nf, "cudaMemcpy strict riemannBoundaryUFix");
-    rc |= copyToDevice(s->riemannBoundaryPFix, gasBoundaryPFix, nf, "cudaMemcpy strict riemannBoundaryPFix");
-    rc |= copyToDevice(s->riemannBoundaryTFix, gasBoundaryTFix, nf, "cudaMemcpy strict riemannBoundaryTFix");
-    rc |= copyToDevice(s->riemannBoundaryPWave, gasBoundaryPWave, nf, "cudaMemcpy strict riemannBoundaryPWave");
-    rc |= copyToDevice(s->riemannBoundaryPWaveGamma, gasBoundaryPWaveGamma, nf, "cudaMemcpy strict riemannBoundaryPWaveGamma");
-    rc |= copyToDevice(s->riemannBoundaryPWaveFieldInf, gasBoundaryPWaveFieldInf, nf, "cudaMemcpy strict riemannBoundaryPWaveFieldInf");
-    rc |= copyToDevice(s->riemannBoundaryPWaveLInf, gasBoundaryPWaveLInf, nf, "cudaMemcpy strict riemannBoundaryPWaveLInf");
-    rc |= copyToDevice(s->riemannBoundaryRho, gasBoundaryRho, nf, "cudaMemcpy strict riemannBoundaryRho");
-    rc |= copyToDevice(s->riemannBoundaryUx, gasBoundaryUx, nf, "cudaMemcpy strict riemannBoundaryUx");
-    rc |= copyToDevice(s->riemannBoundaryUy, gasBoundaryUy, nf, "cudaMemcpy strict riemannBoundaryUy");
-    rc |= copyToDevice(s->riemannBoundaryUz, gasBoundaryUz, nf, "cudaMemcpy strict riemannBoundaryUz");
-    rc |= copyToDevice(s->riemannBoundaryP, gasBoundaryP, nf, "cudaMemcpy strict riemannBoundaryP");
-    rc |= copyToDevice(s->riemannBoundaryT, gasBoundaryT, nf, "cudaMemcpy strict riemannBoundaryT");
-    return rc == 0 ? 0 : 1;
-}
+#include "gasBoundary/BackendApi.inl"
 
 extern "C" int ugkwpGpuResidentStrictUploadFields
 (
@@ -4941,7 +4722,11 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
     DeviceState* s=asState(handle);
     if(validateState(s,"compute gas Courant"))return 1;
     if(!maxCo){setLastErrorText("null gas Courant output");return 1;}
-    if(s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy
+    if(
+#ifdef UGKWP_STEADY_APPLICATION
+        !s->gasSteadyBoundaryFrozen &&
+#endif
+        s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy
         && tuneFixedWorkBlockThreads(s,dt,scheduleTime))return 1;
     GasCourantMaxima result;
     const auto maximum=[](const double* acoustic,int count,cudaStream_t stream,double& value)
@@ -4985,12 +4770,17 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     double simulationTime
 )
 {
+    // Legacy/particle callers pass the committed interval end. Transport RK
+    // stages start at simulationTime-dt; injection and publication retain the end.
+    // A pure-mixture requested interval has its own start-time adapter below.
     DeviceState* s = asState(handle);
     if (validateState(s, "advance") != 0)
     {
         return 1;
     }
-    if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)
+    if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy
+        && !(s->gasSpecies.mode==ugkwp::GasMode::MixtureFrozen && s->particlesMayBePresent)
+    )
     {
 
 
@@ -4999,7 +4789,12 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         {setLastErrorText("selected mixture particle thermal and void-fraction coupling has no implementation");return 1;}
         return ugkwpGpuResidentStrictAdvanceGasOnly(handle,dt,simulationTime);
     }
-    if (tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
+    if (
+#ifdef UGKWP_STEADY_APPLICATION
+        !s->gasSteadyBoundaryFrozen &&
+#endif
+        s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy
+        && tuneFixedWorkBlockThreads(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -5012,7 +4807,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     }
     if (s->gasSpecies.mode == ugkwp::GasMode::SingleLegacy
         && s->gasGraphMode && !s->particlesMayBePresent && !s->hostGravityActive)
-        return advancePureGasGraph(s, dt, simulationTime);
+        return advancePureGasGraph(s, dt, simulationTime-dt);
 #endif
 
     const int block = s->reductionBlockThreads;
@@ -5044,7 +4839,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 #endif
 
     UGKP_DEV_PROBE_ENTER(ProbeGasFlux);
-    if (advanceGasFluxStage(s, dt, simulationTime) != 0)
+    if (advanceGasFluxStage(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -5060,6 +4855,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 
     const bool skipParticlePath = !s->particlesMayBePresent;
     const bool dragActive = gasDragModelActive(s->hostDragModel);
+    const bool pairedMixture=s->gasSpecies.mode==ugkwp::GasMode::MixtureFrozen && !skipParticlePath;
 
     if (!skipParticlePath)
     {
@@ -5083,7 +4879,12 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
 
-    if (dragActive)
+    if(pairedMixture)
+    {
+        computePressureGradientKernel<<<grid,block>>>(s->deviceState);
+        snapshotParticleGasCouplingStateKernel<<<grid,block>>>(s->deviceState);
+    }
+    if (dragActive && !pairedMixture)
     {
     computePressureGradientKernel<<<grid, block>>>(s->deviceState);
     err = cudaGetLastError();
@@ -5105,7 +4906,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
     }
-    else if (s->particleGasHeatTransferModelId != 0)
+    else if (s->particleGasHeatTransferModelId != 0 && !pairedMixture)
     {
         snapshotParticleGasCouplingStateKernel<<<grid, block>>>
         (
@@ -5122,7 +4923,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             return 1;
         }
     }
-    if (s->particleGasHeatTransferModelId != 0)
+    if (s->particleGasHeatTransferModelId != 0 && !pairedMixture)
     {
     applyEulerianParticleMaterialHeatKernel<<<grid, block>>>(s->deviceState, dt);
     err = cudaGetLastError();
@@ -5145,6 +4946,9 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 
     UGKP_DEV_PROBE_ENTER(ProbeInjection);
     const bool runInjection = s->nBoundarySources > 0;
+#ifdef UGKWP_STEADY_APPLICATION
+    if(auditSteadyParcelInventory(s,GpuSteadySamplingReport::gasFluxFields,-1))return 1;
+#endif
     if (runInjection)
     {
         const int sourceGrid =
@@ -5160,6 +4964,9 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             return 1;
         }
     }
+#ifdef UGKWP_STEADY_APPLICATION
+    if(auditSteadyParcelInventory(s,GpuSteadySamplingReport::gasFluxFields,1))return 1;
+#endif
     UGKP_DEV_PROBE_LEAVE_IF(ProbeInjection, runInjection);
 
 
@@ -5321,6 +5128,11 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_LEAVE(ProbeCollisionPool);
 
     UGKP_DEV_PROBE_ENTER(ProbeRelax);
+    if(pairedMixture)
+    {
+        if(launchMixtureParticleCoupling(s,dt))return 1;
+    }
+    else
     if
     (
         particleGrid > 0
@@ -5355,17 +5167,21 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_LEAVE(ProbePressurePre);
 
     UGKP_DEV_PROBE_ENTER(ProbeTrack);
+#ifdef UGKWP_STEADY_APPLICATION
+    if(auditSteadyParcelInventory(s,GpuSteadySamplingReport::gasFluxFields+6,-1))return 1;
+#endif
     if (particleGrid > 0)
     {
-        trackParticlesLocalFaceWalkKernel
-            <<<s->trackingWorkGrid, s->particleBlockThreads>>>(s->deviceState, dt);
-        err = cudaGetLastError();
+        err = launchParticleTracking(s, dt);
         if (err != cudaSuccess)
         {
             setLastError("trackParticlesLocalFaceWalkKernel launch", err);
             return 1;
         }
     }
+#ifdef UGKWP_STEADY_APPLICATION
+    if(auditSteadyParcelInventory(s,GpuSteadySamplingReport::gasFluxFields+6,1))return 1;
+#endif
     UGKP_DEV_PROBE_LEAVE(ProbeTrack);
 
     UGKP_DEV_PROBE_ENTER(ProbeBinPost);
@@ -5537,6 +5353,9 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 #undef UGKP_DEV_PROBE_ENTER
 #undef UGKP_DEV_PROBE_LEAVE
 
+    // Both physical-time drivers consume the same completed transaction before
+    // accepting a sample or writing transient fields/restart data.
+    if(pairedMixture)return SharedGasTrialPolicy::complete(s);
     return 0;
 }
 
@@ -5548,13 +5367,20 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
     double simulationTime
 )
 {
+    // Legacy/particle callers pass the committed interval end. Transport RK
+    // stages start at simulationTime-dt; injection and publication retain the end.
+    // A pure-mixture requested interval has its own start-time adapter below.
     DeviceState* s = asState(handle);
     if (validateState(s, "pure-gas advance") != 0)
     {
         return 1;
     }
-    if (s->gasSpecies.mode == ugkwp::GasMode::SingleLegacy
-        && tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
+    if (
+#ifdef UGKWP_STEADY_APPLICATION
+        !s->gasSteadyBoundaryFrozen &&
+#endif
+        s->gasSpecies.mode == ugkwp::GasMode::SingleLegacy
+        && tuneFixedWorkBlockThreads(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -5580,12 +5406,12 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
         s->gasGraphMode = !value || std::strcmp(value, "1") == 0;
     }
     if (s->gasGraphMode && !s->particlesMayBePresent && !s->hostGravityActive)
-        return advancePureGasGraph(s, dt, simulationTime);
+        return advancePureGasGraph(s, dt, simulationTime-dt);
 #endif
 
     if
     (
-        advanceGasFluxStage(s, dt, simulationTime) != 0
+        advanceGasFluxStage(s, dt, simulationTime-dt) != 0
     )
     {
         return 1;
@@ -5712,13 +5538,29 @@ extern "C" int ugkwpGpuResidentStrictUploadEpsGPrev
     }
 
     const size_t n = static_cast<size_t>(s->nCells);
-    return copyToDevice
+    const int rc = copyToDevice
     (
         s->epsGPrev,
         epsGPrev,
         n,
         "cudaMemcpy strict epsGPrev upload"
     );
+    if (rc != 0)
+    {
+        return rc;
+    }
+    // Tracking can remove the last parcel after porosity sources have run.
+    // Its checkpoint still owes the next step a phase-volume correction.
+    // Restore the sticky coupled-path flag without changing that history.
+    for (size_t cell = 0; cell < n; ++cell)
+    {
+        if (epsGPrev[cell] != 1.0)
+        {
+            s->particlesMayBePresent = true;
+            break;
+        }
+    }
+    return 0;
 }
 
 extern "C" int ugkwpGpuResidentStrictDownloadGasBoundaryFields
@@ -6038,3 +5880,13 @@ extern "C" int ugkwpGpuResidentStrictSetDiagnosticOperation(void* handle,std::ui
     if(rc!=cudaSuccess){setLastError("begin diagnostic metadata",rc);return 1;}
     return 0;
 }
+
+#include "gasTransport/MolecularTransportResident.inl"
+
+#ifdef UGKWP_STEADY_APPLICATION
+#include "../../gasUGKPSteady/private_backend/SteadyGasDriver.cuh"
+#endif
+
+#ifdef UGKWP_STEADY_APPLICATION
+#include "../../gasUGKPSteady/private_backend/SteadyParticleDriver.cuh"
+#endif

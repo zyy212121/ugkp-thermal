@@ -6,6 +6,7 @@
 #include "../../../common/gasTransport/GasNumericsIO.H"
 #include "../../../common/gasTransport/GasMechanismIO.H"
 #include "OStringStream.H"
+#include "../../../common/gasTransport/FoamMolecularTransportIO.H"
 #include <memory>
 namespace chmt { namespace io {
 struct CoupledCaseInput {
@@ -26,6 +27,9 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     Foam::OStringStream expanded;expanded.precision(std::numeric_limits<double>::max_digits10);
     gasProperties.Foam::dictionary::write(expanded,false);
     candidate.gasModel=ugkwp::parseGasModelProperties(expanded.str());
+    if(candidate.gasModel.mode!=ugkwp::GasMode::MixtureFrozen)
+        throw std::runtime_error("CHMT requires frozen multicomponent gas; volumetric chemistry and single-component modes are not application capabilities. Surface reactions and pyrolysis remain available.");
+
     if(candidate.gasModel.mode==ugkwp::GasMode::SingleLegacy){
         Foam::IOdictionary metadata(Foam::IOobject("materialGasProperties",time.constant(),time,
             Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
@@ -35,6 +39,30 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
             candidate.gasModel.mode=ugkwp::GasMode::SingleLegacy;
     }
     candidate.model=readModel(d,candidate.gasModel);
+    {
+        auto names=candidate.gasModel.speciesNames;
+        if(candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy)
+            names={candidate.model.speciesNames[candidate.model.physics.singleGasSpecies]};
+        const auto transport=Foam::readFoamMolecularTransport(time,time,
+            candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy?std::vector<std::string>{}:names);
+        if(candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy&&!transport.speciesNames.empty()&&transport.speciesNames!=names)
+            throw std::runtime_error("molecular transport species must match the active legacy gas");
+        auto masses=candidate.gasModel.species;
+        if(candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy)
+            masses={masses[candidate.model.physics.singleGasSpecies]};
+        ugkwp::validateTransportMolarMasses(transport,masses);
+        auto& p=candidate.model.physics;
+        p.gasViscosityModel=transport.model;p.gasTransportFingerprint=transport.hash;
+        p.gasViscositySpecies=int(transport.species.size());
+        p.gasTransportCoefficients=transport.coefficients;
+        p.gasPowerLawEnabled=!transport.diffusion.empty();
+        for(std::size_t j=0;j<transport.diffusion.size();++j)p.gasPowerLaw[j]=transport.diffusion[j];
+        if(p.gasViscositySpecies>Ns)throw std::runtime_error("transport species exceed CHMT species count");
+        for(int s=0;s<p.gasViscositySpecies;++s)p.gasSutherland[s]=transport.species[s];
+        for(std::size_t i=0;i<transport.massRatioQuarter.size();++i){
+            p.gasMassRatioQuarter[i]=transport.massRatioQuarter[i];p.gasWilkeDenominator[i]=transport.wilkeDenominator[i];
+        }
+    }
     if(candidate.gasModel.mode==ugkwp::GasMode::MixtureChemistry){
         const auto mechanism=ugkwp::resolveGasMechanismPath(candidate.gasModel,std::string(time.path()/time.constant()));
         candidate.gasMechanism=ugkwp::readGasMechanismProperties<Ns>(mechanism,
@@ -53,6 +81,7 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     auto surface=importSurface(*candidate.solidMesh,state.solidMesh,d.subDict("surface"));
     state.surface=surface.mesh;initializeDryInterfaceAux(state);
     attachCoupledSurface(*candidate.gasMesh,d,state);
+    importParticles(d,candidate.model,state);
     std::string error;
     require(validateRuntimeState(candidate.model,state,error),error);
     const Real dt=time.controlDict().lookup<Foam::scalar>("deltaT");

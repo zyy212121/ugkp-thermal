@@ -1,0 +1,43 @@
+{
+  "method": "Serial host execution of original production headers and sampling kernels; not native CUDA",
+  "compile_command": [
+    "g++",
+    "-std=c++17",
+    "-O2",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/common",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/common/gasNumerics",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/steady-pr-review/stacked/validation/tests/gas_transport",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/pr28-heat-failure-fixed-probe/probe.cpp",
+    "-o",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/pr28-heat-failure-fixed-probe/result/heat-failure-probe"
+  ],
+  "compile_exit": 0,
+  "compile_stdout": "",
+  "compile_stderr": "",
+  "run_exit": 0,
+  "stdout": "{\"samplingReportFinite\":true,\"samplingEnergyInventoryChange\":0,\"completionSnapshotHasFatal\":true,\"completionSnapshotWarnings\":0,\"analyticRoot\":6571.7863904647202,\"gasMaximumTemperature\":3000,\"alpha\":0.99925341419162328,\"gasCapacity\":491.85721258357114,\"parcelCapacity\":799.40273135329858,\"statusAfterHeat\":4,\"fatalAfterHeat\":1,\"warningsAfterHeat\":0,\"statusAfterRecovery\":4,\"fatalAfterRecovery\":1,\"fatalAfterBoundary\":1,\"fatalAfterNextFlux\":1,\"gasTemperature\":1000,\"parcelTemperature\":10000,\"gasEnergyChange\":0,\"parcelTemperatureChange\":0}\n",
+  "stderr": "",
+  "observed": {
+    "samplingReportFinite": true,
+    "samplingEnergyInventoryChange": 0,
+    "completionSnapshotHasFatal": true,
+    "completionSnapshotWarnings": 0,
+    "analyticRoot": 6571.78639046472,
+    "gasMaximumTemperature": 3000,
+    "alpha": 0.9992534141916233,
+    "gasCapacity": 491.85721258357114,
+    "parcelCapacity": 799.4027313532986,
+    "statusAfterHeat": 4,
+    "fatalAfterHeat": 1,
+    "warningsAfterHeat": 0,
+    "statusAfterRecovery": 4,
+    "fatalAfterRecovery": 1,
+    "fatalAfterBoundary": 1,
+    "fatalAfterNextFlux": 1,
+    "gasTemperature": 1000,
+    "parcelTemperature": 10000,
+    "gasEnergyChange": 0,
+    "parcelTemperatureChange": 0
+  }
+}

@@ -839,7 +839,7 @@ namespace composition_detail {
         DiffusionState referenceDiffusion(pressure,T,distance,Rref);
         for(int i=0;i<Ns;++i){
             r[i]=prepared->gasR[i]/Rref;
-            if(!referenceDiffusion.scale(p.gasDiffusivity[i],d[i]))return false;
+            if(!referenceDiffusion.scale(gasMolecularDiffusivity(p,i,T,pressure),d[i]))return false;
             scale=maxValue(scale,maxValue(absValue(Js[i]),d[i]));
         }
         if(!(scale>0)||!finite(scale))return false;

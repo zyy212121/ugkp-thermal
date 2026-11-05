@@ -41,7 +41,9 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         if(!downloadGasWindow(backend,gasEndpoint,error))return false;
         HostState candidate;WallProgram corrected;CpuMaterialReport cpu;
         ++report.materialSolves;
-        if(!material.advanceCandidate(base,gasEndpoint,history,materialControls,candidate,corrected,cpu,error,&program))return false;
+        auto executionControls=materialControls;
+        executionControls.retainDonorHistory=false; // Corrected donor history is not replayed in this single-pass driver.
+        if(!material.advanceCandidate(base,gasEndpoint,history,executionControls,candidate,corrected,cpu,error,&program))return false;
         WallProgramComparison comparison;
         if(!compareWallPrograms(program,corrected,model.physics.tolerances,comparison,error))return false;
         const Real residual=std::max(comparison.geometryError,std::max(comparison.thermalError,comparison.massPredictionError));
@@ -61,6 +63,10 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         if(!commitGasWindow(backend,candidate,error))return false;
         report.acceptedGasMicrosteps=history.records().size();
         accepted=std::move(candidate);error.clear();return true;
+    } catch(const Foam::error&) {
+        // Preserve the original GPU/OpenFOAM diagnostic for the application
+        // boundary; Foam::error::what() alone discards its physical context.
+        throw;
     } catch(const std::exception& exception) {
         error=std::string("single-pass multirate operation failed: ")+exception.what();
         return false;

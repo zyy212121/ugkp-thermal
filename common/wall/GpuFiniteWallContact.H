@@ -1,3 +1,4 @@
+#include "thermal/ParticleSurfaceState.H"
 #include "GpuPrecisionTypes.H"
 #ifndef GPU_THERMAL_GPU_FINITE_WALL_CONTACT_H
 #define GPU_THERMAL_GPU_FINITE_WALL_CONTACT_H
@@ -39,6 +40,18 @@ enum ParticleWallState : unsigned char
     particleWallTransientRebound = 2,
     particleWallTransientDeposit = 3
 };
+
+// Rebound classification never becomes deposition through freezing alone.
+// A frozen contact is released at rest; only a Sommerfeld deposit candidate
+// may enter the long-deposit lifecycle.
+struct ReboundContactRelease { bool detach; bool atRest; };
+GPU_FINITE_CONTACT_HD inline ReboundContactRelease reboundContactRelease
+(const GpuReal kinematicArea, const GpuReal frozenArea, const GpuReal damageArea)
+{
+    return {!(kinematicArea > GPU_R(0.0))
+        || !(::fmax(kinematicArea,frozenArea)-damageArea > GPU_R(0.0)),
+        frozenArea > GPU_R(0.0)};
+}
 
 struct FiniteWallContactImpact
 {

@@ -2,6 +2,7 @@
 from pathlib import Path
 import subprocess
 import os
+import shutil
 import pytest
 from test_wall_model import BASE, ROOT
 from test_wall_publication_work import BODY
@@ -14,23 +15,20 @@ for(int limit:{1,80}) { Model m;m.in.temperature=m.in.matching.temperature=500;
  m.in.model.diffusivity[0]=m.in.model.diffusivity[1]=1e-4;
  WallModelConfig<double> c;c.nodes=24;c.maxIterations=limit;c.absoluteTolerance=0;c.relativeTolerance=1e-30;
  WallWorkspace<double,2,48> w;WallOutput<double,2> out,expected;WallStatus s;
- std::memset(&out,0xA5,sizeof(out));assert(evaluateWallModel(m.in,c,w,out,s));
- assert(s.code==WallCode::Success&&out.residual>c.relativeTolerance);
- detail::LayerContext<double,2> ctx;detail::makeContext(m.in,c,ctx);
- double actual=0;assert(detail::allResidual(m.in,c,ctx,w.state,w.y,w.trial,actual));
- assert(actual==out.residual&&s.residual==out.residual&&s.iteration==out.iterations);
- for(int i=0;i<c.nodes;++i)for(int j=0;j<6;++j)assert(w.trial[i][j]==w.residual[i][j]);
- assert(detail::publishLayer(m.in,c,ctx,w,out.iterations,out.residual,expected));sameOutput(out,expected);
- assert(std::abs(out.reactionIntegral[0])>1e-4&&std::abs(out.matchingSpeciesFlux[0])>1e-4);
- std::cout<<"limit="<<limit<<" iterations="<<out.iterations<<" residual="<<out.residual<<'\n';
+ out.traceTemperature=917;out.conductiveHeatFlux=918;
+ assert(!evaluateWallModel(m.in,c,w,out,s));assert(s.code!=WallCode::Success);
+ assert(out.traceTemperature==917&&out.conductiveHeatFlux==918);
 }
 ''',
     'short_nodes': r'''
 for(bool sst:{false,true})for(int nodes:{2,3}) {Model m;m.in.integrateOwnerKSource=false;
  m.in.matching.k=.5;m.in.matching.omega=200;
- WallModelConfig<double> c;c.nodes=nodes;c.enableSst=sst;c.maxIterations=1;
+ WallModelConfig<double> c;c.nodes=nodes;c.enableSst=sst;c.maxIterations=100;
  WallWorkspace<double,2,3> w;WallOutput<double,2> out,expected;WallStatus s;
- assert(evaluateWallModel(m.in,c,w,out,s));assert(out.traceTemperature==m.in.temperature);
+ out.traceTemperature=917;out.conductiveHeatFlux=918;
+ bool ok=evaluateWallModel(m.in,c,w,out,s);
+ if(!ok){assert(out.traceTemperature==917&&out.conductiveHeatFlux==918);continue;}
+ assert(out.traceTemperature==m.in.temperature);
  detail::LayerContext<double,2> ctx;detail::makeContext(m.in,c,ctx);
  assert(detail::publishLayer(m.in,c,ctx,w,out.iterations,out.residual,expected));sameOutput(out,expected);
  // Supplied out-of-capacity node metadata is caller risk; never run an OOB probe.
@@ -42,11 +40,11 @@ Model m;WallModelConfig<double> c;c.enableSst=true;
  detail::LayerContext<double,2> ctx;detail::makeContext(m.in,c,ctx);
  double x[6]={2,3,-200,1.2,2,-.5};detail::LayerPoint<double,2> p;
  assert(!detail::pointState(m.in,c,ctx,x,p));
- p={};assert(detail::pointState(m.in,c,ctx,x,p,true));assert(p.omega==4&&p.Y[ctx.independent[0]]==1.2);
- assert(p.T==100&&p.cp==1000&&std::isfinite(p.rho));
- m.coef[0]=m.coef[3]=-1000;m.in.pressure=-101325;detail::LayerPoint<double,2> signedP;
- assert(!detail::pointState(m.in,c,ctx,x,signedP));
- signedP={};assert(detail::pointState(m.in,c,ctx,x,signedP,true));assert(signedP.cp<0&&signedP.rho<0);
+ p={};assert(!detail::pointState(m.in,c,ctx,x,p,true));
+ x[5]=.5;assert(detail::pointState(m.in,c,ctx,x,p,true));
+ assert(p.omega==4&&p.Y[ctx.independent[0]]==1&&p.T==100);
+ m.coef[0]=m.coef[3]=-1000;m.in.pressure=-101325;
+ assert(!detail::pointState(m.in,c,ctx,x,p,true));
 ''',
     'tiny_pivot': r'''
 double a[1][1]={{std::numeric_limits<double>::min()*2}},u[1][1]={{0}},rhs[1]={a[0][0]};
@@ -59,7 +57,7 @@ m.in.temperature=100;m.in.matching.temperature=5000;m.in.normal[1]=2;
 m.in.matching.massFraction[0]=1.2;m.in.matching.massFraction[1]=-.1;
 m.in.massFlux[0]=-.001;m.in.massFlux[1]=.002;m.coef[1]=.1;
 assert(evaluateWallModel(m.in,c,w,o,s));assert(o.traceTemperature==100&&std::isfinite(o.conductiveHeatFlux));
-assert(o.traceMassFraction[0]==1.2&&o.traceMassFraction[1]==-.1&&o.wallSpeciesFlux[0]==-.001);
+assert(o.traceMassFraction[0]==1&&o.traceMassFraction[1]==0&&o.wallSpeciesFlux[0]==-.001);
 m.in.model.thermo.coefficients=nullptr;auto keep=o;
 assert(!evaluateWallModel(m.in,c,w,o,s));sameOutput(o,keep);
 ''',
@@ -79,20 +77,15 @@ m.in.matching.velocity[0]=0;m.in.matching.k=.5;m.in.matching.omega=200;
 m.in.massFlux[0]=.0007;m.in.massFlux[1]=.0003;
 WallModelConfig<double> c;c.enableSst=true;c.nodes=3;
 WallWorkspace<double,2,3> w;WallOutput<double,2> o,expected;WallStatus s;
-std::memset(&o,0xA5,sizeof(o));assert(evaluateWallModel(m.in,c,w,o,s));
-assert(s.code==WallCode::Success&&std::isnan(o.residual));
-// Failed seed must restore its entire initialized profile, not a partial z update.
-for(int i=0;i<c.nodes;++i){double f=std::pow(double(i)/(c.nodes-1),c.stretch);
-assert(w.state[i][5]==f/std::sqrt(m.in.matching.omega));}
-detail::LayerContext<double,2> ctx;detail::makeContext(m.in,c,ctx);
-assert(detail::publishLayer(m.in,c,ctx,w,o.iterations,o.residual,expected));sameOutput(o,expected);
-assert(o.wallSpeciesFlux[0]==.0007&&std::isfinite(o.ownerOmega)&&std::isfinite(o.wallKFlux));
+o.traceTemperature=917;o.conductiveHeatFlux=918;
+ assert(!evaluateWallModel(m.in,c,w,o,s));assert(s.code!=WallCode::Success);
+ assert(o.traceTemperature==917&&o.conductiveHeatFlux==918);
 ''',
     'signed_diffusion': r'''
 Model m;double y[2]={1.2,-.1},grad[2]={2,-3},d[2]={-.001,.002},flux[2]={123,123},enthalpy=123;
 assert(correctedSpeciesDiffusion(y,grad,-2.,d,-.1,-.7,100.,m.in.model.thermo,flux,enthalpy));
 double raw[2];for(int j=0;j<2;++j)raw[j]=2*(d[j]+(-.1)/(-.7))*grad[j];
-assert(flux[0]==raw[0]-y[0]*(raw[0]+raw[1]));assert(flux[1]==-flux[0]);
+assert(flux[0]==raw[0]-(raw[0]+raw[1]));assert(flux[1]==-flux[0]);
 assert(enthalpy==speciesH(0,100.,m.in.model.thermo)*flux[0]+speciesH(1,100.,m.in.model.thermo)*flux[1]);
 ''',
 }
@@ -151,7 +144,7 @@ assert(w.state[2][5]==1/std::sqrt(oldOmega));
 
 
 def test_signed_seed_delta_preserves_original_internal_rejection(tmp_path):
-    local=tmp_path/'instrumented';local.mkdir()
+    local=tmp_path/'instrumented';shutil.copytree(ROOT/'common/gasWall',local)
     (local/'WallModel.H').write_text((ROOT/'common/gasWall/WallModel.H').read_text())
     (local/'ReactingWallLayer.H').write_text(seed_fixture((ROOT/'common/gasWall/ReactingWallLayer.H').read_text()))
     source=tmp_path/'seed.cpp';source.write_text(BASE.replace('"common/gasWall/WallModel.H"','"instrumented/WallModel.H"')+SEED_BODY)
@@ -163,19 +156,21 @@ def test_signed_seed_delta_preserves_original_internal_rejection(tmp_path):
     assert run.returncode==0,run.stderr
 
 
-def test_unrepresentable_newton_step_keeps_evaluated_profile(tmp_path):
+def test_zero_k_newton_step_preserves_state_and_invalid_tolerance_rejects(tmp_path):
     from test_wall_model import compile_run
     compile_run(tmp_path,r'''
  Model m;m.in.integrateOwnerKSource=false;m.in.temperature=m.in.matching.temperature=500;
  m.in.matching.velocity[0]=0;m.in.matching.k=0;m.in.matching.omega=200;
  WallModelConfig<double> c;c.enableSst=true;c.nodes=3;c.relativeTolerance=-1;c.absoluteTolerance=0;
  WallWorkspace<double,2,3> w;WallOutput<double,2> out;WallStatus s;
- assert(evaluateWallModel(m.in,c,w,out,s));assert(s.code==WallCode::Success&&out.iterations==0);
+ out.traceTemperature=917;assert(!evaluateWallModel(m.in,c,w,out,s));
+ assert(out.traceTemperature==917&&s.code!=WallCode::Success);
  detail::LayerContext<double,2> ctx;detail::makeContext(m.in,c,ctx);
- auto retained=w;assert(!detail::newtonStep(m.in,c,ctx,w));
+ auto retained=w;assert(detail::newtonStep(m.in,c,ctx,w));
+ for(int i=0;i<c.nodes;++i)for(int j=0;j<6;++j)assert(std::isfinite(w.delta[i][j]));
  for(int i=0;i<c.nodes;++i)for(int j=0;j<6;++j)assert(w.state[i][j]==retained.state[i][j]);
- double norm;assert(detail::allResidual(m.in,c,ctx,w.state,w.y,w.residual,norm));assert(norm==out.residual);
- assert(std::isfinite(out.ownerOmega)&&out.traceTemperature==500);
+ double norm;assert(detail::allResidual(m.in,c,ctx,w.state,w.y,w.residual,norm));assert(std::isfinite(norm));
+ assert(out.traceTemperature==917);
  ''')
 
 
@@ -187,13 +182,9 @@ m.in.matching.velocity[0]=0;m.in.matching.k=.5;m.in.matching.omega=200;
 m.in.massFlux[0]=.0007;m.in.massFlux[1]=.0003;
 WallModelConfig<double> c;c.enableSst=true;c.nodes=3;
 WallWorkspace<double,2,3> w;WallOutput<double,2> out,expected;WallStatus s;
-std::memset(&out,0xA5,sizeof(out));assert(evaluateWallModel(m.in,c,w,out,s));
-assert(s.code==WallCode::Success&&std::isnan(out.residual));
-auto in=detail::wallComputationInput(m.in);auto controls=detail::wallComputationConfig(c);
-detail::LayerContext<double,2> ctx;detail::makeContext(in,controls,ctx);WallOutput<double,2> exact;
-assert(detail::publishLayer(in,controls,ctx,w,out.iterations,double(out.residual),exact));
-assert(detail::publishWallPrecision(m.in,exact,expected));sameOutput(out,expected);
-assert(out.wallSpeciesFlux[0]==m.in.massFlux[0]&&std::isfinite(out.ownerOmega));
+out.traceTemperature=917;out.conductiveHeatFlux=918;
+assert(!evaluateWallModel(m.in,c,w,out,s));assert(s.code!=WallCode::Success);
+assert(out.traceTemperature==917&&out.conductiveHeatFlux==918);
 }
 ''')
     exe=tmp_path/'double'

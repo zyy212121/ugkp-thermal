@@ -1,0 +1,185 @@
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/applications/gasUGKP/private_backend/GpuResidentStrict.cu(5189): warning #177-D: variable "runBinPre" was declared but never referenced
+      const bool runBinPre = s->csrCellLocalPathEnabled != 0;
+                 ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/applications/gasUGKP/private_backend/GpuResidentStrict.cu(5028): warning #177-D: variable "warpCount" was declared but never referenced
+      const int warpCount = (block + 31)/32;
+                ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/common/gasTransport/GasBoundaryLayerModelState.H(314): warning #177-D: variable "Ns" was declared but never referenced
+      constexpr int Ns=GasStateTraits<State>::speciesCount;
+                    ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int) [with Capture=false, State=<unnamed>::DeviceState]" at line 16 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/common/operators/evaluateGasBoundaryLayerKernel.cuh
+            instantiation of "void <unnamed>::evaluateGasBoundaryLayerKernel(GasState *) [with Capture=false, GasState=<unnamed>::DeviceState]" at line 10 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/common/gasTransport/ResidentWallLaunch.inl
+            instantiation of "int <unnamed>::launchBoundaryLayer<Capture>(<unnamed>::DeviceState *) [with Capture=false]" at line 147 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/applications/gasUGKP/private_backend/GpuResidentStrict.cu
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/common/gasTransport/../gasWall/WallCoherentSolver.H(116): warning #177-D: variable "l" was declared but never referenced
+   norm=scaledClosure;for(int i=0;i<cfg.nodes;++i){double high[6];for(int j=0;j<6;++j)high[j]=low[i][j];if(i>0&&i<cfg.nodes-1){double integralK=0,integralO=0;for(int side=0;side<2;++side){int l=i-1+side;double lo=side?w.y[i]:(w.y[i-1]+w.y[i])/2,hi=side?(w.y[i]+w.y[i+1])/2:w.y[i];const double g[2]={-.57735026918962576451,.57735026918962576451},wt[2]={1,1};for(int q=0;q<2;++q){double y=(hi+lo)/2+(hi-lo)/2*g[q];auto v=basePhysical(p,y);physical::Face<double,2>f;physical::Source<double,2>s;if(!trackedEvaluate(in,cfg,v,y,in.normal,ctx.wallNormal,f,s))return false;integralK+=(hi-lo)/2*wt[q]*s.k;integralO+=(hi-lo)/2*wt[q]*s.omega;}}
+                                                                                                                                                                                                ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gaswall::coherent::ScalarEngine<M>::solve(const ugkwp::gaswall::reconstruction::Input &, const ugkwp::gaswall::reconstruction::Config &, ugkwp::gaswall::coherent::ScalarEngine<M>::W &, ugkwp::gaswall::coherent::Cache<M> &, ugkwp::gaswall::WallOutput<double, 2> &, Stats &) [with M=24, Stats=ugkwp::gaswall::coherent::SolveStats]" at line 97 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/common/gasTransport/GasCoherentBoundaryLayer.H
+            instantiation of "__nv_bool ugkwp::evaluateGasCoherentWallWorkspace(const ugkwp::gaswall::WallInput<double, 2, double> &, const ugkwp::gaswall::WallModelConfig<ugkwp::gaswall::WallReal> &, ugkwp::gaswall::WallWorkspace<double, 2, M> &, ugkwp::gaswall::coherent::Scratch<M> &, ugkwp::gaswall::coherent::PersistentWallState<M> &, const double *, ugkwp::gaswall::WallOutput<double, 2> &, ugkwp::gaswall::WallStatus &, ugkwp::gaswall::WallReferenceStats &, const Team &) [with M=24, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 116 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerWorkspace(const ugkwp::gaswall::WallInput<Real, Ns, Real> &, const ugkwp::gaswall::WallModelConfig<Real> &, ugkwp::gaswall::WallWorkspace<Real, Ns, Capacity> &, ugkwp::gaswall::WallOutput<Real, Ns> &, ugkwp::gaswall::WallStatus &, Real *, const Team &, ugkwp::gaswall::WallReferenceScratch<Ns, Capacity> *, const Real *, ugkwp::gaswall::WallReferenceStats *, ugkwp::gaswall::coherent::Scratch<Capacity> *, ugkwp::gaswall::coherent::PersistentWallState<Capacity> *) [with Capture=false, Real=double, Ns=2, Capacity=24, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 191 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerHistory<Capture,Capacity,State,Team>(State &, int, int, const Team &) [with Capture=false, Capacity=24, State=<unnamed>::DeviceState, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 342 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int, const Team &) [with Capture=false, Capacity=0, State=<unnamed>::DeviceState, Team=ugkwp::gaswall::detail::SerialWallTeam]" at line 361 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/common/gasTransport/GasBoundaryLayerModelState.H
+            instantiation of "__nv_bool ugkwp::evaluateGasBoundaryLayerSlot(State &, int, int) [with Capture=false, State=<unnamed>::DeviceState]" at line 16 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/common/operators/evaluateGasBoundaryLayerKernel.cuh
+            instantiation of "void <unnamed>::evaluateGasBoundaryLayerKernel(GasState *) [with Capture=false, GasState=<unnamed>::DeviceState]" at line 10 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/common/gasTransport/ResidentWallLaunch.inl
+            instantiation of "int <unnamed>::launchBoundaryLayer<Capture>(<unnamed>::DeviceState *) [with Capture=false]" at line 147 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/applications/gasUGKP/private_backend/GpuResidentStrict.cu
+
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34evaluateGasBoundaryLayerTeamKernelILb0ELi48ENS_11DeviceStateEEEvPT1_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34evaluateGasBoundaryLayerTeamKernelILb0ELi0ENS_11DeviceStateEEEvPT1_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34evaluateGasBoundaryLayerTeamKernelILb0ELi128ENS_11DeviceStateEEEvPT1_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34evaluateGasBoundaryLayerTeamKernelILb0ELi24ENS_11DeviceStateEEEvPT1_' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z25advanceGasChemistryKernelIN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEdEvPT_T0_PKNSt14remove_pointerIDtdtclsr3stdE7declvalIS2_EE3rhoEE4typeEb' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe23recoverPrimitivesKernelEPNS_11DeviceStateE' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31applySstWallFunctionStateKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe35evaluateGasBoundaryLayerTile8KernelILb0ENS_11DeviceStateEEEvPT0_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31applyEulerianGasSolidDragKernelIN12ugkwpGpuDrag25SchillerNaumannDeviceDragEEEvPNS_11DeviceStateEd' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34evaluateGasBoundaryLayerTeamKernelILb1ELi0ENS_11DeviceStateEEEvPT1_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe32computeGasInternalFaceFluxKernelILb0ENS_11DeviceStateEEEvPT0_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe26recoverGasPrimitivesKernelI18WallProjectionViewEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34evaluateGasBoundaryLayerTeamKernelILb1ELi48ENS_11DeviceStateEEEvPT1_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe24computeSstFaceFluxKernelINS_11DeviceStateEEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe24computeSstFaceFluxKernelINS_11DeviceStateEEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe24computeSstFaceFluxKernelINS_11DeviceStateEEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe24computeSstFaceFluxKernelINS_11DeviceStateEEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe24computeSstFaceFluxKernelINS_11DeviceStateEEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe24computeSstFaceFluxKernelINS_11DeviceStateEEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe24computeSstFaceFluxKernelINS_11DeviceStateEEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe28computeGasCourantFieldKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe28computeGasCourantFieldKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe28computeGasCourantFieldKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe28computeGasCourantFieldKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe28computeGasCourantFieldKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe28computeGasCourantFieldKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe30evaluateGasBoundaryLayerKernelILb1ENS_11DeviceStateEEEvPT0_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe29computeGasEddyViscosityKernelINS_11DeviceStateEEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe29computeGasEddyViscosityKernelINS_11DeviceStateEEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe29computeGasEddyViscosityKernelINS_11DeviceStateEEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31blendGasConservativeStateKernelINS_11DeviceStateEEEvPT_ddb' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31blendGasConservativeStateKernelINS_11DeviceStateEEEvPT_ddb' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31blendGasConservativeStateKernelINS_11DeviceStateEEEvPT_ddb' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe26recoverGasPrimitivesKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe35computeGasFluxPositivityScaleKernelINS_11DeviceStateEEEvPT_d' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe35computeGasFluxPositivityScaleKernelINS_11DeviceStateEEEvPT_d' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe35computeGasFluxPositivityScaleKernelINS_11DeviceStateEEEvPT_d' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34evaluateGasBoundaryLayerTeamKernelILb1ELi24ENS_11DeviceStateEEEvPT1_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31applyEulerianGasSolidDragKernelIN12ugkwpGpuDrag28GidaspowErgunWenYuDeviceDragEEEvPNS_11DeviceStateEd' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z28assembleConservativeWallFluxIN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z28assembleConservativeWallFluxIN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z28assembleConservativeWallFluxIN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe25computeSstGradientsKernelINS_11DeviceStateEEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z33relaxParticlesToResidentGasKernelIN12ugkwpGpuDrag25SchillerNaumannDeviceDragEEvPN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z29mixtureParticleCouplingKernelIN12ugkwpGpuDrag25SchillerNaumannDeviceDragEN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT0_dbbb' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z29mixtureParticleCouplingKernelIN12ugkwpGpuDrag25SchillerNaumannDeviceDragEN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT0_dbbb' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z29mixtureParticleCouplingKernelIN12ugkwpGpuDrag25SchillerNaumannDeviceDragEN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT0_dbbb' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z29mixtureParticleCouplingKernelIN12ugkwpGpuDrag25SchillerNaumannDeviceDragEN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT0_dbbb' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z29mixtureParticleCouplingKernelIN12ugkwpGpuDrag25SchillerNaumannDeviceDragEN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT0_dbbb' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34evaluateGasBoundaryLayerTeamKernelILb1ELi128ENS_11DeviceStateEEEvPT1_' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z31reconstructConservativeWallPoolILi128EN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT0_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34computeGasPrimitiveGradientsKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34computeGasPrimitiveGradientsKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34computeGasPrimitiveGradientsKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34computeGasPrimitiveGradientsKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34applyGasFluxDivergenceByCellKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34applyGasFluxDivergenceByCellKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34applyGasFluxDivergenceByCellKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34applyGasFluxDivergenceByCellKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34applyGasFluxDivergenceByCellKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34applyGasFluxDivergenceByCellKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe30evaluateGasBoundaryLayerKernelILb0ENS_11DeviceStateEEEvPT0_' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z31reconstructConservativeWallPoolILi48EN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT0_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe33applyGasFluxPositivityScaleKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe33applyGasFluxPositivityScaleKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe33applyGasFluxPositivityScaleKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe27applyGasGravitySourceKernelEPNS_11DeviceStateEd' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34computeGasPrimitiveGradientsKernelI18WallProjectionViewEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34computeGasPrimitiveGradientsKernelI18WallProjectionViewEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34computeGasPrimitiveGradientsKernelI18WallProjectionViewEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe34computeGasPrimitiveGradientsKernelI18WallProjectionViewEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31computeGasGradientLimiterKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31computeGasGradientLimiterKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31computeGasGradientLimiterKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31computeGasGradientLimiterKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31computeGasGradientLimiterKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN5ugkwp19gasStatusCompletion18publishUnavailableEPKyiPN4ugkp11diagnostics13DeviceContextEjj' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe40enforcePeriodicGasFluxAntisymmetryKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe40enforcePeriodicGasFluxAntisymmetryKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe26recoverSstPrimitivesKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z33relaxParticlesToResidentGasKernelIN12ugkwpGpuDrag28GidaspowErgunWenYuDeviceDragEEvPN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe29computeGasHllcAdcSensorKernelINS_11DeviceStateEEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe27applySstFluxAndSourceKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe27applySstFluxAndSourceKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe27applySstFluxAndSourceKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe27applySstFluxAndSourceKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe27applySstFluxAndSourceKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe27applySstFluxAndSourceKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe27applySstFluxAndSourceKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe27applySstFluxAndSourceKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe27applySstFluxAndSourceKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z39applyEulerianParticleMaterialHeatKernelPN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z39applyEulerianParticleMaterialHeatKernelPN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z23conservativeKFluxBudgetIN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT_d' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z23conservativeKFluxBudgetIN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT_d' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe35evaluateGasBoundaryLayerTile8KernelILb1ENS_11DeviceStateEEEvPT0_' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe36initialiseSstConservativeStateKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe36initialiseSstConservativeStateKernelINS_11DeviceStateEEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe32computeGasInternalFaceFluxKernelILb1ENS_11DeviceStateEEEvPT0_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z31reconstructConservativeWallPoolILi24EN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT0_' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z29mixtureParticleCouplingKernelIN12ugkwpGpuDrag28GidaspowErgunWenYuDeviceDragEN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT0_dbbb' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z29mixtureParticleCouplingKernelIN12ugkwpGpuDrag28GidaspowErgunWenYuDeviceDragEN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT0_dbbb' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z29mixtureParticleCouplingKernelIN12ugkwpGpuDrag28GidaspowErgunWenYuDeviceDragEN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT0_dbbb' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z29mixtureParticleCouplingKernelIN12ugkwpGpuDrag28GidaspowErgunWenYuDeviceDragEN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT0_dbbb' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z29mixtureParticleCouplingKernelIN12ugkwpGpuDrag28GidaspowErgunWenYuDeviceDragEN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT0_dbbb' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe39computeGasConvectiveCourantByCellKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe39computeGasConvectiveCourantByCellKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe39computeGasConvectiveCourantByCellKernelINS_11DeviceStateEEEvPT_db' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31computeGasGradientLimiterKernelI18WallProjectionViewEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31computeGasGradientLimiterKernelI18WallProjectionViewEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31computeGasGradientLimiterKernelI18WallProjectionViewEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31computeGasGradientLimiterKernelI18WallProjectionViewEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_ZN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe31computeGasGradientLimiterKernelI18WallProjectionViewEEvPT_b' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z31prepareConservativeWallMatchingIN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT_' cannot be statically determined
+ptxas warning : Stack size for entry function '_Z31prepareConservativeWallMatchingIN53_GLOBAL__N__9926cbd5_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEEvPT_' cannot be statically determined
+Making dependency list for source file diluteUgkwpFoam.C
+could not open file MolecularTransportIO.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file FoamMolecularTransportIO.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file GasModel.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file GasModelIO.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file ../chemistry/MechanismValidation.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file MixtureThermo.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file ../chemistry/ChemistryTypes.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file WallResolutionDefaults.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file WallModelTypes.H for source file diluteUgkwpFoam.C due to No such file or directory
+could not open file ../gasWall/WallResolutionDefaults.H for source file diluteUgkwpFoam.C due to No such file or directory
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -std=c++17 -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c diluteUgkwpFoam.C -o Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -std=c++17 -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -fuse-ld=bfd -Xlinker --add-needed -Xlinker --no-as-needed Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o -L/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib \
+    -lfiniteVolume -lmeshTools -lmomentumTransportModels -lOpenFOAM /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-build/libugkwp_cuda_backend.a -L/usr/local/cuda/lib64 -Wl,-rpath,/usr/local/cuda/lib64 -lcudart -lOpenFOAM -ldl  \
+     -lm -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-bin/gasUGKP
+Built resident single-process solver: /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/review-fixed-bin/gasUGKP
+	Command being timed: "bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/transient-mixture-particles/repo/tool/gasUGKP/build_cuda_solver.sh"
+	User time (seconds): 45.74
+	System time (seconds): 3.65
+	Percent of CPU this job got: 96%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:50.92
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 1038848
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 1409
+	Minor (reclaiming a frame) page faults: 1333677
+	Voluntary context switches: 5483
+	Involuntary context switches: 135
+	Swaps: 0
+	File system inputs: 333392
+	File system outputs: 299248
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

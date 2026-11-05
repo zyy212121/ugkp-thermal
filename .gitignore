@@ -22,3 +22,16 @@
 **/.generated/
 **/assets/radiation/alumina_mieTable.dat
 **/.pytest_cache/
+
+# Checkout-local build outputs and diagnostic runs.
+/bin/
+/lib/
+/build-evidence/
+/applications/CHMT/.build/
+
+# Acceptance outputs stay local; distribute review evidence as archives.
+/validation/composition_transport/evidence/
+/validation/shared_boundary/evidence/
+/validation/composition_transport/REVIEW.txt
+/validation/composition_transport/PR_WALL_REVIEW.txt
+/validation/shared_boundary/REVIEW.txt

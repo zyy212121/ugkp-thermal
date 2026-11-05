@@ -43,4 +43,4 @@ int main(){std::string e;double origin=1099511627776.;CouplingControls controls;
 }
 '''
  src=tmp_path/'interval.cpp';src.write_text(code);exe=tmp_path/'interval'
- subprocess.run(['g++','-std=c++14','-O2','-I'+str(APP), '-I'+str(VALIDATION_ROOT / 'solvers/CHMT'),str(src),'-o',str(exe)],check=True);subprocess.run([str(exe)],check=True)
+ subprocess.run(['g++','-std=c++17','-O2','-I'+str(APP), '-I'+str(VALIDATION_ROOT / 'solvers/CHMT'),str(src),'-o',str(exe)],check=True);subprocess.run([str(exe)],check=True)

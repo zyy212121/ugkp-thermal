@@ -1,0 +1,2906 @@
+{
+  "schema_version": 1,
+  "layer": 4,
+  "status": "Layer-four migration numerical, conservation-parity, restart, memory and repeated performance validation complete, with baseline absolute-conservation limitations and workload regressions retained. Layer five remains pending.",
+  "raw_evidence_root": "../../../gpu-coupled-validation",
+  "baseline": {
+    "independent_math_commit": "88bc5434ee7199ec0bd7b986bbf121d693022245",
+    "full_CHT": "candidate-layer3-device-loop/bin/CHT: accepted layer three with CPU radiation"
+  },
+  "candidate": {
+    "provenance": {
+      "path": "candidate-layer4-r7/provenance.json",
+      "sha256": "ed09a501197bce73ecafbffedeb3319399aec489412091c0543e292f24864a0d"
+    },
+    "build": "CUDA 13.1, sm_89, FP64. New radiation units -O2 --fmad=false. Unchanged fast-compile gas objects reused; no claim of fully optimized gas end-to-end performance."
+  },
+  "mathematics": [
+    "Original table interpolation, phase balancing, angular quadrature, cell-order upwind Gauss-Seidel arithmetic, source relaxation and convergence tolerances retained.",
+    "Sequential angular updates use the latest preceding directions; requested parallel angles retain frozen sources and now execute independent directions on CUDA streams. No mesh/case specialization or CPU fallback.",
+    "Device stopping flags freeze the first converged iterate within bounded ordinary CUDA graph batches. The two generic angular scheduling modes share the same cell arithmetic.",
+    "Original bounded material equilibrium/implicit roots and conservative boundary energy scaling moved to shared host/device math; GPU ordered transaction sums retain native summation order.",
+    "Phase storage is linear in cells times directions, reconstructing balanced probabilities in the original product order."
+  ],
+  "remaining_host_work": [
+    "OpenFOAM geometry extraction, dependency-plan construction and boundary/metadata policy.",
+    "Canonical snapshot clamping, state/result mirrors, native field publication and ordered integrated diagnostic sums.",
+    "Layer five geometry and full application integration are unfinished; this is not a fully resident five-layer chain."
+  ],
+  "validation": {
+    "layer4-optics-r3": {
+      "cases": 108,
+      "scope": "Six table variants; raw finite optical queries have zero measured scaled error and matching nonfinite classifications. The 108 phase cases satisfy the independent 5e-13 scaled tolerance.",
+      "logs": [
+        {
+          "path": "layer4-optics-r3/zero_diameter.table.log",
+          "sha256": "22474ac07d934780dab31645201a0d3bf3dc761ada651959b95c2dbf9e30653b"
+        },
+        {
+          "path": "layer4-optics-r3/negative_diameter.table.log",
+          "sha256": "cc0e3d1b419c4a88164aad2fd3bdd104da1a77f7768ede68d92638bdf4920c7d"
+        },
+        {
+          "path": "layer4-optics-r3/ordinary.table.log",
+          "sha256": "e19aeb11c187f953e7e58d44bfee1fef6f6649569184b0bf659f9f559172bdad"
+        },
+        {
+          "path": "layer4-optics-r3/equal_logarithms.table.log",
+          "sha256": "cc0e3d1b419c4a88164aad2fd3bdd104da1a77f7768ede68d92638bdf4920c7d"
+        },
+        {
+          "path": "layer4-optics-r3/wide_temperature.table.log",
+          "sha256": "e19aeb11c187f953e7e58d44bfee1fef6f6649569184b0bf659f9f559172bdad"
+        },
+        {
+          "path": "layer4-optics-r3/zero_scattering.table.log",
+          "sha256": "b1e3e4bd146ca588118f3865f1060e6a75e0c32675024947a7ca60727f5fcd7a"
+        }
+      ],
+      "memcheck": {
+        "path": "layer4-optics-r3/memcheck.log",
+        "sha256": "f970e96c1fa7d90954c26a2c394073f3c01eed93444ca0e1c3b48f98e45fd535"
+      }
+    },
+    "layer4-maximum-r1": {
+      "cases": 576,
+      "scope": "Ordered maximum, including NaN resets, signed zero and masks.",
+      "logs": [
+        {
+          "path": "layer4-maximum-r1/test.log",
+          "sha256": "7c787892a4eb9db017e192b56270a13e0e6c5b286a9224755866db68ebeba01a"
+        }
+      ],
+      "memcheck": {
+        "path": "layer4-maximum-r1/memcheck.log",
+        "sha256": "44d3e24ce679c7ec40e196c6e0f7223d8540aff55d402376fcaf9f406788aba8"
+      }
+    },
+    "layer4-upwind-concurrency-r1": {
+      "cases": 108,
+      "scope": "18 permuted/cyclic-dependency systems, three stopping budgets, both generic GPU execution modes; bitwise.",
+      "logs": [
+        {
+          "path": "layer4-upwind-concurrency-r1/test.log",
+          "sha256": "b21264cd21b35249a56e2e352e9dde7bc9d7c79f2892e69bd168714c98736159"
+        }
+      ],
+      "memcheck": {
+        "path": "layer4-upwind-concurrency-r1/memcheck.log",
+        "sha256": "59c9569afdcbaae3b6c909a221304fa136bdeb5c4097fc8837327238305c33d5"
+      }
+    },
+    "layer4-native-integrated-r6": {
+      "evidence": {
+        "path": "layer4-native-integrated-r6/results.json",
+        "sha256": "8ce06d715afcf0ccf931786e464428610faba315047e2537ad5a03eff2608fc0"
+      },
+      "result": {
+        "status": "PASS",
+        "scope": "Native discrete-ordinate owner comparison, including angular intensity exports.\n\nThe test-only instrumentation exports the actual production owner's intensity.\nTiming includes this identical binary output, properties and all source/linear\niterations. It is not a complete coupled-application benchmark.\n",
+        "cases": [
+          {
+            "grid": 8,
+            "shear": 0,
+            "angle_threads": 1,
+            "runs": {
+              "baseline": {
+                "samples": [
+                  [
+                    0.0,
+                    0.191004706,
+                    60.0,
+                    1.0,
+                    0.21553899672152033,
+                    -0.2155389966852105,
+                    3.630981626479013e-11,
+                    3.327783679918207
+                  ],
+                  [
+                    1.0,
+                    0.021743527,
+                    1.0,
+                    1.0,
+                    0.21553899672090954,
+                    -0.21553899669187812,
+                    2.9031416159952528e-11,
+                    3.3277836799213745
+                  ],
+                  [
+                    2.0,
+                    0.142072226,
+                    42.0,
+                    1.0,
+                    0.21452050297874753,
+                    -0.21452050301627903,
+                    -3.753150568108765e-11,
+                    3.3264185615265656
+                  ]
+                ]
+              },
+              "candidate": {
+                "samples": [
+                  [
+                    0.0,
+                    2.639141163,
+                    60.0,
+                    1.0,
+                    0.21553899672152033,
+                    -0.2155389966852105,
+                    3.630981626479013e-11,
+                    3.327783679918207
+                  ],
+                  [
+                    1.0,
+                    0.025293425,
+                    1.0,
+                    1.0,
+                    0.21553899672090954,
+                    -0.21553899669187812,
+                    2.9031416159952528e-11,
+                    3.3277836799213745
+                  ],
+                  [
+                    2.0,
+                    0.586744226,
+                    42.0,
+                    1.0,
+                    0.21452050297874753,
+                    -0.21452050301627903,
+                    -3.753150568108765e-11,
+                    3.3264185615265656
+                  ]
+                ]
+              }
+            },
+            "maximum_scaled_fields_error": 0.0,
+            "maximum_scaled_angles_error": 0.0
+          },
+          {
+            "grid": 8,
+            "shear": 0,
+            "angle_threads": 4,
+            "runs": {
+              "baseline": {
+                "samples": [
+                  [
+                    0.0,
+                    0.139823861,
+                    110.0,
+                    4.0,
+                    0.21553899672611485,
+                    -0.21553899662912293,
+                    9.699191449996647e-11,
+                    3.3277836798978155
+                  ],
+                  [
+                    1.0,
+                    0.022682007,
+                    1.0,
+                    4.0,
+                    0.21553899672484156,
+                    -0.21553899664415296,
+                    8.068859469467782e-11,
+                    3.3277836799038756
+                  ],
+                  [
+                    2.0,
+                    0.099880183,
+                    75.0,
+                    4.0,
+                    0.21452050297359915,
+                    -0.21452050307959838,
+                    -1.0599923716547721e-10,
+                    3.3264185615485924
+                  ]
+                ]
+              },
+              "candidate": {
+                "samples": [
+                  [
+                    0.0,
+                    0.601920488,
+                    110.0,
+                    1.0,
+                    0.21553899672611485,
+                    -0.21553899662912293,
+                    9.699191449996647e-11,
+                    3.3277836798978155
+                  ],
+                  [
+                    1.0,
+                    0.01955807,
+                    1.0,
+                    1.0,
+                    0.21553899672484156,
+                    -0.21553899664415296,
+                    8.068859469467782e-11,
+                    3.3277836799038756
+                  ],
+                  [
+                    2.0,
+                    0.224668457,
+                    75.0,
+                    1.0,
+                    0.21452050297359915,
+                    -0.21452050307959838,
+                    -1.0599923716547721e-10,
+                    3.3264185615485924
+                  ]
+                ]
+              }
+            },
+            "maximum_scaled_fields_error": 0.0,
+            "maximum_scaled_angles_error": 0.0
+          },
+          {
+            "grid": 8,
+            "shear": 0.35,
+            "angle_threads": 1,
+            "runs": {
+              "baseline": {
+                "samples": [
+                  [
+                    0.0,
+                    0.075070158,
+                    19.0,
+                    1.0,
+                    0.012016788211065815,
+                    -0.01201678820095781,
+                    1.0108004711018026e-11,
+                    4.676177327630549
+                  ],
+                  [
+                    1.0,
+                    0.02197562,
+                    1.0,
+                    1.0,
+                    0.012016788211030208,
+                    -0.012016788202322062,
+                    8.708145315949878e-12,
+                    4.676177327629368
+                  ],
+                  [
+                    2.0,
+                    0.055728214,
+                    12.0,
+                    1.0,
+                    0.0108137995018627,
+                    -0.010813799518238115,
+                    -1.6375414912950248e-11,
+                    4.677307709266019
+                  ]
+                ]
+              },
+              "candidate": {
+                "samples": [
+                  [
+                    0.0,
+                    1.005306475,
+                    19.0,
+                    1.0,
+                    0.012016788211065815,
+                    -0.01201678820095781,
+                    1.0108004711018026e-11,
+                    4.676177327630549
+                  ],
+                  [
+                    1.0,
+                    0.022724412,
+                    1.0,
+                    1.0,
+                    0.012016788211030208,
+                    -0.012016788202322062,
+                    8.708145315949878e-12,
+                    4.676177327629368
+                  ],
+                  [
+                    2.0,
+                    0.185080192,
+                    12.0,
+                    1.0,
+                    0.0108137995018627,
+                    -0.010813799518238115,
+                    -1.6375414912950248e-11,
+                    4.677307709266019
+                  ]
+                ]
+              }
+            },
+            "maximum_scaled_fields_error": 0.0,
+            "maximum_scaled_angles_error": 0.0
+          },
+          {
+            "grid": 8,
+            "shear": 0.35,
+            "angle_threads": 4,
+            "runs": {
+              "baseline": {
+                "samples": [
+                  [
+                    0.0,
+                    0.072508077,
+                    20.0,
+                    4.0,
+                    0.01201678821111177,
+                    -0.01201678819860815,
+                    1.2503619667425525e-11,
+                    4.676177327632487
+                  ],
+                  [
+                    1.0,
+                    0.021465521,
+                    1.0,
+                    4.0,
+                    0.012016788211064246,
+                    -0.012016788200158543,
+                    1.0905703423658153e-11,
+                    4.67617732763129
+                  ],
+                  [
+                    2.0,
+                    0.033463812,
+                    13.0,
+                    4.0,
+                    0.010813799501891135,
+                    -0.010813799516737643,
+                    -1.484650770378071e-11,
+                    4.677307709266787
+                  ]
+                ]
+              },
+              "candidate": {
+                "samples": [
+                  [
+                    0.0,
+                    0.315224977,
+                    20.0,
+                    1.0,
+                    0.01201678821111177,
+                    -0.01201678819860815,
+                    1.2503619667425525e-11,
+                    4.676177327632487
+                  ],
+                  [
+                    1.0,
+                    0.020267032,
+                    1.0,
+                    1.0,
+                    0.012016788211064246,
+                    -0.012016788200158543,
+                    1.0905703423658153e-11,
+                    4.67617732763129
+                  ],
+                  [
+                    2.0,
+                    0.056084782,
+                    13.0,
+                    1.0,
+                    0.010813799501891135,
+                    -0.010813799516737643,
+                    -1.484650770378071e-11,
+                    4.677307709266787
+                  ]
+                ]
+              }
+            },
+            "maximum_scaled_fields_error": 0.0,
+            "maximum_scaled_angles_error": 0.0
+          },
+          {
+            "grid": 16,
+            "shear": 0,
+            "angle_threads": 1,
+            "runs": {
+              "baseline": {
+                "samples": [
+                  [
+                    0.0,
+                    2.356666171,
+                    56.0,
+                    1.0,
+                    0.21606743566640843,
+                    -0.21606743562732808,
+                    3.908035006716659e-11,
+                    3.324078742921656
+                  ],
+                  [
+                    1.0,
+                    0.182207059,
+                    1.0,
+                    1.0,
+                    0.21606743566588257,
+                    -0.21606743563365113,
+                    3.223143973940523e-11,
+                    3.3240787429252254
+                  ],
+                  [
+                    2.0,
+                    1.655987486,
+                    39.0,
+                    1.0,
+                    0.2150460424819063,
+                    -0.21504604252862505,
+                    -4.67187399877389e-11,
+                    3.3227089929012696
+                  ]
+                ]
+              },
+              "candidate": {
+                "samples": [
+                  [
+                    0.0,
+                    2.900745575,
+                    56.0,
+                    1.0,
+                    0.21606743566640843,
+                    -0.21606743562732808,
+                    3.908035006716659e-11,
+                    3.324078742921656
+                  ],
+                  [
+                    1.0,
+                    0.144962693,
+                    1.0,
+                    1.0,
+                    0.21606743566588257,
+                    -0.21606743563365113,
+                    3.223143973940523e-11,
+                    3.3240787429252254
+                  ],
+                  [
+                    2.0,
+                    1.513468837,
+                    39.0,
+                    1.0,
+                    0.2150460424819063,
+                    -0.21504604252862505,
+                    -4.67187399877389e-11,
+                    3.3227089929012696
+                  ]
+                ]
+              }
+            },
+            "maximum_scaled_fields_error": 0.0,
+            "maximum_scaled_angles_error": 0.0
+          },
+          {
+            "grid": 16,
+            "shear": 0,
+            "angle_threads": 4,
+            "runs": {
+              "baseline": {
+                "samples": [
+                  [
+                    0.0,
+                    1.760103801,
+                    102.0,
+                    4.0,
+                    0.21606743567010592,
+                    -0.21606743557770788,
+                    9.23980336686725e-11,
+                    3.3240787429042533
+                  ],
+                  [
+                    1.0,
+                    0.176722673,
+                    1.0,
+                    4.0,
+                    0.21606743566897144,
+                    -0.21606743559283878,
+                    7.613265573525041e-11,
+                    3.324078742909104
+                  ],
+                  [
+                    2.0,
+                    1.209065646,
+                    70.0,
+                    4.0,
+                    0.21504604247859435,
+                    -0.21504604257205728,
+                    -9.346293183831733e-11,
+                    3.322708992919578
+                  ]
+                ]
+              },
+              "candidate": {
+                "samples": [
+                  [
+                    0.0,
+                    2.407503034,
+                    102.0,
+                    1.0,
+                    0.21606743567010592,
+                    -0.21606743557770788,
+                    9.23980336686725e-11,
+                    3.3240787429042533
+                  ],
+                  [
+                    1.0,
+                    0.137042704,
+                    1.0,
+                    1.0,
+                    0.21606743566897144,
+                    -0.21606743559283878,
+                    7.613265573525041e-11,
+                    3.324078742909104
+                  ],
+                  [
+                    2.0,
+                    1.146690773,
+                    70.0,
+                    1.0,
+                    0.21504604247859435,
+                    -0.21504604257205728,
+                    -9.346293183831733e-11,
+                    3.322708992919578
+                  ]
+                ]
+              }
+            },
+            "maximum_scaled_fields_error": 0.0,
+            "maximum_scaled_angles_error": 0.0
+          },
+          {
+            "grid": 16,
+            "shear": 0.35,
+            "angle_threads": 1,
+            "runs": {
+              "baseline": {
+                "samples": [
+                  [
+                    0.0,
+                    0.932638757,
+                    19.0,
+                    1.0,
+                    0.01116086863758958,
+                    -0.011160868623297088,
+                    1.4292490801981472e-11,
+                    4.658279215118934
+                  ],
+                  [
+                    1.0,
+                    0.180142295,
+                    1.0,
+                    1.0,
+                    0.01116086863756494,
+                    -0.011160868624431492,
+                    1.31334474545719e-11,
+                    4.658279215117954
+                  ],
+                  [
+                    2.0,
+                    0.644023263,
+                    12.0,
+                    1.0,
+                    0.009957176479967808,
+                    -0.00995717649931862,
+                    -1.935081088422219e-11,
+                    4.659461177275494
+                  ]
+                ]
+              },
+              "candidate": {
+                "samples": [
+                  [
+                    0.0,
+                    1.72857328,
+                    19.0,
+                    1.0,
+                    0.01116086863758958,
+                    -0.011160868623297088,
+                    1.4292490801981472e-11,
+                    4.658279215118934
+                  ],
+                  [
+                    1.0,
+                    0.136172127,
+                    1.0,
+                    1.0,
+                    0.01116086863756494,
+                    -0.011160868624431492,
+                    1.31334474545719e-11,
+                    4.658279215117954
+                  ],
+                  [
+                    2.0,
+                    0.559089074,
+                    12.0,
+                    1.0,
+                    0.009957176479967808,
+                    -0.00995717649931862,
+                    -1.935081088422219e-11,
+                    4.659461177275494
+                  ]
+                ]
+              }
+            },
+            "maximum_scaled_fields_error": 0.0,
+            "maximum_scaled_angles_error": 0.0
+          },
+          {
+            "grid": 16,
+            "shear": 0.35,
+            "angle_threads": 4,
+            "runs": {
+              "baseline": {
+                "samples": [
+                  [
+                    0.0,
+                    0.489581649,
+                    20.0,
+                    4.0,
+                    0.011160868637660634,
+                    -0.011160868619505776,
+                    1.815485782541426e-11,
+                    4.658279215122277
+                  ],
+                  [
+                    1.0,
+                    0.173495306,
+                    1.0,
+                    4.0,
+                    0.011160868637602224,
+                    -0.01116086862166139,
+                    1.5940833722472014e-11,
+                    4.658279215120307
+                  ],
+                  [
+                    2.0,
+                    0.3572432,
+                    13.0,
+                    4.0,
+                    0.009957176480006292,
+                    -0.00995717649750535,
+                    -1.749905775838556e-11,
+                    4.659461177276502
+                  ]
+                ]
+              },
+              "candidate": {
+                "samples": [
+                  [
+                    0.0,
+                    1.649639617,
+                    20.0,
+                    1.0,
+                    0.011160868637660634,
+                    -0.011160868619505776,
+                    1.815485782541426e-11,
+                    4.658279215122277
+                  ],
+                  [
+                    1.0,
+                    0.131635251,
+                    1.0,
+                    1.0,
+                    0.011160868637602224,
+                    -0.01116086862166139,
+                    1.5940833722472014e-11,
+                    4.658279215120307
+                  ],
+                  [
+                    2.0,
+                    0.315319884,
+                    13.0,
+                    1.0,
+                    0.009957176480006292,
+                    -0.00995717649750535,
+                    -1.749905775838556e-11,
+                    4.659461177276502
+                  ]
+                ]
+              }
+            },
+            "maximum_scaled_fields_error": 0.0,
+            "maximum_scaled_angles_error": 0.0
+          }
+        ],
+        "binaries": {
+          "baseline": "14deeca5d9c3a230c4d276839f0047008c6c9dbcc5e3e76c7849110be7e73237",
+          "candidate": "39124d41eca11be464d8343e7f1021b2184ac822f251f4a2539189981f512cd3"
+        }
+      }
+    },
+    "layer4-native-integrated-r6-grid32": {
+      "evidence": {
+        "path": "layer4-native-integrated-r6-grid32/results.json",
+        "sha256": "527c36709924484f5cd9a2fe32074a0358de8c4cc3bec87ba1d5faaf55f21955"
+      },
+      "result": {
+        "status": "PASS",
+        "scope": "Native discrete-ordinate owner comparison, including angular intensity exports.\n\nThe test-only instrumentation exports the actual production owner's intensity.\nTiming includes this identical binary output, properties and all source/linear\niterations. It is not a complete coupled-application benchmark.\n",
+        "cases": [
+          {
+            "grid": 32,
+            "shear": 0,
+            "angle_threads": 1,
+            "runs": {
+              "baseline": {
+                "samples": [
+                  [
+                    0.0,
+                    30.649991433,
+                    54.0,
+                    1.0,
+                    0.21633855393637633,
+                    -0.21633855388532733,
+                    5.104899836183563e-11,
+                    3.3222151616277844
+                  ],
+                  [
+                    1.0,
+                    1.466062991,
+                    1.0,
+                    1.0,
+                    0.2163385539359976,
+                    -0.2163385538900846,
+                    4.591299562761719e-11,
+                    3.3222151616299134
+                  ],
+                  [
+                    2.0,
+                    21.24028343,
+                    38.0,
+                    1.0,
+                    0.2153156877927191,
+                    -0.21531568784443897,
+                    -5.1719878380040996e-11,
+                    3.3208430515673704
+                  ]
+                ]
+              },
+              "candidate": {
+                "samples": [
+                  [
+                    0.0,
+                    10.535705079,
+                    54.0,
+                    1.0,
+                    0.21633855393637633,
+                    -0.21633855388532733,
+                    5.104899836183563e-11,
+                    3.3222151616277844
+                  ],
+                  [
+                    1.0,
+                    1.043952569,
+                    1.0,
+                    1.0,
+                    0.2163385539359976,
+                    -0.2163385538900846,
+                    4.591299562761719e-11,
+                    3.3222151616299134
+                  ],
+                  [
+                    2.0,
+                    6.031057568,
+                    38.0,
+                    1.0,
+                    0.2153156877927191,
+                    -0.21531568784443897,
+                    -5.1719878380040996e-11,
+                    3.3208430515673704
+                  ]
+                ]
+              }
+            },
+            "maximum_scaled_fields_error": 0.0,
+            "maximum_scaled_angles_error": 0.0
+          },
+          {
+            "grid": 32,
+            "shear": 0,
+            "angle_threads": 4,
+            "runs": {
+              "baseline": {
+                "samples": [
+                  [
+                    0.0,
+                    24.002136128,
+                    98.0,
+                    4.0,
+                    0.21633855393936713,
+                    -0.21633855384363773,
+                    9.572939663193836e-11,
+                    3.322215161610492
+                  ],
+                  [
+                    1.0,
+                    1.474225123,
+                    1.0,
+                    4.0,
+                    0.21633855393846094,
+                    -0.21633855385533385,
+                    8.312708854596451e-11,
+                    3.3222151616150213
+                  ],
+                  [
+                    2.0,
+                    16.241920477,
+                    68.0,
+                    4.0,
+                    0.21531568779034707,
+                    -0.2153156878776235,
+                    -8.727643607819857e-11,
+                    3.3208430515824063
+                  ]
+                ]
+              },
+              "candidate": {
+                "samples": [
+                  [
+                    0.0,
+                    21.77635901,
+                    98.0,
+                    1.0,
+                    0.21633855393936713,
+                    -0.21633855384363773,
+                    9.572939663193836e-11,
+                    3.322215161610492
+                  ],
+                  [
+                    1.0,
+                    1.125513735,
+                    1.0,
+                    1.0,
+                    0.21633855393846094,
+                    -0.21633855385533385,
+                    8.312708854596451e-11,
+                    3.3222151616150213
+                  ],
+                  [
+                    2.0,
+                    13.183764643,
+                    68.0,
+                    1.0,
+                    0.21531568779034707,
+                    -0.2153156878776235,
+                    -8.727643607819857e-11,
+                    3.3208430515824063
+                  ]
+                ]
+              }
+            },
+            "maximum_scaled_fields_error": 0.0,
+            "maximum_scaled_angles_error": 0.0
+          },
+          {
+            "grid": 32,
+            "shear": 0.35,
+            "angle_threads": 1,
+            "runs": {
+              "baseline": {
+                "samples": [
+                  [
+                    0.0,
+                    12.87806984,
+                    19.0,
+                    1.0,
+                    0.010737901923114305,
+                    -0.01073790190540753,
+                    1.77067752821225e-11,
+                    4.643854849150462
+                  ],
+                  [
+                    1.0,
+                    1.571429729,
+                    1.0,
+                    1.0,
+                    0.01073790192309148,
+                    -0.010737901906637738,
+                    1.6453741147337553e-11,
+                    4.64385484914937
+                  ],
+                  [
+                    2.0,
+                    8.342814685,
+                    12.0,
+                    1.0,
+                    0.009533870370269997,
+                    -0.00953387039120575,
+                    -2.0935753131112733e-11,
+                    4.645095652283975
+                  ]
+                ]
+              },
+              "candidate": {
+                "samples": [
+                  [
+                    0.0,
+                    5.668117853,
+                    19.0,
+                    1.0,
+                    0.010737901923114305,
+                    -0.01073790190540753,
+                    1.77067752821225e-11,
+                    4.643854849150462
+                  ],
+                  [
+                    1.0,
+                    1.034337883,
+                    1.0,
+                    1.0,
+                    0.01073790192309148,
+                    -0.010737901906637738,
+                    1.6453741147337553e-11,
+                    4.64385484914937
+                  ],
+                  [
+                    2.0,
+                    2.5782841,
+                    12.0,
+                    1.0,
+                    0.009533870370269997,
+                    -0.00953387039120575,
+                    -2.0935753131112733e-11,
+                    4.645095652283975
+                  ]
+                ]
+              }
+            },
+            "maximum_scaled_fields_error": 0.0,
+            "maximum_scaled_angles_error": 0.0
+          },
+          {
+            "grid": 32,
+            "shear": 0.35,
+            "angle_threads": 4,
+            "runs": {
+              "baseline": {
+                "samples": [
+                  [
+                    0.0,
+                    6.262951785,
+                    20.0,
+                    4.0,
+                    0.010737901923194718,
+                    -0.010737901901306645,
+                    2.18880729513371e-11,
+                    4.6438548491541125
+                  ],
+                  [
+                    1.0,
+                    1.481058641,
+                    1.0,
+                    4.0,
+                    0.010737901923158287,
+                    -0.010737901902930965,
+                    2.0227321553822897e-11,
+                    4.643854849152592
+                  ],
+                  [
+                    2.0,
+                    4.348246336,
+                    13.0,
+                    4.0,
+                    0.009533870370284959,
+                    -0.009533870392720755,
+                    -2.2435796276365494e-11,
+                    4.645095652281738
+                  ]
+                ]
+              },
+              "candidate": {
+                "samples": [
+                  [
+                    0.0,
+                    6.775448852,
+                    20.0,
+                    1.0,
+                    0.010737901923194718,
+                    -0.010737901901306645,
+                    2.18880729513371e-11,
+                    4.6438548491541125
+                  ],
+                  [
+                    1.0,
+                    1.057013801,
+                    1.0,
+                    1.0,
+                    0.010737901923158287,
+                    -0.010737901902930965,
+                    2.0227321553822897e-11,
+                    4.643854849152592
+                  ],
+                  [
+                    2.0,
+                    3.28502847,
+                    13.0,
+                    1.0,
+                    0.009533870370284959,
+                    -0.009533870392720755,
+                    -2.2435796276365494e-11,
+                    4.645095652281738
+                  ]
+                ]
+              }
+            },
+            "maximum_scaled_fields_error": 0.0,
+            "maximum_scaled_angles_error": 0.0
+          }
+        ],
+        "binaries": {
+          "baseline": "14deeca5d9c3a230c4d276839f0047008c6c9dbcc5e3e76c7849110be7e73237",
+          "candidate": "39124d41eca11be464d8343e7f1021b2184ac822f251f4a2539189981f512cd3"
+        }
+      }
+    },
+    "layer4-coupled-r7": {
+      "evidence": {
+        "path": "layer4-coupled-r7/results.json",
+        "sha256": "b148d76ab2fd32019e1ae46bc12f99e55f203ad10c1f745a996b1a8caa9b14e7"
+      },
+      "result": {
+        "status": "PASS",
+        "cases": [
+          {
+            "mobile": false,
+            "angle_threads": 1,
+            "runs": {
+              "baseline": {
+                "elapsed_seconds": 2.236605929036159,
+                "audit": {
+                  "states": [
+                    {
+                      "time": 2e-05,
+                      "gas": 445832.35023470555,
+                      "solid": 300000000.03474915,
+                      "particle": 0.0516012375942608,
+                      "total": 300445832.43658507,
+                      "particle_nonlinear_enthalpy": 0.0516012375942608,
+                      "total_using_nonlinear_enthalpy": 300445832.43658507,
+                      "mass": 1.00000004,
+                      "radiation_wall_flux": 8.881784197001252e-14
+                    },
+                    {
+                      "time": 4e-05,
+                      "gas": 445832.3205874397,
+                      "solid": 300000000.06447184,
+                      "particle": 0.05152580969886106,
+                      "total": 300445832.4365851,
+                      "particle_nonlinear_enthalpy": 0.05152580969886106,
+                      "total_using_nonlinear_enthalpy": 300445832.4365851,
+                      "mass": 1.00000004,
+                      "radiation_wall_flux": -2.651215069704449e-08
+                    }
+                  ],
+                  "maximum_transaction_model_energy_residual_J": 5.960464477539063e-08,
+                  "maximum_nonlinear_enthalpy_inventory_drift_J": 5.960464477539063e-08,
+                  "maximum_closed_mass_residual_kg": 0.0,
+                  "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+                }
+              },
+              "candidate": {
+                "elapsed_seconds": 0.9006269139936194,
+                "audit": {
+                  "states": [
+                    {
+                      "time": 2e-05,
+                      "gas": 445832.35023470555,
+                      "solid": 300000000.03474915,
+                      "particle": 0.0516012375942608,
+                      "total": 300445832.43658507,
+                      "particle_nonlinear_enthalpy": 0.0516012375942608,
+                      "total_using_nonlinear_enthalpy": 300445832.43658507,
+                      "mass": 1.00000004,
+                      "radiation_wall_flux": 8.881784197001252e-14
+                    },
+                    {
+                      "time": 4e-05,
+                      "gas": 445832.3205874397,
+                      "solid": 300000000.06447184,
+                      "particle": 0.05152580969886106,
+                      "total": 300445832.4365851,
+                      "particle_nonlinear_enthalpy": 0.05152580969886106,
+                      "total_using_nonlinear_enthalpy": 300445832.4365851,
+                      "mass": 1.00000004,
+                      "radiation_wall_flux": -2.651215069704449e-08
+                    }
+                  ],
+                  "maximum_transaction_model_energy_residual_J": 5.960464477539063e-08,
+                  "maximum_nonlinear_enthalpy_inventory_drift_J": 5.960464477539063e-08,
+                  "maximum_closed_mass_residual_kg": 0.0,
+                  "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+                }
+              }
+            },
+            "parity": {
+              "maximum_scaled_field_errors": {
+                "dMeanCell": 0.0,
+                "rhoDs": 0.0,
+                "particleRadiationAbsorptionCoefficient": 0.0,
+                "rhoEs": 0.0,
+                "epsilonS": 0.0,
+                "particleStuckWallHeatFlux": 0.0,
+                "k": 0.0,
+                "omega": 0.0,
+                "rho": 0.0,
+                "theta": 0.0,
+                "particleReflectedWallHeatFlux": 0.0,
+                "T": 0.0,
+                "particleRadiationScatteringCoefficient": 0.0,
+                "rhoE": 0.0,
+                "rhoHp": 0.0,
+                "rhoUs": 0.0,
+                "particleRadiationExtinctionCoefficient": 0.0,
+                "particleRadiationAsymmetryFactor": 0.0,
+                "particleRadiationWallHeatFlux": 0.0,
+                "Us": 0.0,
+                "U": 0.0,
+                "nut": 0.0,
+                "rhoU": 0.0,
+                "gasConvectiveWallHeatFlux": 0.0,
+                "p": 0.0,
+                "Tp": 0.0,
+                "solid/T": 0.0
+              }
+            },
+            "particle_restart_fields_bitwise_equal": true
+          },
+          {
+            "mobile": false,
+            "angle_threads": 4,
+            "runs": {
+              "baseline": {
+                "elapsed_seconds": 0.48593430197797716,
+                "audit": {
+                  "states": [
+                    {
+                      "time": 2e-05,
+                      "gas": 445832.35023470555,
+                      "solid": 300000000.03474915,
+                      "particle": 0.0516012375942608,
+                      "total": 300445832.43658507,
+                      "particle_nonlinear_enthalpy": 0.0516012375942608,
+                      "total_using_nonlinear_enthalpy": 300445832.43658507,
+                      "mass": 1.00000004,
+                      "radiation_wall_flux": 8.881784197001252e-14
+                    },
+                    {
+                      "time": 4e-05,
+                      "gas": 445832.3205874397,
+                      "solid": 300000000.06447184,
+                      "particle": 0.05152580969886106,
+                      "total": 300445832.4365851,
+                      "particle_nonlinear_enthalpy": 0.05152580969886106,
+                      "total_using_nonlinear_enthalpy": 300445832.4365851,
+                      "mass": 1.00000004,
+                      "radiation_wall_flux": 0.0
+                    }
+                  ],
+                  "maximum_transaction_model_energy_residual_J": 5.960464477539063e-08,
+                  "maximum_nonlinear_enthalpy_inventory_drift_J": 5.960464477539063e-08,
+                  "maximum_closed_mass_residual_kg": 0.0,
+                  "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+                }
+              },
+              "candidate": {
+                "elapsed_seconds": 0.7114804949960671,
+                "audit": {
+                  "states": [
+                    {
+                      "time": 2e-05,
+                      "gas": 445832.35023470555,
+                      "solid": 300000000.03474915,
+                      "particle": 0.0516012375942608,
+                      "total": 300445832.43658507,
+                      "particle_nonlinear_enthalpy": 0.0516012375942608,
+                      "total_using_nonlinear_enthalpy": 300445832.43658507,
+                      "mass": 1.00000004,
+                      "radiation_wall_flux": 8.881784197001252e-14
+                    },
+                    {
+                      "time": 4e-05,
+                      "gas": 445832.3205874397,
+                      "solid": 300000000.06447184,
+                      "particle": 0.05152580969886106,
+                      "total": 300445832.4365851,
+                      "particle_nonlinear_enthalpy": 0.05152580969886106,
+                      "total_using_nonlinear_enthalpy": 300445832.4365851,
+                      "mass": 1.00000004,
+                      "radiation_wall_flux": 0.0
+                    }
+                  ],
+                  "maximum_transaction_model_energy_residual_J": 5.960464477539063e-08,
+                  "maximum_nonlinear_enthalpy_inventory_drift_J": 5.960464477539063e-08,
+                  "maximum_closed_mass_residual_kg": 0.0,
+                  "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+                }
+              }
+            },
+            "parity": {
+              "maximum_scaled_field_errors": {
+                "dMeanCell": 0.0,
+                "rhoDs": 0.0,
+                "particleRadiationAbsorptionCoefficient": 0.0,
+                "rhoEs": 0.0,
+                "epsilonS": 0.0,
+                "particleStuckWallHeatFlux": 0.0,
+                "k": 0.0,
+                "omega": 0.0,
+                "rho": 0.0,
+                "theta": 0.0,
+                "particleReflectedWallHeatFlux": 0.0,
+                "T": 0.0,
+                "particleRadiationScatteringCoefficient": 0.0,
+                "rhoE": 0.0,
+                "rhoHp": 0.0,
+                "rhoUs": 0.0,
+                "particleRadiationExtinctionCoefficient": 0.0,
+                "particleRadiationAsymmetryFactor": 0.0,
+                "particleRadiationWallHeatFlux": 0.0,
+                "Us": 0.0,
+                "U": 0.0,
+                "nut": 0.0,
+                "rhoU": 0.0,
+                "gasConvectiveWallHeatFlux": 0.0,
+                "p": 0.0,
+                "Tp": 0.0,
+                "solid/T": 0.0
+              }
+            },
+            "particle_restart_fields_bitwise_equal": true
+          },
+          {
+            "mobile": true,
+            "angle_threads": 1,
+            "runs": {
+              "baseline": {
+                "elapsed_seconds": 0.39114292699377984,
+                "audit": {
+                  "states": [
+                    {
+                      "time": 2e-05,
+                      "gas": 445832.37568459596,
+                      "solid": 300000000.0362009,
+                      "particle": 405.9984656892774,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.219934941981,
+                      "total_using_nonlinear_enthalpy": 300446443.63182044,
+                      "mass": 1.0004,
+                      "radiation_wall_flux": 76.71553049533503
+                    },
+                    {
+                      "time": 4e-05,
+                      "gas": 445832.3462470282,
+                      "solid": 300000000.0671639,
+                      "particle": 405.9969402934786,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.2176384990147,
+                      "total_using_nonlinear_enthalpy": 300446443.6310494,
+                      "mass": 1.0004000000000002,
+                      "radiation_wall_flux": 76.26978993755557
+                    }
+                  ],
+                  "maximum_transaction_model_energy_residual_J": 0.0,
+                  "maximum_nonlinear_enthalpy_inventory_drift_J": 0.0007710456848144531,
+                  "maximum_closed_mass_residual_kg": 2.220446049250313e-16,
+                  "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+                }
+              },
+              "candidate": {
+                "elapsed_seconds": 1.5737514120410196,
+                "audit": {
+                  "states": [
+                    {
+                      "time": 2e-05,
+                      "gas": 445832.37568459596,
+                      "solid": 300000000.0362009,
+                      "particle": 405.9984656892774,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.219934941981,
+                      "total_using_nonlinear_enthalpy": 300446443.63182044,
+                      "mass": 1.0004,
+                      "radiation_wall_flux": 76.71553049533503
+                    },
+                    {
+                      "time": 4e-05,
+                      "gas": 445832.3462470282,
+                      "solid": 300000000.0671639,
+                      "particle": 405.9969402934786,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.2176384990147,
+                      "total_using_nonlinear_enthalpy": 300446443.6310494,
+                      "mass": 1.0004000000000002,
+                      "radiation_wall_flux": 76.26978993755557
+                    }
+                  ],
+                  "maximum_transaction_model_energy_residual_J": 0.0,
+                  "maximum_nonlinear_enthalpy_inventory_drift_J": 0.0007710456848144531,
+                  "maximum_closed_mass_residual_kg": 2.220446049250313e-16,
+                  "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+                }
+              }
+            },
+            "parity": {
+              "maximum_scaled_field_errors": {
+                "dMeanCell": 0.0,
+                "rhoDs": 0.0,
+                "particleRadiationAbsorptionCoefficient": 0.0,
+                "rhoEs": 0.0,
+                "epsilonS": 0.0,
+                "particleStuckWallHeatFlux": 0.0,
+                "k": 0.0,
+                "omega": 0.0,
+                "rho": 0.0,
+                "theta": 0.0,
+                "particleReflectedWallHeatFlux": 0.0,
+                "T": 0.0,
+                "particleRadiationScatteringCoefficient": 0.0,
+                "rhoE": 0.0,
+                "rhoHp": 0.0,
+                "rhoUs": 0.0,
+                "particleRadiationExtinctionCoefficient": 0.0,
+                "particleRadiationAsymmetryFactor": 0.0,
+                "particleRadiationWallHeatFlux": 0.0,
+                "Us": 0.0,
+                "U": 0.0,
+                "nut": 0.0,
+                "rhoU": 0.0,
+                "gasConvectiveWallHeatFlux": 0.0,
+                "p": 0.0,
+                "Tp": 0.0,
+                "solid/T": 0.0
+              }
+            },
+            "particle_restart_fields_bitwise_equal": true
+          },
+          {
+            "mobile": true,
+            "angle_threads": 4,
+            "runs": {
+              "baseline": {
+                "elapsed_seconds": 0.4231435729889199,
+                "audit": {
+                  "states": [
+                    {
+                      "time": 2e-05,
+                      "gas": 445832.37568459596,
+                      "solid": 300000000.0362009,
+                      "particle": 405.9984656892774,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.219934941981,
+                      "total_using_nonlinear_enthalpy": 300446443.63182044,
+                      "mass": 1.0004,
+                      "radiation_wall_flux": 76.71553049533495
+                    },
+                    {
+                      "time": 4e-05,
+                      "gas": 445832.3462470282,
+                      "solid": 300000000.0671639,
+                      "particle": 405.9969402934786,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.2176384990146,
+                      "total_using_nonlinear_enthalpy": 300446443.6310494,
+                      "mass": 1.0004000000000002,
+                      "radiation_wall_flux": 76.26978993869226
+                    }
+                  ],
+                  "maximum_transaction_model_energy_residual_J": 0.0,
+                  "maximum_nonlinear_enthalpy_inventory_drift_J": 0.0007710456848144531,
+                  "maximum_closed_mass_residual_kg": 2.220446049250313e-16,
+                  "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+                }
+              },
+              "candidate": {
+                "elapsed_seconds": 1.103845756035298,
+                "audit": {
+                  "states": [
+                    {
+                      "time": 2e-05,
+                      "gas": 445832.37568459596,
+                      "solid": 300000000.0362009,
+                      "particle": 405.9984656892774,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.219934941981,
+                      "total_using_nonlinear_enthalpy": 300446443.63182044,
+                      "mass": 1.0004,
+                      "radiation_wall_flux": 76.71553049533495
+                    },
+                    {
+                      "time": 4e-05,
+                      "gas": 445832.3462470282,
+                      "solid": 300000000.0671639,
+                      "particle": 405.9969402934786,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.2176384990146,
+                      "total_using_nonlinear_enthalpy": 300446443.6310494,
+                      "mass": 1.0004000000000002,
+                      "radiation_wall_flux": 76.26978993869226
+                    }
+                  ],
+                  "maximum_transaction_model_energy_residual_J": 0.0,
+                  "maximum_nonlinear_enthalpy_inventory_drift_J": 0.0007710456848144531,
+                  "maximum_closed_mass_residual_kg": 2.220446049250313e-16,
+                  "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+                }
+              }
+            },
+            "parity": {
+              "maximum_scaled_field_errors": {
+                "dMeanCell": 0.0,
+                "rhoDs": 0.0,
+                "particleRadiationAbsorptionCoefficient": 0.0,
+                "rhoEs": 0.0,
+                "epsilonS": 0.0,
+                "particleStuckWallHeatFlux": 0.0,
+                "k": 0.0,
+                "omega": 0.0,
+                "rho": 0.0,
+                "theta": 0.0,
+                "particleReflectedWallHeatFlux": 0.0,
+                "T": 0.0,
+                "particleRadiationScatteringCoefficient": 0.0,
+                "rhoE": 0.0,
+                "rhoHp": 0.0,
+                "rhoUs": 0.0,
+                "particleRadiationExtinctionCoefficient": 0.0,
+                "particleRadiationAsymmetryFactor": 0.0,
+                "particleRadiationWallHeatFlux": 0.0,
+                "Us": 0.0,
+                "U": 0.0,
+                "nut": 0.0,
+                "rhoU": 0.0,
+                "gasConvectiveWallHeatFlux": 0.0,
+                "p": 0.0,
+                "Tp": 0.0,
+                "solid/T": 0.0
+              }
+            },
+            "particle_restart_fields_bitwise_equal": true
+          }
+        ],
+        "binaries": {
+          "baseline": "653d2b282ad6e7dcd32e2602532ebecdadb331b168fd35785c5463d69dc544be",
+          "candidate": "1ee236d30c07ac62dc05cd801e3ecddd3f5001cf46f2be7f1c9b44916c8b27f1"
+        }
+      }
+    },
+    "layer4-coupled-r7-grid32-comparison": {
+      "evidence": {
+        "path": "layer4-coupled-r7-grid32-comparison/results.json",
+        "sha256": "813ca7c199f799dc41164d4db524402c9d9e9bd3211c7530a00e0a6f2e006515"
+      },
+      "result": {
+        "status": "BASELINE_ABSOLUTE_CONSERVATION_BOUNDS_EXCEEDED",
+        "scope": "Migration comparison against the completed layer-3 baseline. Original absolute conservation bounds remain explicitly reported as pass/fail.",
+        "baseline_case": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/work/sutherland-wilke-20261026/gpu-coupled-validation/layer4-coupled-r7-grid32/mobile1-threads1-baseline",
+        "candidate_sha256": "1ee236d30c07ac62dc05cd801e3ecddd3f5001cf46f2be7f1c9b44916c8b27f1",
+        "baseline_audit": {
+          "states": [
+            {
+              "time": 2e-05,
+              "gas": 445838.3469110694,
+              "solid": 300000000.8782452,
+              "particle": 107514.6766529425,
+              "total": 300553353.9018092,
+              "particle_nonlinear_enthalpy": 161860.49756994678,
+              "total_using_nonlinear_enthalpy": 300607699.72272617,
+              "mass": 1.1024000014392072,
+              "radiation_wall_flux": 16167.352874704182
+            },
+            {
+              "time": 4e-05,
+              "gas": 445837.92100248754,
+              "solid": 300000001.6270375,
+              "particle": 107514.35607035711,
+              "total": 300553353.9041104,
+              "particle_nonlinear_enthalpy": 161860.01494135693,
+              "total_using_nonlinear_enthalpy": 300607699.56298137,
+              "mass": 1.1024000043758417,
+              "radiation_wall_flux": 16029.129268638948
+            }
+          ],
+          "absolute_energy_bound_pass": false,
+          "absolute_mass_bound_pass": false,
+          "maximum_transaction_model_energy_residual_J": 0.002301156520843506,
+          "maximum_nonlinear_enthalpy_inventory_drift_J": 0.15974479913711548,
+          "maximum_closed_mass_residual_kg": 2.936634491135237e-09,
+          "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+        },
+        "candidate_elapsed_seconds": 24.700841783022042,
+        "candidate_audit": {
+          "states": [
+            {
+              "time": 2e-05,
+              "gas": 445838.3469110694,
+              "solid": 300000000.8782452,
+              "particle": 107514.6766529425,
+              "total": 300553353.9018092,
+              "particle_nonlinear_enthalpy": 161860.49756994678,
+              "total_using_nonlinear_enthalpy": 300607699.72272617,
+              "mass": 1.1024000014392072,
+              "radiation_wall_flux": 16167.352874704182
+            },
+            {
+              "time": 4e-05,
+              "gas": 445837.92100248754,
+              "solid": 300000001.6270375,
+              "particle": 107514.35607035711,
+              "total": 300553353.9041104,
+              "particle_nonlinear_enthalpy": 161860.01494135693,
+              "total_using_nonlinear_enthalpy": 300607699.56298137,
+              "mass": 1.1024000043758417,
+              "radiation_wall_flux": 16029.129268638948
+            }
+          ],
+          "absolute_energy_bound_pass": false,
+          "absolute_mass_bound_pass": false,
+          "maximum_transaction_model_energy_residual_J": 0.002301156520843506,
+          "maximum_nonlinear_enthalpy_inventory_drift_J": 0.15974479913711548,
+          "maximum_closed_mass_residual_kg": 2.936634491135237e-09,
+          "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+        },
+        "parity": {
+          "maximum_scaled_field_errors": {
+            "dMeanCell": 0.0,
+            "rhoDs": 0.0,
+            "particleRadiationAbsorptionCoefficient": 0.0,
+            "rhoEs": 0.0,
+            "epsilonS": 0.0,
+            "particleStuckWallHeatFlux": 0.0,
+            "k": 0.0,
+            "omega": 0.0,
+            "rho": 0.0,
+            "theta": 0.0,
+            "particleReflectedWallHeatFlux": 0.0,
+            "T": 0.0,
+            "particleRadiationScatteringCoefficient": 0.0,
+            "rhoE": 0.0,
+            "rhoHp": 0.0,
+            "rhoUs": 0.0,
+            "particleRadiationExtinctionCoefficient": 0.0,
+            "particleRadiationAsymmetryFactor": 0.0,
+            "particleRadiationWallHeatFlux": 0.0,
+            "Us": 0.0,
+            "U": 0.0,
+            "nut": 0.0,
+            "rhoU": 0.0,
+            "gasConvectiveWallHeatFlux": 0.0,
+            "p": 0.0,
+            "Tp": 0.0,
+            "solid/T": 0.0
+          }
+        },
+        "particle_fields_bitwise_equal": true,
+        "migration_parity": "PASS"
+      }
+    },
+    "layer4-restart-paired-r7-r2": {
+      "evidence": {
+        "path": "layer4-restart-paired-r7-r2/results.json",
+        "sha256": "4daed0082972649f8e98aa863f8deac540f0aa139676294f74b5d526748c879c"
+      },
+      "result": {
+        "status": "PASS",
+        "scope": "Paired full CHT radiation restart, preserving baseline output differences.\n\nInternal physical fields, actual particle checkpoints and restarted CPU/GPU\noutputs are checked independently. Existing continuous/restart differences in\ncalculated boundary fields are retained in the report, not silently discarded.\n",
+        "cases": [
+          {
+            "angle_threads": 1,
+            "runs": {
+              "baseline": {
+                "binary_sha256": "653d2b282ad6e7dcd32e2602532ebecdadb331b168fd35785c5463d69dc544be",
+                "elapsed_seconds": 2.3584666199749336,
+                "continuous_restart": {
+                  "2.0000000000000002e-05": {
+                    "maximum_scaled_internal_errors": {
+                      "dMeanCell": 0.0,
+                      "rhoDs": 0.0,
+                      "particleRadiationAbsorptionCoefficient": 0.0,
+                      "rhoEs": 0.0,
+                      "epsilonS": 0.0,
+                      "particleStuckWallHeatFlux": 0.0,
+                      "k": 0.0,
+                      "omega": 0.0,
+                      "rho": 0.0,
+                      "theta": 0.0,
+                      "particleReflectedWallHeatFlux": 0.0,
+                      "T": 0.0,
+                      "particleRadiationScatteringCoefficient": 0.0,
+                      "rhoE": 0.0,
+                      "rhoHp": 0.0,
+                      "rhoUs": 0.0,
+                      "particleRadiationExtinctionCoefficient": 0.0,
+                      "particleRadiationAsymmetryFactor": 0.0,
+                      "particleRadiationWallHeatFlux": 0.0,
+                      "Us": 0.0,
+                      "U": 0.0,
+                      "nut": 0.0,
+                      "rhoU": 0.0,
+                      "gasConvectiveWallHeatFlux": 0.0,
+                      "p": 0.0,
+                      "Tp": 0.0,
+                      "solid/T": 0.0
+                    },
+                    "changed_boundary_output_fields": []
+                  },
+                  "4.0000000000000003e-05": {
+                    "maximum_scaled_internal_errors": {
+                      "dMeanCell": 0.0,
+                      "rhoDs": 0.0,
+                      "particleRadiationAbsorptionCoefficient": 0.0,
+                      "rhoEs": 0.0,
+                      "epsilonS": 0.0,
+                      "particleStuckWallHeatFlux": 0.0,
+                      "k": 0.0,
+                      "omega": 0.0,
+                      "rho": 0.0,
+                      "theta": 0.0,
+                      "particleReflectedWallHeatFlux": 0.0,
+                      "T": 0.0,
+                      "particleRadiationScatteringCoefficient": 0.0,
+                      "rhoE": 0.0,
+                      "rhoHp": 0.0,
+                      "rhoUs": 0.0,
+                      "particleRadiationExtinctionCoefficient": 0.0,
+                      "particleRadiationAsymmetryFactor": 0.0,
+                      "particleRadiationWallHeatFlux": 0.0,
+                      "Us": 0.0,
+                      "U": 0.0,
+                      "nut": 0.0,
+                      "rhoU": 0.0,
+                      "gasConvectiveWallHeatFlux": 0.0,
+                      "p": 0.0,
+                      "Tp": 0.0,
+                      "solid/T": 0.0
+                    },
+                    "changed_boundary_output_fields": [
+                      "T",
+                      "rhoHp",
+                      "particleRadiationWallHeatFlux",
+                      "solid/T"
+                    ]
+                  }
+                },
+                "audit": {
+                  "states": [
+                    {
+                      "time": 2e-05,
+                      "gas": 445832.37568459596,
+                      "solid": 300000000.0362009,
+                      "particle": 405.9984656892774,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.219934941981,
+                      "total_using_nonlinear_enthalpy": 300446443.63182044,
+                      "mass": 1.0004,
+                      "radiation_wall_flux": 76.71553049533503
+                    },
+                    {
+                      "time": 4e-05,
+                      "gas": 445832.3462470282,
+                      "solid": 300000000.0671639,
+                      "particle": 405.9969402934786,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.2176384990147,
+                      "total_using_nonlinear_enthalpy": 300446443.6310494,
+                      "mass": 1.0004000000000002,
+                      "radiation_wall_flux": 76.26978993755532
+                    }
+                  ],
+                  "maximum_transaction_model_energy_residual_J": 0.0,
+                  "maximum_nonlinear_enthalpy_inventory_drift_J": 0.0007710456848144531,
+                  "maximum_closed_mass_residual_kg": 2.220446049250313e-16,
+                  "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+                },
+                "continuous_restart_particle_differences": {}
+              },
+              "candidate": {
+                "binary_sha256": "1ee236d30c07ac62dc05cd801e3ecddd3f5001cf46f2be7f1c9b44916c8b27f1",
+                "elapsed_seconds": 1.0071781819569878,
+                "continuous_restart": {
+                  "2.0000000000000002e-05": {
+                    "maximum_scaled_internal_errors": {
+                      "dMeanCell": 0.0,
+                      "rhoDs": 0.0,
+                      "particleRadiationAbsorptionCoefficient": 0.0,
+                      "rhoEs": 0.0,
+                      "epsilonS": 0.0,
+                      "particleStuckWallHeatFlux": 0.0,
+                      "k": 0.0,
+                      "omega": 0.0,
+                      "rho": 0.0,
+                      "theta": 0.0,
+                      "particleReflectedWallHeatFlux": 0.0,
+                      "T": 0.0,
+                      "particleRadiationScatteringCoefficient": 0.0,
+                      "rhoE": 0.0,
+                      "rhoHp": 0.0,
+                      "rhoUs": 0.0,
+                      "particleRadiationExtinctionCoefficient": 0.0,
+                      "particleRadiationAsymmetryFactor": 0.0,
+                      "particleRadiationWallHeatFlux": 0.0,
+                      "Us": 0.0,
+                      "U": 0.0,
+                      "nut": 0.0,
+                      "rhoU": 0.0,
+                      "gasConvectiveWallHeatFlux": 0.0,
+                      "p": 0.0,
+                      "Tp": 0.0,
+                      "solid/T": 0.0
+                    },
+                    "changed_boundary_output_fields": []
+                  },
+                  "4.0000000000000003e-05": {
+                    "maximum_scaled_internal_errors": {
+                      "dMeanCell": 0.0,
+                      "rhoDs": 0.0,
+                      "particleRadiationAbsorptionCoefficient": 0.0,
+                      "rhoEs": 0.0,
+                      "epsilonS": 0.0,
+                      "particleStuckWallHeatFlux": 0.0,
+                      "k": 0.0,
+                      "omega": 0.0,
+                      "rho": 0.0,
+                      "theta": 0.0,
+                      "particleReflectedWallHeatFlux": 0.0,
+                      "T": 0.0,
+                      "particleRadiationScatteringCoefficient": 0.0,
+                      "rhoE": 0.0,
+                      "rhoHp": 0.0,
+                      "rhoUs": 0.0,
+                      "particleRadiationExtinctionCoefficient": 0.0,
+                      "particleRadiationAsymmetryFactor": 0.0,
+                      "particleRadiationWallHeatFlux": 0.0,
+                      "Us": 0.0,
+                      "U": 0.0,
+                      "nut": 0.0,
+                      "rhoU": 0.0,
+                      "gasConvectiveWallHeatFlux": 0.0,
+                      "p": 0.0,
+                      "Tp": 0.0,
+                      "solid/T": 0.0
+                    },
+                    "changed_boundary_output_fields": [
+                      "T",
+                      "rhoHp",
+                      "particleRadiationWallHeatFlux",
+                      "solid/T"
+                    ]
+                  }
+                },
+                "audit": {
+                  "states": [
+                    {
+                      "time": 2e-05,
+                      "gas": 445832.37568459596,
+                      "solid": 300000000.0362009,
+                      "particle": 405.9984656892774,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.219934941981,
+                      "total_using_nonlinear_enthalpy": 300446443.63182044,
+                      "mass": 1.0004,
+                      "radiation_wall_flux": 76.71553049533503
+                    },
+                    {
+                      "time": 4e-05,
+                      "gas": 445832.3462470282,
+                      "solid": 300000000.0671639,
+                      "particle": 405.9969402934786,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.2176384990147,
+                      "total_using_nonlinear_enthalpy": 300446443.6310494,
+                      "mass": 1.0004000000000002,
+                      "radiation_wall_flux": 76.26978993755532
+                    }
+                  ],
+                  "maximum_transaction_model_energy_residual_J": 0.0,
+                  "maximum_nonlinear_enthalpy_inventory_drift_J": 0.0007710456848144531,
+                  "maximum_closed_mass_residual_kg": 2.220446049250313e-16,
+                  "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+                },
+                "continuous_restart_particle_differences": {}
+              }
+            },
+            "restarted_cpu_gpu_parity": {
+              "maximum_scaled_field_errors": {
+                "dMeanCell": 0.0,
+                "rhoDs": 0.0,
+                "particleRadiationAbsorptionCoefficient": 0.0,
+                "rhoEs": 0.0,
+                "epsilonS": 0.0,
+                "particleStuckWallHeatFlux": 0.0,
+                "k": 0.0,
+                "omega": 0.0,
+                "rho": 0.0,
+                "theta": 0.0,
+                "particleReflectedWallHeatFlux": 0.0,
+                "T": 0.0,
+                "particleRadiationScatteringCoefficient": 0.0,
+                "rhoE": 0.0,
+                "rhoHp": 0.0,
+                "rhoUs": 0.0,
+                "particleRadiationExtinctionCoefficient": 0.0,
+                "particleRadiationAsymmetryFactor": 0.0,
+                "particleRadiationWallHeatFlux": 0.0,
+                "Us": 0.0,
+                "U": 0.0,
+                "nut": 0.0,
+                "rhoU": 0.0,
+                "gasConvectiveWallHeatFlux": 0.0,
+                "p": 0.0,
+                "Tp": 0.0,
+                "solid/T": 0.0
+              }
+            },
+            "restarted_cpu_gpu_particle_fields_bitwise_equal": true,
+            "baseline_restart_boundary_differences_preserved": true
+          },
+          {
+            "angle_threads": 4,
+            "runs": {
+              "baseline": {
+                "binary_sha256": "653d2b282ad6e7dcd32e2602532ebecdadb331b168fd35785c5463d69dc544be",
+                "elapsed_seconds": 0.42914068297250196,
+                "continuous_restart": {
+                  "2.0000000000000002e-05": {
+                    "maximum_scaled_internal_errors": {
+                      "dMeanCell": 0.0,
+                      "rhoDs": 0.0,
+                      "particleRadiationAbsorptionCoefficient": 0.0,
+                      "rhoEs": 0.0,
+                      "epsilonS": 0.0,
+                      "particleStuckWallHeatFlux": 0.0,
+                      "k": 0.0,
+                      "omega": 0.0,
+                      "rho": 0.0,
+                      "theta": 0.0,
+                      "particleReflectedWallHeatFlux": 0.0,
+                      "T": 0.0,
+                      "particleRadiationScatteringCoefficient": 0.0,
+                      "rhoE": 0.0,
+                      "rhoHp": 0.0,
+                      "rhoUs": 0.0,
+                      "particleRadiationExtinctionCoefficient": 0.0,
+                      "particleRadiationAsymmetryFactor": 0.0,
+                      "particleRadiationWallHeatFlux": 0.0,
+                      "Us": 0.0,
+                      "U": 0.0,
+                      "nut": 0.0,
+                      "rhoU": 0.0,
+                      "gasConvectiveWallHeatFlux": 0.0,
+                      "p": 0.0,
+                      "Tp": 0.0,
+                      "solid/T": 0.0
+                    },
+                    "changed_boundary_output_fields": []
+                  },
+                  "4.0000000000000003e-05": {
+                    "maximum_scaled_internal_errors": {
+                      "dMeanCell": 0.0,
+                      "rhoDs": 0.0,
+                      "particleRadiationAbsorptionCoefficient": 0.0,
+                      "rhoEs": 0.0,
+                      "epsilonS": 0.0,
+                      "particleStuckWallHeatFlux": 0.0,
+                      "k": 0.0,
+                      "omega": 0.0,
+                      "rho": 0.0,
+                      "theta": 0.0,
+                      "particleReflectedWallHeatFlux": 0.0,
+                      "T": 0.0,
+                      "particleRadiationScatteringCoefficient": 0.0,
+                      "rhoE": 0.0,
+                      "rhoHp": 3.7017767286283446e-16,
+                      "rhoUs": 0.0,
+                      "particleRadiationExtinctionCoefficient": 0.0,
+                      "particleRadiationAsymmetryFactor": 0.0,
+                      "particleRadiationWallHeatFlux": 0.0,
+                      "Us": 0.0,
+                      "U": 0.0,
+                      "nut": 0.0,
+                      "rhoU": 0.0,
+                      "gasConvectiveWallHeatFlux": 0.0,
+                      "p": 0.0,
+                      "Tp": 3.3437560815418314e-16,
+                      "solid/T": 0.0
+                    },
+                    "changed_boundary_output_fields": [
+                      "T",
+                      "rhoHp",
+                      "particleRadiationWallHeatFlux",
+                      "solid/T"
+                    ]
+                  }
+                },
+                "audit": {
+                  "states": [
+                    {
+                      "time": 2e-05,
+                      "gas": 445832.37568459596,
+                      "solid": 300000000.0362009,
+                      "particle": 405.9984656892774,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.219934941981,
+                      "total_using_nonlinear_enthalpy": 300446443.63182044,
+                      "mass": 1.0004,
+                      "radiation_wall_flux": 76.71553049533495
+                    },
+                    {
+                      "time": 4e-05,
+                      "gas": 445832.3462470282,
+                      "solid": 300000000.0671639,
+                      "particle": 405.9969402934786,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.2176384990147,
+                      "total_using_nonlinear_enthalpy": 300446443.6310494,
+                      "mass": 1.0004000000000002,
+                      "radiation_wall_flux": 76.26978993755549
+                    }
+                  ],
+                  "maximum_transaction_model_energy_residual_J": 0.0,
+                  "maximum_nonlinear_enthalpy_inventory_drift_J": 0.0007710456848144531,
+                  "maximum_closed_mass_residual_kg": 2.220446049250313e-16,
+                  "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+                },
+                "continuous_restart_particle_differences": {
+                  "pT": {
+                    "maximum_absolute_error": 3.410605131648481e-13,
+                    "maximum_scaled_error": 3.343756081540903e-16,
+                    "scaled_bound": 2e-12
+                  },
+                  "pThermalEnthalpyResidual": {
+                    "maximum_absolute_error": 8.58069171272291e-12,
+                    "maximum_scaled_error": 8.58069171272291e-12,
+                    "scaled_bound": 1e-09
+                  }
+                }
+              },
+              "candidate": {
+                "binary_sha256": "1ee236d30c07ac62dc05cd801e3ecddd3f5001cf46f2be7f1c9b44916c8b27f1",
+                "elapsed_seconds": 0.8028886760002933,
+                "continuous_restart": {
+                  "2.0000000000000002e-05": {
+                    "maximum_scaled_internal_errors": {
+                      "dMeanCell": 0.0,
+                      "rhoDs": 0.0,
+                      "particleRadiationAbsorptionCoefficient": 0.0,
+                      "rhoEs": 0.0,
+                      "epsilonS": 0.0,
+                      "particleStuckWallHeatFlux": 0.0,
+                      "k": 0.0,
+                      "omega": 0.0,
+                      "rho": 0.0,
+                      "theta": 0.0,
+                      "particleReflectedWallHeatFlux": 0.0,
+                      "T": 0.0,
+                      "particleRadiationScatteringCoefficient": 0.0,
+                      "rhoE": 0.0,
+                      "rhoHp": 0.0,
+                      "rhoUs": 0.0,
+                      "particleRadiationExtinctionCoefficient": 0.0,
+                      "particleRadiationAsymmetryFactor": 0.0,
+                      "particleRadiationWallHeatFlux": 0.0,
+                      "Us": 0.0,
+                      "U": 0.0,
+                      "nut": 0.0,
+                      "rhoU": 0.0,
+                      "gasConvectiveWallHeatFlux": 0.0,
+                      "p": 0.0,
+                      "Tp": 0.0,
+                      "solid/T": 0.0
+                    },
+                    "changed_boundary_output_fields": []
+                  },
+                  "4.0000000000000003e-05": {
+                    "maximum_scaled_internal_errors": {
+                      "dMeanCell": 0.0,
+                      "rhoDs": 0.0,
+                      "particleRadiationAbsorptionCoefficient": 0.0,
+                      "rhoEs": 0.0,
+                      "epsilonS": 0.0,
+                      "particleStuckWallHeatFlux": 0.0,
+                      "k": 0.0,
+                      "omega": 0.0,
+                      "rho": 0.0,
+                      "theta": 0.0,
+                      "particleReflectedWallHeatFlux": 0.0,
+                      "T": 0.0,
+                      "particleRadiationScatteringCoefficient": 0.0,
+                      "rhoE": 0.0,
+                      "rhoHp": 3.7017767286283446e-16,
+                      "rhoUs": 0.0,
+                      "particleRadiationExtinctionCoefficient": 0.0,
+                      "particleRadiationAsymmetryFactor": 0.0,
+                      "particleRadiationWallHeatFlux": 0.0,
+                      "Us": 0.0,
+                      "U": 0.0,
+                      "nut": 0.0,
+                      "rhoU": 0.0,
+                      "gasConvectiveWallHeatFlux": 0.0,
+                      "p": 0.0,
+                      "Tp": 3.3437560815418314e-16,
+                      "solid/T": 0.0
+                    },
+                    "changed_boundary_output_fields": [
+                      "T",
+                      "rhoHp",
+                      "particleRadiationWallHeatFlux",
+                      "solid/T"
+                    ]
+                  }
+                },
+                "audit": {
+                  "states": [
+                    {
+                      "time": 2e-05,
+                      "gas": 445832.37568459596,
+                      "solid": 300000000.0362009,
+                      "particle": 405.9984656892774,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.219934941981,
+                      "total_using_nonlinear_enthalpy": 300446443.63182044,
+                      "mass": 1.0004,
+                      "radiation_wall_flux": 76.71553049533495
+                    },
+                    {
+                      "time": 4e-05,
+                      "gas": 445832.3462470282,
+                      "solid": 300000000.0671639,
+                      "particle": 405.9969402934786,
+                      "total": 300446238.4103512,
+                      "particle_nonlinear_enthalpy": 611.2176384990147,
+                      "total_using_nonlinear_enthalpy": 300446443.6310494,
+                      "mass": 1.0004000000000002,
+                      "radiation_wall_flux": 76.26978993755549
+                    }
+                  ],
+                  "maximum_transaction_model_energy_residual_J": 0.0,
+                  "maximum_nonlinear_enthalpy_inventory_drift_J": 0.0007710456848144531,
+                  "maximum_closed_mass_residual_kg": 2.220446049250313e-16,
+                  "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+                },
+                "continuous_restart_particle_differences": {
+                  "pT": {
+                    "maximum_absolute_error": 3.410605131648481e-13,
+                    "maximum_scaled_error": 3.343756081540903e-16,
+                    "scaled_bound": 2e-12
+                  },
+                  "pThermalEnthalpyResidual": {
+                    "maximum_absolute_error": 8.58069171272291e-12,
+                    "maximum_scaled_error": 8.58069171272291e-12,
+                    "scaled_bound": 1e-09
+                  }
+                }
+              }
+            },
+            "restarted_cpu_gpu_parity": {
+              "maximum_scaled_field_errors": {
+                "dMeanCell": 0.0,
+                "rhoDs": 0.0,
+                "particleRadiationAbsorptionCoefficient": 0.0,
+                "rhoEs": 0.0,
+                "epsilonS": 0.0,
+                "particleStuckWallHeatFlux": 0.0,
+                "k": 0.0,
+                "omega": 0.0,
+                "rho": 0.0,
+                "theta": 0.0,
+                "particleReflectedWallHeatFlux": 0.0,
+                "T": 0.0,
+                "particleRadiationScatteringCoefficient": 0.0,
+                "rhoE": 0.0,
+                "rhoHp": 0.0,
+                "rhoUs": 0.0,
+                "particleRadiationExtinctionCoefficient": 0.0,
+                "particleRadiationAsymmetryFactor": 0.0,
+                "particleRadiationWallHeatFlux": 0.0,
+                "Us": 0.0,
+                "U": 0.0,
+                "nut": 0.0,
+                "rhoU": 0.0,
+                "gasConvectiveWallHeatFlux": 0.0,
+                "p": 0.0,
+                "Tp": 0.0,
+                "solid/T": 0.0
+              }
+            },
+            "restarted_cpu_gpu_particle_fields_bitwise_equal": true,
+            "baseline_restart_boundary_differences_preserved": true
+          }
+        ]
+      }
+    },
+    "layer4-coupled-memcheck-r7": {
+      "evidence": {
+        "path": "layer4-coupled-memcheck-r7/results.json",
+        "sha256": "7c1165b05b0f23fb2b51b1030e6f078bcb58487c1c222fc4ca0d6d443870c5fa"
+      },
+      "result": {
+        "status": "PASS",
+        "memcheck_zero_errors": true,
+        "parity": {
+          "maximum_scaled_field_errors": {
+            "dMeanCell": 0.0,
+            "rhoDs": 0.0,
+            "particleRadiationAbsorptionCoefficient": 0.0,
+            "rhoEs": 0.0,
+            "epsilonS": 0.0,
+            "particleStuckWallHeatFlux": 0.0,
+            "k": 0.0,
+            "omega": 0.0,
+            "rho": 0.0,
+            "theta": 0.0,
+            "particleReflectedWallHeatFlux": 0.0,
+            "T": 0.0,
+            "particleRadiationScatteringCoefficient": 0.0,
+            "rhoE": 0.0,
+            "rhoHp": 0.0,
+            "rhoUs": 0.0,
+            "particleRadiationExtinctionCoefficient": 0.0,
+            "particleRadiationAsymmetryFactor": 0.0,
+            "particleRadiationWallHeatFlux": 0.0,
+            "Us": 0.0,
+            "U": 0.0,
+            "nut": 0.0,
+            "rhoU": 0.0,
+            "gasConvectiveWallHeatFlux": 0.0,
+            "p": 0.0,
+            "Tp": 0.0,
+            "solid/T": 0.0
+          }
+        },
+        "audit": {
+          "states": [
+            {
+              "time": 2e-05,
+              "gas": 445832.37568459596,
+              "solid": 300000000.0362009,
+              "particle": 405.9984656892774,
+              "total": 300446238.4103512,
+              "particle_nonlinear_enthalpy": 611.219934941981,
+              "total_using_nonlinear_enthalpy": 300446443.63182044,
+              "mass": 1.0004,
+              "radiation_wall_flux": 76.71553049533495
+            },
+            {
+              "time": 4e-05,
+              "gas": 445832.3462470282,
+              "solid": 300000000.0671639,
+              "particle": 405.9969402934786,
+              "total": 300446238.4103512,
+              "particle_nonlinear_enthalpy": 611.2176384990146,
+              "total_using_nonlinear_enthalpy": 300446443.6310494,
+              "mass": 1.0004000000000002,
+              "radiation_wall_flux": 76.26978993869226
+            }
+          ],
+          "maximum_transaction_model_energy_residual_J": 0.0,
+          "maximum_nonlinear_enthalpy_inventory_drift_J": 0.0007710456848144531,
+          "maximum_closed_mass_residual_kg": 2.220446049250313e-16,
+          "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+        }
+      }
+    },
+    "native_owner_scope": "12 orthogonal/sheared mesh configurations, 8^3/16^3/32^3, serial/frozen angles, cold/warm/changed-state solves. Scalar fields and all angular intensities have zero maximum scaled error against actual frozen production owner. DO sources unchanged from r6 to r7.",
+    "material": {
+      "cases": 192,
+      "scope": "Frozen CPU implicit roots and boundary scaling, six tables and 1/2/257/4096 cells; finite results bitwise and nonfinite classifications equal.",
+      "logs": [
+        {
+          "path": "layer4-material-r1/ordinary.log",
+          "sha256": "b0acb81aaf41bf87a6ca66d8a1f36a0f67f1eb3805de46e910e184bd55f5b3fb"
+        },
+        {
+          "path": "layer4-material-r1/zero_scattering.log",
+          "sha256": "b0acb81aaf41bf87a6ca66d8a1f36a0f67f1eb3805de46e910e184bd55f5b3fb"
+        },
+        {
+          "path": "layer4-material-r1/zero_diameter.log",
+          "sha256": "b0acb81aaf41bf87a6ca66d8a1f36a0f67f1eb3805de46e910e184bd55f5b3fb"
+        },
+        {
+          "path": "layer4-material-r1/negative_diameter.log",
+          "sha256": "b0acb81aaf41bf87a6ca66d8a1f36a0f67f1eb3805de46e910e184bd55f5b3fb"
+        },
+        {
+          "path": "layer4-material-r1/equal_logarithms.log",
+          "sha256": "b0acb81aaf41bf87a6ca66d8a1f36a0f67f1eb3805de46e910e184bd55f5b3fb"
+        },
+        {
+          "path": "layer4-material-r1/wide_temperature.log",
+          "sha256": "b0acb81aaf41bf87a6ca66d8a1f36a0f67f1eb3805de46e910e184bd55f5b3fb"
+        }
+      ],
+      "memcheck": {
+        "path": "layer4-material-r1/memcheck.log",
+        "sha256": "a6350ef041e1fe0a484dcef217f2d9558b9bed35c661a35ab46990be3d5b358c"
+      }
+    },
+    "full_native_memcheck": [
+      {
+        "path": "layer4-final-memcheck-r7/direction-1.log",
+        "sha256": "98d2c333183c90c13a37f7e467fbdd69c969abc0c370195bc5175458e180cb20"
+      },
+      {
+        "path": "layer4-final-memcheck-r7/direction-4.log",
+        "sha256": "a73f6779c8949bbcf7ff2f21976a29a82ba65fdbb7ff2ca32a2c9824fafd828a"
+      },
+      {
+        "path": "layer4-coupled-memcheck-r7/memcheck.log",
+        "sha256": "125658e278308ad3285c557a6160e1ff6563bc31012b06ecd7229012567d98d5"
+      }
+    ],
+    "component_conservation": {
+      "evidence": {
+        "path": "layer4-component-conservation-r7.json",
+        "sha256": "bb91352f8014dda84ebea3c8ce1b3c829da036f4984701741c01f4206be2367c"
+      },
+      "result": {
+        "large_baseline": {
+          "states": [
+            {
+              "gas_wall_flux": 27744.905315088603,
+              "contact_wall_flux": 0.0,
+              "time": 2e-05,
+              "gas": 445838.3469110694,
+              "solid": 300000000.8782452,
+              "particle": 107514.6766529425,
+              "total": 300553353.9018092,
+              "particle_nonlinear_enthalpy": 161860.49756994678,
+              "total_using_nonlinear_enthalpy": 300607699.72272617,
+              "mass": 1.1024000014392072,
+              "radiation_wall_flux": 16167.352874704182
+            },
+            {
+              "gas_wall_flux": 21410.489307234395,
+              "contact_wall_flux": 0.0,
+              "time": 4e-05,
+              "gas": 445837.92100248754,
+              "solid": 300000001.6270375,
+              "particle": 107514.35607035711,
+              "total": 300553353.9041104,
+              "particle_nonlinear_enthalpy": 161860.01494135693,
+              "total_using_nonlinear_enthalpy": 300607699.56298137,
+              "mass": 1.1024000043758417,
+              "radiation_wall_flux": 16029.129268638948
+            }
+          ],
+          "maximum_exchange_residual_J": {
+            "gas": 0.0023012042670949584,
+            "solid": 2.1225261104262927e-08,
+            "particle": 7.400802193302525e-12
+          },
+          "absolute_energy_bound_pass": false,
+          "absolute_mass_bound_pass": false,
+          "maximum_transaction_model_energy_residual_J": 0.002301156520843506,
+          "maximum_nonlinear_enthalpy_inventory_drift_J": 0.15974479913711548,
+          "maximum_closed_mass_residual_kg": 2.936634491135237e-09,
+          "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+        },
+        "large_candidate": {
+          "states": [
+            {
+              "gas_wall_flux": 27744.905315088603,
+              "contact_wall_flux": 0.0,
+              "time": 2e-05,
+              "gas": 445838.3469110694,
+              "solid": 300000000.8782452,
+              "particle": 107514.6766529425,
+              "total": 300553353.9018092,
+              "particle_nonlinear_enthalpy": 161860.49756994678,
+              "total_using_nonlinear_enthalpy": 300607699.72272617,
+              "mass": 1.1024000014392072,
+              "radiation_wall_flux": 16167.352874704182
+            },
+            {
+              "gas_wall_flux": 21410.489307234395,
+              "contact_wall_flux": 0.0,
+              "time": 4e-05,
+              "gas": 445837.92100248754,
+              "solid": 300000001.6270375,
+              "particle": 107514.35607035711,
+              "total": 300553353.9041104,
+              "particle_nonlinear_enthalpy": 161860.01494135693,
+              "total_using_nonlinear_enthalpy": 300607699.56298137,
+              "mass": 1.1024000043758417,
+              "radiation_wall_flux": 16029.129268638948
+            }
+          ],
+          "maximum_exchange_residual_J": {
+            "gas": 0.0023012042670949584,
+            "solid": 2.1225261104262927e-08,
+            "particle": 7.400802193302525e-12
+          },
+          "absolute_energy_bound_pass": false,
+          "absolute_mass_bound_pass": false,
+          "maximum_transaction_model_energy_residual_J": 0.002301156520843506,
+          "maximum_nonlinear_enthalpy_inventory_drift_J": 0.15974479913711548,
+          "maximum_closed_mass_residual_kg": 2.936634491135237e-09,
+          "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+        },
+        "small_0_1_baseline": {
+          "states": [
+            {
+              "gas_wall_flux": 1733.3299584686322,
+              "contact_wall_flux": 4.128120286959911,
+              "time": 2e-05,
+              "gas": 445832.35023470555,
+              "solid": 300000000.03474915,
+              "particle": 0.0516012375942608,
+              "total": 300445832.43658507,
+              "particle_nonlinear_enthalpy": 0.0516012375942608,
+              "total_using_nonlinear_enthalpy": 300445832.43658507,
+              "mass": 1.00000004,
+              "radiation_wall_flux": 8.881784197001252e-14
+            },
+            {
+              "gas_wall_flux": 1482.3632927965023,
+              "contact_wall_flux": 3.7713947699872366,
+              "time": 4e-05,
+              "gas": 445832.3205874397,
+              "solid": 300000000.06447184,
+              "particle": 0.05152580969886106,
+              "total": 300445832.4365851,
+              "particle_nonlinear_enthalpy": 0.05152580969886106,
+              "total_using_nonlinear_enthalpy": 300445832.4365851,
+              "mass": 1.00000004,
+              "radiation_wall_flux": -2.651215069704449e-08
+            }
+          ],
+          "maximum_exchange_residual_J": {
+            "gas": 3.9667366613649335e-12,
+            "solid": 3.168524154856245e-09,
+            "particle": 5.302416491992368e-13
+          },
+          "absolute_energy_bound_pass": true,
+          "absolute_mass_bound_pass": true,
+          "maximum_transaction_model_energy_residual_J": 5.960464477539063e-08,
+          "maximum_nonlinear_enthalpy_inventory_drift_J": 5.960464477539063e-08,
+          "maximum_closed_mass_residual_kg": 0.0,
+          "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+        },
+        "small_0_1_candidate": {
+          "states": [
+            {
+              "gas_wall_flux": 1733.3299584686322,
+              "contact_wall_flux": 4.128120286959911,
+              "time": 2e-05,
+              "gas": 445832.35023470555,
+              "solid": 300000000.03474915,
+              "particle": 0.0516012375942608,
+              "total": 300445832.43658507,
+              "particle_nonlinear_enthalpy": 0.0516012375942608,
+              "total_using_nonlinear_enthalpy": 300445832.43658507,
+              "mass": 1.00000004,
+              "radiation_wall_flux": 8.881784197001252e-14
+            },
+            {
+              "gas_wall_flux": 1482.3632927965023,
+              "contact_wall_flux": 3.7713947699872366,
+              "time": 4e-05,
+              "gas": 445832.3205874397,
+              "solid": 300000000.06447184,
+              "particle": 0.05152580969886106,
+              "total": 300445832.4365851,
+              "particle_nonlinear_enthalpy": 0.05152580969886106,
+              "total_using_nonlinear_enthalpy": 300445832.4365851,
+              "mass": 1.00000004,
+              "radiation_wall_flux": -2.651215069704449e-08
+            }
+          ],
+          "maximum_exchange_residual_J": {
+            "gas": 3.9667366613649335e-12,
+            "solid": 3.168524154856245e-09,
+            "particle": 5.302416491992368e-13
+          },
+          "absolute_energy_bound_pass": true,
+          "absolute_mass_bound_pass": true,
+          "maximum_transaction_model_energy_residual_J": 5.960464477539063e-08,
+          "maximum_nonlinear_enthalpy_inventory_drift_J": 5.960464477539063e-08,
+          "maximum_closed_mass_residual_kg": 0.0,
+          "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+        },
+        "small_0_4_baseline": {
+          "states": [
+            {
+              "gas_wall_flux": 1733.3299584686322,
+              "contact_wall_flux": 4.128120286959911,
+              "time": 2e-05,
+              "gas": 445832.35023470555,
+              "solid": 300000000.03474915,
+              "particle": 0.0516012375942608,
+              "total": 300445832.43658507,
+              "particle_nonlinear_enthalpy": 0.0516012375942608,
+              "total_using_nonlinear_enthalpy": 300445832.43658507,
+              "mass": 1.00000004,
+              "radiation_wall_flux": 8.881784197001252e-14
+            },
+            {
+              "gas_wall_flux": 1482.3632927965023,
+              "contact_wall_flux": 3.7713947699872366,
+              "time": 4e-05,
+              "gas": 445832.3205874397,
+              "solid": 300000000.06447184,
+              "particle": 0.05152580969886106,
+              "total": 300445832.4365851,
+              "particle_nonlinear_enthalpy": 0.05152580969886106,
+              "total_using_nonlinear_enthalpy": 300445832.4365851,
+              "mass": 1.00000004,
+              "radiation_wall_flux": 0.0
+            }
+          ],
+          "maximum_exchange_residual_J": {
+            "gas": 3.9667366613649335e-12,
+            "solid": 3.1690544008422528e-09,
+            "particle": 1.3688052427629493e-18
+          },
+          "absolute_energy_bound_pass": true,
+          "absolute_mass_bound_pass": true,
+          "maximum_transaction_model_energy_residual_J": 5.960464477539063e-08,
+          "maximum_nonlinear_enthalpy_inventory_drift_J": 5.960464477539063e-08,
+          "maximum_closed_mass_residual_kg": 0.0,
+          "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+        },
+        "small_0_4_candidate": {
+          "states": [
+            {
+              "gas_wall_flux": 1733.3299584686322,
+              "contact_wall_flux": 4.128120286959911,
+              "time": 2e-05,
+              "gas": 445832.35023470555,
+              "solid": 300000000.03474915,
+              "particle": 0.0516012375942608,
+              "total": 300445832.43658507,
+              "particle_nonlinear_enthalpy": 0.0516012375942608,
+              "total_using_nonlinear_enthalpy": 300445832.43658507,
+              "mass": 1.00000004,
+              "radiation_wall_flux": 8.881784197001252e-14
+            },
+            {
+              "gas_wall_flux": 1482.3632927965023,
+              "contact_wall_flux": 3.7713947699872366,
+              "time": 4e-05,
+              "gas": 445832.3205874397,
+              "solid": 300000000.06447184,
+              "particle": 0.05152580969886106,
+              "total": 300445832.4365851,
+              "particle_nonlinear_enthalpy": 0.05152580969886106,
+              "total_using_nonlinear_enthalpy": 300445832.4365851,
+              "mass": 1.00000004,
+              "radiation_wall_flux": 0.0
+            }
+          ],
+          "maximum_exchange_residual_J": {
+            "gas": 3.9667366613649335e-12,
+            "solid": 3.1690544008422528e-09,
+            "particle": 1.3688052427629493e-18
+          },
+          "absolute_energy_bound_pass": true,
+          "absolute_mass_bound_pass": true,
+          "maximum_transaction_model_energy_residual_J": 5.960464477539063e-08,
+          "maximum_nonlinear_enthalpy_inventory_drift_J": 5.960464477539063e-08,
+          "maximum_closed_mass_residual_kg": 0.0,
+          "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+        },
+        "small_1_1_baseline": {
+          "states": [
+            {
+              "gas_wall_flux": 1733.3301561125502,
+              "contact_wall_flux": 0.0,
+              "time": 2e-05,
+              "gas": 445832.37568459596,
+              "solid": 300000000.0362009,
+              "particle": 405.9984656892774,
+              "total": 300446238.4103512,
+              "particle_nonlinear_enthalpy": 611.219934941981,
+              "total_using_nonlinear_enthalpy": 300446443.63182044,
+              "mass": 1.0004,
+              "radiation_wall_flux": 76.71553049533503
+            },
+            {
+              "gas_wall_flux": 1471.8788114461988,
+              "contact_wall_flux": 0.0,
+              "time": 4e-05,
+              "gas": 445832.3462470282,
+              "solid": 300000000.0671639,
+              "particle": 405.9969402934786,
+              "total": 300446238.4103512,
+              "particle_nonlinear_enthalpy": 611.2176384990147,
+              "total_using_nonlinear_enthalpy": 300446443.6310494,
+              "mass": 1.0004000000000002,
+              "radiation_wall_flux": 76.26978993755557
+            }
+          ],
+          "maximum_exchange_residual_J": {
+            "gas": 8.481260273945912e-09,
+            "solid": 3.1607731404426076e-08,
+            "particle": 5.683756416907659e-14
+          },
+          "absolute_energy_bound_pass": true,
+          "absolute_mass_bound_pass": true,
+          "maximum_transaction_model_energy_residual_J": 0.0,
+          "maximum_nonlinear_enthalpy_inventory_drift_J": 0.0007710456848144531,
+          "maximum_closed_mass_residual_kg": 2.220446049250313e-16,
+          "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+        },
+        "small_1_1_candidate": {
+          "states": [
+            {
+              "gas_wall_flux": 1733.3301561125502,
+              "contact_wall_flux": 0.0,
+              "time": 2e-05,
+              "gas": 445832.37568459596,
+              "solid": 300000000.0362009,
+              "particle": 405.9984656892774,
+              "total": 300446238.4103512,
+              "particle_nonlinear_enthalpy": 611.219934941981,
+              "total_using_nonlinear_enthalpy": 300446443.63182044,
+              "mass": 1.0004,
+              "radiation_wall_flux": 76.71553049533503
+            },
+            {
+              "gas_wall_flux": 1471.8788114461988,
+              "contact_wall_flux": 0.0,
+              "time": 4e-05,
+              "gas": 445832.3462470282,
+              "solid": 300000000.0671639,
+              "particle": 405.9969402934786,
+              "total": 300446238.4103512,
+              "particle_nonlinear_enthalpy": 611.2176384990147,
+              "total_using_nonlinear_enthalpy": 300446443.6310494,
+              "mass": 1.0004000000000002,
+              "radiation_wall_flux": 76.26978993755557
+            }
+          ],
+          "maximum_exchange_residual_J": {
+            "gas": 8.481260273945912e-09,
+            "solid": 3.1607731404426076e-08,
+            "particle": 5.683756416907659e-14
+          },
+          "absolute_energy_bound_pass": true,
+          "absolute_mass_bound_pass": true,
+          "maximum_transaction_model_energy_residual_J": 0.0,
+          "maximum_nonlinear_enthalpy_inventory_drift_J": 0.0007710456848144531,
+          "maximum_closed_mass_residual_kg": 2.220446049250313e-16,
+          "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+        },
+        "small_1_4_baseline": {
+          "states": [
+            {
+              "gas_wall_flux": 1733.3301561125502,
+              "contact_wall_flux": 0.0,
+              "time": 2e-05,
+              "gas": 445832.37568459596,
+              "solid": 300000000.0362009,
+              "particle": 405.9984656892774,
+              "total": 300446238.4103512,
+              "particle_nonlinear_enthalpy": 611.219934941981,
+              "total_using_nonlinear_enthalpy": 300446443.63182044,
+              "mass": 1.0004,
+              "radiation_wall_flux": 76.71553049533495
+            },
+            {
+              "gas_wall_flux": 1471.8788114461988,
+              "contact_wall_flux": 0.0,
+              "time": 4e-05,
+              "gas": 445832.3462470282,
+              "solid": 300000000.0671639,
+              "particle": 405.9969402934786,
+              "total": 300446238.4103512,
+              "particle_nonlinear_enthalpy": 611.2176384990146,
+              "total_using_nonlinear_enthalpy": 300446443.6310494,
+              "mass": 1.0004000000000002,
+              "radiation_wall_flux": 76.26978993869226
+            }
+          ],
+          "maximum_exchange_residual_J": {
+            "gas": 8.481260273945912e-09,
+            "solid": 3.160770867260965e-08,
+            "particle": 3.4104013016400536e-14
+          },
+          "absolute_energy_bound_pass": true,
+          "absolute_mass_bound_pass": true,
+          "maximum_transaction_model_energy_residual_J": 0.0,
+          "maximum_nonlinear_enthalpy_inventory_drift_J": 0.0007710456848144531,
+          "maximum_closed_mass_residual_kg": 2.220446049250313e-16,
+          "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+        },
+        "small_1_4_candidate": {
+          "states": [
+            {
+              "gas_wall_flux": 1733.3301561125502,
+              "contact_wall_flux": 0.0,
+              "time": 2e-05,
+              "gas": 445832.37568459596,
+              "solid": 300000000.0362009,
+              "particle": 405.9984656892774,
+              "total": 300446238.4103512,
+              "particle_nonlinear_enthalpy": 611.219934941981,
+              "total_using_nonlinear_enthalpy": 300446443.63182044,
+              "mass": 1.0004,
+              "radiation_wall_flux": 76.71553049533495
+            },
+            {
+              "gas_wall_flux": 1471.8788114461988,
+              "contact_wall_flux": 0.0,
+              "time": 4e-05,
+              "gas": 445832.3462470282,
+              "solid": 300000000.0671639,
+              "particle": 405.9969402934786,
+              "total": 300446238.4103512,
+              "particle_nonlinear_enthalpy": 611.2176384990146,
+              "total_using_nonlinear_enthalpy": 300446443.6310494,
+              "mass": 1.0004000000000002,
+              "radiation_wall_flux": 76.26978993869226
+            }
+          ],
+          "maximum_exchange_residual_J": {
+            "gas": 8.481260273945912e-09,
+            "solid": 3.160770867260965e-08,
+            "particle": 3.4104013016400536e-14
+          },
+          "absolute_energy_bound_pass": true,
+          "absolute_mass_bound_pass": true,
+          "maximum_transaction_model_energy_residual_J": 0.0,
+          "maximum_nonlinear_enthalpy_inventory_drift_J": 0.0007710456848144531,
+          "maximum_closed_mass_residual_kg": 2.220446049250313e-16,
+          "energy_scope": "Configured constant particle heat factor for mobile radiation; nonlinear enthalpy inventory reported independently."
+        }
+      }
+    },
+    "thermal_restart_probes": {
+      "passed": 122,
+      "aggregation": "87 passed in broad retry plus 35 restart compatibility tests after rebuilding unchanged baseline. Not a single uninterrupted 122-test run.",
+      "logs": [
+        {
+          "path": "layer4-thermal-probes-r7-retry.log",
+          "sha256": "1efd3a6b415c49d6d468324b8dda1c852789a3715317486259e2e5eacfde00a0"
+        },
+        {
+          "path": "layer4-restart-probes-r7-retry.log",
+          "sha256": "52bd5607a513508022c90f180854fa83747f15f9097a422a64e4bfd006992f14"
+        }
+      ]
+    },
+    "radiation_probes": {
+      "candidate_passed": 79,
+      "candidate_failed": 4,
+      "frozen_passed": 79,
+      "frozen_failed": 4,
+      "logs": [
+        {
+          "path": "layer4-radiation-probes-r7.log",
+          "sha256": "b3322e31dd582c94e3e8efa2da8965753081a024270329e48430e8fb7cac30a9"
+        },
+        {
+          "path": "layer4-radiation-probes-baseline.log",
+          "sha256": "9985573b9aa620cc3ee9bf310051c0a6f5e702c1c43d436c674355f3767a25fa"
+        }
+      ],
+      "preexisting_failures": [
+        "test_two_mu_actual_generation: python executable unavailable (python3 available).",
+        "test_actual_zero_planck_weight: generator ArithmeticError differs from old expected exception.",
+        "test_original_implicit_math_fixture: old zero-boundary rejection expectation differs from baseline IEEE behavior.",
+        "test_tiny_original_phase_fallback: old fallback expectation differs from baseline ArithmeticError."
+      ]
+    },
+    "material_reproduction": {
+      "command": "layer4_material.sh REPOSITORY FROZEN_BASELINE OPTICS_TABLE_DIRECTORY OUTPUT",
+      "build_and_run": {
+        "path": "layer4-material-repro-r7.log",
+        "sha256": "58b9dab5bb97cd614acd89feb3c1dae6796e6123175b1007e546ae6a4715996b"
+      },
+      "memcheck": {
+        "path": "layer4-material-repro-r7/memcheck.log",
+        "sha256": "a6350ef041e1fe0a484dcef217f2d9558b9bed35c661a35ab46990be3d5b358c"
+      },
+      "binaries": {
+        "path": "layer4-material-repro-r7/binaries.sha256",
+        "sha256": "0914eeaefca72e27542b9854bc6cfe569075627b65ff7dea81dd2ffbdd255e15"
+      }
+    }
+  },
+  "limitations": [
+    "A 32^3 full CHT case exceeds the original absolute global energy/mass test bounds on both baseline and candidate: 0.0023011565 J and 2.9366345e-9 kg. All output fields, particle checkpoints and residuals are unchanged by migration. This case is marked BASELINE_ABSOLUTE_CONSERVATION_BOUNDS_EXCEEDED, not an absolute-conservation pass.",
+    "Component balances locate that residual in the existing gas update: gas 0.002301204267 J, solid 2.12252611e-8 J, particle radiation 7.40080219e-12 J, identical CPU/GPU. The migrated radiation and solid exchanges close within the original test bound.",
+    "Existing mobile radiation uses configured constant heat factor, while particle enthalpy uses a nonlinear law. Both transaction-model and nonlinear-enthalpy inventories are retained; small-case nonlinear drift 0.0007710456848 J is unchanged, not claimed to be zero.",
+    "Native restarts reconstruct calculated particle boundary outputs differently from continuous runs. Internal physical fields remain within tolerance, restarted CPU/GPU fields and particle checkpoints match; boundary differences and tiny native enthalpy-carry roundoff are explicitly recorded.",
+    "Early conditional graph upwind experiments matched ordinary numerical tests but produced unresolved ComputeSanitizer CUDA999/OOB reports. Production layer-four upwind uses ordinary graphs, with final unit/native/full-app memcheck zero errors. The rejected experiment is not claimed to be a sanitizer bug.",
+    "Unreproducible nvcc/GCC internal compiler errors also occurred while compiling unchanged baseline sources; successful bounded retries retained. No unrelated hardware investigation or runtime fallback was added."
+  ],
+  "failed_or_superseded_evidence": [
+    "layer4-upwind-conditional-unresolved.cuh",
+    "layer4-coupled-r6/results.json",
+    "layer4-coupled-r6-retry/results.json",
+    "layer4-coupled-r7-grid32/results.json",
+    "layer4-restart-r7-1-baseline/results.json",
+    "layer4-restart-paired-r7/results.json",
+    "layer4-restart-paired-r7-retry/results.json",
+    "layer4-final-memcheck-r7/coupled.log",
+    "layer4-thermal-probes-r7.log",
+    "layer4-thermal-probes-r7-retry.log",
+    "layer4-performance-owner32-t1-r7/results.json"
+  ],
+  "reproduction": [
+    "Source OpenFOAM 10. Preserve the 88bc baseline and accepted layer-three binary for independent comparisons.",
+    "Build: tool/CHT/build_cuda_solver.sh. Development evidence uses the documented reused gas archive and standard new thermal units.",
+    "layer4_optics.sh REPOSITORY FROZEN_BASELINE OUTPUT; layer4_material.sh REPOSITORY FROZEN_BASELINE OPTICS_TABLE_DIRECTORY OUTPUT.",
+    "Compile validation/tests/ordered_maximum.cu and ordered_upwind_sweep.cu using nvcc -std=c++17 -O2 --fmad=false -arch=sm_89; run normally and under compute-sanitizer --tool memcheck.",
+    "layer4_transport_build.sh builds actual frozen/candidate owner probes; layer4_transport.py compares all fields and test-only angular exports on selected meshes.",
+    "layer4_coupled.py --baseline CPU_RADIATION_CHT --candidate GPU_CHT --work NEW_DIR [--grid N]. For the known large-case baseline closure limitation, --record-baseline-conservation retains absolute pass/fail while requiring unchanged residuals.",
+    "layer4_restart.py --baseline CPU_RADIATION_CHT --candidate GPU_CHT --reference COMPLETED_SMALL_COUPLED_COHORT --work NEW_DIR.",
+    "layer4_performance.py --baseline BASELINE --candidate CANDIDATE --reference VALIDATED_CASE --work NEW_DIR --repeats 5 [--solver CHT --mobile --grid N]. One warmup pair, five alternating measured pairs; process startup/output included, mesh preparation excluded."
+  ],
+  "performance": {
+    "owner32-t1": {
+      "evidence": {
+        "path": "layer4-performance-owner32-t1-r7-r2/results.json",
+        "sha256": "912dc8c98ace85ac1903888107c10e155b0e84334c3c61c80631b99884b3c3b8"
+      },
+      "status": "PASS",
+      "timing": {
+        "baseline": {
+          "samples": [
+            55.13871072803158,
+            53.64489604497794,
+            55.80800352297956,
+            54.578402950952295,
+            55.52553576399805
+          ],
+          "median": 55.13871072803158,
+          "minimum": 53.64489604497794,
+          "maximum": 55.80800352297956
+        },
+        "candidate": {
+          "samples": [
+            16.666156571009196,
+            18.138596148986835,
+            16.915083619998768,
+            17.710938891978003,
+            16.538580720953178
+          ],
+          "median": 16.915083619998768,
+          "minimum": 16.538580720953178,
+          "maximum": 18.138596148986835
+        },
+        "process_speedup": 3.2597362192665056,
+        "owner_medians": {
+          "baseline": [
+            31.74819225,
+            1.551246971,
+            21.404575115
+          ],
+          "candidate": [
+            9.503663459,
+            1.050566812,
+            5.977722517
+          ]
+        }
+      }
+    },
+    "owner32-t4": {
+      "evidence": {
+        "path": "layer4-performance-owner32-t4-r7-r2/results.json",
+        "sha256": "65379965efb9f6df95b8d720977956fe66af9cd9e3ee03cf26cdb213e3c50af1"
+      },
+      "status": "PASS",
+      "timing": {
+        "baseline": {
+          "samples": [
+            45.28744360600831,
+            42.94440536701586,
+            45.036366143031046,
+            42.90682964900043,
+            45.29089793295134
+          ],
+          "median": 45.036366143031046,
+          "minimum": 42.90682964900043,
+          "maximum": 45.29089793295134
+        },
+        "candidate": {
+          "samples": [
+            35.37184616003651,
+            36.847256984969135,
+            35.09615220699925,
+            36.32312143902527,
+            35.511618223041296
+          ],
+          "median": 35.511618223041296,
+          "minimum": 35.09615220699925,
+          "maximum": 36.847256984969135
+        },
+        "process_speedup": 1.2682149785505896,
+        "owner_medians": {
+          "baseline": [
+            26.147687014,
+            1.558594645,
+            17.002237584
+          ],
+          "candidate": [
+            20.851465859,
+            1.126682275,
+            13.187546343
+          ]
+        }
+      }
+    },
+    "CHT32": {
+      "evidence": {
+        "path": "layer4-performance-CHT32-r7-r2/results.json",
+        "sha256": "4445cd7328d7e6cb9481a42f460b24956a7c36cf09b8c6e844ea2b104002092d"
+      },
+      "status": "PASS_PARITY_WITH_BASELINE_CONSERVATION_LIMIT",
+      "timing": {
+        "baseline": {
+          "samples": [
+            63.88560979597969,
+            61.73635821999051,
+            63.374124224996194,
+            61.792737576994114,
+            63.180057230987586
+          ],
+          "median": 63.180057230987586,
+          "minimum": 61.73635821999051,
+          "maximum": 63.88560979597969
+        },
+        "candidate": {
+          "samples": [
+            23.197757338988595,
+            23.928516082989518,
+            23.88033443799941,
+            22.85923283698503,
+            23.5875707520172
+          ],
+          "median": 23.5875707520172,
+          "minimum": 22.85923283698503,
+          "maximum": 23.928516082989518
+        },
+        "process_speedup": 2.6785317528124195
+      }
+    },
+    "CHT2": {
+      "evidence": {
+        "path": "layer4-performance-CHT2-r7-r2/results.json",
+        "sha256": "718b1ff089271383cab413f6dd0c3a1aa2ca11ee405817e90ed3a6685d643aa4"
+      },
+      "status": "PASS",
+      "timing": {
+        "baseline": {
+          "samples": [
+            0.5432088620145805,
+            0.4331652769469656,
+            0.44312214001547545,
+            0.47439515095902607,
+            0.46460397803457454
+          ],
+          "median": 0.46460397803457454,
+          "minimum": 0.4331652769469656,
+          "maximum": 0.5432088620145805
+        },
+        "candidate": {
+          "samples": [
+            1.0397658530273475,
+            0.993803396995645,
+            1.046280039998237,
+            1.0468884090078063,
+            1.0308814820018597
+          ],
+          "median": 1.0397658530273475,
+          "minimum": 0.993803396995645,
+          "maximum": 1.0468884090078063
+        },
+        "process_speedup": 0.4468351953296496
+      }
+    }
+  }
+}

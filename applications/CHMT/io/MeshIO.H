@@ -1,6 +1,8 @@
+#include "../../../common/thermal/ParticleInitialization.H"
 #ifndef CHMT_IO_MESHIO_H
 #define CHMT_IO_MESHIO_H
 #include "configuration/InputValues.H"
+#include "gasBoundary/FoamInput.H"
 #include "mesh/Geometry.H"
 #include "DiagnosticsFoam.H"
 #include "DiagnosticsCatalogue.H"
@@ -40,27 +42,6 @@ namespace chmt {
                 m.points[m.facePoints[i]]);
             return b;
         }
-        inline BoundaryKind boundaryKind(const std::string& value) {
-            if (value == "Slip") {
-                return BoundaryKind::Slip;
-            }
-            if (value == "NoSlip") {
-                return BoundaryKind::NoSlip;
-            }
-            if (value == "Inlet") {
-                return BoundaryKind::Inlet;
-            }
-            if (value == "Outlet") {
-                return BoundaryKind::Outlet;
-            }
-            if (value == "Interface") {
-                return BoundaryKind::Interface;
-            }
-            if (value == "Empty") {
-                return BoundaryKind::Empty;
-            }
-            throw std::runtime_error("unsupported physical boundary kind "+value);
-        }
         inline HostMesh importMesh(const Foam::fvMesh& mesh, const Foam::dictionary& properties) {
             HostMesh out;
             for (const auto& p:mesh.points())out.points.push_back(point(p));
@@ -98,7 +79,7 @@ namespace chmt {
                 } else {
                     require(!patch.coupled(), "unsupported coupled patch type "+std::string(patch.type()));
                     BoundaryKind kind = Foam::isA<Foam::emptyPolyPatch>(patch)?BoundaryKind::Empty:Foam::isA<Foam::wallPolyPatch>(patch)?BoundaryKind::NoSlip:BoundaryKind::Slip;
-                    if (prescribed && prescribed->found(patch.name()))kind = boundaryKind(text(prescribed->subDict(patch.name()), "kind"));
+                    if (prescribed && prescribed->found(patch.name()))kind = ugkp::boundary::physicalKind(text(prescribed->subDict(patch.name()), "kind"));
                     for (int i = 0; i<patch.size(); ++i)out.boundaryKind[patch.start()+i] = kind;
                 }
             }
@@ -314,12 +295,12 @@ namespace chmt {
                 for(int f=0;f<mesh.boundaryMesh()[patch].size();++f) {
                     const int face=mesh.boundaryMesh()[patch].start()+f;
                     state.gasMesh.thermalBoundary[face]=importedThermalBoundary(
-                        T.boundaryField()[patch].type(),state.gasMesh.boundaryKind[face],true);
+                        (T.boundaryField()[patch].type()=="totalTemperature"||T.boundaryField()[patch].type()=="uniformFixedValue")?Foam::word("fixedValue"):T.boundaryField()[patch].type(),state.gasMesh.boundaryKind[face],true);
                 }
             }
             // Evaluate zeroGradient from its owner before importing a valid EOS
             // primitive. The operator itself is retained independently above.
-            rho.correctBoundaryConditions();T.correctBoundaryConditions();U.correctBoundaryConditions();
+            ugkp::boundary::foam::initialiseStaticPatches(rho);ugkp::boundary::foam::initialiseStaticPatches(T);ugkp::boundary::foam::initialiseStaticPatches(U);
             for(int species=0;!single&&species<Ns;++species)Y[species].correctBoundaryConditions();
             state.gas.resize(mesh.nCells());
             auto primitive = [&](int cell, int patch, int face) {
@@ -355,6 +336,17 @@ namespace chmt {
                 state.gasMesh.boundaryPrimitive[face]=state.gasMesh.boundaryKind[face]==BoundaryKind::Empty
                     ?primitive(state.gasMesh.owner[face],-1,-1):primitive(-1,patch,f);
             }
+            Foam::volScalarField p(Foam::IOobject("p",mesh.time().timeName(),mesh,
+                Foam::IOobject::READ_IF_PRESENT,Foam::IOobject::NO_WRITE),mesh,
+                Foam::dimensionedScalar("p",Foam::dimPressure,0));
+            if(!p.headerOk()) {
+                forAll(p,cell)p[cell]=primitive(cell,-1,-1).pressure;
+                forAll(p.boundaryField(),patch)forAll(p.boundaryField()[patch],face)
+                    p.boundaryFieldRef()[patch][face]=state.gasMesh.boundaryPrimitive[mesh.boundaryMesh()[patch].start()+face].pressure;
+            }
+            auto boundary=ugkp::boundary::foam::read(mesh,rho,U,p,T,true,&state.gasMesh.boundaryKind);
+            if(!single)ugkp::boundary::foam::readComposition(mesh,Y,boundary);
+            state.gasMesh.gasBoundary=std::make_shared<const ugkp::boundary::Definition>(std::move(boundary));
             if (model.physics.enableSst) {
                 auto k = scalarField(mesh, "k", Foam::sqr(Foam::dimVelocity));
                 auto omega = scalarField(mesh, "omega", Foam::dimless/Foam::dimTime);
@@ -379,16 +371,11 @@ namespace chmt {
                 require(!d.found("particles"), "particle input supplied while particles are disabled");
                 return;
             }
-            require(model.physics.enableGas && !state.gas.empty(), "dilute particles require imported gas");
+            require(model.physics.enableGas && !state.gas.empty(), "thermal particles require imported gas");
             const auto& policy = d.subDict("particle");
-            require(text(policy, "volumeMode") == "DilutePoint",
-                "only explicit DilutePoint particle volumeMode is supported");
-            std::vector<Real> fractions(state.gas.size(), 1);
-            if (policy.found("voidFractionValues")) fractions = scalars(policy, "voidFractionValues");
-            require(fractions.size() == state.gas.size(),
-                "particle void-fraction count must match imported gas cells");
-            for (Real fraction:fractions) require(fraction == 1,
-                "occupied-volume/dense particle fractions are unsupported; DilutePoint requires all ones");
+            require(text(policy,"volumeMode","Coupled")=="Coupled",
+                "CHMT uses the shared coupled gas/particle phase-volume convention");
+            std::vector<Real> fractions(state.gas.size(),1);
             std::vector<ParticleQ> particles;
             if (d.found("particles")) {
                 const auto& dictionary = d.subDict("particles");
@@ -402,7 +389,9 @@ namespace chmt {
                     p.position = readVector(value, "position");
                     p.velocity = readVector(value, "velocity");
                     p.mass = readNumber(value, "mass");
-                    p.energy = readNumber(value, "thermalEnergy");
+                    p.energy=value.found("temperature")
+                        ?p.mass*ugkwp::ParticleCaloric{}.enthalpy(readNumber(value,"temperature"))
+                        :readNumber(value,"thermalEnergy");
                     p.diameter = readNumber(value, "diameter");
                     p.contactAge = readNumber(value, "contactAge", 0);
                     p.contactDuration = readNumber(value, "contactDuration", 0);
@@ -410,8 +399,51 @@ namespace chmt {
                     p.contactRelativeVelocity = readVector(value, "contactRelativeVelocity");
                     p.contactMechanicalEnergy = readNumber(value, "contactMechanicalEnergy", 0);
                     p.rng = std::stoull(text(value, "rng", "1"));
+                    if(value.found("thermalHistory")){
+                        const auto& d=value.subDict("thermalHistory");auto& h=p.thermal;
+                        h.status=d.lookupOrDefault<Foam::label>("status",1);
+                        h.temperature=readNumber(d,"temperature");h.theta=readNumber(d,"theta",0);
+                        h.specificEnthalpyResidual=readNumber(d,"specificEnthalpyResidual",0);
+                        array(d,"savedVelocity",h.savedVelocity);
+                        h.contactMaximumArea=readNumber(d,"contactMaximumArea");
+                        h.contactPeakFraction=readNumber(d,"contactPeakFraction");
+                        h.coldFrozenArea=readNumber(d,"coldFrozenArea",0);h.coldContactAge=readNumber(d,"coldContactAge",0);
+                        h.cold2DFrozenArea=readNumber(d,"cold2DFrozenArea",0);
+                        if(p.state&&model.particleContact.model==3){
+                            const auto nodes=scalars(d,"coldNodeSpecificEnthalpy");
+                            require(nodes.size()==8,"coldWall1D history requires 8 node enthalpies");
+                            for(int j=0;j<8;++j)h.coldNodeSpecificEnthalpy[j]=float(nodes[j]);
+                            array(d,"coldRingSolidMass",h.coldRingSolidMass);
+                        }
+                        if(p.state&&model.particleContact.model==4){
+                            const auto nodes=scalars(d,"cold2DNodeSpecificEnthalpy");
+                            require(nodes.size()==64,"coldWall2D history requires 64 node enthalpies");
+                            for(int j=0;j<64;++j)h.cold2DNodeSpecificEnthalpy[j]=float(nodes[j]);
+                            array(d,"cold2DRingContactAge",h.cold2DRingContactAge);
+                        }
+                        p.energy=ugkp::thermal::particleSnapshotThermalEnergy(p,model.particleContact.model);
+                        h.initialized=true;
+                    }
+                    require(ugkp::thermal::initializeMobileParticleHistory(p,model.particlePhase),
+                        "particle needs valid free-particle thermal energy or complete attached thermalHistory");
+                    require(p.cell>=0&&std::size_t(p.cell)<fractions.size(),"particle cell is outside the gas mesh");
+                    ugkp::thermal::normalizeParticleContactMechanicalEnergy(p);
                     particles.push_back(p);
                 }
+            }
+            if(policy.found("voidFractionValues")){
+                fractions=scalars(policy,"voidFractionValues");
+                require(fractions.size()==state.gas.size(),"particle void-fraction count must match imported gas cells");
+            }else{
+                std::vector<Real> mass(fractions.size(),0);
+                for(const auto& p:particles)if(p.thermal.status)mass[p.cell]+=p.mass;
+                for(std::size_t c=0;c<mass.size();++c)
+                    fractions[c]=1-mass[c]/(model.particlePhase.rhoSolid*state.gasMesh.volumes[c]);
+            }
+            for(std::size_t c=0;c<fractions.size();++c){
+                require(finite(fractions[c])&&fractions[c]>0&&fractions[c]<=1,"invalid gas phase volume fraction");
+                state.gas[c]=state.gas[c]*fractions[c];
+                if(!state.sst.empty()){state.sst[c].rhoK*=fractions[c];state.sst[c].rhoOmega*=fractions[c];}
             }
             state.gasVoidFraction.swap(fractions);
             state.particles.swap(particles);

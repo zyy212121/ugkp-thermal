@@ -2,6 +2,8 @@
 #define GPU_THERMAL_GPU_SOLID_THERMAL_COUPLER_H
 
 #include "GpuSolidThermalProperties.H"
+#include "../../../common/gpu/SparseConjugateGradient.H"
+#include "../../../common/gpu/SolidThermalProperties.H"
 #include "autoPtr.H"
 #include "fvMesh.H"
 #include "labelList.H"
@@ -90,6 +92,8 @@ class GpuSolidThermalCandidateSolver
     labelList coupledPatchIds_;
     labelList ownerConductivityPatchIds_;
     GpuSolidThermalControls controls_;
+    mutable std::unique_ptr<ugkp::gpu::SparseConjugateGradient> sparse_;
+    mutable std::unique_ptr<ugkp::gpu::SolidThermalProperties> deviceProperties_;
 
 public:
     GpuSolidThermalCandidateSolver

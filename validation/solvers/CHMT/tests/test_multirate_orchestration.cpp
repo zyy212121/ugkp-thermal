@@ -84,7 +84,7 @@ const IntervalHistory& gasWindowHistory(const Backend& b){if(b.failInput==1)thro
 bool downloadGasWindow(Backend& b,HostState& out,std::string& error){if(b.failInput==2){error="endpoint transfer failed";return false;}out=b.trial;error.clear();return true;}
 bool gasWindowStageGeometry(const Backend& b,std::array<HostStageGeometry,2>&,std::array<HostStageGeometry,2>&,std::string& error){if(b.failInput==3){error="stage transfer failed";return false;}error.clear();return true;}
 bool rollbackGasWindow(Backend& b,std::string& error){if(b.failRollback){error="actual rollback copy failure";return false;}if(b.pending)++b.rollbacks;b.pending=false;error.clear();return true;}
-bool commitGasWindow(Backend& b,const HostState& candidate,std::string& error){if(b.failCommit){error="actual commit copy failure";return false;}assert(b.pending);b.accepted=candidate;b.pending=false;++b.commits;error.clear();return true;}
+bool commitGasWindow(Backend& b,HostState& candidate,std::string& error){if(b.failCommit){error="actual commit copy failure";return false;}assert(b.pending);b.accepted=candidate;b.pending=false;++b.commits;error.clear();return true;}
 bool downloadState(const Backend& b,HostState& out,std::string& error){out=b.accepted;error.clear();return true;}
 }
 

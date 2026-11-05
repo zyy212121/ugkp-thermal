@@ -14,7 +14,7 @@ REPO = SOURCE_ROOT
 APPLICATIONS = {
     "gas": Path("applications/gasUGKP/private_backend/GpuResidentStrict.cu"),
     "fsh": Path("applications/FSH/private_backend/GpuResidentStrict.cu"),
-    "cht": Path("applications/CHT/gpu/GpuResidentStrict.cu"),
+    "cht": Path("common/thermal/GpuResidentStrict.cu"),
 }
 PROTOCOLS = {
     "advanceGasEulerSubstage": ("gas", "fsh", "cht"),

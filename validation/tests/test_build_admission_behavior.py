@@ -77,7 +77,7 @@ def tree(tmp_path):
     for relative in ('example/tools/case_paths.sh', 'example/tools/case_paths.py'):
         copy_file(cases, relative, source=CASES_ROOT)
     for relative in ['Allwmake', *SCRIPTS.values(), *PUBLIC_SCRIPTS.values(),
-                     'tool/CHMT/build_info.py',
+                     'tool/CHMT/build_info.py', 'tool/cuda_build_flags.sh',
                      'validation/tools/CHMT/devtools/source_fingerprint.py']:
         copy_file(root, relative)
     for tool in ('managed_mirrors.py', 'particle_field_contract.py', 'compute_source_hash.py'):

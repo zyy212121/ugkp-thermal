@@ -16,6 +16,7 @@ def test_build_archive_path_survives_solver_chdir(tmp_path, build_kind):
     script = source / "tool/gasUGKP/build_cuda_solver.sh"
     script.parent.mkdir(parents=True)
     shutil.copyfile(SOURCE_ROOT / "tool/gasUGKP/build_cuda_solver.sh", script)
+    shutil.copyfile(SOURCE_ROOT / "tool/cuda_build_flags.sh", source / "tool/cuda_build_flags.sh")
     caller = tmp_path / "caller"
     caller.mkdir()
     tools = tmp_path / "tools"

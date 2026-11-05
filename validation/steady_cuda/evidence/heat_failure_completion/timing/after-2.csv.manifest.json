@@ -1,0 +1,23 @@
+{
+  "rows": 128,
+  "missing_actual_fields": {
+    "0": [
+      "nut",
+      "rhoDs",
+      "rhoEs",
+      "rhoHp",
+      "rhoU",
+      "rhoUs"
+    ],
+    "1000": [],
+    "2000": [],
+    "3000": []
+  },
+  "geometry_source": "reference-input.json",
+  "not_exported": [
+    "per-cell spatial residuals",
+    "pseudoDt",
+    "cellStatus",
+    "parcel count/age (not reconstructed from moments)"
+  ]
+}

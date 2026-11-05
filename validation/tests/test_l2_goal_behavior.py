@@ -34,16 +34,5 @@ def test_production_behavior(tmp_path, name):
             "#define GPU_OPERATOR_REAL double\n#define GPU_OPERATOR_TIME double\n"
             "#define GPU_OPERATOR_R(x) (x)\n#define GPU_POOL_INITIALIZATION_WITH_PROBABILITY 1\n"
             '#include "operators/clearPoissonThermalPoolKernel.cuh"\n')
-    if name == "pressure_cache":
-        common = SOURCE.parents[3] / "common"
-        closure = '\nusing PressureReal=double; using PressureTime=double;\n'
-        closure += '#include "' + str(common / 'GpuPressureUnsortedAlgebra.cuh') + '"\n'
-        closure += '#include "' + str(common / 'GpuPressureParticleUpdate.cuh') + '"\n'
-        closure += '#include "' + str(common / 'GpuPressureCellTraversal.cuh') + '"\n'
-        fixture = fixture.replace('{{applyCollisionalPressureProjectionOneParticle}}',
-            closure + '{{applyCollisionalPressureProjectionOneParticle}}')
-        fixture = fixture.replace('template<bool SplitDirectory, bool CompactParticles=false>\n{{applyCollisionalPressureProjectionKernel}}',
-            '#include "' + str(common / 'GpuPressureAnalyticAdapter.cuh') + '"\n'
-            'template<bool SplitDirectory, bool CompactParticles=false>\n{{applyCollisionalPressureProjectionKernel}}')
     fixture = re.sub(r"\{\{(\w+)\}\}", lambda match: function(source, match[1]), fixture)
     compile_run(tmp_path, fixture)

@@ -1,0 +1,62 @@
+通用气体输运与非均匀喷气输入
+
+生产代码没有 ARC3696、CO2 或 Mach 数特判。以下名称均为可配置模型。
+
+constant/gasTransportProperties 必须有 OpenFOAM FoamFile dictionary 头。
+原有 viscosityModel const / sutherland 保持原格式与重启标识。
+新增 viscosityModel massFractionSutherland：指定一个已输运 species、TRef、
+muRefCoefficients 和 SCoefficients。系数按常数、一次、二次项顺序，支持 1–3 项；
+y 是指定组分质量分数，自动归一化 Y、rhoY 或质量数组。
+mu = polynomial_mu(y)*(T/TRef)^(3/2)*(TRef+polynomial_S(y))/(T+polynomial_S(y))。
+muRef、TRef、S 分别以 Pa s、K、K 表示。
+
+conductivityModel massFractionPrandtl：子字典包含 species 与 coefficients。
+Pr=polynomial(y)，k=mu*Cp(T,Y)/Pr。显式选择此模型时优先于应用旧的常数导热率；
+未选择时沿用原来的常数 Pr / 显式导热率配置。Cp 始终来自实际组分热力学。
+它可独立于 viscosityModel 使用。constantTransport 解析壁层仍只适用于常输运；
+reactingSst、equilibriumOde 和 SST 壁函数在其原有适用范围内使用当地物性。
+
+新增 diffusivityModel powerLaw：powerLaw 子字典为每个输运组分定义
+DRef、TRef、pRef、temperatureExponent、pressureExponent。
+D=DRef*(T/TRef)^temperatureExponent*(p/pRef)^pressureExponent，单位 m2/s、K、Pa。
+这组配置优先于 gasModelProperties/diffusion 中的常数系数，可配合 model none；
+省略时保持原有扩散行为。既有混合物扩散修正、湍流扩散及组分焓通量不变。
+温压幂律使用当地物理温度与压力，不使用总温总压。
+稳态伪时间步同时使用新的 Pr 与 D 估算扩散限制。
+上述组分模型用于 active transported mixture；legacy 单气体保留原有 const / sutherland 接口。
+
+constant/gasWallProperties 中原 speciesFlux (j0 j1 ...) 继续支持。
+新增逐面字段格式：
+patches {
+  injection {
+    speciesFluxFields {
+      Air uniform 0;
+      CO2 nonuniform List<scalar> 3 (0.01 0.02 0.1);
+    }
+  }
+}
+每个输运组分必须提供一个字段；非均匀字段长度等于该 patch 面数，按网格原面序。
+speciesFlux 与 speciesFluxFields 二选一。单位 kg/(m2 s)，正号为进入气体。
+这些是包含对流及扩散的总组分质量通量，而不是质量分数边界值。
+壁层由这些通量计算法向速度和组分迹值；切向壁速仍由原 U 条件指定。
+本例纯 CO2 喷入应设置 Air=0、CO2=j，不能额外把 Y_CO2 固定为 1。
+喷气壁 U 可保持 noSlip / fixedValue (0 0 0)，组分字段保持 zeroGradient，
+由 reactingSst 壁层闭合总通量及法向速度，保留原壁温。
+
+transport.dict 是原输入关联式的参数映射；模型本身不包含这些案例常数。
+原 Cp：Air=1004.675、CO2=819.27 J/(kg K)，原摩尔质量分别为
+0.02896520682164515 与 0.0440095 kg/mol。原 hConst 的能量截距为零。
+原关联式 DRef=5.75e-10、TRef=1、pRef=101325，温度指数 1.81、压力指数 -1。
+Prt=0.85、Sct=0.7 应在完整案例的湍流/壁层配置中沿用原值。
+高 Mach 案例的静温可能低于 100 K，完整案例热力学有效域应覆盖实际静温；
+不要把静温裁剪到 100 K。本专项公式测试覆盖到 60 K，原生小案例使用 1–5000 K 的常 Cp 域。
+
+CHMT：公共气侧输运和材料界面气侧闭合复用同一模型。孔隙材料的专用导热/扩散
+配置保持原义。新的只读参数从案例字典重建，已有 gasTransportFingerprint 覆盖
+所有参数；checkpoint 的物理字段布局未改变，旧配置重启保持兼容。
+
+范围：本目录验证通用输运与喷气接口，不宣称六个 ARC3696 案例已经重新收敛。
+export_reference_inputs.py 输出六组原面序喷气与输运字典片段，不是完整求解器案例。
+原参考包含完整 polyMesh，但这六个归档中没有 system/blockMeshDict；不以其他
+目录中未经几何核对的网格替换。完整入口总压/总温、上壁热边界、初场与网格迁移
+仍需在后续完整案例复现阶段逐项核对；本提交不更改现有总条件入口算子。

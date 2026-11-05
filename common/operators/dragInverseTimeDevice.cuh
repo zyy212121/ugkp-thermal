@@ -4,6 +4,7 @@ template<class DragModel>
 __device__ GPU_OPERATOR_REAL dragInverseTimeDevice
 (
     const DeviceState& s,
+    const int c,
     const GPU_OPERATOR_REAL gasDensity,
     const GPU_OPERATOR_REAL gasVolumeFraction,
     const GPU_OPERATOR_REAL diameter,
@@ -11,11 +12,11 @@ __device__ GPU_OPERATOR_REAL dragInverseTimeDevice
     const DragModel& model
 )
 {
-    const ugkwpGpuDrag::DragInput input
+    const ugkwpGpuDrag::ThermalDragInput input
     {
         gasDensity,
         gasVolumeFraction,
-        s.gasMu,
+        ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]),
         s.rhoSolid,
         diameter,
         relativeSpeed

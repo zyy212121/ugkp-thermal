@@ -1,0 +1,27 @@
+PR29 independent review follow-up
+
+Both findings are accepted after reproduction. P2 is a shared restart routing
+bug inherited by transient mixture/particle support; it is not a changed heat
+or drag formula. A zero-parcel checkpoint may still carry epsGPrev=0.9999.
+The successful upload now restores particlesMayBePresent if any history entry
+is not exactly 1. The existing flag is sticky, preserving known particles or
+future sources, and the source array is not cleared. The same implementation
+serves transient gasUGKP and gasUGKPSteady.
+
+Native before: two continuous/restart pairs reproduce the silent omission.
+Native after: six continuous/restart pairs cover last-parcel outflow, nonempty,
+and always-empty/no-history controls in both applications. All 20 saved fields,
+parcel state and epsGPrev are compared. The four conserved field entries and
+history match exactly. An independent explicit-source evaluation is also
+checked, rather than accepting agreement from skipped exchange alone. Two
+out-of-domain heat cases still fail with site 30700/detail 4 before output.
+These are 18 application executions total, including 4 before and 14 after.
+
+P3 original ownership suite: 3 passed, 1 failed. Canonical implementation and
+forwarder assertions now pass all four; existing steady restart-state test
+also passes. No repeat of the earlier broad 71-test/43-run suite is claimed.
+
+Builds: both fresh native builds exited zero. Commands, logs, source and binary
+hashes are retained here. Detailed native inputs/outputs accompany the small
+incremental review archive and are indexed by raw-files.sha256.json.
+No new performance benchmark, MPI or full CHT/CHMT validation was performed.
