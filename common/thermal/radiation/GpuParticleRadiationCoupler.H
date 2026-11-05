@@ -39,6 +39,7 @@ struct ParticleRadiationMaterialResult
     scalarField deltaParticleRadiationEnergyJ;
     List<scalarField> solidWallRadiationEnergyJ;
     scalar escapedBoundaryRadiationEnergyJ;
+    scalar radiativeEnergyMagnitudeJ=0;
 };
 
 namespace detail
@@ -92,16 +93,8 @@ ParticleRadiationMaterialResult solveParticleRadiationTransaction
 {
     scalarField canonicalTemperatureK(snapshot.particleMeanTemperatureK);
     scalarField canonicalDiameterM(snapshot.representativeDiameterM);
-    const scalar legalTemperatureMinimumK = max
-    (
-        context.particleTemperatureMinK,
-        context.mieTable.minTemperatureK()
-    );
-    const scalar legalTemperatureMaximumK = min
-    (
-        context.particleTemperatureMaxK,
-        context.mieTable.maxTemperatureK()
-    );
+    // Physical temperature drives black-body emission in both DO and the
+    // material response. Mie queries clamp their optical coordinates only.
     const bool canonicalCellArraysHaveMeshSize =
         snapshot.epsilonS.size() >= context.mesh.nCells()
      && canonicalTemperatureK.size() >= context.mesh.nCells()
@@ -112,12 +105,6 @@ ParticleRadiationMaterialResult solveParticleRadiationTransaction
         {
             if (snapshot.epsilonS[cellI] > context.radiationActiveEpsilonMin)
             {
-                canonicalTemperatureK[cellI] = clampParticleRadiationTableValue
-                (
-                    canonicalTemperatureK[cellI],
-                    legalTemperatureMinimumK,
-                    legalTemperatureMaximumK
-                );
                 if (canonicalDiameterM[cellI] > scalar(0))
                 {
                     canonicalDiameterM[cellI] = clampParticleRadiationTableValue

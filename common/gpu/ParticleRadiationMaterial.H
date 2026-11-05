@@ -13,7 +13,7 @@ struct ParticleRadiationMaterialInput {
 };
 struct ParticleRadiationMaterialResult {
     std::vector<double> temperature,energy,boundaryEnergy;
-    double escapedEnergy=0;
+    double escapedEnergy=0,radiativeEnergyMagnitude=0;
 };
 class ParticleRadiationMaterial {
     struct Implementation;std::unique_ptr<Implementation> data_;

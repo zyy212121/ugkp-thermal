@@ -32,6 +32,18 @@ int main(){
   if(uniform&&eq==4000&&dt==100){assert(std::abs(mean-3982.1811218380944)<1e-6);std::cout<<std::setprecision(17)<<"COUNTEREXAMPLE_FIXED T="<<mean<<" Q="<<actual<<" residual="<<residual<<"\n";}
   ++cases;
  }
+ // Weak exchange must scale with the requested heat, not the full capacity.
+ for(double sign:{-1.,1.})for(double amount:{1e-6,1e-10,1e-20,1e-100}){
+  temperature[0]=1000;temperature[1]=2500;carry[0]=carry[1]=0;
+  const auto tiny=solveCaloricParticleRadiation(response,[&](double){return sign*amount;},1.);
+  assert(std::abs(tiny.energy-sign*amount)<=1e-13*amount);
+ }
+ temperature[0]=temperature[1]=5000;carry[0]=carry[1]=-1e-10;
+ const auto small=solveCaloricParticleRadiation(response,[](double){return 1e-11;},1.);
+ assert(std::abs(small.energy-1e-11)<1e-24);
+ std::cout<<"WEAK_AND_BOUNDARY_CARRY_PASS cases=9\n";
+ const auto balance=radiationMath::conservativeBoundaryEnergyScale(1e-11,0,1e-11,1e-10,1e5);
+ assert(balance.scale==1&&balance.residualJ==1e-11);
  // Fixed-capacity compatibility is the linear limit of the same implicit root.
  struct Linear {CaloricRadiationSample operator()(double f,bool heat)const{const double d=(heat?5000.:1.)-1000.;return {1000.+f*d,1542.*f*d,1.};}};
  const auto power=[](double t){return 1e-8*(std::pow(4000.,4)-std::pow(t,4));};

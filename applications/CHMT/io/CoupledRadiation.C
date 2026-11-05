@@ -68,7 +68,7 @@ bool CoupledRadiation::advance(Backend& backend,const WallProgram& program,HostS
     double particleHeat=0,boundaryHeat=result.escapedBoundaryRadiationEnergyJ,gross=std::fabs(boundaryHeat);
     for(double q:actual){particleHeat+=q;gross+=std::fabs(q);}
     for(const auto& patch:result.solidWallRadiationEnergyJ)for(double q:patch){boundaryHeat+=q;gross+=std::fabs(q);}
-    const auto scale=ugkp::gpu::radiationMath::conservativeBoundaryEnergyScale(particleHeat,boundaryHeat,gross,1e-10);
+    const auto scale=ugkp::gpu::radiationMath::conservativeBoundaryEnergyScale(particleHeat,boundaryHeat,gross,1e-10,result.radiativeEnergyMagnitudeJ);
     std::vector<Real> wallHeat(state.surface.gasFace.size(),0);double wallSum=0;
     for(std::size_t f=0;f<wallHeat.size();++f){const int face=state.surface.gasFace[f];if(face<0)continue;
         const int patch=d.mesh.boundaryMesh().whichPatch(face),local=face-d.mesh.boundaryMesh()[patch].start();

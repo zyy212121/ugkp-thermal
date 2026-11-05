@@ -2047,8 +2047,9 @@ __global__ void radiationEnthalpyCapacityKernel(DeviceState* sp,const Foam::gpuT
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<*s.particleCountDevice;i+=blockDim.x*gridDim.x){
         if(s.pStatus[i]!=1||s.pStuck[i]!=Foam::gpuThermal::particleWallMobile)continue;
         const int c=s.pCellId[i];const auto law=particleCaloricDevice(s,i);
-        const double h=law.enthalpy(double(s.pT[i]))+s.pThermalEnthalpyResidual[i];
-        const double cap=requests[c].scale>=0?law.enthalpy(s.TpMax)-h:h-law.enthalpy(s.TpMin);
+        const double delta=ugkp::gpu::radiationSpecificCapacity(law.enthalpy(double(s.pT[i])),
+            law.enthalpy(s.TpMin),law.enthalpy(s.TpMax),requests[c].scale>=0,s.pThermalEnthalpyResidual[i]);
+        const double cap=fabs(delta);
         atomicAdd(s.radiationMobileMass+c,double(s.pm[i])*fmax(0.,cap));
     }
 }
@@ -2060,8 +2061,8 @@ __global__ void radiationEnthalpyApplyKernel(DeviceState* sp,const Foam::gpuTher
         const double q=requests[c].scale,capacity=s.radiationMobileMass[c];
         const double fraction=capacity>0?fmin(1.,fabs(q)/capacity):0.;
         ugkwp::ParticleThermalCarry<GpuReal> candidate{s.pT[i],s.pThermalEnthalpyResidual[i]};
-        const double h=law.enthalpy(double(candidate.temperature))+candidate.specificEnthalpyResidual;
-        const double delta=q>=0?fmax(0.,law.enthalpy(s.TpMax)-h):-fmax(0.,h-law.enthalpy(s.TpMin));
+        const double delta=ugkp::gpu::radiationSpecificCapacity(law.enthalpy(double(candidate.temperature)),
+            law.enthalpy(s.TpMin),law.enthalpy(s.TpMax),q>=0,candidate.specificEnthalpyResidual);
         const auto publication=ugkwp::publishParticleThermalHeat(candidate,fraction*delta,s.TpMin,s.TpMax,law);
         if(!publication.valid){asm("trap;");return;}
         s.pT[i]=candidate.temperature;s.pThermalEnthalpyResidual[i]=candidate.specificEnthalpyResidual;

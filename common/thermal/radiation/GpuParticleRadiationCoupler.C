@@ -239,8 +239,8 @@ try
     input.volume.assign(context.mesh.V().begin(),context.mesh.V().end());
     input.response=snapshot.response;
     input.heatFactor=snapshot.particleHeatFactorJkgK;input.elapsed=couplingDeltaT;
-    input.minimumTemperature=max(context.particleTemperatureMinK,context.mieTable.minTemperatureK());
-    input.maximumTemperature=min(context.particleTemperatureMaxK,context.mieTable.maxTemperatureK());
+    input.minimumTemperature=context.particleTemperatureMinK;
+    input.maximumTemperature=context.particleTemperatureMaxK;
     input.activeEpsilonMinimum=context.radiationActiveEpsilonMin;
     forAll(context.mesh.boundary(),patchI){const bool coupled=isCoupledPatch(context.coupledSolidPatchIds,patchI);
         const vectorField& areas=context.mesh.Sf().boundaryField()[patchI];
@@ -257,6 +257,7 @@ try
     forAll(result.solidWallRadiationEnergyJ,patchI)forAll(result.solidWallRadiationEnergyJ[patchI],faceI)
         result.solidWallRadiationEnergyJ[patchI][faceI]=completed.boundaryEnergy[boundary++];
     result.escapedBoundaryRadiationEnergyJ=completed.escapedEnergy;
+    result.radiativeEnergyMagnitudeJ=completed.radiativeEnergyMagnitude;
     return result;
 
 }
