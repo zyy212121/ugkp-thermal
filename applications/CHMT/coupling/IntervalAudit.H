@@ -2,6 +2,7 @@
 #define CHMT_COUPLING_INTERVALAUDIT_H
 #include "coupling/IntervalContracts.H"
 #include <set>
+#include "../../../common/HostMemory.H"
 namespace chmt {
 inline Real intervalNormalizedError(Real a,Real b,Real absolute,Real relative){
     const Real difference=absValue(a-b),tolerance=absolute+relative*maxValue(absValue(a),absValue(b));
@@ -16,12 +17,30 @@ inline Real intervalNormalizedError(Real a,Real b,Real absolute,Real relative){
 
 // Existing CPU-owned SolidFilm records are retained; prior macro records are
 // not copied. Bookkeeping only: no inventory or budget source is applied here.
-inline bool finalizeIntervalLedger(const IntervalHistory& history,HostState& candidate,std::string& error){
-    std::vector<ExchangePacket> ledger;
-    for(const auto& p:candidate.ledger)if(p.kind==ExchangeKind::SolidFilm){
-        ledger.push_back(p);}
-    for(const auto& r:history.records())for(auto p:r.packets){p.consumerMask=requiredConsumers(p.kind);ledger.push_back(p);}
+template<class Records,class Release>
+inline bool finalizeIntervalLedgerRecords(Records& records,HostState& candidate,std::string& error,Release release){
+    std::vector<ExchangePacket> ledger;std::size_t size=0;
+    for(const auto& p:candidate.ledger.values())if(p.kind==ExchangeKind::SolidFilm)++size;
+    for(const auto& r:records)size+=r.packets.size();
+    ledger.reserve(size);
+    for(const auto& p:candidate.ledger.values())if(p.kind==ExchangeKind::SolidFilm)ledger.push_back(p);
+    for(auto& r:records){
+        for(auto p:r.packets){p.consumerMask=requiredConsumers(p.kind);ledger.push_back(p);}
+        release(r);
+    }
     candidate.ledger=std::move(ledger);error.clear();return true;
+}
+inline bool finalizeIntervalLedger(const IntervalHistory& history,HostState& candidate,std::string& error){
+    return finalizeIntervalLedgerRecords(history.records(),candidate,error,[](const GasIntervalRecord&){});
+}
+inline bool finalizeReleasedIntervalLedger(std::vector<GasIntervalRecord> records,HostState& candidate,std::string& error){
+    // Free each consumed payload before writing the next. The exact packet
+    // order and completed consumer masks are identical to retained publication.
+    std::size_t count=0;
+    const bool ok=finalizeIntervalLedgerRecords(records,candidate,error,[&](GasIntervalRecord& r){
+        r=GasIntervalRecord{};if(++count%512==0)ugkp::releaseUnusedHostPages();
+    });
+    ugkp::releaseUnusedHostPages();return ok;
 }
 struct WallProgramComparison { Real thermalError=0,massPredictionError=0,geometryError=0;bool regimeMatches=true; };
 inline bool intervalSampleWallLocal(const WallProgram& program,WindowTime localTime,WallKnot& result,std::string& error){

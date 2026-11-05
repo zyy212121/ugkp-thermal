@@ -109,6 +109,7 @@ public:
     const std::vector<Real>& externalRadiationEnergy()const{return externalRadiationEnergy_;}
     const CouplingInterval& interval()const{return interval_;}
     const std::vector<GasIntervalRecord>& records()const{return records_;}
+    std::vector<GasIntervalRecord> releaseRecords(){return std::move(records_);}
     Real end()const{return records_.empty()?interval_.begin:records_.back().end;}
     WindowTime localEnd()const{return records_.empty()?WindowTime{}:records_.back().localEnd;}
     bool complete()const{return started_&&!records_.empty()&&localEnd()==intervalDuration(interval_);}

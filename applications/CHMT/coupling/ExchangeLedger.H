@@ -35,6 +35,16 @@ CHMT_HD inline PacketDelta packetDelta(const ExchangePacket& p) {
     }
     return d;
 }
+// Preserve every physical channel, including zero-net counterflow and energy
+// decompositions. Only an exactly empty optional exchange can be omitted.
+CHMT_HD inline bool hasPacketTransfer(const ExchangePacket& p) {
+    if(p.mass!=0||p.momentum.x!=0||p.momentum.y!=0||p.momentum.z!=0
+        ||p.energy!=0||p.conductive!=0||p.advective!=0||p.pressureWork!=0
+        ||p.viscousWork!=0||p.radiation!=0||p.liquidKineticAdvection!=0)return true;
+    for(int s=0;s<Ns;++s)if(p.species[s]!=0||p.pore[s]!=0||p.poreSweep[s]!=0)return true;
+    for(int c=0;c<Nc;++c)if(p.condensed[c]!=0)return true;
+    return false;
+}
 // Physical packets never contain delta(pV). The film owner forms exactly one
 // storage update from accepted and candidate p,V for each face/stage.
 CHMT_HD inline Real filmPressureVolumeDelta(const FilmPressureVolumeUpdate& u) { return u.newPV-u.oldPV; }

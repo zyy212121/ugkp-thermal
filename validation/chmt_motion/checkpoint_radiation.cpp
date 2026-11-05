@@ -13,6 +13,8 @@ int main(int argc,char** argv){
  if(!readCheckpoint(argv[1],config,state,error)){std::cerr<<error;return 3;}
  assert(state.radiationTime>=0&&state.radiationTime<=state.time);
  state.radiationTime=state.time*.75;
+ CountingEncoder extent;encodeStatePayload(extent,state);Encoder payload;encodeStatePayload(payload,state);
+ assert(extent.bytes==payload.data.size());
  if(!writeCheckpoint(argv[2],config,state,error)){std::cerr<<error;return 4;}
  HostState resumed;if(!readCheckpoint(argv[2],config,resumed,error)){std::cerr<<error;return 5;}
  assert(state.radiationTime==resumed.radiationTime);

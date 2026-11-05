@@ -37,8 +37,8 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
             }
             gasTime=micro.time;gasElapsed=micro.localTime;
         }
-        // The backend owns the completed immutable history until the next
-        // window begins. All material/ledger consumers finish before then.
+        // The backend owns the immutable history until material consumers
+        // finish; ledger publication then consumes and releases its storage.
         const IntervalHistory& history=gasWindowHistory(backend);
         HostState gasEndpoint;
         if(!downloadGasWindow(backend,gasEndpoint,error))return false;
@@ -62,13 +62,13 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
             snapshot.sources.push_back({4001,"applications/CHMT/io/MultirateEvolution.C","advanceCoupledWindow",__LINE__,"single-pass wall waveform/regime mismatch; computed result retained"});
             dispatch(snapshot,makeFoamSink());
         }
-        if(!finalizeIntervalLedger(history,candidate,error))return false;
+        report.acceptedGasMicrosteps=history.records().size();
+        if(!finalizeReleasedIntervalLedger(releaseGasWindowRecords(backend),candidate,error))return false;
         candidate.acceptedSteps=base.acceptedSteps+1;
         candidate.commitSequence=base.commitSequence+1;
         candidate.lastAcceptedDt=interval.end-interval.begin;
         candidate.nextDt=report.nextGasDt;
         if(!commitGasWindow(backend,candidate,error))return false;
-        report.acceptedGasMicrosteps=history.records().size();
         accepted=std::move(candidate);error.clear();return true;
     } catch(const Foam::error&) {
         // Preserve the original GPU/OpenFOAM diagnostic for the application

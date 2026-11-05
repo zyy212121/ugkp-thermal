@@ -1,6 +1,7 @@
 #ifndef CHMT_CORE_HOSTSTATE_H
 #define CHMT_CORE_HOSTSTATE_H
 #include "Configuration.H"
+#include "../../../common/SharedSnapshotVector.H"
 #include <vector>
 #include <array>
 #include <memory>
@@ -69,7 +70,7 @@ struct HostDynamicState {
     std::vector<Real> normalAcceptedWallHeat{}; // nFaces, cumulative accepted J.
     // Trial boundary heat rates are Backend-owned candidate scratch, not state;
     // fractions/accepted heat are rolled back and checkpointed with normal H.
-    std::vector<ExchangePacket> ledger{};std::vector<FilmPressureVolumeUpdate> filmStorage{};
+    ugkp::SharedSnapshotVector<ExchangePacket> ledger{};std::vector<FilmPressureVolumeUpdate> filmStorage{};
     // Reconstructible diagnostic snapshot, not physical state. Deliberately
     // absent from checkpoints; restart output marks it NOT_AVAILABLE until a
     // new accepted gas stage supplies it. Rollback still copies it atomically.

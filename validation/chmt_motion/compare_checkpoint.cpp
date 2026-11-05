@@ -26,7 +26,12 @@ HostState load(const char* directory){
  Decoder d(bytes);d.offset=72;ModelConfig model;d(model);assert(d.integer(8)==0x31474643504b4755ULL);ugkp::thermal::visitParticlePhaseConfiguration(d,model.particlePhase);ugkp::thermal::visitParticleContactConfiguration(d,model.particleContact);
  assert(!model.physics.enableFilm);HostState state;std::string error;if(!readCheckpoint(directory,model,state,error))throw std::runtime_error(error);state.ledger.clear();return state;
 }
-int main(int argc,char** argv){if(argc!=3)return 2;auto a=load(argv[1]),b=load(argv[2]);
+int main(int argc,char** argv){if(argc!=3&&argc!=4)return 2;auto a=load(argv[1]),b=load(argv[2]);
+ if(argc==4){
+  if(std::string(argv[3])!="--ignore-zero-packet-count")return 2;
+  std::cout<<"OPTIONAL_ZERO_PACKET_COUNT "<<a.budget.consumedPackets<<" "<<b.budget.consumedPackets<<"\n";
+  a.budget.consumedPackets=b.budget.consumedPackets;
+ }
  // Dry CHMT deliberately marks the inactive legacy film auxiliary temperature
  // unavailable. Only this paired sentinel is excluded from the finite check.
  assert(a.filmAux.size()==b.filmAux.size());

@@ -11,7 +11,7 @@
 #include <unistd.h>
 namespace chmt { namespace {
 using Bytes=std::vector<unsigned char>;
-std::uint64_t checksum(const unsigned char* p,std::size_t n){std::uint64_t h=14695981039346656037ULL;for(std::size_t i=0;i<n;++i){h^=p[i];h*=1099511628211ULL;}return h;}
+std::uint64_t checksum(const unsigned char* p,std::size_t n,std::uint64_t h=14695981039346656037ULL){for(std::size_t i=0;i<n;++i){h^=p[i];h*=1099511628211ULL;}return h;}
 struct Encoder;struct Decoder;
 template<class Archive> void visit(Archive&, Vec3&);
 template<class Archive> void visit(Archive&, const Vec3&);
@@ -91,6 +91,23 @@ struct Encoder {
     template<class T,std::size_t N>void operator()(const std::array<T,N>& x){for(auto& v:x)(*this)(v);}
     template<class T>void operator()(const std::vector<T>& x){integer(x.size(),8);for(auto& v:x)(*this)(v);}
     template<class T>typename std::enable_if<std::is_enum<T>::value>::type operator()(const T& x){int value=static_cast<int>(x);(*this)(value);}
+    template<class T>typename std::enable_if<!std::is_enum<T>::value>::type operator()(const T& x){visit(*this,x);}
+};
+struct CountingEncoder {
+    unsigned configurationVersion=14;std::size_t bytes=0;
+    void integer(std::uint64_t,int n){bytes+=n;}
+    void operator()(const Real&){bytes+=8;}
+    void operator()(const float&){bytes+=4;}
+    void operator()(const int&){bytes+=4;}
+    void operator()(const unsigned&){bytes+=4;}
+    void operator()(const std::uint64_t&){bytes+=8;}
+    void operator()(const unsigned char&){++bytes;}
+    void operator()(const bool&){++bytes;}
+    void operator()(const std::string& x){bytes+=8+x.size();}
+    template<class T,std::size_t N>void operator()(const T(&x)[N]){for(const auto& v:x)(*this)(v);}
+    template<class T,std::size_t N>void operator()(const std::array<T,N>& x){for(const auto& v:x)(*this)(v);}
+    template<class T>void operator()(const std::vector<T>& x){bytes+=8;for(const auto& v:x)(*this)(v);}
+    template<class T>typename std::enable_if<std::is_enum<T>::value>::type operator()(const T&){bytes+=4;}
     template<class T>typename std::enable_if<!std::is_enum<T>::value>::type operator()(const T& x){visit(*this,x);}
 };
 struct Decoder {
@@ -622,18 +639,7 @@ std::string parentDirectory(std::string path){
     while(path.size()>1&&path.back()=='/')path.pop_back();
     const auto slash=path.find_last_of('/');return slash==std::string::npos?".":(slash==0?"/":path.substr(0,slash));
 }
-bool writeAll(int fd,const Bytes& bytes){std::size_t done=0;while(done<bytes.size()){const auto n=::write(fd,bytes.data()+done,bytes.size()-done);if(n<0&&errno==EINTR)continue;if(n<=0)return false;done+=static_cast<std::size_t>(n);}return true;}
-} // namespace
-bool writeCheckpoint(const std::string& directory,const ModelConfig& config,const HostState& state,std::string& error){
-    std::string temp;int fd=-1;
-    try{
-        if(directory.empty()){error="empty checkpoint directory";return false;}
-        Encoder configData,payload;configData(config);
-        configData.integer(0x31474643504b4755ULL,8); // UGKPCFG1
-        ugkp::thermal::visitParticlePhaseConfiguration(configData,config.particlePhase);
-        ugkp::thermal::visitParticleContactConfiguration(configData,config.particleContact);
-        configData.integer(0x314c4157504b4755ULL,8); // UGKPWAL1
-        configData(config.physics.wallModel.localStressCorrection);
+template<class Archive> void encodeStatePayload(Archive& payload,const HostState& state){
         payload(state);
         if(state.gasMesh.gasBoundary&&ugkp::boundary::needsCheckpoint(*state.gasMesh.gasBoundary)) {
             std::vector<int> integers;std::vector<double> values;
@@ -648,19 +654,35 @@ bool writeCheckpoint(const std::string& directory,const ModelConfig& config,cons
                 ugkp::thermal::visitParticleThermalHistory(payload,particle.thermal);
         }
         if(!state.gasTemperature.empty()){
-            Encoder numerical;numerical(state.gasTemperature);
-            payload.data.insert(payload.data.end(),numerical.data.begin(),numerical.data.end());
-            payload.integer(numerical.data.size(),8);
+            payload(state.gasTemperature);
+            payload.integer(8+8*state.gasTemperature.size(),8);
             const unsigned char marker[8]={'C','H','M','T','N','U','M','1'};
-            payload.data.insert(payload.data.end(),marker,marker+8);
+            for(unsigned char value:marker)payload.integer(value,1);
         }
+}
+bool writeAll(int fd,const Bytes& bytes){std::size_t done=0;while(done<bytes.size()){const auto n=::write(fd,bytes.data()+done,bytes.size()-done);if(n<0&&errno==EINTR)continue;if(n<=0)return false;done+=static_cast<std::size_t>(n);}return true;}
+} // namespace
+bool writeCheckpoint(const std::string& directory,const ModelConfig& config,const HostState& state,std::string& error){
+    std::string temp;int fd=-1;
+    try{
+        if(directory.empty()){error="empty checkpoint directory";return false;}
+        Encoder configData,payload;configData(config);
+        configData.integer(0x31474643504b4755ULL,8); // UGKPCFG1
+        ugkp::thermal::visitParticlePhaseConfiguration(configData,config.particlePhase);
+        ugkp::thermal::visitParticleContactConfiguration(configData,config.particleContact);
+        configData.integer(0x314c4157504b4755ULL,8); // UGKPWAL1
+        configData(config.physics.wallModel.localStressCorrection);
+        CountingEncoder extent;encodeStatePayload(extent,state);
+        payload.data.reserve(extent.bytes);encodeStatePayload(payload,state);
         Encoder header;const unsigned char magic[8]={'C','H','M','T','C','P','2',0};header.data.insert(header.data.end(),magic,magic+8);
         header.integer(checkpointSchema,8);header.integer(0x01020304,4);header.integer(sizeof(Real),4);
         header.integer(Ns,4);header.integer(Nc,4);header.integer(Nr,4);header.integer(Ne,4);
         header.integer(checksum(reinterpret_cast<const unsigned char*>(FieldSchema),std::strlen(FieldSchema)),8);
         header.integer(configData.data.size(),8);header.integer(payload.data.size(),8);
-        Bytes body=configData.data;body.insert(body.end(),payload.data.begin(),payload.data.end());
-        header.integer(checksum(body.data(),body.size()),8);header.data.insert(header.data.end(),body.begin(),body.end());
+        // Same concatenated FNV checksum and wire bytes without materialising
+        // two additional copies of a potentially large accepted ledger.
+        const auto configHash=checksum(configData.data.data(),configData.data.size());
+        header.integer(checksum(payload.data.data(),payload.data.size(),configHash),8);
         const int directoryResult=::mkdir(directory.c_str(),0700);
         if(directoryResult!=0&&errno!=EEXIST){error=systemError("create checkpoint directory");return false;}
         // Also sync on EEXIST: a previous failed parent fsync may have left
@@ -670,7 +692,7 @@ bool writeCheckpoint(const std::string& directory,const ModelConfig& config,cons
         struct stat st;if(::stat(directory.c_str(),&st)!=0||!S_ISDIR(st.st_mode)){error="checkpoint destination is not a directory";return false;}
         temp=directory+"/.state.chmt.XXXXXX";std::vector<char> name(temp.begin(),temp.end());name.push_back(0);fd=::mkstemp(name.data());temp=name.data();
         if(fd<0){error=systemError("create checkpoint temporary file");return false;}
-        if(!writeAll(fd,header.data)||::fsync(fd)!=0){error=systemError("write/fsync checkpoint");::close(fd);fd=-1;::unlink(temp.c_str());return false;}
+        if(!writeAll(fd,header.data)||!writeAll(fd,configData.data)||!writeAll(fd,payload.data)||::fsync(fd)!=0){error=systemError("write/fsync checkpoint");::close(fd);fd=-1;::unlink(temp.c_str());return false;}
         if(::close(fd)!=0){fd=-1;error=systemError("close checkpoint");::unlink(temp.c_str());return false;}fd=-1;
         if(::rename(temp.c_str(),(directory+"/state.chmt").c_str())!=0){error=systemError("atomic checkpoint rename");::unlink(temp.c_str());return false;}temp.clear();
         if(!syncDirectory(directory,"sync checkpoint directory",error))return false;

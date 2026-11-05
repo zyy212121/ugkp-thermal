@@ -23,6 +23,7 @@ struct GasMicroReport {
 bool beginGasWindow(Backend&,const WallProgram&,std::string&);
 bool advanceGasMicrostep(Backend&,Real,GasMicroReport&,std::string&);
 const IntervalHistory& gasWindowHistory(const Backend&);
+std::vector<GasIntervalRecord> releaseGasWindowRecords(Backend&); // after material consumers finish
 bool gasWindowStageGeometry(const Backend&,std::array<HostStageGeometry,2>&,std::array<HostStageGeometry,2>&,std::string&);
 bool downloadGasWindow(Backend&,HostState&,std::string&);
 bool commitGasWindow(Backend&,HostState&,std::string&);

@@ -1,3 +1,4 @@
+#include "../../common/HostMemory.H"
 #include "DiagnosticsFoam.H"
 #include "configuration/CouplingInput.H"
 #include "ProgressLogging.H"
@@ -106,10 +107,12 @@ int main(int argc,char** argv) {
             if(checkpoint)chmt::io::require(chmt::writeCheckpoint(directory/Foam::fileName("checkpoint-"+suffix),input.model,input.state,error),error);
         };
         if(writeInitial||(writeFinal&&input.state.time>=end))publish(true);
+        input.state.ledger.clear(); // already published audit packets are not PDE state
         while(input.state.time<end){
             chmt::WindowEvolutionReport report;
             chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error,radiation.get()),error);
             publish(writeFinal&&input.state.time>=end);
+            input.state.ledger.clear();ugkp::releaseUnusedHostPages();
             if
             (
                 ugkwp::logging::progressLogDue

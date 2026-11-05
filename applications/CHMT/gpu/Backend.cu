@@ -205,14 +205,15 @@ bool downloadCoupledRecord(Backend& b){
             }else b.error="coupled interface trace/packet failed at face "+std::to_string(i);
             return false;
         }
-        b.record.packets.push_back(r.primary);b.record.packets.push_back(r.pore);
+        b.record.packets.push_back(r.primary);
+        if(hasPacketTransfer(r.pore))b.record.packets.push_back(r.pore);
         if(b.particles.active()){
             ExchangePacket contact{};contact.kind=ExchangeKind::ParticleWall;
             contact.step=r.primary.step;contact.geometry=r.primary.geometry;contact.face=r.primary.face;
             contact.stage=2;contact.gasCell=r.primary.gasCell;contact.solidCell=r.primary.solidCell;
             contact.filmFace=r.primary.filmFace;contact.consumerMask=ConsumeParticle;
             contact.energy=contact.conductive=r.particleWallEnergy;
-            b.record.packets.push_back(contact);
+            if(hasPacketTransfer(contact))b.record.packets.push_back(contact);
         }
         b.record.gasTrace.push_back(r.bulk);b.record.gasGradient.push_back(r.gradient);
         b.record.gasAcceptedWall.push_back(r.acceptedWall);
@@ -410,7 +411,7 @@ Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati
         if(code==cudaSuccess&&bytes>current)code=cudaDeviceSetLimit(cudaLimitStackSize,static_cast<std::size_t>(bytes));
         if(code!=cudaSuccess){error=std::string("configure CHMT CUDA stack: ")+cudaGetErrorString(code);return nullptr;}
     }
-    std::unique_ptr<Backend> b(new Backend);b->model=model;b->options=options;b->accepted=b->trial=state;
+    std::unique_ptr<Backend> b(new Backend);b->model=model;b->options=options;b->accepted=b->trial=state;b->accepted.ledger.clear();b->trial.ledger.clear();
     if(!b->executionStream.create(b->executionFault)){error=b->executionFault.message;return nullptr;}
     b->gasCaptureStream=b->executionStream.get();b->storage.bindStream(b->gasCaptureStream);
     const auto diagnosticInit=b->diagnostics.initialise(b->gasCaptureStream);
@@ -611,6 +612,9 @@ bool advanceGasMicrostep(Backend& b,Real cap,GasMicroReport& report,std::string&
     return success&&hostHealthy;
 }
 const IntervalHistory& gasWindowHistory(const Backend& b){return b.history;}
+std::vector<GasIntervalRecord> releaseGasWindowRecords(Backend& b){
+    auto records=b.history.releaseRecords();b.history=IntervalHistory{};return records;
+}
 bool gasWindowStageGeometry(const Backend& b,std::array<HostStageGeometry,2>& gas,std::array<HostStageGeometry,2>& solid,std::string& error){
     if(!b.movingWindow){
         const auto snapshot=[&](const HostMesh& mesh,std::array<HostStageGeometry,2>& stages){
@@ -654,6 +658,7 @@ static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& err
         if(!b.particles.download(candidate,error))return false;
     }
     HostState newAccepted=candidate,newTrial=candidate;
+    newAccepted.ledger.clear();newTrial.ledger.clear(); // publication diagnostics are frontend-owned
     b.accepted=std::move(newAccepted);b.trial=std::move(newTrial);error.clear();return true;
 }
 bool commitGasWindow(Backend& b,HostState& candidate,std::string& error){
