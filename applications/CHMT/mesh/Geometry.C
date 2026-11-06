@@ -2,6 +2,7 @@
 #include "../../../common/gpu/PointMotionMath.H"
 #include "../../../common/gpu/TrajectoryPolynomialMath.H"
 #include "../../../common/gpu/LinearTrajectoryMath.H"
+#include "../../../common/gpu/GeometryBoundaryMath.H"
 #ifdef CHMT_DEVICE_GEOMETRY
 #include "mesh/GeometryGpu.H"
 #endif
@@ -110,19 +111,13 @@ namespace chmt {
                 if (ownerVertices != partnerVertices) {
                     return errorAt(error, "nonconformal periodic face", f);
                 }
-                if (mag(m.areaVectors[f]+m.areaVectors[p])>1e-10*maxValue(mag(m.areaVectors[f]),
-                    mag(m.areaVectors[p])))return errorAt(error,
+                if (!ugkp::gpu::geometry::periodicAreaMatches(m.areaVectors[f],m.areaVectors[p]))return errorAt(error,
                     "rotational/nonmatching periodic areas unsupported", f);
                 const Vec3 shift = m.faceCentres[p]-m.faceCentres[f];
                 std::set<int> used;
                 for (int i = m.faceOffsets[f]; i<m.faceOffsets[f+1]; ++i) {
-                    int found = -1;
-                    for (int j = m.faceOffsets[p]; j < m.faceOffsets[p+1]; ++j) {
-                        const Vec3 separation = m.points[m.facePoints[i]]+shift-m.points[m.facePoints[j]];
-                        if (mag(separation) > tol)continue;
-                        found = j;
-                        break;
-                    }
+                    const ugkp::gpu::geometry::TopologyView topology{m.faceOffsets.data(),m.facePoints.data(),nullptr,nullptr,nullptr,nullptr,nullptr};
+                    const int found=ugkp::gpu::geometry::periodicVertexMatch(m.facePoints[i],p,topology,m.points.data(),shift,tol);
                     if (found<0 || !used.insert(found).second)return errorAt(error,
                         "rotational/nontranslational periodic vertices unsupported", f);
                 }

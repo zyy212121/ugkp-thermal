@@ -2,6 +2,7 @@
 #include "ExtendedGeometryMath.H"
 #include "PinnedTransferQueue.cuh"
 #include <cuda_runtime.h>
+#include <cub/device/device_merge_sort.cuh>
 #include <cooperative_groups.h>
 #include <algorithm>
 #include <climits>
@@ -313,6 +314,7 @@ void ResidentLinearTrajectory::evaluate(const Point* old,const Point* endpoint,v
     finishTrajectory<<<std::max(1,(d.cells+127)/128),128,0,stream>>>(d.cells,d.status.pointer,d.failure.pointer,d.diagnostics.pointer);
     checked(cudaGetLastError());
 }
+#include "ResidentGeometryBoundary.cuh"
 struct PolyhedralGeometry::Implementation {
     cudaStream_t stream=nullptr;PinnedTransferQueue transfer;Topology cached;
     std::unique_ptr<ResidentPolyhedralGeometry> resident;

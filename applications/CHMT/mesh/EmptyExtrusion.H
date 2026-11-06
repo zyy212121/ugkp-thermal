@@ -1,6 +1,7 @@
 #ifndef CHMT_MESH_EMPTY_EXTRUSION_H
 #define CHMT_MESH_EMPTY_EXTRUSION_H
 #include "core/HostState.H"
+#include "gpu/GeometryBoundaryMath.H"
 #include <algorithm>
 #include <map>
 #include <set>
@@ -121,11 +122,10 @@ inline bool trajectory(const HostMesh& old,const Extrusion& extrusion,const std:
     if(extrusion.axis<0)return true;
     if(end.size()!=old.points.size())return reject(error,"trajectory point count mismatch");
     for(std::size_t p=0;p<end.size();++p) {
-        if(component(end[p],extrusion.axis)!=component(old.points[p],extrusion.axis))
-            return reject(error,"nonzero normal trajectory displacement");
-        const int paired=extrusion.mate[p];
-        for(int d=0;d<3;++d)if(d!=extrusion.axis && component(end[p],d)!=component(end[paired],d))
-            return reject(error,"layer-paired tangential trajectory differs");
+        using namespace ugkp::gpu::geometry;
+        const auto failure=emptyTrajectoryPoint(static_cast<int>(p),extrusion.mate[p],extrusion.axis,old.points.data(),end.data());
+        if(failure==EmptyTrajectoryFailure::NormalDisplacement)return reject(error,"nonzero normal trajectory displacement");
+        if(failure==EmptyTrajectoryFailure::PairedTangentialDisplacement)return reject(error,"layer-paired tangential trajectory differs");
     }
     return true;
 }

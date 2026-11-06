@@ -3,6 +3,7 @@
 #include "PolyhedralGeometryMath.H"
 #include "PointMotionMath.H"
 #include "LinearTrajectoryMath.H"
+#include "GeometryBoundaryMath.H"
 #include <memory>
 #include <vector>
 namespace ugkp { namespace gpu { class PinnedTransferQueue; namespace geometry {
@@ -79,6 +80,35 @@ public:
     ~ResidentLinearTrajectory();
     TrajectoryDeviceView view() const;
     void evaluate(const Point* old,const Point* endpoint,void* stream=nullptr);
+};
+enum class GeometryBoundaryFailure : int {
+    None,PeriodicArea,PeriodicVertices,EmptyNormal,EmptyTangential,EmptyDuplicate
+};
+struct GeometryBoundaryStatus {
+    unsigned long long first=0;
+    GeometryBoundaryFailure failure=GeometryBoundaryFailure::None;
+    int index=-1;
+    double scale=0;
+};
+// Geometry-dependent boundary checks for an initialized, topology-preserving
+// mesh. The periodic topology and Empty extrusion/mate map are validated once
+// by the mesh owner. Coordinate finiteness, face/cell validity and the remaining
+// stage policies belong to that owner. These methods never publish to host.
+// Empty uniqueness is checked at each original geometry sample, in addition
+// to the paired, zero-normal trajectory contract; it cannot be assumed from
+// valid individual cell volumes on a mesh with several disconnected cells.
+class ResidentGeometryBoundary {
+    struct Implementation;std::unique_ptr<Implementation> data_;
+public:
+    ResidentGeometryBoundary(const Topology&,TopologyView deviceTopology,int pointCount,
+        const std::vector<int>& periodicPartner,int emptyAxis,const std::vector<int>& emptyMate);
+    ~ResidentGeometryBoundary();
+    const GeometryBoundaryStatus* periodicStatus()const;
+    const GeometryBoundaryStatus* emptyTrajectoryStatus()const;
+    const GeometryBoundaryStatus* emptyUniquenessStatus()const;
+    void periodic(const Point* points,const FaceResult* faces,void* stream=nullptr);
+    void emptyTrajectory(const Point* old,const Point* endpoint,void* stream=nullptr);
+    void emptyUniqueness(const Point* points,void* stream=nullptr);
 };
 class PolyhedralGeometry {
     struct Implementation;std::unique_ptr<Implementation> data_;
