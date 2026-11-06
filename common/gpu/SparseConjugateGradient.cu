@@ -258,7 +258,11 @@ ConjugateGradientReport SparseConjugateGradient::solvePrepared(int n,double* sol
             cudaGraphNodeParams parameters{};parameters.type=cudaGraphNodeTypeConditional;
             parameters.conditional.handle=handle;parameters.conditional.type=cudaGraphCondTypeWhile;parameters.conditional.size=1;
             cudaGraphNode_t loop;
+#if CUDART_VERSION >= 13000
             checked(cudaGraphAddNode(&loop,graph.graph,nullptr,nullptr,0,&parameters));
+#else
+            checked(cudaGraphAddNode(&loop,graph.graph,nullptr,0,&parameters));
+#endif
             cudaGraph_t body=parameters.conditional.phGraph_out[0];
             checked(cudaStreamBeginCaptureToGraph(d.stream,body,nullptr,nullptr,0,cudaStreamCaptureModeThreadLocal));
             d.iteration(n,norm,controls.singularSmall,comm,true);
