@@ -26,9 +26,9 @@ struct MaterialSurfaceView {
     int workspaceCapacity=0,workers=0;
 };
 __global__ void evaluateMaterialSurfaceKernel(MaterialSurfaceView view,const PhysicsConfig* physics) {
-    const int worker=blockIdx.x*blockDim.x+threadIdx.x;
-    if(worker>=view.workers)return;
-    for(int face=worker;face<view.count;face+=view.workers){
+    const std::size_t worker=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x;
+    if(worker>=std::size_t(view.workers))return;
+    for(std::size_t face=worker;face<std::size_t(view.count);face+=view.workers){
         auto& status=view.status[face];status=MaterialSurfaceStatus{};
         if(view.active&&!view.active[face]){
             view.physicsOut[face]=SurfacePhysicsResult{};view.wallOut[face]=WallFaceSample{};

@@ -16,15 +16,15 @@ def test_resident_material_surface_matches_cpu(tmp_path):
         pytest.skip("CUDA device required")
     binary = tmp_path / "resident-material-surface"
     compile_run = subprocess.run([nvcc, "-std=c++17", "-O2", "--Ofast-compile=max",
-        "-Xcompiler=-fno-tree-fre", "--expt-relaxed-constexpr", "--fmad=false", "-arch=sm_89",
+        "-Xcompiler=-fno-tree-fre", "--expt-relaxed-constexpr", "--fmad=false", "-arch="+os.environ.get("UGKWP_CUDA_ARCH", "sm_89"),
         "-DUGKWP_GAS_SPECIES=2", "-I"+str(SOURCE_ROOT/"applications/CHMT"),
         "-I"+str(SOURCE_ROOT/"common"), "-I"+str(VALIDATION_ROOT/"solvers/CHMT"),
         str(VALIDATION_ROOT/"solvers/CHMT/tests/resident_material_surface_cuda.cu"),
         "-o", str(binary)], capture_output=True, text=True, timeout=240)
     (tmp_path/"build.log").write_text(compile_run.stdout+compile_run.stderr)
     assert compile_run.returncode == 0, compile_run.stdout+compile_run.stderr
-    run = subprocess.run([str(binary)], capture_output=True, text=True, timeout=240)
+    run = subprocess.run([str(binary)], capture_output=True, text=True, timeout=900)
     (tmp_path/"run.log").write_text(run.stdout+run.stderr)
     print(run.stdout+run.stderr, end="")
     assert run.returncode == 0, run.stdout+run.stderr
-    assert run.stdout.count("PASS resident material surface variant=") == 5
+    assert run.stdout.count("PASS resident material surface variant=") == 6

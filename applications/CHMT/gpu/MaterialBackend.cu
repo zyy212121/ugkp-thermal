@@ -4,6 +4,7 @@
 #include "gpu/MaterialTransportKernels.cuh"
 #include "gpu/MaterialSourceKernels.cuh"
 #include "gpu/MaterialSurfaceKernels.cuh"
+#include "../../../common/gpu/ScalarWorkLaunch.cuh"
 #include "materials/MaterialInventoryMath.H"
 #include "materials/CpuMaterialDriver.H"
 #include "../../../common/GpuDiagnosticsOwner.cuh"
@@ -433,7 +434,12 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
     view.volumes=candidate?b.nextVolumes.data():b.volumes.data();view.materialRate=useRates?b.rates.data():nullptr;
     view.active=b.surfaceActive.data();view.physicsOut=b.surfacePhysics.data();view.wallOut=b.surfaceWall.data();view.status=b.surfaceStatus.data();
     b.operation(h.time);
-    if(count)evaluateMaterialSurfaceKernel<<<(view.workers+31)/32,32,0,b.stream.get()>>>(view,b.devicePhysics.data());
+    if(count){
+        ugkp::gpu::ScalarWorkLaunch launch;
+        if(!b.fault.check(ugkp::gpu::scalarWorkLaunch(evaluateMaterialSurfaceKernel,view.workers,launch),
+            "schedule independent material surface workers"))return b.failure(error);
+        evaluateMaterialSurfaceKernel<<<launch.blocks,launch.threads,0,b.stream.get()>>>(view,b.devicePhysics.data());
+    }
     if(!b.fault.check(cudaGetLastError(),"evaluate resident material surface"))return b.failure(error);
     CpuSurfaceResult result;std::vector<MaterialSurfaceStatus> statuses;
     if(!b.read(b.surfacePhysics,result.physics)||!b.read(b.surfaceWall,result.wall)||!b.read(b.surfaceStatus,statuses)
