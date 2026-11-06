@@ -827,6 +827,12 @@ UGKWP_GAS_HD inline bool newtonStep(const WallInput<R,N,TableReal>& in,
     if constexpr(std::is_same<Team,SerialWallTeam>::value){
         for(int j=0;j<c.nodes;++j)if(!assembleJacobianNode(in,c,ctx,w,j)){valid=false;break;}
         if(!team.all(valid))return false;
+    }else if(c.nodes>=team.size()){
+        // Nodes already fill the team. Retain per-node point reuse instead of
+        // duplicating thermodynamic work across columns with no added lanes.
+        for(int j=team.rank();j<c.nodes;j+=team.size())
+            if(!assembleJacobianNode(in,c,ctx,w,j)){valid=false;break;}
+        if(!team.all(valid))return false;
     }else{
         const int columns=c.model==BoundaryLayerModel::EquilibriumOde&&!c.enableSst?N+2:B;
         // Velocity, temperature and the donor species column are independent.
