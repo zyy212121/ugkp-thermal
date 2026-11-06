@@ -99,5 +99,5 @@ int main(int argc,char** argv){
         }
         ++solvedCases;
     }
-    std::cout<<"PASS "<<solvedCases<<" permuted/cyclic-dependency upwind matrices, five cell-order sweeps, true residuals and three stopping variants in both grid and cooperative-block execution bitwise\n";
+    std::cout<<"PASS "<<solvedCases<<" permuted/cyclic-dependency upwind matrices, five cell-order sweeps, true residuals and three stopping variants in both angular scheduling settings bitwise\n";
 }
