@@ -25,7 +25,7 @@ struct CoupledSurfaceRecord {
     int failed=0,wallTransportCode=0;
     ugkwp::gaswall::WallStatus wallStatus{};
 };
-// Only fields consumed by host material/history/output cross at a microstep
+// Only fields consumed by host material/history cross at a microstep
 // endpoint. Raw fluxes and unweighted stage packets remain device-only.
 struct CoupledSurfaceDownload {
     GasPrimitive bulk{};GasGradient gradient{};Vec3 traction{};
@@ -34,17 +34,35 @@ struct CoupledSurfaceDownload {
     Real radiationEnergy=0,particleWallEnergy=0;unsigned radiationReceiver=0;
     int failed=0;
 };
-// Boundary-layer-only output has its own optional transfer. Low-Re interfaces
-// neither allocate nor copy nonlinear wall solver diagnostic arrays.
+// Matching and failure status are consumed by the material history. Full node
+// diagnostics remain resident until the gas-window endpoint is published.
 struct CoupledWallDownload {
     GasWallMatchingSample matching{};
-    ugkwp::gaswall::WallExchangeOutput<Real,Ns> layer{};
     int transportCode=0;
     ugkwp::gaswall::WallStatus status{};
 };
+struct CoupledRecordFailure {int wall=0,owner=0;};
+__global__ void resetCoupledRecordFailure(CoupledRecordFailure* failure,int count){
+    if(!blockIdx.x&&!threadIdx.x){failure->wall=count;failure->owner=count;}
+}
+CHMT_HD inline int coupledPacketOwnerFailure(const ExchangePacket& packet,int solids,int films){
+    const auto consumers=requiredConsumers(packet.kind);
+    if((consumers&ConsumeSolid)&&(packet.solidCell<0||packet.solidCell>=solids))return 3;
+    if((consumers&ConsumeFilm)&&(packet.filmFace<0||packet.filmFace>=films))return 4;
+    return 0;
+}
+CHMT_HD inline int coupledRecordOwnerFailure(const CoupledSurfaceDownload& record,int solids,int films){
+    int error=coupledPacketOwnerFailure(record.primary,solids,films);if(error)return error;
+    if(hasPacketTransfer(record.pore)){
+        error=coupledPacketOwnerFailure(record.pore,solids,films);if(error)return error;
+    }
+    if(record.particleWallEnergy!=0&&(record.primary.solidCell<0||record.primary.solidCell>=solids))return 3;
+    return 0;
+}
 __global__ void packCoupledSurfaceKernel(const CoupledSurfaceRecord* records,int count,
     const int* faces,ugkp::thermal::ParticleWallExchangeView particle,
-    CoupledSurfaceDownload* output,CoupledWallDownload* wallOutput){
+    CoupledSurfaceDownload* output,CoupledWallDownload* wallOutput,
+    CoupledRecordFailure* failure,int solids,int films){
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;if(slot>=count)return;
     const auto& in=records[slot];auto& out=output[slot];
     out.bulk=in.sample.primitive;out.gradient=in.sample.gradient;out.traction=in.rates.traction;
@@ -54,9 +72,16 @@ __global__ void packCoupledSurfaceKernel(const CoupledSurfaceRecord* records,int
     out.particleWallEnergy=particle.depositedEnergy
         ?particle.depositedEnergy[faces[slot]]+particle.reflectedEnergy[faces[slot]]-in.particleHeatAtBegin:0;
     if(wallOutput){auto& wall=wallOutput[slot];
-        wall.matching=in.matching;wall.layer=in.rates.layer;
+        wall.matching=in.matching;
         wall.transportCode=in.wallTransportCode;wall.status=in.wallStatus;
     }
+    if(in.failed)atomicMin(&failure->wall,slot);
+    if(coupledRecordOwnerFailure(out,solids,films))atomicMin(&failure->owner,slot);
+}
+__global__ void packCoupledWallDiagnosticsKernel(const CoupledSurfaceRecord* records,int count,
+    ugkwp::gaswall::WallExchangeOutput<Real,Ns>* output){
+    const int slot=blockIdx.x*blockDim.x+threadIdx.x;
+    if(slot<count)output[slot]=records[slot].rates.layer;
 }
 __global__ void publishParticleMaterialSurfaceKernel(int count,const int* faces,
     const CoupledSurfaceInput* geometry,const WallFaceSample* program,GasWallProgramPosition position,

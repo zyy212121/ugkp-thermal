@@ -57,6 +57,13 @@ struct Backend {
     Buffer<CoupledSurfaceRecord> interfaceRecords;
     Buffer<CoupledSurfaceDownload> interfaceDownloads;
     Buffer<CoupledWallDownload> interfaceWallDownloads;
+    Buffer<CoupledRecordFailure> interfaceFailure;
+    std::size_t historyFrameCount=0,historyFrameCapacity=1,historyPublishedFrames=0;
+    std::vector<CoupledSurfaceDownload> historyRecordStaging;
+    std::vector<CoupledWallDownload> historyWallStaging;
+    Buffer<ugkwp::gaswall::WallExchangeOutput<Real,Ns>> interfaceWallDiagnostics;
+    std::vector<ugkwp::gaswall::WallExchangeOutput<Real,Ns>> wallDiagnosticStaging;
+    bool wallDiagnosticsReady=false;Real wallDiagnosticTime=0;
     Buffer<PhysicsConfig> interfacePhysics;
     bool poisoned=false;std::string error;
     GasIntervalRecord record;
@@ -74,6 +81,9 @@ struct Backend {
     SharedGasDeviceView* deviceState=nullptr;cudaStream_t gasCaptureStream=nullptr;
     cudaGraph_t gasGraph=nullptr;cudaGraphExec_t gasGraphExec=nullptr;
     cudaGraphNode_t gasGraphIntervalNode=nullptr;cudaKernelNodeParams gasGraphIntervalParams{};
+    ugkwp::GasResidentInterval gasGraphLastInterval{};
+    ugkwp::GasResidentInterval* gasGraphClock=nullptr;
+    bool gasGraphIntervalSubmitted=false,gasGraphAdvancesInterval=false;
     bool gasGraphIncludesBoundary=false,gasGraphPreparedBoundary=false,gasGraphFrozenBoundary=false;
     Real gasGraphDt=-1;int gasGraphMode=-1;
     std::vector<const void*> graphPointers;std::vector<int> graphShape;
@@ -81,6 +91,7 @@ struct Backend {
         if(gasCaptureStream)executionStream.sync();
         if(gasGraphExec)cudaGraphExecDestroy(gasGraphExec);
         if(gasGraph)cudaGraphDestroy(gasGraph);
+        if(gasGraphClock)cudaFree(gasGraphClock);
     }
 };
 inline void bindSharedGasStorage(Backend& b){
@@ -118,7 +129,7 @@ int advanceCoupledParticles(Backend*,Real);
 int prepareCoupledBoundaryLayer(Backend*,Real,Real);
 int applyCoupledFaces(Backend*,Real,Real);
 int accountCoupledFaces(Backend*,Real);
-bool downloadCoupledRecord(Backend&);
+bool archiveCoupledRecord(Backend&);
 namespace transport {
 using std::isfinite;
 #define GPU_OPERATOR_REAL double
@@ -223,7 +234,7 @@ struct CoupledTrialPolicy {
         return 0;
     }
     static int commit(Backend* b){
-        if(!downloadCoupledRecord(*b))return 1;
+        if(!archiveCoupledRecord(*b))return 1;
         const auto& model=b->storage.hostView().gasBoundaryLayerModel;
         if(model.acceptedHistory&&b->gasBoundaryLayer.count){
             ::commitAcceptedWallHistory<<<(b->gasBoundaryLayer.count+63)/64,64,0,b->gasCaptureStream>>>(b->deviceState);
@@ -237,53 +248,98 @@ struct CoupledTrialPolicy {
 };
 }}
 namespace chmt {
-bool downloadCoupledRecord(Backend& b){
-    std::vector<CoupledSurfaceDownload> records;
-    std::vector<CoupledWallDownload> walls;
-    const int count=int(b.interfaceRecords.size());
-    if(count){
-        packCoupledSurfaceKernel<<<(count+127)/128,128,0,b.gasCaptureStream>>>(b.interfaceRecords.data(),count,b.interfaceFaces.data(),b.particles.wallExchange(),b.interfaceDownloads.data(),b.interfaceWallDownloads.data());
-        if(!b.surfaceTransferFault.check(cudaGetLastError(),"pack accepted coupled exchange")){
-            b.error=b.surfaceTransferFault.message;return false;
-        }
+// The gas owner retains accepted physical history on device until a material
+// consumer explicitly publishes the window. A high-water buffer grows only
+// when a window exceeds the previously observed number of microsteps.
+bool reserveCoupledHistory(Backend& b,std::size_t frames){
+    if(frames<=b.historyFrameCapacity)return true;
+    const std::size_t count=b.interfaceRecords.size();
+    const auto limit=std::numeric_limits<std::size_t>::max();
+    const std::size_t capacity=b.historyFrameCapacity<=limit/2
+        ?std::max(frames,2*b.historyFrameCapacity):frames;
+    if(count&&capacity>limit/count){b.error="coupled history size overflow";return false;}
+    Buffer<CoupledSurfaceDownload> records;Buffer<CoupledWallDownload> walls;
+    if(!records.resize(capacity*count,b.surfaceTransferFault)
+        ||!walls.resize(b.gasBoundaryLayer.enabled?capacity*count:0,b.surfaceTransferFault)){
+        b.error=b.surfaceTransferFault.message;return false;
     }
-    if(!b.storage.enqueueRead(b.interfaceDownloads.data(),b.interfaceDownloads.size(),records)
-        ||!b.storage.enqueueRead(b.interfaceWallDownloads.data(),b.interfaceWallDownloads.size(),walls)
-        ||!b.storage.observeDiagnostics()){b.error=b.storage.error();return false;}
-    b.record.gasTraceTime=b.stageTime;
-    for(std::size_t i=0;i<records.size();++i){const auto& r=records[i];
-        if(r.failed){
-            if(r.failed==2){
-                b.terminalWallFailure=true;const auto& wall=walls[i];
-                b.error="boundaryLayer rejected face "+std::to_string(b.trial.surface.gasFace[i])+" slot "+std::to_string(i)
-                    +" transport code "+std::to_string(wall.transportCode)+" wall code "+std::to_string(int(wall.status.code))
-                    +" node "+std::to_string(wall.status.node)+" iteration "+std::to_string(wall.status.iteration)
-                    +" residual "+(std::isfinite(wall.status.residual)?std::to_string(wall.status.residual):"NOT_AVAILABLE");
-            }else b.error="coupled interface trace/packet failed at face "+std::to_string(i);
-            return false;
-        }
-        b.record.packets.push_back(r.primary);
-        if(hasPacketTransfer(r.pore))b.record.packets.push_back(r.pore);
+    const auto retained=b.historyFrameCount*count;
+    if(retained&&(!b.surfaceTransferFault.check(cudaMemcpyAsync(records.data(),b.interfaceDownloads.data(),
+        retained*sizeof(CoupledSurfaceDownload),cudaMemcpyDeviceToDevice,b.gasCaptureStream),"grow resident coupled history")
+        ||(b.gasBoundaryLayer.enabled&&!b.surfaceTransferFault.check(cudaMemcpyAsync(walls.data(),b.interfaceWallDownloads.data(),
+            retained*sizeof(CoupledWallDownload),cudaMemcpyDeviceToDevice,b.gasCaptureStream),"grow resident matching history")))){
+        b.error=b.surfaceTransferFault.message;return false;
+    }
+    b.interfaceDownloads.swap(records);b.interfaceWallDownloads.swap(walls);
+    const bool releasedRecords=records.release(),releasedWalls=walls.release();
+    if(!releasedRecords||!releasedWalls){b.error=b.surfaceTransferFault.message;return false;}
+    b.historyFrameCapacity=capacity;return true;
+}
+bool archiveCoupledRecord(Backend& b){
+    if(!reserveCoupledHistory(b,b.historyFrameCount+1))return false;
+    const int count=int(b.interfaceRecords.size());
+    const auto offset=b.historyFrameCount*std::size_t(count);
+    auto* records=count?b.interfaceDownloads.data()+offset:nullptr;
+    auto* walls=count&&b.gasBoundaryLayer.enabled?b.interfaceWallDownloads.data()+offset:nullptr;
+    resetCoupledRecordFailure<<<1,1,0,b.gasCaptureStream>>>(b.interfaceFailure.data(),count);
+    if(count)packCoupledSurfaceKernel<<<(count+127)/128,128,0,b.gasCaptureStream>>>(
+        b.interfaceRecords.data(),count,b.interfaceFaces.data(),b.particles.wallExchange(),records,walls,
+        b.interfaceFailure.data(),int(b.accepted.solid.size()),int(b.accepted.film.size()));
+    if(!b.surfaceTransferFault.check(cudaGetLastError(),"archive accepted coupled exchange")){
+        b.error=b.surfaceTransferFault.message;return false;
+    }
+    std::vector<CoupledRecordFailure> failure;
+    if(!b.storage.enqueueRead(b.interfaceFailure.data(),1,failure)||!b.storage.observeDiagnostics()){
+        b.error=b.storage.error();return false;
+    }
+    // Preserve the existing first failing face and error precedence. Detailed
+    // fields cross the bus only on this already-fatal diagnostic path.
+    if(failure[0].wall<count){
+        const int slot=failure[0].wall;std::vector<CoupledSurfaceDownload> record;
+        if(!b.storage.read(records+slot,1,record)){b.error=b.storage.error();return false;}
+        if(record[0].failed==2){
+            std::vector<CoupledWallDownload> wall;
+            if(!b.storage.read(walls+slot,1,wall)){b.error=b.storage.error();return false;}
+            b.terminalWallFailure=true;const auto& w=wall[0];
+            b.error="boundaryLayer rejected face "+std::to_string(b.trial.surface.gasFace[slot])+" slot "+std::to_string(slot)
+                +" transport code "+std::to_string(w.transportCode)+" wall code "+std::to_string(int(w.status.code))
+                +" node "+std::to_string(w.status.node)+" iteration "+std::to_string(w.status.iteration)
+                +" residual "+(std::isfinite(w.status.residual)?std::to_string(w.status.residual):"NOT_AVAILABLE");
+        }else b.error="coupled interface trace/packet failed at face "+std::to_string(slot);
+        return false;
+    }
+    if(failure[0].owner<count){
+        std::vector<CoupledSurfaceDownload> record;
+        if(!b.storage.read(records+failure[0].owner,1,record)){b.error=b.storage.error();return false;}
+        const auto code=coupledRecordOwnerFailure(record[0],int(b.accepted.solid.size()),int(b.accepted.film.size()));
+        b.error=code==3?"solid donor owner out of range":"film donor owner out of range";return false;
+    }
+    b.record.gasTraceTime=b.stageTime;++b.historyFrameCount;
+    if(b.gasBoundaryLayer.enabled){b.wallDiagnosticsReady=true;b.wallDiagnosticTime=b.stageTime;}
+    return true;
+}
+void populateCoupledHostRecord(const Backend& b,const CoupledSurfaceDownload* records,
+    const CoupledWallDownload* walls,std::size_t count,GasIntervalRecord& record){
+    record.packets.clear();record.gasTrace.clear();record.gasGradient.clear();
+    record.gasAcceptedWall.clear();record.gasTraction.clear();record.radiationEnergy.clear();
+    record.radiationReceiver.clear();record.gasWallMatching.clear();
+    for(std::size_t i=0;i<count;++i){const auto& r=records[i];
+        record.packets.push_back(r.primary);
+        if(hasPacketTransfer(r.pore))record.packets.push_back(r.pore);
         if(b.particles.active()){
             ExchangePacket contact{};contact.kind=ExchangeKind::ParticleWall;
             contact.step=r.primary.step;contact.geometry=r.primary.geometry;contact.face=r.primary.face;
             contact.stage=2;contact.gasCell=r.primary.gasCell;contact.solidCell=r.primary.solidCell;
             contact.filmFace=r.primary.filmFace;contact.consumerMask=ConsumeParticle;
             contact.energy=contact.conductive=r.particleWallEnergy;
-            if(hasPacketTransfer(contact))b.record.packets.push_back(contact);
+            if(hasPacketTransfer(contact))record.packets.push_back(contact);
         }
-        b.record.gasTrace.push_back(r.bulk);b.record.gasGradient.push_back(r.gradient);
-        b.record.gasAcceptedWall.push_back(r.acceptedWall);
-        b.record.gasTraction.push_back(r.traction);
-        b.record.radiationEnergy.push_back(r.radiationEnergy);b.record.radiationReceiver.push_back(r.radiationReceiver);
-        if(b.gasBoundaryLayer.enabled)b.record.gasWallMatching.push_back(walls[i].matching);
+        record.gasTrace.push_back(r.bulk);record.gasGradient.push_back(r.gradient);
+        record.gasAcceptedWall.push_back(r.acceptedWall);
+        record.gasTraction.push_back(r.traction);
+        record.radiationEnergy.push_back(r.radiationEnergy);record.radiationReceiver.push_back(r.radiationReceiver);
+        if(b.gasBoundaryLayer.enabled)record.gasWallMatching.push_back(walls[i].matching);
     }
-    if(b.gasBoundaryLayer.enabled){
-        b.trial.gasWallDiagnostics.resize(records.size());
-        for(std::size_t i=0;i<records.size();++i)static_cast<ugkwp::gaswall::WallExchangeOutput<Real,Ns>&>(b.trial.gasWallDiagnostics[i])=walls[i].layer;
-        b.trial.gasWallDiagnosticTime=b.stageTime;
-    }
-    return true;
 }
 int prepareCoupledGeometry(Backend* b){
     // CFL and RK stages leave host geometry unchanged until finishCoupledGeometry.
@@ -424,6 +480,7 @@ int accountCoupledFaces(Backend* b,Real ledgerDt){
 }
 bool loadGasWindowState(Backend& b,const HostState& snapshot,std::string& error){
     b.storage.beginOperation();
+    b.wallDiagnosticsReady=false;b.historyFrameCount=0;b.historyPublishedFrames=0;
     b.gasGraphDt=std::numeric_limits<Real>::quiet_NaN();
     b.microGeometryPrepared=false;b.preparedWallReady=false;ugkwp::invalidateGasBoundaryLayerPreparation(b);
     if(b.gasBoundaryLayer.enabled&&b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static)b.storage.invalidateWallGeometry();
@@ -495,6 +552,8 @@ Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati
         ||!b->interfaceRecords.resize(state.surface.gasFace.size(),b->surfaceTransferFault)
         ||!b->interfaceDownloads.resize(state.surface.gasFace.size(),b->surfaceTransferFault)
         ||!b->interfaceWallDownloads.resize(b->storage.hostView().gasBoundaryLayer.enabled?state.surface.gasFace.size():0,b->surfaceTransferFault)
+        ||!b->interfaceWallDiagnostics.resize(b->storage.hostView().gasBoundaryLayer.enabled?state.surface.gasFace.size():0,b->surfaceTransferFault)
+        ||!b->interfaceFailure.resize(1,b->surfaceTransferFault)
         ||!b->interfacePhysics.resize(1,b->surfaceTransferFault)
         ||!b->coupledInterval.resize(1,b->surfaceTransferFault)){
         error=b->surfaceTransferFault.message;return nullptr;
@@ -653,15 +712,6 @@ static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,s
     if(transport::advanceGasTrial<transport::CoupledTrialPolicy>(&b,dt,b.microTime)!=0){
         error=b.error.empty()?transport::lastError:b.error;return false;
     }
-    // The physical donor progress is already advanced with the resident
-    // coupled surface. A second host inventory was never read by any consumer.
-    // Retain its packet-address contract without recomputing unused inventories.
-    for(const auto& packet:b.record.packets){const auto consumers=requiredConsumers(packet.kind);
-        if((consumers&ConsumeSolid)&&(packet.solidCell<0||std::size_t(packet.solidCell)>=b.accepted.solid.size())){
-            error="solid donor owner out of range";return false;}
-        if((consumers&ConsumeFilm)&&(packet.filmFace<0||std::size_t(packet.filmFace)>=b.accepted.film.size())){
-            error="film donor owner out of range";return false;}
-    }
     if(!b.history.appendAccepted(b.record,error))return false;
     b.elapsed=b.record.localEnd;
     if(b.movingWindow){
@@ -694,7 +744,46 @@ bool gasWindowStageGeometry(const Backend& b,std::array<HostStageGeometry,2>& ga
     error.clear();return true;
 }
 bool downloadGasWindow(Backend& b,HostState& out,std::string& error){
+    const bool publishHistory=b.historyPublishedFrames!=b.historyFrameCount;
+    const auto faces=b.interfaceRecords.size();
+    if(publishHistory&&(!b.storage.enqueueRead(b.interfaceDownloads.data(),b.historyFrameCount*faces,b.historyRecordStaging)
+        ||!b.storage.enqueueRead(b.interfaceWallDownloads.data(),b.gasBoundaryLayer.enabled?b.historyFrameCount*faces:0,b.historyWallStaging))){
+        error=b.storage.error();return false;
+    }
+    if(b.wallDiagnosticsReady){
+        const int count=int(b.interfaceWallDiagnostics.size());
+        if(count){
+            packCoupledWallDiagnosticsKernel<<<(count+127)/128,128,0,b.gasCaptureStream>>>(
+                b.interfaceRecords.data(),count,b.interfaceWallDiagnostics.data());
+            if(!b.surfaceTransferFault.check(cudaGetLastError(),"pack gas-window wall diagnostics")){
+                error=b.surfaceTransferFault.message;return false;
+            }
+        }
+        // Join the existing endpoint publication; no per-microstep node arrays
+        // and no additional host wait. The staging owner survives failed reads.
+        if(!b.storage.enqueueRead(b.interfaceWallDiagnostics.data(),count,b.wallDiagnosticStaging)){
+            error=b.storage.error();return false;
+        }
+    }
     if(!b.storage.downloadState(b.trial,error)||!b.particles.download(b.trial,error))return false;
+    if(publishHistory){
+        IntervalHistory published;
+        if(!published.begin(b.history.interval(),error))return false;
+        published.setExternalRadiationEnergy(b.history.externalRadiationEnergy());
+        for(std::size_t frame=0;frame<b.historyFrameCount;++frame){
+            auto record=b.history.records()[frame];
+            populateCoupledHostRecord(b,faces?b.historyRecordStaging.data()+frame*faces:nullptr,
+                faces&&b.gasBoundaryLayer.enabled?b.historyWallStaging.data()+frame*faces:nullptr,faces,record);
+            if(!published.appendAccepted(record,error))return false;
+        }
+        b.history=std::move(published);b.historyPublishedFrames=b.historyFrameCount;
+    }
+    if(b.wallDiagnosticsReady){
+        b.trial.gasWallDiagnostics.resize(b.wallDiagnosticStaging.size());
+        for(std::size_t i=0;i<b.wallDiagnosticStaging.size();++i)
+            static_cast<ugkwp::gaswall::WallExchangeOutput<Real,Ns>&>(b.trial.gasWallDiagnostics[i])=b.wallDiagnosticStaging[i];
+        b.trial.gasWallDiagnosticTime=b.wallDiagnosticTime;
+    }
     out=b.trial;return gasWindowStageGeometry(b,out.gasStages,out.solidStages,error);
 }
 static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& error){

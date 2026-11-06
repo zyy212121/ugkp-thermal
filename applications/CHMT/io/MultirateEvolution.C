@@ -39,9 +39,9 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         }
         // The backend owns the immutable history until material consumers
         // finish; ledger publication then consumes and releases its storage.
-        const IntervalHistory& history=gasWindowHistory(backend);
         HostState gasEndpoint;
         if(!downloadGasWindow(backend,gasEndpoint,error))return false;
+        const IntervalHistory& history=gasWindowHistory(backend);
         Real externalRadiationHeat=0;
         if(radiation&&!radiation->advance(backend,program,gasEndpoint,externalRadiationHeat,error))return false;
         HostState candidate;WallProgram corrected;CpuMaterialReport cpu;

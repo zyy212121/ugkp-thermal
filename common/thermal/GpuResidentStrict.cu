@@ -277,6 +277,9 @@ struct DeviceState
     ugkwp::GasResidentInterval gasResidentInterval;
     cudaGraphNode_t gasGraphIntervalNode=nullptr;
     cudaKernelNodeParams gasGraphIntervalParams{};
+    ugkwp::GasResidentInterval gasGraphLastInterval{};
+    ugkwp::GasResidentInterval* gasGraphClock=nullptr;
+    bool gasGraphIntervalSubmitted=false,gasGraphAdvancesInterval=false;
     bool gasGraphIncludesBoundary=false,gasGraphPreparedBoundary=false,gasGraphFrozenBoundary=false;
     double gasGraphDt=-1; // NaN invalidates structural/configuration bindings.
     int gasGraphMode = -1;
@@ -1113,6 +1116,7 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->csrAutomaticRuntime);
     if (s->gasGraphExec) cudaGraphExecDestroy(s->gasGraphExec);
     if (s->gasGraph) cudaGraphDestroy(s->gasGraph);
+    release(s->gasGraphClock);
     if (s->gasCaptureStream) cudaStreamDestroy(s->gasCaptureStream);
     release(s->deviceState);
     release(s->faceOwner);

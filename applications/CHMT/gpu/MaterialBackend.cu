@@ -1,3 +1,4 @@
+#include "../../../common/gpu/StableRowIndex.cuh"
 #include "ablation/SurfaceDonorAllocation.H"
 #include "gpu/MaterialBackend.H"
 #include "gpu/HostTransferQueue.H"
@@ -153,6 +154,19 @@ __global__ void finishConductionIteration(MaterialConductionIteration* report,co
     }
 }
 }
+struct MaterialRowStorage {
+    Buffer<int> keys,sortedKeys,inputIndices,counts;
+};
+struct PacketSolidRow {
+    const ExchangePacket* packets;
+    __device__ int operator()(int i)const{
+        return (requiredConsumers(packets[i].kind)&ConsumeSolid)?packets[i].solidCell:-1;
+    }
+};
+struct RadiationSolidRow {
+    const unsigned* receivers;const int* cells;
+    __device__ int operator()(int i)const{return receivers[i]==ConsumeSolid?cells[i]:-1;}
+};
 struct MaterialBackend {
     CudaFault fault;
     DeviceStream stream;
@@ -178,7 +192,9 @@ struct MaterialBackend {
     Buffer<MaterialTransportDeviceResult> transportResult;
     Buffer<MaterialStepResult> sourceStatus,stepResult;
     Buffer<ExchangePacket> packets;
-    Buffer<int> packetOffsets,packetIndices,radiationOffsets,radiationFaces;
+    Buffer<int> packetOffsets,packetIndices,radiationOffsets,radiationFaces,radiationCells;
+    MaterialRowStorage packetRows,radiationRows;Buffer<unsigned char> rowScratch;
+    std::vector<int> radiationCellMap;
     Buffer<Real> radiation;
     Buffer<unsigned> radiationReceiver;
     Buffer<SurfacePhysicsInput> surfaceInput;
@@ -210,6 +226,22 @@ struct MaterialBackend {
     template<class T> bool upload(Buffer<T>& buffer,const std::vector<T>& data){return uploadRaw(buffer,data.data(),data.size());}
     template<class T> bool read(const Buffer<T>& buffer,std::vector<T>& data){
         data.resize(buffer.size());return transfers.download(data.data(),buffer.data(),buffer.size());
+    }
+    template<class Row> bool buildRows(int items,int rows,Row row,MaterialRowStorage& storage,
+        Buffer<int>& offsets,Buffer<int>& indices){
+        const auto reserve=[&](Buffer<int>& buffer,std::size_t count){
+            return buffer.size()>=count||allocate(buffer,count);
+        };
+        if(!reserve(storage.keys,items)||!reserve(storage.sortedKeys,items)
+            ||!reserve(storage.inputIndices,items)||!reserve(storage.counts,rows+1)
+            ||!reserve(offsets,rows+1)||!reserve(indices,items))return false;
+        ugkp::gpu::StableRowIndexView view{storage.keys.data(),storage.sortedKeys.data(),
+            storage.inputIndices.data(),indices.data(),storage.counts.data(),offsets.data()};
+        std::size_t bytes=0;
+        if(!fault.check(ugkp::gpu::stableRowIndexWorkspace(items,rows,view,bytes,stream.get()),
+            "size stable material row index")||(rowScratch.size()<bytes&&!allocate(rowScratch,bytes)))return false;
+        return fault.check(ugkp::gpu::buildStableRowIndex(items,rows,row,view,rowScratch.data(),bytes,stream.get()),
+            "build stable material row index");
     }
     bool failure(std::string& error){transfers.drain();if(!fault.message.empty())error=fault.message;return false;}
     bool finish(std::string& error){
@@ -474,29 +506,25 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
     numerical=true;
     const int count=int(b.current.size());
     if(controls.retainDonorHistory&&!b.allocate(b.donor,count))return b.failure(error);
-    std::vector<std::vector<int>> packetRows(count),radiationRows(count);
-    for(std::size_t i=0;i<packets.size();++i)if(requiredConsumers(packets[i].kind)&ConsumeSolid){
-        const int cell=packets[i].solidCell;
-        if(cell<0||cell>=count){error="material packet owner invalid";return false;}
-        packetRows[cell].push_back(int(i));
+    // Keep existing owner admission errors, while constructing row schedules
+    // from resident packets and receiver maps on device in stable input order.
+    for(const auto& packet:packets)if(requiredConsumers(packet.kind)&ConsumeSolid){
+        if(packet.solidCell<0||packet.solidCell>=count){error="material packet owner invalid";return false;}
     }
     for(std::size_t f=0;f<radiation.size();++f){
         if(receivers[f]!=ConsumeSolid)continue;
         const int cell=surface.solidCell[f];
         if(cell<0||cell>=count){error="radiation has no material owner";return false;}
-        radiationRows[cell].push_back(int(f));
     }
-    std::vector<int> packetOffsets(count+1),packetIndices,radiationOffsets(count+1),radiationFaces;
-    for(int c=0;c<count;++c){
-        packetIndices.insert(packetIndices.end(),packetRows[c].begin(),packetRows[c].end());
-        packetOffsets[c+1]=int(packetIndices.size());
-        radiationFaces.insert(radiationFaces.end(),radiationRows[c].begin(),radiationRows[c].end());
-        radiationOffsets[c+1]=int(radiationFaces.size());
+    if(b.radiationCellMap!=surface.solidCell){
+        if(!b.upload(b.radiationCells,surface.solidCell))return b.failure(error);
+        b.radiationCellMap=surface.solidCell;
     }
-    if(!b.upload(b.packets,packets)||!b.upload(b.packetOffsets,packetOffsets)||!b.upload(b.packetIndices,packetIndices)
-        ||!b.upload(b.radiationOffsets,radiationOffsets)||!b.upload(b.radiationFaces,radiationFaces)
-        ||!b.upload(b.radiation,radiation)||!b.upload(b.radiationReceiver,receivers)
-        ||!b.upload(b.nextVolumes,endpointMesh.volumes))return b.failure(error);
+    if(!b.upload(b.packets,packets)||!b.upload(b.radiation,radiation)
+        ||!b.upload(b.radiationReceiver,receivers)||!b.upload(b.nextVolumes,endpointMesh.volumes)
+        ||!b.buildRows(int(packets.size()),count,PacketSolidRow{b.packets.data()},b.packetRows,b.packetOffsets,b.packetIndices)
+        ||!b.buildRows(int(radiation.size()),count,RadiationSolidRow{b.radiationReceiver.data(),b.radiationCells.data()},
+            b.radiationRows,b.radiationOffsets,b.radiationFaces))return b.failure(error);
     if(!b.fault.check(cudaMemsetAsync(b.stepResult.data(),0,sizeof(MaterialStepResult),b.stream.get()),
         "clear material source result"))return b.failure(error);
     if(count){
