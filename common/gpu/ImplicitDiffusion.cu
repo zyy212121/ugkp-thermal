@@ -1,3 +1,4 @@
+#include <cstring>
 #include "ImplicitDiffusion.H"
 #include "ThermalFieldOperators.H"
 #include "ThermalGradientKernels.cuh"
@@ -116,6 +117,18 @@ struct ImplicitDiffusion::Implementation {
     void geometry(Array<double>& target,std::vector<double>& cache,const std::vector<double>& values){
         if(cache!=values){target.upload(values,transfers);cache=values;}
     }
+    // These arrays are host-authored read-only kernel inputs. Compare exact
+    // bytes so changes in signed zero, NaNs or moving-mesh geometry invalidate
+    // the device copy as well. Kernel-written boundary arrays are not cached.
+    template<class T> void immutableInput(Array<T>& target,std::vector<T>& cache,const std::vector<T>& values){
+        if(cache.size()!=values.size() || (!values.empty() &&
+            std::memcmp(cache.data(),values.data(),values.size()*sizeof(T))!=0)){
+            target.upload(values,transfers);cache=values;
+        }
+    }
+    std::vector<int> cachedConductivityCoupled,cachedConductivityAdjacentCells,cachedGradientNeighbour;
+    std::vector<double> cachedConductivityJump,cachedGradientWeights;
+    std::vector<ThermalVector> cachedFaceArea,cachedCorrectionDirection,cachedNeighbourTransform;
     Array<int> offsets,faces,signs,deviceOwner,deviceNeighbour,coupled,fluxAdjacentCells;
     Array<double> fluxJump;
     Array<double> solution,anchorSolution,previousSolution,residual,neighbourTemperature,faceFlux;
@@ -162,19 +175,19 @@ void ImplicitDiffusion::assembleResident(const DiffusionInput& input,const Diffu
         d.geometry(d.conductivityWeights,d.cachedWeights,input.conductivityWeights);
         d.conductivityBoundary.upload(input.conductivityBoundary,d.transfers);
         d.conductivityNeighbour.upload(input.conductivityNeighbour,d.transfers);
-        d.conductivityCoupled.upload(input.conductivityCoupled,d.transfers);
-        d.conductivityAdjacentCells.upload(input.conductivityAdjacentCells,d.transfers);d.conductivityJump.upload(input.conductivityJump,d.transfers);
+        d.immutableInput(d.conductivityCoupled,d.cachedConductivityCoupled,input.conductivityCoupled);
+        d.immutableInput(d.conductivityAdjacentCells,d.cachedConductivityAdjacentCells,input.conductivityAdjacentCells);d.immutableInput(d.conductivityJump,d.cachedConductivityJump,input.conductivityJump);
         if(nf)residentConductivity<<<(nf+127)/128,128,0,d.stream>>>(nf,ni,d.deviceOwner.ptr,d.deviceNeighbour.ptr,
             input.deviceConductivity,d.conductivityWeights.ptr,d.conductivityBoundary.ptr,d.conductivityNeighbour.ptr,d.conductivityCoupled.ptr,d.conductivityAdjacentCells.ptr,d.conductivityJump.ptr,input.deviceBoundaryConductivity,input.harmonicConductivity,d.gamma.ptr);
     }else d.gamma.upload(input.gamma,d.transfers);
     d.gradientInternal.upload(input.gradientInternal,d.transfers);d.gradientBoundary.upload(input.gradientBoundary,d.transfers);
     if(input.deviceTemperature){
-        d.gradientWeights.upload(input.gradientWeights,d.transfers);d.valueInternal.upload(input.valueInternal,d.transfers);
+        d.immutableInput(d.gradientWeights,d.cachedGradientWeights,input.gradientWeights);d.valueInternal.upload(input.valueInternal,d.transfers);
         d.valueBoundary.upload(input.valueBoundary,d.transfers);d.normalInternal.upload(input.normalInternal,d.transfers);
         d.normalBoundary.upload(input.normalBoundary,d.transfers);d.jump.upload(input.jump,d.transfers);
         d.boundaryValueDelta.upload(input.boundaryValueDelta,d.transfers);
-        d.gradientNeighbour.upload(input.gradientNeighbour,d.transfers);d.faceArea.upload(input.faceArea,d.transfers);
-        d.correctionDirection.upload(input.correctionDirection,d.transfers);d.neighbourTransform.upload(input.neighbourTransform,d.transfers);
+        d.immutableInput(d.gradientNeighbour,d.cachedGradientNeighbour,input.gradientNeighbour);d.immutableInput(d.faceArea,d.cachedFaceArea,input.faceArea);
+        d.immutableInput(d.correctionDirection,d.cachedCorrectionDirection,input.correctionDirection);d.immutableInput(d.neighbourTransform,d.cachedNeighbourTransform,input.neighbourTransform);
         d.gradient.reserve(n);d.faceTemperature.reserve(nf);d.correction.reserve(nf);
         if(nb&&d.prescribedConductivity)prescribeEnergyGradient<<<(nb+127)/128,128,0,d.stream>>>(nb,d.prescribedSelected.ptr,d.prescribedEnergy.ptr,
             d.area.ptr+ni,d.prescribedConductivity,d.prescribedInterval,d.gradientBoundary.ptr,d.valueBoundary.ptr,d.normalBoundary.ptr,d.boundaryValueDelta.ptr);
