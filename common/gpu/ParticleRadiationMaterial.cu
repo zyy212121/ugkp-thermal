@@ -2,6 +2,7 @@
 #include "../Diagnostics.H"
 #include "RadiationImplicitMath.H"
 #include "PinnedTransferQueue.cuh"
+#include "ExecutionGraph.cuh"
 #include <cuda_runtime.h>
 #include <cub/device/device_scan.cuh>
 #include <stdexcept>
@@ -38,6 +39,7 @@ struct MaterialPower {
 };
 __global__ void countResponseParticles(ParticleRadiationResponseView view,int cells,int* counts,diagnostics::DeviceContext* context){
     if(diagnostics::hasFatal(context))return;
+    view=resolveParticleRadiationResponse(view);
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<*view.count;i+=blockDim.x*gridDim.x){
         if(view.status[i]!=1||view.wallState[i]!=0)continue;
         const int c=view.cell[i];if(c<0||c>=cells){asm("trap;");return;}
@@ -46,15 +48,23 @@ __global__ void countResponseParticles(ParticleRadiationResponseView view,int ce
 }
 __global__ void indexResponseParticles(ParticleRadiationResponseView view,int* cursor,int* indices,diagnostics::DeviceContext* context){
     if(diagnostics::hasFatal(context))return;
+    view=resolveParticleRadiationResponse(view);
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<*view.count;i+=blockDim.x*gridDim.x){
         if(view.status[i]!=1||view.wallState[i]!=0)continue;
         indices[atomicAdd(cursor+view.cell[i],1)]=i;
     }
 }
+__global__ void selectResponseIndex(const ParticleRadiationResponseView* response,
+    cudaGraphConditionalHandle condition,diagnostics::DeviceContext* context){
+    if(!blockIdx.x&&!threadIdx.x)cudaGraphSetConditional(condition,
+        !diagnostics::hasFatal(context)&&response->enabled&&!response->cellOffsets);
+}
 __global__ void materialRoots(int count,MieOpticalTableView table,const double* epsilon,const double* mass,const double* temperature,
     const double* diameter,const double* incident,const double* volume,double heatFactor,double elapsed,double minimum,double maximum,double cutoff,
     ParticleRadiationResponseView response,const int* offsets,const int* indices,double* next,double* energy,double* magnitude,diagnostics::DeviceContext* context){
     const int cell=blockIdx.x*blockDim.x+threadIdx.x;if(cell>=count)return;
+    response=resolveParticleRadiationResponse(response);
+    if(response.cellOffsets){offsets=response.cellOffsets;indices=nullptr;}
     const double old=temperature[cell];next[cell]=old;energy[cell]=0;magnitude[cell]=0;
     if(diagnostics::hasFatal(context)||!(epsilon[cell]>cutoff))return;
     const double capacity=mass[cell]*heatFactor;
@@ -108,8 +118,51 @@ struct ParticleRadiationMaterial::Implementation {
     int cells=0,faces=0;bool resultReady=false,settled=false;
     diagnostics::DeviceContext* diagnostics=nullptr;
     MaterialArray<int> responseCounts,responseOffsets,responseCursor,responseIndices;
+    cudaGraph_t responseGraph=nullptr;cudaGraphExec_t responseExecutable=nullptr;
+    const ParticleRadiationResponseView* responseSource=nullptr;
+    diagnostics::DeviceContext* responseDiagnostics=nullptr;
+    int responseCells=-1,responseCapacity=-1;
+    void releaseResponseGraph(){
+        if(responseExecutable){checkedMaterial(cudaGraphExecDestroy(responseExecutable));responseExecutable=nullptr;}
+        if(responseGraph){checkedMaterial(cudaGraphDestroy(responseGraph));responseGraph=nullptr;}
+    }
+    void buildResponseIndex(ParticleRadiationResponseView response,int count){
+        const auto* oldCounts=responseCounts.ptr;const auto* oldOffsets=responseOffsets.ptr;
+        const auto* oldCursor=responseCursor.ptr;const auto* oldIndices=responseIndices.ptr;const auto* oldScratch=scanScratch.ptr;
+        responseCounts.reserve(count+1);responseOffsets.reserve(count+1);responseCursor.reserve(count+1);
+        responseIndices.reserve(response.capacity);
+        std::size_t bytes=0;
+        checkedMaterial(cub::DeviceScan::ExclusiveSum(nullptr,bytes,responseCounts.ptr,responseOffsets.ptr,count+1,stream));
+        scanScratch.reserve(bytes);
+        if(oldCounts!=responseCounts.ptr||oldOffsets!=responseOffsets.ptr||oldCursor!=responseCursor.ptr
+            ||oldIndices!=responseIndices.ptr||oldScratch!=scanScratch.ptr)releaseResponseGraph();
+        const auto submit=[&](){
+            checkedMaterial(cudaMemsetAsync(responseCounts.ptr,0,(count+1)*sizeof(int),stream));
+            const int blocks=(response.capacity+127)/128;
+            if(blocks)countResponseParticles<<<blocks,128,0,stream>>>(response,count,responseCounts.ptr,diagnostics);
+            checkedMaterial(cub::DeviceScan::ExclusiveSum(scanScratch.ptr,bytes,responseCounts.ptr,responseOffsets.ptr,count+1,stream));
+            checkedMaterial(cudaMemcpyAsync(responseCursor.ptr,responseOffsets.ptr,(count+1)*sizeof(int),cudaMemcpyDeviceToDevice,stream));
+            if(blocks)indexResponseParticles<<<blocks,128,0,stream>>>(response,responseCursor.ptr,responseIndices.ptr,diagnostics);
+            checkedMaterial(cudaGetLastError());
+        };
+        if(!response.deviceView){submit();return;}
+        if(!responseExecutable||responseSource!=response.deviceView||responseCells!=count
+            ||responseCapacity!=response.capacity||responseDiagnostics!=diagnostics){
+            releaseResponseGraph();checkedMaterial(cudaGraphCreate(&responseGraph,0));
+            cudaGraphConditionalHandle condition;checkedMaterial(cudaGraphConditionalHandleCreate(&condition,responseGraph,0,0));
+            const auto select=executionGraphDetail::appendCaptured(responseGraph,{},stream,[&](){
+                selectResponseIndex<<<1,1,0,stream>>>(response.deviceView,condition,diagnostics);
+                checkedMaterial(cudaGetLastError());
+            });
+            cudaGraph_t body=nullptr;executionGraphDetail::addIf(responseGraph,condition,{select},body);
+            executionGraphDetail::appendCaptured(body,{},stream,submit);
+            checkedMaterial(cudaGraphInstantiateWithFlags(&responseExecutable,responseGraph,0));
+            responseSource=response.deviceView;responseCells=count;responseCapacity=response.capacity;responseDiagnostics=diagnostics;
+        }
+        checkedMaterial(cudaGraphLaunch(responseExecutable,stream));
+    }
     explicit Implementation(const MieOpticalTable& table):optical(table){checkedMaterial(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);checkedMaterial(cudaEventCreateWithFlags(&inputReady,cudaEventDisableTiming));}
-    ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}if(inputReady)cudaEventDestroy(inputReady);}
+    ~Implementation(){transfer.discard();if(responseExecutable)cudaGraphExecDestroy(responseExecutable);if(responseGraph)cudaGraphDestroy(responseGraph);if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}if(inputReady)cudaEventDestroy(inputReady);}
 };
 ParticleRadiationMaterial::ParticleRadiationMaterial(const MieOpticalTable& table):data_(new Implementation(table)){}
 ParticleRadiationMaterial::~ParticleRadiationMaterial()=default;
@@ -131,18 +184,11 @@ ParticleRadiationMaterialResult ParticleRadiationMaterial::solve(const ParticleR
     if(d.coupledHost!=input.coupledBoundary){d.coupled.upload(input.coupledBoundary,d.transfer);d.coupledHost=input.coupledBoundary;}
     d.next.reserve(cells);d.energy.reserve(cells);d.raw.reserve(faces);d.boundary.reserve(faces);d.escaped.reserve(1);d.magnitude.reserve(cells);d.magnitudeTotal.reserve(1);d.acceptedTotal.reserve(1);
     const int* offsets=input.response.cellOffsets;const int* indices=nullptr;
-    if(input.response.enabled&&!offsets){
-        d.responseCounts.reserve(cells+1);d.responseOffsets.reserve(cells+1);d.responseCursor.reserve(cells+1);
-        d.responseIndices.reserve(input.response.capacity);
-        checkedMaterial(cudaMemsetAsync(d.responseCounts.ptr,0,(cells+1)*sizeof(int),d.stream));
-        const int blocks=(input.response.capacity+127)/128;
-        if(blocks)countResponseParticles<<<blocks,128,0,d.stream>>>(input.response,cells,d.responseCounts.ptr,d.diagnostics);
-        std::size_t bytes=0;
-        checkedMaterial(cub::DeviceScan::ExclusiveSum(nullptr,bytes,d.responseCounts.ptr,d.responseOffsets.ptr,cells+1,d.stream));
-        d.scanScratch.reserve(bytes);
-        checkedMaterial(cub::DeviceScan::ExclusiveSum(d.scanScratch.ptr,bytes,d.responseCounts.ptr,d.responseOffsets.ptr,cells+1,d.stream));
-        checkedMaterial(cudaMemcpyAsync(d.responseCursor.ptr,d.responseOffsets.ptr,(cells+1)*sizeof(int),cudaMemcpyDeviceToDevice,d.stream));
-        if(blocks)indexResponseParticles<<<blocks,128,0,d.stream>>>(input.response,d.responseCursor.ptr,d.responseIndices.ptr,d.diagnostics);
+    if(input.response.enabled&&(!offsets||input.response.deviceView)){
+        // The owner may have swapped its parcel arrays since the host acquired
+        // this view. A resident IF builds an index only when that current view
+        // has no direct cell directory; the common packed path does no scan.
+        d.buildResponseIndex(input.response,cells);
         offsets=d.responseOffsets.ptr;indices=d.responseIndices.ptr;
     }
     if(cells)materialRoots<<<(cells+127)/128,128,0,d.stream>>>(cells,d.optical.deviceTable(),state.epsilon,state.mass,state.temperature,state.diameter,

@@ -542,6 +542,7 @@ struct DeviceState
     GpuReal* momRhoEP = nullptr;
     GpuReal* momRhoPD = nullptr;
     GpuReal* momRhoHpP = nullptr;
+    ugkp::gpu::ParticleRadiationResponseView* radiationResponseDevice = nullptr;
     GpuReal* radiationMobileMass = nullptr;
     GpuReal* radiationMobileTemperatureMass = nullptr;
     GpuReal* radiationMobileDiameterMass = nullptr;
@@ -1341,6 +1342,7 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->momRhoEP);
     release(s->momRhoPD);
     release(s->momRhoHpP);
+    release(s->radiationResponseDevice);
     release(s->radiationMobileMass);
     release(s->radiationMobileTemperatureMass);
     release(s->radiationMobileDiameterMass);
@@ -1692,6 +1694,7 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->momRhoEP, nc, "cudaMalloc strict momRhoEP");
     rc |= allocate(s->momRhoPD, nc, "cudaMalloc strict momRhoPD");
     rc |= allocate(s->momRhoHpP, nc, "cudaMalloc strict momRhoHpP");
+    rc |= allocate(s->radiationResponseDevice, 1, "cudaMalloc resident radiation response descriptor");
     rc |= allocate(s->radiationMobileMass, nc, "cudaMalloc mobile radiation mass");
     rc |= allocate(s->radiationMobileTemperatureMass, nc, "cudaMalloc mobile radiation temperature mass");
     rc |= allocate(s->radiationMobileDiameterMass, nc, "cudaMalloc mobile radiation diameter mass");
@@ -5562,11 +5565,20 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature
     return 0;
 }
 
-extern "C" int ugkwpGpuResidentStrictParticleRadiationResponse(void* handle,ugkp::gpu::ParticleRadiationResponseView* output) {
+extern "C" __global__ void publishParticleRadiationResponseKernel(DeviceState* state){
+    if(blockIdx.x||threadIdx.x)return;
+    auto& s=*state;
+    *s.radiationResponseDevice={true,s.particleCapacity,s.particleCountDevice,s.pCellId,s.pStatus,
+        s.csrCellLocalPathEnabled&&s.preBaseDirectoryReady?s.preBaseCellOffset:nullptr,
+        s.pStuck,s.pm,s.pT,s.pThermalEnthalpyResidual,double(s.TpMin),double(s.TpMax)};
+}
+int ugkwpGpuResidentStrictParticleRadiationResponse(void* handle,ugkp::gpu::ParticleRadiationResponseView* output) {
     auto* s=asState(handle);if(validateState(s,"particle radiation response")||!output)return 1;
-    *output={true,s->particleCapacity,s->particleCountDevice,s->pCellId,s->pStatus,
-        s->csrCellLocalPathEnabled&&s->preBaseDirectoryReady?s->preBaseCellOffset:nullptr,
-        s->pStuck,s->pm,s->pT,s->pThermalEnthalpyResidual,double(s->TpMin),double(s->TpMax)};
+    publishParticleRadiationResponseKernel<<<1,1>>>(s->deviceState);
+    const auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("publish particle radiation response",error);return 1;}
+    *output={};output->enabled=true;output->capacity=s->particleCapacity;
+    output->minimumTemperature=double(s->TpMin);output->maximumTemperature=double(s->TpMax);
+    output->deviceView=s->radiationResponseDevice;
     return 0;
 }
 

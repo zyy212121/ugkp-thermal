@@ -8,7 +8,8 @@
 #define UGKP_RAD_RESPONSE_HD
 #endif
 namespace ugkp { namespace gpu {
-// Borrowed resident arrays, valid until the owner advances or changes storage.
+// Borrowed resident arrays. A deviceView resolves the owner's current arrays
+// after buffer swaps, without publishing their pointer parity to the host.
 // Only active, freely moving particles participate, using their ordinary caloric law.
 struct ParticleRadiationResponseView {
     bool enabled=false;int capacity=0;
@@ -17,7 +18,11 @@ struct ParticleRadiationResponseView {
     const GpuReal *mass=nullptr,*temperature=nullptr;
     const double* enthalpyCarry=nullptr;
     double minimumTemperature=0,maximumTemperature=0;
+    const ParticleRadiationResponseView* deviceView=nullptr;
 };
+UGKP_RAD_RESPONSE_HD inline ParticleRadiationResponseView resolveParticleRadiationResponse(ParticleRadiationResponseView view){
+    return view.deviceView?*view.deviceView:view;
+}
 struct CaloricRadiationSample {double temperature=0,energy=0,mass=0;};
 UGKP_RAD_RESPONSE_HD inline double radiationSpecificCapacity(double base,double lower,double upper,bool heating,double carry=0.){
     // Subtract the large enthalpies before applying the sub-ULP carry.
@@ -30,11 +35,12 @@ UGKP_RAD_RESPONSE_HD inline double radiationSpecificCapacity(double base,double 
 struct IndexedParticleRadiationResponse {
     ParticleRadiationResponseView view;const int* indices;int begin,end;
     UGKP_RAD_RESPONSE_HD CaloricRadiationSample operator()(double fraction,bool heating)const {
+        const auto current=resolveParticleRadiationResponse(view);
         const ugkwp::ParticleCaloric law{};CaloricRadiationSample result;
-        const double lower=law.enthalpy(view.minimumTemperature),upper=law.enthalpy(view.maximumTemperature);
+        const double lower=law.enthalpy(current.minimumTemperature),upper=law.enthalpy(current.maximumTemperature);
         for(int slot=begin;slot<end;++slot){const int i=indices?indices[slot]:slot;
-            if(view.status[i]!=1||view.wallState[i]!=0)continue;
-            const double m=view.mass[i],base=law.enthalpy(double(view.temperature[i])),carry=view.enthalpyCarry[i];
+            if(current.status[i]!=1||current.wallState[i]!=0)continue;
+            const double m=current.mass[i],base=law.enthalpy(double(current.temperature[i])),carry=current.enthalpyCarry[i];
             const double q=fraction*radiationSpecificCapacity(base,lower,upper,heating,carry);
             result.mass+=m;result.temperature+=m*law.temperature(base+(carry+q));result.energy+=m*q;
         }
