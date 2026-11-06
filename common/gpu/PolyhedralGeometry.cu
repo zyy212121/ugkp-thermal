@@ -250,6 +250,69 @@ void ResidentPolyhedralGeometry::sweep(const Point* old,const Point* endpoint,vo
         checked(cudaGetLastError());
     }
 }
+namespace {
+__global__ void resetTrajectory(TrajectoryStatus* status,int cells){
+    if(!threadIdx.x&&!blockIdx.x){*status={};status->firstFailure=cells;}
+}
+__global__ void movingTrajectory(int count,const Point* old,const Point* endpoint,TrajectoryStatus* status){
+    const int p=blockIdx.x*blockDim.x+threadIdx.x;
+    if(p<count&&magnitude(endpoint[p]-old[p])>0)atomicExch(&status->moving,1);
+}
+struct TrajectoryRecorder {
+    TrajectoryCellDiagnostic* diagnostic;
+    __device__ void operator()(double value,double limit,TrajectoryWarning kind)const{
+        if(!diagnostic->count)diagnostic->first={value,limit,kind};
+        ++diagnostic->count;
+    }
+};
+__global__ void certifyTrajectory(int cells,TopologyView topology,const Point* old,const Point* endpoint,
+    TrajectoryStatus* status,TrajectoryFailure* failure,TrajectoryCellDiagnostic* diagnostics){
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=cells)return;
+    diagnostics[c]={};failure[c]=TrajectoryFailure::None;
+    if(!status->moving)return;
+    const auto result=certifyLinearCell(c,topology,old,endpoint,TrajectoryRecorder{diagnostics+c});
+    failure[c]=result;if(result!=TrajectoryFailure::None)atomicMin(&status->firstFailure,c);
+}
+__global__ void finishTrajectory(int cells,TrajectoryStatus* status,const TrajectoryFailure* failures,TrajectoryCellDiagnostic* diagnostics){
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;
+    // The sentinel remains equal to cells during this kernel; only thread zero
+    // publishes the category. No other thread reads a concurrently changed key.
+    if(c<cells&&c>status->firstFailure)diagnostics[c]={};
+    if(!c)status->failure=status->firstFailure<cells?failures[status->firstFailure]:TrajectoryFailure::None;
+}
+}
+struct ResidentLinearTrajectory::Implementation {
+    int points=0,cells=0;
+    Array<int> faceOffsets,facePoints,cellOffsets,cellFaces,cellSigns,vertexOffsets,vertices;
+    TopologyView topology()const{return {faceOffsets.pointer,facePoints.pointer,cellOffsets.pointer,cellFaces.pointer,
+        cellSigns.pointer,vertexOffsets.pointer,vertices.pointer};}
+    Array<TrajectoryStatus> status;Array<TrajectoryFailure> failure;
+    Array<TrajectoryCellDiagnostic> diagnostics;
+};
+ResidentLinearTrajectory::ResidentLinearTrajectory(const Topology& topology,int pointCount):data_(new Implementation){
+    if(pointCount<0)throw std::invalid_argument("negative trajectory point count");
+    auto& d=*data_;d.points=pointCount;d.cells=topology.cellOffsets.empty()?0:int(topology.cellOffsets.size()-1);
+    const auto upload=[](auto& target,const auto& source){
+        target.reserve(source.size());if(!source.empty())checked(cudaMemcpy(target.pointer,source.data(),source.size()*sizeof(source[0]),cudaMemcpyHostToDevice));
+    };
+#define FIELD(name) upload(d.name,topology.name)
+    FIELD(faceOffsets);FIELD(facePoints);FIELD(cellOffsets);FIELD(cellFaces);FIELD(cellSigns);FIELD(vertexOffsets);FIELD(vertices);
+#undef FIELD
+    d.status.reserve(1);d.failure.reserve(d.cells);d.diagnostics.reserve(d.cells);
+}
+ResidentLinearTrajectory::~ResidentLinearTrajectory()=default;
+TrajectoryDeviceView ResidentLinearTrajectory::view()const{
+    const auto& d=*data_;return {d.cells,d.status.pointer,d.failure.pointer,d.diagnostics.pointer};
+}
+void ResidentLinearTrajectory::evaluate(const Point* old,const Point* endpoint,void* streamHandle){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(streamHandle);
+    resetTrajectory<<<1,1,0,stream>>>(d.status.pointer,d.cells);checked(cudaGetLastError());
+    if(d.points){movingTrajectory<<<(d.points+127)/128,128,0,stream>>>(d.points,old,endpoint,d.status.pointer);checked(cudaGetLastError());}
+    if(d.cells){certifyTrajectory<<<(d.cells+63)/64,64,0,stream>>>(d.cells,d.topology(),old,endpoint,
+        d.status.pointer,d.failure.pointer,d.diagnostics.pointer);checked(cudaGetLastError());}
+    finishTrajectory<<<std::max(1,(d.cells+127)/128),128,0,stream>>>(d.cells,d.status.pointer,d.failure.pointer,d.diagnostics.pointer);
+    checked(cudaGetLastError());
+}
 struct PolyhedralGeometry::Implementation {
     cudaStream_t stream=nullptr;PinnedTransferQueue transfer;Topology cached;
     std::unique_ptr<ResidentPolyhedralGeometry> resident;

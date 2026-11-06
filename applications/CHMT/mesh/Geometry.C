@@ -1,6 +1,7 @@
 #include "mesh/Geometry.H"
 #include "../../../common/gpu/PointMotionMath.H"
 #include "../../../common/gpu/TrajectoryPolynomialMath.H"
+#include "../../../common/gpu/LinearTrajectoryMath.H"
 #ifdef CHMT_DEVICE_GEOMETRY
 #include "mesh/GeometryGpu.H"
 #endif
@@ -416,82 +417,35 @@ namespace chmt {
         bool certifyLinearTrajectory(const HostMesh& mesh, const std::vector<Vec3>& endpoint, std::string& error,
             ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
             bool moving = false;
-            for (std::size_t p = 0; p<endpoint.size(); ++p)moving = moving || mag(endpoint[p]-mesh.points[p])>0;
-            if (!moving)return true;
-            // Check the full polynomial trajectory, not just sampled mesh quality.
-            // The fixed oriented tetrahedral fan about each cell centre stays
-            // positive throughout, so its boundary triangles cannot collapse.
-            for (int cell = 0; cell<static_cast<int>(mesh.volumes.size()); ++cell) {
-                std::set<int> vertices;
-                for (int k = mesh.cellFaceOffsets[cell]; k<mesh.cellFaceOffsets[cell+1]; ++k) {
-                    int f = mesh.cellFaces[k];
-                    for (int j = mesh.faceOffsets[f]; j<mesh.faceOffsets[f+1]; ++j)vertices.insert(mesh.facePoints[j]);
+            for (std::size_t p=0;p<endpoint.size();++p)moving=moving || mag(endpoint[p]-mesh.points[p])>0;
+            if(!moving)return true;
+            // Canonical vertex order is shared with the immutable device topology.
+            // The publication adapter retains the original host extended arithmetic;
+            // the resident operator uses FP64 pairs for that same fan certificate.
+            std::vector<int> offsets(1,0),vertices;
+            for(int cell=0;cell<static_cast<int>(mesh.volumes.size());++cell){
+                std::set<int> unique;
+                for(int k=mesh.cellFaceOffsets[cell];k<mesh.cellFaceOffsets[cell+1];++k){
+                    const int face=mesh.cellFaces[k];
+                    for(int j=mesh.faceOffsets[face];j<mesh.faceOffsets[face+1];++j)unique.insert(mesh.facePoints[j]);
                 }
-                // The vertex-average centre follows the same linear path.
-                // A positive oriented tetrahedral fan certifies a star-shaped
-                // cell without demanding that every polygon be exactly planar.
-                Vec3 centre{},endCentre{};
-                for(int v:vertices){centre+=mesh.points[v];endCentre+=endpoint[v];}
-                centre=centre/Real(vertices.size());endCentre=endCentre/Real(vertices.size());
-                long double solidAngle=0;int fanTriangles=0;
-                for (int k = mesh.cellFaceOffsets[cell]; k<mesh.cellFaceOffsets[cell+1]; ++k) {
-                    int face = mesh.cellFaces[k], sign = mesh.cellFaceSigns[k];
-                    int begin = mesh.faceOffsets[face], end = mesh.faceOffsets[face+1];
-                    int ia = mesh.facePoints[begin];
-                    for (int j = begin+1; j+1<end; ++j) {
-                        int ib = mesh.facePoints[j], ic = mesh.facePoints[j+1];
-                        Vec3 a = mesh.points[ia], b = mesh.points[ib], c = mesh.points[ic];
-                        // Positivity of the oriented tetrahedron below already
-                        // excludes a collapsed triangle. Its normal may rotate by
-                        // more than 90 degrees without changing cell orientation;
-                        // projection onto the old normal is not a validity test.
-                        Real lower=0,upper=0;
-                        const Vec3 r=a-centre,u=b-centre,v=c-centre;
-                        const Vec3 R=endpoint[ia]-endCentre,U=endpoint[ib]-endCentre,V=endpoint[ic]-endCentre;
-                        // Positive tetrahedra alone could cover the same volume
-                        // twice (for example a self-intersecting star bipyramid).
-                        // A closed, oriented fan must cover the unit sphere once.
-                        // Positivity over the full path preserves this degree.
-                        long double unit[3][3]={{r.x,r.y,r.z},{u.x,u.y,u.z},{v.x,v.y,v.z}};
-                        for(auto& w:unit){
-                            const long double norm=std::sqrt(w[0]*w[0]+w[1]*w[1]+w[2]*w[2]);
-                            if(!(norm>0))return errorAt(error,"zero-radius cell fan",cell);
-                            for(auto& x:w)x/=norm;
-                        }
-                        const auto& a0=unit[0];const auto& b0=unit[1];const auto& c0=unit[2];
-                        const long double determinant=a0[0]*(b0[1]*c0[2]-b0[2]*c0[1])
-                            +a0[1]*(b0[2]*c0[0]-b0[0]*c0[2])+a0[2]*(b0[0]*c0[1]-b0[1]*c0[0]);
-                        long double denominator=1;
-                        for(int component=0;component<3;++component)
-                            denominator+=a0[component]*b0[component]+b0[component]*c0[component]+c0[component]*a0[component];
-                        solidAngle+=sign*2*std::atan2(determinant,denominator);++fanTriangles;
-
-                        Real tetra[4]={
-                            sign*dot(r,cross(u,v)),
-                            sign*(dot(R,cross(u,v))+dot(r,cross(U,v))+dot(r,cross(u,V)))/3,
-                            sign*(dot(R,cross(U,v))+dot(R,cross(u,V))+dot(r,cross(U,V)))/3,
-                            sign*dot(R,cross(U,V))
-                        };
-                        for(Real value:tetra)if(!finite(value))
-                            return errorAt(error,"nonfinite cell trajectory determinant",cell);
-                        polynomialBounds(tetra,lower,upper);
-                        if(!finite(lower)||!(tetra[0]>0)||lower<=0)
-                            return errorAt(error,
-                                "moving cell tetrahedral fan collapses or inverts",cell);
-                        const Real tetraMargin=128*std::numeric_limits<Real>::epsilon()*tetra[0];
-                        if(lower<=tetraMargin)geometryWarning(diagnostics,lower,tetraMargin,cell,false,ugkp::diagnostics::EntityKind::Cell);
-
-                    }
+                vertices.insert(vertices.end(),unique.begin(),unique.end());offsets.push_back(vertices.size());
+            }
+            namespace geometry=ugkp::gpu::geometry;
+            const geometry::TopologyView topology{mesh.faceOffsets.data(),mesh.facePoints.data(),mesh.cellFaceOffsets.data(),
+                mesh.cellFaces.data(),mesh.cellFaceSigns.data(),offsets.data(),vertices.data()};
+            for(int cell=0;cell<static_cast<int>(mesh.volumes.size());++cell){
+                const auto warning=[&](Real value,Real limit,geometry::TrajectoryWarning){
+                    geometryWarning(diagnostics,value,limit,cell,false,ugkp::diagnostics::EntityKind::Cell);
+                };
+                const auto result=geometry::certifyLinearCell<long double>(cell,topology,mesh.points.data(),endpoint.data(),warning);
+                switch(result){
+                    case geometry::TrajectoryFailure::None:break;
+                    case geometry::TrajectoryFailure::ZeroRadius:return errorAt(error,"zero-radius cell fan",cell);
+                    case geometry::TrajectoryFailure::NonfiniteDeterminant:return errorAt(error,"nonfinite cell trajectory determinant",cell);
+                    case geometry::TrajectoryFailure::CollapsedFan:return errorAt(error,"moving cell tetrahedral fan collapses or inverts",cell);
+                    case geometry::TrajectoryFailure::NonStarVolume:return errorAt(error,"cell fan is not a single star-shaped volume",cell);
                 }
-                const long double angleTolerance=1024*std::numeric_limits<Real>::epsilon()*fanTriangles;
-                // The degree is an integer topological invariant. Multiple coverage is
-                // unsupported geometry; finite summation error about degree one is accuracy.
-                const long double sphere=4*std::acos(-1.L);
-                if(!std::isfinite(solidAngle)||std::round(solidAngle/sphere)!=1)
-                    return errorAt(error,"cell fan is not a single star-shaped volume",cell);
-                const long double angleResidual=std::abs(solidAngle-sphere);
-                if(angleResidual>angleTolerance)geometryWarning(diagnostics,static_cast<Real>(angleResidual),
-                    static_cast<Real>(angleTolerance),cell,false,ugkp::diagnostics::EntityKind::Cell);
             }
             return true;
         }

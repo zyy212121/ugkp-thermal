@@ -2,6 +2,7 @@
 #define UGKP_GPU_POLYHEDRAL_GEOMETRY_H
 #include "PolyhedralGeometryMath.H"
 #include "PointMotionMath.H"
+#include "LinearTrajectoryMath.H"
 #include <memory>
 #include <vector>
 namespace ugkp { namespace gpu { class PinnedTransferQueue; namespace geometry {
@@ -46,6 +47,38 @@ public:
     PolyhedralGeometryDeviceView view() const;
     void rebuild(const Point* devicePoints,void* stream=nullptr);
     void sweep(const Point* deviceOld,const Point* deviceEndpoint,void* stream=nullptr);
+};
+struct TrajectoryDiagnostic {
+    double observed=0,limit=0;
+    TrajectoryWarning kind=TrajectoryWarning::FanMargin;
+};
+struct TrajectoryCellDiagnostic {
+    unsigned int count=0;
+    TrajectoryDiagnostic first{};
+};
+struct TrajectoryStatus {
+    // firstFailure equals the cell count when evaluation succeeds.
+    int moving=0,firstFailure=-1;
+    TrajectoryFailure failure=TrajectoryFailure::None;
+};
+struct TrajectoryDeviceView {
+    int cells=0;
+    const TrajectoryStatus* status=nullptr;
+    const TrajectoryFailure* failure=nullptr;
+    const TrajectoryCellDiagnostic* diagnostics=nullptr;
+};
+// The topology is initialized once. Every evaluation borrows device coordinates
+// and leaves its decision and ordered per-cell diagnostics on device. Warning
+// counts after the first failed cell are zero, matching serial publication.
+// As in the shared diagnostic context, retain a count and first sample rather
+// than an unbounded list of repeated warnings. Storage is linear in cell count.
+class ResidentLinearTrajectory {
+    struct Implementation;std::unique_ptr<Implementation> data_;
+public:
+    ResidentLinearTrajectory(const Topology&,int pointCount);
+    ~ResidentLinearTrajectory();
+    TrajectoryDeviceView view() const;
+    void evaluate(const Point* old,const Point* endpoint,void* stream=nullptr);
 };
 class PolyhedralGeometry {
     struct Implementation;std::unique_ptr<Implementation> data_;
