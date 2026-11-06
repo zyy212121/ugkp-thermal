@@ -56,33 +56,41 @@ __global__ void boundaryMotionKernel(int count,const Point* areas,const Boundary
     r.displacement=recession+support;r.direction=normalized(r.direction);out[p]=r;
 }
 constexpr double maximumDistance=std::numeric_limits<double>::max();
-// A coordinate-wise lower bound needs no geometric tolerance. Round the
-// subtraction towards zero; triangle evaluation retains extended arithmetic.
-// Do not prune extreme/nonfinite inputs: their existing diagnostic is consumed.
-__device__ double wallBoxLowerBound(Point p,TopologyView t,const Point* points,int face){
+// One current-coordinate box per wall-list entry, shared by every query cell.
+// Rebuilt on the same stream after every point upload; no geometry tolerance or
+// persistent coordinate identity is needed to invalidate this scratch storage.
+struct WallBox {Point lo,hi;bool safe=false;};
+__global__ void wallBoxesKernel(int count,TopologyView t,const Point* points,const int* walls,WallBox* boxes){
+    const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=count)return;
+    WallBox box;const int face=walls[i],begin=t.faceOffsets[face],end=t.faceOffsets[face+1];
+    if(end-begin<3){boxes[i]=box;return;}
+    box.lo=points[t.facePoints[begin]];box.hi=box.lo;
     const double safe=maximumDistance/8;
-    if(!finite(p)||fabs(p.x)>safe||fabs(p.y)>safe||fabs(p.z)>safe)return -1;
-    const int begin=t.faceOffsets[face],end=t.faceOffsets[face+1];
-    if(end-begin<3)return -1;
-    Point lo=points[t.facePoints[begin]],hi=lo;
     for(int j=begin;j<end;++j){const auto q=points[t.facePoints[j]];
-        if(!finite(q)||fabs(q.x)>safe||fabs(q.y)>safe||fabs(q.z)>safe)return -1;
-        lo.x=fmin(lo.x,q.x);lo.y=fmin(lo.y,q.y);lo.z=fmin(lo.z,q.z);
-        hi.x=fmax(hi.x,q.x);hi.y=fmax(hi.y,q.y);hi.z=fmax(hi.z,q.z);
+        if(!finite(q)||fabs(q.x)>safe||fabs(q.y)>safe||fabs(q.z)>safe){boxes[i]=box;return;}
+        box.lo.x=fmin(box.lo.x,q.x);box.lo.y=fmin(box.lo.y,q.y);box.lo.z=fmin(box.lo.z,q.z);
+        box.hi.x=fmax(box.hi.x,q.x);box.hi.y=fmax(box.hi.y,q.y);box.hi.z=fmax(box.hi.z,q.z);
     }
-    const double x=fmax(0.,fmax(lo.x-p.x,p.x-hi.x));
-    const double y=fmax(0.,fmax(lo.y-p.y,p.y-hi.y));
-    const double z=fmax(0.,fmax(lo.z-p.z,p.z-hi.z));
+    box.safe=true;boxes[i]=box;
+}
+// Round the coordinate-wise lower bound towards zero. Extreme/nonfinite input
+// still visits the original extended triangle calculation and its diagnostic.
+__device__ double wallBoxLowerBound(Point p,const WallBox& box){
+    const double safe=maximumDistance/8;
+    if(!box.safe||!finite(p)||fabs(p.x)>safe||fabs(p.y)>safe||fabs(p.z)>safe)return -1;
+    const double x=fmax(0.,fmax(box.lo.x-p.x,p.x-box.hi.x));
+    const double y=fmax(0.,fmax(box.lo.y-p.y,p.y-box.hi.y));
+    const double z=fmax(0.,fmax(box.lo.z-p.z,p.z-box.hi.z));
     return nextafter(fmax(x,fmax(y,z)),0.);
 }
 __global__ void wallDistanceKernel(int count,TopologyView t,const Point* points,const Point* centres,
-    int wallCount,const int* walls,WallDistanceResult* output){
+    int wallCount,const int* walls,const WallBox* boxes,WallDistanceResult* output){
     const int cell=blockIdx.x;if(cell>=count)return;
     __shared__ double distance[128];__shared__ int invalid[128];
     // Pick a seed by bounding-box distance, not a mesh- or hardware-tuned
     // cutoff. The seed's actual triangle distance is a valid upper bound.
     double lower=maximumDistance;int seed=INT_MAX;
-    for(int i=threadIdx.x;i<wallCount;i+=blockDim.x){const double bound=wallBoxLowerBound(centres[cell],t,points,walls[i]);
+    for(int i=threadIdx.x;i<wallCount;i+=blockDim.x){const double bound=wallBoxLowerBound(centres[cell],boxes[i]);
         if(bound>=0&&bound<lower){lower=bound;seed=i;}}
     distance[threadIdx.x]=lower;invalid[threadIdx.x]=seed;__syncthreads();
     for(int half=64;half;half/=2){if(threadIdx.x<half&&
@@ -97,7 +105,7 @@ __global__ void wallDistanceKernel(int count,TopologyView t,const Point* points,
     }
     __syncthreads();double best=distance[0];__syncthreads();int firstInvalid=INT_MAX;
     for(int i=threadIdx.x;i<wallCount;i+=blockDim.x){const int face=walls[i],begin=t.faceOffsets[face],end=t.faceOffsets[face+1];
-        const double bound=wallBoxLowerBound(centres[cell],t,points,face);
+        const double bound=wallBoxLowerBound(centres[cell],boxes[i]);
         if(bound>nextafter(best,maximumDistance))continue;
         for(int j=begin+1;j+1<end;++j){const double triangle=extended::triangleDistance(centres[cell],points[t.facePoints[begin]],
             points[t.facePoints[j]],points[t.facePoints[j+1]]);
@@ -215,6 +223,7 @@ struct PolyhedralGeometry::Implementation {
     Array<SurfaceEdge> edges;Array<EdgeResult> edgeResult;
     Array<BoundaryMotionFace> motionFaces;Array<BoundaryMotionPoint> motionPoints;
     Array<int> motionOffsets,motionIncident,sideOffsets,sideIncident;Array<Point> sideNormals;
+    Array<WallBox> wallBoxes;
     Array<Point> points,endpoint,area,centres;Array<int> walls;Array<WallDistanceResult> distance;Array<FaceResult> faceResult;Array<CellResult> cellResult;Array<SweepResult> sweepResult;
     Implementation(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);}
     ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
@@ -224,6 +233,10 @@ struct PolyhedralGeometry::Implementation {
         // Face-only operations do not invalidate unrelated cached cell CSR.
         if(!t.cellOffsets.empty()){FIELD(cellOffsets) FIELD(cellFaces) FIELD(cellSigns) FIELD(vertexOffsets) FIELD(vertices)}
 #undef FIELD
+    }
+    void prepareWallBoxes(int count){
+        wallBoxes.reserve(count);
+        if(count)wallBoxesKernel<<<(count+127)/128,128,0,stream>>>(count,view(),points.pointer,walls.pointer,wallBoxes.pointer);
     }
     TopologyView view()const{return {faceOffsets.pointer,facePoints.pointer,cellOffsets.pointer,cellFaces.pointer,cellSigns.pointer,vertexOffsets.pointer,vertices.pointer};}
 };
@@ -235,8 +248,8 @@ RebuildResult PolyhedralGeometry::rebuild(const Topology& t,const std::vector<Po
     const int nf=t.faceOffsets.empty()?0:int(t.faceOffsets.size()-1),nc=t.cellOffsets.empty()?0:int(t.cellOffsets.size()-1);
     d.faceResult.reserve(nf);d.area.reserve(nf);d.cellResult.reserve(nc);d.centres.reserve(nc);d.distance.reserve(nc);
     if(nf)rebuildFacesKernel<<<(nf+127)/128,128,0,d.stream>>>(nf,d.view(),d.points.pointer,d.faceResult.pointer,d.area.pointer);
-    if(nc){rebuildCellsKernel<<<(nc+127)/128,128,0,d.stream>>>(nc,d.view(),d.points.pointer,d.area.pointer,d.cellResult.pointer,d.centres.pointer);
-        wallDistanceKernel<<<nc,128,0,d.stream>>>(nc,d.view(),d.points.pointer,d.centres.pointer,walls.size(),d.walls.pointer,d.distance.pointer);}
+    if(nc){d.prepareWallBoxes(walls.size());rebuildCellsKernel<<<(nc+127)/128,128,0,d.stream>>>(nc,d.view(),d.points.pointer,d.area.pointer,d.cellResult.pointer,d.centres.pointer);
+        wallDistanceKernel<<<nc,128,0,d.stream>>>(nc,d.view(),d.points.pointer,d.centres.pointer,walls.size(),d.walls.pointer,d.wallBoxes.pointer,d.distance.pointer);}
     d.faceResult.download(out.faces,nf,d.transfer);d.cellResult.download(out.cells,nc,d.transfer);d.distance.download(out.distance,nc,d.transfer);d.transfer.finish();d.rememberRebuild(hash,t,points,walls,out);return out;
 }
 std::vector<BoundaryMotionPoint> PolyhedralGeometry::boundaryMotion(const Topology& t,int count,const std::vector<Point>& areas,
@@ -275,7 +288,8 @@ std::vector<WallDistanceResult> PolyhedralGeometry::wallDistance(const Topology&
     const std::vector<Point>& centres,const std::vector<int>& walls){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);d.topology(t);d.points.upload(p,d.transfer);
     d.centres.upload(centres,d.transfer);d.walls.upload(walls,d.transfer);const int count=centres.size();d.distance.reserve(count);
-    if(count)wallDistanceKernel<<<count,128,0,d.stream>>>(count,d.view(),d.points.pointer,d.centres.pointer,walls.size(),d.walls.pointer,d.distance.pointer);
+    if(count)d.prepareWallBoxes(walls.size());
+    if(count)wallDistanceKernel<<<count,128,0,d.stream>>>(count,d.view(),d.points.pointer,d.centres.pointer,walls.size(),d.walls.pointer,d.wallBoxes.pointer,d.distance.pointer);
     std::vector<WallDistanceResult> result;d.distance.download(result,count,d.transfer);d.transfer.finish();return result;
 }
 std::vector<SweepResult> PolyhedralGeometry::sweep(const Topology& t,const std::vector<Point>& p,const std::vector<Point>& endpoint){

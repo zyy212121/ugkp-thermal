@@ -5499,8 +5499,8 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationEnergy(void* handle,i
     if(!s->particlesMayBePresent)return 0;
     if(!s->particleRadiationAffineUpdate&&allocate(s->particleRadiationAffineUpdate,cells,"radiation enthalpy requests"))return 1;
     if(copyToDevice(s->particleRadiationAffineUpdate,requests.data(),cells,"radiation enthalpy requests"))return 1;
-    auto err=cudaMemset(s->radiationMobileMass,0,cells*sizeof(GpuReal));
-    if(err==cudaSuccess)err=cudaMemset(s->radiationMobileTemperatureMass,0,cells*sizeof(GpuReal));
+    auto err=cudaMemsetAsync(s->radiationMobileMass,0,cells*sizeof(GpuReal),0);
+    if(err==cudaSuccess)err=cudaMemsetAsync(s->radiationMobileTemperatureMass,0,cells*sizeof(GpuReal),0);
     if(err!=cudaSuccess){setLastError("clear radiation enthalpy sums",err);return 1;}
     radiationEnthalpyCapacityKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,s->particleRadiationAffineUpdate);
     radiationEnthalpyApplyKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,s->particleRadiationAffineUpdate);
