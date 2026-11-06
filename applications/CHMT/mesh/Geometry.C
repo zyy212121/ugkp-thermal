@@ -1,5 +1,6 @@
 #include "mesh/Geometry.H"
 #include "../../../common/gpu/PointMotionMath.H"
+#include "../../../common/gpu/TrajectoryPolynomialMath.H"
 #ifdef CHMT_DEVICE_GEOMETRY
 #include "mesh/GeometryGpu.H"
 #endif
@@ -410,31 +411,7 @@ namespace chmt {
         // of a displacement. De Casteljau evaluation preserves thin positive
         // endpoint volumes while the derivative roots still locate all extrema.
         void polynomialBounds(const Real* control, Real& minimum, Real& maximum) {
-            minimum=minValue(control[0],control[3]);
-            maximum=maxValue(control[0],control[3]);
-            const long double a=3*(-static_cast<long double>(control[0])+3*static_cast<long double>(control[1])
-                -3*static_cast<long double>(control[2])+control[3]);
-            const long double b=6*(static_cast<long double>(control[0])-2*static_cast<long double>(control[1])+control[2]);
-            const long double c=3*(static_cast<long double>(control[1])-control[0]);
-            long double roots[2]={-1,-1};
-            if(a==0) {
-                if(b!=0)roots[0]=-c/b;
-            } else {
-                const long double discriminant=b*b-4*a*c;
-                if(discriminant>=0) {
-                    const long double root=std::sqrt(discriminant);
-                    const long double q=-.5L*(b+(b>=0?root:-root));
-                    if(q!=0){roots[0]=q/a;roots[1]=c/q;}
-                    else roots[0]=-b/(2*a);
-                }
-            }
-            for(long double t:roots)if(t>0 && t<1) {
-                long double value[4]={control[0],control[1],control[2],control[3]};
-                for(int degree=3;degree>0;--degree)
-                    for(int k=0;k<degree;++k)value[k]=(1-t)*value[k]+t*value[k+1];
-                minimum=minValue(minimum,static_cast<Real>(value[0]));
-                maximum=maxValue(maximum,static_cast<Real>(value[0]));
-            }
+            ugkp::gpu::geometry::trajectoryPolynomialBounds<long double>(control,minimum,maximum);
         }
         bool certifyLinearTrajectory(const HostMesh& mesh, const std::vector<Vec3>& endpoint, std::string& error,
             ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
