@@ -4,6 +4,7 @@
 #include "../../../common/gasTransport/WallHeatExposure.H"
 #include "gpu/GasWindowProgram.H"
 #include "gpu/CoupledGasInterval.H"
+#include "gpu/CoupledSurfaceHistory.H"
 #include "coupling/IntervalContracts.H"
 namespace chmt {
 // Geometry is uploaded per moving microstep or once per static window.
@@ -25,40 +26,6 @@ struct CoupledSurfaceRecord {
     int failed=0,wallTransportCode=0;
     ugkwp::gaswall::WallStatus wallStatus{};
 };
-// Only fields consumed by host material/history cross at a microstep
-// endpoint. Raw fluxes and unweighted stage packets remain device-only.
-struct CoupledSurfaceDownload {
-    GasPrimitive bulk{};GasGradient gradient{};Vec3 traction{};
-    WallFaceSample acceptedWall{};
-    ExchangePacket primary{},pore{};
-    Real radiationEnergy=0,particleWallEnergy=0;unsigned radiationReceiver=0;
-    int failed=0;
-};
-// Matching and failure status are consumed by the material history. Full node
-// diagnostics remain resident until the gas-window endpoint is published.
-struct CoupledWallDownload {
-    GasWallMatchingSample matching{};
-    int transportCode=0;
-    ugkwp::gaswall::WallStatus status{};
-};
-struct CoupledRecordFailure {int wall=0,owner=0;};
-__global__ void resetCoupledRecordFailure(CoupledRecordFailure* failure,int count){
-    if(!blockIdx.x&&!threadIdx.x){failure->wall=count;failure->owner=count;}
-}
-CHMT_HD inline int coupledPacketOwnerFailure(const ExchangePacket& packet,int solids,int films){
-    const auto consumers=requiredConsumers(packet.kind);
-    if((consumers&ConsumeSolid)&&(packet.solidCell<0||packet.solidCell>=solids))return 3;
-    if((consumers&ConsumeFilm)&&(packet.filmFace<0||packet.filmFace>=films))return 4;
-    return 0;
-}
-CHMT_HD inline int coupledRecordOwnerFailure(const CoupledSurfaceDownload& record,int solids,int films){
-    int error=coupledPacketOwnerFailure(record.primary,solids,films);if(error)return error;
-    if(hasPacketTransfer(record.pore)){
-        error=coupledPacketOwnerFailure(record.pore,solids,films);if(error)return error;
-    }
-    if(record.particleWallEnergy!=0&&(record.primary.solidCell<0||record.primary.solidCell>=solids))return 3;
-    return 0;
-}
 __global__ void packCoupledSurfaceKernel(const CoupledSurfaceRecord* records,int count,
     const int* faces,ugkp::thermal::ParticleWallExchangeView particle,
     CoupledSurfaceDownload* output,CoupledWallDownload* wallOutput,
@@ -85,8 +52,9 @@ __global__ void packCoupledWallDiagnosticsKernel(const CoupledSurfaceRecord* rec
 }
 __global__ void publishParticleMaterialSurfaceKernel(int count,const int* faces,
     const CoupledSurfaceInput* geometry,const WallFaceSample* program,GasWallProgramPosition position,
-    double* temperature,double* ux,double* uy,double* uz,double* effusivity){
+    double* temperature,double* ux,double* uy,double* uz,double* effusivity,const CoupledGasInterval* interval=nullptr){
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;if(slot>=count)return;
+    if(interval)position=interval->endpoint;
     const int f=faces[slot];const auto wall=sampleResidentGasWallFace(program,count,position,slot);
     temperature[f]=wall.temperature;effusivity[f]=wall.materialEffusivity;const auto velocity=geometry[slot].particleMaterialVelocity;
     ux[f]=velocity.x;uy[f]=velocity.y;uz[f]=velocity.z;
@@ -99,6 +67,7 @@ __global__ void boundSurfaceProgressKernel(const SharedGasDeviceView* state,
     const int* cells,int cellCount,const int* faceSlot,const CoupledSurfaceInput* geometry,const WallFaceSample* program,
     int count,GasWallProgramPosition position,Real dt,bool transportReady,Real* progress,
     const CoupledGasInterval* interval=nullptr,int stage=0){
+    if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
     position=coupledGasPosition(interval,stage,position);
     dt=ugkwp::gasResidentStepDt(*state,dt);
     const auto& v=*state;const int index=blockIdx.x*blockDim.x+threadIdx.x;
@@ -145,6 +114,7 @@ __global__ void prepareResidentSurfaceKernel(SharedGasDeviceView* state,const in
     int count,const CoupledSurfaceInput* geometry,const WallFaceSample* program,
     GasWallProgramPosition position,const Real* progress,WallFaceSample* bounded,unsigned char* changed=nullptr,
     const CoupledGasInterval* interval=nullptr,int stage=0){
+    if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
     position=coupledGasPosition(interval,stage,position);
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;if(slot>=count)return;
     auto& v=*state;const int face=faces[slot];
