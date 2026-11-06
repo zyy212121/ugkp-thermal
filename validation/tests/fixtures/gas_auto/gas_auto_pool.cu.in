@@ -14,6 +14,7 @@ __attribute__((noinline)) DeviceState* make(int block){
     auto*s=new DeviceState{};
     ALLOCATE_FIELDS
     mem(s->csrReductionTasks,128);
+    mem(s->csrAutomaticRuntime,1);
     mem(s->deviceState,1);
     s->nCells=4;s->particleCapacity=4096;s->particleWorkGrid=32;
     s->particleBlockThreads=128;s->reductionBlockThreads=block;
@@ -78,10 +79,14 @@ void validateTasks(DeviceState*s,TestDirectory kind,int expectedTasks,int expect
 }
 
 void consume(DeviceState*s,DeviceState*r,TestDirectory kind,int block){
-    constexpr double dt=.005;
+    static int intervals=0;const double dt=.003+.001*((intervals++)%3);
+    if(s->csrHeavyReductionMode==2)setCsrAutomaticTimeStep<<<1,1>>>(s->deviceState,dt);
     clearPool(s,dt);
-    if(s->csrHeavyReductionEnabled)require(heavyPool(s,dt,block)==0,"actual heavy pool launch");
-    else require(lightPool(s,kind,dt,block)==0,"actual light launch");
+    const int directory=directoryTag(kind);
+    const double interval=s->csrHeavyReductionMode==2?0.0:dt;
+    require(launchCsrConditional(s,5+directory,block,directory,kind==TestDirectory::splitBaseAndInjection?1:0,[&](cudaStream_t stream,bool heavy){
+        return heavy?heavyPool(s,interval,block,stream):lightPool(s,kind,interval,block,stream);
+    })==0,"actual conditional collision consumer");
     clearPool(r,dt);
     require(lightPool(r,kind,dt,block)==0,"reference light launch");
     finish();
@@ -112,7 +117,7 @@ int main(int argc,char**argv){
     int directory=argc>1?atoi(argv[1]):0,prebuilt=argc>2?atoi(argv[2]):1,block=argc>3?atoi(argv[3]):32;
     TestDirectory kind=directory==0?TestDirectory::full:(directory==1?TestDirectory::baseOnly:TestDirectory::splitBaseAndInjection);
     DeviceState*s=make(block),*r=make(block);
-    s->csrHeavyReductionMode=2;s->csrHeavyReductionEnabled=prebuilt;s->csrHeavyAutoInterval=3;
+    s->csrHeavyReductionMode=2;s->csrHeavyReductionEnabled=1;s->csrAutomaticRuntime->active=prebuilt;s->csrHeavyAutoInterval=3;
     const int table[9][4]={{block+1,block,block,block-1},{block+3,block+2,block-2,block-3},
         {3*block+4,2*block-12,2*block-12,block+20},{block,block,block,block},{0,0,0,0},
         {block,block,block,block},{block+1,block,block,block-1},{block+1,block,block,block-1},{block+1,block,block,block-1}};
@@ -126,7 +131,7 @@ int main(int argc,char**argv){
         printf("STEP %d directory=%d previous=%d\n",step+1,directory,s->csrHeavyReductionEnabled);
         require(decide(s,block,kind)==0,"automatic decision status");finish();
         const bool heavy=step<5||step==8;
-        require(s->csrHeavyReductionEnabled==int(heavy)&&s->deviceState->csrHeavyReductionEnabled==int(heavy),"automatic enabled flag mismatch");
+        require(s->csrAutomaticRuntime->active==int(heavy)&&s->deviceState->csrHeavyReductionEnabled==int(heavy),"automatic enabled flag mismatch");
         if(heavy)validateTasks(s,kind,expectedTasks[step],expectedMulti[step]);
         consume(s,r,kind,block);
     }
@@ -144,5 +149,5 @@ int main(int argc,char**argv){
         require(decide(s,block,changed)==0,"changed directory auto decision");finish();
         validateTasks(s,changed,5,1);consume(s,r,changed,block);
     }
-    puts("PASS gas automatic scheduling followed by actual task consumers");return 0;
+    puts("PASS gas automatic scheduling followed by actual task consumers");releaseState(s);releaseState(r);return 0;
 }

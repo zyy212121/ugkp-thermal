@@ -443,102 +443,134 @@ int finaliseGasBoundaryStage(GasHostState* s, const GasHostPolicy::Time dt, cons
     return 0;
 }
 
-template<class GasHostState>
-int advancePureGasGraph(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time requestedTime)
+template<class State>
+__global__ void setResidentGasIntervalKernel(State* state,ugkwp::GasResidentInterval interval)
 {
-    const GasHostPolicy::Time simulationTime = ugkwp::gasStageTime(*s, requestedTime);
-    if (s->gasGraphExec == nullptr || s->gasGraphDt != dt)
-    {
-        cudaError_t err = cudaSuccess;
-        if (s->gasGraphExec)
-        {
-            err = cudaGraphExecDestroy(s->gasGraphExec);
-            if (err != cudaSuccess) { setLastError("gas graph destroy executable", err); return 1; }
-            s->gasGraphExec = nullptr;
-        }
-        if (s->gasGraph)
-        {
-            err = cudaGraphDestroy(s->gasGraph);
-            if (err != cudaSuccess) { setLastError("gas graph destroy", err); return 1; }
-            s->gasGraph = nullptr;
-        }
-        s->gasGraphTimeNodes.clear();
-        s->gasGraphTimeParams.clear();
-        s->gasGraphTimeOffsets.clear();
-        err = cudaStreamCreate(&s->gasCaptureStream);
-        if (err != cudaSuccess) { setLastError("gas graph stream create", err); return 1; }
-        err = cudaStreamBeginCapture(s->gasCaptureStream, cudaStreamCaptureModeThreadLocal);
-        if (err != cudaSuccess)
-        {
-            cudaStreamDestroy(s->gasCaptureStream);
-            s->gasCaptureStream = nullptr;
-            setLastError("gas graph capture begin", err);
-            return 1;
-        }
-        int status = advanceGasFluxStage(s, dt, simulationTime);
-        // Graph transport receives the interval start; final publication uses its end.
-        if (status == 0) status = finaliseGasBoundaryStage(s, dt, simulationTime+dt);
-        err = cudaStreamEndCapture(s->gasCaptureStream, &s->gasGraph);
-        const cudaError_t streamError = cudaStreamDestroy(s->gasCaptureStream);
-        s->gasCaptureStream = nullptr;
-        if (status != 0) return status;
-        if (err != cudaSuccess) { setLastError("gas graph capture end", err); return 1; }
-        if (streamError != cudaSuccess) { setLastError("gas graph stream destroy", streamError); return 1; }
-        size_t nodeCount = 0;
-        err = cudaGraphGetNodes(s->gasGraph, nullptr, &nodeCount);
-        if (err != cudaSuccess) { setLastError("gas graph node count", err); return 1; }
-        std::vector<cudaGraphNode_t> nodes(nodeCount);
-        err = cudaGraphGetNodes(s->gasGraph, nodes.data(), &nodeCount);
-        if (err != cudaSuccess) { setLastError("gas graph nodes", err); return 1; }
-        for (const auto node : nodes)
-        {
-            cudaGraphNodeType type;
-            err = cudaGraphNodeGetType(node, &type);
-            if (err != cudaSuccess) { setLastError("gas graph node type", err); return 1; }
-            if (type != cudaGraphNodeTypeKernel) continue;
-            cudaKernelNodeParams params{};
-            err = cudaGraphKernelNodeGetParams(node, &params);
-            if (err != cudaSuccess) { setLastError("gas graph kernel parameters", err); return 1; }
-            using GasDeviceState = typename std::remove_pointer<decltype(s->deviceState)>::type;
-            if (params.func == reinterpret_cast<void*>(updateLegacyGasBoundaryMirrorKernel<GasDeviceState>)
-                ||params.func == reinterpret_cast<void*>(updateRiemannBoundaryMirrorKernel<GasDeviceState>))
-            {
-                s->gasGraphTimeNodes.push_back(node);
-                s->gasGraphTimeOffsets.push_back(*static_cast<GasHostPolicy::Time*>(params.kernelParams[1])-simulationTime);
-                params.kernelParams = nullptr;
-                params.extra = nullptr;
-                s->gasGraphTimeParams.push_back(params);
-            }
-        }
-        if (s->nFaces > s->nInternalFaces && s->gasGraphTimeNodes.size() < 2)
-        {
-            setLastErrorText("gas graph requires both scheduled boundary time nodes");
-            return 1;
-        }
-        err = cudaGraphInstantiate(&s->gasGraphExec, s->gasGraph, nullptr, nullptr, 0);
-        if (err != cudaSuccess) { setLastError("gas graph instantiate", err); return 1; }
-        s->gasGraphDt = dt;
-    }
-    auto* device = s->deviceState;
-    GasHostPolicy::Time currentTime = simulationTime;
-    void* args[] = {&device, &currentTime};
-    for (size_t i = 0; i < s->gasGraphTimeNodes.size(); ++i)
-    {
-        currentTime=simulationTime+s->gasGraphTimeOffsets[i];
-        cudaKernelNodeParams params = s->gasGraphTimeParams[i];
-        params.kernelParams = args;
-        const cudaError_t err = cudaGraphExecKernelNodeSetParams
-        (
-            s->gasGraphExec, s->gasGraphTimeNodes[i], &params
-        );
-        if (err != cudaSuccess) { setLastError("gas graph time update", err); return 1; }
-    }
-    const cudaError_t err = cudaGraphLaunch(s->gasGraphExec, nullptr);
-    if (err != cudaSuccess) { setLastError("gas graph launch", err); return 1; }
-    return 0;
+    if(!blockIdx.x&&!threadIdx.x)state->gasResidentInterval=interval;
+}
+template<class State>
+__global__ void finishResidentGasIntervalKernel(State* state)
+{
+    if(!blockIdx.x&&!threadIdx.x)state->gasResidentInterval.active=false;
 }
 
+template<class Policy,class State,class Time>
+auto prepareResidentGasGraphCapture(State* state,Time dt,Time time,bool prepared,int)
+    -> decltype(Policy::prepareGraphCapture(state,dt,time,prepared),void())
+{Policy::prepareGraphCapture(state,dt,time,prepared);}
+template<class Policy,class State,class Time>
+void prepareResidentGasGraphCapture(State*,Time,Time,bool,long){}
+template<class Policy,class State,class Time>
+auto publishResidentGasGraphReplay(State* state,Time dt,Time time,int)
+    -> decltype(Policy::publishGraphReplay(state,dt,time),void())
+{Policy::publishGraphReplay(state,dt,time);}
+template<class Policy,class State,class Time>
+void publishResidentGasGraphReplay(State*,Time,Time,long){}
 
+template<class GasHostState>
+int advanceResidentGasGraph(GasHostState* s,const GasHostPolicy::Time dt,
+    const GasHostPolicy::Time requestedTime,const bool finalBoundary)
+{
+    const auto simulationTime=ugkwp::gasStageTime(*s,requestedTime);
+    const bool prepared=ugkwp::gasBoundaryLayerPreparationReusable(*s,dt,simulationTime);
+    ugkwp::GasResidentInterval interval;
+    interval.dt=dt;interval.begin=simulationTime;
+    interval.end=simulationTime+dt;interval.middle=simulationTime+dt*GasHostPolicy::Time(0.5);
+    interval.active=true;
+    if constexpr(ugkwp::HasGasFrozenBoundaryTime<GasHostState>::value)
+        interval.frozen=s->gasSteadyBoundaryFrozen;
+    else if constexpr(ugkwp::HasGasSteadyTime<GasHostState>::value)
+        interval.frozen=s->gasSteadyMode;
+    const auto executionStream=s->gasCaptureStream;
+    if(!s->gasGraphExec || s->gasGraphDt!=s->gasGraphDt
+        ||s->gasGraphIncludesBoundary!=finalBoundary||s->gasGraphPreparedBoundary!=prepared
+        ||s->gasGraphFrozenBoundary!=interval.frozen)
+    {
+        auto error=cudaSuccess;
+        if(s->gasGraphExec){error=cudaGraphExecDestroy(s->gasGraphExec);s->gasGraphExec=nullptr;}
+        if(error==cudaSuccess&&s->gasGraph){error=cudaGraphDestroy(s->gasGraph);s->gasGraph=nullptr;}
+        if(error!=cudaSuccess){setLastError("release resident gas graph",error);return 1;}
+        s->gasGraphIntervalNode=nullptr;
+        cudaStream_t capture=nullptr;
+        error=cudaStreamCreateWithFlags(&capture,cudaStreamNonBlocking);
+        if(error!=cudaSuccess){setLastError("create resident gas capture stream",error);return 1;}
+        error=cudaStreamBeginCapture(capture,cudaStreamCaptureModeThreadLocal);
+        if(error!=cudaSuccess){cudaStreamDestroy(capture);setLastError("capture resident gas step",error);return 1;}
+        s->gasCaptureStream=capture;
+        // Capture relative stage times and RK weights once. The first node
+        // supplies the physical FP64 interval on every replay.
+        if constexpr(ugkwp::GasBoundaryLayerCapability<GasHostState>::value)
+            if(prepared){s->gasBoundaryLayer.preparedInterval=1;
+                s->gasBoundaryLayer.preparedTime=ugkwp::gasStageTime(*s,0.0);}
+        prepareResidentGasGraphCapture<GasHostPolicy>(s,dt,simulationTime,prepared,0);
+        setResidentGasIntervalKernel<<<1,1,0,capture>>>(s->deviceState,interval);
+        int status=advanceGasFluxStage(s,GasHostPolicy::Time(1),GasHostPolicy::Time(0));
+        if(!status&&finalBoundary)status=finaliseGasBoundaryStage(s,GasHostPolicy::Time(1),GasHostPolicy::Time(1));
+        finishResidentGasIntervalKernel<<<1,1,0,capture>>>(s->deviceState);
+        error=cudaStreamEndCapture(capture,&s->gasGraph);
+        const auto destroyError=cudaStreamDestroy(capture);
+        s->gasCaptureStream=executionStream;
+        if(status)return status;
+        if(error!=cudaSuccess){setLastError("finish resident gas capture",error);return 1;}
+        if(destroyError!=cudaSuccess){setLastError("release resident gas capture stream",destroyError);return 1;}
+        size_t count=0;
+        error=cudaGraphGetNodes(s->gasGraph,nullptr,&count);
+        if(error!=cudaSuccess){setLastError("resident gas node count",error);return 1;}
+        std::vector<cudaGraphNode_t> nodes(count);
+        error=cudaGraphGetNodes(s->gasGraph,nodes.data(),&count);
+        if(error!=cudaSuccess){setLastError("resident gas nodes",error);return 1;}
+        using Device=typename std::remove_pointer<decltype(s->deviceState)>::type;
+        for(auto node:nodes){
+            cudaGraphNodeType type;error=cudaGraphNodeGetType(node,&type);
+            if(error!=cudaSuccess){setLastError("resident gas node type",error);return 1;}
+            if(type!=cudaGraphNodeTypeKernel)continue;
+            cudaKernelNodeParams params{};error=cudaGraphKernelNodeGetParams(node,&params);
+            if(error!=cudaSuccess){setLastError("resident gas node parameters",error);return 1;}
+            if(params.func==reinterpret_cast<void*>(setResidentGasIntervalKernel<Device>)){
+                s->gasGraphIntervalNode=node;params.kernelParams=nullptr;params.extra=nullptr;
+                s->gasGraphIntervalParams=params;
+            }
+        }
+        if(!s->gasGraphIntervalNode){setLastErrorText("resident gas interval node unavailable");return 1;}
+        error=cudaGraphInstantiate(&s->gasGraphExec,s->gasGraph,nullptr,nullptr,0);
+        if(error!=cudaSuccess){setLastError("instantiate resident gas graph",error);return 1;}
+        s->gasGraphIncludesBoundary=finalBoundary;s->gasGraphPreparedBoundary=prepared;
+        s->gasGraphFrozenBoundary=interval.frozen;s->gasGraphDt=dt;
+    }
+    auto* device=s->deviceState;void* args[]={&device,&interval};
+    auto params=s->gasGraphIntervalParams;params.kernelParams=args;
+    auto error=cudaGraphExecKernelNodeSetParams(s->gasGraphExec,s->gasGraphIntervalNode,&params);
+    if(error==cudaSuccess)error=cudaGraphLaunch(s->gasGraphExec,executionStream);
+    if(error!=cudaSuccess){setLastError("replay resident gas step",error);return 1;}
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasHostState>::value){
+        s->gasBoundaryLayer.preparedFirstStage=false;
+        s->gasBoundaryLayerStageTime=ugkwp::gasStageTime(*s,
+            simulationTime+(s->hostGasTimeIntegrator==1?0:s->hostGasTimeIntegrator==2?dt:dt*GasHostPolicy::Time(0.5)));
+    }
+    publishResidentGasGraphReplay<GasHostPolicy>(s,dt,simulationTime,0);
+    return 0;
+}
+template<class GasHostState>
+int advancePureGasGraph(GasHostState* s,const GasHostPolicy::Time dt,const GasHostPolicy::Time time)
+{return advanceResidentGasGraph(s,dt,time,true);}
+
+template<class State,class=void>struct HasResidentGasGraph:std::false_type{};
+template<class State>struct HasResidentGasGraph<State,std::void_t<decltype(std::declval<State>().gasGraphExec),
+    decltype(std::declval<State>().deviceState->gasResidentInterval),
+    decltype(std::declval<State>().gasGraphIntervalNode)>>:std::true_type{};
+template<class GasHostState>
+int advanceGasFluxScheduled(GasHostState* s,const GasHostPolicy::Time dt,
+    const GasHostPolicy::Time time,const bool nativeRefinement=false)
+{
+#ifndef UGKP_DEVELOPMENT_PROBES
+    if constexpr(HasResidentGasGraph<GasHostState>::value){
+        if(s->gasGraphMode<0){const char* value=std::getenv("UGKP_GAS_GRAPH");
+            s->gasGraphMode=!value||std::strcmp(value,"1")==0;}
+        if(s->gasGraphMode&&!nativeRefinement)return advanceResidentGasGraph(s,dt,time,false);
+    }
+#endif
+    return advanceGasFluxStage(s,dt,time,nativeRefinement);
+}
 
 template<class Policy,class State>
 auto validateGasTrialState(State* s,bool nativeRefinement,int)
@@ -662,7 +694,7 @@ int advanceGasTrial
     if (TrialPolicy::begin(s) != 0)
     { ugkwp::invalidateGasBoundaryLayerPreparation(*s); return 1; }
     if (prepareGasTrialTransport<TrialPolicy>(s,dt,simulationTime,nativeRefinement) != 0
-        || advanceGasFluxStage(s, dt, simulationTime,nativeRefinement) != 0
+        || advanceGasFluxScheduled(s, dt, simulationTime,nativeRefinement) != 0
         || (!nativeRefinement && validateGasTrialState<TrialPolicy>(s,nativeRefinement,0) != 0)
         || applyGasTrialSources<TrialPolicy>(s,dt,nativeRefinement,0) != 0
         || finaliseGasTrialSources<TrialPolicy>(s,dt,nativeRefinement) != 0

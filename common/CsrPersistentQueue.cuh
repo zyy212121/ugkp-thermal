@@ -27,7 +27,7 @@ __device__ __forceinline__ void runCsrPersistentQueue
 // Reset before EVERY consumer, including when its directory is reused.
 // The reset and launch use the same CUDA stream (the default stream here).
 template<class State>
-inline cudaError_t resetCsrPersistentQueue(State* s)
+inline cudaError_t resetCsrPersistentQueue(State* s,cudaStream_t stream=nullptr)
 {
-    return cudaMemsetAsync(s->csrHeavyTaskCursor, 0, sizeof(int));
+    return cudaMemsetAsync(s->csrHeavyTaskCursor, 0, sizeof(int),stream);
 }

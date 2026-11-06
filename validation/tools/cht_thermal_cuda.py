@@ -9,9 +9,9 @@ import pytest
 from validation.tools.paths import SOURCE_ROOT
 
 
-def link_thermal_cuda(build, source_root=SOURCE_ROOT):
+def link_thermal_cuda(build, source_root=SOURCE_ROOT, fixture_device_views=False):
     build=Path(build);source_root=Path(source_root)
-    if not (source_root/"common/gpu/SparseConjugateGradient.cu").exists():
+    if not fixture_device_views and not (source_root/"common/gpu/SparseConjugateGradient.cu").exists():
         return
     nvcc=shutil.which('nvcc') or '/usr/local/cuda/bin/nvcc'
     if not Path(nvcc).is_file():
@@ -42,5 +42,6 @@ def link_thermal_cuda(build, source_root=SOURCE_ROOT):
         receipt.write_text(digest)
     options=build/'Make/options'
     text='\n'.join(line for line in options.read_text().splitlines()
-        if not (line.startswith('EXE_LIBS +=') and 'SparseConjugateGradient.o' in line))
-    options.write_text(text+'\nEXE_LIBS += '+' '.join(objects)+' -L'+str(cuda/'lib64')+' -Wl,-rpath,'+str(cuda/'lib64')+' -lcudart\n')
+        if not (line.startswith('EXE_LIBS +=') and 'SparseConjugateGradient.o' in line)
+        and not line.startswith('EXE_INC += -I'+str(cuda/'include')))
+    options.write_text(text+'\nEXE_INC += -I'+str(cuda/'include')+' -I'+str(SOURCE_ROOT/'common')+'\nEXE_LIBS += '+' '.join(objects)+' -L'+str(cuda/'lib64')+' -Wl,-rpath,'+str(cuda/'lib64')+' -lcudart\n')

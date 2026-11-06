@@ -51,24 +51,24 @@ inline void selectParticleDirectory(DeviceState* s, const bool split)
 #endif
 }
 
-inline int clearParticleInjectionBins(DeviceState* s, const int grid, const int block)
+inline int clearParticleInjectionBins(DeviceState* s, const int grid, const int block,cudaStream_t stream=nullptr)
 {
 #if GPU_DIRECTORY_HAS_BASE_ONLY
-    clearParticleCellBinsKernel<<<grid, block>>>(s->deviceState);
+    clearParticleCellBinsKernel<<<grid, block,0,stream>>>(s->deviceState);
 #else
-    clearSplitPreInjectionBinsKernel<<<grid, block>>>(s->deviceState);
+    clearSplitPreInjectionBinsKernel<<<grid, block,0,stream>>>(s->deviceState);
 #endif
     const cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) { setLastError("clear split-Dpre injection bins launch", err); return 1; }
     return 0;
 }
 
-inline int initialiseParticleInjectionWrites(DeviceState* s, const int grid, const int block)
+inline int initialiseParticleInjectionWrites(DeviceState* s, const int grid, const int block,cudaStream_t stream=nullptr)
 {
 #if GPU_DIRECTORY_HAS_BASE_ONLY
-    initialiseParticleCellWritesKernel<<<grid, block>>>(s->deviceState);
+    initialiseParticleCellWritesKernel<<<grid, block,0,stream>>>(s->deviceState);
 #else
-    initialiseSplitPreInjectionWritesKernel<<<grid, block>>>(s->deviceState);
+    initialiseSplitPreInjectionWritesKernel<<<grid, block,0,stream>>>(s->deviceState);
 #endif
     const cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) { setLastError("initialise split-Dpre injection writes launch", err); return 1; }

@@ -6,6 +6,7 @@
 // The common operators scale only their cell updates by gasPseudoDt/referenceDt.
 __global__ void prepareSteadyGasTimeStepKernel(DeviceState* sp,double courant,double maximumDt)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     DeviceState& s=*sp;
     const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if(c>=s.nCells)return;

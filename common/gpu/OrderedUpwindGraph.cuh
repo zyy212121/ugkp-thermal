@@ -33,6 +33,36 @@ static __global__ void normalizationFaces(int cells,int faces,const int* owner,c
 }
 static __global__ void absoluteResidual(int count,double* values){const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)values[i]=fabs(values[i]);}
 static __global__ void maximumResult(OrderedMaximum* maximum,double initial,double* output){if(!threadIdx.x)*output=applyMaximum(initial,*maximum);}
+static __global__ void setContinuation(const UpwindLinearReport* report,cudaGraphConditionalHandle handle){
+    if(!threadIdx.x)cudaGraphSetConditional(handle,report->active?1:0);
+}
+// Capture ordinary kernels as a child node. Conditional nodes are attached to
+// their owning graph directly; CUDA does not permit cloning them as children.
+template<class Capture> inline cudaGraphNode_t appendCaptured(cudaGraph_t graph,
+    const std::vector<cudaGraphNode_t>& dependencies,cudaStream_t stream,Capture capture){
+    cudaGraph_t child=nullptr;
+    checkedCudaUpwind(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));
+    try{capture();checkedCudaUpwind(cudaStreamEndCapture(stream,&child));}
+    catch(...){cudaStreamCaptureStatus status;
+        if(cudaStreamIsCapturing(stream,&status)==cudaSuccess&&status!=cudaStreamCaptureStatusNone)
+            cudaStreamEndCapture(stream,&child);
+        if(child)cudaGraphDestroy(child);throw;}
+    cudaGraphNode_t node=nullptr;
+    const auto code=cudaGraphAddChildGraphNode(&node,graph,dependencies.data(),dependencies.size(),child);
+    cudaGraphDestroy(child);checkedCudaUpwind(code);return node;
+}
+inline cudaGraphNode_t addWhile(cudaGraph_t graph,cudaGraphConditionalHandle handle,
+    const std::vector<cudaGraphNode_t>& dependencies,cudaGraph_t& body){
+    cudaGraphNodeParams parameters{};parameters.type=cudaGraphNodeTypeConditional;
+    parameters.conditional.handle=handle;parameters.conditional.type=cudaGraphCondTypeWhile;parameters.conditional.size=1;
+    cudaGraphNode_t node=nullptr;
+#if CUDART_VERSION >= 13000
+    checkedCudaUpwind(cudaGraphAddNode(&node,graph,dependencies.data(),nullptr,dependencies.size(),&parameters));
+#else
+    checkedCudaUpwind(cudaGraphAddNode(&node,graph,dependencies.data(),dependencies.size(),&parameters));
+#endif
+    body=parameters.conditional.phGraph_out[0];return node;
+}
 __device__ inline bool needsSweep(const UpwindLinearReport& report,UpwindLinearControls controls){
     return (report.finalResidual>report.target || (report.iterations==0&&
         (controls.maximumIterations<=0||!std::isfinite(report.initialResidual)||std::isnan(report.target))))
@@ -118,8 +148,8 @@ class OrderedUpwindGraph {
     upwindGraphDetail::Array<int> levels_;
     upwindGraphDetail::Array<UpwindIntensityFailure> failures_;
     upwindGraphDetail::Array<Report> report_;
-    cudaGraph_t graph_=nullptr,initializeGraph_=nullptr;
-    cudaGraphExec_t executable_=nullptr,initializeExecutable_=nullptr;
+    cudaGraph_t graph_=nullptr,initializeGraph_=nullptr,solveGraph_=nullptr;
+    cudaGraphExec_t executable_=nullptr,initializeExecutable_=nullptr,solveExecutable_=nullptr;
     Report* hostReport_=nullptr;
     void maximum(int count,double* values,unsigned char* valid,double initial,double* output,cudaStream_t stream){
         int blocks=std::max(1,(count+255)/256);
@@ -140,7 +170,7 @@ public:
     OrderedUpwindGraph(const OrderedUpwindPlan& plan,OrderedUpwindDevice matrix,int faces,
         const int* owner,const int* neighbour,const double* flux,const double* diagonal,const double* source,
         double* values,double* previous,const double* reference,UpwindLinearControls controls,
-        const unsigned long long* externalFailure=nullptr,bool concurrentDirections=false):cells_(plan.cells),faces_(faces),cooperative_(concurrentDirections),
+        const unsigned long long* externalFailure=nullptr,bool concurrentDirections=false,bool standalone=true):cells_(plan.cells),faces_(faces),cooperative_(concurrentDirections),
         residual_(cells_),magnitude_(cells_+faces_),valid_(cells_+faces_),
         partialA_(std::max(1,(cells_+faces_+255)/256)),partialB_(std::max(1,(cells_+faces_+255)/256)),
         failure_(1),levels_(plan.levelOffsets.size()),failures_(cells_),report_(1){
@@ -170,6 +200,11 @@ public:
                 upwindGraphDetail::finishSweep<<<1,1,0,stream>>>(report_.ptr,controls,failure_.ptr,failures_.ptr);
             }
             checkedCudaUpwind(cudaStreamEndCapture(stream,&graph_));checkedCudaUpwind(cudaGraphInstantiateWithFlags(&executable_,graph_,0));
+            if(standalone){
+                checkedCudaUpwind(cudaGraphCreate(&solveGraph_,0));
+                appendSolve(solveGraph_,{},stream);
+                checkedCudaUpwind(cudaGraphInstantiateWithFlags(&solveExecutable_,solveGraph_,0));
+            }
             checkedCudaUpwind(cudaStreamDestroy(stream));
 
         } catch(...) {
@@ -188,13 +223,26 @@ public:
         upwindGraphDetail::checkedCudaUpwind(cudaMemcpyAsync(hostReport_,report_.ptr,sizeof(Report),cudaMemcpyDeviceToHost,stream));
         upwindGraphDetail::checkedCudaUpwind(cudaStreamSynchronize(stream));return *hostReport_;
     }
+    // Embed the unchanged initial residual and ordered sweeps in a device
+    // controlled loop. The returned node completes exactly the accepted iterate.
+    cudaGraphNode_t appendSolve(cudaGraph_t graph,const std::vector<cudaGraphNode_t>& dependencies,cudaStream_t stream){
+        using namespace upwindGraphDetail;
+        cudaGraphNode_t initialized=nullptr;
+        checkedCudaUpwind(cudaGraphAddChildGraphNode(&initialized,graph,dependencies.data(),dependencies.size(),initializeGraph_));
+        cudaGraphConditionalHandle handle;
+        checkedCudaUpwind(cudaGraphConditionalHandleCreate(&handle,graph,0,0));
+        const auto condition=appendCaptured(graph,{initialized},stream,[&]{setContinuation<<<1,1,0,stream>>>(report_.ptr,handle);});
+        cudaGraph_t body=nullptr;const auto loop=addWhile(graph,handle,{condition},body);
+        cudaGraphNode_t sweep=nullptr;checkedCudaUpwind(cudaGraphAddChildGraphNode(&sweep,body,nullptr,0,graph_));
+        appendCaptured(body,{sweep},stream,[&]{setContinuation<<<1,1,0,stream>>>(report_.ptr,handle);});
+        return loop;
+    }
     const Report& launch(cudaStream_t stream){
-        begin(stream);advance(stream,1);
-        while(collect(stream).active)advance(stream);
-        return *hostReport_;
+        upwindGraphDetail::checkedCudaUpwind(cudaGraphLaunch(solveExecutable_,stream));return collect(stream);
     }
 private:
     void release()noexcept{
+        if(solveExecutable_)cudaGraphExecDestroy(solveExecutable_);if(solveGraph_)cudaGraphDestroy(solveGraph_);
         if(executable_)cudaGraphExecDestroy(executable_);if(initializeExecutable_)cudaGraphExecDestroy(initializeExecutable_);
         if(graph_)cudaGraphDestroy(graph_);if(initializeGraph_)cudaGraphDestroy(initializeGraph_);if(hostReport_)cudaFreeHost(hostReport_);
     }

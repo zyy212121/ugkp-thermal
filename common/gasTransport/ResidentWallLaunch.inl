@@ -4,27 +4,10 @@ namespace
 template<bool Capture> int launchBoundaryLayer(DeviceState* s)
 {
         const bool analytic=s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::ConstantTransport;
-        const int workers=analytic?s->gasBoundaryLayer.count:s->gasBoundaryLayerModel.workspaceCount,block=32;
+        const int workers=analytic?s->gasBoundaryLayer.count:s->gasBoundaryLayerModel.workspaceCount;
         if(workers<=0){setLastErrorText("boundaryLayer scratch pool is empty");return 1;}
-        if(analytic)
-            evaluateGasBoundaryLayerKernel<Capture><<<(workers+block-1)/block,block,0,s->gasCaptureStream>>>(s->deviceState);
-        else if(s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::EquilibriumOde
-            &&s->gasBoundaryLayerModel.config.nodes==8&&s->gasBoundaryLayerModel.workspaceCapacity==24
-            &&!s->gasBoundaryLayerModel.conservative.enabled)
-            evaluateGasBoundaryLayerTile8Kernel<Capture><<<(workers+3)/4,32,0,s->gasCaptureStream>>>(s->deviceState);
-        else
-        {
-#define LAUNCH_WALL_CAPACITY(N) case N: evaluateGasBoundaryLayerTeamKernel<Capture,N><<<workers,ugkwp::gaswall::detail::wallWarpWidth,0,s->gasCaptureStream>>>(s->deviceState);break
-            switch(s->gasBoundaryLayerModel.workspaceCapacity)
-            {
-                LAUNCH_WALL_CAPACITY(24);
-                LAUNCH_WALL_CAPACITY(48);
-                LAUNCH_WALL_CAPACITY(128);
-                default:evaluateGasBoundaryLayerTeamKernel<Capture><<<workers,ugkwp::gaswall::detail::wallWarpWidth,0,s->gasCaptureStream>>>(s->deviceState);
-            }
-#undef LAUNCH_WALL_CAPACITY
-        }
-        const auto error=cudaGetLastError();
+        const auto error=launchGasBoundaryLayerPool<Capture>(s->deviceState,
+            s->gasBoundaryLayerModel,s->gasBoundaryLayer.count,s->gasCaptureStream);
         if(error!=cudaSuccess){setLastError("prepare sparse boundaryLayer profiles",error);return 1;}
         if(s->gasBoundaryLayerModel.conservative.enabled){
 #define RECONSTRUCT_WALL_CAPACITY(N) case N: reconstructConservativeWallPool<N><<<workers,32,0,s->gasCaptureStream>>>(s->deviceState);break

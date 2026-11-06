@@ -82,20 +82,31 @@ __global__ void conservativeMaterialBoundary(int cells,int faces,const double* a
 }
 }
 struct ParticleRadiationMaterial::Implementation {
-    MieOpticalProperties optical;cudaStream_t stream=nullptr;PinnedTransferQueue transfer;
+    MieOpticalProperties optical;cudaStream_t stream=nullptr;cudaEvent_t inputReady=nullptr;PinnedTransferQueue transfer;
     MaterialArray<double> epsilon,mass,temperature,diameter,incident,volume,area,flux,next,energy,raw,boundary,escaped,magnitude,magnitudeTotal;
     MaterialArray<unsigned char> coupled,scanScratch;
     MaterialArray<int> responseCounts,responseOffsets,responseCursor,responseIndices;
-    explicit Implementation(const MieOpticalTable& table):optical(table){checkedMaterial(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);}
-    ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
+    explicit Implementation(const MieOpticalTable& table):optical(table){checkedMaterial(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);checkedMaterial(cudaEventCreateWithFlags(&inputReady,cudaEventDisableTiming));}
+    ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}if(inputReady)cudaEventDestroy(inputReady);}
 };
 ParticleRadiationMaterial::ParticleRadiationMaterial(const MieOpticalTable& table):data_(new Implementation(table)){}
 ParticleRadiationMaterial::~ParticleRadiationMaterial()=default;
 ParticleRadiationMaterialResult ParticleRadiationMaterial::solve(const ParticleRadiationMaterialInput& input){
-    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);const int cells=input.temperature.size(),faces=input.boundaryArea.size();
-    d.epsilon.upload(input.epsilon,d.transfer);d.mass.upload(input.mass,d.transfer);d.temperature.upload(input.temperature,d.transfer);
-    d.diameter.upload(input.diameter,d.transfer);d.incident.upload(input.incident,d.transfer);d.volume.upload(input.volume,d.transfer);
-    d.area.upload(input.boundaryArea,d.transfer);d.flux.upload(input.boundaryFlux,d.transfer);d.coupled.upload(input.coupledBoundary,d.transfer);
+    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);
+    const int cells=input.resident.enabled?input.resident.cells:input.temperature.size();
+    const int faces=input.resident.enabled?input.resident.boundaryFaces:input.boundaryArea.size();
+    auto state=input.resident;
+    if(state.enabled){
+        if(input.coupledBoundary.size()!=std::size_t(faces))throw std::invalid_argument("resident radiation material boundary shape mismatch");
+        checkedMaterial(cudaEventRecord(d.inputReady,static_cast<cudaStream_t>(state.producerStream)));checkedMaterial(cudaStreamWaitEvent(d.stream,d.inputReady,0));
+        if(!state.mass){d.mass.upload(input.mass,d.transfer);state.mass=d.mass.ptr;}
+    }else{
+        d.epsilon.upload(input.epsilon,d.transfer);d.mass.upload(input.mass,d.transfer);d.temperature.upload(input.temperature,d.transfer);
+        d.diameter.upload(input.diameter,d.transfer);d.incident.upload(input.incident,d.transfer);d.volume.upload(input.volume,d.transfer);
+        d.area.upload(input.boundaryArea,d.transfer);d.flux.upload(input.boundaryFlux,d.transfer);
+        state={true,cells,faces,d.epsilon.ptr,d.mass.ptr,d.temperature.ptr,d.diameter.ptr,d.incident.ptr,nullptr,d.volume.ptr,d.area.ptr,d.flux.ptr,d.stream};
+    }
+    d.coupled.upload(input.coupledBoundary,d.transfer);
     d.next.reserve(cells);d.energy.reserve(cells);d.raw.reserve(faces);d.boundary.reserve(faces);d.escaped.reserve(1);d.magnitude.reserve(cells);d.magnitudeTotal.reserve(1);
     const int* offsets=input.response.cellOffsets;const int* indices=nullptr;
     if(input.response.enabled&&!offsets){
@@ -112,12 +123,12 @@ ParticleRadiationMaterialResult ParticleRadiationMaterial::solve(const ParticleR
         if(blocks)indexResponseParticles<<<blocks,128,0,d.stream>>>(input.response,d.responseCursor.ptr,d.responseIndices.ptr);
         offsets=d.responseOffsets.ptr;indices=d.responseIndices.ptr;
     }
-    if(cells)materialRoots<<<(cells+127)/128,128,0,d.stream>>>(cells,d.optical.deviceTable(),d.epsilon.ptr,d.mass.ptr,d.temperature.ptr,d.diameter.ptr,
-        d.incident.ptr,d.volume.ptr,input.heatFactor,input.elapsed,input.minimumTemperature,input.maximumTemperature,input.activeEpsilonMinimum,input.response,offsets,indices,d.next.ptr,d.energy.ptr,d.magnitude.ptr);
-    if(faces)rawBoundaryEnergy<<<(faces+127)/128,128,0,d.stream>>>(faces,input.elapsed,d.area.ptr,d.flux.ptr,d.raw.ptr);
+    if(cells)materialRoots<<<(cells+127)/128,128,0,d.stream>>>(cells,d.optical.deviceTable(),state.epsilon,state.mass,state.temperature,state.diameter,
+        state.incident,state.volume,input.heatFactor,input.elapsed,input.minimumTemperature,input.maximumTemperature,input.activeEpsilonMinimum,input.response,offsets,indices,d.next.ptr,d.energy.ptr,d.magnitude.ptr);
+    if(faces)rawBoundaryEnergy<<<(faces+127)/128,128,0,d.stream>>>(faces,input.elapsed,state.boundaryArea,state.boundaryFlux,d.raw.ptr);
     conservativeMaterialBoundary<<<1,1,0,d.stream>>>(cells,faces,d.energy.ptr,d.raw.ptr,d.coupled.ptr,d.magnitude.ptr,d.magnitudeTotal.ptr,d.boundary.ptr,d.escaped.ptr);
     ParticleRadiationMaterialResult result;result.temperature.resize(cells);result.energy.resize(cells);result.boundaryEnergy.resize(faces);
     d.transfer.download(result.temperature.data(),d.next.ptr,cells*sizeof(double));d.transfer.download(result.energy.data(),d.energy.ptr,cells*sizeof(double));
-    d.transfer.download(result.boundaryEnergy.data(),d.boundary.ptr,faces*sizeof(double));d.transfer.download(&result.escapedEnergy,d.escaped.ptr,sizeof(double));d.transfer.download(&result.radiativeEnergyMagnitude,d.magnitudeTotal.ptr,sizeof(double));d.transfer.finish();return result;
+    d.transfer.download(result.boundaryEnergy.data(),d.boundary.ptr,faces*sizeof(double));d.transfer.download(&result.escapedEnergy,d.escaped.ptr,sizeof(double));d.transfer.download(&result.radiativeEnergyMagnitude,d.magnitudeTotal.ptr,sizeof(double));d.transfer.finish();result.resident={true,cells,faces,d.next.ptr,d.energy.ptr,d.boundary.ptr,d.stream};return result;
 }
 }}

@@ -6,6 +6,15 @@ int prepareCsrSegmentedReductionTasks
 (DeviceState* s, const int block,
  const GPU_DIRECTORY_PARAMETER_TYPE GPU_DIRECTORY_SELECTOR);
 
+#ifdef UGKP_RESIDENT_CSR_CHOICE
+__global__ void decideAutomaticCsrScheduleKernel(DeviceState* s) {
+    if(threadIdx.x||blockIdx.x)return;
+    const int active=*s->csrMaximumOccupancy>s->GPU_AUTO_THRESHOLD_FIELD?1:0;
+    s->csrAutomaticRuntime->active=active;
+    s->csrHeavyReductionActive=active;s->csrHeavyReductionEnabled=active;
+}
+#endif
+
 // A successful auto call publishes a decision AND guarantees executable tasks.
 // Producers invalidate readiness in the common task pipeline, including while
 // L1 is active. Normal non-inspection steps reuse their freshly prepared tasks.
@@ -34,6 +43,14 @@ int runAutomaticCsrSchedule
             (s->deviceState, GPU_DIRECTORY_ARGUMENT, s->csrMaximumOccupancy);
             err = cudaGetLastError();
         }
+#ifdef UGKP_RESIDENT_CSR_CHOICE
+        if(err==cudaSuccess){decideAutomaticCsrScheduleKernel<<<1,1>>>(s->deviceState);err=cudaGetLastError();}
+        if(err!=cudaSuccess){setLastError("automatic CSR resident decision",err);return 1;}
+        // Host retains capability, never the dynamic decision. A changed
+        // threshold invalidates the partition; its conditional body rebuilds
+        // only when the resident decision selected L2.
+        s->csrTasksReady=0;
+#else
         int maximumOccupancy = 0;
         int threshold = 0;
         if (err == cudaSuccess)
@@ -74,6 +91,7 @@ int runAutomaticCsrSchedule
                 return 1;
             }
         }
+#endif
     }
     if (s->csrHeavyReductionEnabled != 0
         && (s->csrTasksReady == 0

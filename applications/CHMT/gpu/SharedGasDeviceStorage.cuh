@@ -1,6 +1,7 @@
 #ifndef CHMT_GPU_SHAREDGASDEVICESTORAGE_CUH
 #define CHMT_GPU_SHAREDGASDEVICESTORAGE_CUH
 #include "gpu/HostTransferQueue.H"
+#include "../../../common/gasTransport/GasResidentInterval.H"
 #include "../../../common/thermal/ParticleSurfaceState.H"
 #include "../../../common/gasBoundary/Resident.cuh"
 #if defined(__CUDACC__)
@@ -24,6 +25,7 @@ struct SharedGasDeviceView:ugkwp::GasStateView<Real,Real,ugkwp::SstCoefficients>
     // Borrowed from the common particle owner; null is the particle-free phase.
     const Real* gasVolumeFraction=nullptr;
     ugkp::thermal::ParticleWallExchangeView particleWall;
+    ugkwp::GasResidentInterval gasResidentInterval;
     ugkwp::GasSpeciesState<Real,Ns> gasSpecies;
     ugkwp::GasBoundaryLayerModelState<Real,Ns> gasBoundaryLayerModel;
 };

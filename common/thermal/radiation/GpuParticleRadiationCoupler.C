@@ -150,10 +150,11 @@ void validateParticleRadiationSnapshot
 
     if
     (
-        snapshot.epsilonS.size() < mesh.nCells()
+        snapshot.resident.enabled ? snapshot.resident.cells != mesh.nCells() :
+        (snapshot.epsilonS.size() < mesh.nCells()
      || snapshot.particleMassInCellKg.size() < mesh.nCells()
      || snapshot.particleMeanTemperatureK.size() < mesh.nCells()
-     || snapshot.representativeDiameterM.size() < mesh.nCells()
+     || snapshot.representativeDiameterM.size() < mesh.nCells())
     )
     {
         materialFailure("particle-radiation snapshot cell arrays do not match fvMesh::nCells");
@@ -231,12 +232,16 @@ try
 
     ugkp::gpu::ParticleRadiationMaterialInput input;
     const label cells=context.mesh.nCells();
-    input.epsilon.assign(snapshot.epsilonS.begin(),snapshot.epsilonS.begin()+cells);
-    input.mass.assign(snapshot.particleMassInCellKg.begin(),snapshot.particleMassInCellKg.begin()+cells);
-    input.temperature.assign(currentTemperatureK.begin(),currentTemperatureK.end());
-    input.diameter.assign(snapshot.representativeDiameterM.begin(),snapshot.representativeDiameterM.begin()+cells);
-    input.incident.assign(radiationResult.incidentRadiationG_Wm2.begin(),radiationResult.incidentRadiationG_Wm2.begin()+cells);
-    input.volume.assign(context.mesh.V().begin(),context.mesh.V().end());
+    input.resident=radiationResult.resident;
+    if(!input.resident.enabled){
+        input.epsilon.assign(snapshot.epsilonS.begin(),snapshot.epsilonS.begin()+cells);
+        input.temperature.assign(currentTemperatureK.begin(),currentTemperatureK.end());
+        input.diameter.assign(snapshot.representativeDiameterM.begin(),snapshot.representativeDiameterM.begin()+cells);
+        input.incident.assign(radiationResult.incidentRadiationG_Wm2.begin(),radiationResult.incidentRadiationG_Wm2.begin()+cells);
+        input.volume.assign(context.mesh.V().begin(),context.mesh.V().end());
+    }
+    if(!input.resident.enabled||!input.resident.mass)
+        input.mass.assign(snapshot.particleMassInCellKg.begin(),snapshot.particleMassInCellKg.begin()+cells);
     input.response=snapshot.response;
     input.heatFactor=snapshot.particleHeatFactorJkgK;input.elapsed=couplingDeltaT;
     input.minimumTemperature=context.particleTemperatureMinK;
@@ -258,6 +263,7 @@ try
         result.solidWallRadiationEnergyJ[patchI][faceI]=completed.boundaryEnergy[boundary++];
     result.escapedBoundaryRadiationEnergyJ=completed.escapedEnergy;
     result.radiativeEnergyMagnitudeJ=completed.radiativeEnergyMagnitude;
+    if(!temporary)result.resident=completed.resident;
     return result;
 
 }

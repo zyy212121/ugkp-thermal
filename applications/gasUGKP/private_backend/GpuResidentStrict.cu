@@ -1,3 +1,6 @@
+#include "GpuParticleDirectoryGraph.H"
+#include "GpuCsrConditionalGraph.H"
+#include "gasTransport/GasResidentInterval.H"
 #include "gasBoundary/Resident.cuh"
 #include "gasBoundary/Evaluate.H"
 #include "gasTransport/MixturePorosity.H"
@@ -244,10 +247,14 @@ struct DeviceState
     cudaStream_t gasCaptureStream = nullptr;
     cudaGraph_t gasGraph = nullptr;
     cudaGraphExec_t gasGraphExec = nullptr;
-    std::vector<cudaGraphNode_t> gasGraphTimeNodes;
-    std::vector<cudaKernelNodeParams> gasGraphTimeParams;
-    std::vector<double> gasGraphTimeOffsets;
-    double gasGraphDt = -1;
+    ugkp::gpu::ParticleDirectoryGraphs particleDirectoryGraphs;
+    ugkp::gpu::CsrChoiceGraphs csrChoiceGraphs;
+    ugkp::gpu::CsrAutomaticRuntime* csrAutomaticRuntime=nullptr;
+    ugkwp::GasResidentInterval gasResidentInterval;
+    cudaGraphNode_t gasGraphIntervalNode=nullptr;
+    cudaKernelNodeParams gasGraphIntervalParams{};
+    bool gasGraphIncludesBoundary=false,gasGraphPreparedBoundary=false,gasGraphFrozenBoundary=false;
+    double gasGraphDt=-1; // NaN invalidates structural/configuration bindings.
     int gasGraphMode = -1;
     int particleBlockThreads = 128;
     int reductionBlockThreads = 128;
@@ -307,8 +314,10 @@ struct DeviceState
     double *steadySampleSum=nullptr,*steadySampleSquare=nullptr;
     double *steadySampleMean=nullptr,*steadySampleBegin=nullptr;
     double *steadySampleScratch=nullptr,*steadyBoundaryBudget=nullptr;
+    double* steadySampleReductionWorkspace=nullptr;
     double gasSteadyBoundaryTime = 0.0;
     double* gasSteadyResidual = nullptr;
+    double* gasSteadyMaximumWorkspace = nullptr;
 
 #endif
 
@@ -810,6 +819,8 @@ void setLastErrorText(const char* text)
     std::snprintf(lastError, sizeof(lastError), "%s", text);
 }
 
+#include "GpuCsrConditionalGraph.cuh"
+
 template<class T>
 int allocate(T*& ptr, const size_t n, const char* name)
 {
@@ -1015,6 +1026,9 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     releaseBoundaryLayerStorage(*s);
     releaseSharedGasSpecies(s->gasSpecies);
     releaseSharedGasSpecies(s->gasRejectedView);
+    ugkp::gpu::releaseParticleDirectoryGraphs(s->particleDirectoryGraphs);
+    ugkp::gpu::releaseCsrChoiceGraphs(s->csrChoiceGraphs);
+    release(s->csrAutomaticRuntime);
     if (s->gasGraphExec) cudaGraphExecDestroy(s->gasGraphExec);
     if (s->gasGraph) cudaGraphDestroy(s->gasGraph);
     if (s->gasCaptureStream) cudaStreamDestroy(s->gasCaptureStream);
@@ -1058,8 +1072,10 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->steadySampleSum);release(s->steadySampleSquare);
     release(s->steadySampleMean);release(s->steadySampleBegin);
     release(s->steadySampleScratch);release(s->steadyBoundaryBudget);
+    release(s->steadySampleReductionWorkspace);
     release(s->gasPseudoDt);
     release(s->gasSteadyResidual);
+    release(s->gasSteadyMaximumWorkspace);
 #endif
     release(s->rho);
     release(s->rhoUx);
@@ -2271,20 +2287,21 @@ int launchSplitPrePoissonPoolLightReduction
     DeviceState* s,
     const double dt,
     const int block,
-    const size_t sharedBytes
+    const size_t sharedBytes,
+    cudaStream_t stream=nullptr,bool heavy=false
 )
 {
     cudaError_t err = cudaSuccess;
 
-    if (s->csrHeavyReductionEnabled != 0)
+    if (heavy)
     {
         accumulatePoissonPoolSplitSegmentByCellKernel<true, false, true>
-            <<<s->nCells, block, sharedBytes>>>(s->deviceState, dt);
+            <<<s->nCells, block, sharedBytes,stream>>>(s->deviceState, dt);
     }
     else
     {
         accumulatePoissonPoolSplitSegmentByCellKernel<true, false, false>
-            <<<s->nCells, block, sharedBytes>>>(s->deviceState, dt);
+            <<<s->nCells, block, sharedBytes,stream>>>(s->deviceState, dt);
     }
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -2295,15 +2312,15 @@ int launchSplitPrePoissonPoolLightReduction
 
     if (s->preInjectionSegmentActive != 0)
     {
-        if (s->csrHeavyReductionEnabled != 0)
+        if (heavy)
         {
             accumulatePoissonPoolSplitSegmentByCellKernel<false, true, true>
-                <<<s->nCells, block, sharedBytes>>>(s->deviceState, dt);
+                <<<s->nCells, block, sharedBytes,stream>>>(s->deviceState, dt);
         }
         else
         {
             accumulatePoissonPoolSplitSegmentByCellKernel<false, true, false>
-                <<<s->nCells, block, sharedBytes>>>(s->deviceState, dt);
+                <<<s->nCells, block, sharedBytes,stream>>>(s->deviceState, dt);
         }
         err = cudaGetLastError();
         if (err != cudaSuccess)
@@ -2344,10 +2361,11 @@ int launchCsrHeavyPoolReduction
     const double dt,
     const bool poissonMode,
     const int block,
-    const int useSplitPreDirectory
+    const int useSplitPreDirectory,
+    cudaStream_t stream=nullptr
 )
 {
-    return launchCsrSegmentedPoolReduction(s, dt, poissonMode, block);
+    return launchCsrSegmentedPoolReduction(s, dt, poissonMode, block,stream);
 
 }
 
@@ -3239,7 +3257,7 @@ int collectDevelopmentProbeSample
     long double sumSquares = 0.0L;
     int occupancyMin = INT_MAX;
     int occupancyMax = INT_MIN;
-    if (s->csrHeavyReductionEnabled != 0)
+    if (sample.heavyReductionEnabled != 0)
     {
         int dynamicPolicy[2] = {0, 0};
         err = cudaMemcpy
@@ -3272,7 +3290,7 @@ int collectDevelopmentProbeSample
         sample.occupancyNonEmpty += count > 0 ? 1 : 0;
         if
         (
-            s->csrHeavyReductionEnabled != 0
+            sample.heavyReductionEnabled != 0
          && count > sample.heavyThreshold
         )
         {
@@ -3879,6 +3897,13 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->csrHeavyReductionMode = csrHeavyReductionMode;
     s->csrHeavyAutoInterval = csrHeavyAutoInterval;
     s->csrHeavyReductionEnabled = csrHeavyReductionMode != 0 ? 1 : 0;
+    if(csrHeavyReductionMode==2){
+        const auto allocation=cudaMalloc(reinterpret_cast<void**>(&s->csrAutomaticRuntime),sizeof(ugkp::gpu::CsrAutomaticRuntime));
+        if(allocation!=cudaSuccess){setLastError("allocate automatic CSR resident decision",allocation);releaseState(s);return 1;}
+        const ugkp::gpu::CsrAutomaticRuntime initial{};
+        const auto copy=cudaMemcpy(s->csrAutomaticRuntime,&initial,sizeof(initial),cudaMemcpyHostToDevice);
+        if(copy!=cudaSuccess){setLastError("initialize automatic CSR resident decision",copy);releaseState(s);return 1;}
+    }
     s->csrHeavyReductionActive = csrHeavyReductionMode == 1 ? 1 : 0;
     s->particleBlockThreads = particleBlockThreads;
     s->reductionBlockThreads = reductionBlockThreads;
@@ -4839,7 +4864,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 #endif
 
     UGKP_DEV_PROBE_ENTER(ProbeGasFlux);
-    if (advanceGasFluxStage(s, dt, simulationTime-dt) != 0)
+    if (advanceGasFluxScheduled(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -5008,6 +5033,10 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
 
+    if(s->csrHeavyReductionMode==2){
+        setCsrAutomaticTimeStep<<<1,1>>>(s->deviceState,dt);
+        err=cudaGetLastError();if(err!=cudaSuccess){setLastError("publish CSR collision interval",err);return 1;}
+    }
     clearPoissonThermalPoolKernel<<<grid, block>>>(s->deviceState, dt);
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -5020,85 +5049,26 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 
     if (particleGrid > 0)
     {
-        if (s->csrCellLocalPathEnabled != 0)
-        {
-            if (s->csrHeavyReductionEnabled != 0)
-            {
-                if
-                (
-                    launchCsrHeavyPoolReduction
-                    (
-                        s,
-                        dt,
-                        true,
-                        block,
-                        s->useSplitPreDirectory
-                    ) != 0
-                )
-                {
-                    return 1;
+        if(s->csrCellLocalPathEnabled!=0) {
+            const int directory=static_cast<int>(currentPreTransportDirectoryKind(s));
+            const double poolInterval=s->csrHeavyReductionMode==2?0.0:dt;
+            if(launchCsrConditional(s,5+directory,block,directory,0,[&](cudaStream_t stream,bool heavy){
+                if(heavy)return launchCsrHeavyPoolReduction(s,poolInterval,true,block,s->useSplitPreDirectory,stream);
+                if(s->useSplitPreDirectory) {
+                    if(launchSplitPrePoissonPoolLightReduction(s,poolInterval,block,poolReduceSharedBytes,stream,false))return 1;
+                }else{
+                    accumulatePoissonPoolParticlesByCellKernel<false><<<s->nCells,block,poolReduceSharedBytes,stream>>>(s->deviceState,poolInterval);
+                    const auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("accumulatePoissonPoolParticlesByCellKernel launch",error);return 1;}
                 }
-            }
-            else if (s->useSplitPreDirectory != 0)
-            {
-                if
-                (
-                    launchSplitPrePoissonPoolLightReduction
-                    (
-                        s,
-                        dt,
-                        block,
-                        poolReduceSharedBytes
-                    ) != 0
-                )
-                {
-                    return 1;
-                }
-            }
-            else
-            {
-                accumulatePoissonPoolParticlesByCellKernel<false>
-                    <<<s->nCells, block, poolReduceSharedBytes>>>
-                    (s->deviceState, dt);
-                err = cudaGetLastError();
-                if (err != cudaSuccess)
-                {
-                    setLastError
-                    (
-                        "accumulatePoissonPoolParticlesByCellKernel launch",
-                        err
-                    );
-                    return 1;
-                }
-            }
-        }
-        else
-        {
-            accumulateParticlePoolAtomicKernel<true><<<particleGrid, s->particleBlockThreads>>>
-            (
-                s->deviceState,
-                dt
-            );
-            err = cudaGetLastError();
-            if (err != cudaSuccess)
-            {
-                setLastError
-                (
-                    "accumulateParticlePoolAtomicKernel<true> launch",
-                    err
-                );
-                return 1;
-            }
-        }
-        if (s->csrHeavyReductionEnabled == 0)
-        {
-            preparePoissonPoolSamplingKernel<<<grid, block>>>(s->deviceState);
-            err = cudaGetLastError();
-            if (err != cudaSuccess)
-            {
-                setLastError("preparePoissonPoolSamplingKernel launch", err);
-                return 1;
-            }
+                preparePoissonPoolSamplingKernel<<<grid,block,0,stream>>>(s->deviceState);
+                const auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("preparePoissonPoolSamplingKernel launch",error);return 1;}
+                return 0;
+            }))return 1;
+        }else{
+            accumulateParticlePoolAtomicKernel<true><<<particleGrid,s->particleBlockThreads>>>(s->deviceState,dt);
+            err=cudaGetLastError();if(err!=cudaSuccess){setLastError("accumulateParticlePoolAtomicKernel<true> launch",err);return 1;}
+            preparePoissonPoolSamplingKernel<<<grid,block>>>(s->deviceState);
+            err=cudaGetLastError();if(err!=cudaSuccess){setLastError("preparePoissonPoolSamplingKernel launch",err);return 1;}
         }
 
         samplePoissonPoolParticlesKernel<<<particleGrid, s->particleBlockThreads>>>

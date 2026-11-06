@@ -4,6 +4,7 @@
 #include "GpuSolidThermalProperties.H"
 #include "../../../common/gpu/SparseConjugateGradient.H"
 #include "../../../common/gpu/SolidThermalProperties.H"
+#include "../../../common/gpu/ImplicitDiffusion.H"
 #include "autoPtr.H"
 #include "fvMesh.H"
 #include "labelList.H"
@@ -94,6 +95,7 @@ class GpuSolidThermalCandidateSolver
     GpuSolidThermalControls controls_;
     mutable std::unique_ptr<ugkp::gpu::SparseConjugateGradient> sparse_;
     mutable std::unique_ptr<ugkp::gpu::SolidThermalProperties> deviceProperties_;
+    mutable std::unique_ptr<ugkp::gpu::ImplicitDiffusion> residentDiffusion_;
 
 public:
     GpuSolidThermalCandidateSolver
@@ -109,8 +111,13 @@ public:
     (
         const volScalarField& registeredTemperature,
         const List<scalarField>& interfaceEnergyJ,
-        scalar deltaTExchange
+        scalar deltaTExchange,
+        const ugkp::gpu::ThermalInterfaceEnergyDeviceView& residentEnergy = {},
+        const ugkp::gpu::ThermalInterfaceEnergyDeviceView& appendedEnergy = {}
     ) const;
+
+    ugkp::gpu::ThermalSolidContactDeviceView contactState(const volScalarField&,label patch,bool initialise) const;
+    ugkp::gpu::ThermalInterfaceStateDeviceView interfaceState(const labelList& contactPairIds,label pairs) const;
 
     void publishSolidCandidate
     (

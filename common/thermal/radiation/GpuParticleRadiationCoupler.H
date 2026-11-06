@@ -27,6 +27,7 @@ struct ParticleRadiationMaterialSnapshot
     scalar particleHeatFactorJkgK;
     scalar elapsedCouplingTimeS;
     ugkp::gpu::ParticleRadiationResponseView response{};
+    ugkp::gpu::RadiationParticleDeviceView resident{};
 };
 
 struct ParticleRadiationMaterialResult
@@ -40,6 +41,7 @@ struct ParticleRadiationMaterialResult
     List<scalarField> solidWallRadiationEnergyJ;
     scalar escapedBoundaryRadiationEnergyJ;
     scalar radiativeEnergyMagnitudeJ=0;
+    ugkp::gpu::RadiationMaterialDeviceView resident{};
 };
 
 namespace detail
@@ -99,7 +101,7 @@ ParticleRadiationMaterialResult solveParticleRadiationTransaction
         snapshot.epsilonS.size() >= context.mesh.nCells()
      && canonicalTemperatureK.size() >= context.mesh.nCells()
      && canonicalDiameterM.size() >= context.mesh.nCells();
-    if (canonicalCellArraysHaveMeshSize)
+    if (!snapshot.resident.enabled && canonicalCellArraysHaveMeshSize)
     {
         for (label cellI = 0; cellI < context.mesh.nCells(); ++cellI)
         {
@@ -127,7 +129,8 @@ ParticleRadiationMaterialResult solveParticleRadiationTransaction
         snapshot.coupledWallEmissivity,
         snapshot.particleHeatFactorJkgK,
         snapshot.elapsedCouplingTimeS,
-        snapshot.response
+        snapshot.response,
+        snapshot.resident
     };
 
     validateParticleRadiationSnapshot(context, canonicalSnapshot);
@@ -142,7 +145,8 @@ ParticleRadiationMaterialResult solveParticleRadiationTransaction
             trialTemperatureK,
             canonicalSnapshot.representativeDiameterM,
             canonicalSnapshot.wallTemperatureK,
-            canonicalSnapshot.coupledWallEmissivity
+            canonicalSnapshot.coupledWallEmissivity,
+            canonicalSnapshot.resident
         };
         return solveRadiation(workspace, trialSnapshot);
     };

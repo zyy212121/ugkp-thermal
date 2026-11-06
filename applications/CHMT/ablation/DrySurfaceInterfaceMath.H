@@ -26,9 +26,10 @@ CHMT_HD inline dry::SurfaceProduction<Nc,Ns> drySurfaceProduction(const SurfaceP
 // Sharp recession represents one exposed effective phase or a congruent mixture.
 // Bulk pyrolysis may contain independent condensed constituents; it does not by
 // itself imply their selective surface loss is a closed sharp-front model.
+template<class Team=ugkwp::gaswall::detail::SerialWallTeam>
 CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
     const PhysicsConfig& p, const MaterialPrimitive& material, Real filmT, Real topT,
-    bool birth, SurfacePhysicsResult& out,bool* numericalFailure=nullptr) {
+    bool birth, SurfacePhysicsResult& out,bool* numericalFailure=nullptr,const Team& team=Team{}) {
     if(numericalFailure)*numericalFailure=true;
     if((p.wallModel.family!=ugkwp::gaswall::WallFamily::LowRe&&p.wallModel.family!=ugkwp::gaswall::WallFamily::BoundaryLayer))return false;
     const Real mechanicalPressure=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
@@ -187,7 +188,7 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
             for(int s=0;s<Ns;++s) sameClosure=sameClosure && allSpecies[s]==wallClosureSpecies[s];
             if(!sameClosure){
                 if(!evaluateInterfaceGasClosure(in.bulk,in.gradient,topT,in.gasDistance,velocity,in.gasNormal,
-                    trial.gasWallSpeed,allSpecies,fluxTolerance,p,in.wallContext,wallClosure,numericalFailure))return false;
+                    trial.gasWallSpeed,allSpecies,fluxTolerance,p,in.wallContext,wallClosure,numericalFailure,team))return false;
                 wallClosureReady=true;wallClosureSpeed=trial.gasWallSpeed;wallClosureVelocity=velocity;
                 for(int s=0;s<Ns;++s)wallClosureSpecies[s]=allSpecies[s];
             }
@@ -249,15 +250,19 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
     if ((!finite(result.thermalResidual) || !finite(result.phaseEnergy))) return surfaceEnergyFailure(p,result.thermalResidual,result.phaseEnergy);
     out=result; return true;
 }
-struct DrySurfaceEvaluation {
+template<class Team=ugkwp::gaswall::detail::SerialWallTeam>
+struct DrySurfaceEvaluationWithTeam {
     CHMT_HD static bool evaluate(const SurfacePhysicsInput& in,const PhysicsConfig& p,
         const MaterialPrimitive& material,Real filmT,Real topT,bool birth,
         SurfacePhysicsResult& out,bool* numericalFailure) {
-        return evaluateDrySurfaceTemperature(in,p,material,filmT,topT,birth,out,numericalFailure);
+        return evaluateDrySurfaceTemperature(in,p,material,filmT,topT,birth,out,numericalFailure,Team{});
     }
 };
+using DrySurfaceEvaluation=DrySurfaceEvaluationWithTeam<>;
+template<class Team=ugkwp::gaswall::detail::SerialWallTeam>
 CHMT_HD inline bool solveDrySurfaceInterface(const SurfacePhysicsInput& in,const PhysicsConfig& p,
-    SurfacePhysicsResult& out,DeviceStatus* status=nullptr,bool* numericalFailure=nullptr) {
+    SurfacePhysicsResult& out,DeviceStatus* status=nullptr,bool* numericalFailure=nullptr,const Team& team=Team{}) {
+    const auto& lanePhysics=team.leader()?p:*in.wallContext.quietPhysics;
     if(numericalFailure)*numericalFailure=true;
     if ((!(in.area>0 && in.gasArea>0 && in.gasDistance>0) || !finite(in.normal) || !finite(in.gasNormal)
         || mag(in.normal)==0
@@ -265,23 +270,29 @@ CHMT_HD inline bool solveDrySurfaceInterface(const SurfacePhysicsInput& in,const
         || (in.hasSolid && (mag(in.baseVelocity)!=0 || in.solidDistance<=0 || in.solidArea<=0
             || !finite(in.solidNormal) || mag(in.solidNormal)==0
             || dot(in.normal,in.solidNormal)<=0))
-        || (in.useSweptGeometry && (!finite(in.gasSweptRate) || !finite(in.solidSweptRate))))) return surfaceGeometryFailure(p,in.area,in.gasDistance);
+        || (in.useSweptGeometry && (!finite(in.gasSweptRate) || !finite(in.solidSweptRate))))) return surfaceGeometryFailure(lanePhysics,in.area,in.gasDistance);
     const Real normalResidual=maxValue(absValue(mag(in.normal)-1),maxValue(absValue(mag(in.gasNormal)-1),in.hasSolid?absValue(mag(in.solidNormal)-1):0));
-    if(normalResidual>1e-12)surfaceNormalWarning(p,normalResidual);
+    if(normalResidual>1e-12)surfaceNormalWarning(lanePhysics,normalResidual);
     MaterialPrimitive material;
-    if (in.hasSolid && !recoverMaterial(in.solid,in.solidVolume,p,material,nullptr,-1,numericalFailure)) return false;
+    if (in.hasSolid && !recoverMaterial(in.solid,in.solidVolume,lanePhysics,material,nullptr,-1,numericalFailure)) return false;
     if(!in.hasSolid){if(numericalFailure)*numericalFailure=false;return false;}
     if(!closeEnough(in.gasArea,in.solidArea,p.tolerances.absoluteGeometry,
         p.tolerances.relativeGeometry)||mag(in.gasNormal-in.solidNormal)>1e-10)
-        surfaceAreaWarning(p,in.gasArea-in.solidArea,mag(in.gasNormal-in.solidNormal));
+        surfaceAreaWarning(lanePhysics,in.gasArea-in.solidArea,mag(in.gasNormal-in.solidNormal));
     Real lo=0,hi=std::numeric_limits<Real>::max();
     for(int species=0;species<Ns;++species){lo=maxValue(lo,p.species[species].Tmin);hi=minValue(hi,p.species[species].Tmax);}
     for(int c=0;c<Nc;++c)if(in.solid.condensed[c]>0){lo=maxValue(lo,p.condensed[c].Tmin);hi=minValue(hi,p.condensed[c].Tmax);}
     SurfacePhysicsResult candidate;
-    if(!findFeasibleSurfaceRoot<false,DrySurfaceEvaluation>(in,p,material,material.temperature,
-        lo,hi,candidate,nullptr,numericalFailure))return false;
-    if(!evaluateDrySurfaceTemperature(in,p,material,material.temperature,
-        candidate.topTemperature,false,candidate,numericalFailure))return false;
+    if constexpr(std::is_same<Team,ugkwp::gaswall::detail::SerialWallTeam>::value){
+        if(!findFeasibleSurfaceRoot<false,DrySurfaceEvaluation>(in,p,material,material.temperature,
+            lo,hi,candidate,nullptr,numericalFailure))return false;
+    }else {
+        if(!findFeasibleSurfaceRootImpl<false,DrySurfaceEvaluationWithTeam<Team>>(in,p,
+            *in.wallContext.quietPhysics,material,material.temperature,lo,hi,candidate,
+            nullptr,numericalFailure,team))return false;
+    }
+    if(!evaluateDrySurfaceTemperature(in,lanePhysics,material,material.temperature,
+        candidate.topTemperature,false,candidate,numericalFailure,team))return false;
     // A common current-area/reference-area scale is an exact unit conversion.
     // Other moving offsets retain the existing unsupported-geometry behavior;
     // no tilted/nonconformal moving-front extension is claimed by this adapter.

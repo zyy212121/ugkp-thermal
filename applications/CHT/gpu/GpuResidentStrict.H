@@ -17,6 +17,7 @@
 #include "GpuGasBoundarySpec.H"
 #include "GpuParticleRadiationMath.H"
 #include "thermal/ParticleRadiationApi.H"
+#include "gpu/ThermalInterfaceDeviceView.H"
 #include "cyclicPolyPatch.H"
 #include "emptyPolyPatch.H"
 #include "inletOutletFvPatchFields.H"
@@ -238,6 +239,9 @@ extern "C" int ugkwpGpuResidentStrictUploadGasBoundaryFields
     const double* gasBoundaryT
 );
 
+extern "C" int ugkwpGpuResidentStrictUpdateSolidInterfaceState
+(void*,const ugkp::gpu::ThermalInterfaceStateDeviceView*);
+
 extern "C" int ugkwpGpuResidentStrictUploadGasBoundaryTemperaturePatch
 (
     void* handle,
@@ -261,6 +265,11 @@ extern "C" int ugkwpGpuResidentStrictConfigureInterfaceExchange
 extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchange
 (
     void* handle, double deltaT, const double* radiationEnergy, double* preview
+);
+extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice
+(
+    void* handle, double deltaT, const ugkp::gpu::RadiationMaterialDeviceView* radiation,
+    double* preview, ugkp::gpu::ThermalInterfaceEnergyDeviceView* solidEnergy
 );
 
 extern "C" int ugkwpGpuResidentStrictPeekWallEnergyLedgerRange
@@ -781,7 +790,9 @@ public:
         List<scalarField>& solidEnergy,
         List<scalarField>& gasHeatFlux,
         List<scalarField>& depositedHeatFlux,
-        List<scalarField>& reflectedHeatFlux
+        List<scalarField>& reflectedHeatFlux,
+        const ugkp::gpu::RadiationMaterialDeviceView* residentRadiation=nullptr,
+        ugkp::gpu::ThermalInterfaceEnergyDeviceView* residentSolidEnergy=nullptr
     ) const
     {
         requireInitialised("previewInterfaceExchange");
@@ -792,12 +803,11 @@ public:
         scalarField preview(3*count + solidCount);
         check
         (
-            ugkwpGpuResidentStrictPreviewInterfaceExchange
-            (
-                handle_, deltaT,
-                radiationEnergy.empty() ? nullptr : radiationEnergy.begin(),
-                preview.begin()
-            ),
+            residentSolidEnergy
+            ? ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice
+              (handle_, deltaT, residentRadiation, preview.begin(), residentSolidEnergy)
+            : ugkwpGpuResidentStrictPreviewInterfaceExchange
+              (handle_, deltaT, radiationEnergy.empty() ? nullptr : radiationEnergy.begin(), preview.begin()),
             "preview compact GPU interface exchange"
         );
         const label pairs = gasWallEnergyPatchSizes_.size();
@@ -1025,6 +1035,12 @@ public:
         totalEnergy.transfer(deposited);
     }
 
+    void updateSolidInterfaceState(const ugkp::gpu::ThermalInterfaceStateDeviceView& view)
+    {
+        requireInitialised("updateSolidInterfaceState");
+        check(ugkwpGpuResidentStrictUpdateSolidInterfaceState(handle_,&view),"publish resident solid interface state");
+    }
+
     void updateSolidWallTemperatures
     (
         const fvMesh& mesh,
@@ -1164,6 +1180,22 @@ public:
         check(ugkwpGpuResidentStrictParticleRadiationResponse(handle_,&response),
             "borrow resident particle radiation response");
         return response;
+    }
+
+    ugkp::gpu::RadiationParticleDeviceView radiationParticleDeviceState() const
+    {
+        requireInitialised("radiationParticleDeviceState");
+        ugkp::gpu::RadiationParticleDeviceView result;
+        check(ugkwpGpuResidentStrictBorrowRadiationParticleState(handle_,&result),
+            "borrow resident radiation particle state");
+        return result;
+    }
+
+    void applyParticleRadiationDeviceEnergy(const ugkp::gpu::RadiationMaterialDeviceView& result)
+    {
+        requireInitialised("applyParticleRadiationDeviceEnergy");
+        check(ugkwpGpuResidentStrictApplyParticleRadiationDeviceEnergy(handle_,&result),
+            "apply resident caloric particle-radiation energy");
     }
 
     void downloadMobileParticleRadiationMaterial

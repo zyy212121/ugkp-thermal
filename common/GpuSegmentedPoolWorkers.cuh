@@ -149,7 +149,8 @@ int launchCsrSegmentedPoolReduction
     DeviceState* s,
     const GPU_OPERATOR_TIME dt,
     const bool poissonMode,
-    const int block
+    const int block,
+    cudaStream_t stream=nullptr
 )
 {
     if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0)
@@ -157,7 +158,7 @@ int launchCsrSegmentedPoolReduction
         return 0;
     }
     cudaError_t err = cudaSuccess;
-    err = resetCsrPersistentQueue(s);
+    err = resetCsrPersistentQueue(s,stream);
     if (err != cudaSuccess)
     {
         setLastError("reset CSR persistent queue", err);
@@ -172,21 +173,21 @@ int launchCsrSegmentedPoolReduction
         if (s->csrReductionDirectoryKind == static_cast<int>(HeavyDirectoryKind::full))
         {
             accumulateCsrSegmentedPoolTasksPersistentKernel<true, HeavyDirectoryKind::full>
-                <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+                <<<s->csrHeavyWorkerGrid, block, sharedBytes,stream>>>(s->deviceState, dt);
         }
         else if (s->csrReductionDirectoryKind == static_cast<int>(HeavyDirectoryKind::baseOnly))
         {
             accumulateCsrSegmentedPoolTasksPersistentKernel<true, HeavyDirectoryKind::baseOnly>
-                <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+                <<<s->csrHeavyWorkerGrid, block, sharedBytes,stream>>>(s->deviceState, dt);
         }
         else
         {
             accumulateCsrSegmentedPoolTasksPersistentKernel<true, HeavyDirectoryKind::splitBaseAndInjection>
-                <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+                <<<s->csrHeavyWorkerGrid, block, sharedBytes,stream>>>(s->deviceState, dt);
         }
 #else
         accumulateCsrSegmentedPoolTasksPersistentKernel<true>
-            <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+            <<<s->csrHeavyWorkerGrid, block, sharedBytes,stream>>>(s->deviceState, dt);
 #endif
     }
     else
@@ -195,21 +196,21 @@ int launchCsrSegmentedPoolReduction
         if (s->csrReductionDirectoryKind == static_cast<int>(HeavyDirectoryKind::full))
         {
             accumulateCsrSegmentedPoolTasksPersistentKernel<false, HeavyDirectoryKind::full>
-                <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+                <<<s->csrHeavyWorkerGrid, block, sharedBytes,stream>>>(s->deviceState, dt);
         }
         else if (s->csrReductionDirectoryKind == static_cast<int>(HeavyDirectoryKind::baseOnly))
         {
             accumulateCsrSegmentedPoolTasksPersistentKernel<false, HeavyDirectoryKind::baseOnly>
-                <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+                <<<s->csrHeavyWorkerGrid, block, sharedBytes,stream>>>(s->deviceState, dt);
         }
         else
         {
             accumulateCsrSegmentedPoolTasksPersistentKernel<false, HeavyDirectoryKind::splitBaseAndInjection>
-                <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+                <<<s->csrHeavyWorkerGrid, block, sharedBytes,stream>>>(s->deviceState, dt);
         }
 #else
         accumulateCsrSegmentedPoolTasksPersistentKernel<false>
-            <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+            <<<s->csrHeavyWorkerGrid, block, sharedBytes,stream>>>(s->deviceState, dt);
 #endif
     }
     err = cudaGetLastError();
@@ -222,14 +223,14 @@ int launchCsrSegmentedPoolReduction
         s->multiprocessorCount < s->nCells
       ? s->multiprocessorCount
       : s->nCells;
-    err = resetCsrPersistentQueue(s);
+    err = resetCsrPersistentQueue(s,stream);
     if (err != cudaSuccess)
     {
         setLastError("reset CSR persistent queue", err);
         return 1;
     }
     finalizeCsrSegmentedPoolCellsKernel
-        <<<finalizeGrid, block, sharedBytes>>>(s->deviceState);
+        <<<finalizeGrid, block, sharedBytes,stream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {

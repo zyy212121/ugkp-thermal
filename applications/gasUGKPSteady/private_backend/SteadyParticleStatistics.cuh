@@ -1,5 +1,6 @@
 #pragma once
 #include "SteadySamplingMoments.cuh"
+#include "../../../common/gasTransport/GasResidentInterval.H"
 // Parcel boundary inventory audit, before/after injection and face walking.
 // Optional buffers are null for all existing transient executions.
 __global__ void auditSteadyParcelInventoryKernel(DeviceState* sp,int offset,double sign)
@@ -21,11 +22,12 @@ __global__ void auditSteadyGasBoundaryFluxKernel(DeviceState* sp,double dt)
 {
     DeviceState& s=*sp;const int f=s.nInternalFaces+blockIdx.x*blockDim.x+threadIdx.x;
     if(f>=s.nFaces||coupledFaceNeighbour(s,f)>=0)return;
+    const double intervalDt=ugkwp::gasResidentStepDt(s,dt);
     const double q[5]={s.gasPhiRho[f],s.gasPhiRhoUx[f],s.gasPhiRhoUy[f],s.gasPhiRhoUz[f],s.gasPhiRhoE[f]};
-    for(int k=0;k<5;++k)atomicAdd(s.steadyBoundaryBudget+k,-dt*q[k]);
+    for(int k=0;k<5;++k)atomicAdd(s.steadyBoundaryBudget+k,-intervalDt*q[k]);
     if(ugkwp::mixtureGasActive(s))
         for(int k=0;k<ugkwp::compiledGasSpecies;++k)
-            atomicAdd(s.steadyBoundaryBudget+5+k,-dt*s.gasSpecies.flux[k*s.nFaces+f]);
+            atomicAdd(s.steadyBoundaryBudget+5+k,-intervalDt*s.gasSpecies.flux[k*s.nFaces+f]);
 }
 
 int auditSteadyParcelInventory(DeviceState* s,int offset,double sign)

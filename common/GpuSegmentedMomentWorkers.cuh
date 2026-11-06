@@ -103,16 +103,28 @@ __global__ void finalizeCsrSegmentedMomentCellsKernel(DeviceState* sp)
 }
 
 int launchCommonSegmentedMomentReduction
-(DeviceState* s, const int block, const SegmentedMomentOptions options)
+(DeviceState* s, const int block, const SegmentedMomentOptions options,cudaStream_t stream=nullptr)
 {
     const bool gatherSurvivors = options.payload == MomentPayload::gatherSurvivors;
     const bool deferRecovery = options.recovery == MomentRecovery::deferToAdvance;
+#ifdef UGKP_RESIDENT_CSR_CHOICE
+    if(s->csrHeavyReductionMode==2&&!stream&&s->particleCapacity>0) {
+        const int variant=(gatherSurvivors?1:0)+(deferRecovery?2:0);
+        return launchCsrConditional(s,3,block,0,variant,[&](cudaStream_t branchStream,bool heavy){
+            if(heavy)return launchCommonSegmentedMomentReduction(s,block,options,branchStream);
+            const size_t sharedBytes=8u*static_cast<size_t>((block+31)/32)*sizeof(GPU_PIPELINE_REAL);
+            if(gatherSurvivors)accumulateParticleMomentsSegmentedKernel<false,true><<<s->nCells,block,sharedBytes,branchStream>>>(s->deviceState);
+            else accumulateParticleMomentsSegmentedKernel<false,false><<<s->nCells,block,sharedBytes,branchStream>>>(s->deviceState);
+            const auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("automatic CSR light moments",error);return 1;}return 0;
+        });
+    }
+#endif
     if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0)
     {
         return 0;
     }
     cudaError_t err = cudaSuccess;
-    err = resetCsrPersistentQueue(s);
+    err = resetCsrPersistentQueue(s,stream);
     if (err != cudaSuccess)
     {
         setLastError("reset CSR persistent queue", err);
@@ -123,10 +135,10 @@ int launchCommonSegmentedMomentReduction
         8u*static_cast<size_t>(warpCount)*sizeof(GPU_PIPELINE_REAL);
     if (gatherSurvivors)
         accumulateCsrSegmentedMomentTasksPersistentKernel<true>
-            <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState);
+            <<<s->csrHeavyWorkerGrid, block, sharedBytes,stream>>>(s->deviceState);
     else
         accumulateCsrSegmentedMomentTasksPersistentKernel<false>
-            <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState);
+            <<<s->csrHeavyWorkerGrid, block, sharedBytes,stream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -140,14 +152,14 @@ int launchCommonSegmentedMomentReduction
             s->multiprocessorCount < s->nCells
           ? s->multiprocessorCount
           : s->nCells;
-        err = resetCsrPersistentQueue(s);
+        err = resetCsrPersistentQueue(s,stream);
         if (err != cudaSuccess)
         {
             setLastError("reset CSR persistent queue", err);
             return 1;
         }
         finalizeCsrSegmentedMomentCellsKernel
-            <<<finalizeGrid, block, sharedBytes>>>(s->deviceState);
+            <<<finalizeGrid, block, sharedBytes,stream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {

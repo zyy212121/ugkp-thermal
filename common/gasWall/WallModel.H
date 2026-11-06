@@ -48,4 +48,22 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool evaluateWallModel(
     detail::fail(status,WallCode::Unsupported);
     return detail::wallFatal(input,ugkp::diagnostics::Code::MissingOperator,10025);
 }
+// The execution team owns one workspace and one output. Cooperative callers
+// supply team-shared output storage; only the leader publishes it, and the
+// return collective makes that publication visible to the other members.
+// Serial callers use the same mathematical router without extra storage.
+template<class R,int N,int M,class Team>
+UGKWP_GAS_HD inline bool evaluateWallModelWithTeam(
+ const WallInput<R,N>& input,const WallModelConfig<R>& config,WallWorkspace<R,N,M>& workspace,
+ WallOutput<R,N>& output,WallStatus& status,const Team& team){
+    if constexpr(std::is_same<R,WallReal>::value){
+        if(config.model==BoundaryLayerModel::ReactingSst)
+            return evaluateReactingWallLayerImpl(input,config,workspace,output,status,team);
+        if(config.model==BoundaryLayerModel::EquilibriumOde)
+            return evaluateEquilibriumOdeWallLayerImpl(input,config,workspace,output,status,team);
+    }
+    bool accepted=false;
+    if(team.leader())accepted=evaluateWallModel(input,config,workspace,output,status);
+    return team.broadcast(accepted);
+}
 }}

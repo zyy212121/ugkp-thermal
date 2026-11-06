@@ -15,7 +15,7 @@ def test_resident_material_surface_matches_cpu(tmp_path):
     if not Path(smi).is_file() or subprocess.run([smi, "-L"], capture_output=True).returncode:
         pytest.skip("CUDA device required")
     binary = tmp_path / "resident-material-surface"
-    compile_run = subprocess.run([nvcc, "-std=c++17", "-O2", "--Ofast-compile=max",
+    compile_run = subprocess.run([nvcc, "-std=c++17", "-O2", "--Ofast-compile=min",
         "-Xcompiler=-fno-tree-fre", "--expt-relaxed-constexpr", "--fmad=false", "-arch="+os.environ.get("UGKWP_CUDA_ARCH", "sm_89"),
         "-DUGKWP_GAS_SPECIES=2", "-I"+str(SOURCE_ROOT/"applications/CHMT"),
         "-I"+str(SOURCE_ROOT/"common"), "-I"+str(VALIDATION_ROOT/"solvers/CHMT"),
@@ -28,3 +28,7 @@ def test_resident_material_surface_matches_cpu(tmp_path):
     print(run.stdout+run.stderr, end="")
     assert run.returncode == 0, run.stdout+run.stderr
     assert run.stdout.count("PASS resident material surface variant=") == 6
+    assert "PASS cooperative material surface variant=5" in run.stdout
+    assert "PASS cooperative material surface nonlinear-composition" in run.stdout
+    assert "PASS cooperative material surface unavailable-domain" in run.stdout
+    assert run.stdout.count("PASS cooperative ordered root mode=") == 4

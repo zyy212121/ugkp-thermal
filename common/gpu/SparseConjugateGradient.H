@@ -29,6 +29,17 @@ struct SparseLduView {
     // contribution belongs to the initial A*solution, not A*KrylovDirection.
     const double* boundaryJump=nullptr;
 };
+// Coefficients are borrowed device storage. Topology and boundary semantics
+// remain in SparseLduView; readyStream orders their producer without a host wait.
+struct SparseDeviceLduValues {
+    const double* diagonal=nullptr;
+    const double* upper=nullptr;
+    const double* lower=nullptr;
+    const double* source=nullptr;
+    const double* boundaryDiagonal=nullptr;
+    const double* boundarySource=nullptr;
+    void* readyStream=nullptr;
+};
 struct ConjugateGradientControls {
     int maximumIterations=1000, minimumIterations=0;
     double tolerance=1e-6, relativeTolerance=0;
@@ -54,7 +65,8 @@ struct SparseCommunication {
 class SparseConjugateGradient {
     struct Implementation;
     std::unique_ptr<Implementation> data_;
-    ConjugateGradientReport solvePrepared(int,double*,const ConjugateGradientControls&,const SparseCommunication&,const double* initialAffine=nullptr);
+    ConjugateGradientReport solvePrepared(int,double*,const ConjugateGradientControls&,const SparseCommunication&,const double* initialAffine=nullptr,double* deviceSolution=nullptr);
+    void prepareLdu(const SparseLduView&,const SparseDeviceLduValues*);
 public:
     SparseConjugateGradient();
     ~SparseConjugateGradient();
@@ -62,6 +74,10 @@ public:
     SparseConjugateGradient& operator=(const SparseConjugateGradient&)=delete;
     ConjugateGradientReport solveLdu(const SparseLduView&,double* solution,
         const ConjugateGradientControls&,const SparseCommunication& communication={});
+    ConjugateGradientReport solveResidentLdu(const SparseLduView&,const SparseDeviceLduValues&,
+        double* deviceSolution,const ConjugateGradientControls&,const SparseCommunication& communication={});
+    void residualResidentLdu(const SparseLduView&,const SparseDeviceLduValues&,
+        const double* deviceSolution,double* deviceResidual,const SparseCommunication& communication={});
     ConjugateGradientReport solve(const SparseMatrixView&,const double* source,
         double* solution,const ConjugateGradientControls&,
         const SparseCommunication& communication={});

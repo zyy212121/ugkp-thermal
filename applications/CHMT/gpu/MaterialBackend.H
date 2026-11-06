@@ -1,5 +1,6 @@
 #ifndef CHMT_GPU_MATERIALBACKEND_H
 #define CHMT_GPU_MATERIALBACKEND_H
+#include "../../../common/gpu/ScaledThermalSum.H"
 #include "materials/MaterialTransport.H"
 #include "gpu/MaterialThermalBackend.H"
 #include "ablation/CpuSurfaceInterface.H"
@@ -17,9 +18,27 @@ bool prepareResidentMaterialConduction(MaterialBackend&,const HostMesh&,
     const std::vector<Real>& nativeVolumes,std::vector<MaterialThermalInput>&,
     std::string&,bool& numericalFailure);
 bool evaluateResidentMaterialConduction(MaterialBackend&,const std::vector<Real>& temperature,
-    Real dt,std::vector<MaterialThermalCoefficients>&,std::string&);
+    Real dt,std::vector<MaterialThermalCoefficients>&,std::string&,
+    const Real* deviceTemperature=nullptr,void* temperatureStream=nullptr,bool download=true);
+struct MaterialConductionDeviceFields {
+    const Real* capacity=nullptr;
+    const Real* source=nullptr;
+    const Real* conductivity=nullptr;
+    void* readyStream=nullptr;
+    const Real* initialTemperature=nullptr;
+};
+MaterialConductionDeviceFields residentMaterialConductionFields(MaterialBackend&);
+struct MaterialConductionAudit {
+    ugkp::gpu::ScaledThermalSum residualEnergy,inventory,stableChange,boundaryEnergy;
+    Real change=0,invalidTemperature=0;
+    int coefficientError=0,invalidCell=-1;
+};
+bool auditResidentMaterialConduction(MaterialBackend&,const Real* temperature,const Real* previous,
+    const Real* powerResidual,const Real* boundaryFlux,const std::vector<int>& externalBoundary,Real dt,
+    void* producerStream,MaterialConductionAudit&,std::string&);
 bool finishResidentMaterialConduction(MaterialBackend&,const std::vector<Real>& temperature,
-    std::vector<SolidQ>& hostMirror,std::string&,bool& numericalFailure);
+    std::vector<SolidQ>& hostMirror,std::string&,bool& numericalFailure,
+    const Real* deviceTemperature=nullptr,void* temperatureStream=nullptr);
 bool evaluateResidentMaterialTransport(MaterialBackend&,const HostMesh&,
     const std::vector<Real>& sweeps,Real interval,Real cfl,Real& dtLimit,
     std::string&,bool& numericalFailure);

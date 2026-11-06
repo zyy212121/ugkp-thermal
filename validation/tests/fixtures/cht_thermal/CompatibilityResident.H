@@ -8,6 +8,7 @@
 #include "GpuThermalExchangeState.H"
 #include <fstream>
 #include <stdexcept>
+#include "ResidentRadiationFixture.H"
 namespace Foam {
 // Legacy test-only ABI supports the immutable original owner. Production's
 // reduced metadata remains unchanged; these recording files are not codecs.
@@ -18,6 +19,7 @@ struct GpuThermalRestartMirrorMetadata {
 };
 class GpuParticleResidentSolver {
  const fvMesh& mesh_;
+ mutable ResidentRadiationFixture radiationDevice_;
 public:
  scalarField gas,deposited,reflected,uploadedTemperature,radiationEnergy,radiationMean;label radiationApplications{0},enthalpyRefreshes{0};
  labelList faces;label gasResets{0},particleResets{0},gasDownloads{0},particleDownloads{0};
@@ -40,11 +42,32 @@ public:
  void resetParticleWallHeatLedgers(){deposited=0;reflected=0;++particleResets;}
  void downloadAndResetGasWallEnergy(scalarField& g){if(failConsume)throw std::runtime_error("injected actual consume error");++gasDownloads;g.setSize(faces.size());forAll(faces,i)g[i]=gas[faces[i]]+(mismatch?7:0);gas=0;++gasResets;}
  void downloadAndResetParticleWallHeatLedgers(scalarField& d,scalarField& r){particleDownloads+=2;d=deposited;r=reflected;if(mismatch){d+=3;r-=2;}deposited=0;reflected=0;++particleResets;}
+ void updateSolidInterfaceState(const ugkp::gpu::ThermalInterfaceStateDeviceView& view){
+  ResidentRadiationFixture::check(cudaStreamSynchronize(static_cast<cudaStream_t>(view.producerStream)));
+  scalarField values(view.faces),effusivity(view.faces);labelList contact(view.faces);
+  if(view.faces){ResidentRadiationFixture::check(cudaMemcpy(values.begin(),view.temperature,view.faces*sizeof(double),cudaMemcpyDeviceToHost));
+   ResidentRadiationFixture::check(cudaMemcpy(effusivity.begin(),view.effusivity,view.faces*sizeof(double),cudaMemcpyDeviceToHost));
+   ResidentRadiationFixture::check(cudaMemcpy(contact.begin(),view.contactEnabled,view.faces*sizeof(int),cudaMemcpyDeviceToHost));}
+  label solidOffset=0,fluidOffset=0;
+  forAll(interfaceDestinations,p){forAll(interfaceDestinations[p],f){const label i=solidOffset+interfaceDestinations[p][f];
+   uploadedTemperature[faces[fluidOffset+f]]=values[i];if(contact[i]&&!std::isfinite(effusivity[i]))throw std::runtime_error("nonfinite required effusivity");}
+   solidOffset+=interfaceSolidSizes[p];fluidOffset+=interfaceDestinations[p].size();}
+ }
  void updateSolidWallTemperatures(const fvMesh& m,const volScalarField& T,const labelList& patches){forAll(patches,p){const auto& patch=m.boundaryMesh()[patches[p]];forAll(patch,f)uploadedTemperature[patch.start()+f]=T.boundaryField()[patches[p]][f];}}
  void updateParticleWallEffusivities(const fvMesh&,const List<scalarField>& e,const labelList& patches){forAll(patches,p)forAll(e[patches[p]],f)if(!std::isfinite(e[patches[p]][f]))throw std::runtime_error("nonfinite required effusivity");}
  void downloadMobileParticleRadiationMaterial(const fvMesh& mesh,scalarField& mass,scalarField& mean,scalarField& diameter)const{ugkwp::ParticleCaloric law;ugkwp::ParticleThermalCarry<GpuReal> carried{GpuReal(4000),law.enthalpy(4100)-law.enthalpy(4000)};mass.setSize(mesh.nCells(),.001);mean.setSize(mesh.nCells(),ugkwp::effectiveParticleTemperature(carried,law));diameter.setSize(mesh.nCells(),1.5e-4);}
  scalarField particleWallOccupiedContactArea()const{return scalarField(mesh_.nFaces(),0);}
  void applyParticleRadiationEnergy(const fvMesh&,const scalarField& energy,const scalarField&,const scalarField& mean,scalar){radiationEnergy=energy;radiationMean=mean;++radiationApplications;}
+ #ifndef UGKP_TEST_LEGACY_THERMAL_OWNER
+ ugkp::gpu::ParticleRadiationResponseView particleRadiationResponse()const{return {};}
+ #endif
+ ugkp::gpu::RadiationParticleDeviceView radiationParticleDeviceState()const{
+  scalarField mass,mean,diameter;downloadMobileParticleRadiationMaterial(mesh_,mass,mean,diameter);
+  return radiationDevice_.stage(mesh_,mass,mean,diameter,rhoSolid(),particleTemperatureMin());
+ }
+ void applyParticleRadiationDeviceEnergy(const ugkp::gpu::RadiationMaterialDeviceView& result){
+  radiationDevice_.readEnergy(result,radiationEnergy);radiationMean=radiationDevice_.mean;++radiationApplications;
+ }
  void refreshParticleEnthalpyAfterRadiation(){++enthalpyRefreshes;}
  void downloadSharedGasSpecies(const volScalarField&)const{}
  void downloadToHostMirror(Time&,volScalarField&,volVectorField&,volScalarField&,volVectorField&,volScalarField&,volScalarField&,volScalarField&,volVectorField&,volScalarField&,volScalarField&,volScalarField&,volVectorField&,volScalarField&,volScalarField&,volScalarField&,bool)const{}

@@ -1,5 +1,6 @@
 #ifndef CHMT_GPU_BACKEND_H
 #define CHMT_GPU_BACKEND_H
+#include "../../../common/gpu/RadiationResidentView.H"
 #include "core/HostState.H"
 #include "../../../common/gpu/ParticleRadiationResponse.H"
 #include "../../../common/DiagnosticsHost.H"
@@ -29,8 +30,10 @@ bool gasWindowStageGeometry(const Backend&,std::array<HostStageGeometry,2>&,std:
 bool downloadGasWindow(Backend&,HostState&,std::string&);
 bool commitGasWindow(Backend&,HostState&,std::string&);
 bool downloadState(const Backend&,HostState&,std::string&);
-struct ParticleRadiationState {std::vector<Real> mass,temperature,diameter,occupiedArea;ugkp::gpu::ParticleRadiationResponseView response{};};
+struct ParticleRadiationState {ugkp::gpu::RadiationParticleDeviceView resident{};std::vector<Real> mass,temperature,diameter,occupiedArea;ugkp::gpu::ParticleRadiationResponseView response{};};
 bool downloadRadiationState(Backend&,ParticleRadiationState&,std::string&);
+bool borrowRadiationState(Backend&,ParticleRadiationState&,std::string&);
+bool applyResidentRadiationEnergy(Backend&,const ugkp::gpu::RadiationMaterialDeviceView&,std::vector<Real>&,HostState&,std::string&);
 bool applyRadiationEnergy(Backend&,const std::vector<Real>&,std::vector<Real>&,HostState&,std::string&);
 void setWindowRadiationEnergy(Backend&,const std::vector<Real>&);
 

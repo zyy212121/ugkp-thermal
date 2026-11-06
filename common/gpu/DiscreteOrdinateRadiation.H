@@ -1,6 +1,7 @@
 #ifndef UGKP_GPU_DISCRETE_ORDINATE_RADIATION_H
 #define UGKP_GPU_DISCRETE_ORDINATE_RADIATION_H
 #include "MieOpticalProperties.H"
+#include "RadiationResidentView.H"
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -30,6 +31,8 @@ struct RadiationControls {
 };
 struct RadiationSnapshot {
     std::vector<double> epsilon,temperature,diameter,wallTemperature,emissivity;
+    RadiationParticleDeviceView resident;
+    std::vector<unsigned char> residentWallTemperature,contactEmissivity;
 };
 struct RadiationDirectionWarning {
     double residual=0,limit=0;int linearIteration=0,sourceIteration=0;
@@ -58,6 +61,7 @@ public:
     // Explicit diagnostic export; ordinary solves retain angular fields on GPU.
     void downloadIntensities(std::vector<double>&)const;
     void uploadIntensities(const std::vector<double>&);
+    RadiationDeviceView deviceView() const noexcept;
 };
 }}
 #endif

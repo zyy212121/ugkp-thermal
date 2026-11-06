@@ -1,4 +1,5 @@
 #include "ThermalFieldOperators.H"
+#include "ThermalGradientKernels.cuh"
 #include <cuda_runtime.h>
 #include "PinnedTransferQueue.cuh"
 #include <stdexcept>
@@ -12,22 +13,14 @@ template<class T> struct Array {
     void upload(const std::vector<T>& input,PinnedTransferQueue& queue){reserve(input.size());queue.upload(ptr,input.data(),input.size()*sizeof(T));}
     void download(std::vector<T>& output,int n,PinnedTransferQueue& queue){output.resize(n);queue.download(output.data(),ptr,n*sizeof(T));}
 };
-__device__ double linear(double a,double b,double w,int kind){return kind==0?w*(a-b)+b:kind==1?w*a+(1-w)*b:a;}
 __global__ void interpolateScalar(int n,const ScalarFaceInterpolation* input,bool harmonic,double* output){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=n)return;const auto& f=input[i];
-    output[i]=harmonic&&f.kind!=2?(f.owner>0&&f.neighbour>0?1/((1-f.weight)/f.owner+f.weight/f.neighbour):0):linear(f.owner,f.neighbour,f.weight,f.kind);
+    output[i]=thermalScalarInterpolation(f,harmonic);
 }
 __global__ void interpolateDot(int n,const VectorFaceInterpolation* input,double* output){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=n)return;const auto& f=input[i];
-    const double x=linear(f.owner.x,f.neighbour.x,f.weight,f.kind),y=linear(f.owner.y,f.neighbour.y,f.weight,f.kind),z=linear(f.owner.z,f.neighbour.z,f.weight,f.kind);
+    const double x=thermalLinearInterpolation(f.owner.x,f.neighbour.x,f.weight,f.kind),y=thermalLinearInterpolation(f.owner.y,f.neighbour.y,f.weight,f.kind),z=thermalLinearInterpolation(f.owner.z,f.neighbour.z,f.weight,f.kind);
     output[i]=f.direction.x*x+f.direction.y*y+f.direction.z*z;
-}
-__global__ void cellGradient(int n,const int* offsets,const int* faces,const int* signs,
-    const double* value,const ThermalVector* area,const double* volume,ThermalVector* output){
-    const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=n)return;ThermalVector g;
-    for(int j=offsets[c];j<offsets[c+1];++j){const int f=faces[j];const ThermalVector v{area[f].x*value[f],area[f].y*value[f],area[f].z*value[f]};
-        if(signs[j]>0){g.x+=v.x;g.y+=v.y;g.z+=v.z;}else{g.x-=v.x;g.y-=v.y;g.z-=v.z;}}
-    output[c]={g.x/volume[c],g.y/volume[c],g.z/volume[c]};
 }
 __global__ void boundaryGradient(int n,const GradientBoundaryCorrection* input,ThermalVector* output){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=n)return;const auto& f=input[i];
@@ -71,7 +64,7 @@ void ThermalFieldOperators::gradient(const GaussGradientInput& input,std::vector
         d.cells=n;d.internal=ni;d.owner=input.owner;d.neighbour=input.neighbour;
     }
     d.faceValue.upload(input.faceValue,d.transfers);d.volume.upload(input.volume,d.transfers);d.area.upload(input.area,d.transfers);d.vectorOutput.reserve(n);
-    if(n)cellGradient<<<(n+127)/128,128,0,d.stream>>>(n,d.offsets.ptr,d.faces.ptr,d.signs.ptr,d.faceValue.ptr,d.area.ptr,d.volume.ptr,d.vectorOutput.ptr);
+    if(n)thermalGradientDetail::cellGradient<<<(n+127)/128,128,0,d.stream>>>(n,d.offsets.ptr,d.faces.ptr,d.signs.ptr,d.faceValue.ptr,d.area.ptr,d.volume.ptr,d.vectorOutput.ptr);
     d.vectorOutput.download(output,n,d.transfers);d.transfers.finish();
 }
 }}

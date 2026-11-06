@@ -153,8 +153,19 @@ struct SparseConjugateGradient::Implementation {
         ~Graph(){clear();}
     } localGraph;
     int graphRows=-1;std::vector<const void*> graphAddresses;
+    cudaEvent_t externalReady=nullptr,externalDone=nullptr;
+    void waitFor(void* producer){
+        if(!externalReady)checked(cudaEventCreateWithFlags(&externalReady,cudaEventDisableTiming));
+        checked(cudaEventRecord(externalReady,static_cast<cudaStream_t>(producer)));
+        checked(cudaStreamWaitEvent(stream,externalReady,0));
+    }
+    void publishTo(void* consumer){
+        if(!externalDone)checked(cudaEventCreateWithFlags(&externalDone,cudaEventDisableTiming));
+        checked(cudaEventRecord(externalDone,stream));
+        checked(cudaStreamWaitEvent(static_cast<cudaStream_t>(consumer),externalDone,0));
+    }
     Implementation(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfers.bind(stream);const auto status=cudaMallocHost(reinterpret_cast<void**>(&hostRecurrence),8*sizeof(double));if(status!=cudaSuccess){cudaStreamDestroy(stream);stream=nullptr;checked(status);}}
-    ~Implementation(){transfers.discard();if(stream){cudaStreamSynchronize(stream);localGraph.clear();cudaStreamDestroy(stream);}if(hostRecurrence)cudaFreeHost(hostRecurrence);}
+    ~Implementation(){transfers.discard();if(stream){cudaStreamSynchronize(stream);localGraph.clear();cudaStreamDestroy(stream);}if(hostRecurrence)cudaFreeHost(hostRecurrence);if(externalReady)cudaEventDestroy(externalReady);if(externalDone)cudaEventDestroy(externalDone);}
     void reduce(int n,int mode,const double* a,const double* other,double* output,
         const SparseCommunication& comm,double mean=0,const double* stop=nullptr){
         const int blocks=std::max(1,std::min(1024,(n+threads-1)/threads));partial.reserve(blocks);
@@ -220,9 +231,10 @@ ConjugateGradientReport SparseConjugateGradient::solve(const SparseMatrixView& m
     return solvePrepared(n,solution,controls,comm);
 }
 ConjugateGradientReport SparseConjugateGradient::solvePrepared(int n,double* solution,
-    const ConjugateGradientControls& controls,const SparseCommunication& comm,const double* initialAffine){
+    const ConjugateGradientControls& controls,const SparseCommunication& comm,const double* initialAffine,double* deviceSolution){
     auto& d=*data_;d.configureInterface(n,comm);PinnedTransferQueue::Operation operation(d.transfers);const int blocks=(n+threads-1)/threads;
-    d.x.upload(solution,n,d.transfers);
+    if(deviceSolution){d.x.reserve(n);if(n)checked(cudaMemcpyAsync(d.x.ptr,deviceSolution,n*sizeof(double),cudaMemcpyDeviceToDevice,d.stream));}
+    else d.x.upload(solution,n,d.transfers);
     d.r.reserve(n);d.z.reserve(n);d.p.reserve(n);d.ap.reserve(n);
     d.matvec(n,d.x.ptr,d.ap.ptr,comm);
     if(n&&initialAffine)addInitialAffine<<<blocks,threads,0,d.stream>>>(n,initialAffine,d.ap.ptr);
@@ -285,12 +297,13 @@ ConjugateGradientReport SparseConjugateGradient::solvePrepared(int n,double* sol
             if(report.singular)break;
         }while((report.iterations<controls.maximumIterations&&!report.converged)||report.iterations<controls.minimumIterations);
     }
-    if(n)d.transfers.download(solution,d.x.ptr,n*sizeof(double));
+    if(n){if(deviceSolution)checked(cudaMemcpyAsync(deviceSolution,d.x.ptr,n*sizeof(double),cudaMemcpyDeviceToDevice,d.stream));
+        else d.transfers.download(solution,d.x.ptr,n*sizeof(double));}
     d.transfers.finish();return report;
 }
-ConjugateGradientReport SparseConjugateGradient::solveLdu(const SparseLduView& matrix,double* solution,
-    const ConjugateGradientControls& controls,const SparseCommunication& comm){
-    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);const int n=matrix.rows,nf=matrix.faces,nb=matrix.boundaryFaces;
+void SparseConjugateGradient::prepareLdu(const SparseLduView& matrix,const SparseDeviceLduValues* resident){
+    auto& d=*data_;const int n=matrix.rows,nf=matrix.faces,nb=matrix.boundaryFaces;
+    if(resident)d.waitFor(resident->readyStream);
     const auto same=[](const std::vector<int>& old,const int* values,int count){
         return int(old.size())==count&&(count==0||std::equal(old.begin(),old.end(),values));
     };
@@ -320,15 +333,38 @@ ConjugateGradientReport SparseConjugateGradient::solveLdu(const SparseLduView& m
         copy(d.cachedBoundaryOwner,matrix.boundaryOwner,nb);copy(d.cachedBoundaryNeighbour,matrix.boundaryNeighbour,nb);
         d.cachedRows=n;d.cachedEntries=columns.size();
     }
-    d.diagonal.upload(matrix.diagonal,n,d.transfers);d.upper.upload(matrix.upper,nf,d.transfers);d.lower.upload(matrix.lower,nf,d.transfers);
-    d.source.upload(matrix.source,n,d.transfers);d.boundaryDiagonal.upload(matrix.boundaryDiagonal,nb,d.transfers);d.boundarySource.upload(matrix.boundarySource,nb,d.transfers);
+    if(!resident){
+        d.diagonal.upload(matrix.diagonal,n,d.transfers);d.upper.upload(matrix.upper,nf,d.transfers);d.lower.upload(matrix.lower,nf,d.transfers);
+        d.source.upload(matrix.source,n,d.transfers);d.boundaryDiagonal.upload(matrix.boundaryDiagonal,nb,d.transfers);d.boundarySource.upload(matrix.boundarySource,nb,d.transfers);
+    }
     if(matrix.boundaryJump){d.boundaryJump.upload(matrix.boundaryJump,nb,d.transfers);d.affine.reserve(n);}
     d.values.reserve(d.cachedEntries);d.b.reserve(n);d.rowSum.reserve(n);
+    const SparseDeviceLduValues values=resident?*resident:SparseDeviceLduValues{
+        d.diagonal.ptr,d.upper.ptr,d.lower.ptr,d.source.ptr,d.boundaryDiagonal.ptr,d.boundarySource.ptr,d.stream};
     if(n)assembleLdu<<<(n+threads-1)/threads,threads,0,d.stream>>>(n,d.offsets.ptr,d.entrySource.ptr,d.entryKind.ptr,
-        d.boundaryOffsets.ptr,d.boundaryIndices.ptr,d.boundaryNeighbour.ptr,d.diagonal.ptr,d.upper.ptr,d.lower.ptr,
-        d.source.ptr,d.boundaryDiagonal.ptr,d.boundarySource.ptr,d.values.ptr,d.b.ptr,d.rowSum.ptr,
+        d.boundaryOffsets.ptr,d.boundaryIndices.ptr,d.boundaryNeighbour.ptr,values.diagonal,values.upper,values.lower,
+        values.source,values.boundaryDiagonal,values.boundarySource,d.values.ptr,d.b.ptr,d.rowSum.ptr,
         matrix.boundaryJump?d.boundaryJump.ptr:nullptr,matrix.boundaryJump?d.affine.ptr:nullptr);
-    return solvePrepared(n,solution,controls,comm,matrix.boundaryJump?d.affine.ptr:nullptr);
+}
+ConjugateGradientReport SparseConjugateGradient::solveLdu(const SparseLduView& matrix,double* solution,
+    const ConjugateGradientControls& controls,const SparseCommunication& comm){
+    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);prepareLdu(matrix,nullptr);
+    return solvePrepared(matrix.rows,solution,controls,comm,matrix.boundaryJump?d.affine.ptr:nullptr);
+}
+ConjugateGradientReport SparseConjugateGradient::solveResidentLdu(const SparseLduView& matrix,
+    const SparseDeviceLduValues& values,double* solution,const ConjugateGradientControls& controls,const SparseCommunication& comm){
+    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);prepareLdu(matrix,&values);
+    const auto report=solvePrepared(matrix.rows,nullptr,controls,comm,matrix.boundaryJump?d.affine.ptr:nullptr,solution);
+    d.publishTo(values.readyStream);return report;
+}
+void SparseConjugateGradient::residualResidentLdu(const SparseLduView& matrix,
+    const SparseDeviceLduValues& values,const double* solution,double* residual,const SparseCommunication& comm){
+    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);prepareLdu(matrix,&values);
+    const int n=matrix.rows;d.configureInterface(n,comm);d.ap.reserve(n);
+    d.matvec(n,solution,d.ap.ptr,comm);
+    if(n&&matrix.boundaryJump)addInitialAffine<<<(n+threads-1)/threads,threads,0,d.stream>>>(n,d.affine.ptr,d.ap.ptr);
+    if(n)initialResidual<<<(n+threads-1)/threads,threads,0,d.stream>>>(n,d.b.ptr,d.ap.ptr,residual);
+    d.publishTo(values.readyStream);
 }
 
 }}

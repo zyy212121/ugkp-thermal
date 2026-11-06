@@ -221,15 +221,21 @@ struct GasWallClosureContext {
     Real matchingPressure=0,mechanicalPressure=0,matchingDistance=0,ownerDistance=0;
     void* workspace=nullptr;int workspaceCapacity=48;
     ugkwp::gaswall::WallStatus* failureStatus=nullptr;
+    // Optional per-worker publication owned by a cooperative execution team.
+    ugkwp::gaswall::WallOutput<Real,Ns>* teamOutput=nullptr;
+    ugkp::diagnostics::DeviceContext* teamDiagnostics=nullptr;
+    const PhysicsConfig* quietPhysics=nullptr;
 };
 struct InterfaceGasClosure {
     GasPrimitive trace{};Vec3 traction{};Real conductiveHeatFlux=0;
     ugkwp::gaswall::WallExchangeOutput<Real,Ns> layer{};
 };
+template<class Team=ugkwp::gaswall::detail::SerialWallTeam>
 CHMT_HD inline bool evaluateInterfaceGasClosure(const GasPrimitive& bulk,const GasGradient& inputGradient,
     Real temperature,Real distance,Vec3 velocity,Vec3 normal,Real normalSpeed,
     const Real* species,Real fluxTolerance,const PhysicsConfig& p,
-    const GasWallClosureContext& context,InterfaceGasClosure& output,bool* numericalFailure=nullptr) {
+    const GasWallClosureContext& context,InterfaceGasClosure& output,bool* numericalFailure=nullptr,
+    const Team& team=Team{}) {
     InterfaceGasClosure result;
     if(p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){
         if((p.material.gasContactResistance!=0))return false;
@@ -239,7 +245,9 @@ CHMT_HD inline bool evaluateInterfaceGasClosure(const GasPrimitive& bulk,const G
         input.matchingDistance=context.matchingDistance;input.ownerDistance=context.ownerDistance;
         input.matching=context.matching;input.quadrature=context.quadrature;
         input.model.thermo=thermo.view();
-        input.diagnostics=p.diagnostics;input.model.thermo.diagnostics=p.diagnostics;
+        input.diagnostics=p.diagnostics;
+        if(context.teamOutput)input.diagnostics=team.broadcast(p.diagnostics!=nullptr)?context.teamDiagnostics:nullptr;
+        input.model.thermo.diagnostics=input.diagnostics;
         Real elements[Ns*Ne]{};input.model.thermo.elementCount=p.nElements;input.model.thermo.elementComposition=elements;
         for(int s=0;s<Ns;++s)for(int e=0;e<p.nElements;++e)elements[s*p.nElements+e]=p.species[s].element[e]*thermo.data[s].molarMass;
         input.model.mechanism=context.mechanism;input.model.mode=p.gasMode;
@@ -255,16 +263,20 @@ CHMT_HD inline bool evaluateInterfaceGasClosure(const GasPrimitive& bulk,const G
         auto config=p.wallModel;config.enableSst=p.enableSst;
         config.turbulentPrandtl=p.sst.turbulentPrandtl;config.turbulentSchmidt=p.sst.turbulentSchmidt;
         ugkwp::gaswall::WallStatus status;
-        ugkwp::gaswall::WallOutput<Real,Ns> solvedLayer;
+        ugkwp::gaswall::WallOutput<Real,Ns> localLayer;
+        auto& solvedLayer=context.teamOutput?*context.teamOutput:localLayer;
         bool accepted=false;
         if(config.model==ugkwp::gaswall::BoundaryLayerModel::ConstantTransport)
-            accepted=ugkwp::gaswall::evaluateConstantTransportWall(input,config,solvedLayer,status);
-        else if(context.workspace){
-            if(context.workspaceCapacity==24)accepted=ugkwp::gaswall::evaluateWallModel(input,config,*static_cast<ugkwp::gaswall::WallWorkspace<Real,Ns,24>*>(context.workspace),solvedLayer,status);
-            else if(context.workspaceCapacity==48)accepted=ugkwp::gaswall::evaluateWallModel(input,config,*static_cast<ugkwp::gaswall::WallWorkspace<Real,Ns,48>*>(context.workspace),solvedLayer,status);
-            else if(context.workspaceCapacity==128)accepted=ugkwp::gaswall::evaluateWallModel(input,config,*static_cast<ugkwp::gaswall::WallWorkspace<Real,Ns,128>*>(context.workspace),solvedLayer,status);
+        {
+            if(team.leader())accepted=ugkwp::gaswall::evaluateConstantTransportWall(input,config,solvedLayer,status);
+            accepted=team.broadcast(accepted);
         }
-        if(!accepted){if(numericalFailure)*numericalFailure=false;if(context.failureStatus)*context.failureStatus=status;return false;}
+        else if(context.workspace){
+            if(context.workspaceCapacity==24)accepted=ugkwp::gaswall::evaluateWallModelWithTeam(input,config,*static_cast<ugkwp::gaswall::WallWorkspace<Real,Ns,24>*>(context.workspace),solvedLayer,status,team);
+            else if(context.workspaceCapacity==48)accepted=ugkwp::gaswall::evaluateWallModelWithTeam(input,config,*static_cast<ugkwp::gaswall::WallWorkspace<Real,Ns,48>*>(context.workspace),solvedLayer,status,team);
+            else if(context.workspaceCapacity==128)accepted=ugkwp::gaswall::evaluateWallModelWithTeam(input,config,*static_cast<ugkwp::gaswall::WallWorkspace<Real,Ns,128>*>(context.workspace),solvedLayer,status,team);
+        }
+        if(!accepted){if(numericalFailure)*numericalFailure=false;if(team.leader()&&context.failureStatus)*context.failureStatus=status;return false;}
         result.layer=solvedLayer;
         Real mass=0;for(int s=0;s<Ns;++s)mass+=species[s];
         if(!makeInterfacePrimitive(result.layer.traceMassFraction,temperature,input.pressure,velocity,normal,
@@ -287,7 +299,7 @@ CHMT_HD inline bool evaluateInterfaceGasClosure(const GasPrimitive& bulk,const G
         const Real conductance=conductivity>0?1/(distance/conductivity+p.material.gasContactResistance):0;
         result.conductiveHeatFlux=conductance*(temperature-bulk.temperature);
     }
-    output=result;return true;
+    output=result;team.sync();return true;
 }
 CHMT_HD inline bool hertzKnudsenFlux(const FilmQ& film, const Real* gasY, Real pressure,
     Real T, const PhysicsConfig& p, Real* flux) {
@@ -759,10 +771,11 @@ CHMT_HD inline Real surfaceThermalFluxTolerance(const SurfacePhysicsInput& in,co
 }
 // The owner copies immutable physics once per root solve. CUDA device atomics
 // must never target an automatic/thread-local DeviceContext.
-template<bool Track=false,class Evaluation=LegacySurfaceEvaluation>
+template<bool Track=false,class Evaluation=LegacySurfaceEvaluation,class Team=ugkwp::gaswall::detail::SerialWallTeam>
 CHMT_HD inline bool bisectFeasibleSurfaceImpl(const SurfacePhysicsInput& in, const PhysicsConfig& p,
     const PhysicsConfig& trialPhysics,const MaterialPrimitive& material, Real filmT, Real lo, Real hi,
-    SurfacePhysicsResult left, SurfacePhysicsResult right, SurfacePhysicsResult& out,SurfaceRootTrace* trace=nullptr,bool* numericalFailure=nullptr) {
+    SurfacePhysicsResult left, SurfacePhysicsResult right, SurfacePhysicsResult& out,SurfaceRootTrace* trace=nullptr,bool* numericalFailure=nullptr,
+    const Team& team=Team{}) {
     if ((left.thermalResidual>0)==(right.thermalResidual>0)
         && left.thermalResidual!=0 && right.thermalResidual!=0) return false;
     if (left.thermalResidual==0) { out=left; return true; }
@@ -780,7 +793,7 @@ CHMT_HD inline bool bisectFeasibleSurfaceImpl(const SurfacePhysicsInput& in, con
             out=candidate; return true;
         }
         if (T==lo || T==hi || iteration==99) {
-            reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3804,
+            if(team.leader())reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3804,
                 candidate.thermalResidual,fluxTolerance);
             out=candidate;return true;
         }
@@ -802,14 +815,16 @@ CHMT_HD inline bool bisectFeasibleSurface(const SurfacePhysicsInput& in,const Ph
     if(!bisectFeasibleSurfaceImpl<Track,Evaluation>(trialInput,p,trialPhysics,material,filmT,lo,hi,left,right,candidate,trace,numericalFailure))return false;
     return Evaluation::evaluate(in,p,material,filmT,candidate.topTemperature,false,out,numericalFailure);
 }
-template<bool Track=false,class Evaluation=LegacySurfaceEvaluation>
-CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const PhysicsConfig& p,
-    const MaterialPrimitive& material, Real filmT, Real lo, Real hi, SurfacePhysicsResult& out,SurfaceRootTrace* trace=nullptr,bool* numericalFailure=nullptr) {
+template<bool Track=false,class Evaluation=LegacySurfaceEvaluation,class Team=ugkwp::gaswall::detail::SerialWallTeam>
+CHMT_HD inline bool findFeasibleSurfaceRootImpl(const SurfacePhysicsInput& in, const PhysicsConfig& p,
+    const PhysicsConfig& trialPhysics,
+    const MaterialPrimitive& material, Real filmT, Real lo, Real hi, SurfacePhysicsResult& out,SurfaceRootTrace* trace=nullptr,bool* numericalFailure=nullptr,
+    const Team& team=Team{}) {
     if (!(hi>lo)) return false;
     const Real preferred=maxValue(lo,minValue(hi,in.hasFilm && in.film.mass>0 ? filmT : material.temperature));
-    if(!surfaceTemperatureConfiguration(in,p))return false;
-    auto trialPhysics=p;
-    trialPhysics.diagnostics=nullptr;trialPhysics.tolerances.diagnostics=nullptr;
+    bool configured=false;
+    if(team.leader())configured=surfaceTemperatureConfiguration(in,p);
+    if(!team.broadcast(configured))return false;
     auto trialInput=in;trialInput.wallContext.failureStatus=nullptr;
     SurfacePhysicsResult seed;
     if(Track){trace->attempted=preferred;trace->hasAttempt=true;}
@@ -846,8 +861,8 @@ CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const
                 if (valid && previousValid
                     && (current.thermalResidual>0)!=(previous.thermalResidual>0)) {
                     SurfacePhysicsResult root;
-                    if(!bisectFeasibleSurfaceImpl<Track,Evaluation>(trialInput,p,trialPhysics,material,filmT,previousT,T,previous,current,root,trace,numericalFailure)){
-                        if(ugkp::diagnostics::hasFatal(p.diagnostics))return false;
+                    if(!bisectFeasibleSurfaceImpl<Track,Evaluation>(trialInput,p,trialPhysics,material,filmT,previousT,T,previous,current,root,trace,numericalFailure,team)){
+                        if(team.broadcast(ugkp::diagnostics::hasFatal(p.diagnostics)))return false;
                         previousValid=false;continue;}
                     out=root;return true;
                 }
@@ -859,16 +874,28 @@ CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in, const
     if(!hasValid){
         // Retain a real failure record when no mathematical state is evaluable.
         SurfacePhysicsResult failed;
-        if(!Evaluation::evaluate(in,p,material,filmT,preferred,false,failed,numericalFailure)){
-            if(!ugkp::diagnostics::hasFatal(p.diagnostics))interfaceFailure(p,3860,preferred);
+        if(!Evaluation::evaluate(in,team.leader()?p:trialPhysics,material,filmT,preferred,false,failed,numericalFailure)){
+            if(team.leader()&&!ugkp::diagnostics::hasFatal(p.diagnostics))interfaceFailure(p,3860,preferred);
             return false;
         }
         return false;
     }
     // No bracket among feasible states is a finite residual budget,
     // so retain the final mathematical iterate, without selecting an earlier state.
-    reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3831,last.thermalResidual,0);
+    if(team.leader())reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3831,last.thermalResidual,0);
     out=last;return true;
+}
+// Scalar callers retain their original silent trial view. Cooperative owners
+// supply one immutable device-owned copy to the implementation above, avoiding
+// a large per-lane configuration copy at every face and root solve.
+template<bool Track=false,class Evaluation=LegacySurfaceEvaluation,class Team=ugkwp::gaswall::detail::SerialWallTeam>
+CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in,const PhysicsConfig& p,
+    const MaterialPrimitive& material,Real filmT,Real lo,Real hi,SurfacePhysicsResult& out,
+    SurfaceRootTrace* trace=nullptr,bool* numericalFailure=nullptr,const Team& team=Team{}) {
+    auto trialPhysics=p;
+    trialPhysics.diagnostics=nullptr;trialPhysics.tolerances.diagnostics=nullptr;
+    return findFeasibleSurfaceRootImpl<Track,Evaluation>(in,p,trialPhysics,material,filmT,
+        lo,hi,out,trace,numericalFailure,team);
 }
 CHMT_HD inline bool solveSurfaceInterface(const SurfacePhysicsInput& in,
     const PhysicsConfig& p, SurfacePhysicsResult& out, DeviceStatus* status=nullptr,bool* numericalFailure=nullptr) {

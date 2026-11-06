@@ -3,6 +3,7 @@
 #include "gpu/GasWallMath.H"
 #include "../../../common/gasTransport/WallHeatExposure.H"
 #include "gpu/GasWindowProgram.H"
+#include "gpu/CoupledGasInterval.H"
 #include "coupling/IntervalContracts.H"
 namespace chmt {
 // Geometry is uploaded per moving microstep or once per static window.
@@ -71,7 +72,10 @@ __global__ void publishParticleMaterialSurfaceKernel(int count,const int* faces,
 // inventory twice. Incoming flux is deliberately not borrowed in this stage.
 __global__ void boundSurfaceProgressKernel(const SharedGasDeviceView* state,
     const int* cells,int cellCount,const int* faceSlot,const CoupledSurfaceInput* geometry,const WallFaceSample* program,
-    int count,GasWallProgramPosition position,Real dt,bool transportReady,Real* progress){
+    int count,GasWallProgramPosition position,Real dt,bool transportReady,Real* progress,
+    const CoupledGasInterval* interval=nullptr,int stage=0){
+    position=coupledGasPosition(interval,stage,position);
+    dt=ugkwp::gasResidentStepDt(*state,dt);
     const auto& v=*state;const int index=blockIdx.x*blockDim.x+threadIdx.x;
     if(index>=cellCount)return;const int cell=cells[index];
     Real demand[Ns]{},other[Ns]{},demandMass=0,otherMass=0;
@@ -114,7 +118,9 @@ __global__ void boundSurfaceProgressKernel(const SharedGasDeviceView* state,
 }
 __global__ void prepareResidentSurfaceKernel(SharedGasDeviceView* state,const int* faces,
     int count,const CoupledSurfaceInput* geometry,const WallFaceSample* program,
-    GasWallProgramPosition position,const Real* progress,WallFaceSample* bounded,unsigned char* changed=nullptr){
+    GasWallProgramPosition position,const Real* progress,WallFaceSample* bounded,unsigned char* changed=nullptr,
+    const CoupledGasInterval* interval=nullptr,int stage=0){
+    position=coupledGasPosition(interval,stage,position);
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;if(slot>=count)return;
     auto& v=*state;const int face=faces[slot];
     auto w=sampleResidentGasWallFace(program,count,position,slot);
@@ -153,8 +159,11 @@ __global__ void prepareResidentSurfaceKernel(SharedGasDeviceView* state,const in
 __global__ void applyCoupledSurfaceKernel(SharedGasDeviceView* state,const int* faces,int count,
     const CoupledSurfaceInput* supplied,const WallFaceSample* wallProgram,GasWallProgramPosition position,
     const PhysicsConfig* physics,Real dt,bool firstStage,std::uint64_t sequence,std::uint64_t geometryVersion,
-    CoupledSurfaceRecord* records){
+    CoupledSurfaceRecord* records,const CoupledGasInterval* interval=nullptr,int stage=0,bool staged=false){
     if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
+    if(!staged)position=coupledGasPosition(interval,stage,position);
+    dt=ugkwp::gasResidentStepDt(*state,dt);
+    if(interval){sequence=interval->sequence;geometryVersion=interval->geometry;}
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;if(slot>=count)return;
     auto& v=*state;auto& record=records[slot];
     if(firstStage)record=CoupledSurfaceRecord{};
@@ -220,8 +229,12 @@ __global__ void applyCoupledSurfaceKernel(SharedGasDeviceView* state,const int* 
 }
 __global__ void accountCoupledSurfaceKernel(const SharedGasDeviceView* state,const int* faces,int count,
     const CoupledSurfaceInput* supplied,const WallFaceSample* wallProgram,GasWallProgramPosition position,
-    const PhysicsConfig* physics,Real stageDt,Real ledgerDt,CoupledSurfaceRecord* records){
+    const PhysicsConfig* physics,Real stageDt,Real ledgerDt,CoupledSurfaceRecord* records,
+    const CoupledGasInterval* interval=nullptr,int stage=0){
     if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
+    position=coupledGasPosition(interval,stage,position);
+    stageDt=ugkwp::gasResidentStepDt(*state,stageDt);
+    ledgerDt=ugkwp::gasResidentStepDt(*state,ledgerDt);
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;if(slot>=count)return;
     auto& record=records[slot];if(record.failed)return;
     const auto& raw=record.raw;const auto now=readCoupledFaceFlux(*state,faces[slot],physics->singleGasSpecies);

@@ -85,12 +85,15 @@ void releaseInterfaceExchange(GpuWallEnergyState* s)
     release(s->interfaceRadiationEnergy);
     release(s->interfaceCombinedEnergy);
     release(s->interfacePreview);
+    if(s->interfaceInputReady)cudaEventDestroy(s->interfaceInputReady);
+    s->interfaceInputReady=nullptr;
     s->nInterfaceSolidFaces = 0;
 }
 
 __global__ void gatherInterfaceExchangeKernel
 (
-    const GpuWallEnergyState* state, double deltaT, bool hasRadiation
+    const GpuWallEnergyState* state, double deltaT, bool hasRadiation,
+    const double* boundaryRadiation, int boundaryOffset
 )
 {
     const auto& s=*state;
@@ -104,7 +107,7 @@ __global__ void gatherInterfaceExchangeKernel
         ?s.particleWallReflectedEnergy[face]:0.0;
     // Preserve the host expression order: gas + radiation + (deposit + reflect).
     double combined=gas;
-    if(hasRadiation)combined+=s.interfaceRadiationEnergy[slot];
+    if(hasRadiation)combined+=boundaryRadiation?boundaryRadiation[face-boundaryOffset]:s.interfaceRadiationEnergy[slot];
     if(s.particleWallHeatTransferEnabled)combined+=deposited+reflected;
     s.interfaceCombinedEnergy[slot]=combined;
     const double denominator=s.interfaceAreas[slot]*deltaT;
@@ -118,9 +121,11 @@ __global__ void accumulateGasWallEnergy64Kernel
     const double* flux,
     const int* faces,
     const int count,
-    const double dt
+    const double weight,
+    const ugkwp::GasResidentInterval* interval
 )
 {
+    const double dt=interval&&interval->active?weight*interval->dt:weight;
     const int index = blockIdx.x*blockDim.x + threadIdx.x;
     if (index < count)
     {
@@ -130,11 +135,11 @@ __global__ void accumulateGasWallEnergy64Kernel
 }
 }
 
-int ugkpAccumulateGasWallEnergy64(GpuWallEnergyState* s, double dt, cudaStream_t stream)
+int ugkpAccumulateGasWallEnergy64(GpuWallEnergyState* s, double dt, cudaStream_t stream, const ugkwp::GasResidentInterval* interval)
 {
     if (s->nEnabledFaces == 0) return 0;
     accumulateGasWallEnergy64Kernel<<<(s->nEnabledFaces+255)/256, 256, 0, stream>>>
-    (s->gasWallEnergy, s->gasWallFlux, s->enabledFaceIds, s->nEnabledFaces, dt);
+    (s->gasWallEnergy, s->gasWallFlux, s->enabledFaceIds, s->nEnabledFaces, dt, interval);
     const cudaError_t error = cudaGetLastError();
     if (error == cudaSuccess) return 0;
     setLastError(s, "accumulateGasWallEnergy64Kernel launch", error);
@@ -800,7 +805,7 @@ extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchange
                 radiationEnergy,static_cast<size_t>(count),
                 "cudaMemcpy compact interface radiation energy")!=0)return 1;
         gatherInterfaceExchangeKernel<<<(count+255)/256,256>>>
-            (s->deviceState,deltaT,radiationEnergy!=nullptr);
+            (s->deviceState,deltaT,radiationEnergy!=nullptr,nullptr,0);
         const cudaError_t error=cudaGetLastError();
         if(error!=cudaSuccess)
         {
@@ -823,4 +828,50 @@ extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchange
     return copyToHost(s,preview,s->interfacePreview,
         static_cast<size_t>(3*count+s->nInterfaceSolidFaces),
         "cudaMemcpy compact interface exchange preview");
+}
+
+// The DO material workspace owns boundaryEnergy in complete boundary-face
+// order. Read it directly and retain the mapped, integrated solid energy for
+// the implicit owner; optional host publication is diagnostic/output only.
+extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice
+(
+    void* handle,double deltaT,
+    const ugkp::gpu::RadiationMaterialDeviceView* radiation,double* preview,
+    ugkp::gpu::ThermalInterfaceEnergyDeviceView* solidEnergy
+)
+{
+    if(solidEnergy)*solidEnergy={};
+    GpuWallEnergyState* s=asState(handle);
+    if(validateState(s,"preview resident interface exchange")!=0)return 1;
+    const int count=s->nEnabledFaces;
+    if(radiation&&(!radiation->enabled
+        ||radiation->boundaryFaces!=s->nFaces-s->nInternalFaces
+        ||(radiation->boundaryFaces&&!radiation->boundaryEnergy))){
+        setLastErrorText(s,"invalid resident interface radiation energy view");return 1;
+    }
+    if(radiation){
+        cudaError_t error=cudaSuccess;
+        if(!s->interfaceInputReady)error=cudaEventCreateWithFlags(&s->interfaceInputReady,cudaEventDisableTiming);
+        if(error==cudaSuccess)error=cudaEventRecord(s->interfaceInputReady,static_cast<cudaStream_t>(radiation->producerStream));
+        if(error==cudaSuccess)error=cudaStreamWaitEvent(nullptr,s->interfaceInputReady,0);
+        if(error!=cudaSuccess){setLastError(s,"wait for resident interface radiation",error);return 1;}
+    }
+    if(count){
+        gatherInterfaceExchangeKernel<<<(count+255)/256,256>>>(s->deviceState,deltaT,radiation!=nullptr,
+            radiation?radiation->boundaryEnergy:nullptr,s->nInternalFaces);
+        const cudaError_t error=cudaGetLastError();
+        if(error!=cudaSuccess){setLastError(s,"gather resident interface exchange",error);return 1;}
+    }
+    if(s->nInterfaceSolidFaces){
+        ugkp::interfaceExchange::sumMappedFaceValues<<<(s->nInterfaceSolidFaces+255)/256,256>>>(
+            s->nInterfaceSolidFaces,s->interfaceRowOffsets,s->interfaceSourceIndices,
+            s->interfaceCombinedEnergy,s->interfacePreview+3*count);
+        const cudaError_t error=cudaGetLastError();
+        if(error!=cudaSuccess){setLastError(s,"sum resident interface exchange",error);return 1;}
+    }
+    if(preview&&copyToHost(s,preview,s->interfacePreview,
+        static_cast<size_t>(3*count+s->nInterfaceSolidFaces),"publish interface exchange preview")!=0)return 1;
+    if(solidEnergy)*solidEnergy={true,s->nInterfaceSolidFaces,
+        s->interfacePreview?s->interfacePreview+3*count:nullptr,nullptr};
+    return 0;
 }

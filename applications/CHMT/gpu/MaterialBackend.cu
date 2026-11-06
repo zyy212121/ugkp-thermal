@@ -30,10 +30,15 @@ __global__ void prepareConductionKernel(int count,const SolidQ* initial,const Re
     value.inventory=current[c];value.anchor=primitive.temperature;value.target=current[c].energy;
     value.nativeVolume=nativeVolumes[c];value.materialVolume=volumes[c];input[c]=value;
 }
+__global__ void conductionAnchorTemperature(int n,const MaterialThermalInput* input,Real* temperature){
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c<n)temperature[c]=input[c].anchor;
+}
 __global__ void conductionCoefficientsKernel(int count,const MaterialThermalInput* input,
-    const Real* temperature,Real dt,const PhysicsConfig* physics,MaterialThermalCoefficients* output){
+    const Real* temperature,Real dt,const PhysicsConfig* physics,MaterialThermalCoefficients* output,
+    Real* capacity,Real* source,Real* conductivity){
     const int c=blockIdx.x*blockDim.x+threadIdx.x;
-    if(c<count)output[c]=materialThermalCoefficients(input[c],temperature[c],dt,*physics);
+    if(c<count){const auto value=materialThermalCoefficients(input[c],temperature[c],dt,*physics);
+        output[c]=value;capacity[c]=value.capacity;source[c]=value.source;conductivity[c]=value.conductivity;}
 }
 __global__ void finishConductionKernel(int count,const SolidQ* current,const Real* volumes,
     const MaterialThermalInput* input,const Real* temperature,const PhysicsConfig* physics,
@@ -52,6 +57,36 @@ __global__ void selectConductionFailure(const MaterialStepResult* status,int cou
     reduceMaterialFailure(value,result,false);
 }
 
+__device__ void mergeConductionAudit(MaterialConductionAudit& a,const MaterialConductionAudit& b){
+    a.residualEnergy.merge(b.residualEnergy);a.inventory.merge(b.inventory);a.stableChange.merge(b.stableChange);a.boundaryEnergy.merge(b.boundaryEnergy);
+    a.change=fmax(a.change,b.change);if(!a.coefficientError)a.coefficientError=b.coefficientError;
+    if(b.invalidCell>=0&&(a.invalidCell<0||b.invalidCell<a.invalidCell)){a.invalidCell=b.invalidCell;a.invalidTemperature=b.invalidTemperature;}
+}
+__global__ void conductionAuditParts(int cells,int boundary,const MaterialThermalInput* input,const MaterialThermalCoefficients* coefficients,
+    const Real* temperature,const Real* previous,const Real* residual,const Real* flux,const int* external,Real dt,MaterialConductionAudit* parts){
+    __shared__ __align__(16) unsigned char storage[128*sizeof(MaterialConductionAudit)];
+    auto* values=reinterpret_cast<MaterialConductionAudit*>(storage);MaterialConductionAudit a;
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;
+    if(c<cells){const auto value=input[c];const Real T=temperature[c];a.coefficientError=coefficients[c].error;
+        a.inventory.add(absValue(value.target));a.inventory.add(absValue(value.caloric.energy<false>(T)));
+        if(residual)a.residualEnergy.product(dt,absValue(residual[c]));
+        if(previous){if(!finite(T)||T<=0){a.invalidCell=c;a.invalidTemperature=T;}
+            a.stableChange.product(value.caloric.secant<false>(T,value.anchor),T-value.anchor);
+            a.stableChange.add(-value.target);a.stableChange.add(value.caloric.energy<false>(value.anchor));
+            a.change=absValue(T-previous[c])/maxValue(1,maxValue(absValue(T),absValue(previous[c])));}}
+    if(c<boundary&&flux&&external[c])a.boundaryEnergy.product(dt,flux[c]);
+    values[threadIdx.x]=a;__syncthreads();
+    for(int step=64;step;step/=2){if(threadIdx.x<step)mergeConductionAudit(values[threadIdx.x],values[threadIdx.x+step]);__syncthreads();}
+    if(!threadIdx.x)parts[blockIdx.x]=values[0];
+}
+__global__ void conductionAuditFinish(int count,const MaterialConductionAudit* parts,MaterialConductionAudit* output){
+    __shared__ __align__(16) unsigned char storage[128*sizeof(MaterialConductionAudit)];
+    auto* values=reinterpret_cast<MaterialConductionAudit*>(storage);MaterialConductionAudit a;
+    for(int i=threadIdx.x;i<count;i+=blockDim.x)mergeConductionAudit(a,parts[i]);values[threadIdx.x]=a;__syncthreads();
+    for(int step=64;step;step/=2){if(threadIdx.x<step)mergeConductionAudit(values[threadIdx.x],values[threadIdx.x+step]);__syncthreads();}
+    if(!threadIdx.x)*output=values[0];
+}
+
 }
 struct MaterialBackend {
     CudaFault fault;
@@ -60,11 +95,13 @@ struct MaterialBackend {
     ugkp::diagnostics::GpuOwner diagnostics;
     PhysicsConfig physics{};
     std::uint64_t sequence=0,step=0;Real time=0;
-    Buffer<PhysicsConfig> devicePhysics;
+    Buffer<PhysicsConfig> devicePhysics,quietSurfacePhysics;
     Buffer<SolidQ> current,next,initial,gasChange,candidateGasChange,donor;
     Buffer<Real> initialVolumes,conductionVolumes,conductionTemperature;
+    Buffer<Real> conductionCapacity,conductionSource,conductionConductivity;
     Buffer<MaterialThermalInput> conductionInput;
     Buffer<MaterialThermalCoefficients> conductionCoefficients;
+    Buffer<MaterialConductionAudit> conductionAuditParts,conductionAuditResult;Buffer<int> conductionExternal;std::vector<int> cachedConductionExternal;
     Buffer<Real> volumes,nextVolumes,sweeps,gradientSensitivity,stabilityRate,lossLeft,lossRight,cellDt;
     Buffer<Vec3> centres,areas,faceCentres,pressureGradient,poreVelocity;
     Buffer<int> owner,neighbour,periodic,cellOffsets,cellFaces,cellSigns;
@@ -85,6 +122,7 @@ struct MaterialBackend {
     Buffer<SurfacePhysicsResult> surfacePhysics;
     Buffer<WallFaceSample> surfaceWall;
     Buffer<MaterialSurfaceStatus> surfaceStatus;
+    Buffer<ugkwp::gaswall::WallOutput<Real,Ns>> surfaceTeamOutput;
     Buffer<Real> quadratureDistance,quadratureWeight,mechanismBasis;
     Buffer<ugkwp::GasReactionData<Real>> mechanismReactions;
     Buffer<ugkwp::GasStoichTerm<Real>> mechanismReactants,mechanismProducts;
@@ -93,7 +131,13 @@ struct MaterialBackend {
     bool mechanismReady=false,meshReady=false;
     std::uint64_t geometryVersion=0,topologyHash=0;
     int cells=0,faces=0;
-    ~MaterialBackend(){stream.sync();}
+    cudaEvent_t conductionReady=nullptr;
+    ~MaterialBackend(){stream.sync();if(conductionReady)cudaEventDestroy(conductionReady);}
+    bool waitConduction(void* producer){
+        if(!conductionReady&&!fault.check(cudaEventCreateWithFlags(&conductionReady,cudaEventDisableTiming),"create conduction dependency"))return false;
+        return fault.check(cudaEventRecord(conductionReady,static_cast<cudaStream_t>(producer)),"record conduction dependency")
+            &&fault.check(cudaStreamWaitEvent(stream.get(),conductionReady,0),"wait conduction dependency");
+    }
     template<class T> bool allocate(Buffer<T>& buffer,std::size_t size){return buffer.resize(size,fault);}
     template<class T> bool uploadRaw(Buffer<T>& buffer,const T* data,std::size_t size){
         return allocate(buffer,size)&&transfers.upload(buffer.data(),data,size);
@@ -186,6 +230,7 @@ void destroyMaterialBackend(MaterialBackend* b)noexcept{delete b;}
 void setMaterialDiagnosticsSink(MaterialBackend& b,const ugkp::diagnostics::HostSink& sink){b.diagnostics.setSink(sink);}
 bool beginMaterialWindow(MaterialBackend& b,const HostState& state,const PhysicsConfig& physics,std::string& error){
     b.physics=physics;
+    auto quietPhysics=physics;quietPhysics.diagnostics=nullptr;quietPhysics.tolerances.diagnostics=nullptr;
     auto devicePhysics=physics;devicePhysics.diagnostics=b.diagnostics.device();
     devicePhysics.tolerances.diagnostics=b.diagnostics.device();
     b.sequence=state.commitSequence+1;b.step=state.acceptedSteps;b.time=state.time;
@@ -194,7 +239,7 @@ bool beginMaterialWindow(MaterialBackend& b,const HostState& state,const Physics
         ||!b.allocate(b.gasChange,state.solid.size())||!b.gasChange.zero(b.stream.get())
         ||!b.allocate(b.candidateGasChange,state.solid.size())
         ||!b.allocate(b.sourceStatus,state.solid.size())||!b.allocate(b.stepResult,1)
-        ||!b.uploadRaw(b.devicePhysics,&devicePhysics,1)||!b.upload(b.initialVolumes,state.solidMesh.volumes)
+        ||!b.uploadRaw(b.devicePhysics,&devicePhysics,1)||!b.uploadRaw(b.quietSurfacePhysics,&quietPhysics,1)||!b.upload(b.initialVolumes,state.solidMesh.volumes)
         ||!b.upload(b.nextVolumes,state.solidMesh.volumes))return b.failure(error);
     if(!b.configureMesh(state.solidMesh,error))return false;
     b.operation(state.time);
@@ -206,7 +251,8 @@ bool prepareResidentMaterialConduction(MaterialBackend& b,const HostMesh& mesh,
     numerical=true;
     if(!b.configureMesh(mesh,error))return false;
     if(!b.upload(b.conductionVolumes,nativeVolumes)||!b.allocate(b.conductionInput,b.current.size())
-        ||!b.allocate(b.conductionCoefficients,b.current.size()))return b.failure(error);
+        ||!b.allocate(b.conductionCoefficients,b.current.size())||!b.allocate(b.conductionCapacity,b.current.size())
+        ||!b.allocate(b.conductionSource,b.current.size())||!b.allocate(b.conductionConductivity,b.current.size()))return b.failure(error);
     b.operation(b.time);
     if(b.cells)prepareConductionKernel<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,
         b.initial.data(),b.initialVolumes.data(),b.current.data(),b.volumes.data(),b.conductionVolumes.data(),
@@ -217,26 +263,50 @@ bool prepareResidentMaterialConduction(MaterialBackend& b,const HostMesh& mesh,
         ||!b.transfers.download(&result,b.stepResult.data(),1)||!b.finish(error))return b.failure(error);
     if(result.phase){numerical=result.numerical;error=result.phase==1
         ?materialCaloricError(MaterialCaloricCode(result.code)):"CPU conduction old EOS recovery failed";return false;}
+    if(!b.allocate(b.conductionTemperature,b.current.size()))return b.failure(error);
+    if(b.cells)conductionAnchorTemperature<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,b.conductionInput.data(),b.conductionTemperature.data());
     if(!b.read(b.conductionInput,input)||!b.finish(error))return b.failure(error);
     error.clear();return true;
 }
 bool evaluateResidentMaterialConduction(MaterialBackend& b,const std::vector<Real>& temperature,
-    Real dt,std::vector<MaterialThermalCoefficients>& coefficients,std::string& error){
-    if(!b.upload(b.conductionTemperature,temperature))return b.failure(error);
+    Real dt,std::vector<MaterialThermalCoefficients>& coefficients,std::string& error,
+    const Real* deviceTemperature,void* temperatureStream,bool download){
+    if(deviceTemperature){if(!b.waitConduction(temperatureStream))return b.failure(error);}
+    else if(!b.upload(b.conductionTemperature,temperature))return b.failure(error);
     b.operation(b.time);
     if(b.cells)conductionCoefficientsKernel<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,
-        b.conductionInput.data(),b.conductionTemperature.data(),dt,b.devicePhysics.data(),b.conductionCoefficients.data());
-    if(!b.fault.check(cudaGetLastError(),"evaluate resident material conduction")
-        ||!b.read(b.conductionCoefficients,coefficients)||!b.finish(error))return b.failure(error);
+        b.conductionInput.data(),deviceTemperature?deviceTemperature:b.conductionTemperature.data(),dt,b.devicePhysics.data(),b.conductionCoefficients.data(),
+        b.conductionCapacity.data(),b.conductionSource.data(),b.conductionConductivity.data());
+    if(!b.fault.check(cudaGetLastError(),"evaluate resident material conduction"))return b.failure(error);
+    if(download){if(!b.read(b.conductionCoefficients,coefficients)||!b.finish(error))return b.failure(error);}
+    else coefficients.clear();
+    error.clear();return true;
+}
+MaterialConductionDeviceFields residentMaterialConductionFields(MaterialBackend& b){
+    return {b.conductionCapacity.data(),b.conductionSource.data(),b.conductionConductivity.data(),b.stream.get(),b.conductionTemperature.data()};
+}
+bool auditResidentMaterialConduction(MaterialBackend& b,const Real* temperature,const Real* previous,
+    const Real* residual,const Real* flux,const std::vector<int>& external,Real dt,void* stream,
+    MaterialConductionAudit& audit,std::string& error){
+    if(!b.waitConduction(stream))return b.failure(error);
+    if(b.cachedConductionExternal!=external){if(!b.upload(b.conductionExternal,external))return b.failure(error);b.cachedConductionExternal=external;}
+    const int count=std::max(b.cells,static_cast<int>(external.size())),blocks=(count+127)/128;
+    if(!b.allocate(b.conductionAuditParts,blocks)||!b.allocate(b.conductionAuditResult,1))return b.failure(error);
+    if(blocks)conductionAuditParts<<<blocks,128,0,b.stream.get()>>>(b.cells,external.size(),b.conductionInput.data(),b.conductionCoefficients.data(),
+        temperature,previous,residual,flux,b.conductionExternal.data(),dt,b.conductionAuditParts.data());
+    conductionAuditFinish<<<1,128,0,b.stream.get()>>>(blocks,b.conductionAuditParts.data(),b.conductionAuditResult.data());
+    if(!b.fault.check(cudaGetLastError(),"reduce resident material conduction")
+        ||!b.transfers.download(&audit,b.conductionAuditResult.data(),1)||!b.finish(error))return b.failure(error);
     error.clear();return true;
 }
 bool finishResidentMaterialConduction(MaterialBackend& b,const std::vector<Real>& temperature,
-    std::vector<SolidQ>& hostMirror,std::string& error,bool& numerical){
+    std::vector<SolidQ>& hostMirror,std::string& error,bool& numerical,const Real* deviceTemperature,void* temperatureStream){
     numerical=true;
-    if(!b.upload(b.conductionTemperature,temperature))return b.failure(error);
+    if(deviceTemperature){if(!b.waitConduction(temperatureStream))return b.failure(error);}
+    else if(!b.upload(b.conductionTemperature,temperature))return b.failure(error);
     b.operation(b.time);
     if(b.cells)finishConductionKernel<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,b.current.data(),
-        b.volumes.data(),b.conductionInput.data(),b.conductionTemperature.data(),b.devicePhysics.data(),
+        b.volumes.data(),b.conductionInput.data(),deviceTemperature?deviceTemperature:b.conductionTemperature.data(),b.devicePhysics.data(),
         b.next.data(),b.sourceStatus.data());
     selectConductionFailure<<<1,256,0,b.stream.get()>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
     MaterialStepResult result;
@@ -385,6 +455,7 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
             if(contexts){
                 in.wallContext=(*contexts)[f];in.bulk.pressure=in.wallContext.matchingPressure;
                 in.wallContext.mechanism=b.deviceMechanism;in.wallContext.workspace=nullptr;in.wallContext.failureStatus=nullptr;
+                in.wallContext.teamOutput=nullptr;in.wallContext.teamDiagnostics=nullptr;in.wallContext.quietPhysics=nullptr;
                 const auto& q=(*contexts)[f].quadrature;
                 quadratureOffsets[index]=int(distances.size());
                 for(int j=0;j<q.count;++j){distances.push_back(q.distance[j]);weights.push_back(q.volumeWeight[j]);}
@@ -417,6 +488,7 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
         q.volumeWeight=q.count?b.quadratureWeight.data()+quadratureOffsets[f]:nullptr;
     }
     MaterialSurfaceView view;view.count=int(count);view.workers=int(count);
+    const bool cooperativeWall=boundaryLayer&&p.wallModel.model==ugkwp::gaswall::BoundaryLayerModel::EquilibriumOde;
     if(boundaryLayer&&p.wallModel.model!=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport&&count){
         int device=0,sms=0;
         if(!b.fault.check(cudaGetDevice(&device),"query material wall device")
@@ -428,13 +500,19 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
         if(!b.allocate(b.wallWorkspace,sizing.bytes))return b.failure(error);
         view.workers=sizing.slots;view.wallWorkspaces=b.wallWorkspace.data();
     }
+    if(cooperativeWall){
+        if(!b.allocate(b.surfaceTeamOutput,std::size_t(view.workers)))return b.failure(error);
+        view.wallTeamOutput=b.surfaceTeamOutput.data();view.quietPhysics=b.quietSurfacePhysics.data();
+    }
     if(!b.upload(b.surfaceInput,inputs)||!b.upload(b.surfaceCells,solidCells)||!b.upload(b.surfaceActive,active)
         ||!b.allocate(b.surfacePhysics,count)||!b.allocate(b.surfaceWall,count)||!b.allocate(b.surfaceStatus,count))return b.failure(error);
     view.inputs=b.surfaceInput.data();view.solidCells=b.surfaceCells.data();view.solid=candidate?b.next.data():b.current.data();
     view.volumes=candidate?b.nextVolumes.data():b.volumes.data();view.materialRate=useRates?b.rates.data():nullptr;
     view.active=b.surfaceActive.data();view.physicsOut=b.surfacePhysics.data();view.wallOut=b.surfaceWall.data();view.status=b.surfaceStatus.data();
     b.operation(h.time);
-    if(count){
+    if(count&&cooperativeWall){
+        evaluateMaterialSurfaceTeamKernel<<<view.workers,ugkwp::gaswall::detail::wallWarpWidth,0,b.stream.get()>>>(view,b.devicePhysics.data());
+    }else if(count){
         ugkp::gpu::ScalarWorkLaunch launch;
         if(!b.fault.check(ugkp::gpu::scalarWorkLaunch(evaluateMaterialSurfaceKernel,view.workers,launch),
             "schedule independent material surface workers"))return b.failure(error);

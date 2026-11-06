@@ -39,6 +39,7 @@ public:
         interpolation_(input.eof()?Foam::tmp<Foam::surfaceInterpolationScheme<Foam::scalar>>(new FoamThermalLinear(mesh)):
             Foam::surfaceInterpolationScheme<Foam::scalar>::New(mesh,input)){}
     const Foam::word& type()const override{return Foam::fv::gaussGrad<Foam::scalar>::typeName;}
+    bool linearInterpolation()const{return dynamic_cast<const FoamThermalLinear*>(&interpolation_())!=nullptr;}
     Foam::tmp<Foam::volVectorField> calcGrad(const Foam::volScalarField& field,const Foam::word& name)const override {
         using namespace Foam;const auto& mesh=field.mesh();const auto faces=interpolation_().interpolate(field);
         GaussGradientInput input;input.cells=mesh.nCells();input.internalFaces=mesh.nInternalFaces();input.volume.assign(mesh.V().begin(),mesh.V().end());

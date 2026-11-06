@@ -47,9 +47,9 @@ bool CoupledRadiation::advance(Backend& backend,const WallProgram& program,HostS
         forAll(points,i){const auto& p=state.gasMesh.points[i];points[i]=Foam::point(p.x,p.y,p.z);}
         d.mesh.movePoints(points);d.solver->updateGeometry();d.previousPoints=state.gasMesh.points;
     }
-    ParticleRadiationState material;if(!downloadRadiationState(backend,material,error))return false;
-    const int cells=d.mesh.nCells();Foam::scalarField mass(cells),temperature(cells),diameter(cells),epsilon(cells);
-    for(int c=0;c<cells;++c){mass[c]=material.mass[c];temperature[c]=material.temperature[c];diameter[c]=material.diameter[c];
+    ParticleRadiationState material;if(!borrowRadiationState(backend,material,error))return false;
+    const int cells=d.mesh.nCells();Foam::scalarField mass(cells,0),temperature(cells,0),diameter(cells,0),epsilon(cells,0);
+    if(!material.resident.enabled)for(int c=0;c<cells;++c){mass[c]=material.mass[c];temperature[c]=material.temperature[c];diameter[c]=material.diameter[c];
         epsilon[c]=mass[c]/(d.model.particlePhase.rhoSolid*d.mesh.V()[c]);}
     Foam::List<Foam::scalarField> emissivity(d.mesh.boundary().size());
     forAll(emissivity,p){emissivity[p].setSize(d.mesh.boundary()[p].size(),d.model.physics.emissivity);}
@@ -59,12 +59,12 @@ bool CoupledRadiation::advance(Backend& backend,const WallProgram& program,HostS
         d.wallTemperature.boundaryFieldRef()[patch][local]=wall[f].temperature;
         // Same exposed-area assumption as CHT; surface gas generation is independent.
         const double area=mag(d.mesh.Sf().boundaryField()[patch][local]);
-        emissivity[patch][local]*=std::max(0.,1.-std::min(1.,material.occupiedArea[face]/area));
+        if(!material.resident.enabled)emissivity[patch][local]*=std::max(0.,1.-std::min(1.,material.occupiedArea[face]/area));
     }
-    const Foam::gpuThermal::ParticleRadiationMaterialSnapshot snapshot{epsilon,mass,temperature,diameter,d.wallTemperature,emissivity,0.,elapsed,material.response};
+    const Foam::gpuThermal::ParticleRadiationMaterialSnapshot snapshot{epsilon,mass,temperature,diameter,d.wallTemperature,emissivity,0.,elapsed,material.response,material.resident};
     auto result=d.coupler->solve(snapshot);
-    std::vector<Real> request(result.deltaParticleRadiationEnergyJ.begin(),result.deltaParticleRadiationEnergyJ.end()),actual;
-    if(!applyRadiationEnergy(backend,request,actual,state,error))return false;
+    std::vector<Real> actual;
+    if(!applyResidentRadiationEnergy(backend,result.resident,actual,state,error))return false;
     double particleHeat=0,boundaryHeat=result.escapedBoundaryRadiationEnergyJ,gross=std::fabs(boundaryHeat);
     for(double q:actual){particleHeat+=q;gross+=std::fabs(q);}
     for(const auto& patch:result.solidWallRadiationEnergyJ)for(double q:patch){boundaryHeat+=q;gross+=std::fabs(q);}

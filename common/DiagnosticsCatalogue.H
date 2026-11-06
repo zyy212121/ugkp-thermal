@@ -407,6 +407,7 @@ inline const std::vector<SourceDescriptor>& sourceCatalogue() {
         {30701,"common/GpuMixtureThermalParticleHeat.cuh","mixtureThermalParticleHeatCell",101,"particle caloric heat publication failed"},
         {30702,"common/GpuMixtureThermalParticleHeat.cuh","mixtureThermalParticleHeatCell",77,"nonlinear particle coupled gas temperature inversion failed"},
         {30710,"common/thermal/ParticleGeometryAdapter.cuh","mapAttachedParticleGeometryKernel",64,"attached particle cannot be mapped to the endpoint wall geometry"},
+        {30910,"common/thermal/GpuResidentStrict.cu","prepareResidentRadiationHeat",2047,"nonfinite resident particle radiation heat; publication not committed"},
         {30900,"applications/CHMT/materials/MaterialReactionMath.H","advanceMaterialReactionsMath",56,"finite material substep budget exceeded; computed advancement retained"},
         {30901,"applications/CHMT/ablation/InterfaceMath.H","assembleSurfacePackets",996,"finite phase-composition conservation residual; computed phase packet retained"},
         {31300,"common/gasWall/ReactingWallLayer.H","publishLayer",1229,"nonfinite wall turbulent kinetic energy flux"},

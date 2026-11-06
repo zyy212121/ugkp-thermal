@@ -57,32 +57,48 @@ def candidate_executable(tmp_path_factory):
         r"\1++chtSurfaceSnapshots;\n\1\2",
         observed,
     )
-    # Corrupt the completed candidate, not the input, to exercise the actual
-    # convergence validation on a late face after the OpenFOAM boundary update.
+    # Inject into the state actually consumed by the resident physical operator.
+    # CPU mirrors no longer feed the resident nonlinear iteration.
     observed = observed.replace(
         "        finalSurfaceResidual = scalar(0);",
-        """        if (chtSurfaceFault)
+        """        if (chtSurfaceFault == 2 || chtSurfaceFault == 4 || chtSurfaceFault == 5)
         {
-            fixedGradientFvPatchScalarField& faultPatch =
-                refCast<fixedGradientFvPatchScalarField>
-                (candidate->boundaryFieldRef()[coupledPatchIds_[0]]);
-            const label faultFace = faultPatch.size()-1;
-            const scalar nan = std::numeric_limits<scalar>::quiet_NaN();
-            if (chtSurfaceFault == 1) faultPatch[faultFace] += 1;
-            if (chtSurfaceFault == 2) faultPatch[faultFace] = nan;
-            if (chtSurfaceFault == 3) faultPatch[faultFace] = 0;
-            if (chtSurfaceFault == 4) faultPatch.gradient()[faultFace] = nan;
-            if (chtSurfaceFault == 5)
-                candidate->primitiveFieldRef()[faultPatch.patch().faceCells()[faultFace]] = nan;
-            if (chtSurfaceFault == 6 || chtSurfaceFault == 7)
-                const_cast<scalarField&>(faultPatch.patch().deltaCoeffs())[faultFace] =
-                    chtSurfaceFault == 6 ? scalar(0) : nan;
+            const label patchI=coupledPatchIds_[0],faceI=mesh_.boundary()[patchI].size()-1;
+            const label boundaryI=residentBoundaryOffset[patchI]+faceI;
+            const double nan=std::numeric_limits<double>::quiet_NaN();
+            cudaStreamSynchronize(static_cast<cudaStream_t>(residentDiffusion_->deviceValues().readyStream));
+            if(chtSurfaceFault==5)
+                cudaMemcpy(residentDiffusion_->deviceSolution()+mesh_.boundary()[patchI].faceCells()[faceI],&nan,sizeof(nan),cudaMemcpyHostToDevice);
+            else {
+                cudaMemcpy(const_cast<double*>(residentDiffusion_->deviceBoundaryTemperature())+boundaryI,&nan,sizeof(nan),cudaMemcpyHostToDevice);
+                if(chtSurfaceFault==4)cudaMemcpy(const_cast<double*>(residentDiffusion_->deviceBoundaryGradient())+boundaryI,&nan,sizeof(nan),cudaMemcpyHostToDevice);
+            }
         }
         finalSurfaceResidual = scalar(0);""",
     )
+    observed = observed.replace(
+        "        auto equation=ugkp::gpu::residentImplicitThermalEquation",
+        """        if(chtSurfaceFault==6||chtSurfaceFault==7){
+            const label patchI=coupledPatchIds_[0],faceI=mesh_.boundary()[patchI].size()-1;
+            const_cast<scalarField&>(mesh_.boundary()[patchI].deltaCoeffs())[faceI]=chtSurfaceFault==6?0:std::numeric_limits<scalar>::quiet_NaN();
+        }
+        auto equation=ugkp::gpu::residentImplicitThermalEquation""",
+    )
+    # Finite arbitrary publication values exercise the read-only publication
+    # contract after the converged mathematical boundary has been recovered.
+    observed = re.sub(r"return GpuSolidThermalCandidate\s*\(\s*candidate,",
+        "return GpuSolidThermalCandidate(chtPublishFault(candidate,coupledPatchIds_),",observed)
+    prologue = """#include "GpuSolidThermalCoupler.H"
+#include <cuda_runtime.h>
+int chtSurfaceMaterializations=0,chtSurfaceSnapshots=0,chtSurfaceFault=0;
+Foam::autoPtr<Foam::volScalarField>& chtPublishFault(Foam::autoPtr<Foam::volScalarField>& candidate,const Foam::labelList& patches){
+    if(chtSurfaceFault==1||chtSurfaceFault==3){auto& patch=candidate->boundaryFieldRef()[patches[0]];
+        if(chtSurfaceFault==1)patch.last()+=1;else patch.last()=0;}
+    return candidate;
+}
+"""
     (build / "GpuSolidThermalCoupler.C").write_text(
-        "int chtSurfaceMaterializations = 0;\nint chtSurfaceSnapshots = 0;\nint chtSurfaceFault = 0;\n"
-        + observed
+        prologue + observed
     )
     for name in ("GpuSolidThermalProperties", "GpuThermalExchangeState"):
         (build / (name + ".C")).write_text(f'#include "{THERMAL / (name + ".C")}"\n')
@@ -130,7 +146,9 @@ def test_gas_contact_and_radiation_use_surface_but_solid_solid_uses_owner():
     radiation = source.split("List<scalarField> fluidWallEmissivity() const", 1)[1].split("};\n\nGpuSolidThermalCoupler::GpuSolidThermalCoupler", 1)[0]
     assert "coupledPatchSurfaceTemperature(Tsolid(), solidPatchI)" in radiation
     solid_solid = source.split("GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue", 1)[1].split("const label auxiliaryPatchI =", 1)[1].split("commitPhaseStarted = true;", 1)[0]
-    assert solid_solid.count("coupledPatchOwnerTemperature") == 4
+    assert solid_solid.count("->contactState") == 4
+    contact_owner=source.split("GpuSolidThermalCandidateSolver::contactState",1)[1].split("GpuSolidThermalCandidateSolver::interfaceState",1)[0]
+    assert "faceCells()" in contact_owner and "deviceTemperature()" in contact_owner
     assert "coupledPatchSurfaceTemperature" not in solid_solid
 
 
@@ -159,20 +177,24 @@ def mapping_executable(candidate_executable):
     source = (THERMAL / "GpuSolidThermalCoupler.C").read_text()
     mapping = source.split("    void mapSolidWallTemperatureToFluid", 1)[1].split("    List<scalarField> fluidWallEmissivity() const", 1)[0]
     (build / "WallMapping.inc").write_text("    void mapSolidWallTemperatureToFluid" + mapping)
-    snapshot = source.split("    List<scalarField> previousSurface(coupledPatchIds_.size());", 1)[1].split("    mesh_.schemes().setFluxRequired", 1)[0]
+    snapshot = source.split("    List<scalarField> previousSurface(coupledPatchIds_.size());", 1)[1].split("    ugkp::gpu::installGpuImplicitDiffusion();", 1)[0]
     (build / "SurfaceSnapshot.inc").write_text("    List<scalarField> previousSurface(coupledPatchIds_.size());" + snapshot.replace("    ugkp::gpu::installGpuImplicitDiffusion();", ""))
     membership = source.split("bool isCoupledPatch(", 1)[1].split("autoPtr<volScalarField> thermalFieldOnMesh", 1)[0]
     (build / "PatchMembership.inc").write_text("bool isCoupledPatch(" + membership)
-    if 'if (!deviceProperties_)' in source:
-        properties = '        if (!deviceProperties_)' + source.split('        if (!deviceProperties_)',1)[1].split('        forAll(coupledPatchIds_, coupledI)',1)[0]
-        properties = properties.replace('const auto& cells = mesh_.boundary()[patchI].faceCells();',
-            'if (ownerConductivity) ++ownerGathers; const auto& cells = mesh_.boundary()[patchI].faceCells();')
-        properties = 'std::unique_ptr<ugkp::gpu::SolidThermalProperties> deviceProperties_;\nconst scalarField oldInternal(candidate->primitiveField());\n' + properties
-    else:
-        properties = '        forAll(mesh_.boundary(), patchI)' + source.split('        forAll(mesh_.boundary(), patchI)',1)[1].split('        forAll(coupledPatchIds_, coupledI)',1)[0]
-        gather = 'candidate->boundaryField()[patchI].patchInternalField()'
-        assert properties.count(gather)==1
-        properties=properties.replace(gather,f'(++ownerGathers, {gather})')
+    start=source.index('        std::vector<ugkp::gpu::ThermalPropertyQuery> propertyQueries;')
+    properties=source[start:source.index('        forAll(coupledPatchIds_, coupledI)',start)]
+    properties=properties.replace('const auto& cells = mesh_.boundary()[patchI].faceCells();',
+        'if (ownerConductivity) ++ownerGathers; const auto& cells = mesh_.boundary()[patchI].faceCells();')
+    properties = """
+    const auto tables=properties_.deviceTables();const auto& knots=properties_.caloricKnots();
+    std::unique_ptr<ugkp::gpu::SolidThermalProperties> deviceProperties_(new ugkp::gpu::SolidThermalProperties(tables.data(),knots.begin(),knots.size()));
+    std::unique_ptr<ugkp::gpu::ImplicitDiffusion> residentDiffusion_(new ugkp::gpu::ImplicitDiffusion);
+    residentDiffusion_->uploadSolution(candidate->primitiveField().begin(),candidate->size());
+    deviceProperties_->setCellAnchors(candidate->primitiveField().begin(),candidate->size());
+    labelList residentBoundaryOffset(mesh_.boundary().size());label residentBoundaryCount=0;
+    forAll(mesh_.boundary(),p){residentBoundaryOffset[p]=residentBoundaryCount;residentBoundaryCount+=mesh_.boundary()[p].size();}
+    const bool residentConvergence=false;const label iteration=1;
+    """+properties+'\n}\n'
     (build / 'BoundaryProperties.inc').write_text(properties)
     shutil.copy((VALIDATION_ROOT / 'tests/fixtures/cht_surface/mapping.cpp'), build / "mapping.C")
     (build / "Make/files").write_text("mapping.C\nGpuSolidThermalCoupler.C\nGpuSolidThermalProperties.C\nGpuThermalExchangeState.C\n\nEXE = " + str(build / "mapping") + "\n")
@@ -227,7 +249,7 @@ def test_explicit_completed_interval_ledger_and_restart_guards_are_retained():
     positions = [exchange.index(item) for item in order]
     assert positions == sorted(positions)
     accumulation = exchange.split("scalarField compactRadiationEnergy;", 1)[1].split("autoPtr<GpuSolidThermalCandidate>", 1)[0]
-    assert "radiation().solidWallRadiationEnergyJ" in accumulation
+    assert "radiationDue ? &radiation().resident : nullptr, &residentSolidEnergy" in accumulation
     assert "deltaTExchange, compactRadiationEnergy, solidEnergy" in accumulation
     assert "peekGasWallEnergy()" not in exchange
     assert "peekParticleWallHeatLedgers" not in exchange
