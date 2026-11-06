@@ -128,9 +128,9 @@ __global__ void weightsKernel(int count,const Point* points,const int* offsets,c
         if(!(length>0)){errors[p]=1;return;}weights[k]=1/length;total[p]+=weights[k];}
 }
 __global__ void initializeMotion(int count,const Point* boundary,const unsigned char* fixed,Point* displacement,
-    const int* preErrors,int* errors,MotionControl* control,double tolerance,int maximumIterations){
+    const int* preErrors,int* errors,MotionControl* control,double tolerance,int maximumIterations,const double* deviceTolerance){
     const int p=blockIdx.x*blockDim.x+threadIdx.x;
-    if(!p){*control={};control->tolerance=tolerance;control->maximumIterations=maximumIterations;control->active=count>0&&maximumIterations>0;}
+    if(!p){*control={};control->tolerance=deviceTolerance?*deviceTolerance:tolerance;control->maximumIterations=maximumIterations;control->active=count>0&&maximumIterations>0;}
     if(p<count){displacement[p]=fixed[p]?boundary[p]:Point{};errors[p]=preErrors[p];}
 }
 // A cooperative grid owns the complete recurrence. Every iteration retains
@@ -168,14 +168,92 @@ template<class Kernel> int cooperativeBlocks(Kernel kernel,int requested,int thr
     return std::max(1,std::min(requested,perSm*sms));
 }
 __global__ void publishMotion(int count,const Point* points,const Point* displacement,const Point* boundary,
-    const unsigned char* fixed,bool represented,Point* result){
-    const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p>=count)return;
+    const unsigned char* fixed,bool represented,Point* result,const MotionControl* control){
+    const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p>=count||control->errorPoint!=INT_MAX)return;
     result[p]=points[p]+displacement[p];
     if(represented){result[p]=result[p]-points[p];if(fixed[p])result[p]=boundary[p];}
+ }
+__global__ void publishMotionStatus(const MotionControl* control,const int* errors,HarmonicDeviceStatus* output){
+    if(blockIdx.x||threadIdx.x)return;
+    HarmonicDeviceStatus result;result.residual=control->residual;result.iterations=control->iterations;
+    if(control->errorPoint!=INT_MAX){result.errorPoint=control->errorPoint;result.errorKind=errors[result.errorPoint];}
+    *output=result;
 }
+}
+struct ResidentPolyhedralGeometry::Implementation {
+    int faces=0,cells=0,wallCount=0;Topology cached;std::vector<int> cachedWalls;
+    Array<int> faceOffsets,facePoints,cellOffsets,cellFaces,cellSigns,vertexOffsets,vertices,walls;
+    Array<FaceResult> face;
+    Array<CellResult> cell;
+    Array<Point> area,centre;
+    Array<WallDistanceResult> distance;
+    Array<WallBox> boxes;
+    Array<SweepResult> sweptFaces;
+    TopologyView topology() const {
+        return {faceOffsets.pointer,facePoints.pointer,cellOffsets.pointer,cellFaces.pointer,
+            cellSigns.pointer,vertexOffsets.pointer,vertices.pointer};
+    }
+};
+ResidentPolyhedralGeometry::ResidentPolyhedralGeometry(const Topology& topology,const std::vector<int>& walls)
+    :data_(new Implementation){configure(topology,walls,nullptr);}
+void ResidentPolyhedralGeometry::configure(const Topology& topology,const std::vector<int>& walls,PinnedTransferQueue* transfer){
+    auto& d=*data_;
+    d.faces=topology.faceOffsets.empty()?0:int(topology.faceOffsets.size()-1);
+    d.cells=topology.cellOffsets.empty()?0:int(topology.cellOffsets.size()-1);
+    d.wallCount=int(walls.size());
+    // Construction completes initialization before any borrowed stream uses
+    // the view. Only the legacy publication adapter may reconfigure it, on
+    // its own transfer queue between completed calls; arrays retain capacity.
+    const auto upload=[&](auto& target,const auto& values){
+        if(transfer){target.upload(values,*transfer);return;}
+        target.reserve(values.size());
+        if(!values.empty())checked(cudaMemcpy(target.pointer,values.data(),
+            values.size()*sizeof(values[0]),cudaMemcpyHostToDevice));
+    };
+#define FIELD(name) if(d.cached.name!=topology.name){upload(d.name,topology.name);d.cached.name=topology.name;}
+    FIELD(faceOffsets);FIELD(facePoints);FIELD(cellOffsets);FIELD(cellFaces);
+    FIELD(cellSigns);FIELD(vertexOffsets);FIELD(vertices);
+#undef FIELD
+    if(d.cachedWalls!=walls){upload(d.walls,walls);d.cachedWalls=walls;}
+    d.face.reserve(d.faces);d.area.reserve(d.faces);d.sweptFaces.reserve(d.faces);
+    d.cell.reserve(d.cells);d.centre.reserve(d.cells);d.distance.reserve(d.cells);d.boxes.reserve(d.wallCount);
+}
+ResidentPolyhedralGeometry::~ResidentPolyhedralGeometry()=default;
+PolyhedralGeometryDeviceView ResidentPolyhedralGeometry::view() const {
+    const auto& d=*data_;
+    return {d.faces,d.cells,d.topology(),d.face.pointer,d.cell.pointer,d.area.pointer,
+        d.centre.pointer,d.distance.pointer,d.sweptFaces.pointer};
+}
+void ResidentPolyhedralGeometry::rebuild(const Point* points,void* streamHandle){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(streamHandle);const auto t=d.topology();
+    if(d.faces){
+        rebuildFacesKernel<<<(d.faces+127)/128,128,0,stream>>>(d.faces,t,points,d.face.pointer,d.area.pointer);
+        checked(cudaGetLastError());
+    }
+    if(d.cells){
+        if(d.wallCount){
+            wallBoxesKernel<<<(d.wallCount+127)/128,128,0,stream>>>(d.wallCount,t,points,d.walls.pointer,d.boxes.pointer);
+            checked(cudaGetLastError());
+        }
+        rebuildCellsKernel<<<(d.cells+127)/128,128,0,stream>>>(d.cells,t,points,d.area.pointer,d.cell.pointer,d.centre.pointer);
+        checked(cudaGetLastError());
+        wallDistanceKernel<<<d.cells,128,0,stream>>>(d.cells,t,points,d.centre.pointer,d.wallCount,
+            d.walls.pointer,d.boxes.pointer,d.distance.pointer);
+        checked(cudaGetLastError());
+    }
+}
+void ResidentPolyhedralGeometry::sweep(const Point* old,const Point* endpoint,void* streamHandle){
+    auto& d=*data_;
+    if(d.faces){
+        sweepKernel<<<(d.faces+127)/128,128,0,static_cast<cudaStream_t>(streamHandle)>>>(
+            d.faces,d.topology(),old,endpoint,d.sweptFaces.pointer);
+        checked(cudaGetLastError());
+    }
 }
 struct PolyhedralGeometry::Implementation {
     cudaStream_t stream=nullptr;PinnedTransferQueue transfer;Topology cached;
+    std::unique_ptr<ResidentPolyhedralGeometry> resident;
+    Topology residentTopology;std::vector<int> residentWalls;
     struct RebuildCache {
         Topology topology;std::vector<Point> points;std::vector<int> walls;RebuildResult result;std::size_t bytes=0;std::uint64_t hash=0;
     };
@@ -244,13 +322,19 @@ PolyhedralGeometry::PolyhedralGeometry():data_(new Implementation){}
 PolyhedralGeometry::~PolyhedralGeometry()=default;
 RebuildResult PolyhedralGeometry::rebuild(const Topology& t,const std::vector<Point>& points,const std::vector<int>& walls){
     auto& d=*data_;RebuildResult out;const auto hash=d.queryHash(t,points,walls);if(d.findRebuild(hash,t,points,walls,out))return out;
-    PinnedTransferQueue::Operation operation(d.transfer);d.topology(t);d.points.upload(points,d.transfer);d.walls.upload(walls,d.transfer);
-    const int nf=t.faceOffsets.empty()?0:int(t.faceOffsets.size()-1),nc=t.cellOffsets.empty()?0:int(t.cellOffsets.size()-1);
-    d.faceResult.reserve(nf);d.area.reserve(nf);d.cellResult.reserve(nc);d.centres.reserve(nc);d.distance.reserve(nc);
-    if(nf)rebuildFacesKernel<<<(nf+127)/128,128,0,d.stream>>>(nf,d.view(),d.points.pointer,d.faceResult.pointer,d.area.pointer);
-    if(nc){d.prepareWallBoxes(walls.size());rebuildCellsKernel<<<(nc+127)/128,128,0,d.stream>>>(nc,d.view(),d.points.pointer,d.area.pointer,d.cellResult.pointer,d.centres.pointer);
-        wallDistanceKernel<<<nc,128,0,d.stream>>>(nc,d.view(),d.points.pointer,d.centres.pointer,walls.size(),d.walls.pointer,d.wallBoxes.pointer,d.distance.pointer);}
-    d.faceResult.download(out.faces,nf,d.transfer);d.cellResult.download(out.cells,nc,d.transfer);d.distance.download(out.distance,nc,d.transfer);d.transfer.finish();d.rememberRebuild(hash,t,points,walls,out);return out;
+    PinnedTransferQueue::Operation operation(d.transfer);
+    if(!d.resident||!d.sameTopology(d.residentTopology,t)||d.residentWalls!=walls){
+        if(!d.resident)d.resident.reset(new ResidentPolyhedralGeometry(t,walls));
+        else d.resident->configure(t,walls,&d.transfer);
+        d.residentTopology=t;d.residentWalls=walls;
+    }
+    d.points.upload(points,d.transfer);
+    d.resident->rebuild(d.points.pointer,d.stream);const auto device=d.resident->view();
+    out.faces.resize(device.faces);out.cells.resize(device.cells);out.distance.resize(device.cells);
+    d.transfer.download(out.faces.data(),device.face,out.faces.size()*sizeof(FaceResult));
+    d.transfer.download(out.cells.data(),device.cell,out.cells.size()*sizeof(CellResult));
+    d.transfer.download(out.distance.data(),device.distance,out.distance.size()*sizeof(WallDistanceResult));
+    d.transfer.finish();d.rememberRebuild(hash,t,points,walls,out);return out;
 }
 std::vector<BoundaryMotionPoint> PolyhedralGeometry::boundaryMotion(const Topology& t,int count,const std::vector<Point>& areas,
     const std::vector<BoundaryMotionFace>& faces,const std::vector<unsigned char>& sideFaces,double interval){
@@ -306,10 +390,10 @@ std::vector<EdgeResult> PolyhedralGeometry::surfaceEdges(const Topology& t,const
     std::vector<EdgeResult> out;d.edgeResult.download(out,count,d.transfer);d.transfer.finish();return out;
 }
 struct HarmonicPointMotion::Implementation {
-    int count,blocks,maximumIterations;double tolerance;
+    int count,blocks,maximumIterations;double tolerance;bool externalGeometryUsed=false;
     cudaStream_t stream=nullptr;PinnedTransferQueue transfer;
     Array<Point> points,boundary,displacement,next,result;Array<int> offsets,neighbours,preErrors,errors;Array<unsigned char> fixed;
-    Array<double> weights,total,partial;Array<MotionControl> control;Array<MotionPenalty> penalties;
+    Array<double> weights,total,partial;Array<MotionControl> control;Array<MotionPenalty> penalties;Array<HarmonicDeviceStatus> status;
     Implementation(int n,double tol,int limit):count(n),blocks(cooperativeBlocks(solveMotion,std::max(1,(n+255)/256),256)),maximumIterations(limit),tolerance(tol){
         checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);}
     ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
@@ -317,10 +401,34 @@ struct HarmonicPointMotion::Implementation {
         PinnedTransferQueue::Operation operation(transfer);points.upload(p,transfer);offsets.upload(row,transfer);neighbours.upload(adjacent,transfer);fixed.upload(mask,transfer);
         for(auto* array:{&boundary,&displacement,&next,&result})array->reserve(count);
         for(auto* array:{&preErrors,&errors})array->reserve(count);
-        total.reserve(count);weights.reserve(adjacent.size());partial.reserve(blocks);control.reserve(1);
+        total.reserve(count);weights.reserve(adjacent.size());partial.reserve(blocks);control.reserve(1);status.reserve(1);
         if(count)weightsKernel<<<(count+127)/128,128,0,stream>>>(count,points.pointer,offsets.pointer,neighbours.pointer,fixed.pointer,weights.pointer,total.pointer,preErrors.pointer);
         transfer.finish();
 
+    }
+    HarmonicDeviceView enqueue(const Point* inputPoints,const Point* inputBoundary,
+        const MotionPenalty* inputPenalties,const double* inputTolerance,bool represented,
+        cudaStream_t callerStream,bool refreshWeights){
+        if(refreshWeights&&count){
+            weightsKernel<<<(count+127)/128,128,0,callerStream>>>(count,inputPoints,offsets.pointer,
+                neighbours.pointer,fixed.pointer,weights.pointer,total.pointer,preErrors.pointer);
+            checked(cudaGetLastError());
+        }
+        initializeMotion<<<std::max(1,(count+255)/256),256,0,callerStream>>>(count,inputBoundary,
+            fixed.pointer,displacement.pointer,preErrors.pointer,errors.pointer,control.pointer,
+            tolerance,maximumIterations,inputTolerance);
+        checked(cudaGetLastError());
+        void* arguments[]={&count,&offsets.pointer,&neighbours.pointer,&weights.pointer,&total.pointer,
+            &fixed.pointer,&inputPenalties,&displacement.pointer,&next.pointer,&partial.pointer,&errors.pointer,&control.pointer};
+        checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveMotion),blocks,256,arguments,0,callerStream));
+        if(count){
+            publishMotion<<<(count+255)/256,256,0,callerStream>>>(count,inputPoints,displacement.pointer,
+                inputBoundary,fixed.pointer,represented,result.pointer,control.pointer);
+            checked(cudaGetLastError());
+        }
+        publishMotionStatus<<<1,1,0,callerStream>>>(control.pointer,errors.pointer,status.pointer);
+        checked(cudaGetLastError());
+        return {result.pointer,status.pointer};
     }
 };
 HarmonicPointMotion::HarmonicPointMotion(const std::vector<Point>& points,const std::vector<int>& offsets,const std::vector<int>& neighbours,
@@ -332,20 +440,20 @@ HarmonicPointMotion::HarmonicPointMotion(const std::vector<Point>& points,const 
     if(!penalties.empty()){PinnedTransferQueue::Operation operation(data_->transfer);data_->penalties.upload(penalties,data_->transfer);data_->transfer.finish();}
 }
 HarmonicPointMotion::~HarmonicPointMotion()=default;
+HarmonicDeviceView HarmonicPointMotion::solveDevice(const Point* points,const Point* boundary,
+    const MotionPenalty* penalties,const double* tolerance,bool represented,void* stream){
+    data_->externalGeometryUsed=true;
+    return data_->enqueue(points,boundary,penalties,tolerance,represented,static_cast<cudaStream_t>(stream),true);
+}
 HarmonicResult HarmonicPointMotion::solve(const std::vector<Point>& boundary,bool represented){
     auto& d=*data_;if(boundary.size()!=std::size_t(d.count))throw std::invalid_argument("harmonic motion boundary shape mismatch");
     PinnedTransferQueue::Operation operation(d.transfer);d.boundary.upload(boundary,d.transfer);
-    initializeMotion<<<std::max(1,(d.count+255)/256),256,0,d.stream>>>(d.count,d.boundary.pointer,d.fixed.pointer,d.displacement.pointer,d.preErrors.pointer,d.errors.pointer,
-        d.control.pointer,d.tolerance,d.maximumIterations);
-    void* arguments[]={&d.count,&d.offsets.pointer,&d.neighbours.pointer,&d.weights.pointer,&d.total.pointer,
-        &d.fixed.pointer,&d.penalties.pointer,&d.displacement.pointer,&d.next.pointer,&d.partial.pointer,&d.errors.pointer,&d.control.pointer};
-    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveMotion),d.blocks,256,arguments,0,d.stream));
-    MotionControl status;d.transfer.download(&status,d.control.pointer,sizeof(status));d.transfer.finish();
+    const auto device=d.enqueue(d.points.pointer,d.boundary.pointer,d.penalties.pointer,nullptr,represented,d.stream,d.externalGeometryUsed);
+    HarmonicDeviceStatus status;d.transfer.download(&status,device.status,sizeof(status));d.transfer.finish();
     HarmonicResult result;result.residual=status.residual;result.iterations=status.iterations;
-    if(status.errorPoint!=INT_MAX){result.errorPoint=status.errorPoint;d.transfer.download(&result.errorKind,d.errors.pointer+status.errorPoint,sizeof(int));}
-    else {if(d.count)publishMotion<<<(d.count+255)/256,256,0,d.stream>>>(d.count,d.points.pointer,d.displacement.pointer,d.boundary.pointer,d.fixed.pointer,represented,d.result.pointer);
-        d.result.download(result.points,d.count,d.transfer);}
-    d.transfer.finish();return result;
+    result.errorPoint=status.errorPoint;result.errorKind=status.errorKind;
+    if(status.errorPoint<0){d.result.download(result.points,d.count,d.transfer);d.transfer.finish();}
+    return result;
 }
 
 namespace {

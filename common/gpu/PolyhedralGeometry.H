@@ -4,7 +4,7 @@
 #include "PointMotionMath.H"
 #include <memory>
 #include <vector>
-namespace ugkp { namespace gpu { namespace geometry {
+namespace ugkp { namespace gpu { class PinnedTransferQueue; namespace geometry {
 // Topology/validity policies belong to the application. These operators consume
 // validated CSR topology and preserve the native within-face/within-cell order.
 struct Topology {
@@ -15,6 +15,37 @@ struct BoundaryMotionFace {int face;double previousOffset,offset,thickness;Point
 struct BoundaryMotionPoint {Point displacement,direction;double weight=0,thickness=0;};
 struct RebuildResult {
     std::vector<FaceResult> faces;std::vector<CellResult> cells;std::vector<WallDistanceResult> distance;
+};
+// Borrowed device arrays; valid for the lifetime of the owner. A rebuild
+// overwrites the metric arrays, and sweep overwrites only sweptFaces. The
+// caller orders producers and consumers on its stream (or with device events).
+struct PolyhedralGeometryDeviceView {
+    int faces=0,cells=0;
+    TopologyView topology{};
+    const FaceResult* face=nullptr;
+    const CellResult* cell=nullptr;
+    const Point* area=nullptr;
+    const Point* centre=nullptr;
+    const WallDistanceResult* distance=nullptr;
+    const SweepResult* sweptFaces=nullptr;
+};
+// Immutable topology and wall identity are uploaded once at construction.
+// Coordinates are borrowed directly from their device owner. Enqueue methods
+// allocate nothing, perform no transfer or synchronization, and can be captured
+// in the caller's execution graph. Topology validation remains caller-owned.
+class ResidentPolyhedralGeometry {
+    struct Implementation;std::unique_ptr<Implementation> data_;
+    // The host publication adapter may rebind topology between completed
+    // calls, retaining allocation high-water marks. Resident callers keep
+    // immutable topology, so their captured views cannot be invalidated here.
+    friend class PolyhedralGeometry;
+    void configure(const Topology&,const std::vector<int>&,PinnedTransferQueue*);
+public:
+    ResidentPolyhedralGeometry(const Topology&,const std::vector<int>& wallFaces);
+    ~ResidentPolyhedralGeometry();
+    PolyhedralGeometryDeviceView view() const;
+    void rebuild(const Point* devicePoints,void* stream=nullptr);
+    void sweep(const Point* deviceOld,const Point* deviceEndpoint,void* stream=nullptr);
 };
 class PolyhedralGeometry {
     struct Implementation;std::unique_ptr<Implementation> data_;
@@ -68,6 +99,14 @@ struct HarmonicResult {
     double residual=0;
     int iterations=0,errorPoint=-1,errorKind=0;
 };
+struct HarmonicDeviceStatus {
+    double residual=0;
+    int iterations=0,errorPoint=-1,errorKind=0;
+};
+struct HarmonicDeviceView {
+    const Point* points=nullptr;
+    const HarmonicDeviceStatus* status=nullptr;
+};
 // Immutable geometry/adjacency is shared by every boundary mode in one solve.
 // All Jacobi updates and stopping decisions run on the GPU; no CPU solve path.
 class HarmonicPointMotion {
@@ -78,6 +117,13 @@ public:
         double tolerance,int maximumIterations=20000,const std::vector<MotionPenalty>& penalties={});
     ~HarmonicPointMotion();
     HarmonicResult solve(const std::vector<Point>& boundary,bool representedDisplacement=false);
+    // Adjacency and fixed-point mask remain immutable. Coordinates, constraints
+    // and tolerance may come from an upstream device geometry owner. A null
+    // tolerance uses the constructor value; a null penalty means no penalty.
+    // Result/status stay on device and are ordered on the caller's stream.
+    HarmonicDeviceView solveDevice(const Point* points,const Point* boundary,
+        const MotionPenalty* penalties,const double* tolerance,
+        bool representedDisplacement=false,void* stream=nullptr);
 };
 }}}
 #endif
