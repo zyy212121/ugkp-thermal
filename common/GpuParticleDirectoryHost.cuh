@@ -101,7 +101,7 @@ int prepareSourceFreeSplitPreDirectory(DeviceState* s)
     (
         s->cellParticleOffset,
         0,
-        static_cast<size_t>(s->nCells + 1)*sizeof(int)
+        static_cast<size_t>(s->nCells + 1)*sizeof(int),ugkp::gpu::particleRecordingStream(s)
     );
     if (err != cudaSuccess)
     {

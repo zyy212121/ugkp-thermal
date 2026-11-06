@@ -1,4 +1,5 @@
 #pragma once
+#include "GpuParticleExecutionContext.H"
 // Global copy schedule of the same field operation used by fused moment workers.
 template<bool UseSurvivorDirectory = false>
 __global__ void gatherCellLocalParticlePayloadKernel(DeviceState* sp)
@@ -27,7 +28,7 @@ int launchDeferredSurvivorPayload(DeviceState* s, const int grid, const int thre
     if constexpr (!Fused)
     {
         gatherCellLocalParticlePayloadKernel<true>
-            <<<grid > 0 ? grid : 1, threads>>>(s->deviceState);
+            <<<grid > 0 ? grid : 1, threads,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState);
         const cudaError_t err = cudaGetLastError();
         if (err != cudaSuccess)
         {

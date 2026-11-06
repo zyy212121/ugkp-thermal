@@ -1,4 +1,5 @@
 #pragma once
+#include "ParticleResidentInterval.H"
 // Gas reference projection: one cell target followed by parcel velocity mapping.
 #include "GpuPressureUnsortedAlgebra.cuh"
 #include "GpuPressureParticleUpdate.cuh"
@@ -39,15 +40,17 @@ __device__ inline void applyCollisionalPressureProjectionOneParticle
 #include "GpuPressureCellTraversal.cuh"
 #include "GpuPressureAnalyticAdapter.cuh"
 template<bool SplitDirectory, bool CompactParticles = false>
-__global__ void applyAnalyticPressureProjectionKernel(DeviceState* sp,const double dt)
+__global__ void applyAnalyticPressureProjectionKernel(DeviceState* sp,const double requestedDt)
 {
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
     runCellPressureProjection<AnalyticPressureOperation,
         SplitDirectory?PressureDirectory::Split:PressureDirectory::Full,CompactParticles>(sp,dt);
 }
 
 __global__ void preparePressureProjectionCacheKernel
-(DeviceState* sp, const double kickDt)
+(DeviceState* sp, const double requestedKickDt)
 {
+    const auto kickDt=ugkwp::particleResidentStepDt(*sp,requestedKickDt);
     DeviceState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c < s.nCells)

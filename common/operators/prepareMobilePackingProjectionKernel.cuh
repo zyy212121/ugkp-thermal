@@ -1,11 +1,13 @@
 #pragma once
+#include "ParticleResidentInterval.H"
 // One operator implementation; scalar/time adapters are compile-time only.
 __global__ void prepareMobilePackingProjectionKernel
 (
     DeviceState* sp,
-    const GPU_OPERATOR_TIME dt
+    const GPU_OPERATOR_TIME requestedDt
 )
 {
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
     DeviceState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)

@@ -9,6 +9,8 @@ P.add_argument('--binaries',type=Path,required=True);P.add_argument('--output',t
 P.add_argument('--solvers',nargs='+',default=['gasUGKP','gasUGKPSteady']);P.add_argument('--wall',action='store_true')
 P.add_argument('--reference-binaries',type=Path,help='Compare the previous binaries against the candidate; both use graph execution')
 P.add_argument('--csr-auto',action='store_true',help='Exercise dense two-phase automatic scheduling and post-transport moments')
+P.add_argument('--csr-inspection-interval',type=int,default=1)
+P.add_argument('--pressure-projection',action='store_true',help='Exercise particle pressure and cooperative packing projection')
 a=P.parse_args()
 if a.wall and a.csr_auto:P.error('--wall and --csr-auto exercise different supported gas capabilities')
 a.output.mkdir(parents=True,exist_ok=False)
@@ -22,14 +24,16 @@ def particles(c):
  entry(c/'constant/schedulingProperties','gpuResidentPureGasOnly','false')
  entry(c/'constant/schedulingProperties','gpuResidentParticleCapacity','50000')
  entry(c/'constant/schedulingProperties','gpuCsrLevel','auto' if a.csr_auto else 'L1')
- if a.csr_auto:entry(c/'constant/schedulingProperties','gpuCsrHeavyReductionAutoInterval',1)
+ if a.csr_auto:entry(c/'constant/schedulingProperties','gpuCsrHeavyReductionAutoInterval',a.csr_inspection_interval)
+ if a.pressure_projection:
+  for k,v in [('gpuResidentCollisionalPressure','true'),('gpuResidentJammingPressure','true'),('gpuResidentPackingFraction','1e-7')]:entry(c/'constant/particleProperties',k,v)
  count=512 if a.csr_auto else 1
  for k,v in [('parcelMass','1e-10'),('particleTemperatureTransport','true'),('particleRho','2800'),('particleCp','800'),('particleTMin','1'),('particleTMax','10000')]:entry(c/'constant/particleProperties',k,v)
  p=c/'0/epsilonS';p.write_text(p.read_text().replace('internalField uniform 0;','internalField nonuniform List<scalar> 16 ('+' '.join([str(count*5.357142857142857e-10)]+['0']*15)+');'))
  (c/'0/Tp').write_text('FoamFile {version 2.0;format ascii;class volScalarField;object Tp;}\ndimensions [0 0 0 1 0 0 0]; internalField uniform 300; boundaryField { inlet {type fixedValue;value uniform 300;} outlet {type zeroGradient;} wall {type zeroGradient;} top {type symmetryPlane;} sides {type empty;} }\n')
  with (c/'0/gpuResidentStrictParticles.dat').open('wb') as f:
   f.write(f'UGKP_PARTICLES_SCHEMA1_BIN {count} {count}\n'.encode());f.write(struct.pack('<I',count))
-  for v in [.25,.005,.005,70,0,0,500,0,2e-4,1e-10]:f.write(struct.pack('<'+'d'*count,*([v]*count)))
+  for v in [.25,.005,.005,70,0,0,500,50 if a.pressure_projection else 0,2e-4,1e-10]:f.write(struct.pack('<'+'d'*count,*([v]*count)))
   for fmt,values in [('i',[0]*count),('i',[1]*count),('Q',[12345+i for i in range(count)]),('Q',list(range(1,count+1)))]:
    f.write(struct.pack('<'+fmt*count,*values))
 def fields(c):
@@ -73,7 +77,7 @@ def particle_states(c):
  return output
 results=[]
 for solver in a.solvers:
- for mixture,parcels in ([(True,True)] if a.csr_auto else [(True,False)] if a.wall else [(False,False),(True,False),(True,True)]):
+ for mixture,parcels in ([(True,True)] if a.csr_auto else [(True,False)] if a.wall else [(False,False),(True,False),(False,True),(True,True)]):
   for order,scheme in [(1,'Euler'),(2,'SSPRK2'),(3,'SSPRK3')]:
    pair=[];particle_pair=[];binary_hashes=[];label=f'{solver}-mix{int(mixture)}-particles{int(parcels)}-rk{order}'
    for graph in [0,1]:
@@ -121,6 +125,6 @@ for solver in a.solvers:
      right=other[identity];assert left[10:]==right[10:],(label,time,identity,'particle cell/status/RNG')
      particle_error=max(particle_error,max(abs(x-y)/max(1,abs(x),abs(y)) for x,y in zip(left[:10],right[:10])))
    assert particle_error<=(1e-10 if a.csr_auto else 1e-12),(label,particle_error)
-   results.append(dict(case=label,fields=len(pair[0]),max_scaled_difference=worst,max_particle_scaled_difference=particle_error,csr='auto' if a.csr_auto else 'L1',reference=str(a.reference_binaries) if a.reference_binaries else 'graph-disabled',binary_sha256=binary_hashes))
+   results.append(dict(case=label,fields=len(pair[0]),max_scaled_difference=worst,max_particle_scaled_difference=particle_error,csr='auto' if a.csr_auto else 'L1',inspection_interval=a.csr_inspection_interval,pressure_projection=a.pressure_projection,reference=str(a.reference_binaries) if a.reference_binaries else 'graph-disabled',binary_sha256=binary_hashes))
    (a.output/'results.json').write_text(json.dumps(results,indent=2)+'\n')
    print(label,'PASS',worst,flush=True)

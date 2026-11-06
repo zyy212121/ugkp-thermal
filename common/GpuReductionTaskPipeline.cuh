@@ -16,8 +16,8 @@ int submitCsrSegmentedReductionTasks(DeviceState* s,const int block,
     if(err!=cudaSuccess){setLastError("materializeCsrReductionTasksKernel launch",err);return 1;}
     return 0;
 }
-int prepareCsrSegmentedReductionTasks(DeviceState* s,const int block,
-    const GPU_DIRECTORY_PARAMETER_TYPE GPU_DIRECTORY_SELECTOR)
+int prepareCsrSegmentedReductionTasksImpl(DeviceState* s,const int block,
+    const GPU_DIRECTORY_PARAMETER_TYPE GPU_DIRECTORY_SELECTOR,bool inspectionOnly)
 {
     s->csrTasksReady=0;
     if(s->csrHeavyReductionEnabled==0||s->particleCapacity<=0)return 0;
@@ -32,11 +32,20 @@ int prepareCsrSegmentedReductionTasks(DeviceState* s,const int block,
             if(err==cudaSuccess)err=cudaMemsetAsync(s->csrHeavyCellCount,0,sizeof(int),stream);
             if(err!=cudaSuccess){setLastError("clear inactive automatic CSR schedule",err);return 1;}
             return 0;
-        });
+        },inspectionOnly);
 #else
-    const int result=submitCsrSegmentedReductionTasks(s,block,GPU_DIRECTORY_SELECTOR,nullptr);
+    const int result=submitCsrSegmentedReductionTasks(s,block,GPU_DIRECTORY_SELECTOR,ugkp::gpu::particleRecordingStream(s));
 #endif
     if(result)return result;
     s->csrPreparedDirectoryKind=GPU_DIRECTORY_ARGUMENT;s->csrTasksReady=1;
     return 0;
+}
+
+int prepareCsrSegmentedReductionTasks(DeviceState* s,const int block,
+    const GPU_DIRECTORY_PARAMETER_TYPE GPU_DIRECTORY_SELECTOR){
+    return prepareCsrSegmentedReductionTasksImpl(s,block,GPU_DIRECTORY_SELECTOR,false);
+}
+int prepareCsrSegmentedReductionTasksOnInspection(DeviceState* s,const int block,
+    const GPU_DIRECTORY_PARAMETER_TYPE GPU_DIRECTORY_SELECTOR){
+    return prepareCsrSegmentedReductionTasksImpl(s,block,GPU_DIRECTORY_SELECTOR,true);
 }

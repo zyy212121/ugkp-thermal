@@ -359,9 +359,10 @@ __device__ void applyMobilePackingCorrectionToParticleDevice
 __global__ void completeMobilePackingProjectionCooperativeKernel
 (
     DeviceState* sp,
-    const GpuTime dt
+    const GpuTime requestedDt
 )
 {
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
     packingCg::grid_group grid = packingCg::this_grid();
     DeviceState& s = *sp;
     const int globalThread = blockIdx.x*blockDim.x + threadIdx.x;

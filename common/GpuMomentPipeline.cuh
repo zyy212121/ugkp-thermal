@@ -121,6 +121,6 @@ int launchPostTransportMomentPipeline(DeviceState* s,const int particleGrid,cons
         return launchCsrConditional(s,4,block,0,postTransportFusePayload?1:0,
             [&](cudaStream_t stream,bool heavy){return submitPostTransportMomentPipeline(s,particleGrid,block,stream,heavy);});
 #endif
-    return submitPostTransportMomentPipeline(s,particleGrid,block,nullptr,s->csrHeavyReductionEnabled!=0);
+    return submitPostTransportMomentPipeline(s,particleGrid,block,ugkp::gpu::particleRecordingStream(s),s->csrHeavyReductionEnabled!=0);
 }
 #undef GPU_PIPELINE_REAL

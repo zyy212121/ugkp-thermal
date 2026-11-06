@@ -1,11 +1,13 @@
 #pragma once
 #include "GpuParticleDirectoryGraph.H"
+#include "GpuParticleExecutionContext.H"
 // Captured stages contain no host decisions, floating-point update, random
 // sampling, allocation or diagnostic readback. Task readiness and automatic
 // scheduling remain outside this graph and execute in their original order.
 template<class State,class Submit>
 int submitParticleDirectoryGraph(State* s,int kind,int block,Submit&& submit)
 {
+    if(const auto stream=ugkp::gpu::particleRecordingStream(s))return submit(stream);
 #ifdef UGKP_DEVELOPMENT_PROBES
     return submit(nullptr);
 #else

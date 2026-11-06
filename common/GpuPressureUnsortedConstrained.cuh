@@ -1,11 +1,13 @@
 #pragma once
+#include "ParticleResidentInterval.H"
 // Shared unsorted thermal projection; preserves the published-state reconstruction.
 __global__ void applyCollisionalPressureProjectionCellAtomicKernel
 (
     DeviceState* sp,
-    const PressureTime kickDt
+    const PressureTime requestedKickDt
 )
 {
+    const auto kickDt=ugkwp::particleResidentStepDt(*sp,requestedKickDt);
     DeviceState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)

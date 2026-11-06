@@ -1,4 +1,5 @@
 #pragma once
+#include "GpuParticleExecutionContext.H"
 // Particle work is bounded by capacity and the kernels it launches.
 // Cell-reduction hierarchy and contact configuration do not select this grid.
 inline void setParticleWorkGridFromResidency(DeviceState* s, const int residentBlocks)
@@ -74,5 +75,5 @@ inline cudaError_t launchParticleTracking(DeviceState* s, GPU_OPERATOR_TIME dt)
 {
     void* args[] = {&s->deviceState, &dt};
     return cudaLaunchKernel(s->particleTrackingKernel,
-        dim3(s->trackingWorkGrid),dim3(s->particleBlockThreads),args,0,nullptr);
+        dim3(s->trackingWorkGrid),dim3(s->particleBlockThreads),args,0,ugkp::gpu::particleRecordingStream(s));
 }

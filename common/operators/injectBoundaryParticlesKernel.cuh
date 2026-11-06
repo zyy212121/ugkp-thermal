@@ -1,13 +1,16 @@
 #include "ParticleInjectionVelocity.H"
 #pragma once
+#include "ParticleResidentInterval.H"
 #include "GpuParticleThermalCarryStorage.cuh"
 __global__ void injectBoundaryParticlesKernel
 (
     DeviceState* sp,
-    const GPU_OPERATOR_TIME dt,
-    const GPU_OPERATOR_TIME simulationTime
+    const GPU_OPERATOR_TIME requestedDt,
+    const GPU_OPERATOR_TIME requestedSimulationTime
 )
 {
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
+    const auto simulationTime=ugkwp::particleResidentEndTime(*sp,requestedSimulationTime);
     DeviceState& s = *sp;
     const int j = blockIdx.x*blockDim.x + threadIdx.x;
     if (j >= s.nBoundarySources)

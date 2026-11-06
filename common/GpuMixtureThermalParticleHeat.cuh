@@ -1,4 +1,5 @@
 #pragma once
+#include "ParticleResidentInterval.H"
 #include "gasTransport/MixtureParticleDirectory.cuh"
 #include "gasTransport/MixtureCouplingTeam.cuh"
 // Caloric adaptation of the shared frozen-mixture finite-bath source. Free
@@ -48,7 +49,8 @@ struct Response {
 // derivative still use every trial gas temperature in the original equation.
 // This source-epoch kernel runs after drag and before any thermal publication.
 template<class State>
-__global__ void prepareMixtureThermalParticleHeatKernel(State*sp,double dt){
+__global__ void prepareMixtureThermalParticleHeatKernel(State*sp,double requestedDt){
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
     State&s=*sp;
     if(!s.solveParticleTemperature||!s.particleGasHeatTransferModelId||dt==0.)return;
     const int count=mixtureParticles::activeCount(s);
@@ -105,7 +107,8 @@ __device__ void mixtureThermalParticleHeatCell(State&s,int c,double dt,bool csr,
 }
 
 template<bool Cooperative=false,class State>
-__global__ void mixtureThermalParticleHeatKernel(State*sp,double dt,bool csr=true,bool split=false,bool skipHeavy=false){
+__global__ void mixtureThermalParticleHeatKernel(State*sp,double requestedDt,bool csr=true,bool split=false,bool skipHeavy=false){
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
  State&s=*sp;if(!s.solveParticleTemperature||!s.particleGasHeatTransferModelId||dt==0.)return;
  const int thread=blockIdx.x*blockDim.x+threadIdx.x;
 #if defined(__CUDACC__)
@@ -120,12 +123,12 @@ __global__ void mixtureThermalParticleHeatKernel(State*sp,double dt,bool csr=tru
 }
 #if defined(__CUDACC__)
 template<class State>
-inline cudaError_t launchMixtureThermalParticleHeatCells(State*state,int cells,double dt,bool csr,bool split){
+inline cudaError_t launchMixtureThermalParticleHeatCells(State*state,int cells,double dt,bool csr,bool split,cudaStream_t stream=nullptr){
  if(cells<=0)return cudaSuccess;
- mixtureThermalParticleHeatKernel<<<(cells+127)/128,128>>>(state,dt,csr,split,true);
+ mixtureThermalParticleHeatKernel<<<(cells+127)/128,128,0,stream>>>(state,dt,csr,split,true);
  auto error=cudaGetLastError();if(error!=cudaSuccess)return error;
  const int groups=(cells+3)/4;
- mixtureThermalParticleHeatKernel<true><<<groups<256?groups:256,128>>>(state,dt,csr,split);
+ mixtureThermalParticleHeatKernel<true><<<groups<256?groups:256,128,0,stream>>>(state,dt,csr,split);
  return cudaGetLastError();
 }
 #endif

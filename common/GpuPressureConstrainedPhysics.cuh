@@ -1,4 +1,5 @@
 #pragma once
+#include "ParticleResidentInterval.H"
 #include "GpuPressureParticleUpdate.cuh"
 #include "GpuMaterialEnthalpyMoment.cuh"
 // Constrained particle pressure closure shared by FSH/CHT; scalar precision is an interface type.
@@ -338,8 +339,9 @@ struct ConstrainedPressureScratch
 };
 template<bool FullMoments>
 __global__ void accumulateCollisionalPressureKickByCellKernel
-(DeviceState* sp,const PressureTime kickDt,const int computeScale,const int initialiseMoments)
+(DeviceState* sp,const PressureTime requestedKickDt,const int computeScale,const int initialiseMoments)
 {
+    const auto kickDt=ugkwp::particleResidentStepDt(*sp,requestedKickDt);
     runPressureKickAccumulation<ConstrainedPressureScratch<FullMoments>>
         (sp,kickDt,computeScale,initialiseMoments);
 }

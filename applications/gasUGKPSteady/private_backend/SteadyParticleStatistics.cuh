@@ -33,7 +33,7 @@ __global__ void auditSteadyGasBoundaryFluxKernel(DeviceState* sp,double dt)
 int auditSteadyParcelInventory(DeviceState* s,int offset,double sign)
 {
     if(!s->steadyBoundaryBudget||s->particleWorkGrid<=0)return 0;
-    auditSteadyParcelInventoryKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,offset,sign);
+    auditSteadyParcelInventoryKernel<<<s->particleWorkGrid,s->particleBlockThreads,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState,offset,sign);
     const auto err=cudaGetLastError();
     if(err!=cudaSuccess){setLastError("steady parcel boundary inventory audit",err);return 1;}
     return 0;
