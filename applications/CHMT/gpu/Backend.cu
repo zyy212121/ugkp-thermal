@@ -42,7 +42,7 @@ struct Backend {
     ugkp::diagnostics::HostSink diagnosticSink;
     ModelConfig model;GasExecutionOptions options;HostState accepted,trial;
     HostMesh endpointGas,endpointSolid;SurfaceMesh endpointSurface;HostStageGeometry gasStage,solidStage;
-    SharedGasDeviceStorage storage;ParticleCouplingStorage particles;WallProgram program;IntervalHistory history;MaterialDonorReserve reserve;
+    SharedGasDeviceStorage storage;ParticleCouplingStorage particles;WallProgram program;IntervalHistory history;
     CoupledCourantStorage courantReductionStorage;
     CudaFault surfaceTransferFault;
     Buffer<int> interfaceFaces,interfaceFaceSlots,interfaceCells;
@@ -554,8 +554,8 @@ static bool beginGasWindowImpl(Backend& b,const WallProgram& program,std::string
         error=b.surfaceTransferFault.message.empty()?b.storage.error():b.surfaceTransferFault.message;return false;
     }
     b.interfaceGeometryReady=false;
-    if(!b.history.begin(program.interval,error)||!b.reserve.reset(b.accepted.solid,b.accepted.film,b.accepted.time,error))return false;
-    if(!program.donorPlan.knots.empty()&&!b.reserve.setPlan(program.donorPlan,error))return false;
+    if(!b.history.begin(program.interval,error))return false;
+    if(program.donorPlan.knots.size()==1){error="material donor interpolation needs two supplied knots";return false;}
     if(!loadGasWindowState(b,b.accepted,error))return false;b.elapsed=WindowTime{};b.nextGasSeed=b.accepted.nextDt>0?b.accepted.nextDt:b.accepted.lastAcceptedDt;return true;
 }
 
@@ -653,10 +653,17 @@ static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,s
     if(transport::advanceGasTrial<transport::CoupledTrialPolicy>(&b,dt,b.microTime)!=0){
         error=b.error.empty()?transport::lastError:b.error;return false;
     }
-    MaterialDonorReserve::Transaction reservation;
-    if(!b.reserve.prepare(b.record,reservation,b.error)){error=b.error;return false;}
+    // The physical donor progress is already advanced with the resident
+    // coupled surface. A second host inventory was never read by any consumer.
+    // Retain its packet-address contract without recomputing unused inventories.
+    for(const auto& packet:b.record.packets){const auto consumers=requiredConsumers(packet.kind);
+        if((consumers&ConsumeSolid)&&(packet.solidCell<0||std::size_t(packet.solidCell)>=b.accepted.solid.size())){
+            error="solid donor owner out of range";return false;}
+        if((consumers&ConsumeFilm)&&(packet.filmFace<0||std::size_t(packet.filmFace)>=b.accepted.film.size())){
+            error="film donor owner out of range";return false;}
+    }
     if(!b.history.appendAccepted(b.record,error))return false;
-    b.reserve.commitPrepared(std::move(reservation));b.elapsed=b.record.localEnd;
+    b.elapsed=b.record.localEnd;
     if(b.movingWindow){
         b.trial.gasStages={{b.gasStage,b.gasStage}};b.trial.solidStages={{b.solidStage,b.solidStage}};
     }
@@ -731,7 +738,7 @@ bool downloadState(const Backend& b,HostState& out,std::string& error){out=b.acc
 namespace chmt {
 bool borrowRadiationState(Backend& b,ParticleRadiationState& out,std::string& error){
     if(!b.particles.active())return downloadRadiationState(b,out,error);
-    b.executionStream.sync();
+    if(!b.particles.result(ugkp::thermal::orderParticlePhaseAfterGas(b.particles.owner(),b.gasCaptureStream),error))return false;
     if(!b.particles.result(ugkwpGpuResidentStrictBorrowRadiationParticleState(b.particles.owner(),&out.resident),error)
         ||!b.particles.result(ugkwpGpuResidentStrictParticleRadiationResponse(b.particles.owner(),&out.response),error))return false;
     // CHMT's accepted material wall program supplies temperature; particle
@@ -739,17 +746,20 @@ bool borrowRadiationState(Backend& b,ParticleRadiationState& out,std::string& er
     out.resident.boundaryTemperature=nullptr;
     return true;
 }
-bool applyResidentRadiationEnergy(Backend& b,const ugkp::gpu::RadiationMaterialDeviceView& heat,std::vector<Real>& actual,HostState& endpoint,std::string& error){
-    actual.assign(b.nCells,0);if(!b.particles.active())return true;
-    if(!b.particles.result(ugkwpGpuResidentStrictApplyParticleRadiationDeviceEnergy(b.particles.owner(),&heat,actual.data()),error)
-        ||!b.particles.result(ugkwpGpuResidentStrictRefreshParticleEnthalpyPacked(b.particles.owner()),error))return false;
+bool applyResidentRadiationEnergy(Backend& b,const ugkp::gpu::RadiationMaterialDeviceView& heat,ugkp::gpu::RadiationAcceptedEnergyDeviceView& actual,HostState& endpoint,std::string& error){
+    actual={b.nCells,nullptr,nullptr};if(!b.particles.active())return true;
+    if(!b.particles.result(ugkwpGpuResidentStrictApplyParticleRadiationDeviceEnergy(b.particles.owner(),&heat,nullptr),error)
+        ||!b.particles.result(ugkwpGpuResidentStrictBorrowAcceptedRadiationEnergy(b.particles.owner(),&actual),error)
+        ||!b.particles.result(ugkwpGpuResidentStrictRefreshParticleEnthalpyPacked(b.particles.owner()),error)
+        ||!b.particles.result(ugkp::thermal::orderGasAfterParticlePhase(b.particles.owner(),b.gasCaptureStream),error))return false;
     return b.particles.download(endpoint,error);
 }
 bool downloadRadiationState(Backend& b,ParticleRadiationState& out,std::string& error){
     out.mass.assign(b.nCells,0);out.temperature.assign(b.nCells,b.model.particlePhase.minimumTemperature);
     out.diameter.assign(b.nCells,0);out.occupiedArea.assign(b.nFaces,0);
     if(!b.particles.active())return true;
-    b.executionStream.sync();std::vector<Real> tm(b.nCells),dm(b.nCells);
+    if(!b.particles.result(ugkp::thermal::orderParticlePhaseAfterGas(b.particles.owner(),b.gasCaptureStream),error))return false;
+    std::vector<Real> tm(b.nCells),dm(b.nCells);
     if(!b.particles.result(ugkwpGpuResidentStrictDownloadMobileParticleRadiationSums(b.particles.owner(),b.nCells,out.mass.data(),tm.data(),dm.data()),error)
         ||!b.particles.result(ugkwpGpuResidentStrictDownloadParticleWallOccupiedArea(b.particles.owner(),b.nFaces,out.occupiedArea.data()),error)
         ||!b.particles.result(ugkwpGpuResidentStrictParticleRadiationResponse(b.particles.owner(),&out.response),error))return false;

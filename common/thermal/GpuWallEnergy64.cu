@@ -85,6 +85,8 @@ void releaseInterfaceExchange(GpuWallEnergyState* s)
     release(s->interfaceRadiationEnergy);
     release(s->interfaceCombinedEnergy);
     release(s->interfacePreview);
+    release(s->interfaceInterval);
+    release(s->interfaceEmissivityByFace);
     if(s->interfaceInputReady)cudaEventDestroy(s->interfaceInputReady);
     s->interfaceInputReady=nullptr;
     s->nInterfaceSolidFaces = 0;
@@ -513,6 +515,8 @@ extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange
     return 0;
 }
 
+// Reset is ordered on the same stream as ledger producers and borrowed views;
+// the next owner operation or explicit output publication observes completion.
 extern "C" int ugkwpGpuResidentStrictDownloadAndResetGasWallEnergy
 (
     void* handle,
@@ -544,21 +548,15 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetGasWallEnergy
     {
         return 1;
     }
-    cudaError_t err = cudaMemset
+    cudaError_t err = cudaMemsetAsync
     (
         s->gasWallEnergy,
         0,
-        static_cast<size_t>(nFaces)*sizeof(double)
+        static_cast<size_t>(nFaces)*sizeof(double), nullptr
     );
     if (err != cudaSuccess)
     {
         setLastError(s, "cudaMemset gas-wall energy ledger reset", err);
-        return 1;
-    }
-    err = cudaDeviceSynchronize();
-    if (err != cudaSuccess)
-    {
-        setLastError(s, "cudaDeviceSynchronize gas-wall ledger reset", err);
         return 1;
     }
     return 0;
@@ -647,32 +645,26 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
     {
         return 1;
     }
-    cudaError_t err = cudaMemset
+    cudaError_t err = cudaMemsetAsync
     (
         s->particleWallDepositedEnergy,
         0,
-        static_cast<size_t>(nFaces)*sizeof(double)
+        static_cast<size_t>(nFaces)*sizeof(double), nullptr
     );
     if (err != cudaSuccess)
     {
         setLastError(s, "cudaMemset deposited-particle wall energy reset", err);
         return 1;
     }
-    err = cudaMemset
+    err = cudaMemsetAsync
     (
         s->particleWallReflectedEnergy,
         0,
-        static_cast<size_t>(nFaces)*sizeof(double)
+        static_cast<size_t>(nFaces)*sizeof(double), nullptr
     );
     if (err != cudaSuccess)
     {
         setLastError(s, "cudaMemset reflected-particle wall energy reset", err);
-        return 1;
-    }
-    err = cudaDeviceSynchronize();
-    if (err != cudaSuccess)
-    {
-        setLastError(s, "cudaDeviceSynchronize particle wall ledgers reset", err);
         return 1;
     }
     return 0;
@@ -692,21 +684,15 @@ extern "C" int ugkwpGpuResidentStrictResetGasWallEnergy(void* handle)
         setLastErrorText(s, "invalid gas-wall energy ledger reset input");
         return 1;
     }
-    cudaError_t err = cudaMemset
+    cudaError_t err = cudaMemsetAsync
     (
         s->gasWallEnergy,
         0,
-        static_cast<size_t>(s->nFaces)*sizeof(double)
+        static_cast<size_t>(s->nFaces)*sizeof(double), nullptr
     );
     if (err != cudaSuccess)
     {
         setLastError(s, "cudaMemset gas-wall energy ledger reset", err);
-        return 1;
-    }
-    err = cudaDeviceSynchronize();
-    if (err != cudaSuccess)
-    {
-        setLastError(s, "cudaDeviceSynchronize gas-wall ledger reset", err);
         return 1;
     }
     return 0;
@@ -726,32 +712,26 @@ extern "C" int ugkwpGpuResidentStrictResetParticleWallHeatLedgers(void* handle)
         setLastErrorText(s, "invalid particle wall heat-ledger reset");
         return 1;
     }
-    cudaError_t err = cudaMemset
+    cudaError_t err = cudaMemsetAsync
     (
         s->particleWallDepositedEnergy,
         0,
-        static_cast<size_t>(s->nFaces)*sizeof(double)
+        static_cast<size_t>(s->nFaces)*sizeof(double), nullptr
     );
     if (err != cudaSuccess)
     {
         setLastError(s, "cudaMemset deposited-particle wall energy reset", err);
         return 1;
     }
-    err = cudaMemset
+    err = cudaMemsetAsync
     (
         s->particleWallReflectedEnergy,
         0,
-        static_cast<size_t>(s->nFaces)*sizeof(double)
+        static_cast<size_t>(s->nFaces)*sizeof(double), nullptr
     );
     if (err != cudaSuccess)
     {
         setLastError(s, "cudaMemset reflected-particle wall energy reset", err);
-        return 1;
-    }
-    err = cudaDeviceSynchronize();
-    if (err != cudaSuccess)
-    {
-        setLastError(s, "cudaDeviceSynchronize particle wall ledgers reset", err);
         return 1;
     }
     return 0;
@@ -788,6 +768,10 @@ extern "C" int ugkwpGpuResidentStrictConfigureInterfaceExchange
     if(3*count+static_cast<size_t>(nSolidFaces)>0
      &&allocate(s,s->interfacePreview,3*count+static_cast<size_t>(nSolidFaces),
                 "cudaMalloc interface preview")!=0)return 1;
+    if(allocate(s,s->interfaceInterval,1,"cudaMalloc interface interval")!=0)return 1;
+    cudaError_t error=cudaMemset(s->interfaceInterval,0,sizeof(double));
+    if(error==cudaSuccess&&s->interfacePreview)error=cudaMemset(s->interfacePreview,0,(3*count+nSolidFaces)*sizeof(double));
+    if(error!=cudaSuccess){setLastError(s,"initialize interface exchange workspace",error);return 1;}
     return syncGasWallLedgerPointers(s,"cudaMemcpy interface exchange pointers");
 }
 
@@ -830,6 +814,18 @@ extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchange
         "cudaMemcpy compact interface exchange preview");
 }
 
+namespace {
+__global__ void setInterfaceInterval(double* interval,double value){if(!threadIdx.x)*interval=value;}
+}
+extern "C" int ugkwpGpuResidentStrictBorrowInterfaceExchange(void* handle,ugkp::gpu::ThermalInterfaceEnergyDeviceView* output){
+    auto* s=asState(handle);if(!output||validateState(s,"borrow interface exchange")!=0)return 1;
+    *output={true,s->nInterfaceSolidFaces,s->interfacePreview?s->interfacePreview+3*s->nEnabledFaces:nullptr,nullptr,s->interfaceInterval};
+    return 0;
+}
+extern "C" int ugkwpGpuResidentStrictCollectInterfaceExchange(void* handle,double* output){
+    auto* s=asState(handle);if(validateState(s,"publish interface exchange")!=0)return 1;
+    return copyToHost(s,output,s->interfacePreview,3*s->nEnabledFaces+s->nInterfaceSolidFaces,"publish interface exchange");
+}
 // The DO material workspace owns boundaryEnergy in complete boundary-face
 // order. Read it directly and retain the mapped, integrated solid energy for
 // the implicit owner; optional host publication is diagnostic/output only.
@@ -844,6 +840,7 @@ extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice
     GpuWallEnergyState* s=asState(handle);
     if(validateState(s,"preview resident interface exchange")!=0)return 1;
     const int count=s->nEnabledFaces;
+    if(s->interfaceInterval)setInterfaceInterval<<<1,1>>>(s->interfaceInterval,deltaT);
     if(radiation&&(!radiation->enabled
         ||radiation->boundaryFaces!=s->nFaces-s->nInternalFaces
         ||(radiation->boundaryFaces&&!radiation->boundaryEnergy))){
@@ -869,9 +866,14 @@ extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice
         const cudaError_t error=cudaGetLastError();
         if(error!=cudaSuccess){setLastError(s,"sum resident interface exchange",error);return 1;}
     }
+    if(radiation){
+        cudaError_t error=cudaEventRecord(s->interfaceInputReady,nullptr);
+        if(error==cudaSuccess)error=cudaStreamWaitEvent(static_cast<cudaStream_t>(radiation->producerStream),s->interfaceInputReady,0);
+        if(error!=cudaSuccess){setLastError(s,"return resident interface radiation",error);return 1;}
+    }
     if(preview&&copyToHost(s,preview,s->interfacePreview,
         static_cast<size_t>(3*count+s->nInterfaceSolidFaces),"publish interface exchange preview")!=0)return 1;
     if(solidEnergy)*solidEnergy={true,s->nInterfaceSolidFaces,
-        s->interfacePreview?s->interfacePreview+3*count:nullptr,nullptr};
+        s->interfacePreview?s->interfacePreview+3*count:nullptr,nullptr,s->interfaceInterval};
     return 0;
 }

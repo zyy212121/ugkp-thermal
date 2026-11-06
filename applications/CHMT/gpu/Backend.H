@@ -33,7 +33,7 @@ bool downloadState(const Backend&,HostState&,std::string&);
 struct ParticleRadiationState {ugkp::gpu::RadiationParticleDeviceView resident{};std::vector<Real> mass,temperature,diameter,occupiedArea;ugkp::gpu::ParticleRadiationResponseView response{};};
 bool downloadRadiationState(Backend&,ParticleRadiationState&,std::string&);
 bool borrowRadiationState(Backend&,ParticleRadiationState&,std::string&);
-bool applyResidentRadiationEnergy(Backend&,const ugkp::gpu::RadiationMaterialDeviceView&,std::vector<Real>&,HostState&,std::string&);
+bool applyResidentRadiationEnergy(Backend&,const ugkp::gpu::RadiationMaterialDeviceView&,ugkp::gpu::RadiationAcceptedEnergyDeviceView&,HostState&,std::string&);
 bool applyRadiationEnergy(Backend&,const std::vector<Real>&,std::vector<Real>&,HostState&,std::string&);
 void setWindowRadiationEnergy(Backend&,const std::vector<Real>&);
 

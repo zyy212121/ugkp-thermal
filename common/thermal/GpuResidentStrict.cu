@@ -2056,7 +2056,8 @@ __global__ void applyParticleRadiationAffineTemperatureKernel
 
 __global__ void prepareResidentRadiationHeat(DeviceState* sp,const double* heat,
     Foam::gpuThermal::RadiationAffineTemperatureUpdate* requests){
-    auto& s=*sp;const int cell=blockIdx.x*blockDim.x+threadIdx.x;if(cell>=s.nCells)return;
+    auto& s=*sp;if(s.diagnostics&&s.diagnostics->fatalClaim)return;
+    const int cell=blockIdx.x*blockDim.x+threadIdx.x;if(cell>=s.nCells)return;
     const double value=heat[cell];requests[cell]={value,0};
     if(!std::isfinite(value)){using namespace ugkp::diagnostics;
         recordFatal(s.diagnostics,makeRecord(Code::NonFinite,30910,0,0,EntityKind::Cell,cell,-1,value));}
@@ -4001,12 +4002,15 @@ int publishParticleWallEffusivity(DeviceState* s)
 }
 
 __global__ void publishSolidInterfaceStateKernel(int count,const int* offsets,const int* source,const int* faceIds,
-    const double* temperature,const double* effusivity,const int* contact,double* gasTemperature,double* riemannTemperature,double* wallEffusivity)
+    const double* temperature,const double* effusivity,const int* contact,double* gasTemperature,double* riemannTemperature,double* wallEffusivity,
+    const double* emissivity,double* wallEmissivity,ugkp::diagnostics::DeviceContext* diagnostics)
 {
+    if(ugkp::diagnostics::hasFatal(diagnostics))return;
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=count)return;
     for(int j=offsets[i];j<offsets[i+1];++j){const int face=faceIds[source[j]];
         gasTemperature[face]=temperature[i];riemannTemperature[face]=temperature[i];
-        if(contact[i])wallEffusivity[face]=effusivity[i];}
+        if(contact[i])wallEffusivity[face]=effusivity[i];
+        if(emissivity)wallEmissivity[face]=emissivity[i];}
 }
 extern "C" int ugkwpGpuResidentStrictUpdateSolidInterfaceState
 (void* handle,const ugkp::gpu::ThermalInterfaceStateDeviceView* view)
@@ -4022,13 +4026,18 @@ extern "C" int ugkwpGpuResidentStrictUpdateSolidInterfaceState
     if(error!=cudaSuccess){setLastError("initialise resident solid effusivity",error);return 1;}
     if(publishParticleWallEffusivity(s)!=0)return 1;
     auto& wall=s->wallEnergy;
+    if(view->emissivity&&!wall.interfaceEmissivityByFace){
+        error=cudaMalloc(reinterpret_cast<void**>(&wall.interfaceEmissivityByFace),s->nFaces*sizeof(double));
+        if(error==cudaSuccess)error=cudaMemsetAsync(wall.interfaceEmissivityByFace,0,s->nFaces*sizeof(double));
+        if(error!=cudaSuccess){setLastError("allocate resident wall emissivity",error);return 1;}
+    }
     if(!wall.interfaceInputReady)error=cudaEventCreateWithFlags(&wall.interfaceInputReady,cudaEventDisableTiming);
     if(error==cudaSuccess)error=cudaEventRecord(wall.interfaceInputReady,static_cast<cudaStream_t>(view->producerStream));
     if(error==cudaSuccess)error=cudaStreamWaitEvent(nullptr,wall.interfaceInputReady,0);
     if(error!=cudaSuccess){setLastError("order resident solid interface state",error);return 1;}
     publishSolidInterfaceStateKernel<<<(view->faces+127)/128,128>>>(view->faces,wall.interfaceRowOffsets,
         wall.interfaceSourceIndices,wall.enabledFaceIds,view->temperature,view->effusivity,view->contactEnabled,
-        s->gasBoundaryT,s->riemannBoundaryT,s->particleWallEffusivityByFace);
+        s->gasBoundaryT,s->riemannBoundaryT,s->particleWallEffusivityByFace,view->emissivity,wall.interfaceEmissivityByFace,s->diagnostics);
     error=cudaGetLastError();
     // Return ownership of the borrowed storage only after the mapping consumed it.
     if(error==cudaSuccess)error=cudaEventRecord(wall.interfaceInputReady,nullptr);
@@ -5150,22 +5159,34 @@ ParticleWallExchangeView particleWallExchange(void* handle) {
 const double* particleGasVolumeFraction(void* handle) {
     auto* s=asState(handle);return s?s->epsGPrev:nullptr;
 }
-int advanceBoundParticlePhase(void* handle,double dt,double endTime,cudaStream_t gasStream) {
+int orderParticlePhaseAfterGas(void* handle,cudaStream_t gasStream){
     auto* s=asState(handle);
-    if(validateState(s,"advance bound particle phase"))return 1;
-    if(!s->particleGasReady || !s->particleGasDone) {
+    if(validateState(s,"order bound particle phase")||!s->particleGasReady){
         setLastErrorText("particle gas view has not been bound");return 1;
     }
     auto err=cudaEventRecord(s->particleGasReady,gasStream);
     if(err==cudaSuccess)err=cudaStreamWaitEvent(nullptr,s->particleGasReady,0);
     if(err!=cudaSuccess){setLastError("order particle phase after gas",err);return 1;}
+    return 0;
+}
+int orderGasAfterParticlePhase(void* handle,cudaStream_t gasStream){
+    auto* s=asState(handle);
+    if(validateState(s,"return bound particle phase")||!s->particleGasDone){
+        setLastErrorText("particle gas view has not been bound");return 1;
+    }
+    auto err=cudaEventRecord(s->particleGasDone,nullptr);
+    if(err==cudaSuccess)err=cudaStreamWaitEvent(gasStream,s->particleGasDone,0);
+    if(err!=cudaSuccess){setLastError("order gas after particle phase",err);return 1;}
+    return 0;
+}
+int advanceBoundParticlePhase(void* handle,double dt,double endTime,cudaStream_t gasStream) {
+    auto* s=asState(handle);
+    if(orderParticlePhaseAfterGas(handle,gasStream))return 1;
     int result=0;
     if(s->particleGeometryDirty)result=refreshParticleGeometryMoments(s);
     if(!result)result=advanceResidentThermalParticles(s,dt,endTime);
     // Also order already submitted work if an asynchronous launch failed.
-    err=cudaEventRecord(s->particleGasDone,nullptr);
-    if(err==cudaSuccess)err=cudaStreamWaitEvent(gasStream,s->particleGasDone,0);
-    if(err!=cudaSuccess){setLastError("order gas after particle phase",err);return 1;}
+    if(orderGasAfterParticlePhase(handle,gasStream))return 1;
     return result;
 }
 }}
@@ -5518,11 +5539,17 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationDeviceEnergy(void* ha
     auto* s=asState(handle);
     if(validateState(s,"resident particle radiation enthalpy")||!input||!input->enabled||input->cells!=s->nCells||!input->energy)return 1;
     if(!s->particleRadiationAffineUpdate&&allocate(s->particleRadiationAffineUpdate,s->nCells,"resident radiation enthalpy requests"))return 1;
-    // The material transaction returns a completed borrowed view, so its
-    // terminal diagnostics have already joined the producer stream.
+    // The material view is asynchronous. Order both the read and the return
+    // of its borrowed storage on device, without waiting on the host.
+    auto& wall=s->wallEnergy;
+    cudaError_t err=cudaSuccess;
+    if(!wall.interfaceInputReady)err=cudaEventCreateWithFlags(&wall.interfaceInputReady,cudaEventDisableTiming);
+    if(err==cudaSuccess)err=cudaEventRecord(wall.interfaceInputReady,static_cast<cudaStream_t>(input->producerStream));
+    if(err==cudaSuccess)err=cudaStreamWaitEvent(nullptr,wall.interfaceInputReady,0);
+    if(err!=cudaSuccess){setLastError("order resident radiation material energy",err);return 1;}
     const int blocks=std::max(1,(s->nCells+127)/128);
     prepareResidentRadiationHeat<<<blocks,128>>>(s->deviceState,input->energy,s->particleRadiationAffineUpdate);
-    auto err=cudaMemsetAsync(s->radiationMobileMass,0,s->nCells*sizeof(GpuReal),0);
+    err=cudaMemsetAsync(s->radiationMobileMass,0,s->nCells*sizeof(GpuReal),0);
     if(err==cudaSuccess)err=cudaMemsetAsync(s->radiationMobileTemperatureMass,0,s->nCells*sizeof(GpuReal),0);
     if(err!=cudaSuccess){setLastError("clear resident radiation enthalpy sums",err);return 1;}
     if(s->particlesMayBePresent){
@@ -5530,10 +5557,23 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationDeviceEnergy(void* ha
         radiationEnthalpyApplyKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,s->particleRadiationAffineUpdate);
     }
     if((err=cudaGetLastError())!=cudaSuccess){setLastError("resident radiation enthalpy launch",err);return 1;}
-    if(accepted&&copyToHost(accepted,s->radiationMobileTemperatureMass,s->nCells,"accepted resident radiation heat"))return 1;
-    err=s->diagnosticOwner->observeCompletedWork(0);
-    if(err!=cudaSuccess){setLastError("resident radiation enthalpy completion",err);return 1;}
-    return s->diagnosticOwner->dispatchPending()?1:0;
+    err=cudaEventRecord(wall.interfaceInputReady,nullptr);
+    if(err==cudaSuccess)err=cudaStreamWaitEvent(static_cast<cudaStream_t>(input->producerStream),wall.interfaceInputReady,0);
+    if(err!=cudaSuccess){setLastError("return resident radiation material energy",err);return 1;}
+    if(accepted){
+        if(copyToHost(accepted,s->radiationMobileTemperatureMass,s->nCells,"accepted resident radiation heat"))return 1;
+        err=s->diagnosticOwner->observeCompletedWork(0);
+        if(err!=cudaSuccess){setLastError("resident radiation enthalpy publication",err);return 1;}
+        return s->diagnosticOwner->dispatchPending()?1:0;
+    }
+    // Sticky device diagnostics are published at the owner's output boundary.
+    return 0;
+}
+
+extern "C" int ugkwpGpuResidentStrictBorrowAcceptedRadiationEnergy(void* handle,ugkp::gpu::RadiationAcceptedEnergyDeviceView* result){
+    auto* s=asState(handle);
+    if(validateState(s,"borrow accepted particle radiation energy")||!result)return 1;
+    *result={s->nCells,s->radiationMobileTemperatureMass,nullptr};return 0;
 }
 
 extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationEnergy(void* handle,int cells,const double* heat,double* accepted) {
@@ -5603,7 +5643,7 @@ extern "C" int ugkwpGpuResidentStrictBorrowRadiationParticleState(void* handle,u
     *output={true,s->nCells,s->nInternalFaces,s->nFaces-s->nInternalFaces,
         s->radiationMobileMass,s->radiationMobileTemperatureMass,s->radiationMobileDiameterMass,s->gasBoundaryT,
         contact?s->particleWallRepresentedContactArea:nullptr,contact?s->particleWallContactAreaScale:nullptr,
-        double(s->rhoSolid),double(s->TpMin),nullptr};
+        double(s->rhoSolid),double(s->TpMin),nullptr,s->wallEnergy.interfaceEmissivityByFace,s->diagnostics};
     return 0;
 }
 
@@ -5780,17 +5820,9 @@ extern "C" int ugkwpGpuResidentStrictRefreshParticleEnthalpyPacked
             return 1;
         }
     }
-    err = cudaDeviceSynchronize();
-    // Reuse this pre-existing completion point; do not add a synchronization.
-    if(err==cudaSuccess) {
-        err=s->diagnosticOwner->observeCompletedWork();
-        if(s->diagnosticOwner->dispatchPending())return 1;
-    }
-    if (err != cudaSuccess)
-    {
-        setLastError("post-radiation particle enthalpy refresh completion", err);
-        return 1;
-    }
+    // Consumers share the particle owner's stream. Publication observes the
+    // sticky device diagnostics; moment rebuilding does not require a host
+    // completion/readback between radiation and the next resident operator.
     return 0;
 }
 
@@ -6843,6 +6875,9 @@ extern "C" void ugkwpGpuResidentStrictRelease
     releaseState(asState(handle));
 }
 
+extern "C" ugkp::diagnostics::DeviceContext* ugkwpGpuResidentStrictDeviceDiagnostics(void* handle){
+    auto* state=asState(handle);return state?state->diagnostics:nullptr;
+}
 extern "C" int ugkwpGpuResidentStrictCollectDiagnostics(void* handle,ugkp::diagnostics::Snapshot* snapshot)
 {
     DeviceState* s=asState(handle);

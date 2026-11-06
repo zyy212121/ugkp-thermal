@@ -108,6 +108,22 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
         auto equation=ugkp::gpu::residentImplicitThermalEquation(residentDiffusion,sparse,faceK,temperature,capacity,source,dt,false,
             deviceFields.capacity,deviceFields.source,deviceFields.readyStream,deviceFields.conductivity,true,&conductivity,&faceK);
         residentConvergence=residentDiffusion.residentIteration();
+        if(residentConvergence&&equation.configureResidentLocalSolve(solver)){
+            // Native FV supplies the configured topology/policies once. The
+            // common sparse graph and material constitutive graph retain every
+            // nonlinear update and energy-based linear tolerance on device.
+            equation.residentBoundaryFlux();
+            if(!solveResidentMaterialConduction(thermal,residentDiffusion,sparse,externalBoundary,dt,controls,
+                Foam::solverPerformance::small_,Foam::solverPerformance::vsmall_,error)){
+                report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;
+            }
+            const std::vector<Real> unusedTemperature;
+            if(!finishResidentMaterialConduction(thermal,unusedTemperature,next.solid,error,numerical,
+                residentDiffusion.deviceTemperature(),residentDiffusion.deviceValues().readyStream)){
+                if(numerical)report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;
+            }
+            return true;
+        }
         // The FV residual is an integral power, whereas PCG normalises by
         // a matrix-dependent normFactor. Use a relative residual ratio: the
         // same normFactor cancels, so this is an energy budget in physical

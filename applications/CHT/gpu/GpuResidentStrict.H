@@ -266,6 +266,8 @@ extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchange
 (
     void* handle, double deltaT, const double* radiationEnergy, double* preview
 );
+extern "C" int ugkwpGpuResidentStrictBorrowInterfaceExchange(void*,ugkp::gpu::ThermalInterfaceEnergyDeviceView*);
+extern "C" int ugkwpGpuResidentStrictCollectInterfaceExchange(void*,double*);
 extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice
 (
     void* handle, double deltaT, const ugkp::gpu::RadiationMaterialDeviceView* radiation,
@@ -783,6 +785,29 @@ public:
         );
     }
 
+    ugkp::gpu::ThermalInterfaceEnergyDeviceView interfaceEnergyDeviceState() const
+    {
+        ugkp::gpu::ThermalInterfaceEnergyDeviceView view;
+        check(ugkwpGpuResidentStrictBorrowInterfaceExchange(handle_,&view),"borrow resident interface energy");
+        return view;
+    }
+    void prepareInterfaceExchangeDevice(scalar interval,const ugkp::gpu::RadiationMaterialDeviceView* radiation) const
+    {
+        check(ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice(handle_,interval,radiation,nullptr,nullptr),"prepare resident interface exchange");
+    }
+    void collectInterfaceExchange(List<scalarField>& gas,List<scalarField>& deposited,List<scalarField>& reflected) const
+    {
+        const label count=gasWallEnergyFaceIds_.size();label solidCount=0;
+        forAll(interfaceSolidPatchSizes_,i)solidCount+=interfaceSolidPatchSizes_[i];
+        scalarField preview(3*count+solidCount);
+        check(ugkwpGpuResidentStrictCollectInterfaceExchange(handle_,preview.begin()),"publish resident interface exchange");
+        gas.setSize(gasWallEnergyPatchSizes_.size());deposited.setSize(gas.size());reflected.setSize(gas.size());
+        label offset=0;forAll(gas,i){const label size=gasWallEnergyPatchSizes_[i];
+            gas[i].setSize(size);deposited[i].setSize(size);reflected[i].setSize(size);
+            for(label f=0;f<size;++f){gas[i][f]=preview[offset+f];deposited[i][f]=preview[count+offset+f];reflected[i][f]=preview[2*count+offset+f];}
+            offset+=size;
+        }
+    }
     void previewInterfaceExchange
     (
         scalar deltaT,
@@ -1189,6 +1214,12 @@ public:
         check(ugkwpGpuResidentStrictBorrowRadiationParticleState(handle_,&result),
             "borrow resident radiation particle state");
         return result;
+    }
+
+    ugkp::diagnostics::DeviceContext* deviceDiagnostics() const
+    {
+        requireInitialised("borrow resident diagnostics");
+        return ugkwpGpuResidentStrictDeviceDiagnostics(handle_);
     }
 
     void applyParticleRadiationDeviceEnergy(const ugkp::gpu::RadiationMaterialDeviceView& result)

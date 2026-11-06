@@ -1,4 +1,5 @@
 #include "SolidThermalProperties.H"
+#include "../Diagnostics.H"
 #include <cuda_runtime.h>
 #include "PinnedTransferQueue.cuh"
 #include <stdexcept>
@@ -16,8 +17,9 @@ __global__ void fixedPointResidual(int n,const double* current,const double* pre
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<n)residual[i]=current[i]-previous[i];
 }
 __global__ void aitkenRelaxation(int n,const double* residual,const double* previous,bool havePrevious,
-    double relaxation,double minimum,double maximum,double small,double* result){
+    double relaxation,double minimum,double maximum,double small,double* result,const SolidThermalIteration* iteration=nullptr){
     if(blockIdx.x)return;
+    if(iteration){havePrevious=iteration->iteration>1;relaxation=iteration->relaxation;}
     if(!havePrevious){if(!threadIdx.x)*result=relaxation;return;}
     __shared__ double products[256],squares[256];
     double numerator=0,denominator=0;
@@ -53,28 +55,42 @@ __global__ void evaluateProperties(int n,const ThermalPropertyTable* tables,cons
 __global__ void evaluateResidentProperties(int cells,int boundary,unsigned fields,bool cellsFirst,
     const ThermalPropertyTable* tables,const double* knots,int knotsCount,const double* anchors,
     const double* temperature,const double* previous,const ThermalPropertyQuery* boundaryQueries,ThermalPropertyResult* results,
-    const double* boundaryTemperature,const int* boundarySources){
+    const double* boundaryTemperature,const int* boundarySources,
+    const double* initialBoundary=nullptr,const SolidThermalIteration* iteration=nullptr){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=cells+boundary)return;
     const int cell=cellsFirst?i:i-boundary;ThermalPropertyQuery query;
     if(cell>=0&&cell<cells)query={temperature[cell],anchors[cell],fields,previous?previous[cell]:0};
     else{const int index=cellsFirst?i-cells:i;query=boundaryQueries[index];
         if(boundaryTemperature&&boundarySources){const int source=boundarySources[index];
-            query.trial=source>=0?temperature[source]:boundaryTemperature[-1-source];if(cellsFirst)query.anchor=query.trial;}}
+            const double* boundary=iteration&&iteration->iteration==1?initialBoundary:boundaryTemperature;
+            query.trial=source>=0?temperature[source]:boundary[-1-source];if(cellsFirst)query.anchor=query.trial;}}
     results[i]=thermalProperties(tables,knots,knotsCount,query);
 }
 __global__ void extractPropertyFields(int n,const ThermalPropertyResult* results,double* capacity,double* conductivity){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<n){capacity[i]=results[i].capacity;conductivity[i]=results[i].conductivity;}
 }
 __global__ void interfaceThermalState(int count,const int* faces,const int* contact,const double* boundaryTemperature,
-    const ThermalPropertyTable* tables,const double* knots,int knotsCount,double* temperature,double* effusivity,ThermalPropertyResult* status){
+    const ThermalPropertyTable* tables,const double* knots,int knotsCount,double* temperature,double* effusivity,ThermalPropertyResult* status,
+    bool includeEmissivity,double* emissivity){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=count)return;
     const double T=boundaryTemperature[faces[i]];temperature[i]=T;effusivity[i]=0;
     ThermalPropertyResult value;
     if(contact[i]){value=thermalProperties(tables,knots,knotsCount,{T,T,ThermalCapacity|ThermalConductivity});
         effusivity[i]=sqrt(value.capacity*value.conductivity);}
-    status[i]=value;
+    if(includeEmissivity)value.emissivity=thermalProperty(tables[3],T,3,value.status);
+    emissivity[i]=value.emissivity;status[i]=value;
 }
 
+__global__ void initializePropertyDiagnostic(int count,int* indices){if(!threadIdx.x){indices[0]=count;indices[1]=count;}}
+__global__ void publishPropertyDiagnostic(const ThermalPropertyDiagnostic* value,diagnostics::DeviceContext* context){
+    using namespace diagnostics;if(threadIdx.x)return;
+    if(value->firstError>=0){const auto status=value->error;
+        auto record=makeRecord(Code::InvalidPhysicalState,34010,0,static_cast<unsigned>(status.error),EntityKind::Cell,
+            value->firstError,status.property,status.value,status.temperature);recordFatal(context,record);}
+    if(value->firstExtrapolation>=0){const auto status=value->extrapolation;
+        auto record=makeRecord(Code::AccuracyResidual,34011,0,status.extrapolated,EntityKind::Cell,
+            value->firstExtrapolation,status.property,status.temperature,status.value);recordWarning(context,record);}
+}
 __global__ void propertyDiagnosticIndices(int n,const ThermalPropertyResult* result,int* indices){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=n)return;
     if(result[i].status.error!=ThermalPropertyError::None)atomicMin(indices,i);
@@ -85,21 +101,24 @@ __global__ void propertyDiagnosticValues(int n,const ThermalPropertyResult* resu
     if(indices[1]<n){d.firstExtrapolation=indices[1];d.extrapolation=result[d.firstExtrapolation].status;}*out=d;
 }
 __device__ void mergeConvergence(SolidThermalConvergence& a,const SolidThermalConvergence& b){
-    a.enthalpyChange.merge(b.enthalpyChange);a.externalEnergy.merge(b.externalEnergy);
+    a.enthalpyChange.merge(b.enthalpyChange);a.externalEnergy.merge(b.externalEnergy);a.interfaceEnergy.merge(b.interfaceEnergy);
     a.temperatureChange=fmax(a.temperatureChange,b.temperatureChange);a.surfaceChange=fmax(a.surfaceChange,b.surfaceChange);
     a.surfaceFluxChange=fmax(a.surfaceFluxChange,b.surfaceFluxChange);
 }
 __global__ void thermalConvergenceParts(int cells,int surfaces,int boundary,const ThermalPropertyResult* properties,const double* volume,
     const int* surfaceIndex,const double* flux,const double* temperature,double* previous,const double* gradient,
-    const double* energy,const double* area,double interval,SolidThermalConvergence* partial){
+    const double* energy,const double* area,double interval,SolidThermalConvergence* partial,const double* deviceInterval=nullptr){
+    if(deviceInterval)interval=*deviceInterval;
     __shared__ __align__(16) unsigned char storage[128*sizeof(SolidThermalConvergence)];auto* values=reinterpret_cast<SolidThermalConvergence*>(storage);const int i=blockIdx.x*blockDim.x+threadIdx.x;SolidThermalConvergence v;
     if(i<cells){const auto value=properties[surfaces+i];v.enthalpyChange.product(volume[i],value.energy);v.temperatureChange=value.relativeChange;}
     if(i<boundary){const int source=surfaceIndex[i];
         if(source==-2)v.externalEnergy.product(-interval,flux[i]);
-        else if(source>=0){const double T=temperature[i],old=previous[i];
+        else v.interfaceEnergy.add(energy[i]);
+        if(source>=0){const double T=temperature[i],old=previous[i];
             v.surfaceChange=fabs(T-old)/fmax(fmax(fabs(T),fabs(old)),1.0);
             const double prescribed=energy[i]/(area[i]*interval),actual=properties[source].conductivity*gradient[i];
-            v.surfaceFluxChange=fabs(actual-prescribed)/fmax(fmax(fabs(actual),fabs(prescribed)),1.0);previous[i]=T;}}
+            v.surfaceFluxChange=fabs(actual-prescribed)/fmax(fmax(fabs(actual),fabs(prescribed)),1.0);}
+        previous[i]=temperature[i];}
     values[threadIdx.x]=v;__syncthreads();
     for(int offset=64;offset;offset/=2){if(threadIdx.x<offset)mergeConvergence(values[threadIdx.x],values[threadIdx.x+offset]);__syncthreads();}
     if(!threadIdx.x)partial[blockIdx.x]=values[0];
@@ -119,11 +138,11 @@ __global__ void contactThermalState(int count,const int* cells,const double* inp
 }
 __global__ void contactExchangeEnergy(int count,const int* primaryForAuxiliary,const double* primaryT,const double* primaryK,
     const double* auxiliaryT,const double* auxiliaryK,const double* primaryDelta,const double* auxiliaryDelta,
-    const double* area,double interval,double* energy){
+    const double* area,double interval,double* energy,const double* deviceInterval=nullptr){
     const int f=blockIdx.x*blockDim.x+threadIdx.x;if(f>=count)return;const int p=primaryForAuxiliary[f];
     const double auxiliaryDenominator=auxiliaryK[f]*auxiliaryDelta[f],primaryDenominator=primaryK[p]*primaryDelta[p];
     const double resistance=1/auxiliaryDenominator+1/primaryDenominator;
-    energy[f]=area[f]*interval*(primaryT[p]-auxiliaryT[f])/resistance;
+    energy[f]=area[f]*(deviceInterval?*deviceInterval:interval)*(primaryT[p]-auxiliaryT[f])/resistance;
 }
 __global__ void contactOppositeEnergy(int count,const int* offsets,const int* sources,const double* input,double* output){
     const int f=blockIdx.x*blockDim.x+threadIdx.x;if(f>=count)return;double value=0;
@@ -154,8 +173,15 @@ struct SolidThermalProperties::Implementation {
     Array<double> temperatures[4],values[4],knots;Array<ThermalPropertyTable> tables;
     Array<double> current,previous,residual,residualHistory,relaxation;
     Array<ThermalPropertyQuery> queries;Array<ThermalPropertyResult> results;
-    Array<int> interfaceFaces,interfaceContact;Array<double> interfaceTemperature,interfaceEffusivity;Array<ThermalPropertyResult> interfaceStatus;
+    struct EvaluationPlan {
+        Array<ThermalPropertyQuery> queries;Array<int> sources;
+        int cells=0,boundary=0;unsigned fields=0;bool cellsFirst=false;
+    };
+    std::vector<std::unique_ptr<EvaluationPlan>> evaluationPlans;
+    Array<int> interfaceFaces,interfaceContact;Array<double> interfaceTemperature,interfaceEffusivity,interfaceEmissivity;Array<ThermalPropertyResult> interfaceStatus;
     std::vector<int> cachedInterfaceFaces,cachedInterfaceContact;
+    Array<int> contactCells;Array<double> contactTemperature,contactConductivity;Array<ThermalPropertyResult> contactStatus;
+    std::vector<int> cachedContactCells;int contactCount=0;
     Array<int> diagnosticIndices,convergenceSurfaceIndex;Array<ThermalPropertyDiagnostic> diagnosticResult;
     Array<double> convergencePreviousSurface;Array<SolidThermalConvergence> convergenceParts,convergenceResult;int convergenceBoundaryCount=0;
     Array<double> capacity,conductivity,cellAnchors;Array<int> boundarySources;int fieldCount=0;
@@ -231,6 +257,62 @@ void SolidThermalProperties::evaluateResidentCells(const std::vector<ThermalProp
         if(download)d.transfers.download(results.data(),d.results.ptr,n*sizeof(ThermalPropertyResult));}
     if(download)d.transfers.finish();
 }
+int SolidThermalProperties::prepareResidentEvaluation(const std::vector<ThermalPropertyQuery>& queries,
+    const std::vector<int>& sources,int cells,unsigned fields,bool cellsFirst,int index){
+    if(queries.size()!=sources.size()||cells<0)throw std::invalid_argument("resident thermal query layout mismatch");
+    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);
+    if(index<0)index=d.evaluationPlans.size();
+    if(index>static_cast<int>(d.evaluationPlans.size()))throw std::out_of_range("resident thermal evaluation plan");
+    if(index==static_cast<int>(d.evaluationPlans.size()))d.evaluationPlans.emplace_back(new Implementation::EvaluationPlan);
+    auto& plan=d.evaluationPlans[index];
+    plan->cells=cells;plan->boundary=queries.size();plan->fields=fields;plan->cellsFirst=cellsFirst;
+    plan->queries.upload(queries.data(),queries.size(),d.transfers);plan->sources.upload(sources.data(),sources.size(),d.transfers);
+    const int n=cells+queries.size();d.results.reserve(n);d.capacity.reserve(n);d.conductivity.reserve(n);
+    return index;
+}
+void SolidThermalProperties::enqueueResidentEvaluation(int index,const double* temperature,const double* previous,
+    const double* boundaryTemperature,void* executionStream,const SolidThermalIteration* iteration){
+    auto& d=*data_;if(index<0||index>=static_cast<int>(d.evaluationPlans.size()))throw std::out_of_range("resident thermal evaluation plan");
+    const auto& plan=*d.evaluationPlans[index];const int n=plan.cells+plan.boundary;d.fieldCount=n;
+    const auto stream=static_cast<cudaStream_t>(executionStream);
+    if(n){evaluateResidentProperties<<<(n+127)/128,128,0,stream>>>(plan.cells,plan.boundary,plan.fields,plan.cellsFirst,
+        d.tables.ptr,d.knots.ptr,d.knotCount,d.cellAnchors.ptr,temperature,previous,plan.queries.ptr,d.results.ptr,boundaryTemperature,plan.sources.ptr,d.convergencePreviousSurface.ptr,iteration);
+        extractPropertyFields<<<(n+127)/128,128,0,stream>>>(n,d.results.ptr,d.capacity.ptr,d.conductivity.ptr);}
+}
+void SolidThermalProperties::prepareResidentIteration(int cells){
+    auto& d=*data_;d.cellAnchors.reserve(cells);d.residual.reserve(cells);d.residualHistory.reserve(cells);d.relaxation.reserve(1);
+    d.convergenceParts.reserve((std::max(cells,d.convergenceBoundaryCount)+127)/128);d.convergenceResult.reserve(1);
+    d.diagnosticIndices.reserve(2);d.diagnosticResult.reserve(1);
+}
+void SolidThermalProperties::enqueueResidentRelaxation(double* current,const double* previous,int count,
+    SolidThermalIteration* iteration,const SolidThermalIterationControls& controls,void* executionStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(executionStream);
+    if(count)fixedPointResidual<<<(count+127)/128,128,0,stream>>>(count,current,previous,d.residual.ptr);
+    aitkenRelaxation<<<1,256,0,stream>>>(count,d.residual.ptr,d.residualHistory.ptr,false,
+        controls.initialRelaxation,controls.minimumRelaxation,controls.maximumRelaxation,controls.small,d.relaxation.ptr,iteration);
+    if(count)applyRelaxation<<<(count+127)/128,128,0,stream>>>(count,previous,d.residual.ptr,d.relaxation.ptr,current,d.residualHistory.ptr);
+    checked(cudaMemcpyAsync(&iteration->relaxation,d.relaxation.ptr,sizeof(double),cudaMemcpyDeviceToDevice,stream));
+}
+void SolidThermalProperties::enqueueResidentDiagnostic(diagnostics::DeviceContext* context,void* executionStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(executionStream);
+    initializePropertyDiagnostic<<<1,1,0,stream>>>(d.fieldCount,d.diagnosticIndices.ptr);
+    if(d.fieldCount)propertyDiagnosticIndices<<<(d.fieldCount+127)/128,128,0,stream>>>(d.fieldCount,d.results.ptr,d.diagnosticIndices.ptr);
+    propertyDiagnosticValues<<<1,1,0,stream>>>(d.fieldCount,d.results.ptr,d.diagnosticIndices.ptr,d.diagnosticResult.ptr);
+    publishPropertyDiagnostic<<<1,1,0,stream>>>(d.diagnosticResult.ptr,context);
+}
+void SolidThermalProperties::enqueueResidentAnchors(const double* temperature,const double* boundaryTemperature,int cells,void* executionStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(executionStream);
+    if(cells)checked(cudaMemcpyAsync(d.cellAnchors.ptr,temperature,cells*sizeof(double),cudaMemcpyDeviceToDevice,stream));
+    if(boundaryTemperature&&d.convergenceBoundaryCount)checked(cudaMemcpyAsync(d.convergencePreviousSurface.ptr,boundaryTemperature,d.convergenceBoundaryCount*sizeof(double),cudaMemcpyDeviceToDevice,stream));
+}
+const SolidThermalConvergence* SolidThermalProperties::enqueueResidentConvergence(int cells,int surfaces,const double* volume,
+    const double* flux,const double* temperature,const double* gradient,const double* energy,const double* area,double interval,void* executionStream,const double* deviceInterval){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(executionStream);
+    const int blocks=(std::max(cells,d.convergenceBoundaryCount)+127)/128;
+    if(blocks)thermalConvergenceParts<<<blocks,128,0,stream>>>(cells,surfaces,d.convergenceBoundaryCount,d.results.ptr,volume,
+        d.convergenceSurfaceIndex.ptr,flux,temperature,d.convergencePreviousSurface.ptr,gradient,energy,area,interval,d.convergenceParts.ptr,deviceInterval);
+    thermalConvergenceFinish<<<1,128,0,stream>>>(blocks,d.convergenceParts.ptr,d.convergenceResult.ptr);return d.convergenceResult.ptr;
+}
 void SolidThermalProperties::setResidentCellAnchors(const double* temperature,int count,void* stream){
     auto& d=*data_;d.waitFor(stream);d.cellAnchors.reserve(count);
     if(count)checked(cudaMemcpyAsync(d.cellAnchors.ptr,temperature,count*sizeof(double),cudaMemcpyDeviceToDevice,d.stream));
@@ -242,7 +324,7 @@ void SolidThermalProperties::setConvergenceBoundary(const std::vector<int>& inde
 }
 ThermalPropertyDiagnostic SolidThermalProperties::diagnostic()const{
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.diagnosticIndices.reserve(2);d.diagnosticResult.reserve(1);
-    const int initial[2]={d.fieldCount,d.fieldCount};d.transfers.upload(d.diagnosticIndices.ptr,initial,sizeof(initial));
+    initializePropertyDiagnostic<<<1,1,0,d.stream>>>(d.fieldCount,d.diagnosticIndices.ptr);
     if(d.fieldCount)propertyDiagnosticIndices<<<(d.fieldCount+127)/128,128,0,d.stream>>>(d.fieldCount,d.results.ptr,d.diagnosticIndices.ptr);
     propertyDiagnosticValues<<<1,1,0,d.stream>>>(d.fieldCount,d.results.ptr,d.diagnosticIndices.ptr,d.diagnosticResult.ptr);
     ThermalPropertyDiagnostic result;d.transfers.download(&result,d.diagnosticResult.ptr,sizeof(result));d.transfers.finish();return result;
@@ -250,36 +332,62 @@ ThermalPropertyDiagnostic SolidThermalProperties::diagnostic()const{
 SolidThermalConvergence SolidThermalProperties::convergence(int cells,int surfaces,const double* volume,
     const double* flux,const double* temperature,const double* gradient,const double* energy,const double* area,double interval,void* stream){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.waitFor(stream);
-    const int count=std::max(cells,d.convergenceBoundaryCount),blocks=(count+127)/128;d.convergenceParts.reserve(blocks);d.convergenceResult.reserve(1);
-    if(blocks)thermalConvergenceParts<<<blocks,128,0,d.stream>>>(cells,surfaces,d.convergenceBoundaryCount,d.results.ptr,volume,
-        d.convergenceSurfaceIndex.ptr,flux,temperature,d.convergencePreviousSurface.ptr,gradient,energy,area,interval,d.convergenceParts.ptr);
-    thermalConvergenceFinish<<<1,128,0,d.stream>>>(blocks,d.convergenceParts.ptr,d.convergenceResult.ptr);
+    prepareResidentIteration(cells);
+    enqueueResidentConvergence(cells,surfaces,volume,flux,temperature,gradient,energy,area,interval,d.stream);
     SolidThermalConvergence result;d.transfers.download(&result,d.convergenceResult.ptr,sizeof(result));d.transfers.finish();return result;
 }
 
+ThermalSolidContactDeviceView SolidThermalProperties::prepareResidentContact(const std::vector<int>& cells){
+    auto& d=*data_;d.contactCount=cells.size();
+    if(d.cachedContactCells!=cells){d.contactCells.upload(cells.data(),cells.size(),d.transfers);d.cachedContactCells=cells;}
+    d.contactTemperature.reserve(cells.size());d.contactConductivity.reserve(cells.size());d.contactStatus.reserve(cells.size());
+    d.diagnosticIndices.reserve(2);d.diagnosticResult.reserve(1);return residentContact();
+}
+ThermalSolidContactDeviceView SolidThermalProperties::residentContact()const{
+    const auto& d=*data_;return {d.contactCount,d.contactTemperature.ptr,d.contactConductivity.ptr,d.stream};
+}
+void SolidThermalProperties::enqueueResidentContact(const double* temperature,diagnostics::DeviceContext* context,void* executionStream){
+    auto& d=*data_;const int n=d.contactCount;const auto stream=static_cast<cudaStream_t>(executionStream);
+    if(n)contactThermalState<<<(n+127)/128,128,0,stream>>>(n,d.contactCells.ptr,temperature,d.tables.ptr,d.knots.ptr,d.knotCount,
+        d.contactTemperature.ptr,d.contactConductivity.ptr,d.contactStatus.ptr);
+    if(context){
+        initializePropertyDiagnostic<<<1,1,0,stream>>>(n,d.diagnosticIndices.ptr);
+        if(n)propertyDiagnosticIndices<<<(n+127)/128,128,0,stream>>>(n,d.contactStatus.ptr,d.diagnosticIndices.ptr);
+        propertyDiagnosticValues<<<1,1,0,stream>>>(n,d.contactStatus.ptr,d.diagnosticIndices.ptr,d.diagnosticResult.ptr);
+        publishPropertyDiagnostic<<<1,1,0,stream>>>(d.diagnosticResult.ptr,context);
+    }
+}
 ThermalSolidContactDeviceView SolidThermalProperties::contactState(const std::vector<int>& cells,const double* temperature,
     void* stream,std::vector<ThermalPropertyResult>& status){
-    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.waitFor(stream);const int n=cells.size();
-    if(d.cachedInterfaceFaces!=cells){d.interfaceFaces.upload(cells.data(),n,d.transfers);d.cachedInterfaceFaces=cells;}
-    d.interfaceTemperature.reserve(n);d.interfaceEffusivity.reserve(n);d.interfaceStatus.reserve(n);status.resize(n);
-    if(n){contactThermalState<<<(n+127)/128,128,0,d.stream>>>(n,d.interfaceFaces.ptr,temperature,d.tables.ptr,d.knots.ptr,d.knotCount,
-        d.interfaceTemperature.ptr,d.interfaceEffusivity.ptr,d.interfaceStatus.ptr);
-        d.transfers.download(status.data(),d.interfaceStatus.ptr,n*sizeof(ThermalPropertyResult));}
-    d.transfers.finish();return {n,d.interfaceTemperature.ptr,d.interfaceEffusivity.ptr,d.stream};
+    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.waitFor(stream);
+    const auto view=prepareResidentContact(cells);enqueueResidentContact(temperature,nullptr,d.stream);
+    status.resize(cells.size());if(!status.empty())d.transfers.download(status.data(),d.contactStatus.ptr,status.size()*sizeof(ThermalPropertyResult));
+    d.transfers.finish();return view;
 }
 
 ThermalInterfaceStateDeviceView SolidThermalProperties::interfaceState(const std::vector<int>& faces,
-    const std::vector<int>& contact,const double* temperature,void* ownerStream,std::vector<ThermalPropertyResult>& status){
+    const std::vector<int>& contact,const double* temperature,void* ownerStream,std::vector<ThermalPropertyResult>& status,bool includeEmissivity,diagnostics::DeviceContext* context,void* diagnosticStream){
     auto& d=*data_;if(!temperature)return {};
     if(faces.size()!=contact.size())throw std::runtime_error("solid interface contact map size mismatch");
     PinnedTransferQueue::Operation operation(d.transfers);d.waitFor(ownerStream);const int n=faces.size();
     if(d.cachedInterfaceFaces!=faces){d.interfaceFaces.upload(faces.data(),n,d.transfers);d.cachedInterfaceFaces=faces;}
     if(d.cachedInterfaceContact!=contact){d.interfaceContact.upload(contact.data(),n,d.transfers);d.cachedInterfaceContact=contact;}
-    d.interfaceTemperature.reserve(n);d.interfaceEffusivity.reserve(n);d.interfaceStatus.reserve(n);status.resize(n);
+    d.interfaceTemperature.reserve(n);d.interfaceEffusivity.reserve(n);d.interfaceStatus.reserve(n);if(context)status.clear();else status.resize(n);
+    d.interfaceEmissivity.reserve(n);
+    if(context)d.waitFor(diagnosticStream);
     if(n){interfaceThermalState<<<(n+127)/128,128,0,d.stream>>>(n,d.interfaceFaces.ptr,d.interfaceContact.ptr,temperature,
-        d.tables.ptr,d.knots.ptr,d.knotCount,d.interfaceTemperature.ptr,d.interfaceEffusivity.ptr,d.interfaceStatus.ptr);
-        d.transfers.download(status.data(),d.interfaceStatus.ptr,n*sizeof(ThermalPropertyResult));}
-    d.transfers.finish();return {true,n,d.interfaceTemperature.ptr,d.interfaceEffusivity.ptr,d.interfaceContact.ptr,d.stream};
+        d.tables.ptr,d.knots.ptr,d.knotCount,d.interfaceTemperature.ptr,d.interfaceEffusivity.ptr,d.interfaceStatus.ptr,
+            includeEmissivity,d.interfaceEmissivity.ptr);
+        if(!context)d.transfers.download(status.data(),d.interfaceStatus.ptr,n*sizeof(ThermalPropertyResult));}
+    if(context){
+        status.clear();d.diagnosticIndices.reserve(2);d.diagnosticResult.reserve(1);
+        initializePropertyDiagnostic<<<1,1,0,d.stream>>>(n,d.diagnosticIndices.ptr);
+        if(n)propertyDiagnosticIndices<<<(n+127)/128,128,0,d.stream>>>(n,d.interfaceStatus.ptr,d.diagnosticIndices.ptr);
+        propertyDiagnosticValues<<<1,1,0,d.stream>>>(n,d.interfaceStatus.ptr,d.diagnosticIndices.ptr,d.diagnosticResult.ptr);
+        publishPropertyDiagnostic<<<1,1,0,d.stream>>>(d.diagnosticResult.ptr,context);
+    }else d.transfers.finish();
+    return {true,n,d.interfaceTemperature.ptr,d.interfaceEffusivity.ptr,d.interfaceContact.ptr,d.stream,
+        includeEmissivity?d.interfaceEmissivity.ptr:nullptr};
 }
 
 SolidThermalDeviceFields SolidThermalProperties::deviceFields()const{
@@ -312,7 +420,10 @@ void SolidThermalContact::begin(const std::vector<int>& mapping,const std::vecto
     if(d.cachedAuxiliaryDelta!=auxiliaryDelta){d.auxiliaryDelta.upload(auxiliaryDelta.data(),auxiliaryDelta.size(),d.transfers);d.cachedAuxiliaryDelta=auxiliaryDelta;}
     if(d.cachedArea!=area){d.area.upload(area.data(),area.size(),d.transfers);d.cachedArea=area;}
     d.primaryEnergy.reserve(d.primary);d.auxiliaryEnergy.reserve(d.auxiliary);d.previousPrimary.reserve(d.primary);d.previousAuxiliary.reserve(d.auxiliary);d.previousEnergy.reserve(d.auxiliary);
-    if(d.auxiliary)checked(cudaMemsetAsync(d.previousEnergy.ptr,0,d.auxiliary*sizeof(double),d.stream));
+    d.parts.reserve((std::max(d.primary,d.auxiliary)+127)/128);d.result.reserve(1);
+    if(d.primary)checked(cudaMemsetAsync(d.primaryEnergy.ptr,0,d.primary*sizeof(double),d.stream));
+    if(d.auxiliary)checked(cudaMemsetAsync(d.auxiliaryEnergy.ptr,0,d.auxiliary*sizeof(double),d.stream));
+    enqueueWindowStart(d.stream);
 }
 void SolidThermalContact::evaluate(const ThermalSolidContactDeviceView& primary,const ThermalSolidContactDeviceView& auxiliary,
     double interval,ThermalInterfaceEnergyDeviceView& primaryEnergy,ThermalInterfaceEnergyDeviceView& auxiliaryEnergy,
@@ -320,11 +431,7 @@ void SolidThermalContact::evaluate(const ThermalSolidContactDeviceView& primary,
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);
     if(primary.faces!=d.primary||auxiliary.faces!=d.auxiliary)throw std::runtime_error("solid contact state extent mismatch");
     d.waitFor(primary.producerStream);d.waitFor(auxiliary.producerStream);
-    if(d.primary)checked(cudaMemcpyAsync(d.previousPrimary.ptr,primary.temperature,d.primary*sizeof(double),cudaMemcpyDeviceToDevice,d.stream));
-    if(d.auxiliary){checked(cudaMemcpyAsync(d.previousAuxiliary.ptr,auxiliary.temperature,d.auxiliary*sizeof(double),cudaMemcpyDeviceToDevice,d.stream));
-        contactExchangeEnergy<<<(d.auxiliary+127)/128,128,0,d.stream>>>(d.auxiliary,d.mapping.ptr,primary.temperature,primary.conductivity,
-            auxiliary.temperature,auxiliary.conductivity,d.primaryDelta.ptr,d.auxiliaryDelta.ptr,d.area.ptr,interval,d.auxiliaryEnergy.ptr);}
-    if(d.primary)contactOppositeEnergy<<<(d.primary+127)/128,128,0,d.stream>>>(d.primary,d.offsets.ptr,d.sources.ptr,d.auxiliaryEnergy.ptr,d.primaryEnergy.ptr);
+    enqueueEvaluate(primary,auxiliary,interval,nullptr,d.stream);
     primaryAudit.resize(d.primary);auxiliaryAudit.resize(d.auxiliary);
     if(d.primary)d.transfers.download(primaryAudit.data(),d.primaryEnergy.ptr,d.primary*sizeof(double));
     if(d.auxiliary)d.transfers.download(auxiliaryAudit.data(),d.auxiliaryEnergy.ptr,d.auxiliary*sizeof(double));d.transfers.finish();
@@ -332,11 +439,34 @@ void SolidThermalContact::evaluate(const ThermalSolidContactDeviceView& primary,
 }
 SolidContactConvergence SolidThermalContact::convergence(const ThermalSolidContactDeviceView& primary,const ThermalSolidContactDeviceView& auxiliary){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.waitFor(primary.producerStream);d.waitFor(auxiliary.producerStream);
-    const int blocks=(std::max(d.primary,d.auxiliary)+127)/128;d.parts.reserve(blocks);d.result.reserve(1);
-    if(blocks)contactConvergenceParts<<<blocks,128,0,d.stream>>>(d.primary,d.auxiliary,primary.temperature,auxiliary.temperature,
-        d.previousPrimary.ptr,d.previousAuxiliary.ptr,d.auxiliaryEnergy.ptr,d.previousEnergy.ptr,d.parts.ptr);
-    contactConvergenceFinish<<<1,1,0,d.stream>>>(blocks,d.parts.ptr,d.result.ptr);SolidContactConvergence result;
+    enqueueConvergence(primary,auxiliary,d.stream);SolidContactConvergence result;
     d.transfers.download(&result,d.result.ptr,sizeof(result));d.transfers.finish();return result;
 }
 
+ThermalInterfaceEnergyDeviceView SolidThermalContact::primaryEnergy(const double* interval)const{
+    const auto& d=*data_;return {true,d.primary,d.primaryEnergy.ptr,d.stream,interval};
+}
+ThermalInterfaceEnergyDeviceView SolidThermalContact::auxiliaryEnergy(const double* interval)const{
+    const auto& d=*data_;return {true,d.auxiliary,d.auxiliaryEnergy.ptr,d.stream,interval};
+}
+void SolidThermalContact::enqueueWindowStart(void* executionStream){
+    auto& d=*data_;if(d.auxiliary)checked(cudaMemsetAsync(d.previousEnergy.ptr,0,d.auxiliary*sizeof(double),static_cast<cudaStream_t>(executionStream)));
+}
+void SolidThermalContact::enqueueEvaluate(const ThermalSolidContactDeviceView& primary,const ThermalSolidContactDeviceView& auxiliary,
+    double interval,const double* deviceInterval,void* executionStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(executionStream);
+    if(d.primary)checked(cudaMemcpyAsync(d.previousPrimary.ptr,primary.temperature,d.primary*sizeof(double),cudaMemcpyDeviceToDevice,stream));
+    if(d.auxiliary){checked(cudaMemcpyAsync(d.previousAuxiliary.ptr,auxiliary.temperature,d.auxiliary*sizeof(double),cudaMemcpyDeviceToDevice,stream));
+        contactExchangeEnergy<<<(d.auxiliary+127)/128,128,0,stream>>>(d.auxiliary,d.mapping.ptr,primary.temperature,primary.conductivity,
+            auxiliary.temperature,auxiliary.conductivity,d.primaryDelta.ptr,d.auxiliaryDelta.ptr,d.area.ptr,interval,d.auxiliaryEnergy.ptr,deviceInterval);}
+    if(d.primary)contactOppositeEnergy<<<(d.primary+127)/128,128,0,stream>>>(d.primary,d.offsets.ptr,d.sources.ptr,d.auxiliaryEnergy.ptr,d.primaryEnergy.ptr);
+}
+const SolidContactConvergence* SolidThermalContact::enqueueConvergence(const ThermalSolidContactDeviceView& primary,
+    const ThermalSolidContactDeviceView& auxiliary,void* executionStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(executionStream);
+    const int blocks=(std::max(d.primary,d.auxiliary)+127)/128;
+    if(blocks)contactConvergenceParts<<<blocks,128,0,stream>>>(d.primary,d.auxiliary,primary.temperature,auxiliary.temperature,
+        d.previousPrimary.ptr,d.previousAuxiliary.ptr,d.auxiliaryEnergy.ptr,d.previousEnergy.ptr,d.parts.ptr);
+    contactConvergenceFinish<<<1,1,0,stream>>>(blocks,d.parts.ptr,d.result.ptr);return d.result.ptr;
+}
 }}

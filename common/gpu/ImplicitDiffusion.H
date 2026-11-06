@@ -4,6 +4,7 @@
 #include "ThermalFieldOperators.H"
 #include "ThermalInterfaceDeviceView.H"
 #include <memory>
+#include "../gasBoundary/Definition.H"
 #include <vector>
 namespace ugkp { namespace gpu {
 struct DiffusionInput {
@@ -47,6 +48,20 @@ public:
     // This owner retains matrix factors and the iterate across its shared
     // assembly, sparse solve, residual and flux operators.
     void assembleResident(const DiffusionInput&,const DiffusionTransientInput* transient=nullptr);
+    // Replay the configured discretization with updated in-place device fields.
+    // The enclosing device graph orders producers and owns executionStream;
+    // topology, policies and borrowed addresses remain fixed until reconfigured.
+    void enqueueResidentAssembly(void* executionStream,const double* deviceInterval=nullptr);
+    void enqueueResidentSnapshot(void* executionStream);
+    // Contact fixed-point candidates restart from the same accepted window.
+    void prepareResidentWindowSnapshot();
+    void enqueueResidentWindowSnapshot(void* executionStream);
+    void enqueueResidentWindowRestore(void* executionStream);
+    void enqueueResidentBoundaryTemperature(void* executionStream);
+    void enqueueResidentBoundaryFlux(void* executionStream);
+    void enqueueResidentInterfaceEnergy(void* executionStream);
+    void configureBoundaryJumpSchedule(const boundary::Definition&,const std::vector<int>& signs,double initialTime);
+    void enqueueBoundaryJumpSchedule(void* executionStream,const double* interval);
     void retain(const DiffusionInput&,const DiffusionMatrix&);
     SparseDeviceLduValues deviceValues() const;
     double* deviceSolution();
@@ -59,6 +74,7 @@ public:
         double interval,const double* deviceBoundaryConductivity,void* propertyStream);
     void setInterfaceEnergy(const std::vector<int>& boundaryFaces,const ThermalInterfaceEnergyDeviceView&,
         const ThermalInterfaceEnergyDeviceView& appended={});
+    void initializeBoundaryTemperature(const std::vector<double>&);
     const double* deviceBoundaryTemperature() const;
     bool residentIteration() const;
     void uploadSolution(const double*,int);

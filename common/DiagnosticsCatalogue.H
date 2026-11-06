@@ -415,6 +415,22 @@ inline const std::vector<SourceDescriptor>& sourceCatalogue() {
         {31302,"common/gasWall/ReactingWallLayer.H","publishLayer",1241,"nonfinite matching species flux"},
         {31303,"common/gasWall/ReactingWallLayer.H","publishLayer",1242,"nonfinite wall reaction integral"},
         {33000,"common/operators/FiniteContactRelaxation.inl","finiteContactRelaxation",80,"invalid finite-contact heat candidate; particle/wall heat not committed"},
+        {34000,"common/gpu/DiscreteOrdinateRadiation.cu","publishSourceDiagnostics",36,"invalid radiation intensity; dependent energy publication not committed"},
+        {34001,"common/gpu/DiscreteOrdinateRadiation.cu","publishSourceDiagnostics",40,"DO source iteration budget exhausted; computed intensities retained"},
+        {34002,"common/gpu/DiscreteOrdinateRadiation.cu","publishSourceDiagnostics",45,"DO phase balance iteration budget exhausted; computed probabilities retained"},
+        {34003,"common/gpu/DiscreteOrdinateRadiation.cu","publishSourceDiagnostics",50,"DO linear iteration budget exhausted; computed intensity retained"},
+        {34010,"common/gpu/SolidThermalProperties.cu","publishPropertyDiagnostic",88,"invalid consumed solid thermal property"},
+        {34011,"common/gpu/SolidThermalProperties.cu","publishPropertyDiagnostic",91,"finite solid table extrapolation"},
+        {34012,"common/gpu/SolidThermalIteration.cu","checkThermalLinearReport",18,"nonfinite solid linear residual"},
+        {34013,"common/gpu/SolidThermalIteration.cu","checkThermalLinearReport",20,"solid linear iteration budget exhausted; computed candidate retained"},
+        {34014,"common/gpu/SolidThermalIteration.cu","finishThermalIteration",37,"solid nonlinear iteration budget exhausted; computed candidate retained"},
+        {34015,"common/gpu/SolidThermalIteration.cu","finishThermalIteration",40,"solid nonlinear change above tolerance at iteration limit; computed candidate retained"},
+        {34016,"common/gpu/SolidThermalIteration.cu","finishContactIteration",145,"solid contact temperature residual above tolerance at iteration limit"},
+        {34017,"common/gpu/SolidThermalIteration.cu","finishContactIteration",147,"solid contact energy residual above tolerance at iteration limit"},
+        {34020,"applications/CHMT/gpu/MaterialBackend.cu","finishConductionIteration",124,"implicit material sparse residual above tolerance"},
+        {34021,"applications/CHMT/gpu/MaterialBackend.cu","finishConductionIteration",137,"implicit material iteration stagnated above energy goal"},
+        {34022,"applications/CHMT/gpu/MaterialBackend.cu","finishConductionIteration",139,"implicit material nonlinear residual above tolerance"},
+        {34023,"applications/CHMT/gpu/MaterialBackend.cu","finishConductionIteration",141,"implicit material energy balance above tolerance"},
     };
     return catalogue;
 }

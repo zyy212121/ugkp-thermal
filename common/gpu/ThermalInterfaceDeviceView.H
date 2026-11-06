@@ -9,6 +9,7 @@ struct ThermalInterfaceEnergyDeviceView {
     int faces=0;
     const double* energy=nullptr; // J, positive into the solid over the interval.
     void* producerStream=nullptr;
+    const double* interval=nullptr; // Resident duration of the completed exchange.
 };
 struct ThermalInterfaceStateDeviceView {
     bool enabled=false;
@@ -17,6 +18,7 @@ struct ThermalInterfaceStateDeviceView {
     const double* effusivity=nullptr;
     const int* contactEnabled=nullptr;
     void* producerStream=nullptr;
+    const double* emissivity=nullptr;
 };
 struct ThermalSolidContactDeviceView {
     int faces=0;

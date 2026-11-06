@@ -27,6 +27,8 @@ struct GpuWallEnergyState
     double* interfaceRadiationEnergy = nullptr;
     double* interfaceCombinedEnergy = nullptr;
     double* interfacePreview = nullptr;
+    double* interfaceInterval = nullptr;
+    double* interfaceEmissivityByFace = nullptr;
     cudaEvent_t interfaceInputReady = nullptr;
 
     int* retiredFaceIds = nullptr;

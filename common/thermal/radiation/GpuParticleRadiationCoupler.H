@@ -40,7 +40,7 @@ struct ParticleRadiationMaterialResult
     scalarField deltaParticleRadiationEnergyJ;
     List<scalarField> solidWallRadiationEnergyJ;
     scalar escapedBoundaryRadiationEnergyJ;
-    scalar radiativeEnergyMagnitudeJ=0;
+    scalar radiativeEnergyMagnitudeJ=0,acceptedParticleRadiationEnergyJ=0;
     ugkp::gpu::RadiationMaterialDeviceView resident{};
 };
 
@@ -63,6 +63,7 @@ struct ParticleRadiationTransactionContext
     scalar particleTemperatureMaxK;
     scalar radiationActiveEpsilonMin;
     ugkp::gpu::ParticleRadiationMaterial* materialDevice = nullptr;
+    bool exportFields = true;
 };
 
 scalar particleCellCapacityJPerK
@@ -185,8 +186,12 @@ public:
 
     ParticleRadiationMaterialResult solve
     (
-        const ParticleRadiationMaterialSnapshot& snapshot
+        const ParticleRadiationMaterialSnapshot& snapshot,
+        bool exportFields=true
     ) const;
+    ParticleRadiationMaterialResult collect() const;
+    void settleAcceptedEnergy(const ugkp::gpu::RadiationAcceptedEnergyDeviceView&) const;
+    ParticleRadiationMaterialResult collectBoundaryEnergy() const;
 };
 
 }                        

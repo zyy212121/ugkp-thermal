@@ -11,6 +11,9 @@
 #include "../../../common/gasTransport/GasBoundaryLayerWorkspace.H"
 #include <algorithm>
 #include <memory>
+#include <limits>
+#include "../../../common/gpu/ImplicitDiffusion.H"
+#include "../../../common/gpu/ExecutionGraph.cuh"
 namespace chmt {
 namespace {
 using namespace materialSourceDetail;
@@ -87,6 +90,68 @@ __global__ void conductionAuditFinish(int count,const MaterialConductionAudit* p
     if(!threadIdx.x)*output=values[0];
 }
 
+struct MaterialConductionIteration {
+    int iteration=0,failure=0;bool valid=true,converged=false,stalled=false;
+    Real residual=0,energyTolerance=0;
+    MaterialConductionAudit audit;
+    ugkp::gpu::ConjugateGradientControls linear;
+};
+__global__ void beginConductionLoop(MaterialConductionIteration* report,
+    ugkp::gpu::ConjugateGradientControls linear,ugkp::diagnostics::DeviceContext* context,cudaGraphConditionalHandle handle){
+    if(threadIdx.x)return;*report={};report->linear=linear;report->valid=!ugkp::diagnostics::hasFatal(context);
+    cudaGraphSetConditional(handle,report->valid);
+}
+__global__ void prepareConductionLinearControls(MaterialConductionIteration* report,const MaterialConductionAudit* audit,
+    CpuMaterialControls controls,cudaGraphConditionalHandle permitted){
+    if(threadIdx.x)return;++report->iteration;report->audit=*audit;
+    if(audit->coefficientError){report->valid=false;report->failure=1;cudaGraphSetConditional(permitted,0);return;}
+    using ugkp::gpu::ScaledThermalSum;const auto initial=audit->residualEnergy;
+    ScaledThermalSum scale;scale.add(1);if(scale.lessEqual(initial))scale=initial;
+    auto tolerance=scale.multiplied(controls.energyRelativeTolerance);tolerance.add(controls.energyAbsoluteTolerance);
+    tolerance.merge(audit->inventory.multiplied(64*std::numeric_limits<Real>::epsilon()));
+    const Real relative=initial.populated?fmin(1.,tolerance.ratioTo(initial)*.5):1.;
+    report->linear.tolerance=std::numeric_limits<Real>::min();report->linear.relativeTolerance=relative;
+    cudaGraphSetConditional(permitted,1);
+}
+__global__ void finishConductionIteration(MaterialConductionIteration* report,const MaterialConductionAudit* audit,
+    const ugkp::gpu::ConjugateGradientReport* linear,CpuMaterialControls controls,
+    ugkp::diagnostics::DeviceContext* context,cudaGraphConditionalHandle handle){
+    if(threadIdx.x)return;using namespace ugkp::diagnostics;
+    if(!report->valid){cudaGraphSetConditional(handle,0);return;}
+    report->audit=*audit;
+    if(!finite(linear->finalResidual)){report->valid=false;report->failure=2;}
+    else if(audit->invalidCell>=0){
+        report->valid=false;report->failure=3;
+        const Real temperature=audit->invalidTemperature;
+        recordFatal(context,makeRecord(!finite(temperature)?Code::NonFinite:Code::NegativeTemperature,
+            4103,4,0,EntityKind::Cell,audit->invalidCell,-1,temperature,0,0,Quantity::Temperature));
+    }
+    else if(!finite(audit->change)){
+        report->valid=false;report->failure=4;
+        recordFatal(context,makeRecord(Code::NonFinite,4104,4,0,EntityKind::None,-1,-1,audit->change));
+    }
+    if(!report->valid){cudaGraphSetConditional(handle,0);return;}
+    if(!linear->converged||linear->singular)recordWarning(context,makeRecord(Code::AccuracyResidual,34020,4,report->iteration,
+        EntityKind::None,-1,-1,linear->finalResidual,linear->initialResidual*report->linear.relativeTolerance,0,Quantity::LinearSystem));
+    auto energy=audit->stableChange;energy.merge(audit->boundaryEnergy);report->residual=energy.binary64();
+    auto scale=audit->stableChange.magnitude();const auto boundary=audit->boundaryEnergy.magnitude();if(scale.lessEqual(boundary))scale=boundary;
+    ugkp::gpu::ScaledThermalSum unity;unity.add(1);if(scale.lessEqual(unity))scale=unity;
+    auto tolerance=scale.multiplied(controls.energyRelativeTolerance);tolerance.add(controls.energyAbsoluteTolerance);
+    tolerance.merge(audit->inventory.multiplied(64*std::numeric_limits<Real>::epsilon()));report->energyTolerance=tolerance.binary64();
+    const bool energyConverged=finite(report->residual)&&absValue(report->residual)<=report->energyTolerance;
+    report->stalled=audit->change==0&&linear->iterations==0;
+    report->converged=audit->change<=controls.nonlinearRelativeTolerance&&energyConverged;
+    const bool again=!report->converged&&!report->stalled&&report->iteration<controls.nonlinearMaxIterations;
+    cudaGraphSetConditional(handle,again);
+    if(!again){
+        if(report->stalled&&!energyConverged)recordWarning(context,makeRecord(Code::AccuracyResidual,34021,4,report->iteration,
+            EntityKind::None,-1,-1,report->residual,report->energyTolerance,0,Quantity::Accuracy));
+        if(audit->change>controls.nonlinearRelativeTolerance)recordWarning(context,makeRecord(Code::AccuracyResidual,34022,4,report->iteration,
+            EntityKind::None,-1,-1,audit->change,controls.nonlinearRelativeTolerance,0,Quantity::Accuracy));
+        if(!energyConverged)recordWarning(context,makeRecord(Code::ConservationResidual,34023,4,report->iteration,
+            EntityKind::None,-1,-1,report->residual,report->energyTolerance,0,Quantity::Conservation));
+    }
+}
 }
 struct MaterialBackend {
     CudaFault fault;
@@ -284,6 +349,70 @@ bool evaluateResidentMaterialConduction(MaterialBackend& b,const std::vector<Rea
 }
 MaterialConductionDeviceFields residentMaterialConductionFields(MaterialBackend& b){
     return {b.conductionCapacity.data(),b.conductionSource.data(),b.conductionConductivity.data(),b.stream.get(),b.conductionTemperature.data()};
+}
+namespace {
+const MaterialConductionAudit* enqueueConductionAudit(MaterialBackend& b,const Real* temperature,const Real* previous,
+    const Real* residual,const Real* flux,int boundary,Real dt,cudaStream_t stream){
+    const int blocks=(std::max(b.cells,boundary)+127)/128;
+    if(blocks)conductionAuditParts<<<blocks,128,0,stream>>>(b.cells,boundary,b.conductionInput.data(),b.conductionCoefficients.data(),
+        temperature,previous,residual,flux,b.conductionExternal.data(),dt,b.conductionAuditParts.data());
+    conductionAuditFinish<<<1,128,0,stream>>>(blocks,b.conductionAuditParts.data(),b.conductionAuditResult.data());
+    return b.conductionAuditResult.data();
+}
+}
+bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffusion& diffusion,
+    ugkp::gpu::SparseConjugateGradient& sparse,const std::vector<int>& external,Real dt,const CpuMaterialControls& controls,
+    Real normalizationSmall,Real singularSmall,std::string& error){
+    if(!b.waitConduction(diffusion.deviceValues().readyStream))return b.failure(error);
+    if(b.cachedConductionExternal!=external){if(!b.upload(b.conductionExternal,external))return b.failure(error);b.cachedConductionExternal=external;}
+    const int blocks=(std::max(b.cells,static_cast<int>(external.size()))+127)/128;
+    Buffer<MaterialConductionIteration> report;
+    if(!b.allocate(b.conductionAuditParts,blocks)||!b.allocate(b.conductionAuditResult,1)||!b.allocate(report,1))return b.failure(error);
+    // Graph storage is local to this candidate geometry. All nonlinear and PCG
+    // iterations consume device state; only the completed candidate is observed.
+    struct Graph {cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;
+        ~Graph(){if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);}} graph;
+    using namespace ugkp::gpu;using executionGraphDetail::appendCaptured;
+    try{
+        executionGraphDetail::checked(cudaGraphCreate(&graph.graph,0));cudaGraphConditionalHandle handle,permitted;
+        executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&handle,graph.graph,0,cudaGraphCondAssignDefault));
+        ConjugateGradientControls linear;linear.maximumIterations=2000;linear.normalizationSmall=normalizationSmall;linear.singularSmall=singularSmall;
+        const auto initialized=appendCaptured(graph.graph,{},b.stream.get(),[&]{
+            beginConductionLoop<<<1,1,0,b.stream.get()>>>(report.data(),linear,b.diagnostics.device(),handle);});
+        cudaGraph_t body=nullptr;executionGraphDetail::addWhile(graph.graph,handle,{initialized},body);
+        executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&permitted,body,0,cudaGraphCondAssignDefault));
+        const auto assembled=appendCaptured(body,{},b.stream.get(),[&]{
+            diffusion.enqueueResidentSnapshot(b.stream.get());
+            if(b.cells)conductionCoefficientsKernel<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,b.conductionInput.data(),
+                diffusion.deviceTemperature(),dt,b.devicePhysics.data(),b.conductionCoefficients.data(),b.conductionCapacity.data(),b.conductionSource.data(),b.conductionConductivity.data());
+            diffusion.enqueueResidentAssembly(b.stream.get());
+        });
+        const auto residual=sparse.appendResidentLocalResidual(body,assembled,diffusion.deviceSolution(),diffusion.deviceResidual());
+        const auto budget=appendCaptured(body,{residual},b.stream.get(),[&]{
+            const auto audit=enqueueConductionAudit(b,diffusion.deviceTemperature(),nullptr,diffusion.deviceResidual(),nullptr,external.size(),dt,b.stream.get());
+            prepareConductionLinearControls<<<1,1,0,b.stream.get()>>>(report.data(),audit,controls,permitted);
+        });
+        cudaGraph_t solveBody=nullptr;const auto solve=executionGraphDetail::addIf(body,permitted,{budget},solveBody);
+        const auto solved=sparse.appendResidentLocalLdu(solveBody,nullptr,diffusion.deviceSolution(),&report.data()->linear);
+        appendCaptured(solveBody,{solved},b.stream.get(),[&]{
+            diffusion.enqueueResidentBoundaryTemperature(b.stream.get());diffusion.enqueueResidentBoundaryFlux(b.stream.get());
+            enqueueConductionAudit(b,diffusion.deviceTemperature(),diffusion.devicePreviousSolution(),nullptr,diffusion.deviceBoundaryFlux(),external.size(),dt,b.stream.get());
+        });
+        appendCaptured(body,{solve},b.stream.get(),[&]{
+            finishConductionIteration<<<1,1,0,b.stream.get()>>>(report.data(),b.conductionAuditResult.data(),sparse.deviceReport(),controls,b.diagnostics.device(),handle);
+        });
+        executionGraphDetail::checked(cudaGraphInstantiateWithFlags(&graph.executable,graph.graph,0));
+        executionGraphDetail::checked(cudaGraphLaunch(graph.executable,b.stream.get()));
+        MaterialConductionIteration result;
+        if(!b.transfers.download(&result,report.data(),1)||!b.finish(error))return b.failure(error);
+        if(!result.valid){
+            error=result.failure==1?(result.audit.coefficientError==1?"nonpositive implicit caloric secant":"material mass/geometry incompatible during implicit solve")
+                :result.failure==2?"nonfinite OpenFOAM implicit material sparse residual"
+                :result.failure==3?"nonfinite or nonpositive implicit material temperature":"nonfinite implicit material residual";
+            return false;
+        }
+        error.clear();return true;
+    }catch(const std::exception& exception){error=exception.what();return false;}
 }
 bool auditResidentMaterialConduction(MaterialBackend& b,const Real* temperature,const Real* previous,
     const Real* residual,const Real* flux,const std::vector<int>& external,Real dt,void* stream,

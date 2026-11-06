@@ -68,14 +68,14 @@ public:
             forAll(temperature.boundaryField(),p){const auto& field=temperature.boundaryField()[p];
                 if(field.coupled())deviceCorrection=deviceCorrection&&(field.type()=="cyclic"||field.type()=="fixedJump"||field.type()=="uniformJump");
                 else{const word& kind=field.type();deviceCorrection=deviceCorrection&&(kind=="fixedValue"||kind=="fixedGradient"
-                    ||kind=="zeroGradient"||kind=="mixed"||kind=="empty");}}
+                    ||kind=="zeroGradient"||kind=="mixed"||kind=="empty"||kind=="wedge"||kind=="symmetry"||kind=="symmetryPlane");}}
         }
         bool deviceBoundary=transient&&transient->resident&&((!corrected
             &&(this->tsnGradScheme_().type()=="uncorrected"||this->tsnGradScheme_().type()=="orthogonal"))||deviceCorrection);
         forAll(temperature.boundaryField(),p){const auto& field=temperature.boundaryField()[p];
             if(field.coupled())deviceBoundary=deviceBoundary&&(field.type()=="cyclic"||field.type()=="fixedJump"||field.type()=="uniformJump");
             else{const word& kind=field.type();deviceBoundary=deviceBoundary&&(kind=="fixedValue"||kind=="fixedGradient"
-                ||kind=="zeroGradient"||kind=="mixed"||kind=="empty");}}
+                ||kind=="zeroGradient"||kind=="mixed"||kind=="empty"||kind=="wedge"||kind=="symmetry"||kind=="symmetryPlane");}}
         tmp<surfaceScalarField> correction;
         if(corrected&&!deviceCorrection)correction=this->tsnGradScheme_().correction(temperature);
         const bool deviceInterpolation=transient&&transient->interpolatedConductivity;
@@ -119,7 +119,10 @@ public:
                     input.valueInternal.push_back(adjacent?0:vi[f]);input.valueBoundary.push_back(adjacent?0:vb[f]);
                     input.normalInternal.push_back(adjacent?0:ni[f]);input.normalBoundary.push_back(adjacent?0:nb[f]);
                     input.boundaryValueDelta.push_back(mesh.boundary()[p].deltaCoeffs()[f]);
-                    input.neighbourTransform.push_back(thermalVector(tx));input.neighbourTransform.push_back(thermalVector(ty));input.neighbourTransform.push_back(thermalVector(tz));}
+                    const auto& geometry=mesh.boundary()[p];
+                    input.neighbourTransform.push_back(thermalVector(adjacent?tx:thermalGradientBoundaryValue(geometry,f,tx)));
+                    input.neighbourTransform.push_back(thermalVector(adjacent?ty:thermalGradientBoundaryValue(geometry,f,ty)));
+                    input.neighbourTransform.push_back(thermalVector(adjacent?tz:thermalGradientBoundaryValue(geometry,f,tz)));}
             }
         }
         static thread_local ImplicitDiffusion backend;DiffusionMatrix coefficients;
@@ -252,6 +255,20 @@ public:
         const auto values=resident_.deviceValues();
         const auto result=solveFoamScalarMatrix(equation_.ref(),controls,sparse_,&values,resident_.deviceSolution());
         if(publish)publishSolution();return result;
+    }
+    bool configureResidentLocalSolve(const Foam::dictionary& dictionary){
+        if(!resident_.residentIteration())return false;
+        ConjugateGradientControls controls;
+        controls.maximumIterations=dictionary.lookupOrDefault<Foam::label>("maxIter",1000);
+        controls.minimumIterations=dictionary.lookupOrDefault<Foam::label>("minIter",0);
+        controls.tolerance=dictionary.lookupOrDefault<Foam::scalar>("tolerance",1e-6);
+        controls.relativeTolerance=dictionary.lookupOrDefault<Foam::scalar>("relTol",0);
+        controls.normalizationSmall=Foam::solverPerformance::small_;
+        controls.singularSmall=Foam::solverPerformance::vsmall_;
+        return withFoamScalarMatrix(equation_.ref(),[&](const SparseLduView& matrix,const SparseCommunication& communication){
+            if(communication.addInterface||communication.globalSum)return false;
+            sparse_.configureResidentLocalLdu(matrix,resident_.deviceValues(),controls);return true;
+        });
     }
     void publishSolution(){
         resident_.refreshBoundaryTemperature();

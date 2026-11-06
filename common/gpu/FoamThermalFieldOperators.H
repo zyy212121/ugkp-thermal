@@ -7,9 +7,27 @@
 #include "correctedSnGrad.H"
 #include "extrapolatedCalculatedFvPatchFields.H"
 #include "fvSchemes.H"
+#include "wedgeFvPatch.H"
+#include "symmetryFvPatch.H"
+#include "symmetryPlaneFvPatch.H"
 namespace ugkp { namespace gpu {
 inline ThermalVector thermalVector(const Foam::vector& v){return {v.x(),v.y(),v.z()};}
 inline Foam::vector foamVector(const ThermalVector& v){return {v.x,v.y,v.z};}
+// The gradient field created by Gauss uses native geometric constraint
+// patches. Store their linear vector transformation once with the topology.
+inline Foam::vector thermalGradientBoundaryValue(const Foam::fvPatch& patch,Foam::label face,const Foam::vector& value){
+    using namespace Foam;
+    if(isA<wedgeFvPatch>(patch))return transform(refCast<const wedgeFvPatch>(patch).faceT(),value);
+    if(isA<symmetryPlaneFvPatch>(patch)){
+        const vector normal=refCast<const symmetryPlaneFvPatch>(patch).n();
+        return (value+transform(I-2.0*sqr(normal),value))/2.0;
+    }
+    if(isA<symmetryFvPatch>(patch)){
+        const vector normal=patch.Sf()[face]/patch.magSf()[face];
+        return (value+transform(I-2.0*sqr(normal),value))/2.0;
+    }
+    return value;
+}
 inline ThermalFieldOperators& thermalFieldBackend(){static thread_local ThermalFieldOperators backend;return backend;}
 inline void interpolateThermalField(const Foam::volScalarField& field,const Foam::surfaceScalarField& weights,
     Foam::surfaceScalarField& result,bool harmonic){

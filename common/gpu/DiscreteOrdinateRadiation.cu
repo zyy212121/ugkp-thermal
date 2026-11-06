@@ -1,9 +1,11 @@
 #include "DiscreteOrdinateRadiation.H"
+#include "../Diagnostics.H"
 #include "MiePhaseBalance.cuh"
 #include "OrderedUpwindGraph.cuh"
 #include "PinnedTransferQueue.cuh"
 #include <algorithm>
 #include <climits>
+#include <cstring>
 #include <sstream>
 namespace ugkp { namespace gpu { namespace radiationDetail {
 void checked(cudaError_t status){if(status!=cudaSuccess)throw std::runtime_error(std::string("CUDA discrete ordinates: ")+cudaGetErrorString(status));}
@@ -20,6 +22,35 @@ constexpr double fourPi=12.56637061435917295385057353311801153679;
 __device__ double blackIntensity(double t,double band){const double square=t*t;return band*5.670374419e-8*square*square/(fourPi/4);}
 struct Failure {double value;int code,iteration,cell,patch,face;};
 struct SourceReport {double maximumRelativeChange=0;int iterations=0;Failure failure{};};
+// Keep convergence reports and sticky diagnostics beside the fields they
+// describe. Publishing these diagnostics does not require a host decision.
+__global__ void publishSourceDiagnostics(const SourceReport* report,
+    const MiePhaseMetrics* phase,const RadiationDirectionWarning* direction,
+    int cells,int angles,RadiationControls controls,diagnostics::DeviceContext* context){
+    using namespace diagnostics;
+    const int i=blockIdx.x*blockDim.x+threadIdx.x;
+    if(i==0){
+        const auto failure=report->failure;
+        if(failure.code){
+            auto record=makeRecord(isfinite(failure.value)?Code::InvalidPhysicalState:Code::NonFinite,
+                34000,0,failure.iteration,failure.cell>=0?EntityKind::Cell:EntityKind::Face,
+                failure.cell>=0?failure.cell:failure.face,failure.patch,failure.value);
+            record.metadata=failure.code;recordFatal(context,record);
+        }else if(report->maximumRelativeChange>controls.sourceTolerance){
+            recordWarning(context,makeRecord(Code::AccuracyResidual,34001,0,report->iterations,
+                EntityKind::None,-1,-1,report->maximumRelativeChange,controls.sourceTolerance,0,Quantity::Accuracy));
+        }
+    }
+    if(i<cells&&(phase[i].rowError>controls.phaseTolerance||phase[i].columnError>controls.phaseTolerance)){
+        recordWarning(context,makeRecord(Code::AccuracyResidual,34002,0,phase[i].iterations,
+            EntityKind::Cell,i,-1,fmax(phase[i].rowError,phase[i].columnError),controls.phaseTolerance,0,Quantity::Accuracy));
+    }
+    if(i<angles&&direction[i].linearIteration>0){
+        const auto warning=direction[i];
+        recordWarning(context,makeRecord(Code::AccuracyResidual,34003,0,warning.sourceIteration,
+            EntityKind::None,i,warning.linearIteration,warning.residual,warning.limit,0,Quantity::LinearSystem));
+    }
+}
 enum Location {Incident=1,Specular,Diffuse,Scattering,Linear,Moment,Outgoing};
 struct Errors {unsigned long long* first;Failure* records;};
 __device__ double consume(double value,double reference,int code,int iteration,int cell,int patch,int face,
@@ -64,6 +95,7 @@ template<class Real> __global__ void importBoundaryState(int faces,RadiationPart
     const unsigned char* useTemperature,const unsigned char* contact,const double* area,double* temperature,double* emissivity){
     const int face=blockIdx.x*blockDim.x+threadIdx.x;if(face>=faces)return;const int full=input.boundaryOffset+face;
     if(useTemperature[face]&&input.boundaryTemperature)temperature[face]=static_cast<const Real*>(input.boundaryTemperature)[full];
+    if(contact[face]&&input.boundaryEmissivity)emissivity[face]=input.boundaryEmissivity[full];
     if(contact[face]&&input.contactArea&&input.contactScale){
         // Match the prior host mirror's represented-area product in its native
         // storage precision, then the FP64 exposed-area correction.
@@ -211,6 +243,7 @@ struct DiscreteOrdinateRadiation::Implementation {
     Array<double> epsilon,mass,temperature,diameter,wallTemperature,emissivity;
     Array<unsigned char> residentWallTemperature,contactEmissivity;
     cudaEvent_t inputReady=nullptr;bool residentMass=false,resultReady=false;
+    diagnostics::DeviceContext* diagnostics=nullptr;
     Array<double> absorption,scattering,extinction,asymmetry,emission,wallBlack,scaling,nextScaling,rowError,columnError,reference;
     Array<MieOpticalQuery> queries;Array<MieBracket> phaseBrackets;Array<MiePhaseMetrics> phaseMetrics;
     Array<double> intensities,frozen,incident,initial,incidentRadiation,power,wallFlux,directionChange;
@@ -244,6 +277,17 @@ struct DiscreteOrdinateRadiation::Implementation {
         ~Direction(){if(stream)cudaStreamSynchronize(stream);graph.reset();if(complete)cudaEventDestroy(complete);}
         Errors errors(){return {firstError.ptr,failures.ptr};}
     };
+    // Cached arrays are configuration inputs; the working wall arrays are
+    // refreshed from these device copies before contact coverage is applied.
+    Array<double> configuredWallTemperature,configuredEmissivity;
+    std::vector<double> hostWallTemperature,hostEmissivity;
+    std::vector<unsigned char> hostResidentWallTemperature,hostContactEmissivity;
+    template<class T> void configure(Array<T>& target,std::vector<T>& previous,const std::vector<T>& next){
+        if(target.size!=next.size()||previous.size()!=next.size()||
+            (!next.empty()&&std::memcmp(previous.data(),next.data(),next.size()*sizeof(T)))){
+            target.upload(next,transfers);previous=next;
+        }
+    }
     int concurrentAngles=1;
     std::vector<std::unique_ptr<Direction>> directions;
     Implementation(const RadiationGeometry& input,const MieOpticalTable& table,const RadiationControls& options):geometry(input),controls(options),optical(table){
@@ -406,20 +450,39 @@ void DiscreteOrdinateRadiation::updateGeometry(const RadiationGeometry& geometry
     d.resultReady=false;d.clearSourceGraph();d.directions.clear();d.geometry=geometry;d.initialize();
 }
 
-RadiationResult DiscreteOrdinateRadiation::solve(const RadiationSnapshot& snapshot,bool warmStart){
+RadiationResult DiscreteOrdinateRadiation::solve(const RadiationSnapshot& snapshot,bool warmStart,bool exportFields){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.resultReady=false;
     const auto g=d.g;const auto f=d.f;const int blocks=std::max(1,(g.cells+127)/128),boundaryBlocks=std::max(1,(g.boundary+127)/128);
-    d.wallTemperature.upload(snapshot.wallTemperature,d.transfers);d.emissivity.upload(snapshot.emissivity,d.transfers);
+    if(snapshot.wallTemperature.size()!=std::size_t(g.boundary)||snapshot.emissivity.size()!=std::size_t(g.boundary))
+        throw std::invalid_argument("radiation wall input shape mismatch");
+    auto wallTemperature=snapshot.wallTemperature;auto emissivity=snapshot.emissivity;
+    if(snapshot.resident.enabled&&snapshot.residentWallTemperature.size()==wallTemperature.size()
+        &&snapshot.contactEmissivity.size()==emissivity.size()){
+        for(int f=0;f<g.boundary;++f){
+            if(snapshot.resident.boundaryTemperature&&snapshot.residentWallTemperature[f])wallTemperature[f]=0;
+            if(snapshot.resident.boundaryEmissivity&&snapshot.contactEmissivity[f])emissivity[f]=0;
+        }
+    }
+    d.configure(d.configuredWallTemperature,d.hostWallTemperature,wallTemperature);
+    d.configure(d.configuredEmissivity,d.hostEmissivity,emissivity);
+    if(g.boundary){
+        checked(cudaMemcpyAsync(d.wallTemperature.ptr,d.configuredWallTemperature.ptr,g.boundary*sizeof(double),cudaMemcpyDeviceToDevice,d.stream));
+        checked(cudaMemcpyAsync(d.emissivity.ptr,d.configuredEmissivity.ptr,g.boundary*sizeof(double),cudaMemcpyDeviceToDevice,d.stream));
+    }
     d.residentMass=snapshot.resident.enabled;
+    d.diagnostics=snapshot.resident.enabled?snapshot.resident.diagnostics:nullptr;
     if(snapshot.resident.enabled){
         const auto& input=snapshot.resident;
         if(input.cells!=g.cells||input.boundaryFaces!=g.boundary||(g.cells&&(!input.mass||!input.temperatureMass||!input.diameterMass))
             ||snapshot.residentWallTemperature.size()!=std::size_t(g.boundary)||snapshot.contactEmissivity.size()!=std::size_t(g.boundary))
             throw std::invalid_argument("resident radiation snapshot shape mismatch");
-        d.residentWallTemperature.upload(snapshot.residentWallTemperature,d.transfers);d.contactEmissivity.upload(snapshot.contactEmissivity,d.transfers);
+        d.configure(d.residentWallTemperature,d.hostResidentWallTemperature,snapshot.residentWallTemperature);
+        d.configure(d.contactEmissivity,d.hostContactEmissivity,snapshot.contactEmissivity);
         checked(cudaEventRecord(d.inputReady,static_cast<cudaStream_t>(input.producerStream)));checked(cudaStreamWaitEvent(d.stream,d.inputReady,0));
         importParticleState<double><<<blocks,128,0,d.stream>>>(g.cells,input,g.volume,d.controls.activeEpsilonMinimum,f.table,d.epsilon.ptr,d.mass.ptr,d.temperature.ptr,d.diameter.ptr);
         importBoundaryState<double><<<boundaryBlocks,128,0,d.stream>>>(g.boundary,input,d.residentWallTemperature.ptr,d.contactEmissivity.ptr,g.area,d.wallTemperature.ptr,d.emissivity.ptr);
+        checked(cudaEventRecord(d.inputReady,d.stream));
+        checked(cudaStreamWaitEvent(static_cast<cudaStream_t>(input.producerStream),d.inputReady,0));
     }else{
         d.epsilon.upload(snapshot.epsilon,d.transfers);d.temperature.upload(snapshot.temperature,d.transfers);d.diameter.upload(snapshot.diameter,d.transfers);
     }
@@ -430,17 +493,33 @@ RadiationResult DiscreteOrdinateRadiation::solve(const RadiationSnapshot& snapsh
         d.controls.phaseTolerance,d.controls.phaseIterations,d.scaling.ptr,d.nextScaling.ptr,d.rowError.ptr,d.columnError.ptr,d.phaseMetrics.ptr,d.scattering.ptr);
     if(!warmStart)fillInitial<<<std::max(std::size_t(1),(d.intensities.size+127)/128),128,0,d.stream>>>(d.intensities.size,d.intensities.ptr,d.reference.ptr);
     checked(cudaGraphLaunch(d.sourceExecutable,d.stream));
+    d.resultReady=true;
+    if(!exportFields&&d.diagnostics){
+        publishSourceDiagnostics<<<std::max(1,(std::max(g.cells,g.directions)+127)/128),128,0,d.stream>>>(
+            d.sourceReport.ptr,d.phaseMetrics.ptr,d.warnings.ptr,g.cells,g.directions,d.controls,d.diagnostics);
+        checked(cudaGetLastError());
+        return {};
+    }
+    return collect(exportFields);
+}
+RadiationResult DiscreteOrdinateRadiation::collect(bool exportFields){
+    auto& d=*data_;if(!d.resultReady)throw std::logic_error("radiation output requested before solve");
+    PinnedTransferQueue::Operation operation(d.transfers);
     RadiationResult result;SourceReport report;
-    d.transfers.download(&report,d.sourceReport.ptr,sizeof(report));d.warnings.download(result.directionWarnings,d.transfers);
-    d.absorption.download(result.absorption,d.transfers);d.scattering.download(result.scattering,d.transfers);d.extinction.download(result.extinction,d.transfers);
-    d.asymmetry.download(result.asymmetry,d.transfers);d.incidentRadiation.download(result.incident,d.transfers);d.power.download(result.power,d.transfers);
-    d.wallFlux.download(result.boundaryFlux,d.transfers);d.phaseMetrics.download(result.phaseMetrics,d.transfers);d.transfers.finish();
-    if(report.failure.code)fail(report.failure);
+    d.transfers.download(&report,d.sourceReport.ptr,sizeof(report));
+    if(exportFields){
+        d.warnings.download(result.directionWarnings,d.transfers);
+        d.absorption.download(result.absorption,d.transfers);d.scattering.download(result.scattering,d.transfers);d.extinction.download(result.extinction,d.transfers);
+        d.asymmetry.download(result.asymmetry,d.transfers);d.incidentRadiation.download(result.incident,d.transfers);d.power.download(result.power,d.transfers);
+        d.wallFlux.download(result.boundaryFlux,d.transfers);d.phaseMetrics.download(result.phaseMetrics,d.transfers);
+    }
+    d.transfers.finish();
+    if(report.failure.code){d.resultReady=false;fail(report.failure);}
     result.sourceIterations=report.iterations;result.maximumRelativeChange=report.maximumRelativeChange;d.resultReady=true;return result;
 }
 RadiationDeviceView DiscreteOrdinateRadiation::deviceView()const noexcept{
     const auto& d=*data_;return {d.resultReady,d.g.cells,d.g.boundary,d.epsilon.ptr,d.residentMass?d.mass.ptr:nullptr,d.temperature.ptr,d.diameter.ptr,
-        d.incidentRadiation.ptr,d.power.ptr,d.volume.ptr,d.area.ptr,d.wallFlux.ptr,d.stream};
+        d.incidentRadiation.ptr,d.power.ptr,d.volume.ptr,d.area.ptr,d.wallFlux.ptr,d.stream,d.diagnostics};
 }
 void DiscreteOrdinateRadiation::downloadIntensities(std::vector<double>& output)const{
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.intensities.download(output,d.transfers);d.transfers.finish();

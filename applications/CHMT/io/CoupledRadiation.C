@@ -62,19 +62,20 @@ bool CoupledRadiation::advance(Backend& backend,const WallProgram& program,HostS
         if(!material.resident.enabled)emissivity[patch][local]*=std::max(0.,1.-std::min(1.,material.occupiedArea[face]/area));
     }
     const Foam::gpuThermal::ParticleRadiationMaterialSnapshot snapshot{epsilon,mass,temperature,diameter,d.wallTemperature,emissivity,0.,elapsed,material.response,material.resident};
-    auto result=d.coupler->solve(snapshot);
-    std::vector<Real> actual;
-    if(!applyResidentRadiationEnergy(backend,result.resident,actual,state,error))return false;
-    double particleHeat=0,boundaryHeat=result.escapedBoundaryRadiationEnergyJ,gross=std::fabs(boundaryHeat);
-    for(double q:actual){particleHeat+=q;gross+=std::fabs(q);}
-    for(const auto& patch:result.solidWallRadiationEnergyJ)for(double q:patch){boundaryHeat+=q;gross+=std::fabs(q);}
-    const auto scale=ugkp::gpu::radiationMath::conservativeBoundaryEnergyScale(particleHeat,boundaryHeat,gross,1e-10,result.radiativeEnergyMagnitudeJ);
+    const auto requested=d.coupler->solve(snapshot,false);
+    ugkp::gpu::RadiationAcceptedEnergyDeviceView actual;
+    if(!applyResidentRadiationEnergy(backend,requested.resident,actual,state,error))return false;
+    d.coupler->settleAcceptedEnergy(actual);
+    // The material history owner still consumes boundary records. Publish only
+    // its settled boundary budget here, never optical or per-cell heat fields.
+    const auto result=d.coupler->collectBoundaryEnergy();
+    const double particleHeat=result.acceptedParticleRadiationEnergyJ;
     std::vector<Real> wallHeat(state.surface.gasFace.size(),0);double wallSum=0;
     for(std::size_t f=0;f<wallHeat.size();++f){const int face=state.surface.gasFace[f];if(face<0)continue;
         const int patch=d.mesh.boundaryMesh().whichPatch(face),local=face-d.mesh.boundaryMesh()[patch].start();
-        wallHeat[f]=scale.scale*result.solidWallRadiationEnergyJ[patch][local];wallSum+=wallHeat[f];}
+        wallHeat[f]=result.solidWallRadiationEnergyJ[patch][local];wallSum+=wallHeat[f];}
     setWindowRadiationEnergy(backend,wallHeat);state.radiationTime=state.time;
-    externalHeat=-scale.scale*result.escapedBoundaryRadiationEnergyJ;
+    externalHeat=-result.escapedBoundaryRadiationEnergyJ;
     std::cout<<"CHMT_RADIATION time="<<state.time<<" elapsed="<<elapsed<<" particleHeat="<<particleHeat
         <<" materialHeat="<<wallSum<<" externalHeat="<<externalHeat<<" residual="<<particleHeat+wallSum-externalHeat<<std::endl;
     return true;

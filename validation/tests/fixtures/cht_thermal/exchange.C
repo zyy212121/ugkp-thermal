@@ -52,6 +52,8 @@ int main(int argc,char**argv){
   }
   if(mode=="consume_error") {bool fail=false;try{advance();}catch(const std::runtime_error& e){fail=std::string(e.what()).find("consume error")!=std::string::npos;}ck(fail,"actual failure hidden");const auto& sm=runTime.lookupObject<fvMesh>("solid");near(sm.lookupObject<volScalarField>("T")[0],300,0);ck(resident.gasResets==0,"reset on failed consume");Info<<"PASS "<<mode<<nl;return 0;}
   auto result=advance();ck(result.coupled,"no actual exchange");near(result.elapsedCouplingTimeS,.1,0);
+  // Observe the host fields only through the production output publication.
+  coupler.persistAtWriteTime(runTime,rho,rhoU,rhoE,U,p,T,epsilonS,rhoUs,rhoEs,rhoDs,rhoHp,Us,theta,Tp,dMeanCell,true);
   const auto& sm=runTime.lookupObject<fvMesh>("solid");const auto& ts=sm.lookupObject<volScalarField>("T");
   scalar energy=0;forAll(ts,i)energy+=1000*sm.V()[i]*(ts[i]-300);
   scalar radiativeWallEnergy=0;const bool radiating=mode=="radiation";
@@ -64,7 +66,6 @@ int main(int argc,char**argv){
   label left=mesh.boundaryMesh().findPatchID("left");near(mesh.lookupObject<surfaceScalarField>("gasConvectiveWallHeatFlux").boundaryField()[left][0],pending?1500:500);near(mesh.lookupObject<surfaceScalarField>("particleStuckWallHeatFlux").boundaryField()[left][0],pending?600:200);near(mesh.lookupObject<surfaceScalarField>("particleReflectedWallHeatFlux").boundaryField()[left][0],pending?-150:-50);
   near(T.boundaryField()[left][0],ts.boundaryField()[sm.boundaryMesh().findPatchID("right")][0]);
   forAll(ts.boundaryField(),pi)forAll(ts.boundaryField()[pi],f)ck(std::isfinite(ts.boundaryField()[pi][f]),"unpublished face");
-  coupler.persistAtWriteTime(runTime,rho,rhoU,rhoE,U,p,T,epsilonS,rhoUs,rhoEs,rhoDs,rhoHp,Us,theta,Tp,dMeanCell,true);
   ThermalRestartPreflightExpectations expected;auto state=ThermalRestartPreflight::validateRestartDirectory(runTime.timePath(),expected);near(state.completedSimulationTimeS,.1,0);near(state.completedRadiationSimulationTimeS,radiating?.1:0,0);ck(!ThermalRestartPreflight::stateDictionary(state).found("particleContactEnergyJ"),"removed contact summary was republished");
   scalar contactEnergy=0;const auto& depositedFlux=mesh.lookupObject<surfaceScalarField>("particleStuckWallHeatFlux");const auto& reflectedFlux=mesh.lookupObject<surfaceScalarField>("particleReflectedWallHeatFlux");
   forAll(depositedFlux.boundaryField(),pi)forAll(depositedFlux.boundaryField()[pi],f)contactEnergy+=(depositedFlux.boundaryField()[pi][f]+reflectedFlux.boundaryField()[pi][f])*mesh.magSf().boundaryField()[pi][f]*result.elapsedCouplingTimeS;

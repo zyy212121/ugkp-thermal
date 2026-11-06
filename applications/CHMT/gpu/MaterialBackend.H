@@ -5,6 +5,7 @@
 #include "gpu/MaterialThermalBackend.H"
 #include "ablation/CpuSurfaceInterface.H"
 #include "../../../common/DiagnosticsHost.H"
+namespace ugkp { namespace gpu { class ImplicitDiffusion;class SparseConjugateGradient; }}
 namespace chmt {
 struct CpuMaterialControls;
 struct MaterialBackend;
@@ -36,6 +37,11 @@ struct MaterialConductionAudit {
 bool auditResidentMaterialConduction(MaterialBackend&,const Real* temperature,const Real* previous,
     const Real* powerResidual,const Real* boundaryFlux,const std::vector<int>& externalBoundary,Real dt,
     void* producerStream,MaterialConductionAudit&,std::string&);
+// The configured local discretization, physical error budget and nonlinear
+// stopping rule execute as one nested device graph; publication is at its end.
+bool solveResidentMaterialConduction(MaterialBackend&,ugkp::gpu::ImplicitDiffusion&,ugkp::gpu::SparseConjugateGradient&,
+    const std::vector<int>& externalBoundary,Real dt,const CpuMaterialControls&,Real normalizationSmall,Real singularSmall,
+    std::string&);
 bool finishResidentMaterialConduction(MaterialBackend&,const std::vector<Real>& temperature,
     std::vector<SolidQ>& hostMirror,std::string&,bool& numericalFailure,
     const Real* deviceTemperature=nullptr,void* temperatureStream=nullptr);

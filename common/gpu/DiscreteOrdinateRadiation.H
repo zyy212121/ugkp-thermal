@@ -54,7 +54,9 @@ class DiscreteOrdinateRadiation {
 public:
     DiscreteOrdinateRadiation(const RadiationGeometry&,const MieOpticalTable&,const RadiationControls&);
     ~DiscreteOrdinateRadiation();
-    RadiationResult solve(const RadiationSnapshot&,bool warmStart);
+    RadiationResult solve(const RadiationSnapshot&,bool warmStart,bool exportFields=true);
+    // Explicit output publication. Device consumers use deviceView() directly.
+    RadiationResult collect(bool exportFields=true);
     // Same topology/angular quadrature: refresh metric/transport graphs while
     // retaining optical tables and angular intensities on the device.
     void updateGeometry(const RadiationGeometry&);

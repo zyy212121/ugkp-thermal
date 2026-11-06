@@ -30,6 +30,23 @@ struct ScaledThermalSum {
     UGKP_SUM_HD void product(double a,double b){int ea=0,eb=0;const double ma=frexp(a,&ea),mb=frexp(b,&eb);addScaled(ma*mb,ea+eb);}
     UGKP_SUM_HD void product(double a,double b,double c){int ea=0,eb=0,ec=0;const double ma=frexp(a,&ea),mb=frexp(b,&eb),mc=frexp(c,&ec);addScaled((ma*mb)*mc,ea+eb+ec);}
     UGKP_SUM_HD void merge(const ScaledThermalSum& other){if(other.populated){addScaled(other.value,other.exponent);addScaled(other.correction,other.exponent);}}
+    UGKP_SUM_HD bool finite()const{return std::isfinite(value)&&std::isfinite(correction);}
+    UGKP_SUM_HD ScaledThermalSum negated()const{auto result=*this;result.value=-result.value;result.correction=-result.correction;return result;}
+    UGKP_SUM_HD ScaledThermalSum magnitude()const{return value<0||(value==0&&correction<0)?negated():*this;}
+    UGKP_SUM_HD ScaledThermalSum multiplied(double factor)const{
+        ScaledThermalSum result;if(!populated)return result;
+        int power=0;const double mantissa=frexp(factor,&power);
+        result.addScaled(value*mantissa,exponent+power);result.addScaled(correction*mantissa,exponent+power);return result;
+    }
+    UGKP_SUM_HD bool lessEqual(const ScaledThermalSum& other)const{
+        if(!finite()||!other.finite())return false;
+        auto difference=*this;difference.merge(other.negated());
+        return difference.value<0||(difference.value==0&&difference.correction<=0);
+    }
+    UGKP_SUM_HD double ratioTo(const ScaledThermalSum& denominator)const{
+        return ldexp((value+correction)/(denominator.value+denominator.correction),exponent-denominator.exponent);
+    }
+    UGKP_SUM_HD double binary64()const{return ldexp(value+correction,exponent);}
     long double extended()const{return std::ldexp(static_cast<long double>(value)+static_cast<long double>(correction),exponent);}
 };
 }}

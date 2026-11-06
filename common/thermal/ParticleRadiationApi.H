@@ -13,3 +13,4 @@ extern "C" int ugkwpGpuResidentStrictParticleRadiationResponse(void*,ugkp::gpu::
 
 extern "C" int ugkwpGpuResidentStrictBorrowRadiationParticleState(void*,ugkp::gpu::RadiationParticleDeviceView*);
 extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationDeviceEnergy(void*,const ugkp::gpu::RadiationMaterialDeviceView*,double* accepted=nullptr);
+extern "C" int ugkwpGpuResidentStrictBorrowAcceptedRadiationEnergy(void*,ugkp::gpu::RadiationAcceptedEnergyDeviceView*);

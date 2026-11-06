@@ -15,7 +15,7 @@ struct ParticleRadiationMaterialInput {
 };
 struct ParticleRadiationMaterialResult {
     std::vector<double> temperature,energy,boundaryEnergy;
-    double escapedEnergy=0,radiativeEnergyMagnitude=0;
+    double escapedEnergy=0,radiativeEnergyMagnitude=0,acceptedParticleEnergy=0;
     RadiationMaterialDeviceView resident{};
 };
 class ParticleRadiationMaterial {
@@ -23,7 +23,12 @@ class ParticleRadiationMaterial {
 public:
     explicit ParticleRadiationMaterial(const MieOpticalTable&);
     ~ParticleRadiationMaterial();
-    ParticleRadiationMaterialResult solve(const ParticleRadiationMaterialInput&);
+    ParticleRadiationMaterialResult solve(const ParticleRadiationMaterialInput&,bool exportFields=true);
+    ParticleRadiationMaterialResult collect();
+    // Reconcile the already computed wall contribution with actual bounded
+    // particle heat. The same conservative scaling stays entirely on device.
+    void settleAcceptedEnergy(const RadiationAcceptedEnergyDeviceView&);
+    ParticleRadiationMaterialResult collectBoundaryEnergy();
 };
 }}
 #endif

@@ -121,8 +121,10 @@ public:
     MieDoResult solve
     (
         const MieDoSnapshot& snapshot,
-        MieDoRadiationWorkspace& workspace
+        MieDoRadiationWorkspace& workspace,
+        bool exportFields=true
     ) const;
+    MieDoResult collect(MieDoRadiationWorkspace&) const;
 };
 
 }                        

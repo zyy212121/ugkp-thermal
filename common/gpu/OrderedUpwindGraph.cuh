@@ -1,5 +1,6 @@
 #ifndef UGKP_GPU_ORDERED_UPWIND_GRAPH_CUH
 #define UGKP_GPU_ORDERED_UPWIND_GRAPH_CUH
+#include "ExecutionGraph.cuh"
 #include "OrderedUpwindPlan.H"
 #include "OrderedUpwindSweep.cuh"
 #include "OrderedMaximum.cuh"
@@ -36,33 +37,8 @@ static __global__ void maximumResult(OrderedMaximum* maximum,double initial,doub
 static __global__ void setContinuation(const UpwindLinearReport* report,cudaGraphConditionalHandle handle){
     if(!threadIdx.x)cudaGraphSetConditional(handle,report->active?1:0);
 }
-// Capture ordinary kernels as a child node. Conditional nodes are attached to
-// their owning graph directly; CUDA does not permit cloning them as children.
-template<class Capture> inline cudaGraphNode_t appendCaptured(cudaGraph_t graph,
-    const std::vector<cudaGraphNode_t>& dependencies,cudaStream_t stream,Capture capture){
-    cudaGraph_t child=nullptr;
-    checkedCudaUpwind(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));
-    try{capture();checkedCudaUpwind(cudaStreamEndCapture(stream,&child));}
-    catch(...){cudaStreamCaptureStatus status;
-        if(cudaStreamIsCapturing(stream,&status)==cudaSuccess&&status!=cudaStreamCaptureStatusNone)
-            cudaStreamEndCapture(stream,&child);
-        if(child)cudaGraphDestroy(child);throw;}
-    cudaGraphNode_t node=nullptr;
-    const auto code=cudaGraphAddChildGraphNode(&node,graph,dependencies.data(),dependencies.size(),child);
-    cudaGraphDestroy(child);checkedCudaUpwind(code);return node;
-}
-inline cudaGraphNode_t addWhile(cudaGraph_t graph,cudaGraphConditionalHandle handle,
-    const std::vector<cudaGraphNode_t>& dependencies,cudaGraph_t& body){
-    cudaGraphNodeParams parameters{};parameters.type=cudaGraphNodeTypeConditional;
-    parameters.conditional.handle=handle;parameters.conditional.type=cudaGraphCondTypeWhile;parameters.conditional.size=1;
-    cudaGraphNode_t node=nullptr;
-#if CUDART_VERSION >= 13000
-    checkedCudaUpwind(cudaGraphAddNode(&node,graph,dependencies.data(),nullptr,dependencies.size(),&parameters));
-#else
-    checkedCudaUpwind(cudaGraphAddNode(&node,graph,dependencies.data(),dependencies.size(),&parameters));
-#endif
-    body=parameters.conditional.phGraph_out[0];return node;
-}
+using executionGraphDetail::appendCaptured;
+using executionGraphDetail::addWhile;
 __device__ inline bool needsSweep(const UpwindLinearReport& report,UpwindLinearControls controls){
     return (report.finalResidual>report.target || (report.iterations==0&&
         (controls.maximumIterations<=0||!std::isfinite(report.initialResidual)||std::isnan(report.target))))

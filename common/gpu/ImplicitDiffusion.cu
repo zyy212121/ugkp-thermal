@@ -16,7 +16,7 @@ template<class T> struct Array {
     void upload(const std::vector<T>& input,PinnedTransferQueue& queue){reserve(input.size());queue.upload(ptr,input.data(),input.size()*sizeof(T));}
     void download(std::vector<T>& output,int n,PinnedTransferQueue& queue){output.resize(n);queue.download(output.data(),ptr,n*sizeof(T));}
 };
-__global__ void residentConductivity(int nf,int ni,const int* owner,const int* neighbour,
+__global__ void interpolateResidentConductivity(int nf,int ni,const int* owner,const int* neighbour,
     const double* cells,const double* weights,const double* boundary,const double* adjacent,
     const int* coupled,const int* adjacentCells,const double* jump,const double* boundaryDevice,bool harmonic,double* gamma){
     const int f=blockIdx.x*blockDim.x+threadIdx.x;if(f>=nf)return;
@@ -50,17 +50,20 @@ __global__ void residentNormalCorrection(int nf,int ni,const int* owner,const in
             const ThermalVector adjacent{x.x*v.x+y.x*v.y+z.x*v.z,x.y*v.x+y.y*v.y+z.y*v.z,x.z*v.x+y.z*v.y+z.z*v.z};
             face={thermalLinearInterpolation(a.x,adjacent.x,weight[f],1),thermalLinearInterpolation(a.y,adjacent.y,weight[f],1),thermalLinearInterpolation(a.z,adjacent.z,weight[f],1)};
         }else{const auto sf=area[f];const ThermalVector normal{sf.x/magnitude[f],sf.y/magnitude[f],sf.z/magnitude[f]};
+            const auto x=transform[3*b],y=transform[3*b+1],z=transform[3*b+2];
+            const ThermalVector boundary{x.x*a.x+y.x*a.y+z.x*a.z,x.y*a.x+y.y*a.y+z.y*a.z,x.z*a.x+y.z*a.y+z.z*a.z};
             const double snGrad=normalInternal[b]*temperature[c]+normalBoundary[b];
-            const double change=snGrad-(normal.x*a.x+normal.y*a.y+normal.z*a.z);
-            face={a.x+normal.x*change,a.y+normal.y*change,a.z+normal.z*change};}}
+            const double change=snGrad-(normal.x*boundary.x+normal.y*boundary.y+normal.z*boundary.z);
+            face={boundary.x+normal.x*change,boundary.y+normal.y*change,boundary.z+normal.z*change};}}
     const auto d=direction[f];correction[f]=d.x*face.x+d.y*face.y+d.z*face.z;
 }
 __global__ void scatterInterfaceEnergy(int n,const int* boundaryFaces,const double* incoming,double* energy){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<n)energy[boundaryFaces[i]]=incoming[i];
 }
 __global__ void prescribeEnergyGradient(int nb,const int* selected,const double* energy,const double* area,
-    const double* conductivity,double interval,double* gradientBoundary,double* valueBoundary,double* normalBoundary,const double* valueDelta){
+    const double* conductivity,double interval,double* gradientBoundary,double* valueBoundary,double* normalBoundary,const double* valueDelta,const double* deviceInterval=nullptr){
     const int b=blockIdx.x*blockDim.x+threadIdx.x;if(b>=nb||!selected[b])return;
+    if(deviceInterval)interval=*deviceInterval;
     const double denominator=area[b]*interval*conductivity[b];
     const double gradient=energy[b]/denominator;gradientBoundary[b]=gradient;
     if(valueBoundary){valueBoundary[b]=gradient/valueDelta[b];normalBoundary[b]=gradient;}
@@ -75,8 +78,9 @@ __global__ void faceFactors(int nf,int ni,const double* gamma,const double* area
     flux[f]=corrected?g*correction[f]:0;
 }
 __global__ void transientCells(int n,const double* volume,const double* capacity,const double* rhs,double dt,
-    bool sourceFromCapacity,double* diagonal,double* source){
+    bool sourceFromCapacity,double* diagonal,double* source,const double* deviceInterval=nullptr){
     const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=n)return;
+    if(deviceInterval)dt=*deviceInterval;
     const double weight=capacity[c]/dt;
     const double forcing=sourceFromCapacity?weight*rhs[c]:rhs[c];
     diagonal[c]=volume[c]*weight-diagonal[c];
@@ -131,7 +135,11 @@ struct ImplicitDiffusion::Implementation {
     std::vector<ThermalVector> cachedFaceArea,cachedCorrectionDirection,cachedNeighbourTransform;
     Array<int> offsets,faces,signs,deviceOwner,deviceNeighbour,coupled,fluxAdjacentCells;
     Array<double> fluxJump;
+    Array<boundary::Face> jumpScheduleFaces;Array<boundary::Function> jumpScheduleFunctions;
+    Array<boundary::Term> jumpScheduleTerms;Array<int> jumpScheduleSigns;Array<double> jumpScheduleTime;
+    int jumpScheduleCount=0;
     Array<double> solution,anchorSolution,previousSolution,residual,neighbourTemperature,faceFlux;
+    Array<double> windowSolution,windowBoundary;
     bool asymmetric=false,assemblyTopologyReady=false,residentBoundary=false,residentConductivity=false;
     Array<double> conductivityWeights,conductivityBoundary,conductivityNeighbour;
     Array<int> conductivityCoupled,conductivityAdjacentCells;
@@ -152,6 +160,39 @@ struct ImplicitDiffusion::Implementation {
     }
     Array<double> volume,gamma,area,delta,gradientInternal,gradientBoundary,correction;
     Array<double> capacity,rhs,diagonal,source,upper,lower,boundaryDiagonal,boundarySource,flux;
+    struct PreparedAssembly {
+        int faces=0;
+        bool valid=false,corrected=false,harmonic=false,transient=false,sourceFromCapacity=false;
+        const double *conductivity=nullptr,*boundaryConductivity=nullptr,*temperature=nullptr,*capacity=nullptr,*rhs=nullptr;
+        double interval=0;
+    } prepared;
+    void assemblePrepared(cudaStream_t target,const double* deviceInterval=nullptr){
+        const int n=cells,ni=internal,nf=prepared.faces,nb=nf-ni;
+        if(prepared.conductivity&&nf)interpolateResidentConductivity<<<(nf+127)/128,128,0,target>>>(nf,ni,deviceOwner.ptr,deviceNeighbour.ptr,
+            prepared.conductivity,conductivityWeights.ptr,conductivityBoundary.ptr,conductivityNeighbour.ptr,conductivityCoupled.ptr,conductivityAdjacentCells.ptr,conductivityJump.ptr,prepared.boundaryConductivity,prepared.harmonic,gamma.ptr);
+        if(prepared.temperature){
+            if(nb&&prescribedConductivity)prescribeEnergyGradient<<<(nb+127)/128,128,0,target>>>(nb,prescribedSelected.ptr,prescribedEnergy.ptr,
+                area.ptr+ni,prescribedConductivity,prescribedInterval,gradientBoundary.ptr,valueBoundary.ptr,normalBoundary.ptr,boundaryValueDelta.ptr,deviceInterval);
+            if(nf)residentTemperatureFaces<<<(nf+127)/128,128,0,target>>>(nf,ni,deviceOwner.ptr,deviceNeighbour.ptr,
+                prepared.temperature,gradientWeights.ptr,gradientNeighbour.ptr,valueInternal.ptr,valueBoundary.ptr,jump.ptr,faceTemperature.ptr);
+            if(prepared.corrected&&n)thermalGradientDetail::cellGradient<<<(n+127)/128,128,0,target>>>(n,offsets.ptr,faces.ptr,signs.ptr,
+                faceTemperature.ptr,faceArea.ptr,volume.ptr,gradient.ptr);
+            if(prepared.corrected&&nf)residentNormalCorrection<<<(nf+127)/128,128,0,target>>>(nf,ni,deviceOwner.ptr,deviceNeighbour.ptr,
+                prepared.temperature,gradient.ptr,gradientWeights.ptr,faceArea.ptr,area.ptr,correctionDirection.ptr,
+                gradientNeighbour.ptr,normalInternal.ptr,normalBoundary.ptr,neighbourTransform.ptr,correction.ptr);
+        }else if(nb&&prescribedConductivity)prescribeEnergyGradient<<<(nb+127)/128,128,0,target>>>(nb,prescribedSelected.ptr,prescribedEnergy.ptr,
+            area.ptr+ni,prescribedConductivity,prescribedInterval,gradientBoundary.ptr,nullptr,nullptr,nullptr,deviceInterval);
+        if(nf)faceFactors<<<(nf+127)/128,128,0,target>>>(nf,ni,gamma.ptr,area.ptr,delta.ptr,gradientInternal.ptr,gradientBoundary.ptr,correction.ptr,prepared.corrected,upper.ptr,boundaryDiagonal.ptr,boundarySource.ptr,flux.ptr);
+        if(n)cellAssembly<<<(n+127)/128,128,0,target>>>(n,ni,offsets.ptr,faces.ptr,signs.ptr,upper.ptr,flux.ptr,volume.ptr,prepared.corrected,diagonal.ptr,source.ptr);
+        if(prepared.transient){
+            if(n)transientCells<<<(n+127)/128,128,0,target>>>(n,volume.ptr,prepared.capacity,prepared.rhs,
+                prepared.interval,prepared.sourceFromCapacity,diagonal.ptr,source.ptr,deviceInterval);
+            if(ni)negate<<<(ni+127)/128,128,0,target>>>(ni,upper.ptr,false);
+            if(nb){negate<<<(nb+127)/128,128,0,target>>>(nb,boundaryDiagonal.ptr,true);
+                negate<<<(nb+127)/128,128,0,target>>>(nb,boundarySource.ptr,true);}
+            if(nf)negate<<<(nf+127)/128,128,0,target>>>(nf,flux.ptr,false);
+        }
+    }
     Implementation(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfers.bind(stream);}
     ~Implementation(){transfers.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}if(inputReady)cudaEventDestroy(inputReady);}
 };
@@ -177,8 +218,6 @@ void ImplicitDiffusion::assembleResident(const DiffusionInput& input,const Diffu
         d.conductivityNeighbour.upload(input.conductivityNeighbour,d.transfers);
         d.immutableInput(d.conductivityCoupled,d.cachedConductivityCoupled,input.conductivityCoupled);
         d.immutableInput(d.conductivityAdjacentCells,d.cachedConductivityAdjacentCells,input.conductivityAdjacentCells);d.immutableInput(d.conductivityJump,d.cachedConductivityJump,input.conductivityJump);
-        if(nf)residentConductivity<<<(nf+127)/128,128,0,d.stream>>>(nf,ni,d.deviceOwner.ptr,d.deviceNeighbour.ptr,
-            input.deviceConductivity,d.conductivityWeights.ptr,d.conductivityBoundary.ptr,d.conductivityNeighbour.ptr,d.conductivityCoupled.ptr,d.conductivityAdjacentCells.ptr,d.conductivityJump.ptr,input.deviceBoundaryConductivity,input.harmonicConductivity,d.gamma.ptr);
     }else d.gamma.upload(input.gamma,d.transfers);
     d.gradientInternal.upload(input.gradientInternal,d.transfers);d.gradientBoundary.upload(input.gradientBoundary,d.transfers);
     if(input.deviceTemperature){
@@ -189,35 +228,24 @@ void ImplicitDiffusion::assembleResident(const DiffusionInput& input,const Diffu
         d.immutableInput(d.gradientNeighbour,d.cachedGradientNeighbour,input.gradientNeighbour);d.immutableInput(d.faceArea,d.cachedFaceArea,input.faceArea);
         d.immutableInput(d.correctionDirection,d.cachedCorrectionDirection,input.correctionDirection);d.immutableInput(d.neighbourTransform,d.cachedNeighbourTransform,input.neighbourTransform);
         d.gradient.reserve(n);d.faceTemperature.reserve(nf);d.correction.reserve(nf);
-        if(nb&&d.prescribedConductivity)prescribeEnergyGradient<<<(nb+127)/128,128,0,d.stream>>>(nb,d.prescribedSelected.ptr,d.prescribedEnergy.ptr,
-            d.area.ptr+ni,d.prescribedConductivity,d.prescribedInterval,d.gradientBoundary.ptr,d.valueBoundary.ptr,d.normalBoundary.ptr,d.boundaryValueDelta.ptr);
-        if(nf)residentTemperatureFaces<<<(nf+127)/128,128,0,d.stream>>>(nf,ni,d.deviceOwner.ptr,d.deviceNeighbour.ptr,
-            input.deviceTemperature,d.gradientWeights.ptr,d.gradientNeighbour.ptr,d.valueInternal.ptr,d.valueBoundary.ptr,d.jump.ptr,d.faceTemperature.ptr);
-        if(input.corrected&&n)thermalGradientDetail::cellGradient<<<(n+127)/128,128,0,d.stream>>>(n,d.offsets.ptr,d.faces.ptr,d.signs.ptr,
-            d.faceTemperature.ptr,d.faceArea.ptr,d.volume.ptr,d.gradient.ptr);
-        if(input.corrected&&nf)residentNormalCorrection<<<(nf+127)/128,128,0,d.stream>>>(nf,ni,d.deviceOwner.ptr,d.deviceNeighbour.ptr,
-            input.deviceTemperature,d.gradient.ptr,d.gradientWeights.ptr,d.faceArea.ptr,d.area.ptr,d.correctionDirection.ptr,
-            d.gradientNeighbour.ptr,d.normalInternal.ptr,d.normalBoundary.ptr,d.neighbourTransform.ptr,d.correction.ptr);
     }else d.correction.upload(input.correction,d.transfers);
-    if(nb&&d.prescribedConductivity&&!d.residentBoundary)prescribeEnergyGradient<<<(nb+127)/128,128,0,d.stream>>>(nb,d.prescribedSelected.ptr,d.prescribedEnergy.ptr,
-        d.area.ptr+ni,d.prescribedConductivity,d.prescribedInterval,d.gradientBoundary.ptr,nullptr,nullptr,nullptr);
     d.diagonal.reserve(n);d.source.reserve(n);d.upper.reserve(ni);d.boundaryDiagonal.reserve(nb);d.boundarySource.reserve(nb);d.flux.reserve(nf);
-    if(nf)faceFactors<<<(nf+127)/128,128,0,d.stream>>>(nf,ni,d.gamma.ptr,d.area.ptr,d.delta.ptr,d.gradientInternal.ptr,d.gradientBoundary.ptr,d.correction.ptr,input.corrected,d.upper.ptr,d.boundaryDiagonal.ptr,d.boundarySource.ptr,d.flux.ptr);
-    if(n)cellAssembly<<<(n+127)/128,128,0,d.stream>>>(n,ni,d.offsets.ptr,d.faces.ptr,d.signs.ptr,d.upper.ptr,d.flux.ptr,d.volume.ptr,input.corrected,d.diagonal.ptr,d.source.ptr);
     if(transient){
         if(transient->deviceCapacity||transient->deviceRhs)d.waitFor(transient->readyStream);
         if(!transient->deviceCapacity)d.capacity.upload(*transient->capacity,d.transfers);
         if(!transient->deviceRhs)d.geometry(d.rhs,d.cachedRhs,*transient->rhs);
-        if(n)transientCells<<<(n+127)/128,128,0,d.stream>>>(n,d.volume.ptr,
-            transient->deviceCapacity?transient->deviceCapacity:d.capacity.ptr,
-            transient->deviceRhs?transient->deviceRhs:d.rhs.ptr,
-            transient->dt,transient->sourceFromCapacity,d.diagonal.ptr,d.source.ptr);
-        if(ni)negate<<<(ni+127)/128,128,0,d.stream>>>(ni,d.upper.ptr,false);
-        if(nb){negate<<<(nb+127)/128,128,0,d.stream>>>(nb,d.boundaryDiagonal.ptr,true);
-            negate<<<(nb+127)/128,128,0,d.stream>>>(nb,d.boundarySource.ptr,true);}
-        if(nf)negate<<<(nf+127)/128,128,0,d.stream>>>(nf,d.flux.ptr,false);
     }
-    d.solution.reserve(n);d.residual.reserve(n);
+    d.solution.reserve(n);d.residual.reserve(n);d.previousSolution.reserve(n);
+    d.prepared={nf,true,input.corrected,input.harmonicConductivity,transient!=nullptr,
+        transient?transient->sourceFromCapacity:false,input.deviceConductivity,input.deviceBoundaryConductivity,input.deviceTemperature,
+        transient?(transient->deviceCapacity?transient->deviceCapacity:d.capacity.ptr):nullptr,
+        transient?(transient->deviceRhs?transient->deviceRhs:d.rhs.ptr):nullptr,transient?transient->dt:0};
+    d.assemblePrepared(d.stream);
+}
+void ImplicitDiffusion::enqueueResidentAssembly(void* executionStream,const double* deviceInterval){
+    auto& d=*data_;
+    if(!d.prepared.valid)throw std::logic_error("resident diffusion must be configured before enqueue");
+    d.assemblePrepared(static_cast<cudaStream_t>(executionStream),deviceInterval);
 }
 void ImplicitDiffusion::assemble(const DiffusionInput& input,DiffusionMatrix& output,const DiffusionTransientInput* transient){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);
@@ -229,15 +257,61 @@ void ImplicitDiffusion::assemble(const DiffusionInput& input,DiffusionMatrix& ou
 }
 SparseDeviceLduValues ImplicitDiffusion::deviceValues()const{
     const auto& d=*data_;return {d.diagonal.ptr,d.upper.ptr,d.asymmetric?d.lower.ptr:d.upper.ptr,
-        d.source.ptr,d.boundaryDiagonal.ptr,d.boundarySource.ptr,d.stream};
+        d.source.ptr,d.boundaryDiagonal.ptr,d.boundarySource.ptr,d.stream,d.residentBoundary?d.jump.ptr:nullptr};
 }
 double* ImplicitDiffusion::deviceSolution(){data_->hostSolutionCurrent=false;return data_->solution.ptr;}
 const double* ImplicitDiffusion::deviceTemperature()const{return data_->solution.ptr;}
 double* ImplicitDiffusion::deviceResidual(){return data_->residual.ptr;}
 const double* ImplicitDiffusion::devicePreviousSolution()const{return data_->previousSolution.ptr;}
 void ImplicitDiffusion::snapshotSolution(){
-    auto& d=*data_;d.previousSolution.reserve(d.cells);
-    if(d.cells)checked(cudaMemcpyAsync(d.previousSolution.ptr,d.solution.ptr,d.cells*sizeof(double),cudaMemcpyDeviceToDevice,d.stream));
+    auto& d=*data_;d.previousSolution.reserve(d.cells);enqueueResidentSnapshot(d.stream);
+}
+void ImplicitDiffusion::enqueueResidentSnapshot(void* stream){
+    auto& d=*data_;if(d.cells)checked(cudaMemcpyAsync(d.previousSolution.ptr,d.solution.ptr,d.cells*sizeof(double),cudaMemcpyDeviceToDevice,static_cast<cudaStream_t>(stream)));
+}
+void ImplicitDiffusion::prepareResidentWindowSnapshot(){
+    auto& d=*data_;d.windowSolution.reserve(d.cells);d.windowBoundary.reserve(d.owner.size()-d.internal);
+}
+void ImplicitDiffusion::enqueueResidentWindowSnapshot(void* executionStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(executionStream);const int nb=d.owner.size()-d.internal;
+    if(d.cells)checked(cudaMemcpyAsync(d.windowSolution.ptr,d.solution.ptr,d.cells*sizeof(double),cudaMemcpyDeviceToDevice,stream));
+    if(nb)checked(cudaMemcpyAsync(d.windowBoundary.ptr,d.faceTemperature.ptr+d.internal,nb*sizeof(double),cudaMemcpyDeviceToDevice,stream));
+}
+void ImplicitDiffusion::enqueueResidentWindowRestore(void* executionStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(executionStream);const int nb=d.owner.size()-d.internal;
+    if(d.cells)checked(cudaMemcpyAsync(d.solution.ptr,d.windowSolution.ptr,d.cells*sizeof(double),cudaMemcpyDeviceToDevice,stream));
+    if(nb)checked(cudaMemcpyAsync(d.faceTemperature.ptr+d.internal,d.windowBoundary.ptr,nb*sizeof(double),cudaMemcpyDeviceToDevice,stream));
+}
+namespace {
+__global__ void advanceBoundaryScheduleTime(double* time,const double* interval){if(!threadIdx.x)*time+=*interval;}
+__global__ void evaluateBoundaryJumpSchedule(boundary::View program,const int* signs,const double* time,double* jump,double* fluxJump){
+    const int face=blockIdx.x*blockDim.x+threadIdx.x;if(face>=program.count)return;
+    const int function=program.faces[face].function[boundary::Temperature];if(function<0)return;
+    const double value=signs[face]*boundary::evaluate(program,function,*time,0);
+    jump[face]=value;if(fluxJump)fluxJump[face]=value;
+}
+}
+void ImplicitDiffusion::configureBoundaryJumpSchedule(const boundary::Definition& definition,const std::vector<int>& signs,double initialTime){
+    auto& d=*data_;boundary::validate(definition);
+    if(definition.faces.size()!=signs.size()||definition.faces.size()!=std::size_t(d.owner.size()-d.internal))
+        throw std::runtime_error("solid jump schedule extent mismatch");
+    d.jumpScheduleCount=definition.faces.size();
+    d.jumpScheduleFaces.upload(definition.faces,d.transfers);d.jumpScheduleFunctions.upload(definition.functions,d.transfers);
+    d.jumpScheduleTerms.upload(definition.terms,d.transfers);d.jumpScheduleSigns.upload(signs,d.transfers);
+    d.jumpScheduleTime.upload(std::vector<double>{initialTime},d.transfers);d.transfers.finish();
+}
+void ImplicitDiffusion::enqueueBoundaryJumpSchedule(void* stream,const double* interval){
+    auto& d=*data_;if(!d.jumpScheduleCount)return;
+    const auto execution=static_cast<cudaStream_t>(stream);
+    advanceBoundaryScheduleTime<<<1,1,0,execution>>>(d.jumpScheduleTime.ptr,interval);
+    const boundary::View view{d.jumpScheduleFaces.ptr,d.jumpScheduleFunctions.ptr,d.jumpScheduleTerms.ptr,d.jumpScheduleCount};
+    evaluateBoundaryJumpSchedule<<<(d.jumpScheduleCount+127)/128,128,0,execution>>>(view,d.jumpScheduleSigns.ptr,d.jumpScheduleTime.ptr,d.jump.ptr,d.fluxJump.ptr);
+}
+void ImplicitDiffusion::enqueueResidentInterfaceEnergy(void* stream){
+    auto& d=*data_;
+    for(int segment=0;segment<2;++segment){const auto& view=d.interfaceEnergy[segment];if(view.enabled&&view.faces)
+        scatterInterfaceEnergy<<<(view.faces+127)/128,128,0,static_cast<cudaStream_t>(stream)>>>(view.faces,
+            d.interfaceBoundaryFaces.ptr+d.interfaceEnergyOffset[segment],view.energy,d.prescribedEnergy.ptr);}
 }
 void ImplicitDiffusion::prescribeBoundaryEnergy(const std::vector<double>& energy,const std::vector<int>& selected,
     double interval,const double* conductivity,void* propertyStream){
@@ -270,10 +344,16 @@ void ImplicitDiffusion::setInterfaceEnergy(const std::vector<int>& boundaryFaces
         throw std::runtime_error("solid interface device energy segments overlap");
     if((view.enabled||appended.enabled)&&d.cachedInterfaceBoundaryFaces!=boundaryFaces){d.interfaceBoundaryFaces.upload(boundaryFaces,d.transfers);d.cachedInterfaceBoundaryFaces=boundaryFaces;}
 }
-void ImplicitDiffusion::refreshBoundaryTemperature(){
+void ImplicitDiffusion::refreshBoundaryTemperature(){enqueueResidentBoundaryTemperature(data_->stream);}
+void ImplicitDiffusion::enqueueResidentBoundaryTemperature(void* stream){
     auto& d=*data_;if(!d.residentBoundary)return;const int nf=d.owner.size();
-    if(nf)residentTemperatureFaces<<<(nf+127)/128,128,0,d.stream>>>(nf,d.internal,d.deviceOwner.ptr,d.deviceNeighbour.ptr,
+    if(nf)residentTemperatureFaces<<<(nf+127)/128,128,0,static_cast<cudaStream_t>(stream)>>>(nf,d.internal,d.deviceOwner.ptr,d.deviceNeighbour.ptr,
         d.solution.ptr,d.gradientWeights.ptr,d.gradientNeighbour.ptr,d.valueInternal.ptr,d.valueBoundary.ptr,d.jump.ptr,d.faceTemperature.ptr);
+}
+void ImplicitDiffusion::initializeBoundaryTemperature(const std::vector<double>& temperature){
+    auto& d=*data_;const int nb=d.owner.size()-d.internal;
+    if(!d.residentBoundary||temperature.size()!=static_cast<std::size_t>(nb))throw std::invalid_argument("initial resident boundary temperature extent mismatch");
+    if(nb)d.transfers.upload(d.faceTemperature.ptr+d.internal,temperature.data(),nb*sizeof(double));
 }
 const double* ImplicitDiffusion::deviceBoundaryTemperature()const{
     const auto& d=*data_;return d.residentBoundary&&d.faceTemperature.ptr?d.faceTemperature.ptr+d.internal:nullptr;
@@ -318,7 +398,7 @@ void ImplicitDiffusion::downloadBoundaryCoefficients(std::vector<double>& diagon
     d.boundaryDiagonal.download(diagonal,nb,d.transfers);d.boundarySource.download(source,nb,d.transfers);d.transfers.finish();
 }
 void ImplicitDiffusion::retain(const DiffusionInput& input,const DiffusionMatrix& matrix){
-    auto& d=*data_;d.assemblyTopologyReady=false;d.residentBoundary=false;d.residentConductivity=false;d.cells=input.cells;d.internal=input.internalFaces;d.owner=input.owner;d.neighbour=input.neighbour;
+    auto& d=*data_;d.prepared.valid=false;d.assemblyTopologyReady=false;d.residentBoundary=false;d.residentConductivity=false;d.cells=input.cells;d.internal=input.internalFaces;d.owner=input.owner;d.neighbour=input.neighbour;
     d.deviceOwner.upload(input.owner,d.transfers);d.deviceNeighbour.upload(input.neighbour,d.transfers);
     d.diagonal.upload(matrix.diagonal,d.transfers);d.source.upload(matrix.source,d.transfers);
     d.upper.upload(matrix.upper,d.transfers);d.lower.upload(matrix.lower,d.transfers);d.asymmetric=!matrix.lower.empty();
@@ -338,10 +418,17 @@ void ImplicitDiffusion::flux(const std::vector<double>& neighbour,const std::vec
     if(download){d.faceFlux.download(output,count,d.transfers);d.transfers.finish();}
 }
 
+void ImplicitDiffusion::enqueueResidentBoundaryFlux(void* stream){
+    auto& d=*data_;const int nf=d.owner.size(),count=nf-d.internal;
+    if(count)matrixFaceFlux<<<(count+127)/128,128,0,static_cast<cudaStream_t>(stream)>>>(nf,d.internal,d.internal,d.deviceOwner.ptr,d.deviceNeighbour.ptr,
+        d.upper.ptr,d.asymmetric?d.lower.ptr:d.upper.ptr,d.boundaryDiagonal.ptr,d.boundarySource.ptr,d.flux.ptr,
+        d.solution.ptr,d.neighbourTemperature.ptr,d.coupled.ptr,d.fluxAdjacentCells.ptr,d.fluxJump.ptr,d.faceFlux.ptr);
+}
+
 void ImplicitDiffusion::transient(const std::vector<double>& volume,const std::vector<double>& capacity,
     const std::vector<double>& rhs,double dt,bool sourceFromCapacity,DiffusionMatrix& matrix){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);const int n=volume.size(),ni=matrix.upper.size(),nl=matrix.lower.size(),nb=matrix.boundaryDiagonal.size(),nf=matrix.fluxCorrection.size();
-    d.cachedVolume.clear();d.cachedRhs.clear();
+    d.prepared.valid=false;d.cachedVolume.clear();d.cachedRhs.clear();
     d.volume.upload(volume,d.transfers);d.capacity.upload(capacity,d.transfers);d.rhs.upload(rhs,d.transfers);
     d.diagonal.upload(matrix.diagonal,d.transfers);d.source.upload(matrix.source,d.transfers);d.upper.upload(matrix.upper,d.transfers);d.lower.upload(matrix.lower,d.transfers);
     d.boundaryDiagonal.upload(matrix.boundaryDiagonal,d.transfers);d.boundarySource.upload(matrix.boundarySource,d.transfers);d.flux.upload(matrix.fluxCorrection,d.transfers);

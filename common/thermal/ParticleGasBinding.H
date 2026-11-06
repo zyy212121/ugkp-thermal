@@ -47,6 +47,11 @@ const double* particleGasVolumeFraction(void* particleOwner);
 // Refresh contact occupancy before gas conductive fluxes, on the caller stream.
 int prepareParticleGasInterval(void* particleOwner,cudaStream_t gasStream);
 
+// Order borrowed gas/particle state through device events. These operations
+// never wait for the producer on the host.
+int orderParticlePhaseAfterGas(void* particleOwner,cudaStream_t gasStream);
+int orderGasAfterParticlePhase(void* particleOwner,cudaStream_t gasStream);
+
 // Submit the shared physical particle phase between gasStream events. The
 // caller observes its own diagnostics after this stream reaches completion.
 int advanceBoundParticlePhase(void* particleOwner,double dt,double endTime,cudaStream_t gasStream);

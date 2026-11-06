@@ -8,7 +8,7 @@ fi
 root=$(realpath "$1"); baseline=$(realpath "$2"); archive=$(realpath "$3"); out=$(realpath -m "$4")
 mkdir "$out"
 cuda=${CUDA_HOME:-/usr/local/cuda}
-flags=(-std=c++17 -O2 -ffp-contract=off -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32
+flags=(-std=c++17 -O2 -ffp-contract=off -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 -I"$root/common"
     -I"$WM_PROJECT_DIR/src/OpenFOAM/lnInclude" -I"$WM_PROJECT_DIR/src/finiteVolume/lnInclude"
     -I"$WM_PROJECT_DIR/src/meshTools/lnInclude" -I"$WM_PROJECT_DIR/src/OSspecific/POSIX/lnInclude")
 libs=(-L"$FOAM_LIBBIN" -lfiniteVolume -lmeshTools -lOpenFOAM -L"$FOAM_LIBBIN/$FOAM_MPI" -lPstream)

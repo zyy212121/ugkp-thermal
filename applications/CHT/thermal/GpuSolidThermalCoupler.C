@@ -1,6 +1,9 @@
 #include "../../../common/thermal/radiation/RadiationControls.H"
 #include "../../../common/thermal/ThermalCouplingSchedule.H"
 #include "GpuSolidThermalCoupler.H"
+#include "../../../common/gasBoundary/FoamInput.H"
+#include "../../../common/DiagnosticsFoam.H"
+#include "../../../common/DiagnosticsCatalogue.H"
 #include "../../../common/gpu/FoamSparseSolve.H"
 #include "../../../common/gpu/FoamImplicitDiffusion.H"
 #include "ThermalCouplingSchedule.H"
@@ -278,14 +281,59 @@ GpuSolidThermalCandidateSolver::GpuSolidThermalCandidateSolver
 {
 }
 
+GpuSolidThermalCandidate GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
+(const volScalarField& temperature,const List<scalarField>& energy,scalar interval,
+ const ugkp::gpu::ThermalInterfaceEnergyDeviceView& resident,const ugkp::gpu::ThermalInterfaceEnergyDeviceView& appended) const
+{
+    return solveCandidate(temperature,energy,interval,resident,appended,false,nullptr);
+}
+bool GpuSolidThermalCandidateSolver::prepareResident(const volScalarField& temperature,
+    const ugkp::gpu::ThermalInterfaceEnergyDeviceView& energy,ugkp::diagnostics::DeviceContext* context,
+    const ugkp::gpu::ThermalInterfaceEnergyDeviceView& appended) const
+{
+    if(!energy.enabled||!energy.interval)return false;
+    List<scalarField> initialEnergy(coupledPatchIds_.size());
+    forAll(initialEnergy,i)initialEnergy[i].setSize(mesh_.boundary()[coupledPatchIds_[i]].size(),scalar(0));
+    // Configure coefficients and storage without advancing the initial field.
+    // Each replay reads its actual interval from the shared device ledger.
+    solveCandidate(temperature,initialEnergy,1,energy,appended,true,context);
+    return bool(residentGraph_);
+}
+ugkp::gpu::SolidThermalIterationGraph& GpuSolidThermalCandidateSolver::prepareResidentContact(label patch) const
+{
+    if(!residentGraph_)solidFailure("solid contact resident owner is not prepared");
+    const auto& cells=mesh_.boundary()[patch].faceCells();
+    residentGraph_->prepareContactWindow(std::vector<int>(cells.begin(),cells.end()));return *residentGraph_;
+}
+void GpuSolidThermalCandidateSolver::advanceResident(void* producerStream) const
+{
+    if(!residentGraph_)solidFailure("solid resident owner is not prepared");
+    residentGraph_->enqueue(producerStream);residentAdvanced_=true;
+}
+void GpuSolidThermalCandidateSolver::publishResident(volScalarField& temperature) const
+{
+    if(!residentGraph_||!residentAdvanced_)return;
+    residentDiffusion_->downloadSolution(temperature.primitiveFieldRef().begin(),temperature.size());
+    std::vector<double> boundary,normal;residentDiffusion_->downloadBoundaryState(boundary,normal);
+    label offset=0;forAll(temperature.boundaryField(),p){auto& patch=temperature.boundaryFieldRef()[p];
+        if(patch.type()=="fixedGradient"){
+            auto& gradient=refCast<fixedGradientFvPatchScalarField>(patch).gradient();
+            forAll(gradient,f)gradient[f]=normal[offset+f];
+        }
+        forAll(patch,f)patch[f]=boundary[offset+f];
+        offset+=patch.size();
+    }
+}
+
 GpuSolidThermalCandidate
-GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
+GpuSolidThermalCandidateSolver::solveCandidate
 (
     const volScalarField& registeredTemperature,
     const List<scalarField>& interfaceEnergyJ,
     const scalar deltaTExchange,
     const ugkp::gpu::ThermalInterfaceEnergyDeviceView& residentEnergy,
-    const ugkp::gpu::ThermalInterfaceEnergyDeviceView& appendedEnergy
+    const ugkp::gpu::ThermalInterfaceEnergyDeviceView& appendedEnergy,
+    const bool prepareOnly,ugkp::diagnostics::DeviceContext* context
 ) const
 {
     if
@@ -523,6 +571,59 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
             deviceFields.capacity,deviceProperties_->deviceCellAnchors(),deviceFields.readyStream,deviceFields.conductivity,true,nullptr,nullptr,deviceFields.conductivity+mesh_.nCells()
         );
         residentConvergence=residentDiffusion_->residentIteration();
+        if(iteration==1&&residentConvergence){
+            const dictionary& linearControls=mesh_.solution().solverDict(candidate->select
+                (!mesh_.schemes().steady()&&mesh_.data::lookupOrDefault<bool>("finalIteration",false)));
+            if(equation.configureResidentLocalSolve(linearControls)){
+                const int coefficientPlan=deviceProperties_->prepareResidentEvaluation(propertyQueries,propertySources,
+                    mesh_.nCells(),ugkp::gpu::ThermalCapacity|ugkp::gpu::ThermalConductivity,true,0);
+                std::vector<ugkp::gpu::ThermalPropertyQuery> completionQueries;std::vector<int> completionSources;
+                forAll(coupledPatchIds_,i){const label patch=coupledPatchIds_[i];
+                    if(isCoupledPatch(ownerConductivityPatchIds_,patch))continue;
+                    forAll(candidate->boundaryField()[patch],f){
+                        completionQueries.push_back({0,0,ugkp::gpu::ThermalConductivity});
+                        completionSources.push_back(-1-residentBoundaryOffset[patch]-f);}}
+                const int convergencePlan=deviceProperties_->prepareResidentEvaluation(completionQueries,completionSources,
+                    mesh_.nCells(),ugkp::gpu::ThermalEnergy|ugkp::gpu::ThermalTemperatureChange,false,1);
+                equation.residentBoundaryFlux();
+                ugkp::gpu::SolidThermalResidentProblem problem;problem.cells=mesh_.nCells();problem.surfaceProperties=completionQueries.size();
+                problem.coefficientPlan=coefficientPlan;problem.convergencePlan=convergencePlan;problem.interval=deltaTExchange;
+                problem.controls={controls_.nonlinearMaxIterations,controls_.nonlinearAitken,controls_.nonlinearRelativeTolerance,
+                    controls_.energyAbsoluteTolerance,controls_.energyRelativeTolerance,controls_.nonlinearInitialRelaxation,
+                    controls_.nonlinearMinimumRelaxation,controls_.nonlinearMaximumRelaxation,VSMALL};
+                if(prepareOnly){
+                    ugkp::boundary::Definition schedule;schedule.faces.resize(residentBoundaryCount);
+                    std::vector<int> signs(residentBoundaryCount,1);bool scheduled=false;
+                    forAll(candidate->boundaryField(),p){const auto& patch=candidate->boundaryField()[p];
+                        if(patch.type()!="uniformJump")continue;
+                        const auto& cyclic=refCast<const cyclicFvPatchScalarField>(patch);
+                        const label owner=cyclic.cyclicPatch().owner()?p:cyclic.cyclicPatch().neighbFvPatch().index();
+                        const auto configuration=ugkp::boundary::foam::configuration(candidate->boundaryField()[owner]);
+                        ugkp::boundary::foam::function<scalar>(schedule,configuration,"jumpTable",ugkp::boundary::Temperature,
+                            schedule.faces,residentBoundaryOffset[p],patch.size());
+                        forAll(patch,f)signs[residentBoundaryOffset[p]+f]=cyclic.cyclicPatch().owner()?1:-1;
+                        scheduled=true;
+                    }
+                    if(scheduled)residentDiffusion_->configureBoundaryJumpSchedule(schedule,signs,mesh_.time().value());
+                    // Matrix preparation prescribes zero initial exchange only
+                    // to establish coefficients. Preserve the accepted restart
+                    // boundary state for the first nonlinear window candidate.
+                    residentDiffusion_->initializeBoundaryTemperature(initialBoundaryTemperature);
+                    problem.deviceInterval=residentEnergy.interval;problem.diagnostics=context;
+                    residentGraph_.reset(new ugkp::gpu::SolidThermalIterationGraph(*deviceProperties_,*residentDiffusion_,*sparse_,problem));
+                    return GpuSolidThermalCandidate(candidate,0,0);
+                }
+                ugkp::gpu::SolidThermalIterationGraph graph(*deviceProperties_,*residentDiffusion_,*sparse_,problem);
+                graph.enqueue(residentDiffusion_->deviceValues().readyStream);
+                ugkp::diagnostics::DeviceContext completed{};
+                const auto result=graph.collect(&completed);
+                ugkp::diagnostics::dispatch(ugkp::diagnostics::takeSnapshot(completed,ugkp::diagnostics::sourceCatalogue()),ugkp::diagnostics::makeFoamSink());
+                if(!result.valid)solidFailure("invalid consumed state in resident solid nonlinear iteration");
+                equation.publishSolution();
+                return GpuSolidThermalCandidate(candidate,result.energyResidual.binary64(),result.iteration);
+            }
+        }
+        if(prepareOnly)return GpuSolidThermalCandidate(candidate,0,0);
         solverPerformance linearPerformance;
         {
             ScalarSolverLogSilencer silenceSolverLog;
@@ -777,7 +878,7 @@ ugkp::gpu::ThermalSolidContactDeviceView GpuSolidThermalCandidateSolver::contact
 
 ugkp::gpu::ThermalInterfaceStateDeviceView GpuSolidThermalCandidateSolver::interfaceState
 (
-    const labelList& contactPairIds,const label pairs
+    const labelList& contactPairIds,const label pairs,const bool includeEmissivity,ugkp::diagnostics::DeviceContext* context
 ) const
 {
     if(!residentDiffusion_||!deviceProperties_||!residentDiffusion_->deviceBoundaryTemperature())return {};
@@ -788,7 +889,7 @@ ugkp::gpu::ThermalInterfaceStateDeviceView GpuSolidThermalCandidateSolver::inter
         faces.push_back(offsets[coupledPatchIds_[i]]+f);contact.push_back(isCoupledPatch(contactPairIds,i)?1:0);}
     std::vector<ugkp::gpu::ThermalPropertyResult> status;
     const auto view=deviceProperties_->interfaceState(faces,contact,residentDiffusion_->deviceBoundaryTemperature(),
-        residentDiffusion_->deviceValues().readyStream,status);
+        residentDiffusion_->deviceValues().readyStream,status,includeEmissivity,context);
     for(std::size_t i=0;i<status.size();++i){const auto& value=status[i].status;
         if(value.error!=ugkp::gpu::ThermalPropertyError::None)FatalErrorInFunction
             << "invalid consumed contact-wall property; region=" << mesh_.name() << "; face=" << i
@@ -1029,6 +1130,7 @@ public:
     autoPtr<GpuSolidThermalCandidateSolver> auxiliaryCandidateSolver;
     autoPtr<OneToOneConformalSolidPatchMapper> solidInterfaceMapper;
     std::unique_ptr<ugkp::gpu::SolidThermalContact> solidContact;
+    std::unique_ptr<ugkp::gpu::SolidContactIterationGraph> solidContactGraph;
     word solidRegion;
     autoPtr<fvMesh> solidMesh;
     autoPtr<volScalarField> Tsolid;
@@ -1037,6 +1139,7 @@ public:
     autoPtr<MieTable> mieTable;
     autoPtr<MieDoRadiationSolver> radiationSolver;
     autoPtr<GpuParticleRadiationCoupler> particleRadiationCoupler;
+    scalar lastRadiationIntervalS=0;
     autoPtr<GpuSolidThermalCandidateSolver> solidCandidateSolver;
     bool radiationEnabled;
     scalar rhoSolid;
@@ -1751,8 +1854,14 @@ public:
         return std::make_pair(temporaryPath, finalPath);
     }
 
-    void mapSolidWallTemperatureToFluid(volScalarField& Tgas)
+    void mapSolidWallTemperatureToFluid(volScalarField& Tgas,bool publishOnly=false)
     {
+        const auto deviceInterface=publishOnly?ugkp::gpu::ThermalInterfaceStateDeviceView{}:
+            solidCandidateSolver->interfaceState(particleContactPairIds,mapper->size(),radiationEnabled,resident.deviceDiagnostics());
+        if(deviceInterface.enabled){
+            resident.updateSolidInterfaceState(deviceInterface);
+            if(!fluidMesh.time().writeTime())return;
+        }
         List<scalarField> contactWallTemperature(particleContactPairIds.size());
         label nextContactI = 0;
         forAll(mapper->fluidPatchIds(), pairI)
@@ -1787,11 +1896,7 @@ public:
                 ++nextContactI;
             }
         }
-        const auto deviceInterface = solidCandidateSolver->interfaceState(particleContactPairIds,mapper->size());
-        if(deviceInterface.enabled){
-            resident.updateSolidInterfaceState(deviceInterface);
-            return;
-        }
+        if(publishOnly||deviceInterface.enabled)return;
         resident.updateSolidWallTemperatures
         (
             fluidMesh, Tgas, mapper->fluidPatchIds()
@@ -1888,6 +1993,33 @@ void GpuSolidThermalCoupler::initialiseWallTemperatureBeforeFirstAdvance
 )
 {
     data_->mapSolidWallTemperatureToFluid(Tgas);
+    if(!data_->threeRegion)data_->solidCandidateSolver->prepareResident(data_->Tsolid(),data_->resident.interfaceEnergyDeviceState(),data_->resident.deviceDiagnostics());
+    else
+    {
+        const label auxiliaryPatchI=data_->solidInterfaceMapper->fluidPatchIds()[0];
+        const label primaryPatchI=data_->solidInterfaceMapper->solidPatchIds()[0];
+        const auto& auxiliaryPatch=data_->auxiliarySolidMesh->boundary()[auxiliaryPatchI];
+        const auto& primaryPatch=data_->solidMesh->boundary()[primaryPatchI];
+        const auto nearest=data_->solidInterfaceMapper->solidFaceForFluidFace(0);
+        data_->solidContact.reset(new ugkp::gpu::SolidThermalContact);
+        data_->solidContact->begin(std::vector<int>(nearest.begin(),nearest.end()),
+            std::vector<double>(primaryPatch.deltaCoeffs().begin(),primaryPatch.deltaCoeffs().end()),
+            std::vector<double>(auxiliaryPatch.deltaCoeffs().begin(),auxiliaryPatch.deltaCoeffs().end()),
+            std::vector<double>(auxiliaryPatch.magSf().begin(),auxiliaryPatch.magSf().end()));
+        const auto gasEnergy=data_->resident.interfaceEnergyDeviceState();
+        const auto primaryEnergy=data_->solidContact->primaryEnergy(gasEnergy.interval);
+        const auto auxiliaryEnergy=data_->solidContact->auxiliaryEnergy(gasEnergy.interval);
+        const bool primaryPrepared=data_->solidCandidateSolver->prepareResident(data_->Tsolid(),gasEnergy,
+            data_->resident.deviceDiagnostics(),primaryEnergy);
+        const bool auxiliaryPrepared=data_->auxiliaryCandidateSolver->prepareResident(data_->TauxiliarySolid(),auxiliaryEnergy,
+            data_->resident.deviceDiagnostics());
+        if(primaryPrepared&&auxiliaryPrepared){
+            auto& primary=data_->solidCandidateSolver->prepareResidentContact(primaryPatchI);
+            auto& auxiliary=data_->auxiliaryCandidateSolver->prepareResidentContact(auxiliaryPatchI);
+            data_->solidContactGraph.reset(new ugkp::gpu::SolidContactIterationGraph(primary,auxiliary,*data_->solidContact,
+                {data_->solidInterfaceMaxIterations,data_->solidInterfaceTemperatureTolerance,data_->solidInterfaceEnergyTolerance},1,gasEnergy.interval));
+        }
+    }
     data_->wallInitialised = true;
 }
 
@@ -1965,7 +2097,11 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
             const auto residentRadiation=data_->resident.radiationParticleDeviceState();
             // Configured wall emissivity is combined with resident contact
             // coverage by the shared radiation input kernel.
-            const List<scalarField> emissivity(data_->fluidWallEmissivity());
+            List<scalarField> emissivity;
+            if(residentRadiation.boundaryEmissivity){
+                emissivity.setSize(data_->fluidMesh.boundary().size());
+                forAll(emissivity,p)emissivity[p].setSize(data_->fluidMesh.boundary()[p].size(),scalar(0));
+            }else emissivity=data_->fluidWallEmissivity();
             const ParticleRadiationMaterialSnapshot radiationSnapshot
             {
                 particleRadiationEpsilonS,
@@ -1983,17 +2119,10 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
             (
                 new ParticleRadiationMaterialResult
                 (
-                    data_->particleRadiationCoupler->solve(radiationSnapshot)
+                    data_->particleRadiationCoupler->solve(radiationSnapshot,false)
                 )
             );
-            data_->particleRadiationAbsorptionCoefficient->primitiveFieldRef() =
-                radiation().absorptionCoefficientInvM;
-            data_->particleRadiationScatteringCoefficient->primitiveFieldRef() =
-                radiation().scatteringCoefficientInvM;
-            data_->particleRadiationExtinctionCoefficient->primitiveFieldRef() =
-                radiation().extinctionCoefficientInvM;
-            data_->particleRadiationAsymmetryFactor->primitiveFieldRef() =
-                radiation().asymmetryFactor;
+            data_->lastRadiationIntervalS=elapsedSinceRadiation;
         }
 
         // Physical input remains resident from DO material response through the
@@ -2004,7 +2133,11 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
         List<scalarField> depositedHeatFlux;
         List<scalarField> reflectedHeatFlux;
         ugkp::gpu::ThermalInterfaceEnergyDeviceView residentSolidEnergy;
-        data_->resident.previewInterfaceExchange
+        const bool residentSolid=data_->solidCandidateSolver->residentPrepared()&&(!data_->threeRegion||bool(data_->solidContactGraph));
+        if(residentSolid){
+            data_->resident.prepareInterfaceExchangeDevice(deltaTExchange,radiationDue?&radiation().resident:nullptr);
+            residentSolidEnergy=data_->resident.interfaceEnergyDeviceState();
+        }else data_->resident.previewInterfaceExchange
         (
             deltaTExchange, compactRadiationEnergy, solidEnergy,
             gasHeatFlux, depositedHeatFlux, reflectedHeatFlux,
@@ -2012,7 +2145,13 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
         );
         autoPtr<GpuSolidThermalCandidate> solidCandidate;
         autoPtr<GpuSolidThermalCandidate> auxiliaryCandidate;
-        if (!data_->threeRegion)
+        if(residentSolid){
+            if(data_->threeRegion){
+                data_->solidContactGraph->enqueue(residentSolidEnergy.producerStream);
+                data_->solidCandidateSolver->acceptResidentContact();data_->auxiliaryCandidateSolver->acceptResidentContact();
+            }else data_->solidCandidateSolver->advanceResident(residentSolidEnergy.producerStream);
+        }
+        else if (!data_->threeRegion)
         {
             GpuSolidThermalCandidate candidate =
                 data_->solidCandidateSolver->solveTemporarySolidCandidate
@@ -2078,6 +2217,7 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
         }
         data_->resident.resetGasWallEnergy();
         data_->resident.resetParticleWallHeatLedgers();
+        if(!residentSolid){
         data_->gasConvectiveWallHeatFlux->primitiveFieldRef() = scalar(0);
         forAll(data_->gasConvectiveWallHeatFlux->boundaryField(), patchI)
         {
@@ -2108,45 +2248,21 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
             data_->particleReflectedWallHeatFlux->boundaryFieldRef()[patchI] =
                 reflectedHeatFlux[pairI];
         }
-        if (radiationDue)
-        {
-            data_->particleRadiationWallHeatFlux->primitiveFieldRef() =
-                scalar(0);
-            forAll
-            (
-                data_->particleRadiationWallHeatFlux->boundaryField(), patchI
-            )
-            {
-                data_->particleRadiationWallHeatFlux->boundaryFieldRef()
-                    [patchI] = scalar(0);
-            }
-            forAll(data_->mapper->fluidPatchIds(), pairI)
-            {
-                const label patchI = data_->mapper->fluidPatchIds()[pairI];
-                auto& flux =
-                    data_->particleRadiationWallHeatFlux->boundaryFieldRef()
-                    [patchI];
-                const scalarField& energy =
-                    radiation().solidWallRadiationEnergyJ[patchI];
-                const scalarField& area =
-                    data_->fluidMesh.magSf().boundaryField()[patchI];
-                forAll(flux, faceI)
-                {
-                    flux[faceI] =
-                        energy[faceI]/(area[faceI]*elapsedSinceRadiation);
-                }
-            }
-        }
         data_->solidCandidateSolver->publishSolidCandidate
         (
             solidCandidate(), data_->Tsolid()
         );
-        if (data_->threeRegion)
+        }
+        if (data_->threeRegion&&!residentSolid)
         {
             data_->auxiliaryCandidateSolver->publishSolidCandidate
             (
                 auxiliaryCandidate(), data_->TauxiliarySolid()
             );
+        }
+        if(residentSolid&&runTime.writeTime()){
+            data_->solidCandidateSolver->publishResident(data_->Tsolid());
+            if(data_->threeRegion)data_->auxiliaryCandidateSolver->publishResident(data_->TauxiliarySolid());
         }
         data_->mapSolidWallTemperatureToFluid(Tgas);
         if (radiationDue)
@@ -2154,7 +2270,7 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
             data_->resident.refreshParticleEnthalpyAfterRadiation();
         }
 
-        if (radiationDue || runTime.writeTime())
+        if (runTime.writeTime())
         {
             data_->resident.downloadToHostMirror
             (
@@ -2185,7 +2301,6 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
         data_->writeState.commitPreparedExchange(completed);
         result.coupled = true;
         result.radiationCoupled = radiationDue;
-        result.particleCount = data_->resident.particleCount();
         result.elapsedCouplingTimeS = deltaTExchange;
         result.elapsedRadiationTimeS =
             radiationDue ? elapsedSinceRadiation : scalar(0);
@@ -2235,6 +2350,27 @@ label GpuSolidThermalCoupler::persistAtWriteTime
             rhoDs, rhoHp, Us, theta, Tp, dMeanCell, true
         );
     }
+    if(data_->solidCandidateSolver->residentAdvanced()){
+        data_->solidCandidateSolver->publishResident(data_->Tsolid());
+        if(data_->threeRegion&&data_->solidContactGraph)data_->auxiliaryCandidateSolver->publishResident(data_->TauxiliarySolid());
+        // The preview survives consumption of the accumulated ledgers. Publish
+        // the last completed exchange, never a recomputation from reset ledgers.
+        List<scalarField> gas,deposited,reflected;
+        data_->resident.collectInterfaceExchange(gas,deposited,reflected);
+        data_->gasConvectiveWallHeatFlux->primitiveFieldRef()=scalar(0);
+        data_->particleStuckWallHeatFlux->primitiveFieldRef()=scalar(0);
+        data_->particleReflectedWallHeatFlux->primitiveFieldRef()=scalar(0);
+        forAll(data_->gasConvectiveWallHeatFlux->boundaryField(),p){
+            data_->gasConvectiveWallHeatFlux->boundaryFieldRef()[p]=scalar(0);
+            data_->particleStuckWallHeatFlux->boundaryFieldRef()[p]=scalar(0);
+            data_->particleReflectedWallHeatFlux->boundaryFieldRef()[p]=scalar(0);
+        }
+        forAll(data_->mapper->fluidPatchIds(),i){const label p=data_->mapper->fluidPatchIds()[i];
+            data_->gasConvectiveWallHeatFlux->boundaryFieldRef()[p]=gas[i];
+            data_->particleStuckWallHeatFlux->boundaryFieldRef()[p]=deposited[i];
+            data_->particleReflectedWallHeatFlux->boundaryFieldRef()[p]=reflected[i];
+        }
+    }
     const GpuThermalRestartMirrorMetadata mirrors =
         data_->resident.stageThermalRestartMirrors
         (
@@ -2258,6 +2394,24 @@ label GpuSolidThermalCoupler::persistAtWriteTime
         ),
         ThermalRestartPreflight::stateDictionary(completed)
     );
+    if(data_->lastRadiationIntervalS>0){
+        const auto radiation=data_->particleRadiationCoupler->collect();
+        data_->particleRadiationAbsorptionCoefficient->primitiveFieldRef()=radiation.absorptionCoefficientInvM;
+        data_->particleRadiationScatteringCoefficient->primitiveFieldRef()=radiation.scatteringCoefficientInvM;
+        data_->particleRadiationExtinctionCoefficient->primitiveFieldRef()=radiation.extinctionCoefficientInvM;
+        data_->particleRadiationAsymmetryFactor->primitiveFieldRef()=radiation.asymmetryFactor;
+        data_->particleRadiationWallHeatFlux->primitiveFieldRef()=scalar(0);
+        forAll(data_->particleRadiationWallHeatFlux->boundaryField(),patchI)
+            data_->particleRadiationWallHeatFlux->boundaryFieldRef()[patchI]=scalar(0);
+        forAll(data_->mapper->fluidPatchIds(),pairI){
+            const label patchI=data_->mapper->fluidPatchIds()[pairI];
+            auto& flux=data_->particleRadiationWallHeatFlux->boundaryFieldRef()[patchI];
+            const auto& energy=radiation.solidWallRadiationEnergyJ[patchI];
+            const auto& area=data_->fluidMesh.magSf().boundaryField()[patchI];
+            forAll(flux,faceI)flux[faceI]=energy[faceI]/(area[faceI]*data_->lastRadiationIntervalS);
+        }
+    }
+    data_->mapSolidWallTemperatureToFluid(Tgas,true);
     data_->resident.downloadSharedGasSpecies(rho);
     const bool fieldWriteSucceeded =
         thermalCouplingWrite && !runTime.writeTime()
