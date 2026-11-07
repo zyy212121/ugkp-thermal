@@ -100,6 +100,10 @@ struct NormalHeightPointMotion::Implementation {
 NormalHeightPointMotion::NormalHeightPointMotion(const NormalHeightPointMotionDefinition& definition):data_(new Implementation(definition)){}
 NormalHeightPointMotion::~NormalHeightPointMotion()=default;
 NormalHeightMotionView NormalHeightPointMotion::constraints()const{return data_->height->view();}
+HarmonicDeviceView NormalHeightPointMotion::deviceView()const{return data_->harmonic->deviceView();}
+const Point* NormalHeightPointMotion::initialPoints()const{return data_->harmonic->initialPoints();}
+const Point* NormalHeightPointMotion::referencePoints()const{return data_->reference.pointer?data_->reference.pointer:data_->harmonic->initialPoints();}
+const unsigned char* NormalHeightPointMotion::fixedPoints()const{return data_->harmonic->fixedPoints();}
 HarmonicDeviceView NormalHeightPointMotion::solveDevice(const NormalHeightPointMotionInput* input,void* streamHandle){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(streamHandle);
     bindNormalHeightPointMotion<<<1,1,0,stream>>>(input,d.harmonic->fixedPoints(),d.heightInput.pointer,

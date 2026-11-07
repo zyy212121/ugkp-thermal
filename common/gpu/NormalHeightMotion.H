@@ -54,6 +54,10 @@ public:
     ~NormalHeightPointMotion();
     HarmonicDeviceView solveDevice(const NormalHeightPointMotionInput*,void* stream=nullptr);
     NormalHeightMotionView constraints()const;
+    HarmonicDeviceView deviceView()const;
+    const Point* initialPoints()const;
+    const Point* referencePoints()const;
+    const unsigned char* fixedPoints()const;
     // Compatibility publication for the still-host outer geometry controller.
     // Only changing boundary displacement is uploaded; constraint coefficients
     // and tolerance are never downloaded and re-uploaded between operators.

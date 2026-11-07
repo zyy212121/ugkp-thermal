@@ -9,7 +9,7 @@
 #ifdef CHMT_DEVICE_GEOMETRY
 #include "mesh/GeometryGpu.H"
 #include "../../../common/gpu/HarmonicSweepCorrection.H"
-#include "../../../common/gpu/NormalHeightMotion.H"
+#include "../../../common/gpu/InterfaceGasPointMotion.H"
 #include "../../../common/gpu/SweepResidual.H"
 #endif
 #include "mesh/GeometryDiagnostics.H"
@@ -1849,7 +1849,7 @@ namespace chmt {
         HostMesh gas,solid;
         std::vector<Real> gasSweeps,solidSweeps;
 #ifdef CHMT_DEVICE_GEOMETRY
-        std::unique_ptr<ugkp::gpu::geometry::NormalHeightPointMotion> gasPointMotion;
+        std::unique_ptr<ugkp::gpu::geometry::InterfaceGasPointMotion> gasPointMotion;
         std::vector<std::set<int>> gasPointAdjacency;empty_detail::Extrusion gasExtrusion;
         bool gasMotionTopologyReady=false,gasHasEmpty=false;
 #endif
@@ -1858,6 +1858,50 @@ namespace chmt {
             auto stage=[&](const std::vector<Vec3>& points) {
                 return makeStageGeometry(oldGas,points,dt,gas,gasSweeps,failure,evaluationTolerances);
             };
+            std::vector<Vec3> gasPoints;
+#ifdef CHMT_DEVICE_GEOMETRY
+            using namespace ugkp::gpu::geometry;
+            if(!gasMotionTopologyReady){
+                gasPointAdjacency.resize(oldGas.points.size());
+                for(std::size_t f=0;f<oldGas.owner.size();++f){
+                    gasHasEmpty=gasHasEmpty||(f<oldGas.boundaryKind.size()&&oldGas.boundaryKind[f]==BoundaryKind::Empty);
+                    const int lo=oldGas.faceOffsets[f],hi=oldGas.faceOffsets[f+1];
+                    for(int k=lo;k<hi;++k){const int a=oldGas.facePoints[k],b=oldGas.facePoints[k+1==hi?lo:k+1];
+                        gasPointAdjacency[a].insert(b);gasPointAdjacency[b].insert(a);}
+                }
+                if(gasHasEmpty&&!empty_detail::build(oldGas,gasExtrusion,failure))return false;
+                gasMotionTopologyReady=true;
+            }
+            if(!gasPointMotion){
+                InterfaceGasPointMotionDefinition definition;auto& gasDefinition=definition.gas;
+                gasDefinition.topology=geometry_device::meshTopology(oldGas).topology;gasDefinition.owner=oldGas.owner;
+                gasDefinition.wallFaces=reference.gasFace;gasDefinition.points=geometry_device::pack(oldGas.points);
+                gasDefinition.reference=geometry_device::pack(oldGas.referencePoints.empty()?oldGas.points:oldGas.referencePoints);
+                gasDefinition.fixed=fixedGas;gasDefinition.geometricTolerance=1e-12*meshScale(oldGas.points);
+                geometry_device::adjacency(gasPointAdjacency,gasDefinition.offsets,gasDefinition.neighbours);
+                definition.solidTopology=geometry_device::faceTopology(oldSolid);definition.oldSolid=geometry_device::pack(oldSolid.points);
+                definition.solidFaces=reference.solidFace;definition.solidToGas=solidToGas;definition.pointThickness=newThickness;
+                for(int i=0;i<ns;++i){definition.previousFilmThickness.push_back(accepted.filmAux[i].thickness);definition.filmThickness.push_back(candidateFilm[i].thickness);}
+                if(gasHasEmpty){definition.emptyAxis=gasExtrusion.axis;definition.emptyMate=gasExtrusion.mate;}
+                gasPointMotion.reset(new InterfaceGasPointMotion(definition));
+            }
+            const auto result=gasPointMotion->solve(geometry_device::pack(trialSolid.points),geometry_device::pack(trialSolid.areaVectors));
+            using Failure=InterfaceGasMotionFailure;
+            switch(result.status.failure){
+                case Failure::None:break;
+                case Failure::EmptyFreePoint:return empty_detail::reject(failure,"Empty layer vertices require prescribed paired motion");
+                case Failure::EmptyNormal:return empty_detail::reject(failure,"nonzero normal input displacement");
+                case Failure::EmptyPair:return empty_detail::reject(failure,"paired prescribed displacements differ");
+                case Failure::NonfiniteFixed:return errorAt(failure,"nonfinite prescribed motion",result.status.index);
+                case Failure::IsolatedPoint:return errorAt(failure,"isolated mesh point",result.status.index);
+                case Failure::NoAnchor:return errorAt(failure,"harmonic motion lacks Dirichlet anchor",-1);
+                case Failure::Harmonic:return errorAt(failure,result.status.harmonic.errorKind==1?"zero-length motion edge":"nonfinite harmonic displacement",result.status.index);
+            }
+            geometry_device::unpack(result.points,gasPoints);
+            if(!result.status.changed)return stage(gasPoints);
+            if(!oldGas.points.empty()&&!(result.status.harmonic.residual<=result.status.constraints.harmonicTolerance))
+                geometryWarning(diagnostics,result.status.harmonic.residual,result.status.constraints.harmonicTolerance,-1,false);
+#else
             // An unchanged accepted offset is already authoritative. Recomputing
             // X_s+n*delta here can manufacture a one-ULP gas motion after a
             // coordinate translation and falsely activate the moving-film guard.
@@ -1878,41 +1922,11 @@ namespace chmt {
                 gasDisplacement[gv]=trialSolid.points[sv]+newNormal[sv]*newThickness[sv]-oldGas.points[gv];
                 fixedGas[gv]=1;
             }
-            std::vector<Vec3> gasPoints;
             // Preserve each wall-adjacent point's own initial normal distance.
             // Soft constraints accommodate fixed seams and curved corners; all
             // prescribed wall points remain exact. No global length tolerance.
             using namespace ugkp::gpu::geometry;
-#ifdef CHMT_DEVICE_GEOMETRY
-            if(!gasMotionTopologyReady){
-                gasPointAdjacency.resize(oldGas.points.size());
-                for(std::size_t f=0;f<oldGas.owner.size();++f){
-                    gasHasEmpty=gasHasEmpty||(f<oldGas.boundaryKind.size()&&oldGas.boundaryKind[f]==BoundaryKind::Empty);
-                    const int lo=oldGas.faceOffsets[f],hi=oldGas.faceOffsets[f+1];
-                    for(int k=lo;k<hi;++k){const int a=oldGas.facePoints[k],b=oldGas.facePoints[k+1==hi?lo:k+1];
-                        gasPointAdjacency[a].insert(b);gasPointAdjacency[b].insert(a);}
-                }
-                if(gasHasEmpty&&!empty_detail::build(oldGas,gasExtrusion,failure))return false;
-                gasMotionTopologyReady=true;
-            }
-            if(!validatePrescribedPointMotion(oldGas,gasDisplacement,fixedGas,gasPointAdjacency,
-                gasHasEmpty,gasHasEmpty?&gasExtrusion:nullptr,failure))return false;
-            if(!gasPointMotion){
-                NormalHeightPointMotionDefinition definition;
-                definition.topology=geometry_device::meshTopology(oldGas).topology;definition.owner=oldGas.owner;
-                definition.wallFaces=reference.gasFace;definition.points=geometry_device::pack(oldGas.points);
-                definition.reference=geometry_device::pack(oldGas.referencePoints.empty()?oldGas.points:oldGas.referencePoints);
-                definition.fixed=fixedGas;definition.geometricTolerance=1e-12*meshScale(oldGas.points);
-                geometry_device::adjacency(gasPointAdjacency,definition.offsets,definition.neighbours);
-                gasPointMotion.reset(new NormalHeightPointMotion(definition));
-            }
-            const auto result=gasPointMotion->solve(geometry_device::pack(gasDisplacement));
-            if(result.motion.errorPoint>=0)return errorAt(failure,result.motion.errorKind==1
-                ?"zero-length motion edge":"nonfinite harmonic displacement",result.motion.errorPoint);
-            if(!oldGas.points.empty()&&!(result.motion.residual<=result.constraints.harmonicTolerance))
-                geometryWarning(diagnostics,result.motion.residual,result.constraints.harmonicTolerance,-1,false);
-            geometry_device::unpack(result.motion.points,gasPoints);const bool harmonicOk=true;
-#else
+
             std::vector<MotionPenalty> penalties(oldGas.points.size());
             Real minimumNormalHeight=std::numeric_limits<Real>::infinity();
             const auto& ref=oldGas.referencePoints.empty()?oldGas.points:oldGas.referencePoints;
@@ -1929,8 +1943,10 @@ namespace chmt {
                 }
             }
             const bool harmonicOk=harmonicPointMotionRepresentedImpl(oldGas,gasDisplacement,fixedGas,gasPoints,failure,nullptr,nullptr,diagnostics,penalties,minimumNormalHeight);
+
+            if(!harmonicOk)return false;
 #endif
-            if(!harmonicOk || !stage(gasPoints))return false;
+            if(!stage(gasPoints))return false;
             // Keep the existing reduced-film boundary: moving curved offset
             // interfaces with unequal areas/normals are not a liquid-volume model.
             for (int i=0;i<ns;++i) {
