@@ -1,8 +1,8 @@
 #include "mesh/Geometry.H"
 #include "../../../common/gpu/PointMotionMath.H"
-#include "../../../common/gpu/TrajectoryPolynomialMath.H"
 #include "../../../common/gpu/LinearTrajectoryMath.H"
 #include "../../../common/gpu/GeometryBoundaryMath.H"
+#include "../../../common/gpu/StageGeometryMath.H"
 #ifdef CHMT_DEVICE_GEOMETRY
 #include "mesh/GeometryGpu.H"
 #endif
@@ -402,13 +402,6 @@ namespace chmt {
             error.clear();
             return true;
         }
-        // Cubic determinant in Bernstein form. Endpoints are computed from
-        // their actual coordinates, never reconstructed as cancelling powers
-        // of a displacement. De Casteljau evaluation preserves thin positive
-        // endpoint volumes while the derivative roots still locate all extrema.
-        void polynomialBounds(const Real* control, Real& minimum, Real& maximum) {
-            ugkp::gpu::geometry::trajectoryPolynomialBounds<long double>(control,minimum,maximum);
-        }
         bool certifyLinearTrajectory(const HostMesh& mesh, const std::vector<Vec3>& endpoint, std::string& error,
             ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
             bool moving = false;
@@ -540,8 +533,8 @@ namespace chmt {
         if (!stationary && !certifyLinearTrajectory(old, endpoint, error,tol.diagnostics))return false;
         // Reject a crossed/inverted path even if endpoint orientation recovered.
         HostMesh mid = old;
-        for (std::size_t p = 0; p<endpoint.size(); ++p)mid.points[p] = extrusion.axis<0?
-            (old.points[p]+endpoint[p])*.5:old.points[p]+(endpoint[p]-old.points[p])*.5;
+        for (std::size_t p = 0; p<endpoint.size(); ++p)mid.points[p] =
+            ugkp::gpu::geometry::stageSample(old.points[p],endpoint[p],0,extrusion.axis);
         // Preserve the original interpolation arithmetic: even a stationary
         // trajectory can round to different sampled coordinates. Reuse only
         // exactly identical samples; all other geometry checks remain necessary.
@@ -552,33 +545,16 @@ namespace chmt {
         // between sampling times cannot escape an endpoint/midpoint-only test.
         HostMesh oneThird = old, twoThird = old;
         for (std::size_t p = 0; p<endpoint.size(); ++p) {
-            oneThird.points[p] = extrusion.axis<0?old.points[p]*(2.0/3)+endpoint[p]/3:
-                old.points[p]+(endpoint[p]-old.points[p])/3;
-            twoThird.points[p] = extrusion.axis<0?old.points[p]/3+endpoint[p]*(2.0/3):
-                old.points[p]+(endpoint[p]-old.points[p])*(2.0/3);
+            oneThird.points[p] = ugkp::gpu::geometry::stageSample(old.points[p],endpoint[p],1,extrusion.axis);
+            twoThird.points[p] = ugkp::gpu::geometry::stageSample(old.points[p],endpoint[p],2,extrusion.axis);
         }
         if (((!stationary || !identicalPoints(old.points,oneThird.points))
                 && !geometryInPlace(oneThird, error,nullptr,numericalFailure,tol.diagnostics))
             || ((!stationary || !identicalPoints(old.points,twoThird.points))
                 && !geometryInPlace(twoThird, error,nullptr,numericalFailure,tol.diagnostics)))return false;
         for (int c = 0; c<static_cast<int>(old.volumes.size()); ++c) {
-            Real v0 = old.volumes[c], v1 = oneThird.volumes[c], v2 = twoThird.volumes[c],
-                v3 = candidate.volumes[c];
-            Real a = 4.5*(v3-3*v2+3*v1-v0), b = 4.5*(v2-2*v1+v0)-a, d = 3*(v1-v0)-a/9-b/3;
-            const Real small = 256*std::numeric_limits<Real>::epsilon()*maxValue(v0, v3);
-            Real critical[2] = {-1, -1};
-            if (absValue(a) <= small) {
-                if (absValue(b)>small)critical[0] = -d/(2*b);
-            } else {
-                Real disc = 4*b*b-12*a*d;
-                if (disc >= 0) {
-                    Real root = ::sqrt(disc);
-                    critical[0] = (-2*b-root)/(6*a);
-                    critical[1] = (-2*b+root)/(6*a);
-                }
-            }
-            for (Real t:critical)if ((t>0 && t<1 && ((a*t+b)*t+d)*t+v0 <= 0))return errorAt(error,
-                "cell inversion inside linear stage trajectory", c);
+            if(ugkp::gpu::geometry::stageInteriorVolumeInverts(old.volumes[c],oneThird.volumes[c],twoThird.volumes[c],candidate.volumes[c]))
+                return errorAt(error,"cell inversion inside linear stage trajectory",c);
         }
         }
         std::vector<Vec3> area;
@@ -586,21 +562,14 @@ namespace chmt {
         if (!stageIntegrals(old, endpoint, area, sweep, error,extrusion.axis>=0?&extrusion:nullptr,numericalFailure))return false;
         {
         for (int c = 0; c<static_cast<int>(old.volumes.size()); ++c) {
-            Real sum = 0;
-            Vec3 closure{};
-            Real a = 0;
-            for (int k = old.cellFaceOffsets[c]; k<old.cellFaceOffsets[c+1]; ++k) {
-                int f = old.cellFaces[k], sign = old.cellFaceSigns[k];
-                sum += sign*sweep[f];
-                closure += area[f]*sign;
-                a += mag(area[f]);
-            }
-            const Real limit = tol.absoluteGeometry+tol.relativeGeometry*std::max(old.volumes[c],
-                candidate.volumes[c]);
-            if(!finite(closure)||!finite(a))return errorAt(error,"nonfinite stage area closure",c);
-            if (mag(closure)>1e-10*a)geometryWarning(tol.diagnostics,mag(closure),1e-10*a,c,true,ugkp::diagnostics::EntityKind::Cell);
-            if (absValue(candidate.volumes[c]-old.volumes[c]-sum)>limit)
-                geometryWarning(tol.diagnostics,candidate.volumes[c]-old.volumes[c]-sum,limit,c,true,ugkp::diagnostics::EntityKind::Cell);
+            const ugkp::gpu::geometry::TopologyView topology{old.faceOffsets.data(),old.facePoints.data(),old.cellFaceOffsets.data(),
+                old.cellFaces.data(),old.cellFaceSigns.data(),nullptr,nullptr};
+            const auto balance=ugkp::gpu::geometry::stageCellConservation(c,topology,old.volumes[c],candidate.volumes[c],
+                [&](int f){return area[f];},[&](int f){return sweep[f];},tol.absoluteGeometry,tol.relativeGeometry);
+            if(balance.invalid)return errorAt(error,"nonfinite stage area closure",c);
+            if(balance.closure>balance.closureLimit)geometryWarning(tol.diagnostics,balance.closure,balance.closureLimit,c,true,ugkp::diagnostics::EntityKind::Cell);
+            if(absValue(balance.residual)>balance.residualLimit)
+                geometryWarning(tol.diagnostics,balance.residual,balance.residualLimit,c,true,ugkp::diagnostics::EntityKind::Cell);
         }
         for (int f = 0; f<static_cast<int>(old.owner.size()); ++f)if (old.boundaryKind[f] == BoundaryKind::Periodic) {
             int p = old.periodicPartner[f];

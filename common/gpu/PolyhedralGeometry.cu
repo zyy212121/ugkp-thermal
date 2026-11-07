@@ -1,4 +1,7 @@
 #include "PolyhedralGeometry.H"
+#include "ResidentStageGeometry.H"
+#include "StageGeometryMath.H"
+#include "../Diagnostics.H"
 #include "ExtendedGeometryMath.H"
 #include "PinnedTransferQueue.cuh"
 #include <cuda_runtime.h>
@@ -315,6 +318,7 @@ void ResidentLinearTrajectory::evaluate(const Point* old,const Point* endpoint,v
     checked(cudaGetLastError());
 }
 #include "ResidentGeometryBoundary.cuh"
+#include "ResidentStageGeometry.cuh"
 struct PolyhedralGeometry::Implementation {
     cudaStream_t stream=nullptr;PinnedTransferQueue transfer;Topology cached;
     std::unique_ptr<ResidentPolyhedralGeometry> resident;
