@@ -163,8 +163,11 @@ __global__ void checkPeriodicStageConservation(int count,const int* partner,cons
     const double limit=controls->absoluteTolerance+controls->relativeTolerance*(a<b?b:a),residual=sweep[f].volume+sweep[p].volume;
     if(::fabs(residual)>limit){stageWarning(warning,residual,limit);atomicMin(&state->firstWarning,f);}
 }
-__global__ void stageMeshVelocity(int count,const FaceResult* old,const FaceResult* end,const StageGeometryControls* controls,Point* velocity){
-    const int f=blockIdx.x*blockDim.x+threadIdx.x;if(f<count)velocity[f]=(end[f].centre-old[f].centre)/controls->interval;
+__global__ void publishStageGeometryFields(PolyhedralGeometryDeviceView old,PolyhedralGeometryDeviceView end,
+    const StageGeometryControls* controls,Point* velocity,double* oldVolume,double* newVolume,double* sweptVolume){
+    const int i=blockIdx.x*blockDim.x+threadIdx.x;
+    if(i<old.cells){oldVolume[i]=old.cell[i].volume;newVolume[i]=end.cell[i].volume;}
+    if(i<old.faces){velocity[i]=(end.face[i].centre-old.face[i].centre)/controls->interval;sweptVolume[i]=old.sweptFaces[i].volume;}
 }
 }
 struct ResidentStageGeometry::Implementation {
@@ -172,7 +175,7 @@ struct ResidentStageGeometry::Implementation {
     std::unique_ptr<ResidentPolyhedralGeometry> old,end,sample;
     std::unique_ptr<ResidentLinearTrajectory> trajectory;
     std::unique_ptr<ResidentGeometryBoundary> boundary;
-    Array<Point> sampledPoints,meshVelocity;Array<double> oneThird,twoThird;Array<int> partner;
+    Array<Point> sampledPoints,meshVelocity;Array<double> oneThird,twoThird,oldVolume,newVolume,sweptVolume;Array<int> partner;
     Array<StageGeometryStatus> status;Array<StageExecution> execution;Array<StageWarning> warnings;
     void begin(StageGeometryPhase phase,int rows,int skip,cudaStream_t stream){
         beginStagePhase<<<1,1,0,stream>>>(phase,rows,skip,status.pointer,execution.pointer);checked(cudaGetLastError());
@@ -202,12 +205,13 @@ ResidentStageGeometry::ResidentStageGeometry(const Topology& topology,int pointC
     const auto v=d.old->view();d.faces=v.faces;d.cells=v.cells;
     d.boundary.reset(new ResidentGeometryBoundary(topology,v.topology,pointCount,partner,axis,mate));
     d.sampledPoints.reserve(pointCount);d.meshVelocity.reserve(d.faces);d.oneThird.reserve(d.cells);d.twoThird.reserve(d.cells);
+    d.oldVolume.reserve(d.cells);d.newVolume.reserve(d.cells);d.sweptVolume.reserve(d.faces);
     d.partner.reserve(partner.size());if(!partner.empty())checked(cudaMemcpy(d.partner.pointer,partner.data(),partner.size()*sizeof(int),cudaMemcpyHostToDevice));
     d.status.reserve(1);d.execution.reserve(1);d.warnings.reserve(std::max(d.cells,d.faces));
 }
 ResidentStageGeometry::~ResidentStageGeometry()=default;
 StageGeometryDeviceView ResidentStageGeometry::view()const{
-    const auto& d=*data_;return {d.old->view(),d.end->view(),d.meshVelocity.pointer,d.status.pointer};
+    const auto& d=*data_;return {d.old->view(),d.end->view(),d.meshVelocity.pointer,d.status.pointer,d.oldVolume.pointer,d.newVolume.pointer,d.sweptVolume.pointer};
 }
 void ResidentStageGeometry::prepare(const Point* old,const Point* endpoint,const StageGeometryControls* controls,
     ugkp::diagnostics::DeviceContext* diagnostics,void* streamHandle){
@@ -243,5 +247,6 @@ void ResidentStageGeometry::prepare(const Point* old,const Point* endpoint,const
     d.begin(StageGeometryPhase::PeriodicSweep,d.faces,0,stream);
     if(d.faces){checkPeriodicStageConservation<<<(d.faces+127)/128,128,0,stream>>>(d.faces,d.partner.pointer,initial.sweptFaces,controls,d.execution.pointer,d.warnings.pointer);checked(cudaGetLastError());}
     d.publishWarnings(d.faces,true,true,diagnostics,stream);
-    if(d.faces){stageMeshVelocity<<<(d.faces+127)/128,128,0,stream>>>(d.faces,initial.face,final.face,controls,d.meshVelocity.pointer);checked(cudaGetLastError());}
+    const int rows=std::max(d.cells,d.faces);
+    if(rows){publishStageGeometryFields<<<(rows+127)/128,128,0,stream>>>(initial,final,controls,d.meshVelocity.pointer,d.oldVolume.pointer,d.newVolume.pointer,d.sweptVolume.pointer);checked(cudaGetLastError());}
 }

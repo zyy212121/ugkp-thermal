@@ -15,6 +15,11 @@ struct StageGeometryDeviceView {
     PolyhedralGeometryDeviceView oldGeometry{},endpointGeometry{};
     const Point* meshVelocity=nullptr;
     const StageGeometryStatus* status=nullptr;
+    // Contiguous fields bind directly to gas/material conservative operators.
+    // They are published by a device kernel, never through a host mesh mirror.
+    const double* oldVolume=nullptr;
+    const double* newVolume=nullptr;
+    const double* sweptVolume=nullptr;
 };
 // One full native linear-trajectory geometry transaction. Inputs and controls
 // are borrowed device arrays. Immutable topology, periodic pairing and the

@@ -35,7 +35,12 @@ Result evaluate(const Topology& topology,const std::vector<Point>& old,const std
     check(cudaMemcpy(&result.diagnostics,diagnostic.pointer,sizeof(result.diagnostics),cudaMemcpyDeviceToHost));
     if(result.status.failure==StageGeometryFailure::None){const auto end=view.endpointGeometry;
         result.faces=download(end.face,end.faces);result.cells=download(end.cell,end.cells);result.distances=download(end.distance,end.cells);
-        result.sweep=download(view.oldGeometry.sweptFaces,end.faces);result.velocity=download(view.meshVelocity,end.faces);}
+        result.sweep=download(view.oldGeometry.sweptFaces,end.faces);result.velocity=download(view.meshVelocity,end.faces);
+        const auto oldCells=download(view.oldGeometry.cell,end.cells);
+        const auto oldVolume=download(view.oldVolume,end.cells),newVolume=download(view.newVolume,end.cells);
+        const auto sweptVolume=download(view.sweptVolume,end.faces);
+        for(int c=0;c<end.cells;++c)if(oldCells[c].volume!=oldVolume[c]||result.cells[c].volume!=newVolume[c])throw std::runtime_error("packed stage volume differs");
+        for(int f=0;f<end.faces;++f)if(result.sweep[f].volume!=sweptVolume[f])throw std::runtime_error("packed stage sweep differs");}
     check(cudaGraphExecDestroy(executable));check(cudaGraphDestroy(graph));check(cudaStreamDestroy(stream));return result;
 }
 }
