@@ -2,6 +2,7 @@
 #define CHMT_GPU_MATERIALSURFACEKERNELS_CUH
 #include "ablation/DrySurfaceInterfaceMath.H"
 #include "../../../common/gasWall/WallCudaTeam.cuh"
+#include "../../../common/gpu/DeviceValue.cuh"
 namespace chmt {
 struct MaterialSurfaceStatus {
     bool success=false,numericalFailure=true;
@@ -28,7 +29,9 @@ struct MaterialSurfaceView {
     std::size_t workspaceStride=0;
     int workspaceCapacity=0,workers=0;
 };
-__global__ void evaluateMaterialSurfaceKernel(MaterialSurfaceView view,const PhysicsConfig* physics) {
+template<class View>
+__global__ void evaluateMaterialSurfaceKernel(View binding,const PhysicsConfig* physics) {
+    const MaterialSurfaceView view=binding;
     const std::size_t worker=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x;
     if(worker>=std::size_t(view.workers))return;
     for(std::size_t face=worker;face<std::size_t(view.count);face+=view.workers){
@@ -57,8 +60,10 @@ __global__ void evaluateMaterialSurfaceKernel(MaterialSurfaceView view,const Phy
 // cooperative ODE implementation and the owner alone publishes face state.
 // One warp per worker keeps the bounded workspace ownership unchanged and
 // spreads even a small number of expensive faces across distinct blocks.
+template<class View>
 __global__ __launch_bounds__(ugkwp::gaswall::detail::wallWarpWidth)
-void evaluateMaterialSurfaceTeamKernel(MaterialSurfaceView view,const PhysicsConfig* physics) {
+void evaluateMaterialSurfaceTeamKernel(View binding,const PhysicsConfig* physics) {
+    const MaterialSurfaceView view=binding;
     const int worker=blockIdx.x;
     if(worker>=view.workers)return;
     const ugkwp::gaswall::detail::CudaWallTeam team{};

@@ -260,7 +260,7 @@ int main(int argc,char** argv){
         const std::vector<MaterialSurfaceStatus> originalStatus(status,status+count);
         for(int w=0;w<workers;++w)new(scratch+w)Workspace{};
         for(int f=0;f<count;++f){result[f]={};result[f].gasEnergy=12345;walls[f]={};walls[f].temperature=12345;status[f]={};}
-        ugkp::gpu::ScalarWorkLaunch launch;cudaCheck(ugkp::gpu::scalarWorkLaunch(evaluateMaterialSurfaceKernel,workers,launch));
+        ugkp::gpu::ScalarWorkLaunch launch;cudaCheck(ugkp::gpu::scalarWorkLaunch(evaluateMaterialSurfaceKernel<MaterialSurfaceView>,workers,launch));
         std::fprintf(stderr,"BEGIN scheduled scalar material surface variant=%d\n",variant);
         evaluateMaterialSurfaceKernel<<<launch.blocks,launch.threads>>>(view,p);cudaCheck(cudaGetLastError());cudaCheck(cudaDeviceSynchronize());
         for(int f=0;f<count;++f){

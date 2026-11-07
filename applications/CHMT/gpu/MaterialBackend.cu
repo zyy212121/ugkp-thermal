@@ -5,6 +5,7 @@
 #include "gpu/MaterialTransportKernels.cuh"
 #include "gpu/MaterialSourceKernels.cuh"
 #include "gpu/MaterialSurfaceKernels.cuh"
+#include "ablation/MaterialSurfaceInput.H"
 #include "../../../common/gpu/ScalarWorkLaunch.cuh"
 #include "materials/MaterialInventoryMath.H"
 #include "materials/CpuMaterialDriver.H"
@@ -601,25 +602,19 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
                 ||std::size_t(gf)>=h.gasMesh.faceIds.size()){error="CPU surface gas face outside real mesh";return false;}
             const int gc=h.gasMesh.owner[gf];
             if(gc<0||std::size_t(gc)>=h.gasMesh.volumes.size()){error="CPU surface gas owner outside real mesh";return false;}
-            auto& in=inputs[index];in.ablating=s.ablating.empty()||s.ablating.at(f);in.bulk=bulk[f];if(!gradients.empty())in.gradient=gradients[f];
-            in.gasInventory=conservativeGas(bulk[f],gasPhaseVolume(h,gc)*donorShares[f],p);
-            if(accepted&&!accepted->empty()){
-                in.useAcceptedFlux=true;const auto& rates=(*accepted)[f];
-                for(int s=0;s<Ns;++s){in.acceptedGasSpecies[s]=rates.speciesRate[s];
-                    in.acceptedPoreSpecies[s]=rates.poreRate[s];in.acceptedPoreSweep[s]=rates.poreSweepRate[s];}
-                for(int c=0;c<Nc;++c)in.acceptedCondensed[c]=rates.condensedRate[c];
-            }
+            auto& in=inputs[index];in.ablating=s.ablating.empty()||s.ablating.at(f);
+            setMaterialSurfaceGasDrive(in,bulk[f],gradients.empty()?nullptr:&gradients[f],gasPhaseVolume(h,gc),donorShares[f],
+                accepted&&!accepted->empty()?&(*accepted)[f]:nullptr,p);
             if(contexts){
-                in.wallContext=(*contexts)[f];in.bulk.pressure=in.wallContext.matchingPressure;
+                setMaterialSurfaceMatching(in,(*contexts)[f]);
                 in.wallContext.mechanism=b.deviceMechanism;in.wallContext.workspace=nullptr;in.wallContext.failureStatus=nullptr;
                 in.wallContext.teamOutput=nullptr;in.wallContext.teamDiagnostics=nullptr;in.wallContext.quietPhysics=nullptr;
                 const auto& q=(*contexts)[f].quadrature;
                 quadratureOffsets[index]=int(distances.size());
                 for(int j=0;j<q.count;++j){distances.push_back(q.distance[j]);weights.push_back(q.volumeWeight[j]);}
             }
-            in.area=s.area[f];in.normal=s.normal[f];in.gasArea=mag(h.gasMesh.areaVectors[gf]);
-            in.gasNormal=-h.gasMesh.areaVectors[gf]/in.gasArea;in.gasDistance=s.gasDistance[f];in.dt=dt;
-            in.aux.pressure=in.bulk.pressure;in.baseVelocity=s.baseVelocity.empty()?Vec3{}:s.baseVelocity[f];
+            setMaterialSurfaceGasGeometry(in,s.area[f],s.normal[f],h.gasMesh.areaVectors[gf],s.gasDistance[f],
+                s.baseVelocity.empty()?Vec3{}:s.baseVelocity[f],dt);
             const int sc=s.solidCell.empty()?-1:s.solidCell[f];solidCells[index]=sc;in.hasSolid=sc>=0;
             if(in.hasSolid){
                 if(std::size_t(sc)>=b.current.size()||std::size_t(sc)>=h.solidMesh.volumes.size()
@@ -629,8 +624,7 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
                 }
                 const int sf=s.solidFace[f];
                 if(sf<0||std::size_t(sf)>=h.solidMesh.areaVectors.size()){error="CPU interface solid face invalid";return false;}
-                in.solidDistance=s.solidDistance[f];in.solidArea=mag(h.solidMesh.areaVectors[sf]);
-                in.solidNormal=h.solidMesh.areaVectors[sf]/in.solidArea;
+                setMaterialSurfaceSolidGeometry(in,s.solidDistance[f],h.solidMesh.areaVectors[sf]);
             }
             if(sideVolume){
                 if(sideVolume->size()!=nf){numerical=sideVolume->size()>=nf;error="surface side sweep layout mismatch";return false;}
@@ -671,7 +665,7 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
         evaluateMaterialSurfaceTeamKernel<<<view.workers,ugkwp::gaswall::detail::wallWarpWidth,0,b.stream.get()>>>(view,b.devicePhysics.data());
     }else if(count){
         ugkp::gpu::ScalarWorkLaunch launch;
-        if(!b.fault.check(ugkp::gpu::scalarWorkLaunch(evaluateMaterialSurfaceKernel,view.workers,launch),
+        if(!b.fault.check(ugkp::gpu::scalarWorkLaunch(evaluateMaterialSurfaceKernel<MaterialSurfaceView>,view.workers,launch),
             "schedule independent material surface workers"))return b.failure(error);
         evaluateMaterialSurfaceKernel<<<launch.blocks,launch.threads,0,b.stream.get()>>>(view,b.devicePhysics.data());
     }
