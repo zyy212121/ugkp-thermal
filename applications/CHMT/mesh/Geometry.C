@@ -1,5 +1,6 @@
 #include "mesh/Geometry.H"
 #include "../../../common/gpu/PointMotionMath.H"
+#include "../../../common/gpu/NormalHeightMotionMath.H"
 #include "../../../common/gpu/LinearTrajectoryMath.H"
 #include "../../../common/gpu/GeometryBoundaryMath.H"
 #include "../../../common/gpu/StageGeometryMath.H"
@@ -635,7 +636,7 @@ namespace chmt {
         }
         if ((np && !any))return errorAt(error, "harmonic motion lacks Dirichlet anchor", -1);
         Real tolerance = 1e-12*meshScale(mesh.points);
-        if(normalLengthScale>0)tolerance=std::min(tolerance,1e-10*normalLengthScale);
+        tolerance=ugkp::gpu::geometry::normalHeightMotionTolerance(tolerance,normalLengthScale);
 #ifdef CHMT_DEVICE_GEOMETRY
         std::vector<int> offsets,neighbours;geometry_device::adjacency(adjacency,offsets,neighbours);
         geometry_device::backend::HarmonicPointMotion device(geometry_device::pack(mesh.points),offsets,neighbours,prescribed,tolerance,20000,penalties);
@@ -1854,23 +1855,16 @@ namespace chmt {
             std::vector<MotionPenalty> penalties(oldGas.points.size());
             Real minimumNormalHeight=std::numeric_limits<Real>::infinity();
             const auto& ref=oldGas.referencePoints.empty()?oldGas.points:oldGas.referencePoints;
+            const TopologyView heightTopology{oldGas.faceOffsets.data(),oldGas.facePoints.data(),nullptr,nullptr,nullptr,nullptr,nullptr};
             for(int f:reference.gasFace)if(f>=0){
-                Vec3 c0{},c1{},a0{},a1{};const int lo=oldGas.faceOffsets[f],hi=oldGas.faceOffsets[f+1];
-                for(int k=lo;k<hi;++k){const int v=oldGas.facePoints[k];c0+=ref[v];c1+=oldGas.points[v]+gasDisplacement[v];}
-                c0=c0/Real(hi-lo);c1=c1/Real(hi-lo);
-                for(int k=lo;k<hi;++k){const int v=oldGas.facePoints[k],w=oldGas.facePoints[k+1==hi?lo:k+1];
-                    a0+=cross(ref[v]-c0,ref[w]-c0);a1+=cross(oldGas.points[v]+gasDisplacement[v]-c1,oldGas.points[w]+gasDisplacement[w]-c1);}
-                const Vec3 n0=normalized(a0)*-1,n1=normalized(a1)*-1;
+                const auto wall=wallNormalHeightGeometry(heightTopology,f,ref.data(),oldGas.points.data(),gasDisplacement.data());
                 std::set<int> vertices;const int cell=oldGas.owner[f];
                 for(int k=oldGas.cellFaceOffsets[cell];k<oldGas.cellFaceOffsets[cell+1];++k){const int cf=oldGas.cellFaces[k];
                     for(int j=oldGas.faceOffsets[cf];j<oldGas.faceOffsets[cf+1];++j)vertices.insert(oldGas.facePoints[j]);}
                 for(int v:vertices)if(!fixedGas[v]){
-                    const Real h0=dot(ref[v]-c0,n0);
-                    if(h0>1e-12*mag(ref[v]-c0)){
-                        minimumNormalHeight=std::min(minimumNormalHeight,h0);
-                        const Real target=h0-dot(oldGas.points[v]-c1,n1);
-                        addNormalHeight(penalties[v],{n1.x,n1.y,n1.z},target,h0);
-                    }
+                    const Real height=addWallNormalHeight(penalties[v],wall,
+                        {ref[v].x,ref[v].y,ref[v].z},{oldGas.points[v].x,oldGas.points[v].y,oldGas.points[v].z});
+                    minimumNormalHeight=std::min(minimumNormalHeight,height);
                 }
             }
             const bool harmonicOk=harmonicPointMotionRepresentedImpl(oldGas,gasDisplacement,fixedGas,gasPoints,failure,nullptr,nullptr,diagnostics,penalties,minimumNormalHeight);
