@@ -1,7 +1,7 @@
 // Included inside ugkp::gpu::geometry after common geometry/bounds operators.
 namespace {
-__global__ void resetSurfaceGeometry(const double* interval,int edges,SurfaceGeometryStatus* status){
-    if(threadIdx.x||blockIdx.x)return;*status={};status->first=~0ull;status->firstWarning=edges;
+__global__ void resetSurfaceGeometry(const double* interval,int edges,const SurfaceSeamStatus* seams,SurfaceGeometryStatus* status){
+    if(threadIdx.x||blockIdx.x)return;*status={};status->first=~0ull;status->edgeCount=seams?seams->count:edges;status->firstWarning=status->edgeCount;
     if(!(*interval>0)||!std::isfinite(*interval))status->failure=SurfaceGeometryFailure::InvalidInterval;
 }
 __global__ void surfaceFaceMetrics(int count,const SurfaceFaceMap* map,PolyhedralGeometryDeviceView oldSolid,
@@ -15,9 +15,14 @@ __global__ void surfaceFaceMetrics(int count,const SurfaceFaceMap* map,Polyhedra
         m.gasFace>=0,other.area,other.centre,cell,*interval);output[i]=result;
     if(!(result.solidDistance>0)||(m.gasFace>=0&&!(result.gasDistance>0)))atomicMin(&status->first,static_cast<unsigned long long>(i));
 }
+__global__ void publishSurfaceSeamFailure(const SurfaceSeamStatus* seams,SurfaceGeometryStatus* status){
+    if(threadIdx.x||blockIdx.x||!seams||status->failure!=SurfaceGeometryFailure::None||status->first!=~0ull)return;
+    if(seams->failure!=SurfaceSeamFailure::None){status->index=seams->index;
+        status->failure=seams->failure==SurfaceSeamFailure::Ambiguous?SurfaceGeometryFailure::AmbiguousSeam:SurfaceGeometryFailure::UnpairedSeam;}
+}
 __global__ void surfaceEdgeMetrics(int count,TopologyView topology,const Point* old,const Point* endpoint,
     const SurfaceEdgeMap* edges,bool empty,EdgeResult* output,SurfaceGeometryStatus* status){
-    const int e=blockIdx.x*blockDim.x+threadIdx.x;if(e>=count||status->failure==SurfaceGeometryFailure::InvalidInterval)return;
+    const int e=blockIdx.x*blockDim.x+threadIdx.x;if(e>=status->edgeCount||status->failure!=SurfaceGeometryFailure::None)return;
     const auto result=surfaceEdge(topology,old,endpoint,edges[e].geometry,empty,0,status->scale);output[e]=result;
     if(result.invalid)atomicMin(&status->first,(1ull<<32)|static_cast<unsigned int>(e));
     else if(!result.converged)atomicMin(&status->firstWarning,e);
@@ -33,17 +38,18 @@ __device__ void recordSurfaceEdgeWarning(int edge,const SurfaceEdgeMap* maps,con
 }
 __global__ void publishSurfaceFirstWarning(int count,const SurfaceEdgeMap* map,const EdgeResult* results,
     const SurfaceGeometryStatus* status,ugkp::diagnostics::DeviceContext* diagnostics){
-    if(threadIdx.x||blockIdx.x||!diagnostics||status->failure==SurfaceGeometryFailure::InvalidInterval)return;
+    if(threadIdx.x||blockIdx.x||!diagnostics||status->failure!=SurfaceGeometryFailure::None)return;
+    count=status->edgeCount;
     const int first=status->firstWarning;if(first<count&&first<=surfaceWarningCutoff(count,*status))recordSurfaceEdgeWarning(first,map,results,diagnostics);
 }
 __global__ void publishSurfaceOtherWarnings(int count,const SurfaceEdgeMap* map,const EdgeResult* results,
     const SurfaceGeometryStatus* status,ugkp::diagnostics::DeviceContext* diagnostics){
-    const int e=blockIdx.x*blockDim.x+threadIdx.x;
-    if(!diagnostics||status->failure==SurfaceGeometryFailure::InvalidInterval||e>=count||e==status->firstWarning||e>surfaceWarningCutoff(count,*status))return;
+    const int e=blockIdx.x*blockDim.x+threadIdx.x;count=status->edgeCount;
+    if(!diagnostics||status->failure!=SurfaceGeometryFailure::None||e>=count||e==status->firstWarning||e>surfaceWarningCutoff(count,*status))return;
     if(!results[e].invalid&&!results[e].converged)recordSurfaceEdgeWarning(e,map,results,diagnostics);
 }
 __global__ void finishSurfaceGeometry(const SurfaceEdgeMap* edges,const EdgeResult* results,SurfaceGeometryStatus* status){
-    if(threadIdx.x||blockIdx.x||status->failure==SurfaceGeometryFailure::InvalidInterval||status->first==~0ull)return;
+    if(threadIdx.x||blockIdx.x||status->failure!=SurfaceGeometryFailure::None||status->first==~0ull)return;
     const int i=static_cast<unsigned int>(status->first);
     if(status->first>>32){status->index=edges[i].ownerSurface;
         status->failure=results[i].invalid==1?SurfaceGeometryFailure::DegenerateConormal:SurfaceGeometryFailure::DegenerateHinge;
@@ -67,10 +73,22 @@ SurfaceGeometryDeviceView ResidentSurfaceGeometry::view()const{
 }
 void ResidentSurfaceGeometry::prepare(PolyhedralGeometryDeviceView oldSolid,PolyhedralGeometryDeviceView solid,
     PolyhedralGeometryDeviceView gas,const Point* old,const Point* endpoint,const SurfaceEdgeMap* edges,const double* interval,
-    ugkp::diagnostics::DeviceContext* diagnostics,void* streamHandle){
+    ugkp::diagnostics::DeviceContext* diagnostics,void* stream){
+    prepareImpl(oldSolid,solid,gas,old,endpoint,edges,interval,nullptr,diagnostics,stream);
+}
+void ResidentSurfaceGeometry::prepareWithSeams(PolyhedralGeometryDeviceView oldSolid,PolyhedralGeometryDeviceView solid,
+    PolyhedralGeometryDeviceView gas,const Point* old,const Point* endpoint,SurfaceSeamDeviceView seams,const double* interval,
+    ugkp::diagnostics::DeviceContext* diagnostics,void* stream){
+    if(seams.capacity!=data_->edges||!seams.status)throw std::invalid_argument("resident surface seam allocation mismatch");
+    prepareImpl(oldSolid,solid,gas,old,endpoint,seams.edges,interval,seams.status,diagnostics,stream);
+}
+void ResidentSurfaceGeometry::prepareImpl(PolyhedralGeometryDeviceView oldSolid,PolyhedralGeometryDeviceView solid,
+    PolyhedralGeometryDeviceView gas,const Point* old,const Point* endpoint,const SurfaceEdgeMap* edges,const double* interval,
+    const SurfaceSeamStatus* seams,ugkp::diagnostics::DeviceContext* diagnostics,void* streamHandle){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(streamHandle);
-    resetSurfaceGeometry<<<1,1,0,stream>>>(interval,d.edges,d.status.pointer);checked(cudaGetLastError());
+    resetSurfaceGeometry<<<1,1,0,stream>>>(interval,d.edges,seams,d.status.pointer);checked(cudaGetLastError());
     if(d.faces){surfaceFaceMetrics<<<(d.faces+127)/128,128,0,stream>>>(d.faces,d.mapping.pointer,oldSolid,solid,gas,interval,d.face.pointer,d.status.pointer);checked(cudaGetLastError());}
+    if(seams){publishSurfaceSeamFailure<<<1,1,0,stream>>>(seams,d.status.pointer);checked(cudaGetLastError());}
     if(d.edges){
         geometryBounds<<<(d.points+127)/128,128,0,stream>>>(d.points,old,d.bounds.pointer);checked(cudaGetLastError());
         geometryScale<<<1,128,0,stream>>>((d.points+127)/128,d.bounds.pointer,d.status.pointer);checked(cudaGetLastError());

@@ -2,6 +2,7 @@
 #include "ResidentStageGeometry.H"
 #include "StageGeometryMath.H"
 #include "ResidentSurfaceGeometry.H"
+#include "ResidentSurfaceSeams.H"
 #include "ResidentWallMatching.H"
 #include "../gasWall/ResidentWallMatching.cuh"
 #include "SurfaceGeometryMath.H"
@@ -324,6 +325,7 @@ void ResidentLinearTrajectory::evaluate(const Point* old,const Point* endpoint,v
 #include "ResidentGeometryBoundary.cuh"
 #include "ResidentStageGeometry.cuh"
 #include "ResidentSurfaceGeometry.cuh"
+#include "ResidentSurfaceSeams.cuh"
 #include "ResidentWallMatching.cuh"
 struct PolyhedralGeometry::Implementation {
     cudaStream_t stream=nullptr;PinnedTransferQueue transfer;Topology cached;

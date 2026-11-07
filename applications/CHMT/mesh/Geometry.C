@@ -4,6 +4,7 @@
 #include "../../../common/gpu/GeometryBoundaryMath.H"
 #include "../../../common/gpu/StageGeometryMath.H"
 #include "../../../common/gpu/SurfaceGeometryMath.H"
+#include "../../../common/gpu/SurfaceSeamMath.H"
 #ifdef CHMT_DEVICE_GEOMETRY
 #include "mesh/GeometryGpu.H"
 #endif
@@ -1227,9 +1228,7 @@ namespace chmt {
                 }
             }
         }
-        struct SurfaceEdge {
-            int a = -1, b = -1, owner = -1, neighbour = -1, neighbourA = -1, neighbourB = -1;
-        };
+        using SurfaceEdge=ugkp::gpu::geometry::SurfaceTopologyEdge;
         bool surfaceEdges(const HostMesh& solid, const SurfaceMesh& surface, std::vector<SurfaceEdge>& edges,
             std::string& error,bool* numericalFailure=nullptr) {
             std::map<std::pair<int, int>, int> map;
@@ -1274,13 +1273,10 @@ namespace chmt {
                 }
                 if (patch<0)continue;
                 Vec3 translation = solid.faceCentres[solid.periodicPartner[patch]]-solid.faceCentres[patch];
-                int match = -1;
-                for (std::size_t j = 0; j<edges.size(); ++j)if (i != j && !removed[j] && edges[j].neighbour<0
-                    && mag(solid.points[edge.a]+translation-solid.points[edges[j].b]) <= tol
-                    && mag(solid.points[edge.b]+translation-solid.points[edges[j].a]) <= tol) {
-                    if (match >= 0)return errorAt(error, "ambiguous periodic surface edge", static_cast<int>(i));
-                    match = static_cast<int>(j);
-                }
+                const auto found=ugkp::gpu::geometry::matchSurfaceSeam(int(i),int(edges.size()),
+                    edges.data(),removed.data(),solid.points.data(),translation,tol);
+                if(found.ambiguous)return errorAt(error,"ambiguous periodic surface edge",static_cast<int>(i));
+                const int match=found.edge;
                 if (match<0){if(numericalFailure)*numericalFailure=false;
                     return errorAt(error, "unpaired periodic surface edge", static_cast<int>(i));}
                 edge.neighbour = edges[match].owner;
