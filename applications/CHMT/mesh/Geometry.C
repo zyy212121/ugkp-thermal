@@ -1229,8 +1229,8 @@ namespace chmt {
             }
         }
         using SurfaceEdge=ugkp::gpu::geometry::SurfaceTopologyEdge;
-        bool surfaceEdges(const HostMesh& solid, const SurfaceMesh& surface, std::vector<SurfaceEdge>& edges,
-            std::string& error,bool* numericalFailure=nullptr) {
+        bool surfaceEdgeTopology(const HostMesh& solid, const SurfaceMesh& surface, std::vector<SurfaceEdge>& edges,
+            std::vector<ugkp::gpu::geometry::SurfaceSeamPatch>& patches,std::string& error) {
             std::map<std::pair<int, int>, int> map;
             for (int i = 0; i<static_cast<int>(surface.solidFace.size()); ++i) {
                 int f = surface.solidFace[i], begin = solid.faceOffsets[f], end = solid.faceOffsets[f+1];
@@ -1251,6 +1251,23 @@ namespace chmt {
                     }
                 }
             }
+            patches.assign(edges.size(),{});
+            for(std::size_t i=0;i<edges.size();++i){const auto edge=edges[i];
+                if(edge.neighbour>=0)continue;
+                for(int f=0;f<static_cast<int>(solid.owner.size());++f){
+                    if(solid.boundaryKind[f]!=BoundaryKind::Periodic)continue;
+                    bool hasA=false,hasB=false;
+                    for(int k=solid.faceOffsets[f];k<solid.faceOffsets[f+1];++k){
+                        hasA=hasA||solid.facePoints[k]==edge.a;hasB=hasB||solid.facePoints[k]==edge.b;}
+                    if(hasA&&hasB){patches[i]={f,solid.periodicPartner[f]};break;}
+                }
+            }
+            return true;
+        }
+        bool surfaceEdges(const HostMesh& solid,const SurfaceMesh& surface,std::vector<SurfaceEdge>& edges,
+            std::string& error,bool* numericalFailure=nullptr){
+            std::vector<ugkp::gpu::geometry::SurfaceSeamPatch> patches;
+            if(!surfaceEdgeTopology(solid,surface,edges,patches,error))return false;
             // Join surface seam edges through the mesh's verified translational cyclic
             // patches. No nearest-neighbour map is substituted for a conforming pair.
             std::vector<unsigned char> removed(edges.size(), 0);
@@ -1258,19 +1275,7 @@ namespace chmt {
             for (std::size_t i = 0; i<edges.size(); ++i) {
                 auto& edge = edges[i];
                 if (removed[i] || edge.neighbour >= 0)continue;
-                int patch = -1;
-                for (int f = 0; f<static_cast<int>(solid.owner.size()); ++f) {
-                    if (solid.boundaryKind[f] != BoundaryKind::Periodic)continue;
-                    bool hasA = false, hasB = false;
-                    for (int k = solid.faceOffsets[f]; k<solid.faceOffsets[f+1]; ++k) {
-                        hasA = hasA || solid.facePoints[k] == edge.a;
-                        hasB = hasB || solid.facePoints[k] == edge.b;
-                    }
-                    if (hasA && hasB) {
-                        patch = f;
-                        break;
-                    }
-                }
+                const int patch=patches[i].face;
                 if (patch<0)continue;
                 Vec3 translation = solid.faceCentres[solid.periodicPartner[patch]]-solid.faceCentres[patch];
                 const auto found=ugkp::gpu::geometry::matchSurfaceSeam(int(i),int(edges.size()),
@@ -1333,6 +1338,14 @@ namespace chmt {
             }
             return sum;
         }
+    }
+    bool buildSurfaceSeamTopology(const HostMesh& mesh,const SurfaceMesh& surface,
+        std::vector<ugkp::gpu::geometry::SurfaceTopologyEdge>& edges,
+        std::vector<ugkp::gpu::geometry::SurfaceSeamPatch>& patches,std::string& error){
+        std::vector<ugkp::gpu::geometry::SurfaceTopologyEdge> nextEdges;
+        std::vector<ugkp::gpu::geometry::SurfaceSeamPatch> nextPatches;
+        if(!surfaceEdgeTopology(mesh,surface,nextEdges,nextPatches,error))return false;
+        edges=std::move(nextEdges);patches=std::move(nextPatches);error.clear();return true;
     }
     bool integrateSurfaceEdgeSweep(const HostMesh& mesh, const std::vector<Vec3>& endpoint, int faceOwner,
         int faceNeighbour, int pointA, int pointB, int segments, Real& output, std::string& error) {

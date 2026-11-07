@@ -14,11 +14,20 @@ void compare(HostMesh mesh,chmt::SurfaceMesh surface,bool distort=false){
         }
     }
     std::vector<device::SurfaceSeamPatch> patches(raw.size());
-    for(std::size_t i=0;i<raw.size();++i)for(int f=0;f<int(mesh.owner.size());++f){
+    for(std::size_t i=0;i<raw.size();++i)if(raw[i].neighbour<0)for(int f=0;f<int(mesh.owner.size());++f){
         if(mesh.boundaryKind[f]!=chmt::BoundaryKind::Periodic)continue;bool a=false,b=false;
         for(int k=mesh.faceOffsets[f];k<mesh.faceOffsets[f+1];++k){a=a||mesh.facePoints[k]==raw[i].a;b=b||mesh.facePoints[k]==raw[i].b;}
         if(a&&b){patches[i]={f,mesh.periodicPartner[f]};break;}
     }
+#ifdef UGKP_TEST_NEW_SURFACE_TOPOLOGY
+    std::vector<device::SurfaceTopologyEdge> actualEdges;std::vector<device::SurfaceSeamPatch> actualPatches;
+    assert(chmt::buildSurfaceSeamTopology(mesh,surface,actualEdges,actualPatches,error));
+    assert(actualEdges.size()==raw.size()&&actualPatches.size()==patches.size());
+    for(std::size_t i=0;i<raw.size();++i){const auto a=actualEdges[i],b=raw[i];
+        assert(a.a==b.a&&a.b==b.b&&a.owner==b.owner&&a.neighbour==b.neighbour&&a.neighbourA==b.neighbourA&&a.neighbourB==b.neighbourB);
+        assert(actualPatches[i].face==patches[i].face&&actualPatches[i].partner==patches[i].partner);}
+    raw=std::move(actualEdges);patches=std::move(actualPatches);
+#endif
     std::vector<seamProbe::Sample> samples;std::vector<HostMesh> nativeMeshes;
     for(int replay=0;replay<3;++replay){auto m=mesh;
         if(replay==1)for(auto& p:m.points){p.x=p.x*1.03125+.125;p.y=p.y*.9375-.25;p.z=p.z*1.0625;}
