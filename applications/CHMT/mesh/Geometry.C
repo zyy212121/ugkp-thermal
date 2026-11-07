@@ -1849,7 +1849,7 @@ namespace chmt {
         HostMesh gas,solid;
         std::vector<Real> gasSweeps,solidSweeps;
 #ifdef CHMT_DEVICE_GEOMETRY
-        std::unique_ptr<ugkp::gpu::geometry::InterfaceGasPointMotion> gasPointMotion;
+        std::unique_ptr<ugkp::gpu::geometry::InterfaceGasStage> gasPointMotion;
         std::vector<std::set<int>> gasPointAdjacency;empty_detail::Extrusion gasExtrusion;
         bool gasMotionTopologyReady=false,gasHasEmpty=false;
 #endif
@@ -1873,7 +1873,7 @@ namespace chmt {
                 gasMotionTopologyReady=true;
             }
             if(!gasPointMotion){
-                InterfaceGasPointMotionDefinition definition;auto& gasDefinition=definition.gas;
+                InterfaceGasStageDefinition stageDefinition;auto& definition=stageDefinition.motion;auto& gasDefinition=definition.gas;
                 gasDefinition.topology=geometry_device::meshTopology(oldGas).topology;gasDefinition.owner=oldGas.owner;
                 gasDefinition.wallFaces=reference.gasFace;gasDefinition.points=geometry_device::pack(oldGas.points);
                 gasDefinition.reference=geometry_device::pack(oldGas.referencePoints.empty()?oldGas.points:oldGas.referencePoints);
@@ -1883,9 +1883,12 @@ namespace chmt {
                 definition.solidFaces=reference.solidFace;definition.solidToGas=solidToGas;definition.pointThickness=newThickness;
                 for(int i=0;i<ns;++i){definition.previousFilmThickness.push_back(accepted.filmAux[i].thickness);definition.filmThickness.push_back(candidateFilm[i].thickness);}
                 if(gasHasEmpty){definition.emptyAxis=gasExtrusion.axis;definition.emptyMate=gasExtrusion.mate;}
-                gasPointMotion.reset(new InterfaceGasPointMotion(definition));
+                stageDefinition.wallFaces=geometry_device::meshTopology(oldGas).walls;stageDefinition.periodicPartner=oldGas.periodicPartner;
+                gasPointMotion.reset(new InterfaceGasStage(stageDefinition));
             }
-            const auto result=gasPointMotion->solve(geometry_device::pack(trialSolid.points),geometry_device::pack(trialSolid.areaVectors));
+            const auto certified=gasPointMotion->solve(geometry_device::pack(trialSolid.points),geometry_device::pack(trialSolid.areaVectors),
+                {dt,tolerances.absoluteGeometry,tolerances.relativeGeometry});
+            const auto& result=certified.motion;
             using Failure=InterfaceGasMotionFailure;
             switch(result.status.failure){
                 case Failure::None:break;
@@ -1897,10 +1900,8 @@ namespace chmt {
                 case Failure::NoAnchor:return errorAt(failure,"harmonic motion lacks Dirichlet anchor",-1);
                 case Failure::Harmonic:return errorAt(failure,result.status.harmonic.errorKind==1?"zero-length motion edge":"nonfinite harmonic displacement",result.status.index);
             }
-            geometry_device::unpack(result.points,gasPoints);
-            if(!result.status.changed)return stage(gasPoints);
-            if(!oldGas.points.empty()&&!(result.status.harmonic.residual<=result.status.constraints.harmonicTolerance))
-                geometryWarning(diagnostics,result.status.harmonic.residual,result.status.constraints.harmonicTolerance,-1,false);
+            if(!geometry_device::publishInterfaceStage(oldGas,certified,gas,gasSweeps,failure,diagnostics))return false;
+            if(!result.status.changed)return true;
 #else
             // An unchanged accepted offset is already authoritative. Recomputing
             // X_s+n*delta here can manufacture a one-ULP gas motion after a
@@ -1945,8 +1946,8 @@ namespace chmt {
             const bool harmonicOk=harmonicPointMotionRepresentedImpl(oldGas,gasDisplacement,fixedGas,gasPoints,failure,nullptr,nullptr,diagnostics,penalties,minimumNormalHeight);
 
             if(!harmonicOk)return false;
-#endif
             if(!stage(gasPoints))return false;
+#endif
             // Keep the existing reduced-film boundary: moving curved offset
             // interfaces with unequal areas/normals are not a liquid-volume model.
             for (int i=0;i<ns;++i) {

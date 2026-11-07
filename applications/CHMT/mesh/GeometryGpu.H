@@ -3,6 +3,8 @@
 #include "core/HostState.H"
 #include "mesh/GeometryDiagnostics.H"
 #include "gpu/PolyhedralGeometry.H"
+#include "gpu/InterfaceGasStage.H"
+#include "mesh/EmptyExtrusion.H"
 #include <algorithm>
 #include <map>
 #include <set>
@@ -80,5 +82,41 @@ public:
 inline void adjacency(const std::vector<std::set<int>>& rows,std::vector<int>& offsets,std::vector<int>& neighbours){
     offsets.assign(1,0);for(const auto& row:rows){neighbours.insert(neighbours.end(),row.begin(),row.end());offsets.push_back(neighbours.size());}
 }
+// Output adaptation only: ordered checks and geometry are produced by the
+// common stage owner. This bridge performs no numerical mesh reconstruction.
+inline bool publishInterfaceStage(const HostMesh& accepted,const backend::InterfaceGasStageResult& result,
+    HostMesh& output,std::vector<double>& sweep,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics){
+    if(diagnostics)for(unsigned int category=0;category<ugkp::diagnostics::warningCategoryCount;++category){
+        const auto& source=result.diagnostics.warnings[category];if(!source.count)continue;
+        auto& target=diagnostics->warnings[category];
+        const auto before=target.count;
+        if(!target.sampleClaim){ugkp::diagnostics::recordWarning(diagnostics,source.sample);target.count=before;}
+        const std::uint64_t sum=std::uint64_t(before)+source.count;
+        target.count=sum>0xffffffffu?0xffffffffu:static_cast<std::uint32_t>(sum);
+        target.overflow|=source.overflow||(sum>0xffffffffu);
+    }
+    const auto status=result.status;using Failure=backend::StageGeometryFailure;
+    if(status.failure!=Failure::None){
+        const char* messages[]={"","invalid stage geometry tolerances","invalid stage interval","nonfinite vertex","degenerate face area","nonfinite cell area closure",
+            "inverted/nonpositive cell volume","nonfinite cell centroid","rotational/nonmatching periodic areas unsupported","rotational/nontranslational periodic vertices unsupported",
+            "duplicate tangential point in one layer","nonfinite wall triangle distance","invalid wall distance","nonzero normal trajectory displacement","layer-paired tangential trajectory differs",
+            "zero-radius cell fan","nonfinite cell trajectory determinant","moving cell tetrahedral fan collapses or inverts","cell fan is not a single star-shaped volume",
+            "cell inversion inside linear stage trajectory","nonfinite stage area/swept volume","nonfinite stage area closure"};
+        if(status.failure==Failure::EmptyDuplicate||status.failure==Failure::EmptyNormal||status.failure==Failure::EmptyTangential)
+            return empty_detail::reject(error,messages[int(status.failure)]);
+        return failure(error,messages[int(status.failure)],status.index);
+    }
+    HostMesh candidate=accepted;unpack(result.motion.points,candidate.points);
+    candidate.oldPoints=accepted.points;candidate.oldVolumes=result.oldVolume;
+    candidate.geometryVersion=accepted.geometryVersion+1;unpack(result.velocity,candidate.meshVelocity);
+    const auto& geometry=result.endpoint;
+    candidate.areaVectors.resize(geometry.faces.size());candidate.faceCentres.resize(geometry.faces.size());
+    for(std::size_t f=0;f<geometry.faces.size();++f){candidate.areaVectors[f]=unpack(geometry.faces[f].area);candidate.faceCentres[f]=unpack(geometry.faces[f].centre);}
+    candidate.volumes.resize(geometry.cells.size());candidate.cellCentres.resize(geometry.cells.size());candidate.wallDistance.resize(geometry.cells.size());
+    for(std::size_t c=0;c<geometry.cells.size();++c){candidate.volumes[c]=geometry.cells[c].volume;candidate.cellCentres[c]=unpack(geometry.cells[c].centre);
+        candidate.wallDistance[c]=geometry.distance[c].distance;}
+    output=std::move(candidate);sweep=result.sweep;error.clear();return true;
+}
+
 }}
 #endif

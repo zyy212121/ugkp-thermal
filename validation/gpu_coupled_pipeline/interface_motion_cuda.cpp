@@ -67,6 +67,7 @@ static void compare(const g::InterfaceGasPointMotionResult& a,const g::Interface
     for(std::size_t p=0;p<a.points.size();++p){exact(a.points[p].x,b.points[p].x);exact(a.points[p].y,b.points[p].y);exact(a.points[p].z,b.points[p].z);}
     if(a.status.changed&&a.status.failure==g::InterfaceGasMotionFailure::None){exact(a.status.constraints.minimumHeight,b.status.constraints.minimumHeight);exact(a.status.constraints.harmonicTolerance,b.status.constraints.harmonicTolerance);}
 }
+#ifndef UGKP_INTERFACE_MOTION_FIXTURES_ONLY
 int main(){int cases=0;
     for(bool tetra:{false,true})for(double scale:{1e-3,1.,1e3})for(double depth:{0.,.001}){
         auto mesh=tetra?tetrahedralBulk():twoHexahedra(0);for(auto& p:mesh.points)p={scale*(p.x+7.1),scale*(p.y-4.3),scale*(p.z+2.2)};
@@ -87,3 +88,5 @@ int main(){int cases=0;
     }
     std::cout<<"PASS "<<cases<<" frozen interface/relative-height/harmonic compositions, unchanged branch, Empty rejection, anchor failure, borrowed graph reuse and host-descriptor restoration\n";
 }
+
+#endif

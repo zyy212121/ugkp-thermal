@@ -34,6 +34,7 @@ struct InterfaceGasPointMotionResult {std::vector<Point> points;InterfaceGasMoti
 // fixed mask is shared by validation and the harmonic operator. Stage geometry
 // certification and physical acceptance remain with the consuming mesh owner.
 class InterfaceGasPointMotion {
+    friend class InterfaceGasStage;
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:
     explicit InterfaceGasPointMotion(const InterfaceGasPointMotionDefinition&);

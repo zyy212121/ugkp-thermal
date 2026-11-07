@@ -873,3 +873,5 @@ std::vector<Point> SweepLinearization::correction(){auto& d=*data_;PinnedTransfe
 #include "InterfacePointDisplacement.cuh"
 
 #include "InterfaceGasPointMotion.cuh"
+
+#include "InterfaceGasStage.cuh"
