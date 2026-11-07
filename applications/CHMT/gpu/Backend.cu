@@ -8,6 +8,7 @@
 #include "gpu/GasWallMath.H"
 #include "gpu/GasWindowProgram.H"
 #include "gpu/CoupledSurfacePipeline.cuh"
+#include "gpu/ResidentCoupledGeometry.cuh"
 #include "gpu/SingleGasContract.H"
 #include "configuration/CouplingEntry.H"
 #include "coupling/IntervalAudit.H"
@@ -41,9 +42,10 @@ struct Backend {
     ugkp::diagnostics::DeviceContext hostDiagnostics{};
     ugkp::diagnostics::HostSink diagnosticSink;
     ModelConfig model;GasExecutionOptions options;HostState accepted,trial;
-    HostMesh endpointGas,endpointSolid;SurfaceMesh endpointSurface;HostStageGeometry gasStage,solidStage;
+    std::uint64_t endpointGasVersion=0,endpointSolidVersion=0;
     SharedGasDeviceStorage storage;ParticleCouplingStorage particles;WallProgram program;IntervalHistory history;
     CoupledCourantStorage courantReductionStorage;
+    std::unique_ptr<ResidentCoupledGeometry> residentGeometry;
     CudaFault surfaceTransferFault;
     Buffer<int> interfaceFaces,interfaceFaceSlots,interfaceCells;
     Buffer<Real> interfaceProgress;
@@ -207,7 +209,7 @@ struct CoupledTrialPolicy {
         if(!b->storage.clearTrialStatus())return 1;
         if(!b->microGeometryPrepared&&prepareCoupledGeometry(b)!=0)return 1;
         if(b->movingWindow){
-            b->record.gasGeometry=b->endpointGas.geometryVersion;b->record.solidGeometry=b->endpointSolid.geometryVersion;
+            b->record.gasGeometry=b->endpointGasVersion;b->record.solidGeometry=b->endpointSolidVersion;
         }
         b->microGeometryPrepared=false;
         advanceCoupledWallClock<<<1,1,0,b->gasCaptureStream>>>(b->wallClock.data(),b->interfaceKnotTime.data(),
@@ -319,60 +321,37 @@ void populateCoupledHostRecord(const Backend& b,const CoupledSurfaceDownload* re
     }
 }
 int prepareCoupledGeometry(Backend* b){
-    // CFL and RK stages leave host geometry unchanged until finishCoupledGeometry.
-    // Consume that pre-step view directly; endpoint outputs have separate owners.
-    const auto& base=b->trial;const bool moving=b->movingWindow;
-    // Static stages borrow the accepted window geometry. Owned endpoint and
-    // stage arrays exist only for motion or an explicit history/export request.
-    std::vector<Real> gasSweep,solidSweep;
-    if(moving){
-        b->endpointGas=base.gasMesh;b->endpointSolid=base.solidMesh;b->endpointSurface=base.surface;
-        gasSweep.assign(base.gasMesh.owner.size(),0);solidSweep.assign(base.solidMesh.owner.size(),0);
-        WallKnot endpoint;if(!sampleGasWallProgramLocal(b->program,b->elapsed+b->microDt,endpoint,b->error))return 1;
-        const auto& tolerance=b->model.physics.tolerances;
-        auto stage=[&](const HostMesh& old,const std::vector<Vec3>& points,HostMesh& next,std::vector<Real>& sweep){
-            return makeStageGeometry(old,points,b->microDt,next,sweep,b->error,tolerance);
-        };
-        if(!stage(base.gasMesh,endpoint.gasPoints,b->endpointGas,gasSweep)
-            ||!stage(base.solidMesh,endpoint.solidPoints,b->endpointSolid,solidSweep))return 1;
-        if(!rebuildTrajectorySurface(base,b->endpointGas,b->endpointSolid,b->microDt,b->endpointSurface,b->error,tolerance))return 1;
-    }
-    auto trace=[&](const HostMesh& old,const HostMesh& end,const std::vector<Real>& sweep,HostStageGeometry& out){
-        out.interval=b->microDt;out.geometryVersion=end.geometryVersion;out.topologyHash=end.topologyHash;
-        out.oldVolume=old.volumes;out.newVolume=end.volumes;out.evaluationVolume=old.volumes;out.sweptVolume=sweep;
-        out.areaVector=old.areaVectors;out.cellCentre=old.cellCentres;out.faceCentre=old.faceCentres;out.oldPoints=old.points;out.newPoints=end.points;
-    };
-    const auto& endpointGas=moving?b->endpointGas:base.gasMesh;
-    const auto& endpointSolid=moving?b->endpointSolid:base.solidMesh;
-    const auto& endpointSurface=moving?b->endpointSurface:base.surface;
-    b->record.gasGeometry=endpointGas.geometryVersion;b->record.solidGeometry=endpointSolid.geometryVersion;
-    if(moving){
-        trace(base.gasMesh,endpointGas,gasSweep,b->gasStage);trace(base.solidMesh,endpointSolid,solidSweep,b->solidStage);
-        if(!b->storage.bindStageGeometry(b->gasStage)){b->error=b->storage.error();return 1;}}
-    else if(!b->storage.clearGeometry()){b->error=b->storage.error();return 1;}
-    if(moving||!b->interfaceGeometryReady){
-        const auto& surface=base.surface;std::vector<CoupledSurfaceInput> inputs(surface.area.size());
-        for(std::size_t i=0;i<inputs.size();++i){const int f=surface.gasFace[i];auto& in=inputs[i];
-            in.area=surface.area[i];in.gasDistance=surface.gasDistance[i];
-            in.normal=surface.normal[i];in.sweptVolume=moving?-b->gasStage.sweptVolume[f]:0;
-            const Vec3 support=surface.baseVelocity.empty()?Vec3{}:surface.baseVelocity[i];
-            const Vec3 motion=!moving||endpointSurface.meshVelocity.empty()?Vec3{}:endpointSurface.meshVelocity[i];
-            in.particleMaterialVelocity=support+in.normal*dot(motion-support,in.normal);
-            in.identity.face=surface.persistentId[i];in.identity.stage=1;in.identity.gasCell=base.gasMesh.owner[f];
-            in.identity.solidCell=surface.solidCell[i];in.identity.filmFace=int(i);
+    const auto& base=b->trial;
+    if(b->movingWindow){
+        if(!b->residentGeometry->prepare(b->microDt,b->interfaceKnotTime.data(),int(b->interfaceKnotTime.size()),b->wallClock.data(),
+            b->interfaceFaces.data(),b->interfaceInputs.data(),b->storage,b->gasCaptureStream,b->error))return 1;
+        b->endpointGasVersion=base.gasMesh.geometryVersion+1;
+        b->endpointSolidVersion=base.solidMesh.geometryVersion+1;
+        b->record.gasGeometry=b->endpointGasVersion;b->record.solidGeometry=b->endpointSolidVersion;
+    }else{
+        if(!b->storage.clearGeometry()){b->error=b->storage.error();return 1;}
+        b->record.gasGeometry=base.gasMesh.geometryVersion;b->record.solidGeometry=base.solidMesh.geometryVersion;
+        if(!b->interfaceGeometryReady){
+            const auto& surface=base.surface;std::vector<CoupledSurfaceInput> inputs(surface.area.size());
+            for(std::size_t i=0;i<inputs.size();++i){const int f=surface.gasFace[i];auto& in=inputs[i];
+                in.area=surface.area[i];in.gasDistance=surface.gasDistance[i];in.normal=surface.normal[i];
+                const Vec3 support=surface.baseVelocity.empty()?Vec3{}:surface.baseVelocity[i];
+                const Vec3 motion{};in.particleMaterialVelocity=support+in.normal*dot(motion-support,in.normal);
+                in.identity.face=surface.persistentId[i];in.identity.stage=1;in.identity.gasCell=base.gasMesh.owner[f];
+                in.identity.solidCell=surface.solidCell[i];in.identity.filmFace=int(i);
+            }
+            if(!b->storage.write(b->interfaceInputs.data(),inputs)){b->error=b->storage.error();return 1;}
+            b->interfaceGeometryReady=true;
         }
-        if(!b->storage.write(b->interfaceInputs.data(),inputs)){b->error=b->storage.error();return 1;}
-        b->interfaceGeometryReady=true;
     }
     b->gasGeometry=b->storage.hostView().gasGeometry;return 0;
 }
 int finishCoupledGeometry(Backend* b){
-    // Static geometry and boundary topology were published at window start.
-    // Re-uploading every mesh array here only creates synchronization work.
     if(!b->movingWindow)return 0;
-    if(!b->particles.mapGeometry(b->trial.gasMesh,b->endpointGas,b->storage,b->gasCaptureStream,b->error))return 1;
-    b->trial.gasMesh=b->endpointGas;b->trial.solidMesh=b->endpointSolid;b->trial.surface=b->endpointSurface;
-    if(!b->storage.uploadGeometry(b->trial.gasMesh,false)||!b->storage.refreshView()){b->error=b->storage.error();return 1;}
+    auto& geometry=*b->residentGeometry;
+    if(!b->particles.mapGeometry(geometry.particleGeometry(b->storage,false),geometry.particleGeometry(b->storage,true),
+        b->gasCaptureStream,b->error)||!geometry.finish(b->storage,b->gasCaptureStream,b->error))return 1;
+    b->trial.gasMesh.geometryVersion=b->endpointGasVersion;b->trial.solidMesh.geometryVersion=b->endpointSolidVersion;
     bindSharedGasStorage(*b);
     if(!b->particles.refreshTrackingGeometry(b->storage,b->gasCaptureStream,b->error))return 1;
     return 0;
@@ -542,6 +521,10 @@ Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati
     if(!b->storage.refreshView()){error=b->storage.error();return nullptr;}
     bindSharedGasStorage(*b);
     if(!b->particles.create(b->model,state,b->storage,b->gasCaptureStream,error))return nullptr;
+    if(model.physics.meshMotion.policy!=MeshMotionPolicy::Static){
+        b->residentGeometry.reset(new ResidentCoupledGeometry);
+        if(!b->residentGeometry->initialize(state,b->model.physics.tolerances,b->storage,error))return nullptr;
+    }
     if(b->accepted.gasTemperature.empty()){
         if(!b->storage.read(v.Tgas,b->nCells,b->accepted.gasTemperature)){error=b->storage.error();return nullptr;}
         b->trial.gasTemperature=b->accepted.gasTemperature;
@@ -599,7 +582,9 @@ static bool beginGasWindowImpl(Backend& b,const WallProgram& program,std::string
     b.interfaceGeometryReady=false;
     if(!b.history.begin(program.interval,error))return false;
     if(program.donorPlan.knots.size()==1){error="material donor interpolation needs two supplied knots";return false;}
-    if(!loadGasWindowState(b,b.accepted,error))return false;b.elapsed=WindowTime{};b.nextGasSeed=b.accepted.nextDt>0?b.accepted.nextDt:b.accepted.lastAcceptedDt;return true;
+    if(!loadGasWindowState(b,b.accepted,error))return false;
+    if(b.movingWindow&&!b.residentGeometry->install(b.accepted,program,b.storage,b.interfaceInputs.data(),error))return false;
+    b.elapsed=WindowTime{};b.nextGasSeed=b.accepted.nextDt>0?b.accepted.nextDt:b.accepted.lastAcceptedDt;return true;
 }
 
 bool beginGasWindow(Backend& b,const WallProgram& program,std::string& error){
@@ -698,9 +683,6 @@ static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,s
     }
     if(!b.history.appendAccepted(b.record,error))return false;
     b.elapsed=b.record.localEnd;
-    if(b.movingWindow){
-        b.trial.gasStages={{b.gasStage,b.gasStage}};b.trial.solidStages={{b.solidStage,b.solidStage}};
-    }
     ++b.gasSteps;b.nextGasSeed=schedule.next;b.trial.nextDt=b.nextGasSeed;b.trial.lastAcceptedDt=dt;
     report.acceptedDt=dt;report.nextGasDt=b.nextGasSeed;report.time=b.trial.time;report.localTime=b.elapsed;report.microSequence=b.record.microSequence;error.clear();return true;
 }
@@ -714,7 +696,13 @@ const IntervalHistory& gasWindowHistory(const Backend& b){return b.history;}
 std::vector<GasIntervalRecord> releaseGasWindowRecords(Backend& b){
     auto records=b.history.releaseRecords();b.history=IntervalHistory{};return records;
 }
-bool gasWindowStageGeometry(const Backend& b,std::array<HostStageGeometry,2>& gas,std::array<HostStageGeometry,2>& solid,std::string& error){
+static bool publishWindowGeometry(Backend& b,std::string& error){
+    if(!b.movingWindow||!b.residentGeometry->dirty())return true;
+    if(!b.residentGeometry->queuePublication(b.storage,error))return false;
+    if(!b.storage.observeDiagnostics()){error=b.storage.error();return false;}
+    b.residentGeometry->publish(b.trial);return true;
+}
+bool gasWindowStageGeometry(Backend& b,std::array<HostStageGeometry,2>& gas,std::array<HostStageGeometry,2>& solid,std::string& error){
     if(!b.movingWindow){
         const auto snapshot=[&](const HostMesh& mesh,std::array<HostStageGeometry,2>& stages){
             auto& stage=stages[0];stage.interval=b.microDt;stage.geometryVersion=mesh.geometryVersion;stage.topologyHash=mesh.topologyHash;
@@ -724,7 +712,10 @@ bool gasWindowStageGeometry(const Backend& b,std::array<HostStageGeometry,2>& ga
             stages[1]=stage;
         };
         snapshot(b.trial.gasMesh,gas);snapshot(b.trial.solidMesh,solid);
-    }else{gas=b.trial.gasStages;solid=b.trial.solidStages;}
+    }else{
+        if(!publishWindowGeometry(b,error))return false;
+        gas=b.trial.gasStages;solid=b.trial.solidStages;
+    }
     error.clear();return true;
 }
 bool downloadGasWindow(Backend& b,HostState& out,std::string& error){
@@ -749,7 +740,9 @@ bool downloadGasWindow(Backend& b,HostState& out,std::string& error){
             error=b.storage.error();return false;
         }
     }
-    if(!b.storage.downloadState(b.trial,error)||!b.particles.download(b.trial,error))return false;
+    if(b.movingWindow&&!b.residentGeometry->queuePublication(b.storage,error))return false;
+    if(!b.storage.downloadState(b.trial,error,[&]{if(b.movingWindow)b.residentGeometry->publish(b.trial);})
+        ||!b.particles.download(b.trial,error))return false;
     if(publishHistory){
         IntervalHistory published;
         if(!published.begin(b.history.interval(),error))return false;
@@ -772,6 +765,10 @@ bool downloadGasWindow(Backend& b,HostState& out,std::string& error){
 }
 static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& error){
     if(b.poisoned){error="gas backend is unusable after a failed device operation";return false;}
+    // The public commit API can be called without a preceding full gas export.
+    // Its host material endpoint comparison still requires the actual predicted
+    // coordinates. Normal downloadGasWindow already completed this publication.
+    if(!publishWindowGeometry(b,error))return false;
     // Publish the synchronized material/gas endpoint on the host. The next
     // beginGasWindow imports it once; an immediate upload here was overwritten
     // by that same import before any device consumer could use it.

@@ -27,7 +27,7 @@ bool advanceGasMicrostep(Backend&,Real,GasMicroReport&,std::string&);
 // Physical history is published by downloadGasWindow; microsteps retain it on device.
 const IntervalHistory& gasWindowHistory(const Backend&);
 std::vector<GasIntervalRecord> releaseGasWindowRecords(Backend&); // after material consumers finish
-bool gasWindowStageGeometry(const Backend&,std::array<HostStageGeometry,2>&,std::array<HostStageGeometry,2>&,std::string&);
+bool gasWindowStageGeometry(Backend&,std::array<HostStageGeometry,2>&,std::array<HostStageGeometry,2>&,std::string&);
 bool downloadGasWindow(Backend&,HostState&,std::string&);
 bool commitGasWindow(Backend&,HostState&,std::string&);
 bool downloadState(const Backend&,HostState&,std::string&);

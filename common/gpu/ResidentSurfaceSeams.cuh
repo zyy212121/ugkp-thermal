@@ -60,6 +60,9 @@ ResidentSurfaceSeams::ResidentSurfaceSeams(int points,int meshFaces,const std::v
     }
     auto& d=*data_;d.points=points;d.edges=edges.size();d.install(d.surfaceFaces,surfaceFaces);d.install(d.initial,edges);d.install(d.patches,patches);
     d.working.reserve(d.edges);d.removed.reserve(d.edges);d.output.reserve(d.edges);d.status.reserve(1);d.bounds.reserve((points+127)/128);
+    if(d.edges)checked(cudaMemset(d.output.pointer,0,d.edges*sizeof(SurfaceEdgeMap)));
+    // Construction completes before callers may use a nonblocking stream.
+    checked(cudaStreamSynchronize(nullptr));
 }
 ResidentSurfaceSeams::~ResidentSurfaceSeams()=default;
 SurfaceSeamDeviceView ResidentSurfaceSeams::view()const{const auto& d=*data_;return {d.edges,d.output.pointer,d.status.pointer};}

@@ -7,8 +7,8 @@
 #include "gpu/CoupledSurfaceHistory.H"
 #include "coupling/IntervalContracts.H"
 namespace chmt {
-// Geometry is uploaded per moving microstep or once per static window.
-// The wall program and gas driving states remain resident throughout a window.
+// Mutable geometry is supplied by the resident mesh/surface owners. Static
+// geometry and interface identities are installed once per gas window.
 struct CoupledSurfaceInput {
     SurfacePacketIdentity identity{};
     Real area=0,gasDistance=0,sweptVolume=0;

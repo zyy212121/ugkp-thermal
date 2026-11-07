@@ -116,6 +116,10 @@ public:
         }
         return true;
     }
+    bool mapGeometry(const ugkp::thermal::ParticleSurfaceGeometry& previous,
+        const ugkp::thermal::ParticleSurfaceGeometry& next,cudaStream_t stream,std::string& error){
+        return !owner_||result(ugkp::thermal::mapAttachedParticles(owner_,previous,next,nullptr,stream),error);
+    }
     bool mapGeometry(const HostMesh& previous,const HostMesh& next,SharedGasDeviceStorage& gas,
         cudaStream_t stream,std::string& error){
         if(!owner_)return true;

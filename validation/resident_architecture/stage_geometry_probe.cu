@@ -17,7 +17,7 @@ Result evaluate(const Topology& topology,const std::vector<Point>& old,const std
     ResidentStageGeometry geometry(topology,old.size(),walls,partner,axis,mate);
     Device<Point> points(old),endpoint(end);Device<StageGeometryControls> control(std::vector<StageGeometryControls>{controls});
     Device<ugkp::diagnostics::DeviceContext> diagnostic(std::vector<ugkp::diagnostics::DeviceContext>(1));
-    GasPublicationProbe gas(topology,partner);
+    GasPublicationProbe gas(topology,partner,diagnostic.pointer);
     cudaStream_t stream=nullptr;cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;
     check(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
     check(cudaStreamBeginCapture(stream,cudaStreamCaptureModeGlobal));geometry.prepare(points.pointer,endpoint.pointer,control.pointer,diagnostic.pointer,stream);
@@ -47,6 +47,7 @@ Result evaluate(const Topology& topology,const std::vector<Point>& old,const std
         const auto sweptVolume=download(view.sweptVolume,end.faces);
         for(int c=0;c<end.cells;++c)if(oldCells[c].volume!=oldVolume[c]||result.cells[c].volume!=newVolume[c])throw std::runtime_error("packed stage volume differs");
         for(int f=0;f<end.faces;++f)if(result.sweep[f].volume!=sweptVolume[f])throw std::runtime_error("packed stage sweep differs");}
+    if(result.status.failure==StageGeometryFailure::None)gas.checkLatchedFailure(view,control.pointer,stream);
     check(cudaGraphExecDestroy(executable));check(cudaGraphDestroy(graph));check(cudaStreamDestroy(stream));return result;
 }
 }

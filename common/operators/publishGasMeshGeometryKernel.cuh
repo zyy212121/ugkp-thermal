@@ -1,4 +1,5 @@
 #pragma once
+#include "../Diagnostics.H"
 #include "../gasTransport/GasMeshGeometry.H"
 #include "../gpu/ResidentStageGeometry.H"
 namespace ugkwp {
@@ -10,6 +11,7 @@ __global__ void publishGasCellGeometryKernel(State* state,
     ugkp::gpu::geometry::PolyhedralGeometryDeviceView geometry,
     const ugkp::gpu::geometry::StageGeometryStatus* status)
 {
+    if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
     using ugkp::gpu::geometry::StageGeometryFailure;
     if(status&&status->failure!=StageGeometryFailure::None)return;
     auto& s=*state;const int c=blockIdx.x*blockDim.x+threadIdx.x;
@@ -24,6 +26,7 @@ __global__ void publishGasFaceGeometryKernel(State* state,
     ugkp::gpu::geometry::PolyhedralGeometryDeviceView geometry,
     const ugkp::gpu::geometry::StageGeometryStatus* status)
 {
+    if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
     using namespace ugkp::gpu::geometry;
     if(status&&status->failure!=StageGeometryFailure::None)return;
     auto& s=*state;const int f=blockIdx.x*blockDim.x+threadIdx.x;
@@ -43,6 +46,7 @@ __global__ void bindGasStageGeometryKernel(State* state,
     ugkp::gpu::geometry::StageGeometryDeviceView stage,
     const ugkp::gpu::geometry::StageGeometryControls* controls)
 {
+    if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
     if(threadIdx.x||blockIdx.x||stage.status->failure!=ugkp::gpu::geometry::StageGeometryFailure::None)return;
     auto& g=state->gasGeometry;g.enabled=true;
     g.oldVolume=stage.oldVolume;g.newVolume=stage.newVolume;g.faceSweptVolume=stage.sweptVolume;

@@ -66,6 +66,9 @@ ResidentSurfaceGeometry::ResidentSurfaceGeometry(const std::vector<SurfaceFaceMa
     auto& d=*data_;d.faces=faces.size();d.edges=edges;d.points=points;d.empty=empty;
     d.mapping.reserve(faces.size());if(!faces.empty())checked(cudaMemcpy(d.mapping.pointer,faces.data(),faces.size()*sizeof(SurfaceFaceMap),cudaMemcpyHostToDevice));
     d.face.reserve(faces.size());d.edge.reserve(edges);d.status.reserve(1);if(edges)d.bounds.reserve((points+127)/128);
+    if(edges)checked(cudaMemset(d.edge.pointer,0,edges*sizeof(EdgeResult)));
+    // Construction completes before callers may use a nonblocking stream.
+    checked(cudaStreamSynchronize(nullptr));
 }
 ResidentSurfaceGeometry::~ResidentSurfaceGeometry()=default;
 SurfaceGeometryDeviceView ResidentSurfaceGeometry::view()const{

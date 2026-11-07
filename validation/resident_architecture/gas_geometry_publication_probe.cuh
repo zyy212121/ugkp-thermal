@@ -5,6 +5,7 @@
 #define PROBE_CELL_FIELDS(M) M(Cx) M(Cy) M(Cz) M(V) M(cellLength) M(sstWallDistance)
 #define PROBE_FACE_FIELDS(M) M(Sfx) M(Sfy) M(Sfz) M(magSf) M(faceCx) M(faceCy) M(faceCz) M(facePeriodicDx) M(facePeriodicDy) M(facePeriodicDz) M(deltaCoeffs) M(faceWeight)
 struct GasPublicationState {
+    ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
 #define FIELD(name) double* name=nullptr;
     PROBE_CELL_FIELDS(FIELD) PROBE_FACE_FIELDS(FIELD)
 #undef FIELD
@@ -23,7 +24,7 @@ struct GasPublicationProbe {
             if(t.cellSigns[k]==sign)out[t.cellFaces[k]]=c;
         return out;
     }
-    GasPublicationProbe(const Topology& t,const std::vector<int>& pair):nc(t.cellOffsets.size()-1),nf(t.faceOffsets.size()-1),
+    GasPublicationProbe(const Topology& t,const std::vector<int>& pair,ugkp::diagnostics::DeviceContext* diagnostics):nc(t.cellOffsets.size()-1),nf(t.faceOffsets.size()-1),
         owner(addressing(t,1)),neighbour(addressing(t,-1)),partner(pair),dOwner(owner),dNeighbour(neighbour),dPartner(partner),
         data(std::vector<double>(6*nc+12*nf,-1729.)),state(std::vector<GasPublicationState>(1)),prior(6*nc+12*nf,-1729.){
         std::size_t offset=0;
@@ -33,7 +34,7 @@ struct GasPublicationProbe {
 #define FACE(name) host.name=data.pointer?data.pointer+offset:nullptr;offset+=nf;
         PROBE_FACE_FIELDS(FACE)
 #undef FACE
-        host.faceOwner=dOwner.pointer;host.faceNeighbour=dNeighbour.pointer;host.facePeriodicPair=dPartner.pointer;
+        host.diagnostics=diagnostics;host.faceOwner=dOwner.pointer;host.faceNeighbour=dNeighbour.pointer;host.facePeriodicPair=dPartner.pointer;
         check(cudaMemcpy(state.pointer,&host,sizeof(host),cudaMemcpyHostToDevice));previous=host;
     }
     void capture(StageGeometryDeviceView stage,const StageGeometryControls* controls,cudaStream_t stream){
@@ -46,6 +47,17 @@ struct GasPublicationProbe {
         if(a.enabled!=b.enabled||a.oldVolume!=b.oldVolume||a.newVolume!=b.newVolume||a.faceSweptVolume!=b.faceSweptVolume||a.interval!=b.interval
             ||a.absoluteGeometryTolerance!=b.absoluteGeometryTolerance||a.relativeGeometryTolerance!=b.relativeGeometryTolerance)
             throw std::runtime_error("failed geometry candidate changed binding");
+    }
+    void checkLatchedFailure(StageGeometryDeviceView stage,const StageGeometryControls* controls,cudaStream_t stream){
+        ugkp::diagnostics::DeviceContext stopped{};stopped.fatalClaim=1;
+        check(cudaMemcpyAsync(host.diagnostics,&stopped,sizeof(stopped),cudaMemcpyHostToDevice,stream));
+        auto sentinel=host;sentinel.gasGeometry={};sentinel.gasGeometry.interval=-23.;
+        std::vector<double> untouched(prior.size(),-431.);
+        if(!untouched.empty())check(cudaMemcpyAsync(data.pointer,untouched.data(),untouched.size()*sizeof(double),cudaMemcpyHostToDevice,stream));
+        check(cudaMemcpyAsync(state.pointer,&sentinel,sizeof(sentinel),cudaMemcpyHostToDevice,stream));
+        capture(stage,controls,stream);check(cudaStreamSynchronize(stream));
+        if(download(data.pointer,untouched.size())!=untouched)throw std::runtime_error("latched failure published gas metrics");
+        sameBinding(download(state.pointer,1)[0].gasGeometry,sentinel.gasGeometry);
     }
     void validate(StageGeometryDeviceView stage,StageGeometryControls controls){
         const auto status=download(stage.status,1)[0];const auto actual=download(data.pointer,prior.size());

@@ -752,7 +752,8 @@ public:
         }
         error.clear();return true;
     }
-    bool downloadState(HostState& state,std::string& error){
+    bool downloadState(HostState& state,std::string& error){return downloadState(state,error,[](){});}
+    template<class PublishGeometry> bool downloadState(HostState& state,std::string& error,PublishGeometry publishGeometry){
         std::vector<Real> rho,px,py,pz,energy,species,k,omega,fraction,boundaryPressure;const std::size_t n=view_.nCells;
         if(view_.gasVolumeFraction&&!enqueueRead(view_.gasVolumeFraction,n,fraction)){error=fault_.message;return false;}
         if(!enqueueRead(view_.rho,n,rho)||!enqueueRead(view_.rhoUx,n,px)||!enqueueRead(view_.rhoUy,n,py)||!enqueueRead(view_.rhoUz,n,pz)||!enqueueRead(view_.rhoE,n,energy)||!readTemperature(n)||(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&!enqueueRead(view_.gasSpecies.rho,Ns*n,species))){error=fault_.message;return false;}
@@ -761,6 +762,9 @@ public:
         if(state.gasMesh.gasBoundary)for(const auto& face:state.gasMesh.gasBoundary->faces)wave=wave||face.wave;
         if(wave&&!enqueueRead(view_.gasBoundaryP,view_.nFaces,boundaryPressure)){error=fault_.message;return false;}
         if(!observeDiagnostics()){error=fault_.message;return false;}
+        // Geometry reads may join this same publication. Install their host
+        // representation before converting resident densities to inventories.
+        publishGeometry();
         if(wave)for(std::size_t f=0;f<boundaryPressure.size();++f)if(state.gasMesh.gasBoundary->faces[f].wave)
             state.gasMesh.boundaryPrimitive[f].pressure=boundaryPressure[f];
         if(view_.gasVolumeFraction)state.gasVoidFraction=std::move(fraction);

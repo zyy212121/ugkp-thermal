@@ -137,7 +137,7 @@ def test_actual_orchestration_retains_only_requested_stage_geometry(tmp_path):
     source=((VALIDATION_ROOT / 'solvers/CHMT/tests/test_multirate_orchestration.cpp')).read_text().split('int main(){')[0]
     old=_body(source,'bool gasWindowStageGeometry(')
     new='''int geometryCalls=0;bool geometryFault=false;
-bool gasWindowStageGeometry(const Backend&,std::array<HostStageGeometry,2>& gas,std::array<HostStageGeometry,2>& solid,std::string& error){++geometryCalls;if(geometryFault){error="actual geometry transfer failure";return false;}gas[0].newVolume={3,4};solid[1].newPoints={{7,8,9}};error.clear();return true;}'''
+bool gasWindowStageGeometry(Backend&,std::array<HostStageGeometry,2>& gas,std::array<HostStageGeometry,2>& solid,std::string& error){++geometryCalls;if(geometryFault){error="actual geometry transfer failure";return false;}gas[0].newVolume={3,4};solid[1].newPoints={{7,8,9}};error.clear();return true;}'''
     assert old in source
     source=source.replace(old,new)+r'''
 int main(){using namespace chmt;
