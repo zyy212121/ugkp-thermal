@@ -22,6 +22,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSteadySampling(void* handle,double
             +GpuSteadySamplingReport::budgetFields,"allocate batched sample statistics");
     rc|=allocate(s->steadyBoundaryBudget,GpuSteadySamplingReport::budgetFields,"allocate steady boundary audit");
     if(rc)return rc;
+    if(configureSteadyAuditStorage(s))return 1;
     auto err=cudaMemset(s->steadySampleMean,0,n*sizeof(double));
     if(err==cudaSuccess)err=cudaMemset(s->steadyBoundaryBudget,0,GpuSteadySamplingReport::budgetFields*sizeof(double));
     if(err!=cudaSuccess){setLastError("initialize steady sample storage",err);return 1;}

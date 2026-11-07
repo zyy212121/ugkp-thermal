@@ -69,7 +69,7 @@ int applyMobilePackingProjection
         reinterpret_cast<const void*>
         (completeMobilePackingProjectionCooperativeKernel),
         dim3(s->mobilePackingCooperativeGrid),
-        dim3(block),
+        dim3(s->reductionBlockThreads),
         cooperativeArguments,
         0,
         ugkp::gpu::particleRecordingStream(s)

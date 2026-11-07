@@ -163,8 +163,10 @@ inline cudaError_t launchMixtureParticleCouplingCells(State*state,int cells,doub
  if(cells<=0)return cudaSuccess;
  mixtureParticleCouplingKernel<DragModel,ConstantHeat><<<(cells+127)/128,128,0,stream>>>(state,dt,drag,csr,split,true);
  auto error=cudaGetLastError();if(error!=cudaSuccess)return error;
+ // One warp per cell; the device scheduler, not an SM-independent cap,
+ // distributes the available cell work.
  const int groups=(cells+3)/4;
- mixtureParticleCouplingKernel<DragModel,ConstantHeat,true><<<groups<256?groups:256,128,0,stream>>>(state,dt,drag,csr,split);
+ mixtureParticleCouplingKernel<DragModel,ConstantHeat,true><<<groups,128,0,stream>>>(state,dt,drag,csr,split);
  return cudaGetLastError();
 }
 #endif

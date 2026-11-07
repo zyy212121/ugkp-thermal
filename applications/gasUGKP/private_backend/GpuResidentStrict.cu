@@ -326,6 +326,8 @@ struct DeviceState
     double *steadySampleMean=nullptr,*steadySampleBegin=nullptr;
     double *steadySampleScratch=nullptr,*steadyBoundaryBudget=nullptr;
     double* steadySampleReductionWorkspace=nullptr;
+    double* steadyAuditWorkspace=nullptr;
+    int steadyAuditParts=0;
     double gasSteadyBoundaryTime = 0.0;
     double* gasSteadyResidual = nullptr;
     double* gasSteadyMaximumWorkspace = nullptr;
@@ -1086,6 +1088,7 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->steadySampleSum);release(s->steadySampleSquare);
     release(s->steadySampleMean);release(s->steadySampleBegin);
     release(s->steadySampleScratch);release(s->steadyBoundaryBudget);
+    release(s->steadyAuditWorkspace);
     release(s->steadySampleReductionWorkspace);
     release(s->gasPseudoDt);
     release(s->gasSteadyResidual);
@@ -3690,7 +3693,7 @@ int configureParticleLaunchGeometry(DeviceState* s)
             (
                 &residentBlocks,
                 completeMobilePackingProjectionCooperativeKernel,
-                particleBlock,
+                s->reductionBlockThreads,
                 0
             );
         }

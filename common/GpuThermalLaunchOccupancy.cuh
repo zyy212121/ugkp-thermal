@@ -104,7 +104,7 @@ int configureLaunchOccupancy(DeviceState* s)
             (
                 &residentBlocks,
                 completeMobilePackingProjectionCooperativeKernel,
-                s->particleBlockThreads,
+                s->reductionBlockThreads,
                 0
             );
         }

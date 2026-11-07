@@ -154,7 +154,7 @@ def test_signed_nonfinite_dt_host_protocol_and_real_cuda_errors(tmp_path,which):
 #include <vector>
 using PressureTime=double;struct GasHostPolicy{using Time=double;using Weight=double;};
 using cudaError_t=int;constexpr int cudaSuccess=0;struct dim3{unsigned x;dim3(int n):x(n){}};
-struct DeviceState{int collisionalPressureEnabled=1,jammingPressureEnabled=1,particleWorkGrid=1,nCells=1,nFaces=1,particleBlockThreads=32,csrCellLocalPathEnabled=1,mobilePackingCooperativeGrid=1;DeviceState*deviceState=this;};
+struct DeviceState{int collisionalPressureEnabled=1,jammingPressureEnabled=1,particleWorkGrid=1,nCells=1,nFaces=1,particleBlockThreads=32,reductionBlockThreads=64,csrCellLocalPathEnabled=1,mobilePackingCooperativeGrid=1;DeviceState*deviceState=this;};
 std::vector<std::string> calls;int failAt=0,queries=0;double seenDt=0;
 void setLastError(const char*,int){}void setLastErrorText(const char*){}
 int cudaGetLastError(){return ++queries==failAt?79:0;}
@@ -167,7 +167,7 @@ void accumulateMobilePackingMomentsKernel(DeviceState*){calls.push_back("accumul
 void normalizeMobilePackingMomentsKernel(DeviceState*){calls.push_back("normalize");}
 void prepareMobilePackingProjectionKernel(DeviceState*,double dt){seenDt=dt;calls.push_back("prepare");}
 void completeMobilePackingProjectionCooperativeKernel(DeviceState*,double){}
-int cudaLaunchCooperativeKernel(const void*,dim3,dim3,void**args,int,void*){seenDt=*static_cast<double*>(args[1]);calls.push_back("cooperative");return cudaGetLastError();}
+int cudaLaunchCooperativeKernel(const void*,dim3,dim3 block,void**args,int,void*){assert(block.x==64);seenDt=*static_cast<double*>(args[1]);calls.push_back("cooperative");return cudaGetLastError();}
 '''+launch_host(code)+r'''
 int main(){DeviceState s;
 '''+('auto invoke=[&](double dt){return launchCommonPressureKick<Backend>(&s,dt,32,32,false,false);};' if which=='pressure' else 'auto invoke=[&](double dt){return applyMobilePackingProjection(&s,dt,32);};')+r'''

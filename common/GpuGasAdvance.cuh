@@ -13,7 +13,7 @@
 // launches, streams, error checks and their ordering are owned here.
 
 template<class GasHostState>
-int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time ledgerDt, const GasHostPolicy::Time requestedTime, const bool nativeRefinement=false)
+int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time ledgerDt, const GasHostPolicy::Time requestedTime, const bool nativeRefinement=false, const bool primitivesReady=false)
 {
     const GasHostPolicy::Time stageTime = ugkwp::gasStageTime(*s, requestedTime);
     const int cellBlock = s->fixedCellBlockThreads;
@@ -24,12 +24,17 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     cudaError_t err = cudaSuccess;
     const bool preparedBoundaryLayer=ugkwp::gasBoundaryLayerPreparationReusable(*s,dt,stageTime);
 
-    recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
+    // Flux-stage callers already recovered this unchanged conservative state.
+    // Direct substage callers (including steady residual evaluation) still recover.
+    if (!primitivesReady)
     {
-        setLastError("recoverGasPrimitivesKernel gas stage", err);
-        return 1;
+        recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+        {
+            setLastError("recoverGasPrimitivesKernel gas stage", err);
+            return 1;
+        }
     }
     if (s->hostTurbulenceModel == 3)
     {
@@ -332,7 +337,7 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
 
     if (s->hostGasTimeIntegrator == 1)
     {
-        return advanceGasEulerSubstage(s, dt, dt, simulationTime, nativeRefinement);
+        return advanceGasEulerSubstage(s, dt, dt, simulationTime, nativeRefinement, true);
     }
 
     const int block = s->fixedCellBlockThreads;
@@ -346,11 +351,11 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
     }
 
     const GasHostPolicy::Time firstLedgerDt = GasHostPolicy::firstLedgerDt(s, dt);
-    if (advanceGasEulerSubstage(s, dt, firstLedgerDt, simulationTime, nativeRefinement) != 0)
+    if (advanceGasEulerSubstage(s, dt, firstLedgerDt, simulationTime, nativeRefinement, true) != 0)
     {
         return 1;
     }
-    if (advanceGasEulerSubstage(s, dt, firstLedgerDt, simulationTime+dt, nativeRefinement) != 0)
+    if (advanceGasEulerSubstage(s, dt, firstLedgerDt, simulationTime+dt, nativeRefinement, true) != 0)
     {
         return 1;
     }
@@ -370,7 +375,7 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
     {
         return 1;
     }
-    if (advanceGasEulerSubstage(s, dt, GasHostPolicy::finalLedgerDt(dt), simulationTime+dt*GasHostPolicy::Time(0.5), nativeRefinement) != 0)
+    if (advanceGasEulerSubstage(s, dt, GasHostPolicy::finalLedgerDt(dt), simulationTime+dt*GasHostPolicy::Time(0.5), nativeRefinement, true) != 0)
     {
         return 1;
     }

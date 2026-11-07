@@ -127,8 +127,10 @@ inline cudaError_t launchMixtureThermalParticleHeatCells(State*state,int cells,d
  if(cells<=0)return cudaSuccess;
  mixtureThermalParticleHeatKernel<<<(cells+127)/128,128,0,stream>>>(state,dt,csr,split,true);
  auto error=cudaGetLastError();if(error!=cudaSuccess)return error;
+ // One warp per cell; the device scheduler, not an SM-independent cap,
+ // distributes the available cell work.
  const int groups=(cells+3)/4;
- mixtureThermalParticleHeatKernel<true><<<groups<256?groups:256,128,0,stream>>>(state,dt,csr,split);
+ mixtureThermalParticleHeatKernel<true><<<groups,128,0,stream>>>(state,dt,csr,split);
  return cudaGetLastError();
 }
 #endif

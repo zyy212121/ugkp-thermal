@@ -1,51 +1,73 @@
 #pragma once
 #include "SteadySamplingMoments.cuh"
 #include "../../../common/gasTransport/GasResidentInterval.H"
+#include "../../../common/GpuVectorSum.cuh"
 // Parcel boundary inventory audit, before/after injection and face walking.
 // Optional buffers are null for all existing transient executions.
-__global__ void auditSteadyParcelInventoryKernel(DeviceState* sp,int offset,double sign)
-{
-    DeviceState& s=*sp;
-    const int count=clampRange(*s.particleCountDevice,0,s.particleCapacity);
-    for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<count;i+=blockDim.x*gridDim.x)
-    {
-        if(s.pStatus[i]!=1)continue;
-        const double m=s.pm[i],ux=s.pux[i],uy=s.puy[i],uz=s.puz[i];
-        const double q[6]={m,m*ux,m*uy,m*uz,
-            m*(0.5*(ux*ux+uy*uy+uz*uz)+1.5*s.pTheta[i]),
-            m*particleHeatFactorDevice(s)*s.pT[i]};
-        for(int k=0;k<6;++k)atomicAdd(s.steadyBoundaryBudget+offset+k,sign*q[k]);
+struct SteadyParcelInventory {
+    DeviceState* state;
+    __device__ int count()const {
+        return clampRange(*state->particleCountDevice,0,state->particleCapacity);
     }
-}
-
-__global__ void auditSteadyGasBoundaryFluxKernel(DeviceState* sp,double dt)
+    __device__ void add(int i,double* q)const {
+        const DeviceState& s=*state;
+        if(s.pStatus[i]!=1)return;
+        const double m=s.pm[i],ux=s.pux[i],uy=s.puy[i],uz=s.puz[i];
+        q[0]+=m;q[1]+=m*ux;q[2]+=m*uy;q[3]+=m*uz;
+        q[4]+=m*(0.5*(ux*ux+uy*uy+uz*uz)+1.5*s.pTheta[i]);
+        q[5]+=m*particleHeatFactorDevice(s)*s.pT[i];
+    }
+};
+struct SteadyGasBoundaryFlux {
+    DeviceState* state;double dt;
+    __device__ int count()const {return state->nFaces-state->nInternalFaces;}
+    __device__ void add(int i,double* q)const {
+        const DeviceState& s=*state;const int f=s.nInternalFaces+i;
+        if(coupledFaceNeighbour(s,f)>=0)return;
+        const double intervalDt=ugkwp::gasResidentStepDt(s,dt);
+        q[0]-=intervalDt*s.gasPhiRho[f];q[1]-=intervalDt*s.gasPhiRhoUx[f];
+        q[2]-=intervalDt*s.gasPhiRhoUy[f];q[3]-=intervalDt*s.gasPhiRhoUz[f];
+        q[4]-=intervalDt*s.gasPhiRhoE[f];
+        if(ugkwp::mixtureGasActive(s))
+            for(int k=0;k<ugkwp::compiledGasSpecies;++k)
+                q[5+k]-=intervalDt*s.gasSpecies.flux[k*s.nFaces+f];
+    }
+};
+int configureSteadyAuditStorage(DeviceState* s)
 {
-    DeviceState& s=*sp;const int f=s.nInternalFaces+blockIdx.x*blockDim.x+threadIdx.x;
-    if(f>=s.nFaces||coupledFaceNeighbour(s,f)>=0)return;
-    const double intervalDt=ugkwp::gasResidentStepDt(s,dt);
-    const double q[5]={s.gasPhiRho[f],s.gasPhiRhoUx[f],s.gasPhiRhoUy[f],s.gasPhiRhoUz[f],s.gasPhiRhoE[f]};
-    for(int k=0;k<5;++k)atomicAdd(s.steadyBoundaryBudget+k,-intervalDt*q[k]);
-    if(ugkwp::mixtureGasActive(s))
-        for(int k=0;k<ugkwp::compiledGasSpecies;++k)
-            atomicAdd(s.steadyBoundaryBudget+5+k,-intervalDt*s.gasSpecies.flux[k*s.nFaces+f]);
+    int parcelBlocks=0,gasBlocks=0;
+    auto err=cudaOccupancyMaxActiveBlocksPerMultiprocessor(&parcelBlocks,
+        ugkwp::vectorSumPartials<6,256,SteadyParcelInventory>,256,0);
+    if(err==cudaSuccess)err=cudaOccupancyMaxActiveBlocksPerMultiprocessor(&gasBlocks,
+        ugkwp::vectorSumPartials<GpuSteadySamplingReport::gasFluxFields,256,SteadyGasBoundaryFlux>,256,0);
+    if(err!=cudaSuccess){setLastError("steady audit reduction occupancy",err);return 1;}
+    s->steadyAuditParts=s->multiprocessorCount*(parcelBlocks>gasBlocks?parcelBlocks:gasBlocks);
+    // Separate slices allow independent gas/particle streams. Neither slice
+    // depends on parcel capacity, so growth and graph replay cannot overrun it.
+    return allocate(s->steadyAuditWorkspace,
+        size_t(6+GpuSteadySamplingReport::gasFluxFields)*s->steadyAuditParts,
+        "allocate resident steady audit partials");
 }
-
 int auditSteadyParcelInventory(DeviceState* s,int offset,double sign)
 {
     if(!s->steadyBoundaryBudget||s->particleWorkGrid<=0)return 0;
-    auditSteadyParcelInventoryKernel<<<s->particleWorkGrid,s->particleBlockThreads,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState,offset,sign);
-    const auto err=cudaGetLastError();
+    const int needed=1+(s->particleCapacity-1)/256;
+    const int parts=needed<s->steadyAuditParts?needed:s->steadyAuditParts;
+    const auto err=ugkwp::accumulateVectorSum<6>(SteadyParcelInventory{s->deviceState},
+        parts,s->steadyAuditWorkspace,s->steadyBoundaryBudget+offset,sign,
+        ugkp::gpu::particleRecordingStream(s));
     if(err!=cudaSuccess){setLastError("steady parcel boundary inventory audit",err);return 1;}
     return 0;
 }
-
 int auditSteadyGasBoundaryFlux(DeviceState* s,double dt)
 {
-    if(!s->steadyBoundaryBudget)return 0;
-    const int block=s->fixedFaceBlockThreads;
-    const int grid=(s->nFaces-s->nInternalFaces+block-1)/block;
-    if(grid>0)auditSteadyGasBoundaryFluxKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,dt);
-    const auto err=cudaGetLastError();
+    if(!s->steadyBoundaryBudget||s->nFaces==s->nInternalFaces)return 0;
+    const int needed=1+(s->nFaces-s->nInternalFaces-1)/256;
+    const int parts=needed<s->steadyAuditParts?needed:s->steadyAuditParts;
+    const auto err=ugkwp::accumulateVectorSum<GpuSteadySamplingReport::gasFluxFields>(
+        SteadyGasBoundaryFlux{s->deviceState,dt},parts,
+        s->steadyAuditWorkspace+size_t(6)*s->steadyAuditParts,
+        s->steadyBoundaryBudget,1.,s->gasCaptureStream);
     if(err!=cudaSuccess){setLastError("steady gas RK boundary flux audit",err);return 1;}
     return 0;
 }
