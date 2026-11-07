@@ -10,6 +10,8 @@ struct CoupledGasInterval {
     Real time[3]{};
     GasWallProgramPosition endpoint{};
     std::uint64_t sequence=0,geometry=0;
+    ugkp::CompensatedTime localBegin{},localEnd{};
+    Real actualDt=0;
 };
 CHMT_HD inline GasWallProgramPosition coupledGasPosition(const CoupledGasInterval* interval,
     int stage,GasWallProgramPosition supplied){
@@ -18,12 +20,13 @@ CHMT_HD inline GasWallProgramPosition coupledGasPosition(const CoupledGasInterva
 CHMT_HD inline CoupledGasInterval prepareCoupledWallInterval(ResidentWallClock& clock,
     const ResidentWallKnotTime* knots,int count,Real dt,std::uint64_t geometry){
     CoupledGasInterval interval;interval.sequence=++clock.sequence;interval.geometry=geometry;
+    interval.localBegin=clock.elapsed;interval.actualDt=dt;
     for(int stage=0;stage<3;++stage){
         const auto time=clock.elapsed+(stage==0?0:stage==1?dt:.5*dt);
         interval.position[stage]=locateResidentGasWallProgram(knots,count,clock.origin,time);
         interval.time[stage]=ugkp::absoluteTime(clock.origin,time);
     }
-    clock.elapsed.add(dt);interval.endpoint=locateResidentGasWallProgram(knots,count,clock.origin,clock.elapsed);
+    clock.elapsed.add(dt);interval.localEnd=clock.elapsed;interval.endpoint=locateResidentGasWallProgram(knots,count,clock.origin,clock.elapsed);
     return interval;
 }
 #if defined(__CUDACC__)

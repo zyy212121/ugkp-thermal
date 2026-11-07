@@ -5,6 +5,7 @@
 #include "gpu/GasWindowProgram.H"
 #include "gpu/CoupledGasInterval.H"
 #include "gpu/CoupledSurfaceHistory.H"
+#include "gpu/ResidentMaterialDrive.H"
 #include "coupling/IntervalContracts.H"
 namespace chmt {
 // Mutable geometry is supplied by the resident mesh/surface owners. Static
@@ -14,6 +15,9 @@ struct CoupledSurfaceInput {
     Real area=0,gasDistance=0,sweptVolume=0;
     Vec3 normal{},particleMaterialVelocity{};
 };
+__global__ void archiveMaterialDriveInterval(const CoupledGasInterval* current,ResidentMaterialDriveInterval* output){
+    if(!threadIdx.x&&!blockIdx.x)*output={current->localBegin,current->localEnd,current->actualDt};
+}
 struct CoupledSurfaceRecord {
     CoupledSurfaceSample sample{};
     GasWallResult rates{};

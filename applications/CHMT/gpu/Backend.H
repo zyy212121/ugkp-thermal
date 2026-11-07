@@ -7,6 +7,7 @@
 #include "coupling/IntervalContracts.H"
 #include "../../../common/gasTransport/GasModelIO.H"
 #include "../../../common/gasTransport/GasMechanismIO.H"
+#include "gpu/ResidentMaterialDrive.H"
 namespace chmt {
 // Gas-window storage/scheduling boundary. All gas numerical stages are common.
 struct Backend;
@@ -26,6 +27,7 @@ bool beginGasWindow(Backend&,const WallProgram&,std::string&);
 bool advanceGasMicrostep(Backend&,Real,GasMicroReport&,std::string&);
 // Physical history is published by downloadGasWindow; microsteps retain it on device.
 const IntervalHistory& gasWindowHistory(const Backend&);
+ResidentMaterialDriveHistory residentGasWindowDriveHistory(const Backend&);
 std::vector<GasIntervalRecord> releaseGasWindowRecords(Backend&); // after material consumers finish
 bool gasWindowStageGeometry(Backend&,std::array<HostStageGeometry,2>&,std::array<HostStageGeometry,2>&,std::string&);
 bool downloadGasWindow(Backend&,HostState&,std::string&);

@@ -34,6 +34,12 @@ int main(){
         for(int replay=0;replay<2;++replay)check(cudaGraphLaunch(executable,stream));
         std::vector<CoupledGasInterval> result(n);check(cudaMemcpyAsync(result.data(),out,n*sizeof(*out),cudaMemcpyDeviceToHost,stream));check(cudaStreamSynchronize(stream));
         for(int i=0;i<n;++i){const auto& got=result[i];if(got.sequence!=std::uint64_t(i+1)||got.geometry!=17)++failures;
+            const auto previous=i?result[i-1].localEnd:ugkp::CompensatedTime{};
+            if(!(got.localBegin==previous)||!(got.localEnd==got.localBegin+steps[i])||got.actualDt!=steps[i])++failures;
+            for(const auto stamp:{std::make_pair(got.localBegin,elapsed[i]),std::make_pair(got.localEnd,elapsed[i+1])}){
+                const auto expected=windowDuration(stamp.second,WindowTime{}),actual=stamp.first.value();
+                if(actual!=expected&&actual!=std::nextafter(expected,actual))++failures;
+            }
             for(int stage=0;stage<4;++stage){const auto time=elapsed[i]+(stage==0?0:stage==2?.5*steps[i]:steps[i]);
                 GasWallProgramPosition expected;std::string error;if(!locateGasWallProgramLocal(program,time,expected,error))return 3;
                 const auto actual=stage==3?got.endpoint:got.position[stage];

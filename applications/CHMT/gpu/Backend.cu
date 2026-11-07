@@ -59,6 +59,7 @@ struct Backend {
     bool interfaceGeometryReady=false;
     Buffer<CoupledSurfaceRecord> interfaceRecords;
     Buffer<CoupledSurfaceDownload> interfaceDownloads;
+    Buffer<ResidentMaterialDriveInterval> interfaceIntervals;
     Buffer<CoupledWallDownload> interfaceWallDownloads;
     Buffer<CoupledRecordFailure> interfaceFailure;
     std::size_t historyFrameCount=0,historyFrameCapacity=1,historyPublishedFrames=0;
@@ -259,7 +260,8 @@ bool reserveCoupledHistory(Backend& b,std::size_t frames){
         ?std::max(frames,2*b.historyFrameCapacity):frames;
     if(count&&capacity>limit/count){b.error="coupled history size overflow";return false;}
     Buffer<CoupledSurfaceDownload> records;Buffer<CoupledWallDownload> walls;
-    if(!records.resize(capacity*count,b.surfaceTransferFault)
+    Buffer<ResidentMaterialDriveInterval> intervals;
+    if(!intervals.resize(capacity,b.surfaceTransferFault)||!records.resize(capacity*count,b.surfaceTransferFault)
         ||!walls.resize(b.gasBoundaryLayer.enabled?capacity*count:0,b.surfaceTransferFault)){
         b.error=b.surfaceTransferFault.message;return false;
     }
@@ -270,9 +272,12 @@ bool reserveCoupledHistory(Backend& b,std::size_t frames){
             retained*sizeof(CoupledWallDownload),cudaMemcpyDeviceToDevice,b.gasCaptureStream),"grow resident matching history")))){
         b.error=b.surfaceTransferFault.message;return false;
     }
-    b.interfaceDownloads.swap(records);b.interfaceWallDownloads.swap(walls);
-    const bool releasedRecords=records.release(),releasedWalls=walls.release();
-    if(!releasedRecords||!releasedWalls){b.error=b.surfaceTransferFault.message;return false;}
+    if(b.historyFrameCount&&!b.surfaceTransferFault.check(cudaMemcpyAsync(intervals.data(),b.interfaceIntervals.data(),
+        b.historyFrameCount*sizeof(ResidentMaterialDriveInterval),cudaMemcpyDeviceToDevice,b.gasCaptureStream),"grow resident history intervals")){
+        b.error=b.surfaceTransferFault.message;return false;}
+    b.interfaceDownloads.swap(records);b.interfaceWallDownloads.swap(walls);b.interfaceIntervals.swap(intervals);
+    const bool releasedRecords=records.release(),releasedWalls=walls.release(),releasedIntervals=intervals.release();
+    if(!releasedRecords||!releasedWalls||!releasedIntervals){b.error=b.surfaceTransferFault.message;return false;}
     b.historyFrameCapacity=capacity;return true;
 }
 bool archiveCoupledRecord(Backend& b){
@@ -281,6 +286,7 @@ bool archiveCoupledRecord(Backend& b){
     const auto offset=b.historyFrameCount*std::size_t(count);
     auto* records=count?b.interfaceDownloads.data()+offset:nullptr;
     auto* walls=count&&b.gasBoundaryLayer.enabled?b.interfaceWallDownloads.data()+offset:nullptr;
+    archiveMaterialDriveInterval<<<1,1,0,b.gasCaptureStream>>>(b.coupledInterval.data(),b.interfaceIntervals.data()+b.historyFrameCount);
     resetCoupledRecordFailure<<<1,1,0,b.gasCaptureStream>>>(b.interfaceFailure.data(),count);
     if(count)packCoupledSurfaceKernel<<<(count+127)/128,128,0,b.gasCaptureStream>>>(
         b.interfaceRecords.data(),count,b.interfaceFaces.data(),b.particles.wallExchange(),records,walls,
@@ -507,6 +513,7 @@ Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati
         ||!b->interfaceDownloads.resize(state.surface.gasFace.size(),b->surfaceTransferFault)
         ||!b->interfaceWallDownloads.resize(b->storage.hostView().gasBoundaryLayer.enabled?state.surface.gasFace.size():0,b->surfaceTransferFault)
         ||!b->interfaceWallDiagnostics.resize(b->storage.hostView().gasBoundaryLayer.enabled?state.surface.gasFace.size():0,b->surfaceTransferFault)
+        ||!b->interfaceIntervals.resize(1,b->surfaceTransferFault)
         ||!b->interfaceFailure.resize(1,b->surfaceTransferFault)
         ||!b->interfacePhysics.resize(1,b->surfaceTransferFault)
         ||!b->coupledInterval.resize(1,b->surfaceTransferFault)){
@@ -693,6 +700,10 @@ bool advanceGasMicrostep(Backend& b,Real cap,GasMicroReport& report,std::string&
     return success&&hostHealthy;
 }
 const IntervalHistory& gasWindowHistory(const Backend& b){return b.history;}
+ResidentMaterialDriveHistory residentGasWindowDriveHistory(const Backend& b){
+    return {b.interfaceDownloads.data(),b.gasBoundaryLayer.enabled?b.interfaceWallDownloads.data():nullptr,
+        b.interfaceIntervals.data(),b.historyFrameCount,b.interfaceRecords.size(),b.gasCaptureStream};
+}
 std::vector<GasIntervalRecord> releaseGasWindowRecords(Backend& b){
     auto records=b.history.releaseRecords();b.history=IntervalHistory{};return records;
 }
