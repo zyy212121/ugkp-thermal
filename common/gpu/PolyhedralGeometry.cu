@@ -751,15 +751,17 @@ namespace {
 template<class Input>
 __global__ void planarValues(int count,Input input,Polynomial* out){
     const SweepLinearizationDeviceInput p=input;if(!p.active)return;
-    const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)out[i]=planarPolynomial(p.old,p.endpoint,p.planar[i]);
+    const int i=blockIdx.x*blockDim.x+threadIdx.x;if(p.planarCount< -1||p.planarCount>count)return;
+    if(p.planarCount>=0)count=p.planarCount;
+    if(i<count)out[i]=planarPolynomial(p.old,p.endpoint,p.planar[i]);
 }
 template<class Input>
 __global__ void linearizationColumn(int faceCount,int planarCount,TopologyView t,Input input,
     const int* faces,double* out){
-    const SweepLinearizationDeviceInput p=input;if(!p.active)return;
+    const SweepLinearizationDeviceInput p=input;if(!p.active||p.planarCount< -1||p.planarCount>planarCount)return;
     const int i=blockIdx.x*blockDim.x+threadIdx.x;
     if(i<faceCount)out[i]=sweepDerivative(t,p.old,p.endpoint,p.mode,faces[i])/p.scales[i];
-    else if(i<faceCount+planarCount){const int j=i-faceCount;const auto plane=p.planar[j];
+    else if(i<faceCount+(p.planarCount<0?planarCount:p.planarCount)){const int j=i-faceCount;if(j>=planarCount)return;const auto plane=p.planar[j];
         const auto polynomial=planarPolynomial(p.old,p.endpoint,plane,p.mode);
         for(int k=0;k<3;++k)out[faceCount+3*j+k]=polynomial.value[k]/plane.scale;}
 }
@@ -868,10 +870,14 @@ std::vector<Point> SweepLinearization::correction(){auto& d=*data_;PinnedTransfe
 
 #include "NormalHeightMotion.cuh"
 
+#include "SweepTrial.cuh"
 #include "SweepResidual.cuh"
+#include "SweepLineSearch.cuh"
 
 #include "InterfacePointDisplacement.cuh"
 
 #include "InterfaceGasPointMotion.cuh"
 
 #include "InterfaceGasStage.cuh"
+
+#include "SweepPlanarity.cuh"

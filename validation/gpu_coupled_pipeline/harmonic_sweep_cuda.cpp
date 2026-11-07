@@ -51,7 +51,16 @@ static std::vector<g::Point> oracle(const g::HarmonicSweepDefinition& d,const st
     return correction;
 }
 int main(){std::mt19937_64 random(513670);std::uniform_real_distribution<double> uniform(-1,1);int cases=0;
-    for(int side:{3,5})for(double scale:{1e-3,1.,1e3})for(bool paired:{false,true})for(int columns:{0,1,5}){
+#ifdef TEST_DYNAMIC_LARGE_LAYOUT
+    const std::vector<int> sizes{9,17};
+#elif defined(TEST_DYNAMIC_HARMONIC_LAYOUT)
+    const std::vector<int> sizes{3,5,9,17};
+#else
+    const std::vector<int> sizes{3,5};
+#endif
+    for(int side:sizes)for(double scale:{1e-3,1.,1e3})for(bool paired:{false,true})for(int columns:{0,1,5}){
+        if(side==9&&(scale!=1||!paired||columns!=5))continue;
+        if(side==17&&(scale!=1||!paired||columns!=1))continue;
         g::HarmonicSweepDefinition d;d.topology.faceOffsets={0};d.harmonicTolerance=scale*1e-12;
         std::vector<int> fixedPoints;
         for(int y=0;y<side;++y)for(int x=0;x<side;++x){
@@ -67,16 +76,27 @@ int main(){std::mt19937_64 random(513670);std::uniform_real_distribution<double>
         for(int j=0;j<columns;++j)d.modes.push_back({fixedPoints[j%fixedPoints.size()],paired?fixedPoints[fixedPoints.size()-1-j%fixedPoints.size()]:-1,
             {scale*.03*(j%2),scale*.02,scale*.01*(j%3)}});
         g::HarmonicSweepCorrection solver(d);
-        for(int update=0;update<2;++update){auto end=d.points;for(auto& p:end)p.z+=scale*.001*uniform(random);
-            std::vector<double> rhs(d.faces.size()+3*d.planar.size());for(double& x:rhs)x=.001*uniform(random);
-            int rank=0;const auto expected=oracle(d,end,rhs,rank);
-            const auto got=solve(solver,d,end,rhs,1e-12,1e-12);
+#ifdef TEST_DYNAMIC_HARMONIC_LAYOUT
+        const int updates=7;
+#else
+        const int updates=2;
+#endif
+        for(int update=0;update<updates;++update){auto active=d;
+#ifdef TEST_DYNAMIC_HARMONIC_LAYOUT
+            const std::size_t planeCounts[]={d.planar.size(),0,d.planar.size()/2,0,d.planar.size()-1,d.planar.size(),0};
+            active.planar.resize(planeCounts[update]);if(update==3)active.modes.clear();else if(update==4)active.modes.resize(active.modes.size()/2);
+#endif
+            auto end=d.points;for(auto& p:end)p.z+=scale*.001*uniform(random);
+            std::vector<double> rhs(active.faces.size()+3*active.planar.size());for(double& x:rhs)x=.001*uniform(random);
+            int rank=0;const auto expected=oracle(active,end,rhs,rank);
+            const auto got=solve(solver,active,end,rhs,1e-12,1e-12);
             require(!got.status.error,"device correction failed",cases);require(got.status.rank==rank,"rank mismatch",cases);
-            require(got.status.modeSolves==2*columns,"mode count mismatch",cases);
+            require(got.status.modeSolves==2*int(active.modes.size()),"mode count mismatch",cases);
             for(std::size_t p=0;p<expected.size();++p)require(same(expected[p].x,got.correction[p].x)&&same(expected[p].y,got.correction[p].y)&&same(expected[p].z,got.correction[p].z),"correction mismatch",cases);
-            if(columns){auto bad=rhs;bad[0]=std::numeric_limits<double>::quiet_NaN();
-                require(solve(solver,d,end,bad,1e-12,1e-12).status.error==3,"nonfinite RHS accepted",cases);
-                const auto recovered=solve(solver,d,end,rhs,1e-12,1e-12);require(!recovered.status.error,"failure latched across solves",cases);
+            require(got.status.rows==int(rhs.size()),"active equation count mismatch",cases);
+            if(!active.modes.empty()){auto bad=rhs;bad[0]=std::numeric_limits<double>::quiet_NaN();
+                require(solve(solver,active,end,bad,1e-12,1e-12).status.error==3,"nonfinite RHS accepted",cases);
+                const auto recovered=solve(solver,active,end,rhs,1e-12,1e-12);require(!recovered.status.error,"failure latched across solves",cases);
                 for(std::size_t p=0;p<expected.size();++p)require(same(expected[p].z,recovered.correction[p].z),"reuse mismatch",cases);}
             ++cases;
         }

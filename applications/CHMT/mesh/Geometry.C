@@ -911,6 +911,7 @@ namespace chmt {
                 for(int p:metricMovable)if(p<extrusion.mate[p])movable.push_back(p);
             }
             report.degreesOfFreedom=static_cast<int>(movable.size());
+#ifndef CHMT_DEVICE_GEOMETRY
             std::vector<PlanarTriangleConstraint> planar;
             for (int f=0;f<static_cast<int>(old.owner.size());++f) {
                 const int begin=old.faceOffsets[f],stop=old.faceOffsets[f+1];
@@ -938,29 +939,25 @@ namespace chmt {
             if((constraintCount>static_cast<std::size_t>(std::numeric_limits<int>::max())))
                 return reject(SweepConstraintStatus::SizeLimit,"swept-volume constraints exceed index representation");
             report.constraints=static_cast<int>(constraintCount);
+#endif
             std::vector<Vec3> start;
             if (!harmonicPointMotionRepresentedImpl(old,prescribedDisplacement,prescribed,start,error,
                 hasEmpty&&paired?&extrusion:nullptr,numericalFailure,tolerances.diagnostics)) return false;
 #ifdef CHMT_DEVICE_GEOMETRY
-            std::vector<geometry_device::backend::PlanarConstraint> devicePlanes;
-            for(const auto& p:planar)devicePlanes.push_back({p.a,p.b,p.c,p.d,p.scale});
             geometry_device::backend::SweepResidualDefinition residualDefinition;
             residualDefinition.topology=geometry_device::faceTopology(old);residualDefinition.old=geometry_device::pack(old.points);
             residualDefinition.faces=faces;residualDefinition.targets=targets;residualDefinition.scales=sweepScale;
-            residualDefinition.planar=devicePlanes;for(const auto& plane:planar)residualDefinition.planeTolerance.push_back(plane.tolerance);
             residualDefinition.faceCeiling=controls.faceVolumeTolerance;
             residualDefinition.absoluteTolerance=controls.absoluteVolumeTolerance;residualDefinition.relativeTolerance=controls.relativeVolumeTolerance;
             residualDefinition.rankTolerance=controls.rankTolerance;
             if(hasEmpty&&paired){residualDefinition.emptyAxis=extrusion.axis;residualDefinition.emptyMate=extrusion.mate;}
-            geometry_device::backend::SweepResidualEvaluation deviceResidual(residualDefinition);
+            geometry_device::backend::SweepResidualEvaluation deviceResidual(residualDefinition,coordinateUncertainty);
             geometry_device::backend::SweepResidualStatus lastResidualStatus;
 #endif
-            auto evaluate=[&](const std::vector<Vec3>& points,std::vector<Real>& residual,
-                std::vector<Real>& sweeps, Real& metric) {
 #ifdef CHMT_DEVICE_GEOMETRY
+            const auto publishResidual=[&](const geometry_device::backend::SweepResidualStatus& result,Real& metric){
                 if(numericalFailure)*numericalFailure=true;
-                const auto result=deviceResidual.evaluate(geometry_device::pack(points));lastResidualStatus=result;
-                residual.clear();sweeps.clear();metric=result.metric;
+                lastResidualStatus=result;report.constraints=result.rows;metric=result.metric;
                 report.maximumSweepResidual=result.maximumSweep;report.maximumPlanarityResidual=result.maximumPlanarity;
                 using Failure=geometry_device::backend::SweepResidualFailure;
                 switch(result.failure){
@@ -972,8 +969,16 @@ namespace chmt {
                     case Failure::FaceResidual:return errorAt(error,"nonfinite swept-volume residual",result.index);
                     case Failure::PlanarResidual:return errorAt(error,"nonfinite planarity residual",result.index);
                     case Failure::Metric:return false;
+                    case Failure::Layout:return errorAt(error,"invalid resident constraint layout",result.index);
                 }
                 return false;
+            };
+#endif
+            auto evaluate=[&](const std::vector<Vec3>& points,std::vector<Real>& residual,
+                std::vector<Real>& sweeps, Real& metric) {
+#ifdef CHMT_DEVICE_GEOMETRY
+                residual.clear();sweeps.clear();
+                return publishResidual(deviceResidual.evaluate(geometry_device::pack(points)),metric);
 #else
                 std::vector<Vec3> area;
                 if (!stageIntegrals(old,points,area,sweeps,error,hasEmpty&&paired?&extrusion:nullptr,numericalFailure)) return false;
@@ -1065,7 +1070,7 @@ namespace chmt {
 #ifdef CHMT_DEVICE_GEOMETRY
             geometry_device::backend::HarmonicSweepDefinition definition;
             definition.topology=geometry_device::faceTopology(old);definition.points=geometry_device::pack(old.points);
-            definition.fixed=prescribed;definition.faces=faces;definition.scales=sweepScale;definition.planar=devicePlanes;
+            definition.fixed=prescribed;definition.faces=faces;definition.scales=sweepScale;
             definition.harmonicTolerance=1e-12*length;
             std::set<std::pair<int,int>> edges;
             for(std::size_t f=0;f<old.owner.size();++f){const int lo=old.faceOffsets[f],hi=old.faceOffsets[f+1];
@@ -1082,7 +1087,7 @@ namespace chmt {
                 const Vec3 displacement=normalized(directions[p])*scale;
                 definition.modes.push_back({p,partner,{displacement.x,displacement.y,displacement.z}});
             }
-            geometry_device::backend::HarmonicSweepCorrection deviceCorrection(definition);
+            geometry_device::backend::HarmonicSweepCorrection deviceCorrection(definition,deviceResidual.planeCapacity());
 #else
             Points streamedMode(np,Vec3{},Allocator<Vec3>(workspace));
             auto generateMode=[&](int p,Points& end) {
@@ -1117,7 +1122,7 @@ namespace chmt {
                 const Real consistencyTolerance=lastResidualStatus.consistencyTolerance;
                 const auto residualView=deviceResidual.view();
                 const auto solved=deviceCorrection.solveBorrowed(deviceResidual.endpoint(),residualView.rhs,
-                    &residualView.status->consistencyTolerance,controls.rankTolerance);
+                    &residualView.status->consistencyTolerance,controls.rankTolerance,deviceResidual.planarity(),false);
                 report.modeSolves+=solved.status.modeSolves;
                 const auto modeWarning=[&](std::size_t m){
                     const auto& value=solved.modes[m];
@@ -1137,7 +1142,7 @@ namespace chmt {
                         << report.rank << " of " << report.constraints << ", boundary DOFs " << report.degreesOfFreedom;
                     return reject(SweepConstraintStatus::Incompatible,detail.str());
                 }
-                geometry_device::unpack(solved.correction,correction);
+                deviceResidual.beginLineSearch();
 #else
                 Rows jacobian{Allocator<Reals>(workspace)};
                 jacobian.reserve(rows);
@@ -1185,6 +1190,18 @@ namespace chmt {
                 // Globalize this fixed-target Newton correction. Physical time,
                 // target sweeps, modes, Jacobian and delta remain unchanged.
                 bool accepted=false;
+#ifdef CHMT_DEVICE_GEOMETRY
+                for(bool restartSearch=true;;restartSearch=false){
+                    const auto search=deviceResidual.lineSearch(deviceCorrection.view().correction,controls.maximumLineSearch,restartSearch);
+                    report.lineSearchTrials+=search.trials;
+                    Real trialMetric=0;
+                    if(search.evaluated)publishResidual(search.trial.residual,trialMetric);
+                    if(!search.candidate)break;
+                    std::vector<Vec3> trial;geometry_device::unpack(deviceResidual.publishEndpoint(),trial);
+                    GeometryTrialEnvironment environment;
+                    if(!environment.active())return reject(SweepConstraintStatus::InvalidInput,"floating-point trial environment unavailable");
+                    std::vector<Real> trialResidual,trialSweeps;
+#else
                 for(int backtrack=0;backtrack<std::max(1,controls.maximumLineSearch);++backtrack){
                     const Real alpha=std::ldexp(Real(1),-backtrack);if(alpha==0)break;
                     std::vector<Vec3> trial=points;bool changed=false,representable=true;
@@ -1200,13 +1217,14 @@ namespace chmt {
                         if(!representable)break;
                     }
                     if(!representable)continue;
-                    if(!changed)break; // No smaller represented update can advance this state.
+                    if(!changed)break;
                     ++report.lineSearchTrials;
                     GeometryTrialEnvironment environment;
                     if(!environment.active())return reject(SweepConstraintStatus::InvalidInput,"floating-point trial environment unavailable");
                     std::vector<Real> trialResidual,trialSweeps;Real trialMetric=0;
                     if(!evaluate(trial,trialResidual,trialSweeps,trialMetric)||environment.invalid())continue;
                     if(!(trialMetric<=1||trialMetric<metric*(1-1e-4*alpha)))continue;
+#endif
                     HostMesh certified;std::vector<Real> measured;std::string failure;bool recoverable=true;
                     // Trial records stay local. Missing operators, indices and
                     // execution failures are not mathematical domain failures.

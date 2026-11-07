@@ -56,6 +56,7 @@ static void compare(const SweepResidualProbe& a,const SweepResidualProbe& b,int 
     for(std::size_t i=0;i<a.residual.size();++i){exact(a.residual[i],b.residual[i],test);exact(a.rhs[i],b.rhs[i],test);}
     for(std::size_t i=0;i<a.sweeps.size();++i){exact(a.sweeps[i].volume,b.sweeps[i].volume,test);exact(a.sweeps[i].area.x,b.sweeps[i].area.x,test);exact(a.sweeps[i].area.y,b.sweeps[i].area.y,test);exact(a.sweeps[i].area.z,b.sweeps[i].area.z,test);}
 }
+#ifndef SWEEP_RESIDUAL_REFERENCE_ONLY
 int main(){std::mt19937_64 random(194835);std::uniform_real_distribution<double> value(-1,1);int cases=0;
     for(int count:{0,1,3,47,130})for(double scale:{1e-100,1e-3,1.,1e3,1e100})for(bool ceiling:{false,true}){
         g::SweepResidualDefinition d;d.topology.faceOffsets={0};d.relativeTolerance=1e-10;d.rankTolerance=1e-12;
@@ -87,3 +88,4 @@ int main(){std::mt19937_64 random(194835);std::uniform_real_distribution<double>
     std::cout<<"PASS "<<quotients.size()<<" saturated extended-range quotient comparisons, within one FP64 ULP\n";
     std::cout<<"PASS "<<cases<<" frozen swept-volume/planarity residual and RHS configurations, device graph replay, failure ordering and one-way status publication\n";
 }
+#endif

@@ -6,10 +6,14 @@ namespace ugkp { namespace gpu { namespace geometry { namespace {
 __global__ void beginHarmonicSweep(const HarmonicSweepDeviceProblem* input,
     HarmonicSweepDeviceProblem* operation,int points,int rows,int columns,int planar,
     HarmonicSweepStatus* state){
-    *state={};*operation=*input;const auto& p=*operation;
+    *state={};*operation=*input;auto& p=*operation;
+    if(p.planarCount==-1)p.planarCount=planar;
+    const int faces=rows-3*planar;
+    if(p.planarCount<0||p.planarCount>planar){state->error=1;return;}
+    state->rows=faces+3*p.planarCount;
     if(p.columns<0||p.columns>columns||(points&&(!p.old||!p.endpoint))
-        ||(p.columns&&!p.modes)||(rows&&!p.rhs)||(rows>3*planar&&!p.scales)
-        ||(planar&&!p.planar))state->error=1;
+        ||(p.columns&&!p.modes)||(state->rows&&!p.rhs)||(faces&&!p.scales)
+        ||(p.planarCount&&!p.planar))state->error=1;
 }
 __global__ void copyHarmonicSweepCoordinates(int count,const HarmonicSweepDeviceProblem* input,
     const HarmonicSweepStatus* state,Point* old){
@@ -32,39 +36,41 @@ __global__ void seedHarmonicBoundary(int count,const HarmonicSweepDeviceProblem*
 __global__ void acceptHarmonicMode(int pass,const HarmonicSweepDeviceProblem* input,
     HarmonicSweepStatus* state,const HarmonicDeviceStatus* report,HarmonicDeviceStatus* history,
     const Point* old,const Point* mode,const double* coefficients,SweepLinearizationDeviceInput* sweep){
-    *sweep={old,input->endpoint,mode,input->scales,input->planar,0,false};
+    *sweep={old,input->endpoint,mode,input->scales,input->planar,0,false,input->planarCount};
     if(state->error)return;history[pass*input->columns+state->mode]=*report;
     if(report->errorPoint>=0){state->error=2;state->failedMode=state->mode;state->errorPoint=report->errorPoint;return;}
     sweep->coefficient=pass?coefficients[state->mode]:0;sweep->active=true;
 }
 __global__ void scatterHarmonicColumn(int rows,const HarmonicSweepDeviceProblem* input,
     const HarmonicSweepStatus* state,const double* column,double* matrix){
-    const int r=blockIdx.x*blockDim.x+threadIdx.x;if(r<rows&&!state->error)
+    const int r=blockIdx.x*blockDim.x+threadIdx.x;if(r<state->rows&&!state->error)
         matrix[std::size_t(r)*input->columns+state->mode]=column[r];
 }
 __global__ void nextHarmonicMode(const HarmonicSweepDeviceProblem* input,HarmonicSweepStatus* state,
     cudaGraphConditionalHandle handle){++state->mode;cudaGraphSetConditional(handle,!state->error&&state->mode<input->columns);}
 __global__ void bindHarmonicQr(int rows,const HarmonicSweepDeviceProblem* input,
     const HarmonicSweepStatus* state,const double* matrix,MinimumNormDeviceProblem* qr){
-    *qr={state->error?0:rows,state->error?0:input->columns,input->rankTolerance,matrix,input->rhs};
+    *qr={state->error?0:state->rows,state->error?0:input->columns,input->rankTolerance,matrix,input->rhs};
 }
 __global__ void acceptHarmonicQr(int rows,const HarmonicSweepDeviceProblem* input,HarmonicSweepStatus* state,
     MinimumNormDeviceView qr){
     if(state->error)return;state->rank=qr.status->rank;state->linearInitialized=qr.status->error!=1;
     if(qr.status->error){state->error=3;return;}
-    for(int r=state->rank;r<rows;++r)if(!isfinite(qr.rhs[r])){state->error=3;return;}
+    for(int r=state->rank;r<state->rows;++r)if(!isfinite(qr.rhs[r])){state->error=3;return;}
     for(int c=0;c<input->columns;++c)if(!isfinite(qr.delta[c])){state->error=3;return;}
     state->linearValid=1;
 }
 __global__ void bindBorrowedHarmonicProblem(HarmonicSweepDeviceProblem definition,const Point* endpoint,
-    const double* rhs,const double* tolerance,double rankTolerance,HarmonicSweepDeviceProblem* output){
+    const double* rhs,const double* tolerance,double rankTolerance,SweepPlanarityView layout,HarmonicSweepDeviceProblem* output){
     definition.endpoint=endpoint;definition.rhs=rhs;definition.consistencyTolerance=*tolerance;
-    definition.rankTolerance=rankTolerance;*output=definition;
+    definition.rankTolerance=rankTolerance;
+    if(layout.count){definition.planar=layout.planar;definition.planarCount=*layout.count;}
+    *output=definition;
 }
 __global__ void copyHarmonicProblem(const HarmonicSweepDeviceProblem* input,HarmonicSweepDeviceProblem* out){*out=*input;}
 }
 struct HarmonicSweepCorrection::Implementation {
-    int points=0,rows=0,columns=0,planarCount=0;
+    int points=0,rows=0,columns=0,planarCount=0,hostRows=0;
     cudaStream_t stream=nullptr;cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;
     PinnedTransferQueue transfer;
     std::unique_ptr<HarmonicPointMotion> harmonic;
@@ -80,13 +86,14 @@ struct HarmonicSweepCorrection::Implementation {
     Array<HarmonicSweepStatus> state;
     Array<HarmonicDeviceStatus> reports;
     HarmonicSweepDeviceProblem hostInput;
-    explicit Implementation(const HarmonicSweepDefinition& definition){
+    explicit Implementation(const HarmonicSweepDefinition& definition,int capacity){
         if(definition.faces.size()!=definition.scales.size()||definition.points.size()>std::size_t(INT_MAX)
             ||definition.modes.size()>std::size_t(INT_MAX)/2)
             throw std::invalid_argument("harmonic sweep definition shape mismatch");
-        points=definition.points.size();columns=definition.modes.size();planarCount=definition.planar.size();
+        if(capacity<0||std::size_t(capacity)<definition.planar.size())throw std::invalid_argument("harmonic sweep plane capacity mismatch");
+        points=definition.points.size();columns=definition.modes.size();planarCount=capacity;hostRows=definition.faces.size()+3*definition.planar.size();
         sweep.reset(new ResidentSweepLinearization(definition.topology,points,definition.faces,planarCount));
-        rows=definition.faces.size()+3*definition.planar.size();
+        rows=definition.faces.size()+3*std::size_t(planarCount);
         harmonic.reset(new HarmonicPointMotion(definition.points,definition.offsets,definition.neighbours,
             definition.fixed,definition.harmonicTolerance));
         qr.reset(new ResidentDenseMinimumNorm(rows,columns));
@@ -98,20 +105,21 @@ struct HarmonicSweepCorrection::Implementation {
         matrix.reserve(std::size_t(rows)*columns);reports.reserve(std::size_t(columns)*2);
         input.reserve(1);operation.reserve(1);sweepInput.reserve(1);qrInput.reserve(1);state.reserve(1);
         hostInput={initial.pointer,endpoint.pointer,scales.pointer,planar.pointer,modes.pointer,rhs.pointer,
-            columns,definition.harmonicTolerance,0,0};transfer.finish();
+            columns,definition.harmonicTolerance,0,0,int(definition.planar.size())};transfer.finish();
     }
-    HarmonicSweepResult collect(){
+    HarmonicSweepResult collect(bool publishCorrection=true){
         HarmonicSweepResult result;transfer.download(&result.status,state.pointer,sizeof(result.status));transfer.finish();
         result.modes.resize(result.status.modeSolves);
         transfer.download(result.modes.data(),reports.pointer,result.modes.size()*sizeof(HarmonicDeviceStatus));
-        if(result.status.linearValid){result.rhs.resize(rows);transfer.download(result.rhs.data(),qr->view().rhs,std::size_t(rows)*sizeof(double));}
-        if(!result.status.error){result.correction.resize(points);transfer.download(result.correction.data(),sweep->view().correction,std::size_t(points)*sizeof(Point));}
+        if(result.status.linearValid){result.rhs.resize(result.status.rows);transfer.download(result.rhs.data(),qr->view().rhs,std::size_t(result.status.rows)*sizeof(double));}
+        if(!result.status.error&&publishCorrection){result.correction.resize(points);transfer.download(result.correction.data(),sweep->view().correction,std::size_t(points)*sizeof(Point));}
         transfer.finish();return result;
     }
     ~Implementation(){transfer.discard();if(stream)cudaStreamSynchronize(stream);
         if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);if(stream)cudaStreamDestroy(stream);}
 };
-HarmonicSweepCorrection::HarmonicSweepCorrection(const HarmonicSweepDefinition& definition):data_(new Implementation(definition)){
+HarmonicSweepCorrection::HarmonicSweepCorrection(const HarmonicSweepDefinition& definition):HarmonicSweepCorrection(definition,definition.planar.size()){}
+HarmonicSweepCorrection::HarmonicSweepCorrection(const HarmonicSweepDefinition& definition,int capacity):data_(new Implementation(definition,capacity)){
     auto& d=*data_;checked(cudaGraphCreate(&d.graph,0));appendTo(d.graph,nullptr,d.input.pointer);
     checked(cudaGraphInstantiateWithFlags(&d.executable,d.graph,0));
 }
@@ -164,14 +172,14 @@ void HarmonicSweepCorrection::solveDevice(const HarmonicSweepDeviceProblem* prob
     checked(cudaGraphLaunch(d.executable,stream));
 }
 HarmonicSweepResult HarmonicSweepCorrection::solveBorrowed(const Point* endpoint,const double* rhs,
-    const double* consistencyTolerance,double rankTolerance){
+    const double* consistencyTolerance,double rankTolerance,SweepPlanarityView layout,bool publishCorrection){
     auto& d=*data_;PinnedTransferQueue::Operation pending(d.transfer);
-    bindBorrowedHarmonicProblem<<<1,1,0,d.stream>>>(d.hostInput,endpoint,rhs,consistencyTolerance,rankTolerance,d.input.pointer);
-    checked(cudaGetLastError());checked(cudaGraphLaunch(d.executable,d.stream));return d.collect();
+    bindBorrowedHarmonicProblem<<<1,1,0,d.stream>>>(d.hostInput,endpoint,rhs,consistencyTolerance,rankTolerance,layout,d.input.pointer);
+    checked(cudaGetLastError());checked(cudaGraphLaunch(d.executable,d.stream));return d.collect(publishCorrection);
 }
 HarmonicSweepResult HarmonicSweepCorrection::solve(const std::vector<Point>& endpoint,const std::vector<double>& rhs,
     double rankTolerance,double consistencyTolerance){
-    auto& d=*data_;if(endpoint.size()!=std::size_t(d.points)||rhs.size()!=std::size_t(d.rows))
+    auto& d=*data_;if(endpoint.size()!=std::size_t(d.points)||rhs.size()!=std::size_t(d.hostRows))
         throw std::invalid_argument("harmonic sweep solve shape mismatch");
     PinnedTransferQueue::Operation pending(d.transfer);d.endpoint.upload(endpoint,d.transfer);d.rhs.upload(rhs,d.transfer);
     d.hostInput.rankTolerance=rankTolerance;d.hostInput.consistencyTolerance=consistencyTolerance;

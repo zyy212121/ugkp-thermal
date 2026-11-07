@@ -13,10 +13,10 @@ template<class T>struct Device {
 __global__ void selectResidual(const g::SweepResidualProblem* seed,g::SweepResidualProblem* input){*input=*seed;}
 }
 SweepResidualProbe probeSweepResidual(const g::SweepResidualDefinition& d,const std::vector<g::Point>& end){
-    g::ResidentSweepResidual owner(d.topology,d.old.size(),d.faces,d.planar.size(),d.emptyAxis,d.emptyMate);
+    g::ResidentSweepResidual owner(d.topology,d.old.size(),d.faces,d.planar.size()+3,d.emptyAxis,d.emptyMate);
     Device<g::Point> old(d.old),endpoint(end);Device<double> targets(d.targets),scales(d.scales),ceilings(d.faceCeiling),tolerance(d.planeTolerance);
     Device<g::PlanarConstraint> planes(d.planar);
-    Device<g::SweepResidualProblem> seed(std::vector<g::SweepResidualProblem>{{old.p,endpoint.p,targets.p,scales.p,ceilings.p,tolerance.p,planes.p,d.absoluteTolerance,d.relativeTolerance,d.rankTolerance}}),
+    Device<g::SweepResidualProblem> seed(std::vector<g::SweepResidualProblem>{{old.p,endpoint.p,targets.p,scales.p,ceilings.p,tolerance.p,planes.p,d.absoluteTolerance,d.relativeTolerance,d.rankTolerance,static_cast<int>(d.planar.size())}}),
         input(std::vector<g::SweepResidualProblem>(1));
     cudaStream_t stream;cudaGraph_t graph;cudaGraphExec_t executable;check(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
     check(cudaStreamBeginCapture(stream,cudaStreamCaptureModeGlobal));selectResidual<<<1,1,0,stream>>>(seed.p,input.p);owner.evaluate(input.p,stream);
@@ -24,9 +24,20 @@ SweepResidualProbe probeSweepResidual(const g::SweepResidualDefinition& d,const 
     for(auto node:nodes){cudaGraphNodeType type;check(cudaGraphNodeGetType(node,&type));if(type!=cudaGraphNodeTypeKernel)throw std::runtime_error("residual graph has host/transfer node");}
     check(cudaGraphInstantiateWithFlags(&executable,graph,0));for(int replay=0;replay<2;++replay)check(cudaGraphLaunch(executable,stream));check(cudaStreamSynchronize(stream));
     SweepResidualProbe result;const auto view=owner.view();check(cudaMemcpy(&result.status,view.status,sizeof(result.status),cudaMemcpyDeviceToHost));
+    if(result.status.rows!=int(d.faces.size()+3*d.planar.size()))throw std::runtime_error("selected residual row count differs");
     result.sweeps.resize(d.topology.faceOffsets.size()-1);result.residual.resize(d.faces.size()+3*d.planar.size());result.rhs.resize(result.residual.size());
     if(!result.sweeps.empty())check(cudaMemcpy(result.sweeps.data(),view.sweptFaces,result.sweeps.size()*sizeof(g::SweepResult),cudaMemcpyDeviceToHost));
     if(!result.residual.empty()){check(cudaMemcpy(result.residual.data(),view.residual,result.residual.size()*sizeof(double),cudaMemcpyDeviceToHost));check(cudaMemcpy(result.rhs.data(),view.rhs,result.rhs.size()*sizeof(double),cudaMemcpyDeviceToHost));}
+    for(int count:{-2,std::numeric_limits<int>::max()}){
+        const g::SweepResidualProblem invalid{old.p,endpoint.p,targets.p,scales.p,ceilings.p,tolerance.p,planes.p,
+            d.absoluteTolerance,d.relativeTolerance,d.rankTolerance,count};
+        check(cudaMemcpyAsync(input.p,&invalid,sizeof(invalid),cudaMemcpyHostToDevice,stream));owner.evaluate(input.p,stream);check(cudaStreamSynchronize(stream));
+        g::SweepResidualStatus status;check(cudaMemcpy(&status,view.status,sizeof(status),cudaMemcpyDeviceToHost));
+        if(status.failure!=g::SweepResidualFailure::Layout||status.rows!=0)throw std::runtime_error("invalid residual layout accepted");
+    }
+    check(cudaGraphLaunch(executable,stream));check(cudaStreamSynchronize(stream));
+    g::SweepResidualStatus restored;check(cudaMemcpy(&restored,view.status,sizeof(restored),cudaMemcpyDeviceToHost));
+    if(restored.failure!=result.status.failure||restored.rows!=result.status.rows)throw std::runtime_error("invalid residual layout latched across graph reuse");
     check(cudaGraphExecDestroy(executable));check(cudaGraphDestroy(graph));check(cudaStreamDestroy(stream));return result;
 }
 g::HarmonicSweepResult harmonicSweepDeviceProbe(g::HarmonicSweepCorrection& owner,const g::HarmonicSweepDefinition&,

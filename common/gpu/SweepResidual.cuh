@@ -1,5 +1,6 @@
 // Included by PolyhedralGeometry.cu; uses its allocation and transfer owner.
 #include "SweepResidual.H"
+#include "SweepLineSearch.H"
 namespace ugkp { namespace gpu { namespace geometry { namespace {
 struct SweepResidualSummary {
     double metric=0,sweep=0,plane=0,rhs=0;
@@ -25,12 +26,14 @@ __global__ void sweepResidualFaces(int count,TopologyView topology,const SweepRe
     const int f=blockIdx.x*blockDim.x+threadIdx.x;if(f<count)out[f]=faceSweep(f,topology,input->old,input->endpoint);
 }
 __global__ void sweepResidualPlanes(int count,const SweepResidualProblem* input,Polynomial* values){
-    const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)values[i]=planarPolynomial(input->old,input->endpoint,input->planar[i]);
+    const int selected=input->planarCount,active=selected==-1?count:selected;
+    const int i=blockIdx.x*blockDim.x+threadIdx.x;if(active>=0&&active<=count&&i<active)values[i]=planarPolynomial(input->old,input->endpoint,input->planar[i]);
 }
 __global__ void sweepResidualRows(int faces,int planes,const int* faceIds,const SweepResidualProblem* input,
     const SweepResult* sweeps,const Polynomial* polynomials,double* residual,double* rhs,SweepResidualSummary* partial){
     const int row=blockIdx.x*blockDim.x+threadIdx.x;const auto in=*input;SweepResidualSummary value;
-    if(row<faces+3*planes){double magnitude=0,tolerance=0,r=0;
+    const int selected=in.planarCount==-1?planes:in.planarCount;
+    if(selected>=0&&selected<=planes&&row<faces+3*selected){double magnitude=0,tolerance=0,r=0;
         if(row<faces){const double actual=sweeps[faceIds[row]].volume;const double raw=actual-in.targets[row];
             r=raw/in.scales[row];magnitude=sweepResidualAbsolute(raw);value.sweep=magnitude;
             if(!std::isfinite(raw))value.firstBad=row;
@@ -47,7 +50,7 @@ __global__ void sweepResidualRows(int faces,int planes,const int* faceIds,const 
     for(int stride=1;stride<128;stride*=2){if(threadIdx.x%(2*stride)==0)values[threadIdx.x]=joinSweepSummary(values[threadIdx.x],values[threadIdx.x+stride]);__syncthreads();}
     if(!threadIdx.x)partial[blockIdx.x]=values[0];
 }
-__global__ void finishSweepResidual(int points,int faces,int constrained,int blocks,const int* faceIds,
+__global__ void finishSweepResidual(int points,int faces,int constrained,int planes,int blocks,const int* faceIds,
     const int* endpointFailure,const int* emptyFailure,const SweepResult* sweeps,
     const SweepResidualSummary* partial,const SweepResidualProblem* input,SweepResidualStatus* output){
     // Ordered reductions preserve the native first-failure phase and index.
@@ -62,10 +65,13 @@ __global__ void finishSweepResidual(int points,int faces,int constrained,int blo
         if(badFace[threadIdx.x+stride]<badFace[threadIdx.x])badFace[threadIdx.x]=badFace[threadIdx.x+stride];}__syncthreads();}
     if(threadIdx.x)return;SweepResidualStatus status;SweepResidualSummary summary;
     for(int i=0;i<blocks;++i)summary=joinSweepSummary(summary,partial[i]);
+    const int selected=input->planarCount==-1?planes:input->planarCount;
+    status.rows=selected>=0&&selected<=planes?constrained+3*selected:0;
     status.metric=summary.metric;status.maximumSweep=summary.sweep;status.maximumPlanarity=summary.plane;
     const double floor=128*std::numeric_limits<double>::epsilon(),scaled=input->rankTolerance*summary.rhs;
     status.consistencyTolerance=floor>scaled?floor:scaled;
-    if(badPoint[0]!=INT_MAX){status.failure=SweepResidualFailure::Endpoint;status.index=badPoint[0];}
+    if(selected<0||selected>planes){status.failure=SweepResidualFailure::Layout;status.index=selected;}
+    else if(badPoint[0]!=INT_MAX){status.failure=SweepResidualFailure::Endpoint;status.index=badPoint[0];}
     else if(badEmpty[0]!=INT_MAX){status.index=badEmpty[0];status.failure=emptyFailure[status.index]==int(EmptyTrajectoryFailure::NormalDisplacement)?SweepResidualFailure::EmptyNormal:SweepResidualFailure::EmptyTangential;}
     else if(badFace[0]!=INT_MAX){status.failure=SweepResidualFailure::Sweep;status.index=badFace[0];}
     else if(summary.firstBad!=INT_MAX){const int row=summary.firstBad;
@@ -102,35 +108,80 @@ void ResidentSweepResidual::evaluate(const SweepResidualProblem* input,void* raw
     if(d.faces)sweepResidualFaces<<<(d.faces-1)/128+1,128,0,stream>>>(d.faces,d.topology(),input,d.sweeps.pointer);
     if(d.planes)sweepResidualPlanes<<<(d.planes-1)/128+1,128,0,stream>>>(d.planes,input,d.polynomials.pointer);
     if(d.blocks)sweepResidualRows<<<d.blocks,128,0,stream>>>(d.constrained,d.planes,d.faceIds.pointer,input,d.sweeps.pointer,d.polynomials.pointer,d.residual.pointer,d.rhs.pointer,d.partial.pointer);
-    finishSweepResidual<<<1,128,0,stream>>>(d.points,d.faces,d.constrained,d.blocks,d.faceIds.pointer,d.endpointFailure.pointer,d.emptyFailure.pointer,d.sweeps.pointer,d.partial.pointer,input,d.status.pointer);
+    finishSweepResidual<<<1,128,0,stream>>>(d.points,d.faces,d.constrained,d.planes,d.blocks,d.faceIds.pointer,d.endpointFailure.pointer,d.emptyFailure.pointer,d.sweeps.pointer,d.partial.pointer,input,d.status.pointer);
     checked(cudaGetLastError());
 }
+namespace {
+__global__ void bindResidualEndpoint(const Point* endpoint,SweepResidualProblem* input){input->endpoint=endpoint;}
+__global__ void seedSweepLineSearch(const SweepResidualStatus* status,double* metric){*metric=status->metric;}
+__global__ void bindSweepLineSearch(const SweepResidualProblem* residual,const Point* origin,const Point* correction,
+    const double* initialMetric,int maximumTrials,SweepLineSearchProblem* output){
+    *output={*residual,origin,correction,*initialMetric,maximumTrials};
+}
+__global__ void bindResidualPlanarity(SweepPlanarityView layout,SweepResidualProblem* input){
+    input->planar=layout.planar;input->planeTolerance=layout.tolerance;input->planarCount=*layout.count;
+}
+}
 struct SweepResidualEvaluation::Implementation {
-    int points=0,faces=0,rows=0;cudaStream_t stream=nullptr;PinnedTransferQueue transfer;
+    int points=0,faces=0,rows=0,planeCapacity=0;cudaStream_t stream=nullptr;PinnedTransferQueue transfer;
     std::unique_ptr<ResidentSweepResidual> owner;
+    std::unique_ptr<ResidentSweepLineSearch> search;
+    Array<Point> lineOrigin;Array<double> lineMetric;Array<SweepLineSearchProblem> searchInput;
+    const Point* currentEndpoint=nullptr;
+    std::unique_ptr<ResidentSweepPlanarity> generated;Array<SweepPlanarityInput> layoutInput;Array<int> planeCount;
     Array<Point> old,endpoint;Array<double> targets,scales,ceiling,planeTolerance;
     Array<PlanarConstraint> planar;Array<SweepResidualProblem> problem;
-    explicit Implementation(const SweepResidualDefinition& d){
+    explicit Implementation(const SweepResidualDefinition& d,const double* uncertainty=nullptr){
         if(d.targets.size()!=d.faces.size()||d.scales.size()!=d.faces.size()
             ||(!d.faceCeiling.empty()&&d.faceCeiling.size()!=d.faces.size())||d.planeTolerance.size()!=d.planar.size())
             throw std::invalid_argument("sweep residual definition shape mismatch");
-        points=d.old.size();faces=d.topology.faceOffsets.size()-1;rows=d.faces.size()+3*d.planar.size();
-        owner.reset(new ResidentSweepResidual(d.topology,points,d.faces,d.planar.size(),d.emptyAxis,d.emptyMate));
+        points=d.old.size();faces=d.topology.faceOffsets.size()-1;
+        if(uncertainty)generated.reset(new ResidentSweepPlanarity(d.topology));
+        planeCapacity=generated?generated->capacity():int(d.planar.size());
+        owner.reset(new ResidentSweepResidual(d.topology,points,d.faces,planeCapacity,d.emptyAxis,d.emptyMate));
+        rows=d.faces.size()+3*std::size_t(planeCapacity);
+        search.reset(new ResidentSweepLineSearch(points,*owner));lineOrigin.reserve(points);lineMetric.reserve(1);searchInput.reserve(1);
         checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);PinnedTransferQueue::Operation pending(transfer);
-        old.upload(d.old,transfer);endpoint.reserve(points);targets.upload(d.targets,transfer);scales.upload(d.scales,transfer);
+        old.upload(d.old,transfer);endpoint.reserve(points);currentEndpoint=endpoint.pointer;targets.upload(d.targets,transfer);scales.upload(d.scales,transfer);
         ceiling.upload(d.faceCeiling,transfer);planeTolerance.upload(d.planeTolerance,transfer);planar.upload(d.planar,transfer);problem.reserve(1);
         const SweepResidualProblem input{old.pointer,endpoint.pointer,targets.pointer,scales.pointer,ceiling.pointer,planeTolerance.pointer,
-            planar.pointer,d.absoluteTolerance,d.relativeTolerance,d.rankTolerance};transfer.upload(problem.pointer,&input,sizeof(input));transfer.finish();
+            planar.pointer,d.absoluteTolerance,d.relativeTolerance,d.rankTolerance};transfer.upload(problem.pointer,&input,sizeof(input));
+        planeCount.upload(std::vector<int>{int(d.planar.size())},transfer);
+        if(generated){layoutInput.reserve(1);const SweepPlanarityInput layout{old.pointer,*uncertainty};transfer.upload(layoutInput.pointer,&layout,sizeof(layout));
+            generated->evaluate(layoutInput.pointer,stream);bindResidualPlanarity<<<1,1,0,stream>>>(generated->view(),problem.pointer);checked(cudaGetLastError());}
+        transfer.finish();
     }
     ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
 };
 SweepResidualEvaluation::SweepResidualEvaluation(const SweepResidualDefinition& d):data_(new Implementation(d)){}
+SweepResidualEvaluation::SweepResidualEvaluation(const SweepResidualDefinition& d,double uncertainty):data_(new Implementation(d,&uncertainty)){}
 SweepResidualEvaluation::~SweepResidualEvaluation()=default;
+SweepPlanarityView SweepResidualEvaluation::planarity()const{const auto& d=*data_;return d.generated?d.generated->view():SweepPlanarityView{d.planar.pointer,d.planeTolerance.pointer,d.planeCount.pointer};}
+int SweepResidualEvaluation::planeCapacity()const{return data_->planeCapacity;}
 SweepResidualView SweepResidualEvaluation::view()const{return data_->owner->view();}
-const Point* SweepResidualEvaluation::endpoint()const{return data_->endpoint.pointer;}
+const Point* SweepResidualEvaluation::endpoint()const{return data_->currentEndpoint;}
 SweepResidualStatus SweepResidualEvaluation::evaluate(const std::vector<Point>& endpoint){
     auto& d=*data_;if(endpoint.size()!=std::size_t(d.points))throw std::invalid_argument("sweep residual endpoint shape mismatch");
-    PinnedTransferQueue::Operation pending(d.transfer);d.endpoint.upload(endpoint,d.transfer);d.owner->evaluate(d.problem.pointer,d.stream);
+    PinnedTransferQueue::Operation pending(d.transfer);d.endpoint.upload(endpoint,d.transfer);d.currentEndpoint=d.endpoint.pointer;
+    bindResidualEndpoint<<<1,1,0,d.stream>>>(d.currentEndpoint,d.problem.pointer);d.owner->evaluate(d.problem.pointer,d.stream);
     SweepResidualStatus result;d.transfer.download(&result,d.owner->view().status,sizeof(result));d.transfer.finish();return result;
+}
+void SweepResidualEvaluation::beginLineSearch(){
+    auto& d=*data_;
+    if(d.points)checked(cudaMemcpyAsync(d.lineOrigin.pointer,d.currentEndpoint,std::size_t(d.points)*sizeof(Point),cudaMemcpyDeviceToDevice,d.stream));
+    seedSweepLineSearch<<<1,1,0,d.stream>>>(d.owner->view().status,d.lineMetric.pointer);checked(cudaGetLastError());
+}
+SweepLineSearchStatus SweepResidualEvaluation::lineSearch(const Point* correction,int maximumTrials,bool restart){
+    auto& d=*data_;PinnedTransferQueue::Operation pending(d.transfer);
+    if(restart){
+        bindSweepLineSearch<<<1,1,0,d.stream>>>(d.problem.pointer,d.lineOrigin.pointer,correction,d.lineMetric.pointer,maximumTrials,d.searchInput.pointer);
+        checked(cudaGetLastError());d.search->begin(d.searchInput.pointer,d.stream);
+    }else d.search->resume(d.stream);
+    d.currentEndpoint=d.search->view().points;
+    SweepLineSearchStatus result;d.transfer.download(&result,d.search->view().status,sizeof(result));d.transfer.finish();return result;
+}
+std::vector<Point> SweepResidualEvaluation::publishEndpoint(){
+    auto& d=*data_;PinnedTransferQueue::Operation pending(d.transfer);std::vector<Point> result(d.points);
+    d.transfer.download(result.data(),d.currentEndpoint,std::size_t(d.points)*sizeof(Point));d.transfer.finish();return result;
 }
 }}}

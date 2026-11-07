@@ -170,6 +170,7 @@ struct SweepLinearizationDeviceInput {
     const PlanarConstraint* planar=nullptr;
     double coefficient=0;
     bool active=true; // caller-owned transaction status, not a numerical policy
+    int planarCount=-1; // -1: initialized count; otherwise device-selected active prefix
 };
 struct SweepLinearizationDeviceView {
     const Polynomial* polynomials=nullptr;

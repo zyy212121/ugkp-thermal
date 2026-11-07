@@ -2,6 +2,7 @@
 #define UGKP_GPU_HARMONIC_SWEEP_CORRECTION_H
 #include "PolyhedralGeometry.H"
 #include "ExecutionGraph.H"
+#include "SweepPlanarity.H"
 namespace ugkp { namespace gpu { namespace geometry {
 struct HarmonicBoundaryMode {
     int point=-1,partner=-1;
@@ -26,10 +27,12 @@ struct HarmonicSweepDeviceProblem {
     const double* rhs=nullptr;
     int columns=0;
     double harmonicTolerance=0,rankTolerance=0,consistencyTolerance=0;
+    int planarCount=-1; // initialized count, or actual device-generated plane count
 };
 struct HarmonicSweepStatus {
     int error=0,mode=0,modeSolves=0,rank=0;
     int failedMode=-1,errorPoint=-1,linearInitialized=0,linearValid=0;
+    int rows=0;
     // 1: invalid input/mode; 2: harmonic solve; 3: minimum-norm solve.
 };
 struct HarmonicSweepDeviceView {
@@ -52,6 +55,7 @@ class HarmonicSweepCorrection {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:
     explicit HarmonicSweepCorrection(const HarmonicSweepDefinition&);
+    HarmonicSweepCorrection(const HarmonicSweepDefinition&,int planarCapacity);
     ~HarmonicSweepCorrection();
     HarmonicSweepDeviceView view()const;
     ExecutionGraphNode appendTo(ExecutionGraph,ExecutionGraphNode,
@@ -61,7 +65,8 @@ public:
     // geometry/modes/scales are retained from construction. This compatibility
     // call still forms an outer feedback loop; resident owners use appendTo.
     HarmonicSweepResult solveBorrowed(const Point* endpoint,const double* rhs,
-        const double* consistencyTolerance,double rankTolerance);
+        const double* consistencyTolerance,double rankTolerance,
+        SweepPlanarityView layout={},bool publishCorrection=true);
     HarmonicSweepResult solve(const std::vector<Point>& endpoint,const std::vector<double>& rhs,
         double rankTolerance,double consistencyTolerance);
 };
