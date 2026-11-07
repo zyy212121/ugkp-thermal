@@ -374,7 +374,7 @@ int finishCoupledGeometry(Backend* b){
     b->trial.gasMesh=b->endpointGas;b->trial.solidMesh=b->endpointSolid;b->trial.surface=b->endpointSurface;
     if(!b->storage.uploadGeometry(b->trial.gasMesh,false)||!b->storage.refreshView()){b->error=b->storage.error();return 1;}
     bindSharedGasStorage(*b);
-    if(!b->particles.refreshGeometry(b->storage,b->gasCaptureStream,b->error))return 1;
+    if(!b->particles.refreshTrackingGeometry(b->storage,b->gasCaptureStream,b->error))return 1;
     return 0;
 }
 int advanceCoupledParticles(Backend* b,Real dt){
@@ -790,7 +790,7 @@ static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& err
             error=b.storage.error();return false;
         }
         bindSharedGasStorage(b);
-        if(!b.particles.refreshGeometry(b.storage,b.gasCaptureStream,error)
+        if(!b.particles.refreshTrackingGeometry(b.storage,b.gasCaptureStream,error)
             ||!b.particles.result(ugkp::thermal::relocateMobileParticles(b.particles.owner(),b.gasCaptureStream),error))return false;
         if(!b.storage.observeDiagnostics()){error=b.storage.error();return false;}
         if(!b.particles.download(candidate,error))return false;
