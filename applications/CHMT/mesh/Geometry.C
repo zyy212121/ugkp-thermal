@@ -3,6 +3,7 @@
 #include "../../../common/gpu/LinearTrajectoryMath.H"
 #include "../../../common/gpu/GeometryBoundaryMath.H"
 #include "../../../common/gpu/StageGeometryMath.H"
+#include "../../../common/gpu/SurfaceGeometryMath.H"
 #ifdef CHMT_DEVICE_GEOMETRY
 #include "mesh/GeometryGpu.H"
 #endif
@@ -1541,16 +1542,16 @@ namespace chmt {
         surface.solidDistance.resize(ns);
         for (int i = 0; i<ns; ++i) {
             int f = reference.solidFace[i];
-            surface.oldArea[i] = mag(oldSolid.areaVectors[f]);
-            surface.area[i] = mag(solid.areaVectors[f]);
-            surface.centre[i] = solid.faceCentres[f];
-            surface.normal[i] = normalized(solid.areaVectors[f]);
-            surface.meshVelocity[i] = (solid.faceCentres[f]-oldSolid.faceCentres[f])/dt;
-            int g = reference.gasFace[i];
-            surface.solidDistance[i] = dot(solid.faceCentres[f]-solid.cellCentres[solid.owner[f]],
-                surface.normal[i]);
-            surface.gasDistance[i] = g >= 0?dot(gas.faceCentres[g]-gas.cellCentres[gas.owner[g]],
-                normalized(gas.areaVectors[g])):0;
+            const auto pack=[](Vec3 v){return ugkp::gpu::geometry::Point{v.x,v.y,v.z};};
+            const auto unpack=[](ugkp::gpu::geometry::Point v){return Vec3{v.x,v.y,v.z};};
+            const int g=reference.gasFace[i];
+            const auto value=ugkp::gpu::geometry::surfaceFaceGeometry(pack(oldSolid.areaVectors[f]),pack(oldSolid.faceCentres[f]),
+                pack(solid.areaVectors[f]),pack(solid.faceCentres[f]),pack(solid.cellCentres[solid.owner[f]]),g>=0,
+                g>=0?pack(gas.areaVectors[g]):ugkp::gpu::geometry::Point{},g>=0?pack(gas.faceCentres[g]):ugkp::gpu::geometry::Point{},
+                g>=0?pack(gas.cellCentres[gas.owner[g]]):ugkp::gpu::geometry::Point{},dt);
+            surface.oldArea[i]=value.oldArea;surface.area[i]=value.area;surface.centre[i]=unpack(value.centre);
+            surface.normal[i]=unpack(value.normal);surface.meshVelocity[i]=unpack(value.velocity);
+            surface.solidDistance[i]=value.solidDistance;surface.gasDistance[i]=value.gasDistance;
             if ((!(surface.solidDistance[i]>0) || (g >= 0 && !(surface.gasDistance[i]>0))))return errorAt(error,
                 "nonpositive interface normal distance", i);
         }

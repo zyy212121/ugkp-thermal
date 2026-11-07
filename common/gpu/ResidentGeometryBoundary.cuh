@@ -26,7 +26,8 @@ __global__ void geometryBounds(int count,const Point* points,GeometryBounds* par
     for(int half=64;half;half/=2){if(threadIdx.x<half)values[threadIdx.x]=mergeBounds(values[threadIdx.x],values[threadIdx.x+half]);__syncthreads();}
     if(!threadIdx.x)partial[blockIdx.x]=values[0];
 }
-__global__ void geometryScale(int count,const GeometryBounds* partial,GeometryBoundaryStatus* out){
+template<class Result>
+__global__ void geometryScale(int count,const GeometryBounds* partial,Result* out){
     __shared__ GeometryBounds values[128];GeometryBounds value=partial[0];
     for(int i=threadIdx.x;i<count;i+=blockDim.x)value=mergeBounds(value,partial[i]);
     values[threadIdx.x]=value;__syncthreads();
