@@ -115,6 +115,10 @@ struct DeviceStorage{
 __global__ void setTransportControls(double* interval,double* cfl){
  if(!blockIdx.x&&!threadIdx.x){*interval=.002;*cfl=.4;}
 }
+__global__ void setTransportBindings(MaterialMeshView* mesh,const SolidQ** state,const Real** sweeps,
+    MaterialMeshView meshValue,const SolidQ* stateValue,const Real* sweepValue){
+ if(!blockIdx.x&&!threadIdx.x){*mesh=meshValue;*state=stateValue;*sweeps=sweepValue;}
+}
 MaterialTransportDeviceResult deviceEvaluate(const HostMesh&m,const std::vector<SolidQ>&q,const PhysicsConfig&p,const std::vector<Real>&swept,MaterialTransportResult&out){
  DeviceStorage d;const int nc=q.size(),nf=m.owner.size();
  // Independently build a canonical physical-face incidence by explicit lists.
@@ -132,6 +136,8 @@ MaterialTransportDeviceResult deviceEvaluate(const HostMesh&m,const std::vector<
  const auto* deviceQ=d.upload(q);const auto* deviceP=d.one(p);const auto* deviceSweep=d.upload(swept);
  MaterialTransportDeviceResult host;
  const auto interval=d.one(-17.),cfl=d.one(-31.);
+ auto* meshBinding=d.one(MaterialMeshView{});auto* stateBinding=d.one(static_cast<const SolidQ*>(nullptr));
+ auto* sweepBinding=d.one(static_cast<const Real*>(nullptr));
  for(int repeat=0;repeat<2;++repeat){
   if(!repeat)cudaCheck(launchMaterialTransport(mesh,deviceQ,deviceP,deviceSweep,.002,.4,w,result,nullptr));
   else{
@@ -139,8 +145,10 @@ MaterialTransportDeviceResult deviceEvaluate(const HostMesh&m,const std::vector<
    cudaCheck(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));cudaCheck(cudaDeviceSynchronize());
    cudaCheck(cudaStreamBeginCapture(stream,cudaStreamCaptureModeGlobal));
    setTransportControls<<<1,1,0,stream>>>(interval,cfl);
-   cudaCheck(launchMaterialTransport(mesh,deviceQ,deviceP,deviceSweep,
-       ugkp::gpu::DeviceScalar<double>{interval},ugkp::gpu::DeviceScalar<double>{cfl},w,result,stream));
+   setTransportBindings<<<1,1,0,stream>>>(meshBinding,stateBinding,sweepBinding,mesh,deviceQ,deviceSweep);
+   cudaCheck(launchMaterialTransport(nc,nf,ugkp::gpu::DeviceValue<MaterialMeshView>{meshBinding},
+       ugkp::gpu::DeviceValue<const SolidQ*>{stateBinding},deviceP,ugkp::gpu::DeviceValue<const Real*>{sweepBinding},
+       ugkp::gpu::DeviceValue<double>{interval},ugkp::gpu::DeviceValue<double>{cfl},w,result,stream));
    cudaCheck(cudaStreamEndCapture(stream,&graph));std::size_t count=0;cudaCheck(cudaGraphGetNodes(graph,nullptr,&count));
    std::vector<cudaGraphNode_t> nodes(count);cudaCheck(cudaGraphGetNodes(graph,nodes.data(),&count));
    for(auto node:nodes){cudaGraphNodeType type;cudaCheck(cudaGraphNodeGetType(node,&type));require(type==cudaGraphNodeTypeKernel,"transport control graph has host or transfer node");}

@@ -19,6 +19,7 @@ struct Result {
     std::vector<double> radiation;
     std::vector<chmt::SolidQ> inventory;
     std::vector<int> inventoryStatus;
+    int bindingParity=0;
 };
 std::vector<Result> evaluate(const Test&);
 }

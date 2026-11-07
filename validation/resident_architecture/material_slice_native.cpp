@@ -61,24 +61,28 @@ int main(){try{
         IntervalHistory h;std::string error;CouplingInterval w;w.end=time.value();h.begin(w,error);
         for(int r=0;r<frames;++r)h.appendAccepted(record(t,r),error);h.setExternalRadiationEnergy(t.external);auto cursor=h.cursor();
         std::cerr<<"case faces="<<faces<<" mode="<<mode<<"\n";
-        const auto got=materialSliceProbe::evaluate(t);require(got.size()==t.targets.size(),"result size");
+        const auto got=materialSliceProbe::evaluate(t);require(got.size()==t.targets.size(),"result size");int parity=0;
         for(std::size_t i=0;i<got.size();++i){auto candidate=cursor;std::vector<ExchangePacket> packets;std::vector<Real> radiation;
             const bool ok=candidate.takeThroughLocal(native(t.targets[i]),packets,radiation,error);const auto& g=got[i];
             require(ok==(g.plan.error==ugkp::IntervalSliceError::None),"native/device acceptance differs");
             if(ok){require(packets.size()==g.packets.size()&&radiation.size()==g.radiation.size(),"packet/radiation count differs");
                 for(std::size_t j=0;j<packets.size();++j)packetEqual(packets[j],g.packets[j]);
                 for(std::size_t f=0;f<radiation.size();++f)equal(radiation[f],g.radiation[f]);
+                bool sourceOk=true;
                 for(int c=0;c<3;++c){SolidQ initial;for(int j=0;j<Nc;++j)initial.condensed[j]=1e25*(c+1);
                     for(int j=0;j<Ns;++j)initial.pore[j]=1e25*(j+1);initial.energy=1e30;
                     std::vector<int> indices;for(std::size_t j=0;j<packets.size();++j)if((requiredConsumers(packets[j].kind)&ConsumeSolid)&&packets[j].solidCell==c)indices.push_back(j);
                     SolidQ result;const auto code=applyMaterialPacketRow(initial,packets.data(),indices.data(),0,indices.size(),result);
+                    sourceOk=sourceOk&&code==MaterialInventoryCode::Success;
                     require(int(code)==g.inventoryStatus[c],"resident row consumption status differs");
                     if(code==MaterialInventoryCode::Success){for(int j=0;j<Nc;++j)equal(result.condensed[j],g.inventory[c].condensed[j]);for(int j=0;j<Ns;++j)equal(result.pore[j],g.inventory[c].pore[j]);equal(result.energy,g.inventory[c].energy);}
                 }
+                if(sourceOk&&t.accepted[i])parity^=1;
                 if(t.accepted[i])cursor=candidate;else ++rejected;
             }else ++failures;
+            require(parity==g.bindingParity,"accepted/candidate state, mesh or gas-change ownership differs");
             equal(windowDuration(cursor.localTime(),WindowTime{}),g.cursor.time.value());++slices;
         }++cases;
     }
-    std::cout<<"PASS "<<cases<<" histories, "<<slices<<" slices, "<<failures<<" native errors, "<<rejected<<" uncommitted candidates, "<<values<<" physical fields; maximum scaled difference "<<std::setprecision(17)<<maxError<<"; three device-only graph replays with stable CSR consumption\n";
+    std::cout<<"PASS "<<cases<<" histories, "<<slices<<" slices, "<<failures<<" native errors, "<<rejected<<" uncommitted candidates, "<<values<<" physical fields; maximum scaled difference "<<std::setprecision(17)<<maxError<<"; three device-only graph replays with stable CSR consumption and device state/geometry ownership\n";
 }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
