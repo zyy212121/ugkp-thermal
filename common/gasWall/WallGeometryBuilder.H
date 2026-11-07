@@ -2,6 +2,7 @@
 #include "WallResolutionDefaults.H"
 #include "WallModelTypes.H"
 #include "WallPolygonMath.H"
+#include "WallRayMatching.H"
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -324,16 +325,7 @@ template<class R> bool profileOwnerQuadrature(const std::vector<std::array<Vec<R
     }
     return true;
 }
-template<class R> bool rayTriangle(const Vec<R>&o,const Vec<R>&n,const Vec<R>&a,const Vec<R>&b,const Vec<R>&c,R&time){
-    const Vec<R> e1=sub(b,a),e2=sub(c,a),p=cross(n,e2);const R det=dot(e1,p);
-    const R eps=R(256)*std::numeric_limits<R>::epsilon();
-    // A finite shallow crossing still intersects the represented triangle.
-    if(det==R(0))return false;
-    const Vec<R> delta=sub(o,a),q=cross(delta,e1);
-    const R u=dot(delta,p)/det,v=dot(n,q)/det;
-    if(u<-eps||v<-eps||u+v>R(1)+eps)return false;
-    time=dot(e2,q)/det;return gasFinite(time);
-}
+
 
 // Cell-average polynomial moments about the matching point. Signed tetrahedra
 // integrate arbitrary closed polyhedra; a star seed is not required here.
@@ -444,76 +436,23 @@ template<class R> void compressProjectionQuadrature(WallGeometryDescriptor<R>&d,
 }
 
 template<class R> bool matching(const WallGeometryMesh<R>&m,const Context<R>&ctx,WallGeometryDescriptor<R>&d,WallStatus&s,const WallGeometryOptions<R>&opt,R scale){
-    (void)scale; // Distinct represented ray positions are not merged by mesh size.
-    R entry=0;int cell=d.ownerCell;
-
-
-
-    for(;;){
-        if(cell<0||(!m.gasCell.empty()&&!m.gasCell[cell]))return invalid(s,d.wallFace);
-        R exit=std::numeric_limits<R>::max();int exitFace=-1;bool ambiguous=false;
-        for(int f:ctx.cellFaces[cell])for(const auto&t:ctx.faces[f].triangles){
-            // Exit crossings follow the current cell's outward triangle winding.
-            // Ingress triangles (including the starting wall) cannot be exits,
-            // even when their computed ray position rounds just above entry.
-            const auto triangleNormal=cross(sub(m.points[t.b],m.points[t.a]),sub(m.points[t.c],m.points[t.a]));
-            const R crossing=dot(d.normal,triangleNormal)*(m.owner[f]==cell?R(1):R(-1));
-            if(crossing<=0)continue;
-            R hit=0;if(!rayTriangle(d.origin,d.normal,m.points[t.a],m.points[t.b],m.points[t.c],hit)||hit<=entry)continue;
-            if(hit<exit){exit=hit;exitFace=f;ambiguous=false;}
-            else if(hit==exit&&f!=exitFace){ambiguous=true;}
-        }
-        if(exitFace<0||ambiguous)return invalid(s,d.wallFace);
-        const R lower=std::max(entry,d.maximumOwnerDistance);
-        if(cell!=d.ownerCell&&!ctx.constrained[cell]&&exit>lower){
-            // Reconstructed gas closure ends at the owner/bulk interface. Extending
-            // to a bulk cell centre would model part of that cell while its
-            // unchanged macro source still covers its whole volume.
-            d.matchingDistance=opt.reconstructMatching?lower:lower+(exit-lower)/R(2);d.matchingPoint=add(d.origin,mul(d.normal,d.matchingDistance));
-            d.matchingDonorDistance=norm(sub(m.cellCentres[cell],d.matchingPoint));
-            if(opt.reconstructMatching)matchingReconstruction(m,ctx,cell,d);
-            else {d.matchingCells.push_back(cell);d.matchingWeights.push_back(R(1));}
-            return true;
-        }
-        if(m.physicalWall[exitFace])return invalid(s,exitFace);
-        int next=m.owner[exitFace]==cell?m.neighbour[exitFace]:m.owner[exitFace];
-        if(next<0)return invalid(s,exitFace);
-        entry=exit;cell=next;
-    }
+    (void)scale;
+    int failureFace=-1;const int cell=locateWallRayDonor<R>(m,ctx,d,opt.reconstructMatching,failureFace);
+    if(cell<0)return invalid(s,failureFace);
+    if(opt.reconstructMatching)matchingReconstruction(m,ctx,cell,d);
+    else {d.matchingCells.push_back(cell);d.matchingWeights.push_back(R(1));}
+    return true;
 }
 template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,int wallFace,WallGeometryDescriptor<R>&out,WallStatus&s,const WallGeometryOptions<R>&opt){
     if(wallFace<0||wallFace>=static_cast<int>(m.owner.size()))return invalid(s,wallFace);
     WallGeometryDescriptor<R>d;d.wallFace=wallFace;d.ownerCell=m.owner[wallFace];d.geometryVersion=m.geometryVersion;
     if(std::size_t(d.ownerCell)>=m.volumes.size()||(!m.gasCell.empty()&&!m.gasCell[d.ownerCell]))return invalid(s,wallFace);
-    d.origin=ctx.faces[wallFace].centre;d.normal=mul(ctx.faces[wallFace].normal,R(-1));
-    // Choose the construction from polygon topology before tracing a ray:
-    // convex polygons use their area centroid; concave polygons use an
-    // interior triangle. Neither an attempted ray nor a failed point test
-    // selects a second construction.
-    bool concave=false;
-    const int begin=m.faceOffsets[wallFace],end=m.faceOffsets[wallFace+1],count=end-begin;
-    for(int i=0;i<count;++i)
-        if(turn(m.points[m.facePoints[begin+i]],m.points[m.facePoints[begin+(i+1)%count]],
-            m.points[m.facePoints[begin+(i+2)%count]],ctx.faces[wallFace].normal)<0)concave=true;
-    if(concave){
-        R largest=0;
-        for(const auto&t:ctx.faces[wallFace].triangles){
-            const auto&a=m.points[t.a],&b=m.points[t.b],&c=m.points[t.c];
-            const R area=norm(cross(sub(b,a),sub(c,a)));
-            if(area>largest){largest=area;d.origin=add(a,mul(add(sub(b,a),sub(c,a)),R(1)/R(3)));}
-        }
-    }
+    initializeWallRayOrigin<R>(m,ctx,wallFace,d);
     // Signed volume/first-moment identities need only a local reference point.
     // A star-kernel point is required solely by the optional positive quadrature.
     Vec<R> seed=m.cellCentres[d.ownerCell];R scale=0;
     if(opt.constructQuadrature&&!cellSeed(m,ctx,d.ownerCell,seed,scale,opt.diagnostics))return invalid(s,wallFace);
-    for(int f:ctx.cellFaces[d.ownerCell])for(int k=m.faceOffsets[f];k<m.faceOffsets[f+1];++k){
-        R y=dot(sub(m.points[m.facePoints[k]],d.origin),d.normal);
-        d.maximumOwnerDistance=std::max(d.maximumOwnerDistance,y);
-    }
-    d.ownerDistance=dot(sub(m.cellCentres[d.ownerCell],d.origin),d.normal);
-    int axis=0;for(int k=1;k<3;++k)if(std::abs(d.normal[k])<std::abs(d.normal[axis]))axis=k;
-    Vec<R> coordinate{};coordinate[axis]=1;d.tangent1=cross(d.normal,coordinate);d.tangent1=mul(d.tangent1,R(1)/norm(d.tangent1));d.tangent2=cross(d.normal,d.tangent1);
+    initializeWallRayFrame<R>(m,ctx,d);
     if(!matching(m,ctx,d,s,opt,scale))return false;
     std::vector<R> profile;
     if(opt.constructQuadrature&&opt.profileNodes){
@@ -522,7 +461,8 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
     }
     R volume=0;Vec<R> moment{};
     std::vector<std::array<Vec<R>,4>> tetra;
-    for(int f:ctx.cellFaces[d.ownerCell])for(auto t:ctx.faces[f].triangles){
+    if(!opt.constructQuadrature)evaluateWallOwnerMoments<R>(m,ctx,d.ownerCell,seed,volume,moment);
+    else for(int f:ctx.cellFaces[d.ownerCell])for(auto t:ctx.faces[f].triangles){
         if(m.owner[f]!=d.ownerCell)std::swap(t.b,t.c);
         const auto&a=m.points[t.a],&b=m.points[t.b],&c=m.points[t.c];
         R v=dot(sub(a,seed),cross(sub(b,seed),sub(c,seed)))/R(6);
