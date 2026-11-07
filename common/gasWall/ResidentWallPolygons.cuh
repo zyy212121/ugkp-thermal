@@ -1,22 +1,8 @@
 #pragma once
 #include "WallPolygonMath.H"
+#include "WallGeometryTypes.H"
 #include "../gpu/PolyhedralGeometryMath.H"
 namespace ugkwp { namespace gaswall {
-struct WallPolygonTriangle {int a,b,c;};
-struct WallPolygonMetric {
-    std::array<double,3> normal{},centre{};double scale=0;
-    int triangles=0,valid=0;
-};
-struct WallPolygonTopology {
-    int faces=0;
-    const int *faceOffsets=nullptr,*facePoints=nullptr,*triangleOffsets=nullptr;
-};
-struct WallPolygonWorkspace {
-    // Ring entries share the immutable face CSR offsets. Triangle offsets
-    // reserve N-2 entries per face. All storage is allocated at initialization.
-    int* ring=nullptr;WallPolygonTriangle* triangles=nullptr;
-    WallPolygonMetric* metric=nullptr;int* firstInvalidFace=nullptr;
-};
 namespace residentWallPolygonDetail {
 template<class T> struct Range {
     T* data;std::size_t count;

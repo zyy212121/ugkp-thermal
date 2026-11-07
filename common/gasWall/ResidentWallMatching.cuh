@@ -2,19 +2,6 @@
 #include "ResidentWallPolygons.cuh"
 #include "WallRayMatching.H"
 namespace ugkwp { namespace gaswall {
-struct WallMatchingTopology {
-    WallPolygonTopology polygons{};int cells=0;
-    // Sorted by global face index within each cell, as in the native builder.
-    const int *cellOffsets=nullptr,*cellFaces=nullptr,*owner=nullptr,*neighbour=nullptr;
-    const unsigned char *physicalWall=nullptr,*constrained=nullptr,*gasCell=nullptr;
-};
-struct WallMatchingGeometry {
-    int wallFace=-1,ownerCell=-1,donor=-1,failureFace=-1;
-    std::array<double,3> origin{},normal{},tangent1{},tangent2{},matchingPoint{},firstMomentVector{};
-    double ownerDistance=0,matchingDistance=0,maximumOwnerDistance=0,matchingDonorDistance=0;
-    double volume=0,geometryVolume=0,firstMoment=0;
-};
-struct WallMatchingStatus {int firstInvalidRow=-1,invalidFace=-1;};
 namespace residentWallMatchingDetail {
 using residentWallPolygonDetail::Range;
 struct Cells {
