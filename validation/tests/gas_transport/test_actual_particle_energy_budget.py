@@ -19,6 +19,7 @@ from test_mixture_state import ROOT, HERE
 def particle_fixture():
     source = source_fixture()
     source = source.replace('struct DeviceState:State{', r'''
+#include "GpuFrozenParticleRelease.cuh"
 #include "wall/GpuFiniteWallContact.H"
 #include "wall/GpuColdWallSolidification.H"
 #include "wall/GpuCapillaryDetachment.H"
@@ -32,6 +33,7 @@ struct DeviceState:State{
  Real invRhoSolid=Real(.001),gasPrOneThird=0;
  int dragModelId=1,particleWallHeatTransferEnabled=0;
  double pContactDuration[1]={},pContactMaximumArea[1]={},pContactPeakFraction[1]={},pDepositionArea[1]={},pColdFrozenArea[1]={};
+ Real pColdNodeSpecificEnthalpy[8]={},pCold2DNodeSpecificEnthalpy[64]={};
  Time pContactAge[1]={};
  Real *particleWallEffusivityByFace=nullptr,particleWallDensityKgM3=0,particleWallSpecificHeatJkgK=0,particleWallConductivityWmK=0;
  Real particleWallReflectionHeatTransferEfficiency=0,particleWallContactAreaScale[3]={};

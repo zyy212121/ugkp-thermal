@@ -13,9 +13,8 @@ namespace ugkp { namespace gpu {
 // Bridge the native FV boundary contract to the shared CUDA sparse solver.
 // This bridge is also the independent assembly reference while cell/face
 // assembly is migrated. It never dispatches to a CPU linear solver.
-inline Foam::solverPerformance solveFoamScalarMatrix(
-    Foam::fvScalarMatrix& equation,const Foam::dictionary& dictionary,
-    SparseConjugateGradient& solver) {
+template<class Operation> inline auto withFoamScalarMatrix(
+    Foam::fvScalarMatrix& equation,Operation operation) {
     using namespace Foam;
     auto& temperature=const_cast<volScalarField&>(equation.psi());
     const int count=temperature.size();
@@ -70,6 +69,19 @@ inline Foam::solverPerformance solveFoamScalarMatrix(
         for(int c:context.cells)result[c]=output[c];
         (void)n;
     };
+    const lduMatrix& ldu=equation;
+    const auto& owner=equation.lduAddr().lowerAddr();const auto& neighbour=equation.lduAddr().upperAddr();
+    SparseLduView matrix{count,int(owner.size()),int(boundaryOwner.size()),owner.begin(),neighbour.begin(),
+        boundaryOwner.data(),boundaryNeighbour.data(),equation.diag().begin(),
+        owner.size()?ldu.upper().begin():nullptr,owner.size()?ldu.lower().begin():nullptr,equation.source().begin(),
+        boundaryDiagonal.data(),boundarySource.data(),haveJump?boundaryJump.data():nullptr};
+    return operation(matrix,communication);
+}
+inline Foam::solverPerformance solveFoamScalarMatrix(
+    Foam::fvScalarMatrix& equation,const Foam::dictionary& dictionary,SparseConjugateGradient& solver,
+    const SparseDeviceLduValues* resident=nullptr,double* deviceSolution=nullptr) {
+    using namespace Foam;
+    auto& temperature=const_cast<volScalarField&>(equation.psi());
     ConjugateGradientControls controls;
     controls.maximumIterations=dictionary.lookupOrDefault<label>("maxIter",1000);
     controls.minimumIterations=dictionary.lookupOrDefault<label>("minIter",0);
@@ -77,16 +89,14 @@ inline Foam::solverPerformance solveFoamScalarMatrix(
     controls.relativeTolerance=dictionary.lookupOrDefault<scalar>("relTol",0);
     controls.normalizationSmall=solverPerformance::small_;
     controls.singularSmall=solverPerformance::vsmall_;
-    const lduMatrix& ldu=equation;
-    const auto& owner=equation.lduAddr().lowerAddr();const auto& neighbour=equation.lduAddr().upperAddr();
-    SparseLduView matrix{count,int(owner.size()),int(boundaryOwner.size()),owner.begin(),neighbour.begin(),
-        boundaryOwner.data(),boundaryNeighbour.data(),equation.diag().begin(),
-        owner.size()?ldu.upper().begin():nullptr,owner.size()?ldu.lower().begin():nullptr,equation.source().begin(),
-        boundaryDiagonal.data(),boundarySource.data(),haveJump?boundaryJump.data():nullptr};
-    const auto report=solver.solveLdu(matrix,temperature.primitiveFieldRef().begin(),controls,communication);
+    const auto report=withFoamScalarMatrix(equation,[&](const SparseLduView& matrix,const SparseCommunication& communication){
+        return resident?solver.solveResidentLdu(matrix,*resident,deviceSolution,controls,communication)
+            :solver.solveLdu(matrix,temperature.primitiveFieldRef().begin(),controls,communication);
+    });
     solverPerformance performance("CudaDiagonalPCG",temperature.name(),report.initialResidual,
         report.finalResidual,report.iterations,report.converged,report.singular);
-    temperature.correctBoundaryConditions();Residuals<scalar>::append(temperature.mesh(),performance);
+    if(!resident)temperature.correctBoundaryConditions();
+    Residuals<scalar>::append(temperature.mesh(),performance);
     return performance;
 }
 }}

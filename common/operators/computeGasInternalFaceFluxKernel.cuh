@@ -1,11 +1,13 @@
 #pragma once
 #include "gasTransport/GasGeometryValidation.H"
+#include "gasTransport/GasResidentInterval.H"
 // One operator implementation; scalar/time adapters are compile-time only.
 template<bool IncludeTurbulence, class GasState>
-__global__ void computeGasInternalFaceFluxKernel(GasState* sp, const GPU_OPERATOR_TIME dt, const bool nativeRefinement=false)
+__global__ void computeGasInternalFaceFluxKernel(GasState* sp, const GPU_OPERATOR_TIME requestedDt, const bool nativeRefinement=false)
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
+    const GPU_OPERATOR_TIME dt=ugkwp::gasResidentStepDt(s,requestedDt);
     const int f = blockIdx.x*blockDim.x + threadIdx.x;
     if (f >= s.nFaces)
     {

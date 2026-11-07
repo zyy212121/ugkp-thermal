@@ -1,4 +1,5 @@
 #pragma once
+#include "GpuParticleExecutionContext.H"
 
 // Mobile-packing launch/error protocol. Requires GasHostPolicy::Time/Weight,
 // DeviceState and the mobile-packing kernels. The cooperative argument keeps
@@ -30,28 +31,28 @@ int applyMobilePackingProjection
 
     PACKING_LAUNCH
     (
-        (clearMobilePackingMomentsKernel<<<cellGrid, block>>>(s->deviceState)),
+        (clearMobilePackingMomentsKernel<<<cellGrid, block,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState)),
         "clear mobile packing moments launch"
     );
     PACKING_LAUNCH
     (
-        (clearMobilePackingActivityCountsKernel<<<1, 1>>>(s->deviceState)),
+        (clearMobilePackingActivityCountsKernel<<<1, 1,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState)),
         "clear mobile packing activity counts launch"
     );
     PACKING_LAUNCH
     (
-        (accumulateMobilePackingMomentsKernel<<<s->particleWorkGrid, s->particleBlockThreads>>>
+        (accumulateMobilePackingMomentsKernel<<<s->particleWorkGrid, s->particleBlockThreads,0,ugkp::gpu::particleRecordingStream(s)>>>
         (s->deviceState)),
         "accumulate mobile packing moments launch"
     );
     PACKING_LAUNCH
     (
-        (normalizeMobilePackingMomentsKernel<<<cellGrid, block>>>(s->deviceState)),
+        (normalizeMobilePackingMomentsKernel<<<cellGrid, block,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState)),
         "normalize mobile packing moments launch"
     );
     PACKING_LAUNCH
     (
-        (prepareMobilePackingProjectionKernel<<<cellGrid, block>>>
+        (prepareMobilePackingProjectionKernel<<<cellGrid, block,0,ugkp::gpu::particleRecordingStream(s)>>>
         (s->deviceState, dt)),
         "prepare mobile packing projection launch"
     );
@@ -71,7 +72,7 @@ int applyMobilePackingProjection
         dim3(block),
         cooperativeArguments,
         0,
-        nullptr
+        ugkp::gpu::particleRecordingStream(s)
     );
     if (err != cudaSuccess)
     {

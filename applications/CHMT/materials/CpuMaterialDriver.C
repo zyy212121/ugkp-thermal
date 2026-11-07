@@ -8,6 +8,7 @@
 #include "core/HostAuditReduction.H"
 #include "materials/MaterialTransport.H"
 #include "materials/MaterialDrive.H"
+#include "materials/MaterialRecessionMath.H"
 #include "materials/SurfacePacketAddressing.H"
 #include "ablation/CpuSurfaceInterface.H"
 #include "ablation/WallClosureHost.H"
@@ -78,16 +79,22 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
     const Foam::dimensionSet conductivityDimensions=Foam::dimPower/Foam::dimLength/Foam::dimTemperature;
     const Foam::dimensionedScalar deltaT("materialDt",Foam::dimTime,dt);
     Foam::dictionary solver;solver.add("solver",Foam::word("PCG"));solver.add("preconditioner",Foam::word("DIC"));solver.add("tolerance",Foam::scalar(1e-12));solver.add("relTol",Foam::scalar(0));solver.add("maxIter",Foam::label(2000));
+    ugkp::gpu::ImplicitDiffusion residentDiffusion;
+    const auto initialDeviceFields=residentMaterialConductionFields(thermal);
+    residentDiffusion.copySolution(initialDeviceFields.initialTemperature,n,initialDeviceFields.readyStream);
     ugkp::gpu::installGpuImplicitDiffusion();
     mesh.schemes().setFluxRequired(temperature.name());
+    bool residentConvergence=false;std::vector<int> externalBoundary;
+    forAll(mesh.boundary(),patch)forAll(mesh.boundary()[patch],f)externalBoundary.push_back(mesh.boundary()[patch].coupled()?0:1);
     for(int iteration=0;iteration<(controls.nonlinearMaxIterations);++iteration){Foam::scalarField previous(temperature.primitiveField());
         Foam::volScalarField capacity(Foam::IOobject("CHMTMaterialSecant",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,Foam::dimensionedScalar("zero",capacityDimensions,0),coefficientTypes);
         Foam::volScalarField conductivity(Foam::IOobject("CHMTMaterialKappa",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,Foam::dimensionedScalar("zero",conductivityDimensions,0),coefficientTypes);
         Foam::volScalarField source(Foam::IOobject("CHMTMaterialEnergySource",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,Foam::dimensionedScalar("zero",Foam::dimPower/Foam::dimVolume,0));
         std::vector<Real> trial(temperature.primitiveField().begin(),temperature.primitiveField().end());
         std::vector<MaterialThermalCoefficients> coefficients;
-        if(!evaluateResidentMaterialConduction(thermal,trial,dt,coefficients,error))return false;
-        for(std::size_t c=0;c<n;++c){
+        if(!evaluateResidentMaterialConduction(thermal,trial,dt,coefficients,error,
+            residentDiffusion.deviceSolution(),residentDiffusion.deviceValues().readyStream,!residentConvergence))return false;
+        if(!residentConvergence)for(std::size_t c=0;c<n;++c){
             const auto& value=coefficients[c];
             if(value.error){error=value.error==1?"nonpositive implicit caloric secant":"material mass/geometry incompatible during implicit solve";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
             capacity[c]=value.capacity;source[c]=value.source;conductivity[c]=value.conductivity;
@@ -96,30 +103,52 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
             if(value.rawPorosity!=value.porosity){Real phi=value.rawPorosity;clipPhysicsMassFraction(p,phi,3824,static_cast<int>(c));}
             next.solid[c].porosity=value.porosity;
         }
-        capacity.correctBoundaryConditions();conductivity.correctBoundaryConditions();temperature.correctBoundaryConditions();
-        Foam::surfaceScalarField faceK(Foam::fvc::interpolate(conductivity));
-        ugkp::gpu::interpolateThermalField(conductivity,mesh.weights(),faceK,true);
-        Foam::fvScalarMatrix equation(ugkp::gpu::gpuImplicitThermalEquation(faceK,temperature,capacity,source,dt));
+        if(!residentConvergence){capacity.correctBoundaryConditions();conductivity.correctBoundaryConditions();temperature.correctBoundaryConditions();}
+        Foam::surfaceScalarField faceK(ugkp::gpu::thermalHarmonicBoundaryValues(conductivity));
+        const auto deviceFields=residentMaterialConductionFields(thermal);
+        auto equation=ugkp::gpu::residentImplicitThermalEquation(residentDiffusion,sparse,faceK,temperature,capacity,source,dt,false,
+            deviceFields.capacity,deviceFields.source,deviceFields.readyStream,deviceFields.conductivity,true,&conductivity,&faceK);
+        residentConvergence=residentDiffusion.residentIteration();
+        if(residentConvergence&&equation.configureResidentLocalSolve(solver)){
+            // Native FV supplies the configured topology/policies once. The
+            // common sparse graph and material constitutive graph retain every
+            // nonlinear update and energy-based linear tolerance on device.
+            equation.residentBoundaryFlux();
+            if(!solveResidentMaterialConduction(thermal,residentDiffusion,sparse,externalBoundary,dt,controls,
+                Foam::solverPerformance::small_,Foam::solverPerformance::vsmall_,error)){
+                report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;
+            }
+            const std::vector<Real> unusedTemperature;
+            if(!finishResidentMaterialConduction(thermal,unusedTemperature,next.solid,error,numerical,
+                residentDiffusion.deviceTemperature(),residentDiffusion.deviceValues().readyStream)){
+                if(numerical)report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;
+            }
+            return true;
+        }
         // The FV residual is an integral power, whereas PCG normalises by
         // a matrix-dependent normFactor. Use a relative residual ratio: the
         // same normFactor cancels, so this is an energy budget in physical
         // units without copying OpenFOAM's boundary/parallel normalisation.
-        const Foam::tmp<Foam::scalarField> powerResidual=equation.residual();
-        Real powerScale=0;
-        for(const Real value:powerResidual())powerScale=maxValue(powerScale,absValue(value));
-        Foam::reduce(powerScale,Foam::maxOp<Real>(),Foam::Pstream::msgType(),mesh.comm());
-        Real scaledPower=0;
-        if(powerScale>0)for(const Real value:powerResidual())scaledPower+=absValue(value)/powerScale;
-        Foam::reduce(scaledPower,Foam::sumOp<Real>(),Foam::Pstream::msgType(),mesh.comm());
-        long double inventoryRoundoff=0;
+        long double initialEnergy=0,inventoryRoundoff=0;
         const Real epsilonScale=64*std::numeric_limits<Real>::epsilon();
-        for(std::size_t c=0;c<n;++c)inventoryRoundoff=hostAuditAdd(inventoryRoundoff,
-            static_cast<long double>(epsilonScale)*absValue(target[c])
-            +static_cast<long double>(epsilonScale)*absValue(caloric[c].energy<false>(temperature[c])));
-        inventoryRoundoff=hostAuditGlobalSum(inventoryRoundoff,mesh.comm());
-        // Keep the audit product wider than Real: finite cell residuals may
-        // have an L1 sum, or dt product, that cannot be represented in Real.
-        const long double initialEnergy=static_cast<long double>(dt)*powerScale*scaledPower;
+        if(residentConvergence){
+            const auto residual=equation.residentResidual();MaterialConductionAudit audit;
+            if(!auditResidentMaterialConduction(thermal,residentDiffusion.deviceSolution(),nullptr,residual,nullptr,externalBoundary,dt,
+                residentDiffusion.deviceValues().readyStream,audit,error))return false;
+            if(audit.coefficientError){error=audit.coefficientError==1?"nonpositive implicit caloric secant":"material mass/geometry incompatible during implicit solve";
+                report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
+            initialEnergy=hostAuditGlobalSum(audit.residualEnergy.extended(),mesh.comm());
+            inventoryRoundoff=hostAuditGlobalSum(static_cast<long double>(epsilonScale)*audit.inventory.extended(),mesh.comm());
+        }else{
+            const Foam::tmp<Foam::scalarField> powerResidual=equation.residual();Real powerScale=0;
+            for(const Real value:powerResidual())powerScale=maxValue(powerScale,absValue(value));
+            Foam::reduce(powerScale,Foam::maxOp<Real>(),Foam::Pstream::msgType(),mesh.comm());Real scaledPower=0;
+            if(powerScale>0)for(const Real value:powerResidual())scaledPower+=absValue(value)/powerScale;
+            Foam::reduce(scaledPower,Foam::sumOp<Real>(),Foam::Pstream::msgType(),mesh.comm());
+            for(std::size_t c=0;c<n;++c)inventoryRoundoff=hostAuditAdd(inventoryRoundoff,
+                static_cast<long double>(epsilonScale)*absValue(target[c])+static_cast<long double>(epsilonScale)*absValue(caloric[c].energy<false>(temperature[c])));
+            inventoryRoundoff=hostAuditGlobalSum(inventoryRoundoff,mesh.comm());initialEnergy=static_cast<long double>(dt)*powerScale*scaledPower;
+        }
         const long double linearEnergyTolerance=controls.energyAbsoluteTolerance
             +controls.energyRelativeTolerance*std::max(1.L,initialEnergy)+inventoryRoundoff;
         // Split the existing error budget between the linear equation and
@@ -128,11 +157,22 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
             ?static_cast<Real>(std::min(1.L,(linearEnergyTolerance/initialEnergy)/2)):1;
         solver.set("tolerance",std::numeric_limits<Foam::scalar>::min());
         solver.set("relTol",minValue(1,relativeLinearTarget));
-        const Foam::solverPerformance linear=ugkp::gpu::solveFoamScalarMatrix(equation,solver,sparse);
+        const Foam::solverPerformance linear=equation.solve(solver,!residentConvergence);
         if(!finite(linear.finalResidual())){error="nonfinite OpenFOAM implicit material sparse residual";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
         if(!linear.converged()||linear.singular())materialWarning(next,ugkp::diagnostics::Code::AccuracyResidual,"implicit material sparse residual",linear.finalResidual(),linear.initialResidual()*minValue(1,relativeLinearTarget));
-        temperature.correctBoundaryConditions();const Foam::tmp<Foam::surfaceScalarField> flux=equation.flux();Real change=0;long double boundary=0,stableChange=0,inventoryScale=0;
-        forAll(flux().boundaryField(),patch)if(!mesh.boundary()[patch].coupled())forAll(flux().boundaryField()[patch],f)boundary=hostAuditAdd(boundary,static_cast<long double>(dt)*flux().boundaryField()[patch][f]);
+        Real change=0;long double boundary=0,stableChange=0,inventoryScale=0;
+        if(residentConvergence){
+            residentDiffusion.refreshBoundaryTemperature();const auto flux=equation.residentBoundaryFlux();MaterialConductionAudit audit;
+            if(!auditResidentMaterialConduction(thermal,residentDiffusion.deviceSolution(),residentDiffusion.devicePreviousSolution(),nullptr,flux,
+                externalBoundary,dt,residentDiffusion.deviceValues().readyStream,audit,error))return false;
+            if(audit.invalidCell>=0){using namespace ugkp::diagnostics;
+                const Real T=audit.invalidTemperature;recordFatal(p.diagnostics,makeRecord(!finite(T)?Code::NonFinite:Code::NegativeTemperature,
+                    4103,4,0,EntityKind::Cell,audit.invalidCell,-1,T,0,0,Quantity::Temperature));
+                error="nonfinite or nonpositive implicit material temperature";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
+            boundary=audit.boundaryEnergy.extended();stableChange=audit.stableChange.extended();inventoryScale=audit.inventory.extended();change=audit.change;
+        }else{
+            temperature.correctBoundaryConditions();const auto flux=equation.boundaryFlux();
+        forAll(flux,patch)if(!mesh.boundary()[patch].coupled())forAll(flux[patch],f)boundary=hostAuditAdd(boundary,static_cast<long double>(dt)*flux[patch][f]);
         for(std::size_t c=0;c<n;++c){const Real T=temperature[c];if(!finite(T)||T<=0){
                 using namespace ugkp::diagnostics;
                 recordFatal(p.diagnostics,makeRecord(!finite(T)?Code::NonFinite:Code::NegativeTemperature,4103,4,0,EntityKind::Cell,c,-1,T,0,0,Quantity::Temperature));
@@ -140,6 +180,7 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
             stableChange=hostAuditAdd(stableChange,static_cast<long double>(caloric[c].secant<false>(T,anchor[c]))*(T-anchor[c])
                 -(static_cast<long double>(target[c])-caloric[c].energy<false>(anchor[c])));
             inventoryScale=hostAuditAdd(inventoryScale,static_cast<long double>(absValue(target[c]))+absValue(caloric[c].energy<false>(T)));change=maxValue(change,absValue(T-previous[c])/maxValue(1,maxValue(absValue(T),absValue(previous[c]))));}
+        }
         // All ranks must make the same nonlinear stopping decision.
         const long double globalChangeEnergy=hostAuditGlobalSum(stableChange,mesh.comm());
         boundary=hostAuditGlobalSum(boundary,mesh.comm());
@@ -162,8 +203,10 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
                 "implicit material iteration stagnated above energy goal",residual,energyTolerance);
             if(change>controls.nonlinearRelativeTolerance)materialWarning(next,ugkp::diagnostics::Code::AccuracyResidual,"implicit material nonlinear residual",change,controls.nonlinearRelativeTolerance);
             if(!finite(residual)||absValue(residual)>energyTolerance)materialWarning(next,ugkp::diagnostics::Code::ConservationResidual,"implicit material energy balance",residual,energyTolerance);
+            if(residentConvergence)equation.publishSolution();
             const std::vector<Real> endpoint(temperature.primitiveField().begin(),temperature.primitiveField().end());
-            if(!finishResidentMaterialConduction(thermal,endpoint,next.solid,error,numerical)){
+            if(!finishResidentMaterialConduction(thermal,endpoint,next.solid,error,numerical,
+                residentDiffusion.deviceSolution(),residentDiffusion.deviceValues().readyStream)){
                 if(numerical)report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
             return true;}
     }
@@ -478,22 +521,16 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     std::size_t match=0;
                     if(!packetAddressing.gasSolidIndex(state,packet,match,error))break;
                     const int donor=packet.solidCell;
-                    MaterialPrimitive material;
-                    if(!(recoverMaterial(state.solid[donor],state.solidMesh.volumes[donor],p,material))){
-                        lastFailure=MaterialFailureOrigin::GeometryNumerical;error="surface donor EOS failed";break;}
-                    for(int c=0;c<Nc;++c)if(packet.condensed[c]!=0){
-                        if((!finite(packet.condensed[c])||!finite(p.condensed[c].rho)||!(p.condensed[c].rho>0))){
-                            lastFailure=MaterialFailureOrigin::GeometryNumerical;error="invalid surface recession constituent";break;}
-                        target[match]-=packet.condensed[c]/p.condensed[c].rho/(1-material.porosity);
+                    const auto recession=addMaterialRecessionTarget(packet.condensed,state.solid[donor],state.solidMesh.volumes[donor],p,target[match]);
+                    if(recession!=MaterialRecessionError::None){
+                        lastFailure=MaterialFailureOrigin::GeometryNumerical;
+                        error=recession==MaterialRecessionError::DonorEos?"surface donor EOS failed":"invalid surface recession constituent";break;
                     }
-                    if(!error.empty())break;
                 }
                 if(!error.empty())break;
                 aux=evaluation.filmAux;
                 for(std::size_t f=0;f<aux.size();++f)if(state.surface.gasFace[f]>=0){const int sf=state.surface.solidFace[f];const Real as=sf>=0?mag(state.solidMesh.areaVectors[sf]):0;
-                    aux[f].solidNormalVelocity=as>0?target[f]/(as*dt):0;
-                    aux[f].normalVelocity=aux[f].solidNormalVelocity;
-                    aux[f].solidFront=state.filmAux[f].solidFront+dt*aux[f].solidNormalVelocity;aux[f].gasFront=state.filmAux[f].gasFront+dt*aux[f].normalVelocity;}
+                    aux[f]=materialRecessionFront(state.filmAux[f],target[f],as,dt);}
                 if(!error.empty())break;
                 // Local reaction/transport steps follow the already executed gas trajectory.
                 // Solve the material-volume correction and harmonic mesh only at

@@ -293,6 +293,7 @@ extern "C" const char* ugkwpGpuResidentStrictLastError();
 #include "../DiagnosticsHost.H"
 extern "C" int ugkwpGpuResidentStrictSetDiagnosticOperation(void*,std::uint64_t,std::int64_t,double);
 extern "C" void ugkwpGpuResidentStrictReleaseDiagnostics(void*,ugkp::diagnostics::Snapshot*);
+extern "C" ugkp::diagnostics::DeviceContext* ugkwpGpuResidentStrictDeviceDiagnostics(void*);
 extern "C" int ugkwpGpuResidentStrictCollectDiagnostics(void*,ugkp::diagnostics::Snapshot*);
 extern "C" void ugkwpGpuResidentStrictSetDiagnosticSink(void*,const ugkp::diagnostics::HostSink*);
 

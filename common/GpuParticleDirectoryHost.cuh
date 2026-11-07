@@ -2,13 +2,12 @@
 
 // One host protocol for full/split directory preparation and task readiness.
 #include "GpuParticleDirectoryHostPolicy.cuh"
+#include "GpuParticleDirectoryGraph.cuh"
 
-int binParticlesByCell(DeviceState* s, const int block, const bool survivorsOnly = false)
+int submitFullParticleDirectory(DeviceState* s,const int block,bool survivorsOnly,cudaStream_t stream)
 {
-    selectParticleDirectory(s, false);
-    s->csrTasksReady = 0;
     const int cellGrid = (s->nCells + 1 + block - 1)/block;
-    clearParticleCellBinsKernel<<<cellGrid, block>>>(s->deviceState);
+    clearParticleCellBinsKernel<<<cellGrid, block,0,stream>>>(s->deviceState);
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -19,18 +18,18 @@ int binParticlesByCell(DeviceState* s, const int block, const bool survivorsOnly
     if (s->csrWarpAggregatedBinning != 0)
     {
         if (survivorsOnly)
-            countParticlesByCellKernel<true, true><<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+            countParticlesByCellKernel<true, true><<<s->particleWorkGrid, s->particleBlockThreads,0,stream>>>(s->deviceState);
         else
             countParticlesByCellKernel<true>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+            <<<s->particleWorkGrid, s->particleBlockThreads,0,stream>>>(s->deviceState);
     }
     else
     {
         if (survivorsOnly)
-            countParticlesByCellKernel<false, true><<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+            countParticlesByCellKernel<false, true><<<s->particleWorkGrid, s->particleBlockThreads,0,stream>>>(s->deviceState);
         else
             countParticlesByCellKernel<false>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+            <<<s->particleWorkGrid, s->particleBlockThreads,0,stream>>>(s->deviceState);
     }
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -45,7 +44,7 @@ int binParticlesByCell(DeviceState* s, const int block, const bool survivorsOnly
         s->cellScanTempBytes,
         s->cellParticleCount,
         s->cellParticleOffset,
-        s->nCells + 1
+        s->nCells + 1,stream
     );
     if (err != cudaSuccess)
     {
@@ -53,7 +52,7 @@ int binParticlesByCell(DeviceState* s, const int block, const bool survivorsOnly
         return 1;
     }
 
-    initialiseParticleCellWritesKernel<<<cellGrid, block>>>(s->deviceState);
+    initialiseParticleCellWritesKernel<<<cellGrid, block,0,stream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -64,18 +63,18 @@ int binParticlesByCell(DeviceState* s, const int block, const bool survivorsOnly
     if (s->csrWarpAggregatedBinning != 0)
     {
         if (survivorsOnly)
-            scatterParticlesByCellKernel<true, true><<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+            scatterParticlesByCellKernel<true, true><<<s->particleWorkGrid, s->particleBlockThreads,0,stream>>>(s->deviceState);
         else
             scatterParticlesByCellKernel<true>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+            <<<s->particleWorkGrid, s->particleBlockThreads,0,stream>>>(s->deviceState);
     }
     else
     {
         if (survivorsOnly)
-            scatterParticlesByCellKernel<false, true><<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+            scatterParticlesByCellKernel<false, true><<<s->particleWorkGrid, s->particleBlockThreads,0,stream>>>(s->deviceState);
         else
             scatterParticlesByCellKernel<false>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+            <<<s->particleWorkGrid, s->particleBlockThreads,0,stream>>>(s->deviceState);
     }
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -83,17 +82,26 @@ int binParticlesByCell(DeviceState* s, const int block, const bool survivorsOnly
         setLastError("scatterParticlesByCellKernel launch", err);
         return 1;
     }
-    return prepareParticleDirectoryTasks(s, block, fullParticleDirectoryKind());
+    return 0;
+}
+
+int binParticlesByCell(DeviceState* s,const int block,const bool survivorsOnly=false)
+{
+    selectParticleDirectory(s,false);
+    s->csrTasksReady=0;
+    if(submitParticleDirectoryGraph(s,survivorsOnly?1:0,block,
+        [&](cudaStream_t stream){return submitFullParticleDirectory(s,block,survivorsOnly,stream);}))return 1;
+    return prepareParticleDirectoryTasks(s,block,fullParticleDirectoryKind());
 }
 
 #if GPU_DIRECTORY_HAS_BASE_ONLY
 int prepareSourceFreeSplitPreDirectory(DeviceState* s)
 {
-    cudaError_t err = cudaMemset
+    cudaError_t err = cudaMemsetAsync
     (
         s->cellParticleOffset,
         0,
-        static_cast<size_t>(s->nCells + 1)*sizeof(int)
+        static_cast<size_t>(s->nCells + 1)*sizeof(int),ugkp::gpu::particleRecordingStream(s)
     );
     if (err != cudaSuccess)
     {
@@ -106,6 +114,69 @@ int prepareSourceFreeSplitPreDirectory(DeviceState* s)
     return 0;
 }
 #endif
+
+int submitSplitParticleDirectory(DeviceState* s,const int block,cudaStream_t stream)
+{
+    const int cellGrid = (s->nCells + 1 + block - 1)/block;
+    if (clearParticleInjectionBins(s, cellGrid, block,stream) != 0) return 1;
+    cudaError_t err = cudaSuccess;
+
+    if (s->nBoundarySources == 0)
+    {
+        return 0;
+    }
+
+    if (s->csrWarpAggregatedBinning != 0)
+    {
+        countSplitPreInjectionParticlesKernel<true>
+            <<<s->particleWorkGrid, s->particleBlockThreads,0,stream>>>(s->deviceState);
+    }
+    else
+    {
+        countSplitPreInjectionParticlesKernel<false>
+            <<<s->particleWorkGrid, s->particleBlockThreads,0,stream>>>(s->deviceState);
+    }
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        setLastError("count split-Dpre injection particles launch", err);
+        return 1;
+    }
+
+    err = cub::DeviceScan::ExclusiveSum
+    (
+        s->cellScanTempStorage,
+        s->cellScanTempBytes,
+        s->cellParticleCount,
+        s->cellParticleOffset,
+        s->nCells + 1,stream
+    );
+    if (err != cudaSuccess)
+    {
+        setLastError("split-Dpre injection count exclusive scan", err);
+        return 1;
+    }
+
+    if (initialiseParticleInjectionWrites(s, cellGrid, block,stream) != 0) return 1;
+    if (s->csrWarpAggregatedBinning != 0)
+    {
+        scatterSplitPreInjectionParticlesKernel<true>
+            <<<s->particleWorkGrid, s->particleBlockThreads,0,stream>>>(s->deviceState);
+    }
+    else
+    {
+        scatterSplitPreInjectionParticlesKernel<false>
+            <<<s->particleWorkGrid, s->particleBlockThreads,0,stream>>>(s->deviceState);
+    }
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        setLastError("scatter split-Dpre injection particles launch", err);
+        return 1;
+    }
+
+    return 0;
+}
 
 int preparePreTransportParticleDirectory(DeviceState* s, const int block)
 {
@@ -126,65 +197,9 @@ int preparePreTransportParticleDirectory(DeviceState* s, const int block)
     selectParticleDirectory(s, true);
     s->csrTasksReady = 0;
 
-    const int cellGrid = (s->nCells + 1 + block - 1)/block;
-    if (clearParticleInjectionBins(s, cellGrid, block) != 0) return 1;
-    cudaError_t err = cudaSuccess;
-
-    if (s->nBoundarySources == 0)
-    {
-        return prepareParticleDirectoryTasks(s, block, splitParticleDirectoryKind());
-    }
-
-    if (s->csrWarpAggregatedBinning != 0)
-    {
-        countSplitPreInjectionParticlesKernel<true>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-    }
-    else
-    {
-        countSplitPreInjectionParticlesKernel<false>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-    }
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("count split-Dpre injection particles launch", err);
-        return 1;
-    }
-
-    err = cub::DeviceScan::ExclusiveSum
-    (
-        s->cellScanTempStorage,
-        s->cellScanTempBytes,
-        s->cellParticleCount,
-        s->cellParticleOffset,
-        s->nCells + 1
-    );
-    if (err != cudaSuccess)
-    {
-        setLastError("split-Dpre injection count exclusive scan", err);
-        return 1;
-    }
-
-    if (initialiseParticleInjectionWrites(s, cellGrid, block) != 0) return 1;
-    if (s->csrWarpAggregatedBinning != 0)
-    {
-        scatterSplitPreInjectionParticlesKernel<true>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-    }
-    else
-    {
-        scatterSplitPreInjectionParticlesKernel<false>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-    }
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("scatter split-Dpre injection particles launch", err);
-        return 1;
-    }
-
-    return prepareParticleDirectoryTasks(s, block, splitParticleDirectoryKind());
+    if(submitParticleDirectoryGraph(s,2,block,
+        [&](cudaStream_t stream){return submitSplitParticleDirectory(s,block,stream);}))return 1;
+    return prepareParticleDirectoryTasks(s,block,splitParticleDirectoryKind());
 }
 
 // Preparation, directory classification and automatic task readiness are one

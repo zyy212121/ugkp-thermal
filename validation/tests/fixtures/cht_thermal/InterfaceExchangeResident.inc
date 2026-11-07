@@ -7,8 +7,16 @@
  void configureInterfaceExchange(const labelList& sizes,const List<labelList>& destination,const scalarField& area)
  {interfaceSolidSizes=sizes;interfaceDestinations=destination;interfaceAreas=area;}
  void previewInterfaceExchange(scalar dt,const scalarField& radiation,List<scalarField>& solid,
-     List<scalarField>& gasFlux,List<scalarField>& depositedFlux,List<scalarField>& reflectedFlux)const
+     List<scalarField>& gasFlux,List<scalarField>& depositedFlux,List<scalarField>& reflectedFlux,
+     const ugkp::gpu::RadiationMaterialDeviceView* residentRadiation=nullptr,
+     ugkp::gpu::ThermalInterfaceEnergyDeviceView* residentSolidEnergy=nullptr)const
  {
+  scalarField inputRadiation(radiation);
+  if(residentRadiation){
+   scalarField boundary(residentRadiation->boundaryFaces);
+   if(boundary.size())ResidentRadiationFixture::check(cudaMemcpy(boundary.begin(),residentRadiation->boundaryEnergy,boundary.size()*sizeof(double),cudaMemcpyDeviceToHost));
+   inputRadiation.setSize(faces.size());forAll(faces,i)inputRadiation[i]=boundary[faces[i]-mesh_.nInternalFaces()];
+  }
   const label pairs=interfaceSolidSizes.size();
   solid.setSize(pairs);gasFlux.setSize(pairs);depositedFlux.setSize(pairs);reflectedFlux.setSize(pairs);
   label offset=0;
@@ -20,7 +28,7 @@
     const label slot=offset+i,face=faces[slot];
     const scalar d=particleWallHeatTransferEnabled()?deposited[face]:0;
     const scalar r=particleWallHeatTransferEnabled()?reflected[face]:0;
-    scalar combined=gas[face];if(!radiation.empty())combined+=radiation[slot];
+    scalar combined=gas[face];if(!inputRadiation.empty())combined+=inputRadiation[slot];
     if(particleWallHeatTransferEnabled())combined+=d+r;
     solid[pairI][interfaceDestinations[pairI][i]]+=combined;
     const scalar denominator=interfaceAreas[slot]*dt;
@@ -29,4 +37,5 @@
    }
    offset+=size;
   }
+  if(residentSolidEnergy)*residentSolidEnergy=radiationDevice_.stageInterfaceEnergy(solid);
  }

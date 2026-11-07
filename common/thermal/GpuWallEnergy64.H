@@ -1,6 +1,9 @@
 #pragma once
 #include <cuda_runtime.h>
 #include <cstddef>
+#include "../gasTransport/GasResidentInterval.H"
+#include "../gpu/RadiationResidentView.H"
+#include "../gpu/ThermalInterfaceDeviceView.H"
 
 struct GpuWallEnergyState
 {
@@ -24,6 +27,9 @@ struct GpuWallEnergyState
     double* interfaceRadiationEnergy = nullptr;
     double* interfaceCombinedEnergy = nullptr;
     double* interfacePreview = nullptr;
+    double* interfaceInterval = nullptr;
+    double* interfaceEmissivityByFace = nullptr;
+    cudaEvent_t interfaceInputReady = nullptr;
 
     int* retiredFaceIds = nullptr;
     double* particleWallDepositedEnergy = nullptr;
@@ -33,5 +39,6 @@ struct GpuWallEnergyState
 extern "C" int ugkpInvalidateGasWallEnergyGraph(void*);
 extern "C" int ugkpPrepareParticleWallEnergyRestore(void*);
 
-int ugkpAccumulateGasWallEnergy64(GpuWallEnergyState*, double, cudaStream_t);
+int ugkpAccumulateGasWallEnergy64(GpuWallEnergyState*, double, cudaStream_t,
+    const ugkwp::GasResidentInterval* interval=nullptr);
 void ugkpReleaseGasWallEnergy64(GpuWallEnergyState*);

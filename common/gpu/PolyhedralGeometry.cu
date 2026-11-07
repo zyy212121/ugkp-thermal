@@ -1,10 +1,21 @@
 #include "PolyhedralGeometry.H"
+#include "ResidentStageGeometry.H"
+#include "StageGeometryMath.H"
+#include "ResidentSurfaceGeometry.H"
+#include "ResidentSurfaceSeams.H"
+#include "ResidentWallMatching.H"
+#include "../gasWall/ResidentWallMatching.cuh"
+#include "SurfaceGeometryMath.H"
+#include "../Diagnostics.H"
 #include "ExtendedGeometryMath.H"
 #include "PinnedTransferQueue.cuh"
+#include "DeviceValue.cuh"
 #include <cuda_runtime.h>
+#include <cub/device/device_merge_sort.cuh>
 #include <cooperative_groups.h>
 #include <algorithm>
 #include <climits>
+#include <limits>
 #include <cstring>
 #include <list>
 #include <unordered_map>
@@ -36,9 +47,12 @@ __global__ void surfaceEdgesKernel(int count,TopologyView t,const Point* old,con
     bool empty,int segments,double scale,EdgeResult* out){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)out[i]=surfaceEdge(t,old,end,edges[i],empty,segments,scale);
 }
-__global__ void boundaryMotionKernel(int count,const Point* areas,const BoundaryMotionFace* faces,
-    const int* offsets,const int* incident,const int* sideOffsets,const int* sides,Point* normals,double dt,BoundaryMotionPoint* out){
+template<class Input>
+__global__ void boundaryMotionKernel(int count,Input input,
+    const int* offsets,const int* incident,const int* sideOffsets,const int* sides,Point* normals,BoundaryMotionPoint* out){
     const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p>=count)return;
+    const BoundaryMotionDeviceInput operation=input;const Point* areas=operation.area;
+    const BoundaryMotionFace* faces=operation.faces;const double dt=operation.interval;
     BoundaryMotionPoint r;Point support;
     for(int k=offsets[p];k<offsets[p+1];++k){const auto face=faces[incident[k]];const Point av=areas[face.face],normal=normalized(av);
         const double area=magnitude(av);const Point delta=normal*(face.offset-face.previousOffset)+face.supportVelocity*dt;
@@ -56,33 +70,41 @@ __global__ void boundaryMotionKernel(int count,const Point* areas,const Boundary
     r.displacement=recession+support;r.direction=normalized(r.direction);out[p]=r;
 }
 constexpr double maximumDistance=std::numeric_limits<double>::max();
-// A coordinate-wise lower bound needs no geometric tolerance. Round the
-// subtraction towards zero; triangle evaluation retains extended arithmetic.
-// Do not prune extreme/nonfinite inputs: their existing diagnostic is consumed.
-__device__ double wallBoxLowerBound(Point p,TopologyView t,const Point* points,int face){
+// One current-coordinate box per wall-list entry, shared by every query cell.
+// Rebuilt on the same stream after every point upload; no geometry tolerance or
+// persistent coordinate identity is needed to invalidate this scratch storage.
+struct WallBox {Point lo,hi;bool safe=false;};
+__global__ void wallBoxesKernel(int count,TopologyView t,const Point* points,const int* walls,WallBox* boxes){
+    const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=count)return;
+    WallBox box;const int face=walls[i],begin=t.faceOffsets[face],end=t.faceOffsets[face+1];
+    if(end-begin<3){boxes[i]=box;return;}
+    box.lo=points[t.facePoints[begin]];box.hi=box.lo;
     const double safe=maximumDistance/8;
-    if(!finite(p)||fabs(p.x)>safe||fabs(p.y)>safe||fabs(p.z)>safe)return -1;
-    const int begin=t.faceOffsets[face],end=t.faceOffsets[face+1];
-    if(end-begin<3)return -1;
-    Point lo=points[t.facePoints[begin]],hi=lo;
     for(int j=begin;j<end;++j){const auto q=points[t.facePoints[j]];
-        if(!finite(q)||fabs(q.x)>safe||fabs(q.y)>safe||fabs(q.z)>safe)return -1;
-        lo.x=fmin(lo.x,q.x);lo.y=fmin(lo.y,q.y);lo.z=fmin(lo.z,q.z);
-        hi.x=fmax(hi.x,q.x);hi.y=fmax(hi.y,q.y);hi.z=fmax(hi.z,q.z);
+        if(!finite(q)||fabs(q.x)>safe||fabs(q.y)>safe||fabs(q.z)>safe){boxes[i]=box;return;}
+        box.lo.x=fmin(box.lo.x,q.x);box.lo.y=fmin(box.lo.y,q.y);box.lo.z=fmin(box.lo.z,q.z);
+        box.hi.x=fmax(box.hi.x,q.x);box.hi.y=fmax(box.hi.y,q.y);box.hi.z=fmax(box.hi.z,q.z);
     }
-    const double x=fmax(0.,fmax(lo.x-p.x,p.x-hi.x));
-    const double y=fmax(0.,fmax(lo.y-p.y,p.y-hi.y));
-    const double z=fmax(0.,fmax(lo.z-p.z,p.z-hi.z));
+    box.safe=true;boxes[i]=box;
+}
+// Round the coordinate-wise lower bound towards zero. Extreme/nonfinite input
+// still visits the original extended triangle calculation and its diagnostic.
+__device__ double wallBoxLowerBound(Point p,const WallBox& box){
+    const double safe=maximumDistance/8;
+    if(!box.safe||!finite(p)||fabs(p.x)>safe||fabs(p.y)>safe||fabs(p.z)>safe)return -1;
+    const double x=fmax(0.,fmax(box.lo.x-p.x,p.x-box.hi.x));
+    const double y=fmax(0.,fmax(box.lo.y-p.y,p.y-box.hi.y));
+    const double z=fmax(0.,fmax(box.lo.z-p.z,p.z-box.hi.z));
     return nextafter(fmax(x,fmax(y,z)),0.);
 }
 __global__ void wallDistanceKernel(int count,TopologyView t,const Point* points,const Point* centres,
-    int wallCount,const int* walls,WallDistanceResult* output){
+    int wallCount,const int* walls,const WallBox* boxes,WallDistanceResult* output){
     const int cell=blockIdx.x;if(cell>=count)return;
     __shared__ double distance[128];__shared__ int invalid[128];
     // Pick a seed by bounding-box distance, not a mesh- or hardware-tuned
     // cutoff. The seed's actual triangle distance is a valid upper bound.
     double lower=maximumDistance;int seed=INT_MAX;
-    for(int i=threadIdx.x;i<wallCount;i+=blockDim.x){const double bound=wallBoxLowerBound(centres[cell],t,points,walls[i]);
+    for(int i=threadIdx.x;i<wallCount;i+=blockDim.x){const double bound=wallBoxLowerBound(centres[cell],boxes[i]);
         if(bound>=0&&bound<lower){lower=bound;seed=i;}}
     distance[threadIdx.x]=lower;invalid[threadIdx.x]=seed;__syncthreads();
     for(int half=64;half;half/=2){if(threadIdx.x<half&&
@@ -97,7 +119,7 @@ __global__ void wallDistanceKernel(int count,TopologyView t,const Point* points,
     }
     __syncthreads();double best=distance[0];__syncthreads();int firstInvalid=INT_MAX;
     for(int i=threadIdx.x;i<wallCount;i+=blockDim.x){const int face=walls[i],begin=t.faceOffsets[face],end=t.faceOffsets[face+1];
-        const double bound=wallBoxLowerBound(centres[cell],t,points,face);
+        const double bound=wallBoxLowerBound(centres[cell],boxes[i]);
         if(bound>nextafter(best,maximumDistance))continue;
         for(int j=begin+1;j+1<end;++j){const double triangle=extended::triangleDistance(centres[cell],points[t.facePoints[begin]],
             points[t.facePoints[j]],points[t.facePoints[j+1]]);
@@ -112,23 +134,29 @@ __global__ void wallDistanceKernel(int count,TopologyView t,const Point* points,
         if(invalid[0]!=INT_MAX)result.invalidFace=walls[invalid[0]];output[cell]=result;}
 }
 struct MotionControl {double residual=0,tolerance=0;int iterations=0,maximumIterations=0,active=0,errorPoint=INT_MAX;};
-__global__ void weightsKernel(int count,const Point* points,const int* offsets,const int* neighbours,const unsigned char* fixed,
+template<class Points>
+__global__ void weightsKernel(int count,Points inputPoints,const int* offsets,const int* neighbours,const unsigned char* fixed,
     double* weights,double* total,int* errors){
+    const Point* points=inputPoints;
     const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p>=count)return;
     total[p]=0;errors[p]=0;if(fixed[p])return;
     for(int k=offsets[p];k<offsets[p+1];++k){const double length=magnitude(points[p]-points[neighbours[k]]);
         if(!(length>0)){errors[p]=1;return;}weights[k]=1/length;total[p]+=weights[k];}
 }
-__global__ void initializeMotion(int count,const Point* boundary,const unsigned char* fixed,Point* displacement,
-    const int* preErrors,int* errors,MotionControl* control,double tolerance,int maximumIterations){
+template<class Boundary,class Tolerance>
+__global__ void initializeMotion(int count,Boundary inputBoundary,const unsigned char* fixed,Point* displacement,
+    const int* preErrors,int* errors,MotionControl* control,double tolerance,int maximumIterations,Tolerance inputTolerance){
+    const Point* boundary=inputBoundary;const double* deviceTolerance=inputTolerance;
     const int p=blockIdx.x*blockDim.x+threadIdx.x;
-    if(!p){*control={};control->tolerance=tolerance;control->maximumIterations=maximumIterations;control->active=count>0&&maximumIterations>0;}
+    if(!p){*control={};control->tolerance=deviceTolerance?*deviceTolerance:tolerance;control->maximumIterations=maximumIterations;control->active=count>0&&maximumIterations>0;}
     if(p<count){displacement[p]=fixed[p]?boundary[p]:Point{};errors[p]=preErrors[p];}
 }
 // A cooperative grid owns the complete recurrence. Every iteration retains
 // the Jacobi barrier and original ordered neighbour sum, without host polling.
+template<class Penalties>
 __global__ void solveMotion(int count,const int* offsets,const int* neighbours,const double* weights,const double* total,
-    const unsigned char* fixed,const MotionPenalty* penalties,Point* displacement,Point* next,double* partial,int* errors,MotionControl* control){
+    const unsigned char* fixed,Penalties inputPenalties,Point* displacement,Point* next,double* partial,int* errors,MotionControl* control){
+    const MotionPenalty* penalties=inputPenalties;
     auto grid=cooperative_groups::this_grid();const int index=blockIdx.x*blockDim.x+threadIdx.x,stride=blockDim.x*gridDim.x;
     __shared__ double maxima[256];
     while(control->active){
@@ -159,15 +187,170 @@ template<class Kernel> int cooperativeBlocks(Kernel kernel,int requested,int thr
     checked(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&perSm,kernel,threads,0));
     return std::max(1,std::min(requested,perSm*sms));
 }
-__global__ void publishMotion(int count,const Point* points,const Point* displacement,const Point* boundary,
-    const unsigned char* fixed,bool represented,Point* result){
-    const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p>=count)return;
-    result[p]=points[p]+displacement[p];
-    if(represented){result[p]=result[p]-points[p];if(fixed[p])result[p]=boundary[p];}
+template<class Points,class Boundary>
+__global__ void publishMotion(int count,Points inputPoints,const Point* displacement,Boundary inputBoundary,
+    const unsigned char* fixed,bool represented,Point* result,const MotionControl* control){
+    const Point* points=inputPoints;const Point* boundary=inputBoundary;
+    const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p>=count||control->errorPoint!=INT_MAX)return;
+    // Borrowed inputs may refer to the previous result buffer. Capture this
+    // point before publication so represented displacement remains unchanged.
+    const Point original=points[p];const Point prescribed=represented&&fixed[p]?boundary[p]:Point{};
+    result[p]=original+displacement[p];
+    if(represented){result[p]=result[p]-original;if(fixed[p])result[p]=prescribed;}
+ }
+__global__ void publishMotionStatus(const MotionControl* control,const int* errors,HarmonicDeviceStatus* output){
+    if(blockIdx.x||threadIdx.x)return;
+    HarmonicDeviceStatus result;result.residual=control->residual;result.iterations=control->iterations;
+    if(control->errorPoint!=INT_MAX){result.errorPoint=control->errorPoint;result.errorKind=errors[result.errorPoint];}
+    *output=result;
 }
 }
+struct ResidentPolyhedralGeometry::Implementation {
+    int faces=0,cells=0,wallCount=0;Topology cached;std::vector<int> cachedWalls;
+    Array<int> faceOffsets,facePoints,cellOffsets,cellFaces,cellSigns,vertexOffsets,vertices,walls;
+    Array<FaceResult> face;
+    Array<CellResult> cell;
+    Array<Point> area,centre;
+    Array<WallDistanceResult> distance;
+    Array<WallBox> boxes;
+    Array<SweepResult> sweptFaces;
+    TopologyView topology() const {
+        return {faceOffsets.pointer,facePoints.pointer,cellOffsets.pointer,cellFaces.pointer,
+            cellSigns.pointer,vertexOffsets.pointer,vertices.pointer};
+    }
+};
+ResidentPolyhedralGeometry::ResidentPolyhedralGeometry(const Topology& topology,const std::vector<int>& walls)
+    :data_(new Implementation){configure(topology,walls,nullptr);}
+void ResidentPolyhedralGeometry::configure(const Topology& topology,const std::vector<int>& walls,PinnedTransferQueue* transfer){
+    auto& d=*data_;
+    d.faces=topology.faceOffsets.empty()?0:int(topology.faceOffsets.size()-1);
+    d.cells=topology.cellOffsets.empty()?0:int(topology.cellOffsets.size()-1);
+    d.wallCount=int(walls.size());
+    // Construction completes initialization before any borrowed stream uses
+    // the view. Only the legacy publication adapter may reconfigure it, on
+    // its own transfer queue between completed calls; arrays retain capacity.
+    const auto upload=[&](auto& target,const auto& values){
+        if(transfer){target.upload(values,*transfer);return;}
+        target.reserve(values.size());
+        if(!values.empty())checked(cudaMemcpy(target.pointer,values.data(),
+            values.size()*sizeof(values[0]),cudaMemcpyHostToDevice));
+    };
+#define FIELD(name) if(d.cached.name!=topology.name){upload(d.name,topology.name);d.cached.name=topology.name;}
+    FIELD(faceOffsets);FIELD(facePoints);FIELD(cellOffsets);FIELD(cellFaces);
+    FIELD(cellSigns);FIELD(vertexOffsets);FIELD(vertices);
+#undef FIELD
+    if(d.cachedWalls!=walls){upload(d.walls,walls);d.cachedWalls=walls;}
+    d.face.reserve(d.faces);d.area.reserve(d.faces);d.sweptFaces.reserve(d.faces);
+    d.cell.reserve(d.cells);d.centre.reserve(d.cells);d.distance.reserve(d.cells);d.boxes.reserve(d.wallCount);
+    // Pageable default-stream uploads may return before DMA completion. The
+    // initialized view is immediately borrowable by nonblocking streams.
+    if(!transfer)checked(cudaStreamSynchronize(nullptr));
+}
+ResidentPolyhedralGeometry::~ResidentPolyhedralGeometry()=default;
+PolyhedralGeometryDeviceView ResidentPolyhedralGeometry::view() const {
+    const auto& d=*data_;
+    return {d.faces,d.cells,d.topology(),d.face.pointer,d.cell.pointer,d.area.pointer,
+        d.centre.pointer,d.distance.pointer,d.sweptFaces.pointer};
+}
+void ResidentPolyhedralGeometry::rebuild(const Point* points,void* streamHandle){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(streamHandle);const auto t=d.topology();
+    if(d.faces){
+        rebuildFacesKernel<<<(d.faces+127)/128,128,0,stream>>>(d.faces,t,points,d.face.pointer,d.area.pointer);
+        checked(cudaGetLastError());
+    }
+    if(d.cells){
+        if(d.wallCount){
+            wallBoxesKernel<<<(d.wallCount+127)/128,128,0,stream>>>(d.wallCount,t,points,d.walls.pointer,d.boxes.pointer);
+            checked(cudaGetLastError());
+        }
+        rebuildCellsKernel<<<(d.cells+127)/128,128,0,stream>>>(d.cells,t,points,d.area.pointer,d.cell.pointer,d.centre.pointer);
+        checked(cudaGetLastError());
+        wallDistanceKernel<<<d.cells,128,0,stream>>>(d.cells,t,points,d.centre.pointer,d.wallCount,
+            d.walls.pointer,d.boxes.pointer,d.distance.pointer);
+        checked(cudaGetLastError());
+    }
+}
+void ResidentPolyhedralGeometry::sweep(const Point* old,const Point* endpoint,void* streamHandle){
+    auto& d=*data_;
+    if(d.faces){
+        sweepKernel<<<(d.faces+127)/128,128,0,static_cast<cudaStream_t>(streamHandle)>>>(
+            d.faces,d.topology(),old,endpoint,d.sweptFaces.pointer);
+        checked(cudaGetLastError());
+    }
+}
+namespace {
+__global__ void resetTrajectory(TrajectoryStatus* status,int cells){
+    if(!threadIdx.x&&!blockIdx.x){*status={};status->firstFailure=cells;}
+}
+__global__ void movingTrajectory(int count,const Point* old,const Point* endpoint,TrajectoryStatus* status){
+    const int p=blockIdx.x*blockDim.x+threadIdx.x;
+    if(p<count&&magnitude(endpoint[p]-old[p])>0)atomicExch(&status->moving,1);
+}
+struct TrajectoryRecorder {
+    TrajectoryCellDiagnostic* diagnostic;
+    __device__ void operator()(double value,double limit,TrajectoryWarning kind)const{
+        if(!diagnostic->count)diagnostic->first={value,limit,kind};
+        ++diagnostic->count;
+    }
+};
+__global__ void certifyTrajectory(int cells,TopologyView topology,const Point* old,const Point* endpoint,
+    TrajectoryStatus* status,TrajectoryFailure* failure,TrajectoryCellDiagnostic* diagnostics){
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=cells)return;
+    diagnostics[c]={};failure[c]=TrajectoryFailure::None;
+    if(!status->moving)return;
+    const auto result=certifyLinearCell(c,topology,old,endpoint,TrajectoryRecorder{diagnostics+c});
+    failure[c]=result;if(result!=TrajectoryFailure::None)atomicMin(&status->firstFailure,c);
+}
+__global__ void finishTrajectory(int cells,TrajectoryStatus* status,const TrajectoryFailure* failures,TrajectoryCellDiagnostic* diagnostics){
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;
+    // The sentinel remains equal to cells during this kernel; only thread zero
+    // publishes the category. No other thread reads a concurrently changed key.
+    if(c<cells&&c>status->firstFailure)diagnostics[c]={};
+    if(!c)status->failure=status->firstFailure<cells?failures[status->firstFailure]:TrajectoryFailure::None;
+}
+}
+struct ResidentLinearTrajectory::Implementation {
+    int points=0,cells=0;
+    Array<int> faceOffsets,facePoints,cellOffsets,cellFaces,cellSigns,vertexOffsets,vertices;
+    TopologyView topology()const{return {faceOffsets.pointer,facePoints.pointer,cellOffsets.pointer,cellFaces.pointer,
+        cellSigns.pointer,vertexOffsets.pointer,vertices.pointer};}
+    Array<TrajectoryStatus> status;Array<TrajectoryFailure> failure;
+    Array<TrajectoryCellDiagnostic> diagnostics;
+};
+ResidentLinearTrajectory::ResidentLinearTrajectory(const Topology& topology,int pointCount):data_(new Implementation){
+    if(pointCount<0)throw std::invalid_argument("negative trajectory point count");
+    auto& d=*data_;d.points=pointCount;d.cells=topology.cellOffsets.empty()?0:int(topology.cellOffsets.size()-1);
+    const auto upload=[](auto& target,const auto& source){
+        target.reserve(source.size());if(!source.empty())checked(cudaMemcpy(target.pointer,source.data(),source.size()*sizeof(source[0]),cudaMemcpyHostToDevice));
+    };
+#define FIELD(name) upload(d.name,topology.name)
+    FIELD(faceOffsets);FIELD(facePoints);FIELD(cellOffsets);FIELD(cellFaces);FIELD(cellSigns);FIELD(vertexOffsets);FIELD(vertices);
+#undef FIELD
+    d.status.reserve(1);d.failure.reserve(d.cells);d.diagnostics.reserve(d.cells);
+    checked(cudaStreamSynchronize(nullptr)); // Complete initialization before a borrowed stream consumes topology.
+}
+ResidentLinearTrajectory::~ResidentLinearTrajectory()=default;
+TrajectoryDeviceView ResidentLinearTrajectory::view()const{
+    const auto& d=*data_;return {d.cells,d.status.pointer,d.failure.pointer,d.diagnostics.pointer};
+}
+void ResidentLinearTrajectory::evaluate(const Point* old,const Point* endpoint,void* streamHandle){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(streamHandle);
+    resetTrajectory<<<1,1,0,stream>>>(d.status.pointer,d.cells);checked(cudaGetLastError());
+    if(d.points){movingTrajectory<<<(d.points+127)/128,128,0,stream>>>(d.points,old,endpoint,d.status.pointer);checked(cudaGetLastError());}
+    if(d.cells){certifyTrajectory<<<(d.cells+63)/64,64,0,stream>>>(d.cells,d.topology(),old,endpoint,
+        d.status.pointer,d.failure.pointer,d.diagnostics.pointer);checked(cudaGetLastError());}
+    finishTrajectory<<<std::max(1,(d.cells+127)/128),128,0,stream>>>(d.cells,d.status.pointer,d.failure.pointer,d.diagnostics.pointer);
+    checked(cudaGetLastError());
+}
+#include "ResidentGeometryBoundary.cuh"
+#include "ResidentStageGeometry.cuh"
+#include "ResidentSurfaceGeometry.cuh"
+#include "ResidentSurfaceSeams.cuh"
+#include "ResidentWallMatching.cuh"
 struct PolyhedralGeometry::Implementation {
     cudaStream_t stream=nullptr;PinnedTransferQueue transfer;Topology cached;
+    std::unique_ptr<ResidentPolyhedralGeometry> resident;
+    Topology residentTopology;std::vector<int> residentWalls;
     struct RebuildCache {
         Topology topology;std::vector<Point> points;std::vector<int> walls;RebuildResult result;std::size_t bytes=0;std::uint64_t hash=0;
     };
@@ -215,6 +398,7 @@ struct PolyhedralGeometry::Implementation {
     Array<SurfaceEdge> edges;Array<EdgeResult> edgeResult;
     Array<BoundaryMotionFace> motionFaces;Array<BoundaryMotionPoint> motionPoints;
     Array<int> motionOffsets,motionIncident,sideOffsets,sideIncident;Array<Point> sideNormals;
+    Array<WallBox> wallBoxes;
     Array<Point> points,endpoint,area,centres;Array<int> walls;Array<WallDistanceResult> distance;Array<FaceResult> faceResult;Array<CellResult> cellResult;Array<SweepResult> sweepResult;
     Implementation(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);}
     ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
@@ -225,38 +409,82 @@ struct PolyhedralGeometry::Implementation {
         if(!t.cellOffsets.empty()){FIELD(cellOffsets) FIELD(cellFaces) FIELD(cellSigns) FIELD(vertexOffsets) FIELD(vertices)}
 #undef FIELD
     }
+    void prepareWallBoxes(int count){
+        wallBoxes.reserve(count);
+        if(count)wallBoxesKernel<<<(count+127)/128,128,0,stream>>>(count,view(),points.pointer,walls.pointer,wallBoxes.pointer);
+    }
     TopologyView view()const{return {faceOffsets.pointer,facePoints.pointer,cellOffsets.pointer,cellFaces.pointer,cellSigns.pointer,vertexOffsets.pointer,vertices.pointer};}
 };
 PolyhedralGeometry::PolyhedralGeometry():data_(new Implementation){}
 PolyhedralGeometry::~PolyhedralGeometry()=default;
 RebuildResult PolyhedralGeometry::rebuild(const Topology& t,const std::vector<Point>& points,const std::vector<int>& walls){
     auto& d=*data_;RebuildResult out;const auto hash=d.queryHash(t,points,walls);if(d.findRebuild(hash,t,points,walls,out))return out;
-    PinnedTransferQueue::Operation operation(d.transfer);d.topology(t);d.points.upload(points,d.transfer);d.walls.upload(walls,d.transfer);
-    const int nf=t.faceOffsets.empty()?0:int(t.faceOffsets.size()-1),nc=t.cellOffsets.empty()?0:int(t.cellOffsets.size()-1);
-    d.faceResult.reserve(nf);d.area.reserve(nf);d.cellResult.reserve(nc);d.centres.reserve(nc);d.distance.reserve(nc);
-    if(nf)rebuildFacesKernel<<<(nf+127)/128,128,0,d.stream>>>(nf,d.view(),d.points.pointer,d.faceResult.pointer,d.area.pointer);
-    if(nc){rebuildCellsKernel<<<(nc+127)/128,128,0,d.stream>>>(nc,d.view(),d.points.pointer,d.area.pointer,d.cellResult.pointer,d.centres.pointer);
-        wallDistanceKernel<<<nc,128,0,d.stream>>>(nc,d.view(),d.points.pointer,d.centres.pointer,walls.size(),d.walls.pointer,d.distance.pointer);}
-    d.faceResult.download(out.faces,nf,d.transfer);d.cellResult.download(out.cells,nc,d.transfer);d.distance.download(out.distance,nc,d.transfer);d.transfer.finish();d.rememberRebuild(hash,t,points,walls,out);return out;
+    PinnedTransferQueue::Operation operation(d.transfer);
+    if(!d.resident||!d.sameTopology(d.residentTopology,t)||d.residentWalls!=walls){
+        if(!d.resident)d.resident.reset(new ResidentPolyhedralGeometry(t,walls));
+        else d.resident->configure(t,walls,&d.transfer);
+        d.residentTopology=t;d.residentWalls=walls;
+    }
+    d.points.upload(points,d.transfer);
+    d.resident->rebuild(d.points.pointer,d.stream);const auto device=d.resident->view();
+    out.faces.resize(device.faces);out.cells.resize(device.cells);out.distance.resize(device.cells);
+    d.transfer.download(out.faces.data(),device.face,out.faces.size()*sizeof(FaceResult));
+    d.transfer.download(out.cells.data(),device.cell,out.cells.size()*sizeof(CellResult));
+    d.transfer.download(out.distance.data(),device.distance,out.distance.size()*sizeof(WallDistanceResult));
+    d.transfer.finish();d.rememberRebuild(hash,t,points,walls,out);return out;
+}
+namespace {
+struct MotionIncidence {std::vector<int> offsets,incident,sideOffsets,sideIncident;};
+MotionIncidence motionIncidence(const Topology& t,int count,const std::vector<int>& faces,
+    const std::vector<unsigned char>& sideFaces){
+    if(count<0||t.faceOffsets.size()!=sideFaces.size()+1)
+        throw std::invalid_argument("boundary motion topology shape mismatch");
+    // CSR preserves original surface-face order for every vertex. No atomics
+    // change the area-weighted accumulation or Gram-Schmidt projection order.
+    std::vector<int> offsets(count+1,0),sideOffsets(count+1,0);
+    for(int f:faces)for(int k=t.faceOffsets[f];k<t.faceOffsets[f+1];++k)++offsets[t.facePoints[k]+1];
+    for(std::size_t f=0;f<sideFaces.size();++f)if(sideFaces[f])for(int k=t.faceOffsets[f];k<t.faceOffsets[f+1];++k)++sideOffsets[t.facePoints[k]+1];
+    for(int p=1;p<=count;++p){offsets[p]+=offsets[p-1];sideOffsets[p]+=sideOffsets[p-1];}
+    std::vector<int> incident(offsets.back()),sideIncident(sideOffsets.back()),cursor=offsets,sideCursor=sideOffsets;
+    for(std::size_t i=0;i<faces.size();++i)for(int k=t.faceOffsets[faces[i]];k<t.faceOffsets[faces[i]+1];++k)incident[cursor[t.facePoints[k]]++]=i;
+    for(std::size_t f=0;f<sideFaces.size();++f)if(sideFaces[f])for(int k=t.faceOffsets[f];k<t.faceOffsets[f+1];++k)sideIncident[sideCursor[t.facePoints[k]]++]=f;
+    return {std::move(offsets),std::move(incident),std::move(sideOffsets),std::move(sideIncident)};
+}
+}
+struct ResidentBoundaryMotion::Implementation {
+    int count=0;Array<int> offsets,incident,sideOffsets,sides;
+    Array<Point> normals;Array<BoundaryMotionPoint> result;
+};
+ResidentBoundaryMotion::ResidentBoundaryMotion(const Topology& topology,int count,const std::vector<int>& faces,
+    const std::vector<unsigned char>& sideFaces):data_(new Implementation){
+    const auto rows=motionIncidence(topology,count,faces,sideFaces);auto& d=*data_;d.count=count;
+    PinnedTransferQueue transfer;PinnedTransferQueue::Operation pending(transfer);
+    d.offsets.upload(rows.offsets,transfer);d.incident.upload(rows.incident,transfer);
+    d.sideOffsets.upload(rows.sideOffsets,transfer);d.sides.upload(rows.sideIncident,transfer);
+    d.normals.reserve(rows.sideIncident.size());d.result.reserve(count);transfer.finish();
+}
+ResidentBoundaryMotion::~ResidentBoundaryMotion()=default;
+const BoundaryMotionPoint* ResidentBoundaryMotion::points()const{return data_->result.pointer;}
+void ResidentBoundaryMotion::evaluate(const BoundaryMotionDeviceInput* input,void* rawStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
+    if(d.count)boundaryMotionKernel<<<(d.count-1)/128+1,128,0,stream>>>(d.count,DeviceValue<BoundaryMotionDeviceInput>{input},
+        d.offsets.pointer,d.incident.pointer,d.sideOffsets.pointer,d.sides.pointer,d.normals.pointer,d.result.pointer);
+    checked(cudaGetLastError());
 }
 std::vector<BoundaryMotionPoint> PolyhedralGeometry::boundaryMotion(const Topology& t,int count,const std::vector<Point>& areas,
     const std::vector<BoundaryMotionFace>& faces,const std::vector<unsigned char>& sideFaces,double interval){
     if(count<0||sideFaces.size()!=areas.size()||t.faceOffsets.size()!=areas.size()+1)
         throw std::invalid_argument("boundary motion topology shape mismatch");
-    // CSR preserves original surface-face order for every vertex. No atomics
-    // change the area-weighted accumulation or Gram-Schmidt projection order.
-    std::vector<int> offsets(count+1,0),sideOffsets(count+1,0);
-    for(const auto& f:faces)for(int k=t.faceOffsets[f.face];k<t.faceOffsets[f.face+1];++k)++offsets[t.facePoints[k]+1];
-    for(std::size_t f=0;f<sideFaces.size();++f)if(sideFaces[f])for(int k=t.faceOffsets[f];k<t.faceOffsets[f+1];++k)++sideOffsets[t.facePoints[k]+1];
-    for(int p=1;p<=count;++p){offsets[p]+=offsets[p-1];sideOffsets[p]+=sideOffsets[p-1];}
-    std::vector<int> incident(offsets.back()),sideIncident(sideOffsets.back()),cursor=offsets,sideCursor=sideOffsets;
-    for(std::size_t i=0;i<faces.size();++i)for(int k=t.faceOffsets[faces[i].face];k<t.faceOffsets[faces[i].face+1];++k)incident[cursor[t.facePoints[k]]++]=i;
-    for(std::size_t f=0;f<sideFaces.size();++f)if(sideFaces[f])for(int k=t.faceOffsets[f];k<t.faceOffsets[f+1];++k)sideIncident[sideCursor[t.facePoints[k]]++]=f;
+    std::vector<int> identities;identities.reserve(faces.size());for(const auto& face:faces)identities.push_back(face.face);
+    const auto rows=motionIncidence(t,count,identities,sideFaces);
+    const auto& offsets=rows.offsets;const auto& incident=rows.incident;
+    const auto& sideOffsets=rows.sideOffsets;const auto& sideIncident=rows.sideIncident;
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);d.area.upload(areas,d.transfer);d.motionFaces.upload(faces,d.transfer);
     d.motionOffsets.upload(offsets,d.transfer);d.motionIncident.upload(incident,d.transfer);d.sideOffsets.upload(sideOffsets,d.transfer);d.sideIncident.upload(sideIncident,d.transfer);
     d.sideNormals.reserve(sideIncident.size());d.motionPoints.reserve(count);
-    if(count)boundaryMotionKernel<<<(count+127)/128,128,0,d.stream>>>(count,d.area.pointer,d.motionFaces.pointer,d.motionOffsets.pointer,d.motionIncident.pointer,
-        d.sideOffsets.pointer,d.sideIncident.pointer,d.sideNormals.pointer,interval,d.motionPoints.pointer);
+    if(count)boundaryMotionKernel<<<(count+127)/128,128,0,d.stream>>>(count,
+        BoundaryMotionDeviceInput{d.area.pointer,d.motionFaces.pointer,interval},d.motionOffsets.pointer,d.motionIncident.pointer,
+        d.sideOffsets.pointer,d.sideIncident.pointer,d.sideNormals.pointer,d.motionPoints.pointer);
     std::vector<BoundaryMotionPoint> out;d.motionPoints.download(out,count,d.transfer);d.transfer.finish();return out;
 }
 std::vector<FaceResult> PolyhedralGeometry::faces(const Topology& t,const std::vector<Point>& p){
@@ -275,7 +503,8 @@ std::vector<WallDistanceResult> PolyhedralGeometry::wallDistance(const Topology&
     const std::vector<Point>& centres,const std::vector<int>& walls){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);d.topology(t);d.points.upload(p,d.transfer);
     d.centres.upload(centres,d.transfer);d.walls.upload(walls,d.transfer);const int count=centres.size();d.distance.reserve(count);
-    if(count)wallDistanceKernel<<<count,128,0,d.stream>>>(count,d.view(),d.points.pointer,d.centres.pointer,walls.size(),d.walls.pointer,d.distance.pointer);
+    if(count)d.prepareWallBoxes(walls.size());
+    if(count)wallDistanceKernel<<<count,128,0,d.stream>>>(count,d.view(),d.points.pointer,d.centres.pointer,walls.size(),d.walls.pointer,d.wallBoxes.pointer,d.distance.pointer);
     std::vector<WallDistanceResult> result;d.distance.download(result,count,d.transfer);d.transfer.finish();return result;
 }
 std::vector<SweepResult> PolyhedralGeometry::sweep(const Topology& t,const std::vector<Point>& p,const std::vector<Point>& endpoint){
@@ -292,21 +521,48 @@ std::vector<EdgeResult> PolyhedralGeometry::surfaceEdges(const Topology& t,const
     std::vector<EdgeResult> out;d.edgeResult.download(out,count,d.transfer);d.transfer.finish();return out;
 }
 struct HarmonicPointMotion::Implementation {
-    int count,blocks,maximumIterations;double tolerance;
+    int count,blocks,selectedBlocks,maximumIterations;double tolerance;bool externalGeometryUsed=false;
     cudaStream_t stream=nullptr;PinnedTransferQueue transfer;
     Array<Point> points,boundary,displacement,next,result;Array<int> offsets,neighbours,preErrors,errors;Array<unsigned char> fixed;
-    Array<double> weights,total,partial;Array<MotionControl> control;Array<MotionPenalty> penalties;
-    Implementation(int n,double tol,int limit):count(n),blocks(cooperativeBlocks(solveMotion,std::max(1,(n+255)/256),256)),maximumIterations(limit),tolerance(tol){
+    Array<double> weights,total,partial;Array<MotionControl> control;Array<MotionPenalty> penalties;Array<HarmonicDeviceStatus> status;
+    Implementation(int n,double tol,int limit):count(n),
+        blocks(cooperativeBlocks(solveMotion<const MotionPenalty*>,std::max(1,(n+255)/256),256)),
+        selectedBlocks(cooperativeBlocks(solveMotion<DeviceValue<const MotionPenalty*>>,std::max(1,(n+255)/256),256)),
+        maximumIterations(limit),tolerance(tol){
         checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);}
     ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
     void initialize(const std::vector<Point>& p,const std::vector<int>& row,const std::vector<int>& adjacent,const std::vector<unsigned char>& mask){
         PinnedTransferQueue::Operation operation(transfer);points.upload(p,transfer);offsets.upload(row,transfer);neighbours.upload(adjacent,transfer);fixed.upload(mask,transfer);
         for(auto* array:{&boundary,&displacement,&next,&result})array->reserve(count);
         for(auto* array:{&preErrors,&errors})array->reserve(count);
-        total.reserve(count);weights.reserve(adjacent.size());partial.reserve(blocks);control.reserve(1);
+        total.reserve(count);weights.reserve(adjacent.size());partial.reserve(std::max(blocks,selectedBlocks));control.reserve(1);status.reserve(1);
         if(count)weightsKernel<<<(count+127)/128,128,0,stream>>>(count,points.pointer,offsets.pointer,neighbours.pointer,fixed.pointer,weights.pointer,total.pointer,preErrors.pointer);
         transfer.finish();
 
+    }
+    HarmonicDeviceView enqueue(const Point* inputPoints,const Point* inputBoundary,
+        const MotionPenalty* inputPenalties,const double* inputTolerance,bool represented,
+        cudaStream_t callerStream,bool refreshWeights){
+        if(refreshWeights&&count){
+            weightsKernel<<<(count+127)/128,128,0,callerStream>>>(count,inputPoints,offsets.pointer,
+                neighbours.pointer,fixed.pointer,weights.pointer,total.pointer,preErrors.pointer);
+            checked(cudaGetLastError());
+        }
+        initializeMotion<<<std::max(1,(count+255)/256),256,0,callerStream>>>(count,inputBoundary,
+            fixed.pointer,displacement.pointer,preErrors.pointer,errors.pointer,control.pointer,
+            tolerance,maximumIterations,inputTolerance);
+        checked(cudaGetLastError());
+        void* arguments[]={&count,&offsets.pointer,&neighbours.pointer,&weights.pointer,&total.pointer,
+            &fixed.pointer,&inputPenalties,&displacement.pointer,&next.pointer,&partial.pointer,&errors.pointer,&control.pointer};
+        checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveMotion<const MotionPenalty*>),blocks,256,arguments,0,callerStream));
+        if(count){
+            publishMotion<<<(count+255)/256,256,0,callerStream>>>(count,inputPoints,displacement.pointer,
+                inputBoundary,fixed.pointer,represented,result.pointer,control.pointer);
+            checked(cudaGetLastError());
+        }
+        publishMotionStatus<<<1,1,0,callerStream>>>(control.pointer,errors.pointer,status.pointer);
+        checked(cudaGetLastError());
+        return {result.pointer,status.pointer};
     }
 };
 HarmonicPointMotion::HarmonicPointMotion(const std::vector<Point>& points,const std::vector<int>& offsets,const std::vector<int>& neighbours,
@@ -318,37 +574,71 @@ HarmonicPointMotion::HarmonicPointMotion(const std::vector<Point>& points,const 
     if(!penalties.empty()){PinnedTransferQueue::Operation operation(data_->transfer);data_->penalties.upload(penalties,data_->transfer);data_->transfer.finish();}
 }
 HarmonicPointMotion::~HarmonicPointMotion()=default;
+HarmonicDeviceView HarmonicPointMotion::solveDevice(const Point* points,const Point* boundary,
+    const MotionPenalty* penalties,const double* tolerance,bool represented,void* stream){
+    data_->externalGeometryUsed=true;
+    return data_->enqueue(points,boundary,penalties,tolerance,represented,static_cast<cudaStream_t>(stream),true);
+}
+void HarmonicPointMotion::prepareDeviceGeometry(const Point* points,void* rawStream){
+    auto& d=*data_;d.externalGeometryUsed=true;const auto stream=static_cast<cudaStream_t>(rawStream);
+    if(d.count)weightsKernel<<<(d.count-1)/128+1,128,0,stream>>>(d.count,points,d.offsets.pointer,
+        d.neighbours.pointer,d.fixed.pointer,d.weights.pointer,d.total.pointer,d.preErrors.pointer);
+    checked(cudaGetLastError());
+}
+HarmonicDeviceView HarmonicPointMotion::solvePreparedDevice(const Point* points,const Point* boundary,
+    const MotionPenalty* penalties,const double* tolerance,bool represented,void* stream){
+    return data_->enqueue(points,boundary,penalties,tolerance,represented,static_cast<cudaStream_t>(stream),false);
+}
+HarmonicDeviceView HarmonicPointMotion::deviceView()const{return {data_->result.pointer,data_->status.pointer};}
+const Point* HarmonicPointMotion::initialPoints()const{return data_->points.pointer;}
+const unsigned char* HarmonicPointMotion::fixedPoints()const{return data_->fixed.pointer;}
+HarmonicDeviceView HarmonicPointMotion::solveSelectedDevice(const HarmonicMotionDeviceInput* input,bool represented,void* rawStream){
+    auto& d=*data_;d.externalGeometryUsed=true;const auto stream=static_cast<cudaStream_t>(rawStream);
+    DeviceValue<const Point*> points{&input->points},boundary{&input->boundary};
+    DeviceValue<const MotionPenalty*> penalties{&input->penalties};DeviceValue<const double*> tolerance{&input->tolerance};
+    if(d.count)weightsKernel<<<(d.count-1)/128+1,128,0,stream>>>(d.count,points,d.offsets.pointer,d.neighbours.pointer,
+        d.fixed.pointer,d.weights.pointer,d.total.pointer,d.preErrors.pointer);
+    initializeMotion<<<std::max(1,(d.count+255)/256),256,0,stream>>>(d.count,boundary,d.fixed.pointer,
+        d.displacement.pointer,d.preErrors.pointer,d.errors.pointer,d.control.pointer,d.tolerance,d.maximumIterations,tolerance);
+    void* arguments[]={&d.count,&d.offsets.pointer,&d.neighbours.pointer,&d.weights.pointer,&d.total.pointer,
+        &d.fixed.pointer,&penalties,&d.displacement.pointer,&d.next.pointer,&d.partial.pointer,&d.errors.pointer,&d.control.pointer};
+    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveMotion<DeviceValue<const MotionPenalty*>>),d.selectedBlocks,256,arguments,0,stream));
+    if(d.count)publishMotion<<<(d.count-1)/256+1,256,0,stream>>>(d.count,points,d.displacement.pointer,boundary,
+        d.fixed.pointer,represented,d.result.pointer,d.control.pointer);
+    publishMotionStatus<<<1,1,0,stream>>>(d.control.pointer,d.errors.pointer,d.status.pointer);checked(cudaGetLastError());return deviceView();
+}
 HarmonicResult HarmonicPointMotion::solve(const std::vector<Point>& boundary,bool represented){
     auto& d=*data_;if(boundary.size()!=std::size_t(d.count))throw std::invalid_argument("harmonic motion boundary shape mismatch");
     PinnedTransferQueue::Operation operation(d.transfer);d.boundary.upload(boundary,d.transfer);
-    initializeMotion<<<std::max(1,(d.count+255)/256),256,0,d.stream>>>(d.count,d.boundary.pointer,d.fixed.pointer,d.displacement.pointer,d.preErrors.pointer,d.errors.pointer,
-        d.control.pointer,d.tolerance,d.maximumIterations);
-    void* arguments[]={&d.count,&d.offsets.pointer,&d.neighbours.pointer,&d.weights.pointer,&d.total.pointer,
-        &d.fixed.pointer,&d.penalties.pointer,&d.displacement.pointer,&d.next.pointer,&d.partial.pointer,&d.errors.pointer,&d.control.pointer};
-    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveMotion),d.blocks,256,arguments,0,d.stream));
-    MotionControl status;d.transfer.download(&status,d.control.pointer,sizeof(status));d.transfer.finish();
+    const auto device=d.enqueue(d.points.pointer,d.boundary.pointer,d.penalties.pointer,nullptr,represented,d.stream,d.externalGeometryUsed);
+    HarmonicDeviceStatus status;d.transfer.download(&status,device.status,sizeof(status));d.transfer.finish();
     HarmonicResult result;result.residual=status.residual;result.iterations=status.iterations;
-    if(status.errorPoint!=INT_MAX){result.errorPoint=status.errorPoint;d.transfer.download(&result.errorKind,d.errors.pointer+status.errorPoint,sizeof(int));}
-    else {if(d.count)publishMotion<<<(d.count+255)/256,256,0,d.stream>>>(d.count,d.points.pointer,d.displacement.pointer,d.boundary.pointer,d.fixed.pointer,represented,d.result.pointer);
-        d.result.download(result.points,d.count,d.transfer);}
-    d.transfer.finish();return result;
+    result.errorPoint=status.errorPoint;result.errorKind=status.errorKind;
+    if(status.errorPoint<0){d.result.download(result.points,d.count,d.transfer);d.transfer.finish();}
+    return result;
 }
 
 namespace {
-struct QrControl {double largest=0,length=0;int rank=0,active=0,error=0;};
-__global__ void qrNorms(int nr,int nc,const double* matrix,double* norm,int* order,int* invalid){
+using QrControl=MinimumNormDeviceStatus;
+template<class Rows,class Columns>
+__global__ void qrNorms(Rows rows,Columns columns,const double* matrix,double* norm,int* order,int* invalid){
+    const int nr=rows,nc=columns;
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=nr)return;
     order[i]=i;invalid[i]=0;double sum=0;
     for(int j=0;j<nc;++j){const double x=matrix[std::size_t(i)*nc+j];
         if(!isfinite(x)){invalid[i]=1;break;}sum+=x*x;}
     norm[i]=sum;if(!isfinite(sum))invalid[i]=1;
 }
-__global__ void qrInitialize(int nr,int nc,const double* norm,const int* invalid,QrControl* c){
+template<class Rows,class Columns>
+__global__ void qrInitialize(Rows rows,Columns columns,const double* norm,const int* invalid,QrControl* c){
+    const int nr=rows,nc=columns;
     *c={};for(int i=0;i<nr;++i){if(invalid[i]){c->error=1;return;}
         const double length=sqrt(norm[i]);if(c->largest<length)c->largest=length;}
     c->active=nr>0&&nc>0;
 }
-__global__ void solveQr(int nr,int nc,double tolerance,double* matrix,double* norm,int* order,double* rhs,double* delta,QrControl* c){
+template<class Rows,class Columns,class Tolerance>
+__global__ void solveQr(Rows rows,Columns columns,Tolerance rankTolerance,double* matrix,double* norm,int* order,double* rhs,double* delta,QrControl* c){
+    const int nr=rows,nc=columns;const double tolerance=rankTolerance;
     auto grid=cooperative_groups::this_grid();const int index=blockIdx.x*blockDim.x+threadIdx.x,stride=blockDim.x*gridDim.x;
     __shared__ double projection;
     for(;;){
@@ -390,7 +680,7 @@ struct DenseMinimumNorm::Implementation {
     Implementation(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);}
     ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
     void prepare(int nr,int nc){
-        blocks=cooperativeBlocks(solveQr,std::max(1,nr),128);
+        blocks=cooperativeBlocks(solveQr<int,int,double>,std::max(1,nr),128);
         matrix.reserve(std::size_t(nr)*nc);rhs.reserve(nr);norm.reserve(nr);delta.reserve(nc);
         order.reserve(nr);invalid.reserve(nr);control.reserve(1);
     }
@@ -406,7 +696,7 @@ MinimumNormResult DenseMinimumNorm::solve(int nr,int nc,const std::vector<double
     if(nr)qrNorms<<<(nr+127)/128,128,0,d.stream>>>(nr,nc,d.matrix.pointer,d.norm.pointer,d.order.pointer,d.invalid.pointer);
     qrInitialize<<<1,1,0,d.stream>>>(nr,nc,d.norm.pointer,d.invalid.pointer,d.control.pointer);
     void* arguments[]={&nr,&nc,&tolerance,&d.matrix.pointer,&d.norm.pointer,&d.order.pointer,&d.rhs.pointer,&d.delta.pointer,&d.control.pointer};
-    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveQr),d.blocks,128,arguments,0,d.stream));
+    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveQr<int,int,double>),d.blocks,128,arguments,0,d.stream));
     QrControl state;d.transfer.download(&state,d.control.pointer,sizeof(state));d.transfer.finish();
     MinimumNormResult result;result.rank=state.rank;result.initialized=state.error!=1;result.valid=state.error==0;
     if(result.initialized){d.delta.download(result.delta,nc,d.transfer);d.rhs.download(result.rhs,nr,d.transfer);}
@@ -414,21 +704,125 @@ MinimumNormResult DenseMinimumNorm::solve(int nr,int nc,const std::vector<double
 }
 
 namespace {
-__global__ void planarValues(int count,const Point* old,const Point* end,const PlanarConstraint* planar,Polynomial* out){
-    const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)out[i]=planarPolynomial(old,end,planar[i]);
+__global__ void prepareQrProblem(const MinimumNormDeviceProblem* input,int rows,int columns,
+    MinimumNormDeviceProblem* operation,int* invalid){
+    auto problem=*input;
+    *invalid=problem.rows<0||problem.rows>rows||problem.columns<0||problem.columns>columns
+        ||(problem.rows&&problem.columns&&!problem.matrix)||(problem.rows&&!problem.rhs);
+    if(*invalid){problem.rows=problem.columns=0;}
+    *operation=problem;
 }
-__global__ void linearizationColumn(int faceCount,int planarCount,TopologyView t,const Point* old,const Point* end,
-    const Point* mode,const int* faces,const double* scales,const PlanarConstraint* planar,double* out){
+__global__ void copyQrProblem(const MinimumNormDeviceProblem* operation,double* matrix,double* rhs,double* delta){
+    const auto problem=*operation;const std::size_t entries=std::size_t(problem.rows)*problem.columns;
+    const auto index=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x,stride=std::size_t(blockDim.x)*gridDim.x;
+    for(std::size_t i=index;i<entries;i+=stride)matrix[i]=problem.matrix[i];
+    for(std::size_t i=index;i<std::size_t(problem.rows);i+=stride)rhs[i]=problem.rhs[i];
+    for(std::size_t i=index;i<std::size_t(problem.columns);i+=stride)delta[i]=0;
+}
+__global__ void qrShapeStatus(const int* invalid,QrControl* control){if(*invalid){control->error=1;control->active=0;}}
+}
+struct ResidentDenseMinimumNorm::Implementation {
+    int rows=0,columns=0,blocks=1;
+    Array<double> matrix,rhs,norm,delta;Array<int> order,invalid,shapeInvalid;
+    Array<QrControl> control;Array<MinimumNormDeviceProblem> operation;
+    Implementation(int nr,int nc):rows(nr),columns(nc){
+        if(nr<0||nc<0||(nc&&std::size_t(nr)>std::numeric_limits<std::size_t>::max()/sizeof(double)/std::size_t(nc)))
+            throw std::invalid_argument("resident minimum-norm capacity is not representable");
+        blocks=cooperativeBlocks(solveQr<DeviceValue<int>,DeviceValue<int>,DeviceValue<double>>,std::max(1,nr),128);
+        matrix.reserve(std::size_t(nr)*nc);rhs.reserve(nr);norm.reserve(nr);delta.reserve(nc);
+        order.reserve(nr);invalid.reserve(nr);control.reserve(1);shapeInvalid.reserve(1);operation.reserve(1);
+    }
+};
+ResidentDenseMinimumNorm::ResidentDenseMinimumNorm(int nr,int nc):data_(new Implementation(nr,nc)){}
+ResidentDenseMinimumNorm::~ResidentDenseMinimumNorm()=default;
+MinimumNormDeviceView ResidentDenseMinimumNorm::view()const{
+    const auto& d=*data_;return {d.delta.pointer,d.rhs.pointer,d.control.pointer};
+}
+void ResidentDenseMinimumNorm::solve(const MinimumNormDeviceProblem* input,void* rawStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
+    prepareQrProblem<<<1,1,0,stream>>>(input,d.rows,d.columns,d.operation.pointer,d.shapeInvalid.pointer);
+    copyQrProblem<<<d.blocks,128,0,stream>>>(d.operation.pointer,d.matrix.pointer,d.rhs.pointer,d.delta.pointer);
+    DeviceValue<int> nr{&d.operation.pointer->rows},nc{&d.operation.pointer->columns};
+    DeviceValue<double> tolerance{&d.operation.pointer->rankTolerance};
+    if(d.rows)qrNorms<<<(d.rows-1)/128+1,128,0,stream>>>(nr,nc,d.matrix.pointer,d.norm.pointer,d.order.pointer,d.invalid.pointer);
+    qrInitialize<<<1,1,0,stream>>>(nr,nc,d.norm.pointer,d.invalid.pointer,d.control.pointer);
+    qrShapeStatus<<<1,1,0,stream>>>(d.shapeInvalid.pointer,d.control.pointer);
+    void* arguments[]={&nr,&nc,&tolerance,&d.matrix.pointer,&d.norm.pointer,&d.order.pointer,&d.rhs.pointer,&d.delta.pointer,&d.control.pointer};
+    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveQr<DeviceValue<int>,DeviceValue<int>,DeviceValue<double>>),d.blocks,128,arguments,0,stream));
+    checked(cudaGetLastError());
+}
+namespace {
+template<class Input>
+__global__ void planarValues(int count,Input input,Polynomial* out){
+    const SweepLinearizationDeviceInput p=input;if(!p.active)return;
+    const int i=blockIdx.x*blockDim.x+threadIdx.x;if(p.planarCount< -1||p.planarCount>count)return;
+    if(p.planarCount>=0)count=p.planarCount;
+    if(i<count)out[i]=planarPolynomial(p.old,p.endpoint,p.planar[i]);
+}
+template<class Input>
+__global__ void linearizationColumn(int faceCount,int planarCount,TopologyView t,Input input,
+    const int* faces,double* out){
+    const SweepLinearizationDeviceInput p=input;if(!p.active||p.planarCount< -1||p.planarCount>planarCount)return;
     const int i=blockIdx.x*blockDim.x+threadIdx.x;
-    if(i<faceCount)out[i]=sweepDerivative(t,old,end,mode,faces[i])/scales[i];
-    else if(i<faceCount+planarCount){const int j=i-faceCount;const auto p=planar[j];
-        const auto polynomial=planarPolynomial(old,end,p,mode);
-        for(int k=0;k<3;++k)out[faceCount+3*j+k]=polynomial.value[k]/p.scale;}
+    if(i<faceCount)out[i]=sweepDerivative(t,p.old,p.endpoint,p.mode,faces[i])/p.scales[i];
+    else if(i<faceCount+(p.planarCount<0?planarCount:p.planarCount)){const int j=i-faceCount;if(j>=planarCount)return;const auto plane=p.planar[j];
+        const auto polynomial=planarPolynomial(p.old,p.endpoint,plane,p.mode);
+        for(int k=0;k<3;++k)out[faceCount+3*j+k]=polynomial.value[k]/plane.scale;}
 }
-__global__ void accumulateMode(int count,const Point* mode,double coefficient,Point* correction){
-    const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p<count)correction[p]+=mode[p]*coefficient;
+template<class Input>
+__global__ void accumulateMode(int count,Input input,Point* correction){
+    const SweepLinearizationDeviceInput q=input;if(!q.active)return;
+    const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p<count)correction[p]+=q.mode[p]*q.coefficient;
+}
+__global__ void resetModeCorrection(int count,Point* correction){
+    const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p<count)correction[p]={};
 }
 }
+struct ResidentSweepLinearization::Implementation {
+    int points=0,faceCount=0,planarCount=0;
+    Array<int> offsets,indices,faces;Array<double> column;
+    Array<Point> correction;Array<Polynomial> polynomials;
+    TopologyView view()const{return {offsets.pointer,indices.pointer,nullptr,nullptr,nullptr,nullptr,nullptr};}
+};
+ResidentSweepLinearization::ResidentSweepLinearization(const Topology& topology,int points,
+    const std::vector<int>& faces,int planarCount):data_(new Implementation){
+    if(points<0||planarCount<0||faces.size()>std::size_t(INT_MAX)
+        ||std::size_t(planarCount)>(std::size_t(INT_MAX)-faces.size())/3)
+        throw std::invalid_argument("resident sweep linearization shape is not representable");
+    auto& d=*data_;d.points=points;d.faceCount=faces.size();d.planarCount=planarCount;
+    PinnedTransferQueue transfer;PinnedTransferQueue::Operation operation(transfer);
+    d.offsets.upload(topology.faceOffsets,transfer);d.indices.upload(topology.facePoints,transfer);
+    d.faces.upload(faces,transfer);d.column.reserve(std::size_t(d.faceCount)+3*std::size_t(planarCount));
+    d.correction.reserve(points);d.polynomials.reserve(planarCount);transfer.finish();
+}
+ResidentSweepLinearization::~ResidentSweepLinearization()=default;
+SweepLinearizationDeviceView ResidentSweepLinearization::view()const{
+    const auto& d=*data_;return {d.polynomials.pointer,d.column.pointer,d.correction.pointer};
+}
+void ResidentSweepLinearization::planarity(const SweepLinearizationDeviceInput* input,void* rawStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
+    if(d.planarCount)planarValues<<<(d.planarCount-1)/128+1,128,0,stream>>>(d.planarCount,
+        DeviceValue<SweepLinearizationDeviceInput>{input},d.polynomials.pointer);
+    checked(cudaGetLastError());
+}
+void ResidentSweepLinearization::column(const SweepLinearizationDeviceInput* input,void* rawStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);const int work=d.faceCount+d.planarCount;
+    if(work)linearizationColumn<<<(work-1)/128+1,128,0,stream>>>(d.faceCount,d.planarCount,d.view(),
+        DeviceValue<SweepLinearizationDeviceInput>{input},d.faces.pointer,d.column.pointer);
+    checked(cudaGetLastError());
+}
+void ResidentSweepLinearization::resetCorrection(void* rawStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
+    if(d.points)resetModeCorrection<<<(d.points-1)/128+1,128,0,stream>>>(d.points,d.correction.pointer);
+    checked(cudaGetLastError());
+}
+void ResidentSweepLinearization::accumulate(const SweepLinearizationDeviceInput* input,void* rawStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
+    if(d.points)accumulateMode<<<(d.points-1)/128+1,128,0,stream>>>(d.points,
+        DeviceValue<SweepLinearizationDeviceInput>{input},d.correction.pointer);
+    checked(cudaGetLastError());
+}
+
 struct SweepLinearization::Implementation {
     cudaStream_t stream=nullptr;PinnedTransferQueue transfer;int points=0,faceCount=0,planarCount=0;
     Array<int> offsets,indices,faces;Array<double> scales,column;Array<PlanarConstraint> planar;
@@ -453,23 +847,43 @@ void SweepLinearization::endpoint(const std::vector<Point>& points){
 }
 std::vector<Polynomial> SweepLinearization::planarity(const std::vector<Point>& points){
     endpoint(points);auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);
-    if(d.planarCount)planarValues<<<(d.planarCount+127)/128,128,0,d.stream>>>(d.planarCount,d.old.pointer,d.end.pointer,d.planar.pointer,d.polynomials.pointer);
+    if(d.planarCount)planarValues<<<(d.planarCount+127)/128,128,0,d.stream>>>(d.planarCount,
+        SweepLinearizationDeviceInput{d.old.pointer,d.end.pointer,nullptr,nullptr,d.planar.pointer,0},d.polynomials.pointer);
     std::vector<Polynomial> out;d.polynomials.download(out,d.planarCount,d.transfer);d.transfer.finish();return out;
 }
 std::vector<double> SweepLinearization::column(const std::vector<Point>& mode){
     auto& d=*data_;if(mode.size()!=std::size_t(d.points))throw std::invalid_argument("sweep mode shape mismatch");
     PinnedTransferQueue::Operation operation(d.transfer);d.mode.upload(mode,d.transfer);const int work=d.faceCount+d.planarCount;
-    if(work)linearizationColumn<<<(work+127)/128,128,0,d.stream>>>(d.faceCount,d.planarCount,d.view(),d.old.pointer,d.end.pointer,
-        d.mode.pointer,d.faces.pointer,d.scales.pointer,d.planar.pointer,d.column.pointer);
+    if(work)linearizationColumn<<<(work+127)/128,128,0,d.stream>>>(d.faceCount,d.planarCount,d.view(),
+        SweepLinearizationDeviceInput{d.old.pointer,d.end.pointer,d.mode.pointer,d.scales.pointer,d.planar.pointer,0},d.faces.pointer,d.column.pointer);
     std::vector<double> out;d.column.download(out,std::size_t(d.faceCount)+3*std::size_t(d.planarCount),d.transfer);d.transfer.finish();return out;
 }
 void SweepLinearization::resetCorrection(){auto& d=*data_;if(d.points)checked(cudaMemsetAsync(d.correction.pointer,0,std::size_t(d.points)*sizeof(Point),d.stream));}
 void SweepLinearization::accumulate(const std::vector<Point>& mode,double coefficient){
     auto& d=*data_;if(mode.size()!=std::size_t(d.points))throw std::invalid_argument("sweep correction mode shape mismatch");
     PinnedTransferQueue::Operation operation(d.transfer);d.mode.upload(mode,d.transfer);
-    if(d.points)accumulateMode<<<(d.points+127)/128,128,0,d.stream>>>(d.points,d.mode.pointer,coefficient,d.correction.pointer);
+    if(d.points)accumulateMode<<<(d.points+127)/128,128,0,d.stream>>>(d.points,
+        SweepLinearizationDeviceInput{nullptr,nullptr,d.mode.pointer,nullptr,nullptr,coefficient},d.correction.pointer);
     d.transfer.finish();
 }
 std::vector<Point> SweepLinearization::correction(){auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);
     std::vector<Point> out;d.correction.download(out,d.points,d.transfer);d.transfer.finish();return out;}
 }}}
+
+#include "HarmonicSweepCorrection.cuh"
+
+#include "NormalHeightMotion.cuh"
+
+#include "SweepTrial.cuh"
+#include "SweepResidual.cuh"
+#include "SweepLineSearch.cuh"
+
+#include "InterfacePointDisplacement.cuh"
+
+#include "InterfaceGasPointMotion.cuh"
+
+#include "InterfaceGasStage.cuh"
+
+#include "SweepPlanarity.cuh"
+
+#include "LocalFrameStageGeometry.cuh"

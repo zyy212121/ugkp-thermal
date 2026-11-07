@@ -1,4 +1,5 @@
 #pragma once
+#include "GasResidentInterval.H"
 #include <type_traits>
 #include <utility>
 
@@ -19,6 +20,7 @@ template<class State> struct HasGasPseudoTime<State, std::void_t<
 template<class State, class Time>
 UGKWP_PSEUDO_TIME_HD inline Time gasCellTimeStep(const State& s, int cell, Time dt)
 {
+    dt=gasResidentStepDt(s,dt);
     if constexpr (HasGasPseudoTime<State>::value)
         if (s.gasPseudoDt)
             // Preserve source/subinterval fractions of the reference step.

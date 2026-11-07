@@ -1,4 +1,5 @@
 #pragma once
+#include "ParticleResidentInterval.H"
 // Free cells use the gas reference analytic target. Only cells containing a
 // constrained particle retain the contact moment closure. No host decision or
 // per-cell device transfer is needed for either directory layout.
@@ -20,8 +21,9 @@ __device__ bool pressureDirectoryContainsContact(const DeviceState& s,int c)
     return __syncthreads_or(local)!=0;
 }
 template<bool FullMoments, bool Split, bool Compact=false>
-__global__ void applyContactAwarePressureProjectionKernel(DeviceState* sp,PressureTime dt)
+__global__ void applyContactAwarePressureProjectionKernel(DeviceState* sp,PressureTime requestedDt)
 {
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
     const int c=blockIdx.x;if(c>=sp->nCells)return;
     constexpr auto directory=Split?PressureDirectory::Split:PressureDirectory::Full;
     if(pressureDirectoryContainsContact<directory,Compact>(*sp,c))

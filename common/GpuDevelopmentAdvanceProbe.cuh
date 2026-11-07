@@ -2,7 +2,7 @@
 // Shared stage timing, failure publication and final sample lifecycle.
 // The detailed scheduling schema is a compile-time field capability.
 template<bool IncludesScheduling, class State, class Sample>
-inline void publishDevelopmentProbeScheduling(const State* state, Sample& sample)
+inline int publishDevelopmentProbeScheduling(const State* state, Sample& sample)
 {
     if constexpr (IncludesScheduling)
     {
@@ -13,7 +13,14 @@ inline void publishDevelopmentProbeScheduling(const State* state, Sample& sample
         sample.lightBlocksPerSm = state->lightBlocksPerSm;
         sample.heavyBlocksPerSm = state->heavyBlocksPerSm;
         sample.heavyReductionEnabled = state->csrHeavyReductionEnabled;
+#ifdef UGKP_RESIDENT_CSR_CHOICE
+        if(state->csrHeavyReductionMode==2&&state->csrAutomaticRuntime){
+            const auto error=cudaMemcpy(&sample.heavyReductionEnabled,&state->csrAutomaticRuntime->active,sizeof(int),cudaMemcpyDeviceToHost);
+            if(error!=cudaSuccess){setLastError("read automatic CSR decision for requested development probe",error);return 1;}
+        }
+#endif
     }
+    return 0;
 }
 
 class DevelopmentAdvanceProbe
@@ -214,7 +221,7 @@ public:
         sample.simulationTime = simulationTime_;
         sample.dt = dt_;
         sample.nCells = state_->nCells;
-        publishDevelopmentProbeScheduling<developmentProbeIncludesScheduling>(state_, sample);
+        if(publishDevelopmentProbeScheduling<developmentProbeIncludesScheduling>(state_,sample))return 1;
         sample.particlePath = particlePath ? 1 : 0;
         sample.particleCapacity = state_->particleCapacity;
         if (collectDevelopmentProbeSample(state_, particlePath, sample) != 0)

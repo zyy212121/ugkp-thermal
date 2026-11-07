@@ -1,6 +1,8 @@
 #ifndef CHMT_GPU_MATERIALSURFACEKERNELS_CUH
 #define CHMT_GPU_MATERIALSURFACEKERNELS_CUH
 #include "ablation/DrySurfaceInterfaceMath.H"
+#include "../../../common/gasWall/WallCudaTeam.cuh"
+#include "../../../common/gpu/DeviceValue.cuh"
 namespace chmt {
 struct MaterialSurfaceStatus {
     bool success=false,numericalFailure=true;
@@ -22,13 +24,17 @@ struct MaterialSurfaceView {
     WallFaceSample* wallOut=nullptr;
     MaterialSurfaceStatus* status=nullptr;
     void* wallWorkspaces=nullptr;
+    ugkwp::gaswall::WallOutput<Real,Ns>* wallTeamOutput=nullptr;
+    const PhysicsConfig* quietPhysics=nullptr;
     std::size_t workspaceStride=0;
     int workspaceCapacity=0,workers=0;
 };
-__global__ void evaluateMaterialSurfaceKernel(MaterialSurfaceView view,const PhysicsConfig* physics) {
-    const int worker=blockIdx.x*blockDim.x+threadIdx.x;
-    if(worker>=view.workers)return;
-    for(int face=worker;face<view.count;face+=view.workers){
+template<class View>
+__global__ void evaluateMaterialSurfaceKernel(View binding,const PhysicsConfig* physics) {
+    const MaterialSurfaceView view=binding;
+    const std::size_t worker=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x;
+    if(worker>=std::size_t(view.workers))return;
+    for(std::size_t face=worker;face<std::size_t(view.count);face+=view.workers){
         auto& status=view.status[face];status=MaterialSurfaceStatus{};
         if(view.active&&!view.active[face]){
             view.physicsOut[face]=SurfacePhysicsResult{};view.wallOut[face]=WallFaceSample{};
@@ -47,6 +53,51 @@ __global__ void evaluateMaterialSurfaceKernel(MaterialSurfaceView view,const Phy
         SurfacePhysicsResult result;
         if(!solveDrySurfaceInterface(input,*physics,result,&status.device,&status.numericalFailure))continue;
         view.physicsOut[face]=result;view.wallOut[face]=dryWallFaceSample(input,result,*physics);status.success=true;
+    }
+}
+// A face retains its scalar reaction/root traversal. All team members follow
+// that same traversal; independent wall nodes/Jacobian blocks use the common
+// cooperative ODE implementation and the owner alone publishes face state.
+// One warp per worker keeps the bounded workspace ownership unchanged and
+// spreads even a small number of expensive faces across distinct blocks.
+template<class View>
+__global__ __launch_bounds__(ugkwp::gaswall::detail::wallWarpWidth)
+void evaluateMaterialSurfaceTeamKernel(View binding,const PhysicsConfig* physics) {
+    const MaterialSurfaceView view=binding;
+    const int worker=blockIdx.x;
+    if(worker>=view.workers)return;
+    const ugkwp::gaswall::detail::CudaWallTeam team{};
+    for(std::size_t face=worker;face<std::size_t(view.count);face+=view.workers){
+        MaterialSurfaceStatus status;
+        if(view.active&&!view.active[face]){
+            if(team.leader()){
+                view.physicsOut[face]=SurfacePhysicsResult{};view.wallOut[face]=WallFaceSample{};
+                status.success=true;view.status[face]=status;
+            }
+            continue;
+        }
+        SurfacePhysicsInput input=view.inputs[face];
+        const int cell=view.solidCells[face];input.hasSolid=cell>=0;
+        if(input.hasSolid){
+            input.solid=input.solidBase=view.solid[cell];input.solidVolume=view.volumes[cell];
+            input.solidLocalRate=view.materialRate?view.materialRate[cell]:SolidQ{};
+        }
+        input.wallContext.workspace=static_cast<unsigned char*>(view.wallWorkspaces)+std::size_t(worker)*view.workspaceStride;
+        input.wallContext.workspaceCapacity=view.workspaceCapacity;
+        input.wallContext.failureStatus=&status.wall;
+        input.wallContext.teamOutput=view.wallTeamOutput+worker;
+        input.wallContext.teamDiagnostics=physics->diagnostics;
+        input.wallContext.quietPhysics=view.quietPhysics;
+        SurfacePhysicsResult result;
+        status.success=solveDrySurfaceInterface(input,*physics,result,&status.device,&status.numericalFailure,team);
+        if(team.leader()){
+            if(status.success){
+                view.physicsOut[face]=result;
+                view.wallOut[face]=dryWallFaceSample(input,result,*physics);
+            }
+            view.status[face]=status;
+        }
+        team.sync();
     }
 }
 }

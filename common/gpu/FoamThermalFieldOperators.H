@@ -7,9 +7,27 @@
 #include "correctedSnGrad.H"
 #include "extrapolatedCalculatedFvPatchFields.H"
 #include "fvSchemes.H"
+#include "wedgeFvPatch.H"
+#include "symmetryFvPatch.H"
+#include "symmetryPlaneFvPatch.H"
 namespace ugkp { namespace gpu {
 inline ThermalVector thermalVector(const Foam::vector& v){return {v.x(),v.y(),v.z()};}
 inline Foam::vector foamVector(const ThermalVector& v){return {v.x,v.y,v.z};}
+// The gradient field created by Gauss uses native geometric constraint
+// patches. Store their linear vector transformation once with the topology.
+inline Foam::vector thermalGradientBoundaryValue(const Foam::fvPatch& patch,Foam::label face,const Foam::vector& value){
+    using namespace Foam;
+    if(isA<wedgeFvPatch>(patch))return transform(refCast<const wedgeFvPatch>(patch).faceT(),value);
+    if(isA<symmetryPlaneFvPatch>(patch)){
+        const vector normal=refCast<const symmetryPlaneFvPatch>(patch).n();
+        return (value+transform(I-2.0*sqr(normal),value))/2.0;
+    }
+    if(isA<symmetryFvPatch>(patch)){
+        const vector normal=patch.Sf()[face]/patch.magSf()[face];
+        return (value+transform(I-2.0*sqr(normal),value))/2.0;
+    }
+    return value;
+}
 inline ThermalFieldOperators& thermalFieldBackend(){static thread_local ThermalFieldOperators backend;return backend;}
 inline void interpolateThermalField(const Foam::volScalarField& field,const Foam::surfaceScalarField& weights,
     Foam::surfaceScalarField& result,bool harmonic){
@@ -39,6 +57,7 @@ public:
         interpolation_(input.eof()?Foam::tmp<Foam::surfaceInterpolationScheme<Foam::scalar>>(new FoamThermalLinear(mesh)):
             Foam::surfaceInterpolationScheme<Foam::scalar>::New(mesh,input)){}
     const Foam::word& type()const override{return Foam::fv::gaussGrad<Foam::scalar>::typeName;}
+    bool linearInterpolation()const{return dynamic_cast<const FoamThermalLinear*>(&interpolation_())!=nullptr;}
     Foam::tmp<Foam::volVectorField> calcGrad(const Foam::volScalarField& field,const Foam::word& name)const override {
         using namespace Foam;const auto& mesh=field.mesh();const auto faces=interpolation_().interpolate(field);
         GaussGradientInput input;input.cells=mesh.nCells();input.internalFaces=mesh.nInternalFaces();input.volume.assign(mesh.V().begin(),mesh.V().end());

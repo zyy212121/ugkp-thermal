@@ -24,7 +24,13 @@ __global__ void clearPoissonThermalPoolKernel(DeviceState* sp)
 
 #if GPU_POOL_INITIALIZATION_WITH_PROBABILITY
     // Preserve pressure kick -> primitive recovery -> probability publication.
-    if (s.csrHeavyReductionEnabled != 0 && s.csrCellTaskCount[c] > 1)
+#ifdef UGKP_RESIDENT_CSR_CHOICE
+    const bool heavy=s.csrHeavyReductionMode==2&&s.csrAutomaticRuntime
+        ?s.csrAutomaticRuntime->active!=0:s.csrHeavyReductionEnabled!=0;
+#else
+    const bool heavy=s.csrHeavyReductionEnabled!=0;
+#endif
+    if (heavy && s.csrCellTaskCount[c] > 1)
     {
         s.poissonCellCollisionProbability[c] =
             poissonCollisionProbabilityForCell(s, c, dt);

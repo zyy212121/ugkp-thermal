@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'validation/molecular_transport'))
 import native_matrix as m
-p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);p.add_argument('--solver',type=Path,required=True);a=p.parse_args();out=a.output.resolve();out.mkdir(parents=True,exist_ok=True)
+p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);p.add_argument('--solver',type=Path,required=True);p.add_argument('--csr-auto',action='store_true');a=p.parse_args();out=a.output.resolve();out.mkdir(parents=True,exist_ok=True)
 codec=out/'particles';subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT),str(ROOT/'validation/chmt_motion/cht_radiation_particles.cpp'),'-o',str(codec)],check=True)
 meta=json.loads((ROOT/'validation/molecular_transport/fixtures.json').read_text())['cht-contact']
 results=[]
@@ -15,7 +15,8 @@ for name,t0,t1,wall in [('above',4500,4500,4500),('below',500,500,500),('heterog
  # Isolate radiation from gas conduction; all particle drag/heat sources are off.
  transport=case/'constant/gasTransportProperties';transport.write_text(re.sub(r'muRef\s+[^;]+;', 'muRef 1e-30;',transport.read_text()))
  eps=case/'0/epsilonS';eps.write_text(eps.read_text().replace('internalField uniform 0;', 'internalField nonuniform List<scalar> 8('+str(1/(2800*.125))+' 0 0 0 0 0 0 0);'))
- schedule=case/'constant/schedulingProperties';m.entry(schedule,'gpuResidentPureGasOnly','false');m.entry(schedule,'gpuResidentParticleCapacity',16);m.entry(schedule,'gpuCsrLevel','L1')
+ schedule=case/'constant/schedulingProperties';m.entry(schedule,'gpuResidentPureGasOnly','false');m.entry(schedule,'gpuResidentParticleCapacity',16);m.entry(schedule,'gpuCsrLevel','auto' if a.csr_auto else 'L1')
+ if a.csr_auto:schedule.write_text(schedule.read_text()+'\ngpuCsrHeavyReductionAutoInterval 1;\n')
  props=case/'constant/particleProperties';props.write_text(props.read_text()+'\nTpMin 100; TpMax 5000; sommerfeldThreshold false; gpuResidentInjectionTheta 0;\n')
  solid=case/'constant/solidRegionProperties';solid.write_text(solid.read_text().replace('radiationEnabled false','radiationEnabled true').replace('emissivity {type constant;value 0;}','emissivity {type constant;value 1;}').replace('kappa {type constant;value 10;}','kappa {type constant;value 1e8;}'))
  for f in [case/'0/T',case/'0/solid/T']:

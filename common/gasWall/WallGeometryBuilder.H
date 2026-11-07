@@ -1,6 +1,8 @@
 #pragma once
 #include "WallResolutionDefaults.H"
 #include "WallModelTypes.H"
+#include "WallPolygonMath.H"
+#include "WallRayMatching.H"
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -54,14 +56,6 @@ template<class R> struct WallGeometryDescriptor {
     }
 };
 namespace wallGeometryDetail {
-template<class R> using Vec=std::array<R,3>;
-template<class R> inline Vec<R> add(const Vec<R>&a,const Vec<R>&b){return {{a[0]+b[0],a[1]+b[1],a[2]+b[2]}};}
-template<class R> inline Vec<R> sub(const Vec<R>&a,const Vec<R>&b){return {{a[0]-b[0],a[1]-b[1],a[2]-b[2]}};}
-template<class R> inline Vec<R> mul(const Vec<R>&a,R b){return {{a[0]*b,a[1]*b,a[2]*b}};}
-template<class R> inline R dot(const Vec<R>&a,const Vec<R>&b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
-template<class R> inline Vec<R> cross(const Vec<R>&a,const Vec<R>&b){return {{a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]}};}
-template<class R> inline R norm(const Vec<R>&a){return std::hypot(std::hypot(a[0],a[1]),a[2]);}
-template<class R> inline bool finite(const Vec<R>&a){return gasFinite(a[0])&&gasFinite(a[1])&&gasFinite(a[2]);}
 template<class R> struct Triangle {int a,b,c;};
 template<class R> struct Face {std::vector<Triangle<R>> triangles;Vec<R> normal{},centre{};R scale=0;};
 template<class R> struct Context {
@@ -71,55 +65,11 @@ template<class R> struct Context {
     std::vector<R> firstGaussPoint,firstGaussWeight;
 };
 inline bool invalid(WallStatus& s,int face=-1){s.code=WallCode::InvalidGeometry;s.node=face;return false;}
-template<class R> inline R turn(const Vec<R>& a,const Vec<R>& b,const Vec<R>&c,const Vec<R>&n){return dot(cross(sub(b,a),sub(c,a)),n);}
 // Ear clipping gives positive, non-overlapping triangles for a simple planar
 // polygon, including concave faces. No unsigned fan across a concavity.
 template<class R> bool triangulate(const WallGeometryMesh<R>&m,int f,Face<R>&out,const WallGeometryOptions<R>&){
     std::vector<int> ring(m.facePoints.begin()+m.faceOffsets[f],m.facePoints.begin()+m.faceOffsets[f+1]);
-    const Vec<R> anchor=m.points[ring[0]];Vec<R> area{};
-    for(std::size_t i=0;i<ring.size();++i){
-        const Vec<R> a=sub(m.points[ring[i]],anchor),b=sub(m.points[ring[(i+1)%ring.size()]],anchor);
-        area=add(area,cross(a,b));out.scale=std::max(out.scale,norm(a));
-    }
-    const R amag=norm(area);
-    if(!(out.scale>0)||!(amag>0))return false;
-    out.normal=mul(area,R(1)/amag);
-    const R atol=0; // Geometric orientation uses the represented sign, without an area floor.
-    // A repeated vertex, crossing edge or self-touching boundary is not a face.
-    for(std::size_t i=0;i<ring.size();++i)for(std::size_t j=i+1;j<ring.size();++j){
-        if(ring[i]==ring[j])return false;
-        if(j==i+1||(i==0&&j+1==ring.size()))continue;
-        const auto &a=m.points[ring[i]],&b=m.points[ring[(i+1)%ring.size()]],&c=m.points[ring[j]],&d=m.points[ring[(j+1)%ring.size()]];
-        const R u=turn(a,b,c,out.normal),v=turn(a,b,d,out.normal),w=turn(c,d,a,out.normal),z=turn(c,d,b,out.normal);
-        if(((u>atol&&v<-atol)||(u<-atol&&v>atol))&&((w>atol&&z<-atol)||(w<-atol&&z>atol)))return false;
-    }
-    // Collinear edge points carry no triangle area but remain in the mesh's
-
-    bool changed=true;
-    while(changed&&ring.size()>3){changed=false;for(std::size_t i=0;i<ring.size();++i){
-        const auto&a=m.points[ring[(i+ring.size()-1)%ring.size()]],&b=m.points[ring[i]],&c=m.points[ring[(i+1)%ring.size()]];
-        if(std::abs(turn(a,b,c,out.normal))<=atol&&dot(sub(b,a),sub(b,c))<=0){ring.erase(ring.begin()+i);changed=true;break;}
-    }}
-    while(ring.size()>3){
-        bool cut=false;
-        for(std::size_t i=0;i<ring.size();++i){
-            const int ia=ring[(i+ring.size()-1)%ring.size()],ib=ring[i],ic=ring[(i+1)%ring.size()];
-            const auto&a=m.points[ia],&b=m.points[ib],&c=m.points[ic];
-            if(turn(a,b,c,out.normal)<=atol)continue;
-            bool occupied=false;for(int ip:ring){if(ip==ia||ip==ib||ip==ic)continue;const auto&p=m.points[ip];
-                if(turn(a,b,p,out.normal)>=-atol&&turn(b,c,p,out.normal)>=-atol&&turn(c,a,p,out.normal)>=-atol){occupied=true;break;}}
-            if(occupied)continue;
-            out.triangles.push_back({ia,ib,ic});ring.erase(ring.begin()+i);cut=true;break;
-        }
-        if(!cut)return false;
-    }
-    if(turn(m.points[ring[0]],m.points[ring[1]],m.points[ring[2]],out.normal)<=atol)return false;
-    out.triangles.push_back({ring[0],ring[1],ring[2]});
-    R sum=0;Vec<R> moment{};
-    for(const auto&t:out.triangles){const auto a=sub(m.points[t.a],anchor),b=sub(m.points[t.b],anchor),c=sub(m.points[t.c],anchor);
-        R w=norm(cross(sub(b,a),sub(c,a)));sum+=w;moment=add(moment,mul(add(add(a,b),c),w/R(3)));}
-    if(!(sum>0))return false;
-    out.centre=add(anchor,mul(moment,R(1)/sum));return finite(out.centre);
+    return triangulateWallPolygon<R>(m,ring,out);
 }
 
 
@@ -375,16 +325,7 @@ template<class R> bool profileOwnerQuadrature(const std::vector<std::array<Vec<R
     }
     return true;
 }
-template<class R> bool rayTriangle(const Vec<R>&o,const Vec<R>&n,const Vec<R>&a,const Vec<R>&b,const Vec<R>&c,R&time){
-    const Vec<R> e1=sub(b,a),e2=sub(c,a),p=cross(n,e2);const R det=dot(e1,p);
-    const R eps=R(256)*std::numeric_limits<R>::epsilon();
-    // A finite shallow crossing still intersects the represented triangle.
-    if(det==R(0))return false;
-    const Vec<R> delta=sub(o,a),q=cross(delta,e1);
-    const R u=dot(delta,p)/det,v=dot(n,q)/det;
-    if(u<-eps||v<-eps||u+v>R(1)+eps)return false;
-    time=dot(e2,q)/det;return gasFinite(time);
-}
+
 
 // Cell-average polynomial moments about the matching point. Signed tetrahedra
 // integrate arbitrary closed polyhedra; a star seed is not required here.
@@ -495,76 +436,23 @@ template<class R> void compressProjectionQuadrature(WallGeometryDescriptor<R>&d,
 }
 
 template<class R> bool matching(const WallGeometryMesh<R>&m,const Context<R>&ctx,WallGeometryDescriptor<R>&d,WallStatus&s,const WallGeometryOptions<R>&opt,R scale){
-    (void)scale; // Distinct represented ray positions are not merged by mesh size.
-    R entry=0;int cell=d.ownerCell;
-
-
-
-    for(;;){
-        if(cell<0||(!m.gasCell.empty()&&!m.gasCell[cell]))return invalid(s,d.wallFace);
-        R exit=std::numeric_limits<R>::max();int exitFace=-1;bool ambiguous=false;
-        for(int f:ctx.cellFaces[cell])for(const auto&t:ctx.faces[f].triangles){
-            // Exit crossings follow the current cell's outward triangle winding.
-            // Ingress triangles (including the starting wall) cannot be exits,
-            // even when their computed ray position rounds just above entry.
-            const auto triangleNormal=cross(sub(m.points[t.b],m.points[t.a]),sub(m.points[t.c],m.points[t.a]));
-            const R crossing=dot(d.normal,triangleNormal)*(m.owner[f]==cell?R(1):R(-1));
-            if(crossing<=0)continue;
-            R hit=0;if(!rayTriangle(d.origin,d.normal,m.points[t.a],m.points[t.b],m.points[t.c],hit)||hit<=entry)continue;
-            if(hit<exit){exit=hit;exitFace=f;ambiguous=false;}
-            else if(hit==exit&&f!=exitFace){ambiguous=true;}
-        }
-        if(exitFace<0||ambiguous)return invalid(s,d.wallFace);
-        const R lower=std::max(entry,d.maximumOwnerDistance);
-        if(cell!=d.ownerCell&&!ctx.constrained[cell]&&exit>lower){
-            // Reconstructed gas closure ends at the owner/bulk interface. Extending
-            // to a bulk cell centre would model part of that cell while its
-            // unchanged macro source still covers its whole volume.
-            d.matchingDistance=opt.reconstructMatching?lower:lower+(exit-lower)/R(2);d.matchingPoint=add(d.origin,mul(d.normal,d.matchingDistance));
-            d.matchingDonorDistance=norm(sub(m.cellCentres[cell],d.matchingPoint));
-            if(opt.reconstructMatching)matchingReconstruction(m,ctx,cell,d);
-            else {d.matchingCells.push_back(cell);d.matchingWeights.push_back(R(1));}
-            return true;
-        }
-        if(m.physicalWall[exitFace])return invalid(s,exitFace);
-        int next=m.owner[exitFace]==cell?m.neighbour[exitFace]:m.owner[exitFace];
-        if(next<0)return invalid(s,exitFace);
-        entry=exit;cell=next;
-    }
+    (void)scale;
+    int failureFace=-1;const int cell=locateWallRayDonor<R>(m,ctx,d,opt.reconstructMatching,failureFace);
+    if(cell<0)return invalid(s,failureFace);
+    if(opt.reconstructMatching)matchingReconstruction(m,ctx,cell,d);
+    else {d.matchingCells.push_back(cell);d.matchingWeights.push_back(R(1));}
+    return true;
 }
 template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,int wallFace,WallGeometryDescriptor<R>&out,WallStatus&s,const WallGeometryOptions<R>&opt){
     if(wallFace<0||wallFace>=static_cast<int>(m.owner.size()))return invalid(s,wallFace);
     WallGeometryDescriptor<R>d;d.wallFace=wallFace;d.ownerCell=m.owner[wallFace];d.geometryVersion=m.geometryVersion;
     if(std::size_t(d.ownerCell)>=m.volumes.size()||(!m.gasCell.empty()&&!m.gasCell[d.ownerCell]))return invalid(s,wallFace);
-    d.origin=ctx.faces[wallFace].centre;d.normal=mul(ctx.faces[wallFace].normal,R(-1));
-    // Choose the construction from polygon topology before tracing a ray:
-    // convex polygons use their area centroid; concave polygons use an
-    // interior triangle. Neither an attempted ray nor a failed point test
-    // selects a second construction.
-    bool concave=false;
-    const int begin=m.faceOffsets[wallFace],end=m.faceOffsets[wallFace+1],count=end-begin;
-    for(int i=0;i<count;++i)
-        if(turn(m.points[m.facePoints[begin+i]],m.points[m.facePoints[begin+(i+1)%count]],
-            m.points[m.facePoints[begin+(i+2)%count]],ctx.faces[wallFace].normal)<0)concave=true;
-    if(concave){
-        R largest=0;
-        for(const auto&t:ctx.faces[wallFace].triangles){
-            const auto&a=m.points[t.a],&b=m.points[t.b],&c=m.points[t.c];
-            const R area=norm(cross(sub(b,a),sub(c,a)));
-            if(area>largest){largest=area;d.origin=add(a,mul(add(sub(b,a),sub(c,a)),R(1)/R(3)));}
-        }
-    }
+    initializeWallRayOrigin<R>(m,ctx,wallFace,d);
     // Signed volume/first-moment identities need only a local reference point.
     // A star-kernel point is required solely by the optional positive quadrature.
     Vec<R> seed=m.cellCentres[d.ownerCell];R scale=0;
     if(opt.constructQuadrature&&!cellSeed(m,ctx,d.ownerCell,seed,scale,opt.diagnostics))return invalid(s,wallFace);
-    for(int f:ctx.cellFaces[d.ownerCell])for(int k=m.faceOffsets[f];k<m.faceOffsets[f+1];++k){
-        R y=dot(sub(m.points[m.facePoints[k]],d.origin),d.normal);
-        d.maximumOwnerDistance=std::max(d.maximumOwnerDistance,y);
-    }
-    d.ownerDistance=dot(sub(m.cellCentres[d.ownerCell],d.origin),d.normal);
-    int axis=0;for(int k=1;k<3;++k)if(std::abs(d.normal[k])<std::abs(d.normal[axis]))axis=k;
-    Vec<R> coordinate{};coordinate[axis]=1;d.tangent1=cross(d.normal,coordinate);d.tangent1=mul(d.tangent1,R(1)/norm(d.tangent1));d.tangent2=cross(d.normal,d.tangent1);
+    initializeWallRayFrame<R>(m,ctx,d);
     if(!matching(m,ctx,d,s,opt,scale))return false;
     std::vector<R> profile;
     if(opt.constructQuadrature&&opt.profileNodes){
@@ -573,7 +461,8 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
     }
     R volume=0;Vec<R> moment{};
     std::vector<std::array<Vec<R>,4>> tetra;
-    for(int f:ctx.cellFaces[d.ownerCell])for(auto t:ctx.faces[f].triangles){
+    if(!opt.constructQuadrature)evaluateWallOwnerMoments<R>(m,ctx,d.ownerCell,seed,volume,moment);
+    else for(int f:ctx.cellFaces[d.ownerCell])for(auto t:ctx.faces[f].triangles){
         if(m.owner[f]!=d.ownerCell)std::swap(t.b,t.c);
         const auto&a=m.points[t.a],&b=m.points[t.b],&c=m.points[t.c];
         R v=dot(sub(a,seed),cross(sub(b,seed),sub(c,seed)))/R(6);

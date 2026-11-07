@@ -1,3 +1,9 @@
+#include "GpuParticlePhaseGraph.cuh"
+#include "ParticleResidentInterval.H"
+#include "GpuParticleExecutionContext.H"
+#include "GpuParticleDirectoryGraph.H"
+#include "GpuCsrConditionalGraph.H"
+#include "gasTransport/GasResidentInterval.H"
 #include "gasBoundary/Resident.cuh"
 #include "gasBoundary/Evaluate.H"
 #include "gasTransport/MixturePorosity.H"
@@ -241,13 +247,25 @@ struct DeviceState
     int fixedCellBlockThreads = 128;
     int fixedFaceBlockThreads = 128;
     int fixedWorkBlockTuned = 0;
+    cudaStream_t particleCaptureStream=nullptr;
+    cudaGraph_t particleCaptureRoot=nullptr;
+    ugkwp::ParticleResidentInterval particleResidentInterval{};
+    ugkp::gpu::ParticlePhaseGraphs particlePhaseGraphs{};
+    unsigned long long particleGraphEpoch=1;
     cudaStream_t gasCaptureStream = nullptr;
     cudaGraph_t gasGraph = nullptr;
     cudaGraphExec_t gasGraphExec = nullptr;
-    std::vector<cudaGraphNode_t> gasGraphTimeNodes;
-    std::vector<cudaKernelNodeParams> gasGraphTimeParams;
-    std::vector<double> gasGraphTimeOffsets;
-    double gasGraphDt = -1;
+    ugkp::gpu::ParticleDirectoryGraphs particleDirectoryGraphs;
+    ugkp::gpu::CsrChoiceGraphs csrChoiceGraphs;
+    ugkp::gpu::CsrAutomaticRuntime* csrAutomaticRuntime=nullptr;
+    ugkwp::GasResidentInterval gasResidentInterval;
+    cudaGraphNode_t gasGraphIntervalNode=nullptr;
+    cudaKernelNodeParams gasGraphIntervalParams{};
+    ugkwp::GasResidentInterval gasGraphLastInterval{};
+    ugkwp::GasResidentInterval* gasGraphClock=nullptr;
+    bool gasGraphIntervalSubmitted=false,gasGraphAdvancesInterval=false;
+    bool gasGraphIncludesBoundary=false,gasGraphPreparedBoundary=false,gasGraphFrozenBoundary=false;
+    double gasGraphDt=-1; // NaN invalidates structural/configuration bindings.
     int gasGraphMode = -1;
     int particleBlockThreads = 128;
     int reductionBlockThreads = 128;
@@ -307,8 +325,10 @@ struct DeviceState
     double *steadySampleSum=nullptr,*steadySampleSquare=nullptr;
     double *steadySampleMean=nullptr,*steadySampleBegin=nullptr;
     double *steadySampleScratch=nullptr,*steadyBoundaryBudget=nullptr;
+    double* steadySampleReductionWorkspace=nullptr;
     double gasSteadyBoundaryTime = 0.0;
     double* gasSteadyResidual = nullptr;
+    double* gasSteadyMaximumWorkspace = nullptr;
 
 #endif
 
@@ -810,6 +830,8 @@ void setLastErrorText(const char* text)
     std::snprintf(lastError, sizeof(lastError), "%s", text);
 }
 
+#include "GpuCsrConditionalGraph.cuh"
+
 template<class T>
 int allocate(T*& ptr, const size_t n, const char* name)
 {
@@ -875,6 +897,7 @@ int copyToHost(T* dst, const T* src, const size_t n, const char* name)
 
 int syncDeviceState(DeviceState* s, const char* name)
 {
+    if(s)++s->particleGraphEpoch;
     if (s == nullptr || s->deviceState == nullptr)
     {
         setLastErrorText("cannot sync null GPU resident strict device state");
@@ -1015,8 +1038,13 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     releaseBoundaryLayerStorage(*s);
     releaseSharedGasSpecies(s->gasSpecies);
     releaseSharedGasSpecies(s->gasRejectedView);
+    ugkp::gpu::releaseParticleDirectoryGraphs(s->particleDirectoryGraphs);
+    ugkp::gpu::releaseCsrChoiceGraphs(s->csrChoiceGraphs);
+    release(s->csrAutomaticRuntime);
+    ugkp::gpu::releaseParticlePhaseGraphs(s->particlePhaseGraphs);
     if (s->gasGraphExec) cudaGraphExecDestroy(s->gasGraphExec);
     if (s->gasGraph) cudaGraphDestroy(s->gasGraph);
+    release(s->gasGraphClock);
     if (s->gasCaptureStream) cudaStreamDestroy(s->gasCaptureStream);
     release(s->deviceState);
     release(s->faceOwner);
@@ -1058,8 +1086,10 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->steadySampleSum);release(s->steadySampleSquare);
     release(s->steadySampleMean);release(s->steadySampleBegin);
     release(s->steadySampleScratch);release(s->steadyBoundaryBudget);
+    release(s->steadySampleReductionWorkspace);
     release(s->gasPseudoDt);
     release(s->gasSteadyResidual);
+    release(s->gasSteadyMaximumWorkspace);
 #endif
     release(s->rho);
     release(s->rhoUx);
@@ -1936,9 +1966,10 @@ template<class DragModel>
 __global__ void applyEulerianGasSolidDragKernel
 (
     DeviceState* sp,
-    const double dt
+    const double requestedInterval
 )
 {
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedInterval);
     const DragModel dragModel{};
 #include "GpuCellDragUpdate.inl"
 }
@@ -1957,12 +1988,12 @@ int launchEulerianGasSolidDrag
         case 0:
             applyEulerianGasSolidDragKernel
                 <ugkwpGpuDrag::SchillerNaumannDeviceDrag>
-                <<<grid, block>>>(s->deviceState, dt);
+                <<<grid, block,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState, dt);
             break;
         case 1:
             applyEulerianGasSolidDragKernel
                 <ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag>
-                <<<grid, block>>>(s->deviceState, dt);
+                <<<grid, block,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState, dt);
             break;
         default:
             setLastErrorText
@@ -2001,8 +2032,9 @@ struct AnalyticPressureScratch
     __device__ static __forceinline__ void initialise(DeviceState&,int) {}
 };
 __global__ void accumulateCollisionalPressureKickByCellKernel
-(DeviceState* sp,const double kickDt,const int computeScale)
+(DeviceState* sp,const double requestedInterval,const int computeScale)
 {
+    const auto kickDt=ugkwp::particleResidentStepDt(*sp,requestedInterval);
     runPressureKickAccumulation<AnalyticPressureScratch>(sp,kickDt,computeScale,0);
 }
 
@@ -2146,8 +2178,9 @@ __device__ void relaxOneParticleToResidentGas(DeviceState& s, const int i, const
 }
 
 template<class DragModel>
-__global__ void relaxParticlesToResidentGasKernel(DeviceState* sp, const double dt)
+__global__ void relaxParticlesToResidentGasKernel(DeviceState* sp, const double requestedInterval)
 {
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedInterval);
     DeviceState& s = *sp;
     const int nParticles = clampRange(*s.particleCountDevice, 0, s.particleCapacity);
     for
@@ -2173,13 +2206,13 @@ int launchMixtureParticleCoupling(DeviceState* s,double dt)
     const bool dragActive=gasDragModelActive(s->hostDragModel);
     if(s->hostDragModel==1)
         err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag>
-            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0);
+            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0,ugkp::gpu::particleRecordingStream(s));
     else
         err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::SchillerNaumannDeviceDrag>
-            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0);
+            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0,ugkp::gpu::particleRecordingStream(s));
     if(err!=cudaSuccess){setLastError("paired mixture/particle source",err);return 1;}
     if(s->particleWorkGrid>0)
-        mixtureParticleExternalKickKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,dt);
+        mixtureParticleExternalKickKernel<<<s->particleWorkGrid,s->particleBlockThreads,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState,dt);
     err=cudaGetLastError();
     if(err!=cudaSuccess){setLastError("external particle force",err);return 1;}
     return 0;
@@ -2198,17 +2231,17 @@ int launchParticleDragRelaxation
         case 0:
             relaxParticlesToResidentGasKernel
                 <ugkwpGpuDrag::SchillerNaumannDeviceDrag>
-                <<<grid, block>>>(s->deviceState, dt);
+                <<<grid, block,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState, dt);
             break;
         case 1:
             relaxParticlesToResidentGasKernel
                 <ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag>
-                <<<grid, block>>>(s->deviceState, dt);
+                <<<grid, block,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState, dt);
             break;
         case 2:
             relaxParticlesToResidentGasKernel
                 <ugkwpGpuDrag::SchillerNaumannDeviceDrag>
-                <<<grid, block>>>(s->deviceState, dt);
+                <<<grid, block,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState, dt);
             break;
         default:
             setLastErrorText
@@ -2271,20 +2304,21 @@ int launchSplitPrePoissonPoolLightReduction
     DeviceState* s,
     const double dt,
     const int block,
-    const size_t sharedBytes
+    const size_t sharedBytes,
+    cudaStream_t stream=nullptr,bool heavy=false
 )
 {
     cudaError_t err = cudaSuccess;
 
-    if (s->csrHeavyReductionEnabled != 0)
+    if (heavy)
     {
         accumulatePoissonPoolSplitSegmentByCellKernel<true, false, true>
-            <<<s->nCells, block, sharedBytes>>>(s->deviceState, dt);
+            <<<s->nCells, block, sharedBytes,stream>>>(s->deviceState, dt);
     }
     else
     {
         accumulatePoissonPoolSplitSegmentByCellKernel<true, false, false>
-            <<<s->nCells, block, sharedBytes>>>(s->deviceState, dt);
+            <<<s->nCells, block, sharedBytes,stream>>>(s->deviceState, dt);
     }
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -2295,15 +2329,15 @@ int launchSplitPrePoissonPoolLightReduction
 
     if (s->preInjectionSegmentActive != 0)
     {
-        if (s->csrHeavyReductionEnabled != 0)
+        if (heavy)
         {
             accumulatePoissonPoolSplitSegmentByCellKernel<false, true, true>
-                <<<s->nCells, block, sharedBytes>>>(s->deviceState, dt);
+                <<<s->nCells, block, sharedBytes,stream>>>(s->deviceState, dt);
         }
         else
         {
             accumulatePoissonPoolSplitSegmentByCellKernel<false, true, false>
-                <<<s->nCells, block, sharedBytes>>>(s->deviceState, dt);
+                <<<s->nCells, block, sharedBytes,stream>>>(s->deviceState, dt);
         }
         err = cudaGetLastError();
         if (err != cudaSuccess)
@@ -2344,10 +2378,11 @@ int launchCsrHeavyPoolReduction
     const double dt,
     const bool poissonMode,
     const int block,
-    const int useSplitPreDirectory
+    const int useSplitPreDirectory,
+    cudaStream_t stream=nullptr
 )
 {
-    return launchCsrSegmentedPoolReduction(s, dt, poissonMode, block);
+    return launchCsrSegmentedPoolReduction(s, dt, poissonMode, block,stream);
 
 }
 
@@ -2515,7 +2550,8 @@ __device__ __forceinline__ int csrReductionTileParticles
 __global__ void configureDynamicCsrHeavyPolicyKernel
 (
     DeviceState* sp,
-    const int directoryKind
+    const int directoryKind,
+    const bool scheduledInspection=false
 )
 {
     if (blockIdx.x != 0 || threadIdx.x != 0)
@@ -2524,6 +2560,7 @@ __global__ void configureDynamicCsrHeavyPolicyKernel
     }
 
     DeviceState& s = *sp;
+    if(scheduledInspection&&!s.csrAutomaticRuntime->inspect)return;
     const int threshold = csrReductionTileParticles(s, directoryKind);
     s.csrHeavyCellThreshold = static_cast<int>(threshold);
     s.csrHeavyTileParticles = static_cast<int>(threshold);
@@ -2532,17 +2569,18 @@ __global__ void configureDynamicCsrHeavyPolicyKernel
 int configureDynamicCsrHeavyPolicy
 (
     DeviceState* s,
-    const HeavyDirectoryKind directoryKind
+    const HeavyDirectoryKind directoryKind,
+    const bool scheduledInspection=false
 )
 {
     if (s->csrHeavyReductionMode == 0 || s->particleCapacity <= 0)
     {
         return 0;
     }
-    configureDynamicCsrHeavyPolicyKernel<<<1, 1>>>
+    configureDynamicCsrHeavyPolicyKernel<<<1,1,0,ugkp::gpu::particleRecordingStream(s)>>>
     (
         s->deviceState,
-        static_cast<int>(directoryKind)
+        static_cast<int>(directoryKind),scheduledInspection
     );
     const cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -2561,7 +2599,9 @@ int configureDynamicCsrHeavyPolicy
 
 #define GPU_AUTO_THRESHOLD_FIELD csrHeavyCellThreshold
 #define GPU_AUTO_UPDATE_POLICY(s, kind) configureDynamicCsrHeavyPolicy(s, kind)
+#define GPU_AUTO_INSPECTION_UPDATE_POLICY(s, kind) configureDynamicCsrHeavyPolicy(s, kind, true)
 #include "GpuAutomaticCsrSchedule.cuh"
+#undef GPU_AUTO_INSPECTION_UPDATE_POLICY
 #undef GPU_AUTO_UPDATE_POLICY
 #undef GPU_AUTO_THRESHOLD_FIELD
 
@@ -3239,7 +3279,7 @@ int collectDevelopmentProbeSample
     long double sumSquares = 0.0L;
     int occupancyMin = INT_MAX;
     int occupancyMax = INT_MIN;
-    if (s->csrHeavyReductionEnabled != 0)
+    if (sample.heavyReductionEnabled != 0)
     {
         int dynamicPolicy[2] = {0, 0};
         err = cudaMemcpy
@@ -3272,7 +3312,7 @@ int collectDevelopmentProbeSample
         sample.occupancyNonEmpty += count > 0 ? 1 : 0;
         if
         (
-            s->csrHeavyReductionEnabled != 0
+            sample.heavyReductionEnabled != 0
          && count > sample.heavyThreshold
         )
         {
@@ -3879,6 +3919,13 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->csrHeavyReductionMode = csrHeavyReductionMode;
     s->csrHeavyAutoInterval = csrHeavyAutoInterval;
     s->csrHeavyReductionEnabled = csrHeavyReductionMode != 0 ? 1 : 0;
+    if(csrHeavyReductionMode==2){
+        const auto allocation=cudaMalloc(reinterpret_cast<void**>(&s->csrAutomaticRuntime),sizeof(ugkp::gpu::CsrAutomaticRuntime));
+        if(allocation!=cudaSuccess){setLastError("allocate automatic CSR resident decision",allocation);releaseState(s);return 1;}
+        const ugkp::gpu::CsrAutomaticRuntime initial{};
+        const auto copy=cudaMemcpy(s->csrAutomaticRuntime,&initial,sizeof(initial),cudaMemcpyHostToDevice);
+        if(copy!=cudaSuccess){setLastError("initialize automatic CSR resident decision",copy);releaseState(s);return 1;}
+    }
     s->csrHeavyReductionActive = csrHeavyReductionMode == 1 ? 1 : 0;
     s->particleBlockThreads = particleBlockThreads;
     s->reductionBlockThreads = reductionBlockThreads;
@@ -4207,6 +4254,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
 )
 {
     DeviceState* s = asState(handle);
+    if(s)++s->particleGraphEpoch;
     if (validateState(s, "scheduled inlet configuration") != 0)
     {
         return 1;
@@ -4839,7 +4887,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 #endif
 
     UGKP_DEV_PROBE_ENTER(ProbeGasFlux);
-    if (advanceGasFluxStage(s, dt, simulationTime-dt) != 0)
+    if (advanceGasFluxScheduled(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -4857,10 +4905,12 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     const bool dragActive = gasDragModelActive(s->hostDragModel);
     const bool pairedMixture=s->gasSpecies.mode==ugkwp::GasMode::MixtureFrozen && !skipParticlePath;
 
+    auto submitParticles=[&](double dt,double simulationTime)->int {
+    const auto stream=ugkp::gpu::particleRecordingStream(s);
     if (!skipParticlePath)
     {
     UGKP_DEV_PROBE_ENTER(ProbeEulerianCoupling);
-    applyGasVolumeFractionSourceKernel<<<grid, block>>>
+    applyGasVolumeFractionSourceKernel<<<grid, block,0,stream>>>
     (
         s->deviceState,
         dt
@@ -4871,7 +4921,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         setLastError("applyGasVolumeFractionSourceKernel launch", err);
         return 1;
     }
-    recoverPrimitivesKernel<<<grid, block>>>(s->deviceState);
+    recoverPrimitivesKernel<<<grid, block,0,stream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -4881,12 +4931,12 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 
     if(pairedMixture)
     {
-        computePressureGradientKernel<<<grid,block>>>(s->deviceState);
-        snapshotParticleGasCouplingStateKernel<<<grid,block>>>(s->deviceState);
+        computePressureGradientKernel<<<grid,block,0,stream>>>(s->deviceState);
+        snapshotParticleGasCouplingStateKernel<<<grid,block,0,stream>>>(s->deviceState);
     }
     if (dragActive && !pairedMixture)
     {
-    computePressureGradientKernel<<<grid, block>>>(s->deviceState);
+    computePressureGradientKernel<<<grid, block,0,stream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -4898,7 +4948,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     {
         return 1;
     }
-    recoverPrimitivesKernel<<<grid, block>>>(s->deviceState);
+    recoverPrimitivesKernel<<<grid, block,0,stream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -4908,7 +4958,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     }
     else if (s->particleGasHeatTransferModelId != 0 && !pairedMixture)
     {
-        snapshotParticleGasCouplingStateKernel<<<grid, block>>>
+        snapshotParticleGasCouplingStateKernel<<<grid, block,0,stream>>>
         (
             s->deviceState
         );
@@ -4925,7 +4975,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     }
     if (s->particleGasHeatTransferModelId != 0 && !pairedMixture)
     {
-    applyEulerianParticleMaterialHeatKernel<<<grid, block>>>(s->deviceState, dt);
+    applyEulerianParticleMaterialHeatKernel<<<grid, block,0,stream>>>(s->deviceState, dt);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -4933,7 +4983,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
 
-    recoverPrimitivesKernel<<<grid, block>>>(s->deviceState);
+    recoverPrimitivesKernel<<<grid, block,0,stream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -4955,7 +5005,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             (s->nBoundarySources + s->particleBlockThreads - 1)
            /s->particleBlockThreads;
         injectBoundaryParticlesKernel
-            <<<sourceGrid, s->particleBlockThreads>>>
+            <<<sourceGrid, s->particleBlockThreads,0,stream>>>
             (s->deviceState, dt, simulationTime);
         err = cudaGetLastError();
         if (err != cudaSuccess)
@@ -5000,7 +5050,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
                                                      
 
     UGKP_DEV_PROBE_ENTER(ProbeCollisionPool);
-    recoverPrimitivesKernel<<<grid, block>>>(s->deviceState);
+    recoverPrimitivesKernel<<<grid, block,0,stream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -5008,7 +5058,11 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
 
-    clearPoissonThermalPoolKernel<<<grid, block>>>(s->deviceState, dt);
+    if(s->csrHeavyReductionMode==2){
+        setCsrAutomaticTimeStep<<<1,1,0,stream>>>(s->deviceState,dt);
+        err=cudaGetLastError();if(err!=cudaSuccess){setLastError("publish CSR collision interval",err);return 1;}
+    }
+    clearPoissonThermalPoolKernel<<<grid, block,0,stream>>>(s->deviceState, dt);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -5020,88 +5074,29 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 
     if (particleGrid > 0)
     {
-        if (s->csrCellLocalPathEnabled != 0)
-        {
-            if (s->csrHeavyReductionEnabled != 0)
-            {
-                if
-                (
-                    launchCsrHeavyPoolReduction
-                    (
-                        s,
-                        dt,
-                        true,
-                        block,
-                        s->useSplitPreDirectory
-                    ) != 0
-                )
-                {
-                    return 1;
+        if(s->csrCellLocalPathEnabled!=0) {
+            const int directory=static_cast<int>(currentPreTransportDirectoryKind(s));
+            const double poolInterval=s->csrHeavyReductionMode==2?0.0:dt;
+            if(launchCsrConditional(s,5+directory,block,directory,0,[&](cudaStream_t stream,bool heavy){
+                if(heavy)return launchCsrHeavyPoolReduction(s,poolInterval,true,block,s->useSplitPreDirectory,stream);
+                if(s->useSplitPreDirectory) {
+                    if(launchSplitPrePoissonPoolLightReduction(s,poolInterval,block,poolReduceSharedBytes,stream,false))return 1;
+                }else{
+                    accumulatePoissonPoolParticlesByCellKernel<false><<<s->nCells,block,poolReduceSharedBytes,stream>>>(s->deviceState,poolInterval);
+                    const auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("accumulatePoissonPoolParticlesByCellKernel launch",error);return 1;}
                 }
-            }
-            else if (s->useSplitPreDirectory != 0)
-            {
-                if
-                (
-                    launchSplitPrePoissonPoolLightReduction
-                    (
-                        s,
-                        dt,
-                        block,
-                        poolReduceSharedBytes
-                    ) != 0
-                )
-                {
-                    return 1;
-                }
-            }
-            else
-            {
-                accumulatePoissonPoolParticlesByCellKernel<false>
-                    <<<s->nCells, block, poolReduceSharedBytes>>>
-                    (s->deviceState, dt);
-                err = cudaGetLastError();
-                if (err != cudaSuccess)
-                {
-                    setLastError
-                    (
-                        "accumulatePoissonPoolParticlesByCellKernel launch",
-                        err
-                    );
-                    return 1;
-                }
-            }
-        }
-        else
-        {
-            accumulateParticlePoolAtomicKernel<true><<<particleGrid, s->particleBlockThreads>>>
-            (
-                s->deviceState,
-                dt
-            );
-            err = cudaGetLastError();
-            if (err != cudaSuccess)
-            {
-                setLastError
-                (
-                    "accumulateParticlePoolAtomicKernel<true> launch",
-                    err
-                );
-                return 1;
-            }
-        }
-        if (s->csrHeavyReductionEnabled == 0)
-        {
-            preparePoissonPoolSamplingKernel<<<grid, block>>>(s->deviceState);
-            err = cudaGetLastError();
-            if (err != cudaSuccess)
-            {
-                setLastError("preparePoissonPoolSamplingKernel launch", err);
-                return 1;
-            }
+                preparePoissonPoolSamplingKernel<<<grid,block,0,stream>>>(s->deviceState);
+                const auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("preparePoissonPoolSamplingKernel launch",error);return 1;}
+                return 0;
+            }))return 1;
+        }else{
+            accumulateParticlePoolAtomicKernel<true><<<particleGrid,s->particleBlockThreads,0,stream>>>(s->deviceState,dt);
+            err=cudaGetLastError();if(err!=cudaSuccess){setLastError("accumulateParticlePoolAtomicKernel<true> launch",err);return 1;}
+            preparePoissonPoolSamplingKernel<<<grid,block,0,stream>>>(s->deviceState);
+            err=cudaGetLastError();if(err!=cudaSuccess){setLastError("preparePoissonPoolSamplingKernel launch",err);return 1;}
         }
 
-        samplePoissonPoolParticlesKernel<<<particleGrid, s->particleBlockThreads>>>
+        samplePoissonPoolParticlesKernel<<<particleGrid, s->particleBlockThreads,0,stream>>>
         (
             s->deviceState,
             0
@@ -5113,7 +5108,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             return 1;
         }
 
-        correctPoissonThermalizedParticlesKernel<<<particleGrid, s->particleBlockThreads>>>
+        correctPoissonThermalizedParticlesKernel<<<particleGrid, s->particleBlockThreads,0,stream>>>
         (
             s->deviceState,
             0
@@ -5223,7 +5218,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             s->cellScanTempBytes,
             s->cellParticleCount,
             s->compactCellOffset,
-            s->nCells + 1
+            s->nCells + 1,stream
         );
         if (err != cudaSuccess)
         {
@@ -5237,7 +5232,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 
         const int compactOffsetGrid = (s->nCells + 1 + block - 1)/block;
         captureCompactedPreBaseOffsetsKernel
-            <<<compactOffsetGrid, block>>>(s->deviceState);
+            <<<compactOffsetGrid, block,0,stream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -5257,7 +5252,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             return 1;
         }
 
-        commitCellLocalParticleBuffersKernel<<<1, 1>>>(s->deviceState);
+        commitCellLocalParticleBuffersKernel<<<1, 1,0,stream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -5277,7 +5272,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             s->sortedParticleIndex,
             s->compactCountDevice,
             s->particleCapacity,
-            predicate
+            predicate,stream
         );
         if (err != cudaSuccess)
         {
@@ -5285,7 +5280,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             return 1;
         }
 
-        gatherSelectedParticlesKernel<<<particleGrid, s->particleBlockThreads>>>(s->deviceState);
+        gatherSelectedParticlesKernel<<<particleGrid, s->particleBlockThreads,0,stream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -5293,7 +5288,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             return 1;
         }
 
-        commitSelectedParticleBuffersKernel<<<1, 1>>>(s->deviceState);
+        commitSelectedParticleBuffersKernel<<<1, 1,0,stream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -5334,6 +5329,16 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         UGKP_DEV_PROBE_ENTER(ProbeCompaction);
         UGKP_DEV_PROBE_LEAVE_IF(ProbeCompaction, false);
     }
+
+    return 0;
+    };
+#ifdef UGKP_DEVELOPMENT_PROBES
+    if(submitParticles(dt,simulationTime))return 1;
+#else
+    if(!skipParticlePath&&ugkp::gpu::launchParticlePhaseGraph(s,dt,simulationTime,
+        submitParticles,[&](){swapParticleBufferPointersHost(s);},
+        [&](const char* label,cudaError_t error){setLastError(label,error);}))return 1;
+#endif
 
     UGKP_DEV_PROBE_ENTER(ProbeBoundary);
     if (finaliseGasBoundaryStage(s, dt, simulationTime) != 0)

@@ -46,6 +46,7 @@ struct Mapper
 {
     labelList patches;
     explicit Mapper(const labelList& ids) : patches(ids) {}
+    label size() const {return patches.size();}
     const labelList& fluidPatchIds() const { return patches; }
     const labelList& solidPatchIds() const { return patches; }
     scalarField mapSolidScalarToFluid(label, const scalarField& values) const
@@ -60,6 +61,7 @@ struct Resident
     List<scalarField> temperatures;
     List<scalarField> effusivities;
     label uploads = 0;
+    void updateSolidInterfaceState(const ugkp::gpu::ThermalInterfaceStateDeviceView&){throw std::runtime_error("startup mapping has no resident candidate");}
     void updateSolidWallTemperatures(const fvMesh& mesh, const volScalarField& gas, const labelList& ids)
     {
         require(uploads == 0, "temperature upload order changed");
@@ -74,8 +76,10 @@ struct Resident
         ++uploads;
     }
 };
+struct InitialCandidateState {ugkp::gpu::ThermalInterfaceStateDeviceView interfaceState(const labelList&,label)const{return {};}};
 struct MappingHarness
 {
+    InitialCandidateState initialCandidate;InitialCandidateState* solidCandidateSolver=&initialCandidate;
     const fvMesh& fluidMesh;
     volScalarField& solid;
     Mapper* mapper;

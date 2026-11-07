@@ -785,7 +785,7 @@ int main(int argc, char *argv[])
                     {
                         Info<< "runTime = " << runTime.elapsedClockTime()
                             << " simulationTime = " << runTime.timeName()
-                            << " particleCount = " << coupling.particleCount
+                            << " particleCount = " << resident.particleCount()
                             << " CoMax = " << lastMeasuredCo
                             << " CHTdeltaT = " << coupling.elapsedCouplingTimeS
                             << " radiationCoupled = "

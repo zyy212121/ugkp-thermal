@@ -1,10 +1,32 @@
 #pragma once
+#include "GpuParticleExecutionContext.H"
 #include "operators/maximumDirectoryOccupancyKernel.cuh"
 #include "operators/publishHeavyReductionDecisionKernel.cuh"
 
 int prepareCsrSegmentedReductionTasks
 (DeviceState* s, const int block,
  const GPU_DIRECTORY_PARAMETER_TYPE GPU_DIRECTORY_SELECTOR);
+int prepareCsrSegmentedReductionTasksOnInspection
+(DeviceState* s,const int block,const GPU_DIRECTORY_PARAMETER_TYPE GPU_DIRECTORY_SELECTOR);
+
+#ifdef UGKP_RESIDENT_CSR_CHOICE
+// The inspection cadence belongs to the device schedule, including graph replay.
+__global__ void beginAutomaticCsrInspectionKernel(DeviceState* s) {
+    if(threadIdx.x||blockIdx.x)return;
+    auto& runtime=*s->csrAutomaticRuntime;
+    ++runtime.advanceCount;
+    runtime.inspect=runtime.advanceCount==1u
+        ||runtime.advanceCount%static_cast<unsigned long long>(s->csrHeavyAutoInterval)==0u;
+    if(runtime.inspect)*s->csrMaximumOccupancy=0;
+}
+__global__ void decideAutomaticCsrScheduleKernel(DeviceState* s) {
+    if(threadIdx.x||blockIdx.x)return;
+    if(!s->csrAutomaticRuntime->inspect)return;
+    const int active=*s->csrMaximumOccupancy>s->GPU_AUTO_THRESHOLD_FIELD?1:0;
+    s->csrAutomaticRuntime->active=active;
+    s->csrHeavyReductionActive=active;s->csrHeavyReductionEnabled=active;
+}
+#endif
 
 // A successful auto call publishes a decision AND guarantees executable tasks.
 // Producers invalidate readiness in the common task pipeline, including while
@@ -19,6 +41,24 @@ int runAutomaticCsrSchedule
         setLastError("automatic CSR schedule invalid parameters", cudaErrorInvalidValue);
         return 1;
     }
+#ifdef UGKP_RESIDENT_CSR_CHOICE
+    const auto stream=ugkp::gpu::particleRecordingStream(s);
+    beginAutomaticCsrInspectionKernel<<<1,1,0,stream>>>(s->deviceState);
+    auto err=cudaGetLastError();
+    if(err!=cudaSuccess){setLastError("begin automatic CSR inspection",err);return 1;}
+    if(GPU_AUTO_INSPECTION_UPDATE_POLICY(s,GPU_DIRECTORY_SELECTOR)!=0)return 1;
+    const int grid=(s->nCells+block-1)/block;
+    maximumDirectoryOccupancyKernel<<<grid,block,0,stream>>>
+        (s->deviceState,GPU_DIRECTORY_ARGUMENT,s->csrMaximumOccupancy,true);
+    err=cudaGetLastError();
+    if(err==cudaSuccess){decideAutomaticCsrScheduleKernel<<<1,1,0,stream>>>(s->deviceState);err=cudaGetLastError();}
+    if(err!=cudaSuccess){setLastError("automatic CSR resident decision",err);return 1;}
+    // A fresh directory already has tasks for non-inspection steps. Rebuild
+    // only if the device inspection changed the threshold/selected path.
+    if(s->csrTasksReady&&s->csrPreparedDirectoryKind==GPU_DIRECTORY_ARGUMENT)
+        return prepareCsrSegmentedReductionTasksOnInspection(s,block,GPU_DIRECTORY_SELECTOR);
+    s->csrTasksReady=0;
+#else
     ++s->schedulingAdvanceCount;
     const bool inspect = s->schedulingAdvanceCount == 1u
         || s->schedulingAdvanceCount
@@ -75,6 +115,7 @@ int runAutomaticCsrSchedule
             }
         }
     }
+#endif
     if (s->csrHeavyReductionEnabled != 0
         && (s->csrTasksReady == 0
             || s->csrPreparedDirectoryKind != GPU_DIRECTORY_ARGUMENT))

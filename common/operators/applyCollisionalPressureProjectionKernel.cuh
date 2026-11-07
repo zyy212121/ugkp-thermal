@@ -1,13 +1,16 @@
 #pragma once
+#include "ParticleResidentInterval.H"
 // One operator implementation; scalar/time adapters are compile-time only.
 template<bool FullMoments, bool CompactParticles = false>
-__global__ void applyCollisionalPressureProjectionKernel(DeviceState* sp,const GPU_OPERATOR_TIME dt)
+__global__ void applyCollisionalPressureProjectionKernel(DeviceState* sp,const GPU_OPERATOR_TIME requestedDt)
 {
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
     runCellPressureProjection<ConstrainedPressureOperation<FullMoments>,PressureDirectory::Full,CompactParticles>(sp,dt);
 }
 template<bool FullMoments>
-__global__ void applyUnifiedSplitPressureKernel(DeviceState* sp,const GPU_OPERATOR_TIME dt)
+__global__ void applyUnifiedSplitPressureKernel(DeviceState* sp,const GPU_OPERATOR_TIME requestedDt)
 {
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
     runCellPressureProjection<ConstrainedPressureOperation<FullMoments>,PressureDirectory::Split,false>(sp,dt);
 }
 

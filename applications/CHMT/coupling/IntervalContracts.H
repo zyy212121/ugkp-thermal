@@ -78,7 +78,7 @@ CHMT_HD inline ExchangePacket scaledIntervalPacket(const ExchangePacket& p,Real 
     for(int c=0;c<Nc;++c)q.condensed[c]*=scale;
     return q;
 }
-inline ExchangePacket subtractIntervalPacket(const ExchangePacket& p,const ExchangePacket& used){
+CHMT_HD inline ExchangePacket subtractIntervalPacket(const ExchangePacket& p,const ExchangePacket& used){
     ExchangePacket q=p;
     q.mass-=used.mass;q.momentum-=used.momentum;q.energy-=used.energy;
     q.conductive-=used.conductive;q.advective-=used.advective;q.pressureWork-=used.pressureWork;

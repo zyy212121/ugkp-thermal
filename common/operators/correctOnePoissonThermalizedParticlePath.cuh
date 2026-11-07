@@ -1,4 +1,5 @@
 #pragma once
+#include "ParticleResidentInterval.H"
 // One operator implementation; scalar/time adapters are compile-time only.
 #include "../GpuCollisionPoolCorrection.cuh"
 
@@ -40,10 +41,13 @@ __global__ void correctPoissonThermalizedMobileParticlesKernel
     DeviceState* sp,
     const int applyThetaDrag
 #ifdef GPU_PAIRED_PARTICLE_HEAT
-    , const GPU_OPERATOR_TIME heatDt = 0
+    , const GPU_OPERATOR_TIME requestedHeatDt = 0
 #endif
 )
 {
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+    const auto heatDt=ugkwp::particleResidentStepDt(*sp,requestedHeatDt);
+#endif
     DeviceState& s = *sp;
     const int nParticles = clampRange(*s.particleCountDevice, 0, s.particleCapacity);
     for
@@ -95,10 +99,13 @@ __global__ void correctPoissonThermalizedStuckParticlesKernel
     DeviceState* sp,
     const int applyThetaDrag
 #ifdef GPU_PAIRED_PARTICLE_HEAT
-    , const GPU_OPERATOR_TIME heatDt = 0
+    , const GPU_OPERATOR_TIME requestedHeatDt = 0
 #endif
 )
 {
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+    const auto heatDt=ugkwp::particleResidentStepDt(*sp,requestedHeatDt);
+#endif
     DeviceState& s = *sp;
     const int selectedStuckCount =
         clampRange(*s.compactCountDevice, 0, s.particleCapacity);

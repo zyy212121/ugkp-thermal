@@ -4,12 +4,11 @@ struct GasCourantMaxima
 {
     double convective=0, maximum=0;
 };
-template<class GasHostState,class Time,class MaximumReduction>
-int computeGasCurrentCourant
+template<class GasHostState,class Time>
+int computeGasCurrentCourantField
 (
     GasHostState* s, Time dt, Time scheduleTime,
-    int cellBlock, int faceBlock, cudaStream_t stream,
-    GasCourantMaxima& result, MaximumReduction maximumReduction
+    int cellBlock, int faceBlock, cudaStream_t stream
 )
 {
     const int cellGrid = (s->nCells + cellBlock - 1)/cellBlock;
@@ -84,6 +83,19 @@ int computeGasCurrentCourant
         return 1;
     }
 
+    return 0;
+}
+
+// Host publication is optional: local pseudo-time consumes the resident field.
+template<class GasHostState,class Time,class MaximumReduction>
+int computeGasCurrentCourant
+(
+    GasHostState* s, Time dt, Time scheduleTime,
+    int cellBlock, int faceBlock, cudaStream_t stream,
+    GasCourantMaxima& result, MaximumReduction maximumReduction
+)
+{
+    if(computeGasCurrentCourantField(s,dt,scheduleTime,cellBlock,faceBlock,stream))return 1;
     GasCourantMaxima computed;
     if(maximumReduction(s->gasFluxPositivityScale,s->nCells,stream,computed.convective))return 1;
     computed.maximum=computed.convective;

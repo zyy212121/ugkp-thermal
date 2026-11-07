@@ -1,5 +1,6 @@
 
 #pragma once
+#include "GpuParticleExecutionContext.H"
 // Shared pressure launch protocol. LaunchBackend owns closure, precision selection,
 // sorted/unsorted projection and global or segmented launch policy; this function
 // owns face-flux/limit/scale/project order and its launch-error boundaries.
@@ -12,12 +13,12 @@ int launchCommonPressureKick(DeviceState* s,PressureTime dt,int block,
     if(dt==0)return 0;
     const int cellGrid=(s->nCells+block-1)/block;
     const int faceGrid=(s->nFaces+block-1)/block;
-    computeCollisionalPressureFaceFluxKernel<<<faceGrid,block>>>(s->deviceState);
+    computeCollisionalPressureFaceFluxKernel<<<faceGrid,block,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState);
     cudaError_t err=cudaGetLastError();
     if(err!=cudaSuccess){setLastError("pressure face flux launch",err);return 1;}
     err=LaunchBackend::limit(s,dt,cellGrid,block);
     if(err!=cudaSuccess){setLastError("pressure cell limiter launch",err);return 1;}
-    scaleCollisionalPressureFaceFluxKernel<<<faceGrid,block>>>(s->deviceState);
+    scaleCollisionalPressureFaceFluxKernel<<<faceGrid,block,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState);
     err=cudaGetLastError();
     if(err!=cudaSuccess){setLastError("pressure limited face flux launch",err);return 1;}
     if(s->csrCellLocalPathEnabled)

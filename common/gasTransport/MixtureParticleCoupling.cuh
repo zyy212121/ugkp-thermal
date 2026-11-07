@@ -1,4 +1,5 @@
 #pragma once
+#include "ParticleResidentInterval.H"
 #include <type_traits>
 #include <utility>
 #include "MixtureHeatExchange.H"
@@ -142,7 +143,8 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragAct
 // cells. Giving every light cell a full warp regresses sparse populations.
 template<class DragModel,bool ConstantHeat=true,bool Cooperative=false,class State>
 __global__ void mixtureParticleCouplingKernel
-(State*sp,double dt,bool dragActive,bool useCsr=true,bool useSplit=false,bool skipHeavy=false){
+(State*sp,double requestedDt,bool dragActive,bool useCsr=true,bool useSplit=false,bool skipHeavy=false){
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
  State&s=*sp;const int thread=blockIdx.x*blockDim.x+threadIdx.x;
 #if defined(__CUDACC__)
  if constexpr(Cooperative){
@@ -157,12 +159,12 @@ __global__ void mixtureParticleCouplingKernel
 }
 #if defined(__CUDACC__)
 template<class DragModel,bool ConstantHeat=true,class State>
-inline cudaError_t launchMixtureParticleCouplingCells(State*state,int cells,double dt,bool drag,bool csr,bool split){
+inline cudaError_t launchMixtureParticleCouplingCells(State*state,int cells,double dt,bool drag,bool csr,bool split,cudaStream_t stream=nullptr){
  if(cells<=0)return cudaSuccess;
- mixtureParticleCouplingKernel<DragModel,ConstantHeat><<<(cells+127)/128,128>>>(state,dt,drag,csr,split,true);
+ mixtureParticleCouplingKernel<DragModel,ConstantHeat><<<(cells+127)/128,128,0,stream>>>(state,dt,drag,csr,split,true);
  auto error=cudaGetLastError();if(error!=cudaSuccess)return error;
  const int groups=(cells+3)/4;
- mixtureParticleCouplingKernel<DragModel,ConstantHeat,true><<<groups<256?groups:256,128>>>(state,dt,drag,csr,split);
+ mixtureParticleCouplingKernel<DragModel,ConstantHeat,true><<<groups<256?groups:256,128,0,stream>>>(state,dt,drag,csr,split);
  return cudaGetLastError();
 }
 #endif
@@ -170,8 +172,9 @@ inline cudaError_t launchMixtureParticleCouplingCells(State*state,int cells,doub
 // External pressure/gravity work is not internal drag exchange. Launch after
 // the paired transaction; gas gravity has already been applied by its owner.
 template<class State>
-__global__ void mixtureParticleExternalKickKernel(State*sp,double dt)
+__global__ void mixtureParticleExternalKickKernel(State*sp,double requestedDt)
 {
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
     State&s=*sp;const int count=mixtureParticles::activeCount(s);
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<count;i+=gridDim.x*blockDim.x)
     {

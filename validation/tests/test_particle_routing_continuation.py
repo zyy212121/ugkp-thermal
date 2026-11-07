@@ -36,6 +36,7 @@ PREFIX=r'''
 #define __host__
 #define __forceinline__ inline
 #define __syncthreads() ((void)0)
+#include "ParticleResidentInterval.H"
 #define GPU_OPERATOR_REAL double
 #define GPU_OPERATOR_TIME double
 #define GPU_OPERATOR_R(x) (x)
@@ -132,6 +133,7 @@ int decisions=0,prepares=0,updates=0,errors=0;
 void setLastError(const char*,int){++errors;}
 int updatePolicy(DeviceState*,int){++updates;return 0;}
 int cudaMemset(void*p,int v,size_t n){std::memset(p,v,n);return 0;}
+int cudaMemsetAsync(void*p,int v,size_t n){return cudaMemset(p,v,n);}
 int cudaMemcpy(void*d,const void*s,size_t n,int){std::memcpy(d,s,n);return 0;}
 int cudaGetLastError(){return 0;}
 void maximumDirectoryOccupancyKernel(DeviceState*,int,int*p){*p=5;}

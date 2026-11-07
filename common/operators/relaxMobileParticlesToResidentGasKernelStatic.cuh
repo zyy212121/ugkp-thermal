@@ -1,13 +1,15 @@
 #pragma once
+#include "ParticleResidentInterval.H"
 // One operator implementation; scalar/time adapters are compile-time only.
 template<class DragModel>
 __global__ void relaxMobileParticlesToResidentGasKernelStatic
 (
     DeviceState* sp,
-    const GPU_OPERATOR_TIME dt,
+    const GPU_OPERATOR_TIME requestedDt,
     const DragModel dragModel
 )
 {
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
     DeviceState& s = *sp;
     const int nParticles = clampRange(*s.particleCountDevice, 0, s.particleCapacity);
     for
@@ -32,10 +34,11 @@ template<class DragModel>
 __global__ void relaxWallBoundParticlesToResidentGasKernelStatic
 (
     DeviceState* sp,
-    const GPU_OPERATOR_TIME dt,
+    const GPU_OPERATOR_TIME requestedDt,
     const DragModel dragModel
 )
 {
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
     DeviceState& s = *sp;
     const int nWallBound = Foam::gpuWall::wallBoundDirectoryCount(s);
     for

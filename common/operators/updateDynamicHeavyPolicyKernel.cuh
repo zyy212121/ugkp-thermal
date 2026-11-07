@@ -4,7 +4,8 @@
 __global__ void updateDynamicHeavyPolicyKernel
 (
     DeviceState* sp,
-    const int splitPreDirectoryActive
+    const int splitPreDirectoryActive,
+    const bool scheduledInspection=false
 )
 {
     if (blockIdx.x != 0 || threadIdx.x != 0)
@@ -13,6 +14,9 @@ __global__ void updateDynamicHeavyPolicyKernel
     }
 
     DeviceState& s = *sp;
+#ifdef UGKP_RESIDENT_CSR_CHOICE
+    if(scheduledInspection&&!s.csrAutomaticRuntime->inspect)return;
+#endif
     long long population = s.cellParticleOffset[s.nCells];
     if (splitPreDirectoryActive != 0)
     {

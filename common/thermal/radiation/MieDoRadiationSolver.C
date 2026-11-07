@@ -536,9 +536,10 @@ public:
         const label nCells = mesh.nCells();
         if
         (
-            snapshot.epsilonS.size() < nCells
+            snapshot.resident.enabled ? snapshot.resident.cells != nCells :
+            (snapshot.epsilonS.size() < nCells
          || snapshot.particleTemperatureK.size() < nCells
-         || snapshot.representativeDiameterM.size() < nCells
+         || snapshot.representativeDiameterM.size() < nCells)
         )
         {
             solveFailure("Mie DO snapshot cell arrays do not match fvMesh::nCells");
@@ -668,6 +669,27 @@ public:
     }
 };
 
+namespace {
+MieDoResult publishedRadiationResult(const fvMesh& mesh,MieDoRadiationWorkspaceData& scratch,const ugkp::gpu::RadiationResult& output){
+    MieDoResult result;result.resident=scratch.gpu->deviceView();
+    if(output.power.empty()&&mesh.nCells()){
+        result.integratedParticlePowerW=result.integratedBoundaryPowerW=result.conservationResidualW=0;
+        result.sourceIterations=output.sourceIterations;result.angleThreadsUsed=1;return result;
+    }
+    copyRadiationField(output.absorption,result.absorptionCoefficientInvM);copyRadiationField(output.scattering,result.scatteringCoefficientInvM);
+    copyRadiationField(output.extinction,result.extinctionCoefficientInvM);copyRadiationField(output.asymmetry,result.asymmetryFactor);
+    copyRadiationField(output.incident,result.incidentRadiationG_Wm2);copyRadiationField(output.power,result.particlePowerDensityWm3);
+    result.boundaryQrOutwardWm2.setSize(mesh.boundary().size());result.integratedParticlePowerW=0;result.integratedBoundaryPowerW=0;
+    result.sourceIterations=output.sourceIterations;result.angleThreadsUsed=1;
+    forAll(result.particlePowerDensityWm3,cellI)result.integratedParticlePowerW+=result.particlePowerDensityWm3[cellI]*mesh.V()[cellI];
+    std::size_t index=0;
+    forAll(mesh.boundary(),patchI){auto& values=result.boundaryQrOutwardWm2[patchI];values.setSize(mesh.boundary()[patchI].size());
+        forAll(values,faceI){values[faceI]=output.boundaryFlux[index++];result.integratedBoundaryPowerW+=values[faceI]*mag(mesh.Sf().boundaryField()[patchI][faceI]);}}
+    result.conservationResidualW=result.integratedParticlePowerW+result.integratedBoundaryPowerW;
+    return result;
+}
+}
+
 MieDoRadiationWorkspace::MieDoRadiationWorkspace
 (
     std::unique_ptr<MieDoRadiationWorkspaceData> data
@@ -767,13 +789,14 @@ MieDoRadiationWorkspace MieDoRadiationSolver::makeWorkspace() const
 MieDoResult MieDoRadiationSolver::solve(const MieDoSnapshot& snapshot) const
 {
     MieDoRadiationWorkspace workspace = makeWorkspace();
-    return solve(snapshot, workspace);
+    auto result=solve(snapshot, workspace);result.resident={};return result;
 }
 
 MieDoResult MieDoRadiationSolver::solve
 (
     const MieDoSnapshot& snapshot,
-    MieDoRadiationWorkspace& workspace
+    MieDoRadiationWorkspace& workspace,
+    bool exportFields
 ) const
 {
     if (!data_)
@@ -791,19 +814,24 @@ MieDoResult MieDoRadiationSolver::solve
     const fvMesh& mesh=data.mesh;
     const label nCells=mesh.nCells();
     ugkp::gpu::RadiationSnapshot input;
-    input.epsilon.assign(snapshot.epsilonS.begin(),snapshot.epsilonS.begin()+nCells);
-    input.temperature.assign(snapshot.particleTemperatureK.begin(),snapshot.particleTemperatureK.begin()+nCells);
-    input.diameter.assign(snapshot.representativeDiameterM.begin(),snapshot.representativeDiameterM.begin()+nCells);
+    input.resident=snapshot.resident;
+    if(!input.resident.enabled){
+        input.epsilon.assign(snapshot.epsilonS.begin(),snapshot.epsilonS.begin()+nCells);
+        input.temperature.assign(snapshot.particleTemperatureK.begin(),snapshot.particleTemperatureK.begin()+nCells);
+        input.diameter.assign(snapshot.representativeDiameterM.begin(),snapshot.representativeDiameterM.begin()+nCells);
+    }
     forAll(mesh.boundary(),patchI)forAll(mesh.boundary()[patchI],faceI){
         input.wallTemperature.push_back(data.boundaryTemperature(snapshot,patchI,faceI));
         input.emissivity.push_back(data.boundaryEmissivity(snapshot,patchI,faceI));
+        input.residentWallTemperature.push_back(data.isCoupledPatch[patchI]||!data.patchControls[patchI].hasSpecifiedTemperature);
+        input.contactEmissivity.push_back(data.isCoupledPatch[patchI]);
     }
     const bool warm=scratch.intensitiesInitialized;scratch.intensitiesInitialized=false;
     ugkp::gpu::RadiationResult output;
-    try {output=scratch.gpu->solve(input,warm);}
+    try {output=scratch.gpu->solve(input,warm,exportFields);}
     catch(const ugkp::gpu::RadiationError& error){solveFailure(error.what(),error.iteration,error.value,error.cell,error.patch,error.face);}
     catch(const std::exception& error){solveFailure(std::string("CUDA Mie DO solve failed: ")+error.what());}
-    if(hostDiagnosticWarningsEnabled()){
+    if(exportFields&&hostDiagnosticWarningsEnabled()){
         for(label cellI=0;cellI<nCells;++cellI){const auto& phase=output.phaseMetrics[cellI];
             if(phase.rowError>data.controls.phaseBalanceTolerance||phase.columnError>data.controls.phaseBalanceTolerance)
                 WarningInFunction<<"DO phase balance iteration budget exhausted; time="<<mesh.time().timeName()<<"; cell="<<cellI
@@ -819,18 +847,12 @@ MieDoResult MieDoRadiationSolver::solve
             WarningInFunction<<"DO source iteration budget exhausted; time="<<mesh.time().timeName()<<"; iterations="<<output.sourceIterations
                 <<"; residual="<<output.maximumRelativeChange<<"; limit="<<data.controls.sourceRelativeTolerance<<"; retaining computed intensities"<<endl;
     }
-    MieDoResult result;
-    copyRadiationField(output.absorption,result.absorptionCoefficientInvM);copyRadiationField(output.scattering,result.scatteringCoefficientInvM);
-    copyRadiationField(output.extinction,result.extinctionCoefficientInvM);copyRadiationField(output.asymmetry,result.asymmetryFactor);
-    copyRadiationField(output.incident,result.incidentRadiationG_Wm2);copyRadiationField(output.power,result.particlePowerDensityWm3);
-    result.boundaryQrOutwardWm2.setSize(mesh.boundary().size());result.integratedParticlePowerW=0;result.integratedBoundaryPowerW=0;
-    result.sourceIterations=output.sourceIterations;result.angleThreadsUsed=1;
-    forAll(result.particlePowerDensityWm3,cellI)result.integratedParticlePowerW+=result.particlePowerDensityWm3[cellI]*mesh.V()[cellI];
-    std::size_t index=0;
-    forAll(mesh.boundary(),patchI){auto& values=result.boundaryQrOutwardWm2[patchI];values.setSize(mesh.boundary()[patchI].size());
-        forAll(values,faceI){values[faceI]=output.boundaryFlux[index++];result.integratedBoundaryPowerW+=values[faceI]*mag(mesh.Sf().boundaryField()[patchI][faceI]);}}
-    result.conservationResidualW=result.integratedParticlePowerW+result.integratedBoundaryPowerW;
-    scratch.intensitiesInitialized=true;return result;
+    scratch.intensitiesInitialized=true;return publishedRadiationResult(mesh,scratch,output);
+}
+
+MieDoResult MieDoRadiationSolver::collect(MieDoRadiationWorkspace& workspace) const {
+    if(!workspace.data_||!workspace.data_->gpu)solveFailure("radiation output requested before solve");
+    return publishedRadiationResult(data_->mesh,*workspace.data_,workspace.data_->gpu->collect());
 }
 
 }

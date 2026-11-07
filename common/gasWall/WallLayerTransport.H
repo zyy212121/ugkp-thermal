@@ -702,8 +702,8 @@ template<class R,int B> UGKWP_GAS_HD inline bool eliminateBlock(R (&a)[B][B],R (
         for(int row=0;row<active;++row)if(row!=col){const R factor=a[row][col];for(int k=0;k<active;++k){a[row][k]-=factor*a[col][k];upper[row][k]-=factor*upper[col][k];}rhs[row]-=factor*rhs[col];}}
     return true;
 }
-// A thread owns one perturbed node and its three Jacobian blocks. The view
-// overlays only that node; neighboring evaluations read the immutable iterate.
+// A perturbation owns one node/column and its three Jacobian columns. The
+// view overlays only that node; neighbors read the immutable iterate.
 template<class R,int N> struct PerturbedLayerState {
     const R (*state)[N+4];int node;R row[N+4];
     UGKWP_GAS_HD PerturbedLayerState(const R (*values)[N+4],int index):state(values),node(index){
@@ -712,7 +712,7 @@ template<class R,int N> struct PerturbedLayerState {
 };
 template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool assembleJacobianNode(
  const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
- WallWorkspace<R,N,M>& w,int j){
+ WallWorkspace<R,N,M>& w,int j,int firstPass=0,int lastPass=N+4){
     constexpr int B=N+4;PerturbedLayerState<R,N> perturbed(w.state,j);
     CachedLayerRows<R,N,PerturbedLayerState<R,N>> cached(perturbed,j);
 
@@ -725,9 +725,9 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
         // They do not affect transport; avoid two full thermochemistry/flux
         // probes per node while preserving the existing block solve/order.
         const bool algebraicSst=c.model==BoundaryLayerModel::EquilibriumOde&&!c.enableSst;
-        if(algebraicSst){w.diagonal[j][N+2][N+2]=R(1);w.diagonal[j][N+3][N+3]=R(1);}
+        if(algebraicSst&&firstPass==0){w.diagonal[j][N+2][N+2]=R(1);w.diagonal[j][N+3][N+3]=R(1);}
         const int columns=algebraicSst?N+2:B;
-        for(int pass=0;pass<columns;++pass){const int col=donor>=3?(pass==3?donor:(pass==donor?3:pass)):pass;
+        for(int pass=firstPass;pass<columns&&pass<lastPass;++pass){const int col=donor>=3?(pass==3?donor:(pass==donor?3:pass)):pass;
             const bool species=col>=3&&col<N+2,transfer=species&&donor>=3&&col!=donor;
             const R old=perturbed.row[col],oldDonor=transfer?perturbed.row[donor]:R(0);
             const R rootEpsilon=::sqrt(std::numeric_limits<R>::epsilon());
@@ -824,9 +824,30 @@ UGKWP_GAS_HD inline bool newtonStep(const WallInput<R,N,TableReal>& in,
         w.delta[i][row]=-w.residual[i][row];
         for(int col=0;col<B;++col)w.lower[i][row][col]=w.diagonal[i][row][col]=w.upper[i][row][col]=0;}
     team.sync();bool valid=true;
-    for(int j=team.rank();j<c.nodes;j+=team.size())
-        if(!assembleJacobianNode(in,c,ctx,w,j)){valid=false;break;}
-    if(!team.all(valid))return false;
+    if constexpr(std::is_same<Team,SerialWallTeam>::value){
+        for(int j=0;j<c.nodes;++j)if(!assembleJacobianNode(in,c,ctx,w,j)){valid=false;break;}
+        if(!team.all(valid))return false;
+    }else if(c.nodes>=team.size()){
+        // Nodes already fill the team. Retain per-node point reuse instead of
+        // duplicating thermodynamic work across columns with no added lanes.
+        for(int j=team.rank();j<c.nodes;j+=team.size())
+            if(!assembleJacobianNode(in,c,ctx,w,j)){valid=false;break;}
+        if(!team.all(valid))return false;
+    }else{
+        const int columns=c.model==BoundaryLayerModel::EquilibriumOde&&!c.enableSst?N+2:B;
+        // Velocity, temperature and the donor species column are independent.
+        // Remaining simplex columns read that donor column, so publish the
+        // first stage before assembling them. Each job writes distinct columns.
+        const int first=columns<4?columns:4;
+        for(int stage=0;stage<2;++stage){
+            const int begin=stage?first:0,width=stage?columns-first:first;
+            for(int job=team.rank();job<c.nodes*width;job+=team.size()){
+                const int node=job/width,pass=begin+job%width;
+                if(!assembleJacobianNode(in,c,ctx,w,node,pass,pass+1)){valid=false;break;}
+            }
+            if(!team.all(valid))return false;
+        }
+    }
     // Preserve partial pivoting, block-Thomas elimination and back substitution.
     bool solved=false;if(team.leader())solved=solveLayerNewtonSystem(c,w);
     return team.broadcast(solved);

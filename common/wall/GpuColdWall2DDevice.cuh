@@ -689,9 +689,10 @@ __device__ bool advanceColdWall2DThermalGroup
 __global__ void relaxColdWall2DParticlesToResidentGasKernel
 (
     DeviceState* sp,
-    const GpuTime dt
+    const GpuTime requestedDt
 )
 {
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
     DeviceState& s = *sp;
     if
     (

@@ -4,6 +4,7 @@
 #include "GpuSolidThermalProperties.H"
 #include "../../../common/gpu/SparseConjugateGradient.H"
 #include "../../../common/gpu/SolidThermalProperties.H"
+#include "../../../common/gpu/ImplicitDiffusion.H"
 #include "autoPtr.H"
 #include "fvMesh.H"
 #include "labelList.H"
@@ -94,6 +95,12 @@ class GpuSolidThermalCandidateSolver
     GpuSolidThermalControls controls_;
     mutable std::unique_ptr<ugkp::gpu::SparseConjugateGradient> sparse_;
     mutable std::unique_ptr<ugkp::gpu::SolidThermalProperties> deviceProperties_;
+    mutable std::unique_ptr<ugkp::gpu::ImplicitDiffusion> residentDiffusion_;
+    mutable std::unique_ptr<ugkp::gpu::SolidThermalIterationGraph> residentGraph_;
+    mutable bool residentAdvanced_=false;
+    GpuSolidThermalCandidate solveCandidate(const volScalarField&,const List<scalarField>&,scalar,
+        const ugkp::gpu::ThermalInterfaceEnergyDeviceView&,const ugkp::gpu::ThermalInterfaceEnergyDeviceView&,
+        bool prepareOnly,ugkp::diagnostics::DeviceContext*) const;
 
 public:
     GpuSolidThermalCandidateSolver
@@ -109,8 +116,22 @@ public:
     (
         const volScalarField& registeredTemperature,
         const List<scalarField>& interfaceEnergyJ,
-        scalar deltaTExchange
+        scalar deltaTExchange,
+        const ugkp::gpu::ThermalInterfaceEnergyDeviceView& residentEnergy = {},
+        const ugkp::gpu::ThermalInterfaceEnergyDeviceView& appendedEnergy = {}
     ) const;
+
+    bool prepareResident(const volScalarField&,const ugkp::gpu::ThermalInterfaceEnergyDeviceView&,
+        ugkp::diagnostics::DeviceContext*,const ugkp::gpu::ThermalInterfaceEnergyDeviceView& appended={}) const;
+    ugkp::gpu::SolidThermalIterationGraph& prepareResidentContact(label patch) const;
+    void acceptResidentContact() const { residentAdvanced_=true; }
+    bool residentPrepared() const { return bool(residentGraph_); }
+    bool residentAdvanced() const { return residentAdvanced_; }
+    void advanceResident(void* producerStream) const;
+    void publishResident(volScalarField&) const;
+
+    ugkp::gpu::ThermalSolidContactDeviceView contactState(const volScalarField&,label patch,bool initialise) const;
+    ugkp::gpu::ThermalInterfaceStateDeviceView interfaceState(const labelList& contactPairIds,label pairs,bool includeEmissivity=false,ugkp::diagnostics::DeviceContext* context=nullptr) const;
 
     void publishSolidCandidate
     (
@@ -127,7 +148,6 @@ struct GpuThermalCouplingResult
 {
     bool coupled{false};
     bool radiationCoupled{false};
-    label particleCount{0};
     scalar elapsedCouplingTimeS{0};
     scalar elapsedRadiationTimeS{0};
 };

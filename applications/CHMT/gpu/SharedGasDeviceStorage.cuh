@@ -1,6 +1,8 @@
+#include "../../../common/gasTransport/GasMeshGeometry.H"
 #ifndef CHMT_GPU_SHAREDGASDEVICESTORAGE_CUH
 #define CHMT_GPU_SHAREDGASDEVICESTORAGE_CUH
 #include "gpu/HostTransferQueue.H"
+#include "../../../common/gasTransport/GasResidentInterval.H"
 #include "../../../common/thermal/ParticleSurfaceState.H"
 #include "../../../common/gasBoundary/Resident.cuh"
 #if defined(__CUDACC__)
@@ -24,6 +26,7 @@ struct SharedGasDeviceView:ugkwp::GasStateView<Real,Real,ugkwp::SstCoefficients>
     // Borrowed from the common particle owner; null is the particle-free phase.
     const Real* gasVolumeFraction=nullptr;
     ugkp::thermal::ParticleWallExchangeView particleWall;
+    ugkwp::GasResidentInterval gasResidentInterval;
     ugkwp::GasSpeciesState<Real,Ns> gasSpecies;
     ugkwp::GasBoundaryLayerModelState<Real,Ns> gasBoundaryLayerModel;
 };
@@ -685,17 +688,15 @@ public:
         std::vector<int> fixedY(boundaryRebound?nf:0),kMode(nf),omegaMode(nf);
         std::vector<Real> kBoundary(nf),omegaBoundary(nf);
         for(std::size_t f=0;f<nf;++f){auto a=mesh.areaVectors[f];sx[f]=a.x;sy[f]=a.y;sz[f]=a.z;area[f]=mag(a);fx[f]=mesh.faceCentres[f].x;fy[f]=mesh.faceCentres[f].y;fz[f]=mesh.faceCentres[f].z;
-            const int o=mesh.owner[f],n=mesh.neighbour[f];Vec3 chord=mesh.faceCentres[f]-mesh.cellCentres[o];
-            if(n>=0)chord=mesh.cellCentres[n]-mesh.cellCentres[o];
-            const auto b=mesh.boundaryKind[f];
-            if(b==BoundaryKind::Periodic){const int pair=mesh.periodicPartner[f];const Vec3 shift=mesh.faceCentres[f]-mesh.faceCentres[pair];dx[f]=shift.x;dy[f]=shift.y;dz[f]=shift.z;chord=mesh.cellCentres[mesh.owner[pair]]+shift-mesh.cellCentres[o];}
-            delta[f]=1/maxValue(absValue(dot(chord,a/area[f])),.05*mag(chord));
-            if(n>=0||b==BoundaryKind::Periodic){
-                const Real own=absValue(dot(mesh.faceCentres[f]-mesh.cellCentres[o],a/area[f]));
-                const Vec3 mappedNeighbour=mesh.cellCentres[o]+chord;
-                const Real other=absValue(dot(mappedNeighbour-mesh.faceCentres[f],a/area[f]));
-                weight[f]=(own+other)>0?other/(own+other):.5;
-            }
+            const int o=mesh.owner[f],n=mesh.neighbour[f];const auto b=mesh.boundaryKind[f];
+            const bool periodic=b==BoundaryKind::Periodic;const int pair=periodic?mesh.periodicPartner[f]:-1;
+            const int neighbour=periodic?mesh.owner[pair]:n;
+            const auto point=[](Vec3 p){return ugkp::gpu::geometry::Point{p.x,p.y,p.z};};
+            const auto metric=ugkwp::gasFaceGeometry(point(a),point(mesh.faceCentres[f]),point(mesh.cellCentres[o]),n>=0,
+                neighbour>=0?point(mesh.cellCentres[neighbour]):ugkp::gpu::geometry::Point{},periodic,
+                periodic?point(mesh.faceCentres[pair]):ugkp::gpu::geometry::Point{});
+            dx[f]=metric.periodicShift.x;dy[f]=metric.periodicShift.y;dz[f]=metric.periodicShift.z;
+            delta[f]=metric.delta;weight[f]=metric.weight;
             const auto& w=mesh.boundaryPrimitive[f];
             const bool inlet=mesh.gasBoundary?ugkp::boundary::prescribesInflow(mesh.gasBoundary->faces[f]):b==BoundaryKind::Inlet;
             if(boundaryRebound)fixedY[f]=mesh.gasBoundary&&mesh.gasBoundary->faces[f].compositionMode>=0?mesh.gasBoundary->faces[f].compositionMode:inlet;
@@ -751,7 +752,8 @@ public:
         }
         error.clear();return true;
     }
-    bool downloadState(HostState& state,std::string& error){
+    bool downloadState(HostState& state,std::string& error){return downloadState(state,error,[](){});}
+    template<class PublishGeometry> bool downloadState(HostState& state,std::string& error,PublishGeometry publishGeometry){
         std::vector<Real> rho,px,py,pz,energy,species,k,omega,fraction,boundaryPressure;const std::size_t n=view_.nCells;
         if(view_.gasVolumeFraction&&!enqueueRead(view_.gasVolumeFraction,n,fraction)){error=fault_.message;return false;}
         if(!enqueueRead(view_.rho,n,rho)||!enqueueRead(view_.rhoUx,n,px)||!enqueueRead(view_.rhoUy,n,py)||!enqueueRead(view_.rhoUz,n,pz)||!enqueueRead(view_.rhoE,n,energy)||!readTemperature(n)||(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&!enqueueRead(view_.gasSpecies.rho,Ns*n,species))){error=fault_.message;return false;}
@@ -760,6 +762,9 @@ public:
         if(state.gasMesh.gasBoundary)for(const auto& face:state.gasMesh.gasBoundary->faces)wave=wave||face.wave;
         if(wave&&!enqueueRead(view_.gasBoundaryP,view_.nFaces,boundaryPressure)){error=fault_.message;return false;}
         if(!observeDiagnostics()){error=fault_.message;return false;}
+        // Geometry reads may join this same publication. Install their host
+        // representation before converting resident densities to inventories.
+        publishGeometry();
         if(wave)for(std::size_t f=0;f<boundaryPressure.size();++f)if(state.gasMesh.gasBoundary->faces[f].wave)
             state.gasMesh.boundaryPrimitive[f].pressure=boundaryPressure[f];
         if(view_.gasVolumeFraction)state.gasVoidFraction=std::move(fraction);

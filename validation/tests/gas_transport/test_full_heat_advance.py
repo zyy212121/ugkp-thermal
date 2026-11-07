@@ -33,18 +33,18 @@ def braced_function(text, signature):
 def test_actual_advance_source_order_and_time_arguments():
     owner=OWNER.read_text()
     body = braced_function(owner, 'extern "C" int ugkwpGpuResidentStrictAdvance')
-    particle = braced_function(owner, 'int advanceResidentThermalParticles(')
+    particle = braced_function(owner, 'int submitResidentThermalParticles(')
     call_start=body.index('    if(advanceResidentThermalParticles(')
     call_end=body.index('    UGKP_DEV_PROBE_ENTER(ProbeBoundary)',call_start)
     body=body[:call_start]+particle+body[call_end:]
-    stages = ["advanceGasFluxStage", "applyGasVolumeFractionSourceKernel",
+    stages = ["advanceGasFluxScheduled", "applyGasVolumeFractionSourceKernel",
               "snapshotParticleGasCouplingStateKernel", "applyEulerianParticleMaterialHeatKernel",
               "injectBoundaryParticlesKernel", "prepareParticleDirectoryAndSchedule",
               "applyCollisionalPressureKick<true>", "clearPoissonThermalPoolKernel",
               "correctPoissonThermalizedMobileParticlesKernel", "correctPoissonThermalizedStuckParticlesKernel",
               "acceptPairedParticleHeatKernel",
               "relaxColdWall1DParticlesToResidentGasKernel", "relaxMobileParticlesToResidentGasKernelStatic",
-              "settlePairedParticleHeatKernel", "trackParticlesLocalFaceWalkKernel", "launchPostTransportMomentPipeline",
+              "settlePairedParticleHeatKernel", "launchParticleTracking", "launchPostTransportMomentPipeline",
               "applyCollisionalPressureKick<false>", "finaliseGasBoundaryStage"]
     positions = [body.index(name) for name in stages]
     assert positions == sorted(positions)

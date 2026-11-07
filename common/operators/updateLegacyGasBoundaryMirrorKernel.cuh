@@ -1,15 +1,17 @@
 #pragma once
 #include "evaluateResidentBoundary.cuh"
+#include "gasTransport/GasResidentInterval.H"
 // One operator implementation; scalar/time adapters are compile-time only.
 template<class GasState>
 __global__ void updateLegacyGasBoundaryMirrorKernel
 (
     GasState* sp,
-    const GPU_OPERATOR_TIME simulationTime
+    const GPU_OPERATOR_TIME requestedTime
 )
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
+    const GPU_OPERATOR_TIME simulationTime=ugkwp::gasResidentStageTime(s,requestedTime);
     const int f = s.nInternalFaces + blockIdx.x*blockDim.x + threadIdx.x;
     if (f >= s.nFaces)
     {
@@ -75,10 +77,11 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
 }
 
 template<class GasState>
-__global__ void updateRiemannBoundaryMirrorKernel(GasState* sp, const GPU_OPERATOR_TIME simulationTime=GPU_OPERATOR_TIME(0))
+__global__ void updateRiemannBoundaryMirrorKernel(GasState* sp, const GPU_OPERATOR_TIME requestedTime=GPU_OPERATOR_TIME(0))
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
+    const GPU_OPERATOR_TIME simulationTime=ugkwp::gasResidentStageTime(s,requestedTime);
     const int f = s.nInternalFaces + blockIdx.x*blockDim.x + threadIdx.x;
     if (f >= s.nFaces)
     {

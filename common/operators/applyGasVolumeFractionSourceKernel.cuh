@@ -1,12 +1,14 @@
 #pragma once
+#include "ParticleResidentInterval.H"
 #include "gasTransport/GasEnergy.H"
 // One operator implementation; scalar/time adapters are compile-time only.
 __global__ void applyGasVolumeFractionSourceKernel
 (
     DeviceState* sp,
-    const GPU_OPERATOR_TIME dt
+    const GPU_OPERATOR_TIME requestedDt
 )
 {
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
     DeviceState& s = *sp;
     using Energy = ugkwp::GasEnergyScalar<DeviceState>;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;

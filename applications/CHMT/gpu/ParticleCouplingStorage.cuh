@@ -80,6 +80,13 @@ public:
         if(!result(ugkp::thermal::bindParticleGas(owner_,ugkp::thermal::particleGasBinding(gas.hostView())),error))return false;
         gas.hostView().gasVolumeFraction=gasFraction();gas.hostView().particleWall=wallExchange();
         if(!gas.refreshView()){error=gas.error();return false;}
+        return refreshTrackingGeometry(gas,stream,error);
+    }
+    // Coordinate-only motion updates existing gas arrays in place. Their
+    // borrowed addresses and physical configuration were bound at window load;
+    // rebuilding tracking planes does not republish either owner's descriptor.
+    bool refreshTrackingGeometry(const SharedGasDeviceStorage& gas,cudaStream_t stream,std::string& error){
+        if(!owner_)return true;
         return result(ugkp::thermal::refreshParticleTrackingGeometry(owner_,
             {gas.hostView().nFaces,boundaryKind_.data(),restitution_.data(),tangential_.data()},stream),error);
     }
@@ -108,6 +115,10 @@ public:
                 state.particleSourceFaces.data(),state.particleSourceResidualMass.data()),error))return false;
         }
         return true;
+    }
+    bool mapGeometry(const ugkp::thermal::ParticleSurfaceGeometry& previous,
+        const ugkp::thermal::ParticleSurfaceGeometry& next,cudaStream_t stream,std::string& error){
+        return !owner_||result(ugkp::thermal::mapAttachedParticles(owner_,previous,next,nullptr,stream),error);
     }
     bool mapGeometry(const HostMesh& previous,const HostMesh& next,SharedGasDeviceStorage& gas,
         cudaStream_t stream,std::string& error){

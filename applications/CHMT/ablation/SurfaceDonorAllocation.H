@@ -1,5 +1,6 @@
 #pragma once
 #include "core/HostState.H"
+#include "../../../common/gasWall/FaceAreaPartition.H"
 namespace chmt {
 // A gas cell owns one conservative reactant inventory, even if several of
 // its faces react. Partition that inventory over the exposed physical areas
@@ -27,7 +28,7 @@ inline bool surfaceGasDonorShares(const HostState& h,std::vector<Real>& shares,s
     }
     for(std::size_t i=0;i<shares.size();++i)if(surface.gasFace[i]>=0){
         const Real total=areas[h.gasMesh.owner[surface.gasFace[i]]];
-        shares[i]=total>0?shares[i]/total:0;
+        shares[i]=ugkwp::gaswall::faceAreaShare(shares[i],total);
     }
     return true;
 }

@@ -1,6 +1,7 @@
 #ifndef UGKP_GPU_SPARSE_CONJUGATE_GRADIENT_H
 #define UGKP_GPU_SPARSE_CONJUGATE_GRADIENT_H
 #include <memory>
+#include "ExecutionGraph.H"
 namespace ugkp { namespace gpu {
 // Scalar finite-volume matrix in ordered CSR form. Each row starts with its
 // diagonal; subsequent entries retain the original face accumulation order.
@@ -29,6 +30,18 @@ struct SparseLduView {
     // contribution belongs to the initial A*solution, not A*KrylovDirection.
     const double* boundaryJump=nullptr;
 };
+// Coefficients are borrowed device storage. Topology and boundary semantics
+// remain in SparseLduView; readyStream orders their producer without a host wait.
+struct SparseDeviceLduValues {
+    const double* diagonal=nullptr;
+    const double* upper=nullptr;
+    const double* lower=nullptr;
+    const double* source=nullptr;
+    const double* boundaryDiagonal=nullptr;
+    const double* boundarySource=nullptr;
+    void* readyStream=nullptr;
+    const double* boundaryJump=nullptr;
+};
 struct ConjugateGradientControls {
     int maximumIterations=1000, minimumIterations=0;
     double tolerance=1e-6, relativeTolerance=0;
@@ -38,6 +51,10 @@ struct ConjugateGradientReport {
     int iterations=0;
     double initialResidual=0, finalResidual=0;
     bool converged=false, singular=false;
+};
+struct ConjugateGradientDeviceReport {
+    const ConjugateGradientReport* report=nullptr;
+    void* readyStream=nullptr;
 };
 // Communication hooks only: all local matrix/vector arithmetic remains CUDA.
 // addInterface supplies the missing coupled-interface contribution to A*x.
@@ -54,7 +71,8 @@ struct SparseCommunication {
 class SparseConjugateGradient {
     struct Implementation;
     std::unique_ptr<Implementation> data_;
-    ConjugateGradientReport solvePrepared(int,double*,const ConjugateGradientControls&,const SparseCommunication&,const double* initialAffine=nullptr);
+    ConjugateGradientReport solvePrepared(int,double*,const ConjugateGradientControls&,const SparseCommunication&,const double* initialAffine=nullptr,double* deviceSolution=nullptr);
+    void prepareLdu(const SparseLduView&,const SparseDeviceLduValues*,bool assemble=true);
 public:
     SparseConjugateGradient();
     ~SparseConjugateGradient();
@@ -62,6 +80,24 @@ public:
     SparseConjugateGradient& operator=(const SparseConjugateGradient&)=delete;
     ConjugateGradientReport solveLdu(const SparseLduView&,double* solution,
         const ConjugateGradientControls&,const SparseCommunication& communication={});
+    ConjugateGradientReport solveResidentLdu(const SparseLduView&,const SparseDeviceLduValues&,
+        double* deviceSolution,const ConjugateGradientControls&,const SparseCommunication& communication={});
+    // Bind local topology/controls once. In-place device coefficient updates
+    // are consumed on each enqueue; output publication is an explicit action.
+    // Native distributed-interface callbacks remain in solveResidentLdu.
+    void configureResidentLocalLdu(const SparseLduView&,const SparseDeviceLduValues&,
+        const ConjugateGradientControls&);
+    ConjugateGradientDeviceReport enqueueResidentLocalLdu(double* deviceSolution);
+    // Compose the same local solve into an enclosing device-controlled loop.
+    // Caller orders input/output ownership through graph dependencies.
+    ExecutionGraphNode appendResidentLocalLdu(ExecutionGraph,ExecutionGraphNode dependency,double* deviceSolution,
+        const ConjugateGradientControls* deviceControls=nullptr);
+    ExecutionGraphNode appendResidentLocalResidual(ExecutionGraph,ExecutionGraphNode dependency,
+        double* deviceSolution,double* deviceResidual);
+    const ConjugateGradientReport* deviceReport() const;
+    ConjugateGradientReport collectResidentLocalReport();
+    void residualResidentLdu(const SparseLduView&,const SparseDeviceLduValues&,
+        const double* deviceSolution,double* deviceResidual,const SparseCommunication& communication={});
     ConjugateGradientReport solve(const SparseMatrixView&,const double* source,
         double* solution,const ConjugateGradientControls&,
         const SparseCommunication& communication={});

@@ -3,15 +3,21 @@
 #include "gpu/GasWallMath.H"
 #include "../../../common/gasTransport/WallHeatExposure.H"
 #include "gpu/GasWindowProgram.H"
+#include "gpu/CoupledGasInterval.H"
+#include "gpu/CoupledSurfaceHistory.H"
+#include "gpu/ResidentMaterialDrive.H"
 #include "coupling/IntervalContracts.H"
 namespace chmt {
-// Geometry is uploaded per moving microstep or once per static window.
-// The wall program and gas driving states remain resident throughout a window.
+// Mutable geometry is supplied by the resident mesh/surface owners. Static
+// geometry and interface identities are installed once per gas window.
 struct CoupledSurfaceInput {
     SurfacePacketIdentity identity{};
     Real area=0,gasDistance=0,sweptVolume=0;
     Vec3 normal{},particleMaterialVelocity{};
 };
+__global__ void archiveMaterialDriveInterval(const CoupledGasInterval* current,ResidentMaterialDriveInterval* output){
+    if(!threadIdx.x&&!blockIdx.x)*output={current->localBegin,current->localEnd,current->actualDt};
+}
 struct CoupledSurfaceRecord {
     CoupledSurfaceSample sample{};
     GasWallResult rates{};
@@ -24,26 +30,10 @@ struct CoupledSurfaceRecord {
     int failed=0,wallTransportCode=0;
     ugkwp::gaswall::WallStatus wallStatus{};
 };
-// Only fields consumed by host material/history/output cross at a microstep
-// endpoint. Raw fluxes and unweighted stage packets remain device-only.
-struct CoupledSurfaceDownload {
-    GasPrimitive bulk{};GasGradient gradient{};Vec3 traction{};
-    WallFaceSample acceptedWall{};
-    ExchangePacket primary{},pore{};
-    Real radiationEnergy=0,particleWallEnergy=0;unsigned radiationReceiver=0;
-    int failed=0;
-};
-// Boundary-layer-only output has its own optional transfer. Low-Re interfaces
-// neither allocate nor copy nonlinear wall solver diagnostic arrays.
-struct CoupledWallDownload {
-    GasWallMatchingSample matching{};
-    ugkwp::gaswall::WallExchangeOutput<Real,Ns> layer{};
-    int transportCode=0;
-    ugkwp::gaswall::WallStatus status{};
-};
 __global__ void packCoupledSurfaceKernel(const CoupledSurfaceRecord* records,int count,
     const int* faces,ugkp::thermal::ParticleWallExchangeView particle,
-    CoupledSurfaceDownload* output,CoupledWallDownload* wallOutput){
+    CoupledSurfaceDownload* output,CoupledWallDownload* wallOutput,
+    CoupledRecordFailure* failure,int solids,int films){
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;if(slot>=count)return;
     const auto& in=records[slot];auto& out=output[slot];
     out.bulk=in.sample.primitive;out.gradient=in.sample.gradient;out.traction=in.rates.traction;
@@ -53,14 +43,22 @@ __global__ void packCoupledSurfaceKernel(const CoupledSurfaceRecord* records,int
     out.particleWallEnergy=particle.depositedEnergy
         ?particle.depositedEnergy[faces[slot]]+particle.reflectedEnergy[faces[slot]]-in.particleHeatAtBegin:0;
     if(wallOutput){auto& wall=wallOutput[slot];
-        wall.matching=in.matching;wall.layer=in.rates.layer;
+        wall.matching=in.matching;
         wall.transportCode=in.wallTransportCode;wall.status=in.wallStatus;
     }
+    if(in.failed)atomicMin(&failure->wall,slot);
+    if(coupledRecordOwnerFailure(out,solids,films))atomicMin(&failure->owner,slot);
+}
+__global__ void packCoupledWallDiagnosticsKernel(const CoupledSurfaceRecord* records,int count,
+    ugkwp::gaswall::WallExchangeOutput<Real,Ns>* output){
+    const int slot=blockIdx.x*blockDim.x+threadIdx.x;
+    if(slot<count)output[slot]=records[slot].rates.layer;
 }
 __global__ void publishParticleMaterialSurfaceKernel(int count,const int* faces,
     const CoupledSurfaceInput* geometry,const WallFaceSample* program,GasWallProgramPosition position,
-    double* temperature,double* ux,double* uy,double* uz,double* effusivity){
+    double* temperature,double* ux,double* uy,double* uz,double* effusivity,const CoupledGasInterval* interval=nullptr){
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;if(slot>=count)return;
+    if(interval)position=interval->endpoint;
     const int f=faces[slot];const auto wall=sampleResidentGasWallFace(program,count,position,slot);
     temperature[f]=wall.temperature;effusivity[f]=wall.materialEffusivity;const auto velocity=geometry[slot].particleMaterialVelocity;
     ux[f]=velocity.x;uy[f]=velocity.y;uz[f]=velocity.z;
@@ -71,7 +69,11 @@ __global__ void publishParticleMaterialSurfaceKernel(int count,const int* faces,
 // inventory twice. Incoming flux is deliberately not borrowed in this stage.
 __global__ void boundSurfaceProgressKernel(const SharedGasDeviceView* state,
     const int* cells,int cellCount,const int* faceSlot,const CoupledSurfaceInput* geometry,const WallFaceSample* program,
-    int count,GasWallProgramPosition position,Real dt,bool transportReady,Real* progress){
+    int count,GasWallProgramPosition position,Real dt,bool transportReady,Real* progress,
+    const CoupledGasInterval* interval=nullptr,int stage=0){
+    if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
+    position=coupledGasPosition(interval,stage,position);
+    dt=ugkwp::gasResidentStepDt(*state,dt);
     const auto& v=*state;const int index=blockIdx.x*blockDim.x+threadIdx.x;
     if(index>=cellCount)return;const int cell=cells[index];
     Real demand[Ns]{},other[Ns]{},demandMass=0,otherMass=0;
@@ -114,7 +116,10 @@ __global__ void boundSurfaceProgressKernel(const SharedGasDeviceView* state,
 }
 __global__ void prepareResidentSurfaceKernel(SharedGasDeviceView* state,const int* faces,
     int count,const CoupledSurfaceInput* geometry,const WallFaceSample* program,
-    GasWallProgramPosition position,const Real* progress,WallFaceSample* bounded,unsigned char* changed=nullptr){
+    GasWallProgramPosition position,const Real* progress,WallFaceSample* bounded,unsigned char* changed=nullptr,
+    const CoupledGasInterval* interval=nullptr,int stage=0){
+    if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
+    position=coupledGasPosition(interval,stage,position);
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;if(slot>=count)return;
     auto& v=*state;const int face=faces[slot];
     auto w=sampleResidentGasWallFace(program,count,position,slot);
@@ -153,8 +158,11 @@ __global__ void prepareResidentSurfaceKernel(SharedGasDeviceView* state,const in
 __global__ void applyCoupledSurfaceKernel(SharedGasDeviceView* state,const int* faces,int count,
     const CoupledSurfaceInput* supplied,const WallFaceSample* wallProgram,GasWallProgramPosition position,
     const PhysicsConfig* physics,Real dt,bool firstStage,std::uint64_t sequence,std::uint64_t geometryVersion,
-    CoupledSurfaceRecord* records){
+    CoupledSurfaceRecord* records,const CoupledGasInterval* interval=nullptr,int stage=0,bool staged=false){
     if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
+    if(!staged)position=coupledGasPosition(interval,stage,position);
+    dt=ugkwp::gasResidentStepDt(*state,dt);
+    if(interval){sequence=interval->sequence;geometryVersion=interval->geometry;}
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;if(slot>=count)return;
     auto& v=*state;auto& record=records[slot];
     if(firstStage)record=CoupledSurfaceRecord{};
@@ -220,8 +228,12 @@ __global__ void applyCoupledSurfaceKernel(SharedGasDeviceView* state,const int* 
 }
 __global__ void accountCoupledSurfaceKernel(const SharedGasDeviceView* state,const int* faces,int count,
     const CoupledSurfaceInput* supplied,const WallFaceSample* wallProgram,GasWallProgramPosition position,
-    const PhysicsConfig* physics,Real stageDt,Real ledgerDt,CoupledSurfaceRecord* records){
+    const PhysicsConfig* physics,Real stageDt,Real ledgerDt,CoupledSurfaceRecord* records,
+    const CoupledGasInterval* interval=nullptr,int stage=0){
     if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
+    position=coupledGasPosition(interval,stage,position);
+    stageDt=ugkwp::gasResidentStepDt(*state,stageDt);
+    ledgerDt=ugkwp::gasResidentStepDt(*state,ledgerDt);
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;if(slot>=count)return;
     auto& record=records[slot];if(record.failed)return;
     const auto& raw=record.raw;const auto now=readCoupledFaceFlux(*state,faces[slot],physics->singleGasSpecies);

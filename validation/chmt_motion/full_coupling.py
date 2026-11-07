@@ -6,6 +6,8 @@ sys.path.insert(0,str(ROOT/'validation/pr31'))
 import chmt_moving_particles_native as existing
 free_particles='--free-particles' in sys.argv
 if free_particles:sys.argv.remove('--free-particles')
+csr_auto='--csr-auto' in sys.argv
+if csr_auto:sys.argv.remove('--csr-auto')
 # Geometry assertions cover attached parcels; the checkpoint comparator still
 # covers every free parcel and every thermal state.
 existing.PROBE=existing.PROBE.replace('for(size_t i=0;i<state.particles.size();++i){const auto& p=state.particles[i];if(i)std::cout',
@@ -36,6 +38,12 @@ def run(command,log,*args,**kwargs):
   case=Path(command[command.index('-case')+1]);p=case/'constant/chmtProperties';text=p.read_text()
   if 'mobileRadiation' not in text:
    text=text.replace('particles {attached {', 'particles {mobileRadiation {id "43"; rng "7654321"; cell 0; position (0.25 0.005 0.005); velocity (0 0 0); mass 1e-8; diameter .001; temperature 1000;} attached {')
+   p.write_text(text)
+ if csr_auto and str(command[0]).endswith(('CHMT','CHMT.next')):
+  case=Path(command[command.index('-case')+1]);p=case/'constant/chmtProperties'
+  text=p.read_text()
+  if 'heavyReductionMode 2;' not in text:
+   text=text.replace('volumeMode Coupled;', 'volumeMode Coupled; heavyReductionMode 2; heavyAutoInterval 1;')
    p.write_text(text)
  elapsed=run_original(command,log,*args,**kwargs)
  if str(command[0]).endswith(('CHMT','CHMT.next')):

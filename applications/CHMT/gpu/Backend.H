@@ -1,11 +1,13 @@
 #ifndef CHMT_GPU_BACKEND_H
 #define CHMT_GPU_BACKEND_H
+#include "../../../common/gpu/RadiationResidentView.H"
 #include "core/HostState.H"
 #include "../../../common/gpu/ParticleRadiationResponse.H"
 #include "../../../common/DiagnosticsHost.H"
 #include "coupling/IntervalContracts.H"
 #include "../../../common/gasTransport/GasModelIO.H"
 #include "../../../common/gasTransport/GasMechanismIO.H"
+#include "gpu/ResidentMaterialDrive.H"
 namespace chmt {
 // Gas-window storage/scheduling boundary. All gas numerical stages are common.
 struct Backend;
@@ -23,14 +25,18 @@ struct GasMicroReport {
 };
 bool beginGasWindow(Backend&,const WallProgram&,std::string&);
 bool advanceGasMicrostep(Backend&,Real,GasMicroReport&,std::string&);
+// Physical history is published by downloadGasWindow; microsteps retain it on device.
 const IntervalHistory& gasWindowHistory(const Backend&);
+ResidentMaterialDriveHistory residentGasWindowDriveHistory(const Backend&);
 std::vector<GasIntervalRecord> releaseGasWindowRecords(Backend&); // after material consumers finish
-bool gasWindowStageGeometry(const Backend&,std::array<HostStageGeometry,2>&,std::array<HostStageGeometry,2>&,std::string&);
+bool gasWindowStageGeometry(Backend&,std::array<HostStageGeometry,2>&,std::array<HostStageGeometry,2>&,std::string&);
 bool downloadGasWindow(Backend&,HostState&,std::string&);
 bool commitGasWindow(Backend&,HostState&,std::string&);
 bool downloadState(const Backend&,HostState&,std::string&);
-struct ParticleRadiationState {std::vector<Real> mass,temperature,diameter,occupiedArea;ugkp::gpu::ParticleRadiationResponseView response{};};
+struct ParticleRadiationState {ugkp::gpu::RadiationParticleDeviceView resident{};std::vector<Real> mass,temperature,diameter,occupiedArea;ugkp::gpu::ParticleRadiationResponseView response{};};
 bool downloadRadiationState(Backend&,ParticleRadiationState&,std::string&);
+bool borrowRadiationState(Backend&,ParticleRadiationState&,std::string&);
+bool applyResidentRadiationEnergy(Backend&,const ugkp::gpu::RadiationMaterialDeviceView&,ugkp::gpu::RadiationAcceptedEnergyDeviceView&,HostState&,std::string&);
 bool applyRadiationEnergy(Backend&,const std::vector<Real>&,std::vector<Real>&,HostState&,std::string&);
 void setWindowRadiationEnergy(Backend&,const std::vector<Real>&);
 

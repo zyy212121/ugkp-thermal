@@ -17,18 +17,17 @@ __device__ void reduceMaterialFailure(MaterialStepResult value,MaterialStepResul
     }
     if(t==0)*result=values[0];
 }
-__global__ void applyMaterialSourcesKernel(int count,const SolidQ* current,const SolidQ* rates,
-    const SolidQ* initial,const SolidQ* gasChange,SolidQ* candidateGasChange,const ExchangePacket* packets,const int* offsets,
+template<class Packets>
+__device__ void applyMaterialSourceCell(int c,const SolidQ* current,const SolidQ* rates,
+    const SolidQ* initial,const SolidQ* gasChange,SolidQ* candidateGasChange,Packets packets,const int* offsets,
     const int* indices,const int* radiationOffsets,const int* radiationFaces,
     const Real* radiation,const unsigned* receivers,const Real* volumes,const PhysicsConfig* physics,
     Real dt,bool finalStep,SolidQ* next,SolidQ* donor,MaterialStepResult* status,
     Real reactionMaxStep,Real reactionCfl,int reactionBudget){
-    const int c=blockIdx.x*blockDim.x+threadIdx.x;
-    if(c>=count)return;
     status[c]={};
     const SolidQ transported=addSolid(current[c],rates[c],dt);
     SolidQ result;
-    const auto code=applyMaterialPacketRow(transported,packets,indices,offsets[c],offsets[c+1],result);
+    const auto code=applyMaterialPacketRowView(transported,packets,indices,offsets[c],offsets[c+1],result);
     if(code!=MaterialInventoryCode::Success){status[c]={2,int(code),c,true};return;}
     if(radiation)for(int e=radiationOffsets[c];e<radiationOffsets[c+1];++e){
         const int face=radiationFaces[e];
@@ -53,6 +52,17 @@ __global__ void applyMaterialSourcesKernel(int count,const SolidQ* current,const
         change=addSolid(change,packetDelta(packets[indices[e]]).solid);
     candidateGasChange[c]=change;next[c]=result;
     if(donor)donor[c]=addSolid(addSolid(result,initial[c],-1),change,-1);
+}
+__global__ void applyMaterialSourcesKernel(int count,const SolidQ* current,const SolidQ* rates,
+    const SolidQ* initial,const SolidQ* gasChange,SolidQ* candidateGasChange,const ExchangePacket* packets,const int* offsets,
+    const int* indices,const int* radiationOffsets,const int* radiationFaces,
+    const Real* radiation,const unsigned* receivers,const Real* volumes,const PhysicsConfig* physics,
+    Real dt,bool finalStep,SolidQ* next,SolidQ* donor,MaterialStepResult* status,
+    Real reactionMaxStep,Real reactionCfl,int reactionBudget){
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=count)return;
+    applyMaterialSourceCell(c,current,rates,initial,gasChange,candidateGasChange,packets,offsets,
+        indices,radiationOffsets,radiationFaces,radiation,receivers,volumes,physics,dt,finalStep,
+        next,donor,status,reactionMaxStep,reactionCfl,reactionBudget);
 }
 __global__ void selectSourceFailure(const MaterialStepResult* status,int count,MaterialStepResult* result){
     if(result->phase)return; // block-uniform; reaction failure retains precedence

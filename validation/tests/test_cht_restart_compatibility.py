@@ -11,14 +11,21 @@ import importlib.util
 import io
 import json
 import os
+import posixpath
 import shutil
 import subprocess
 import tarfile
+import tempfile
 import time
 import pytest
 
 ROOT = SOURCE_ROOT
 ORIGINAL = os.environ.get('C05_ORIGINAL', 'd6110c02745a8ad726208a426c4bb3a28233c1fd')
+# The accepted radiation caloric fixes (b86a5b9a / 4c080df8) intentionally
+# changed the old clamped-temperature result. Keep the original owner for
+# legacy routing/migration and use the frozen pre-optimization physics for
+# radiation field/ledger comparisons. Neither reference follows working HEAD.
+RADIATION_REFERENCE = os.environ.get('C05_RADIATION_REFERENCE', '4098c00c9199b7d8672ee036a6ace0ba06af2985')
 BASE = '038cbdac762fafc03ce60e9f94ae506ee155332d'
 NAMES = ['GpuSolidThermalCoupler', 'GpuSolidThermalProperties', 'GpuSolidPatchMapper',
          'GpuThermalExchangeState', 'GpuParticleRadiationCoupler', 'MieDoRadiationSolver', 'MieTable']
@@ -31,13 +38,49 @@ def sha(p): return hashlib.sha256(p.read_bytes()).hexdigest()
 def write_changed(path, text):
     if not path.exists() or path.read_text() != text: path.write_text(text)
 
+def materialize_git_archive(archive, destination):
+    """Keep historical source self-contained across Python tar filter versions.
+
+    Git stores symlink targets relative to the containing file. Some Python
+    3.10 data filters instead validate those targets relative to the archive
+    root. Resolve only archive members and write their actual source bytes;
+    never create filesystem links or permit paths outside the destination.
+    """
+    with tarfile.open(fileobj=io.BytesIO(archive)) as bundle:
+        members = {m.name: m for m in bundle.getmembers()}
+        def checked(name):
+            value = posixpath.normpath(name)
+            if value.startswith('/') or value == '..' or value.startswith('../'):
+                raise ValueError('git archive member escapes source: '+name)
+            return value
+        def source_bytes(name, visiting):
+            name = checked(name)
+            if name in visiting:
+                raise ValueError('cyclic git archive link: '+name)
+            member = members[name]
+            if member.issym() or member.islnk():
+                target = member.linkname if member.islnk() else posixpath.join(posixpath.dirname(name), member.linkname)
+                return source_bytes(target, visiting | {name})
+            if not member.isfile():
+                raise ValueError('unsupported git archive member: '+name)
+            return bundle.extractfile(member).read()
+        for name, member in members.items():
+            path = destination / checked(name)
+            if member.isdir():
+                path.mkdir(parents=True, exist_ok=True)
+            else:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(source_bytes(name, set()))
+                path.chmod(member.mode & 0o755 | 0o600)
+
+
 def build(revision):
     if not shutil.which('wmake'): pytest.skip('Foundation OpenFOAM required')
     EVIDENCE.mkdir(parents=True, exist_ok=True)
     p = BUILD_ROOT/revision; p.mkdir(parents=True, exist_ok=True)
     tree = ROOT
     if revision != 'working':
-        existing=os.environ.get('C05_ORIGINAL_TREE')
+        existing=os.environ.get('C05_ORIGINAL_TREE') if revision == ORIGINAL else None
         if existing:
             tree=Path(existing).resolve()
             actual=subprocess.check_output(['git','rev-parse','HEAD'],cwd=tree,text=True).strip()
@@ -45,12 +88,19 @@ def build(revision):
             assert actual==wanted,(tree,actual,wanted)
         else:
             tree = p/'source'
-            if not tree.exists():
-                tree.mkdir()
+            extracted = p/'source.revision'
+            if not extracted.exists() or extracted.read_text() != revision:
                 archive = subprocess.check_output(['git', 'archive', revision, 'applications/CHT/thermal', 'applications/CHT/gpu', 'common'], cwd=ROOT)
-                with tarfile.open(fileobj=io.BytesIO(archive)) as t: t.extractall(tree, filter="data")
+                with tempfile.TemporaryDirectory(prefix='source-stage-', dir=p) as temporary:
+                    staged = Path(temporary)/'source'
+                    staged.mkdir()
+                    materialize_git_archive(archive, staged)
+                    if tree.exists():
+                        tree.rename(p/('source-incomplete-'+str(time.time_ns())))
+                    staged.rename(tree)
+                extracted.write_text(revision)
     thermal = tree/'applications/CHT/thermal'
-    for n in ['compatibility.C', 'CompatibilityResident.H', 'InterfaceExchangeResident.inc']:
+    for n in ['compatibility.C', 'CompatibilityResident.H', 'InterfaceExchangeResident.inc','ResidentRadiationFixture.H']:
         write_changed(p/n, ((VALIDATION_ROOT / 'tests/fixtures/cht_thermal')/n).read_text())
     for n in NAMES:
         text = (thermal/(n+'.C')).read_text()
@@ -62,12 +112,13 @@ def build(revision):
         write_changed(p/(n+'.C'), text)
     (p/'Make').mkdir(exist_ok=True)
     write_changed(p/'Make/files', 'compatibility.C\n'+'\n'.join(n+'.C' for n in NAMES)+f'\nEXE = {p}/probe\n')
-    write_changed(p/'Make/options', f'EXE_INC = -std=c++17 -DUGKWP_USE_CUDA -I{thermal} -I{tree}/applications/CHT/gpu -I{tree}/common -I$(LIB_SRC)/finiteVolume/lnInclude -I$(LIB_SRC)/meshTools/lnInclude\nEXE_LIBS = -lfiniteVolume -lmeshTools -lOpenFOAM\n')
+    legacy_flag = '' if (tree/'common/gpu/ParticleRadiationResponse.H').exists() else ' -DUGKP_TEST_LEGACY_THERMAL_OWNER'
+    write_changed(p/'Make/options', f'EXE_INC = -std=c++17 -DUGKWP_USE_CUDA{legacy_flag} -I{thermal} -I{tree}/applications/CHT/gpu -I{tree}/common -I$(LIB_SRC)/finiteVolume/lnInclude -I$(LIB_SRC)/meshTools/lnInclude\nEXE_LIBS = -lfiniteVolume -lmeshTools -lOpenFOAM\n')
     dependencies = {}
     for subtree in ['applications/CHT/thermal','applications/CHT/gpu','common']:
         for f in sorted((tree/subtree).rglob('*')):
             if f.is_file(): dependencies[str(f.relative_to(tree))] = sha(f)
-    for n in ['compatibility.C','CompatibilityResident.H','InterfaceExchangeResident.inc','Make/files','Make/options']:
+    for n in ['compatibility.C','CompatibilityResident.H','InterfaceExchangeResident.inc','ResidentRadiationFixture.H','Make/files','Make/options']:
         dependencies['fixture/'+n] = sha(p/n)
     signature = hashlib.sha256(json.dumps(dependencies, sort_keys=True).encode()).hexdigest()
     receipt_path = p/'receipt.json'
@@ -75,7 +126,7 @@ def build(revision):
     reused = old.get('signature') == signature and (p/'probe').exists() and old.get('binary_sha256') == sha(p/'probe')
     elapsed = 0
     if not reused:
-        link_thermal_cuda(p, tree)
+        link_thermal_cuda(p, tree, fixture_device_views=True)
         start = time.monotonic(); result = subprocess.run(['wmake'], cwd=p, capture_output=True, text=True); elapsed = time.monotonic()-start
         (EVIDENCE/f'build-{revision}.log').write_text(result.stdout+result.stderr)
         assert result.returncode == 0, result.stdout+result.stderr
@@ -85,7 +136,7 @@ def build(revision):
     return p/'probe'
 
 @pytest.fixture(scope='module')
-def probes(): return {r: build(r) for r in [ORIGINAL, os.environ.get('C05_REVISION','working')]}
+def probes(): return {r: build(r) for r in dict.fromkeys([ORIGINAL, RADIATION_REFERENCE, os.environ.get('C05_REVISION','working')])}
 
 def make(path, mode, options=''):
     seed = 'outer_one' if mode in ['routing_extra','routing_two'] else 'radiation' if 'clock' in mode or mode=='flags_radiation' else 'pending_reordered' if mode.startswith('decode_') else 'mismatch'
@@ -128,7 +179,8 @@ def compare_records(original,current):
 @pytest.mark.parametrize('mode', ['routing_extra','routing_two','legacy1_extra_clock','legacy2_extra_clock','flags_disabled','flags_off','flags_radiation','surface_ordinary'])
 def test_original_success_exact(probes,tmp_path,mode):
     revision = os.environ.get('C05_REVISION','working')
-    old, a = run(probes[ORIGINAL], tmp_path/'original', mode)
+    reference = RADIATION_REFERENCE if mode in ['legacy1_extra_clock','legacy2_extra_clock','flags_radiation'] else ORIGINAL
+    old, a = run(probes[reference], tmp_path/'original', mode)
     new, b = run(probes[revision], tmp_path/'current', mode)
     assert old.returncode == 0, old.stdout+old.stderr
     assert new.returncode == 0, new.stdout+new.stderr

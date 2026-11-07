@@ -1,5 +1,6 @@
 #ifndef UGKP_GPU_ORDERED_UPWIND_GRAPH_CUH
 #define UGKP_GPU_ORDERED_UPWIND_GRAPH_CUH
+#include "ExecutionGraph.cuh"
 #include "OrderedUpwindPlan.H"
 #include "OrderedUpwindSweep.cuh"
 #include "OrderedMaximum.cuh"
@@ -33,6 +34,11 @@ static __global__ void normalizationFaces(int cells,int faces,const int* owner,c
 }
 static __global__ void absoluteResidual(int count,double* values){const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)values[i]=fabs(values[i]);}
 static __global__ void maximumResult(OrderedMaximum* maximum,double initial,double* output){if(!threadIdx.x)*output=applyMaximum(initial,*maximum);}
+static __global__ void setContinuation(const UpwindLinearReport* report,cudaGraphConditionalHandle handle){
+    if(!threadIdx.x)cudaGraphSetConditional(handle,report->active?1:0);
+}
+using executionGraphDetail::appendCaptured;
+using executionGraphDetail::addWhile;
 __device__ inline bool needsSweep(const UpwindLinearReport& report,UpwindLinearControls controls){
     return (report.finalResidual>report.target || (report.iterations==0&&
         (controls.maximumIterations<=0||!std::isfinite(report.initialResidual)||std::isnan(report.target))))
@@ -55,54 +61,6 @@ static __global__ void finishSweep(UpwindLinearReport* report,UpwindLinearContro
     if(*firstFailure!=UINT_MAX){report->errorCell=*firstFailure;report->errorValue=failures[*firstFailure].value;}
     report->active=report->errorCell<0&&needsSweep(*report,controls);
 }
-// One cooperative block traverses the same dependency levels. Each level is
-// a block barrier instead of a separate launch; row work is strided so the
-// method has no mesh-size special case. A bounded batch retains host progress.
-static __global__ void cooperativeSweeps(OrderedUpwindDevice matrix,int levelCount,const int* levels,
-    int faces,const int* owner,const int* neighbour,const double* flux,const double* diagonal,const double* source,
-    double* values,double* previous,const double* reference,UpwindLinearControls controls,
-    unsigned int* firstFailure,UpwindIntensityFailure* failures,UpwindLinearReport* report){
-    __shared__ OrderedMaximum maxima[2][256];
-    for(int sweep=0;sweep<8;++sweep){
-        if(!report->active)return;
-        for(int cell=threadIdx.x;cell<matrix.cells;cell+=blockDim.x)previous[cell]=values[cell];
-        __syncthreads();
-        for(int level=0;level<levelCount;++level){
-            for(int row=levels[level]+threadIdx.x;row<levels[level+1];row+=blockDim.x)
-                orderedUpwindCell(matrix.levelCells[row],matrix,diagonal,source,previous,values,0,failures,firstFailure,reference);
-            __syncthreads();
-        }
-        OrderedMaximum residualMax{0,0,0},magnitudeMax{0,0,0};
-        const int total=matrix.cells+faces,chunk=(total+255)/256;
-        const int begin=threadIdx.x*chunk,end=begin+chunk<total?begin+chunk:total;
-        for(int i=begin;i<end;++i){
-            if(i<matrix.cells){
-                double residual=diagonal[i]*values[i]-source[i];
-                for(int j=matrix.offsets[i];j<matrix.offsets[i+1];++j){const int edge=matrix.residualOrder[j];
-                    if(matrix.subtract[edge])residual+=matrix.flux[edge]*values[matrix.neighbour[edge]];
-                    else residual-=matrix.flux[edge]*values[matrix.neighbour[edge]];}
-                residualMax=joinMaximum(residualMax,maximumSegment(fabs(residual)));
-                const double a=fabs(diagonal[i]*values[i]),b=fabs(source[i]);
-                magnitudeMax=joinMaximum(magnitudeMax,maximumSegment(a>b?a:b));
-            }else{const int face=i-matrix.cells;const double f=flux[face];
-                if(f>0)magnitudeMax=joinMaximum(magnitudeMax,maximumSegment(fabs(f*values[owner[face]])));
-                else if(f<0)magnitudeMax=joinMaximum(magnitudeMax,maximumSegment(fabs(f*values[neighbour[face]])));
-            }
-        }
-        maxima[0][threadIdx.x]=residualMax;maxima[1][threadIdx.x]=magnitudeMax;__syncthreads();
-        for(int stride=1;stride<256;stride*=2){if(threadIdx.x%(2*stride)==0){
-            maxima[0][threadIdx.x]=joinMaximum(maxima[0][threadIdx.x],maxima[0][threadIdx.x+stride]);
-            maxima[1][threadIdx.x]=joinMaximum(maxima[1][threadIdx.x],maxima[1][threadIdx.x+stride]);}
-            __syncthreads();}
-        if(!threadIdx.x){
-            report->maximumResidual=applyMaximum(0,maxima[0][0]);report->maximumMagnitude=applyMaximum(controls.small,maxima[1][0]);
-            ++report->iterations;report->finalResidual=report->maximumResidual/report->maximumMagnitude;
-            if(*firstFailure!=UINT_MAX){report->errorCell=*firstFailure;report->errorValue=failures[*firstFailure].value;}
-            report->active=report->errorCell<0&&needsSweep(*report,controls);
-        }
-        __syncthreads();
-    }
-}
 
 }
 // Immutable launch graph for the original sequential-cell linear iteration.
@@ -110,7 +68,7 @@ static __global__ void cooperativeSweeps(OrderedUpwindDevice matrix,int levelCou
 // compact report and scratch storage owned here. Launches use the caller stream.
 class OrderedUpwindGraph {
     using Report=UpwindLinearReport;
-    int cells_,faces_;bool cooperative_;
+    int cells_,faces_;
     upwindGraphDetail::Array<double> residual_,magnitude_;
     upwindGraphDetail::Array<unsigned char> valid_;
     upwindGraphDetail::Array<OrderedMaximum> partialA_,partialB_;
@@ -118,8 +76,8 @@ class OrderedUpwindGraph {
     upwindGraphDetail::Array<int> levels_;
     upwindGraphDetail::Array<UpwindIntensityFailure> failures_;
     upwindGraphDetail::Array<Report> report_;
-    cudaGraph_t graph_=nullptr,initializeGraph_=nullptr;
-    cudaGraphExec_t executable_=nullptr,initializeExecutable_=nullptr;
+    cudaGraph_t graph_=nullptr,initializeGraph_=nullptr,solveGraph_=nullptr;
+    cudaGraphExec_t executable_=nullptr,initializeExecutable_=nullptr,solveExecutable_=nullptr;
     Report* hostReport_=nullptr;
     void maximum(int count,double* values,unsigned char* valid,double initial,double* output,cudaStream_t stream){
         int blocks=std::max(1,(count+255)/256);
@@ -140,10 +98,11 @@ public:
     OrderedUpwindGraph(const OrderedUpwindPlan& plan,OrderedUpwindDevice matrix,int faces,
         const int* owner,const int* neighbour,const double* flux,const double* diagonal,const double* source,
         double* values,double* previous,const double* reference,UpwindLinearControls controls,
-        const unsigned long long* externalFailure=nullptr,bool concurrentDirections=false):cells_(plan.cells),faces_(faces),cooperative_(concurrentDirections),
+        const unsigned long long* externalFailure=nullptr,bool concurrentDirections=false,bool standalone=true):cells_(plan.cells),faces_(faces),
         residual_(cells_),magnitude_(cells_+faces_),valid_(cells_+faces_),
         partialA_(std::max(1,(cells_+faces_+255)/256)),partialB_(std::max(1,(cells_+faces_+255)/256)),
         failure_(1),levels_(plan.levelOffsets.size()),failures_(cells_),report_(1){
+        (void)concurrentDirections; // Scheduling is independent of the angular iteration policy.
         using upwindGraphDetail::checkedCudaUpwind;cudaStream_t stream=nullptr;
         checkedCudaUpwind(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
         try {
@@ -157,19 +116,19 @@ public:
             checkedCudaUpwind(cudaStreamEndCapture(stream,&initializeGraph_));
             checkedCudaUpwind(cudaGraphInstantiateWithFlags(&initializeExecutable_,initializeGraph_,0));
             checkedCudaUpwind(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));
-            // Independent angular solves can occupy different SMs. Ordered
-            // angular Gauss-Seidel instead spreads each level across the GPU.
-            if(cooperative_){
-                upwindGraphDetail::cooperativeSweeps<<<1,256,0,stream>>>(matrix,plan.levelOffsets.size()-1,levels_.ptr,
-                    faces_,owner,neighbour,flux,diagonal,source,values,previous,reference,controls,failure_.ptr,failures_.ptr,report_.ptr);
-            }else{
-                snapshotUpwind<<<std::max(1,(cells_+127)/128),128,0,stream>>>(cells_,values,previous,&report_.ptr->active);
-                for(std::size_t level=0;level+1<plan.levelOffsets.size();++level){const int begin=plan.levelOffsets[level],end=plan.levelOffsets[level+1];
-                    orderedUpwindLevel<<<(end-begin+127)/128,128,0,stream>>>(begin,end,matrix,diagonal,source,previous,values,0,failures_.ptr,failure_.ptr,reference,&report_.ptr->active);}
-                residual(matrix,owner,neighbour,flux,diagonal,source,values,controls,stream);
-                upwindGraphDetail::finishSweep<<<1,1,0,stream>>>(report_.ptr,controls,failure_.ptr,failures_.ptr);
-            }
+            // Each dependency level spans as many blocks as its rows require.
+            // Angular concurrency does not change the cell Gauss-Seidel order.
+            snapshotUpwind<<<std::max(1,(cells_+127)/128),128,0,stream>>>(cells_,values,previous,&report_.ptr->active);
+            for(std::size_t level=0;level+1<plan.levelOffsets.size();++level){const int begin=plan.levelOffsets[level],end=plan.levelOffsets[level+1];
+                orderedUpwindLevel<<<(end-begin+127)/128,128,0,stream>>>(begin,end,matrix,diagonal,source,previous,values,0,failures_.ptr,failure_.ptr,reference,&report_.ptr->active);}
+            residual(matrix,owner,neighbour,flux,diagonal,source,values,controls,stream);
+            upwindGraphDetail::finishSweep<<<1,1,0,stream>>>(report_.ptr,controls,failure_.ptr,failures_.ptr);
             checkedCudaUpwind(cudaStreamEndCapture(stream,&graph_));checkedCudaUpwind(cudaGraphInstantiateWithFlags(&executable_,graph_,0));
+            if(standalone){
+                checkedCudaUpwind(cudaGraphCreate(&solveGraph_,0));
+                appendSolve(solveGraph_,{},stream);
+                checkedCudaUpwind(cudaGraphInstantiateWithFlags(&solveExecutable_,solveGraph_,0));
+            }
             checkedCudaUpwind(cudaStreamDestroy(stream));
 
         } catch(...) {
@@ -183,18 +142,31 @@ public:
     // Batches are a scheduling choice only: the device active flag freezes
     // the first converged/failed iterate, including within a queued batch.
     void begin(cudaStream_t stream){upwindGraphDetail::checkedCudaUpwind(cudaGraphLaunch(initializeExecutable_,stream));}
-    void advance(cudaStream_t stream,int count=-1){if(count<0)count=cooperative_?1:8;for(int i=0;i<count;++i)upwindGraphDetail::checkedCudaUpwind(cudaGraphLaunch(executable_,stream));}
+    void advance(cudaStream_t stream,int count=-1){if(count<0)count=8;for(int i=0;i<count;++i)upwindGraphDetail::checkedCudaUpwind(cudaGraphLaunch(executable_,stream));}
     const Report& collect(cudaStream_t stream){
         upwindGraphDetail::checkedCudaUpwind(cudaMemcpyAsync(hostReport_,report_.ptr,sizeof(Report),cudaMemcpyDeviceToHost,stream));
         upwindGraphDetail::checkedCudaUpwind(cudaStreamSynchronize(stream));return *hostReport_;
     }
+    // Embed the unchanged initial residual and ordered sweeps in a device
+    // controlled loop. The returned node completes exactly the accepted iterate.
+    cudaGraphNode_t appendSolve(cudaGraph_t graph,const std::vector<cudaGraphNode_t>& dependencies,cudaStream_t stream){
+        using namespace upwindGraphDetail;
+        cudaGraphNode_t initialized=nullptr;
+        checkedCudaUpwind(cudaGraphAddChildGraphNode(&initialized,graph,dependencies.data(),dependencies.size(),initializeGraph_));
+        cudaGraphConditionalHandle handle;
+        checkedCudaUpwind(cudaGraphConditionalHandleCreate(&handle,graph,0,0));
+        const auto condition=appendCaptured(graph,{initialized},stream,[&]{setContinuation<<<1,1,0,stream>>>(report_.ptr,handle);});
+        cudaGraph_t body=nullptr;const auto loop=addWhile(graph,handle,{condition},body);
+        cudaGraphNode_t sweep=nullptr;checkedCudaUpwind(cudaGraphAddChildGraphNode(&sweep,body,nullptr,0,graph_));
+        appendCaptured(body,{sweep},stream,[&]{setContinuation<<<1,1,0,stream>>>(report_.ptr,handle);});
+        return loop;
+    }
     const Report& launch(cudaStream_t stream){
-        begin(stream);advance(stream,1);
-        while(collect(stream).active)advance(stream);
-        return *hostReport_;
+        upwindGraphDetail::checkedCudaUpwind(cudaGraphLaunch(solveExecutable_,stream));return collect(stream);
     }
 private:
     void release()noexcept{
+        if(solveExecutable_)cudaGraphExecDestroy(solveExecutable_);if(solveGraph_)cudaGraphDestroy(solveGraph_);
         if(executable_)cudaGraphExecDestroy(executable_);if(initializeExecutable_)cudaGraphExecDestroy(initializeExecutable_);
         if(graph_)cudaGraphDestroy(graph_);if(initializeGraph_)cudaGraphDestroy(initializeGraph_);if(hostReport_)cudaFreeHost(hostReport_);
     }

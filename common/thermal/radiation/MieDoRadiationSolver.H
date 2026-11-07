@@ -2,6 +2,7 @@
 #define GPU_THERMAL_MIE_DO_RADIATION_SOLVER_H
 
 #include "MieTable.H"
+#include "gpu/RadiationResidentView.H"
 #include "dictionary.H"
 #include "fvMesh.H"
 #include "labelList.H"
@@ -37,6 +38,7 @@ struct MieDoSnapshot
     const scalarField& representativeDiameterM;
     const volScalarField& wallTemperatureK;
     const List<scalarField>& coupledWallEmissivity;
+    ugkp::gpu::RadiationParticleDeviceView resident{};
 };
 
 struct MieDoResult
@@ -53,6 +55,7 @@ struct MieDoResult
     scalar conservationResidualW;
     label sourceIterations;
     label angleThreadsUsed;
+    ugkp::gpu::RadiationDeviceView resident{};
 };
 
 class MieDoSolveError : public std::runtime_error
@@ -118,8 +121,10 @@ public:
     MieDoResult solve
     (
         const MieDoSnapshot& snapshot,
-        MieDoRadiationWorkspace& workspace
+        MieDoRadiationWorkspace& workspace,
+        bool exportFields=true
     ) const;
+    MieDoResult collect(MieDoRadiationWorkspace&) const;
 };
 
 }                        

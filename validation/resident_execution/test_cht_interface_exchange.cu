@@ -13,6 +13,7 @@ extern "C" int ugkpPrepareParticleWallEnergyRestore(void*) { return 1; }
 extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger(void*,int,const int*);
 extern "C" int ugkwpGpuResidentStrictConfigureInterfaceExchange(void*,int,const int*,const int*,const double*);
 extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchange(void*,double,const double*,double*);
+extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice(void*,double,const ugkp::gpu::RadiationMaterialDeviceView*,double*,ugkp::gpu::ThermalInterfaceEnergyDeviceView*);
 extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange(void*,int,int,const double*,const double*,const double*);
 extern "C" int ugkwpGpuResidentStrictPeekWallEnergyLedgerRange(void*,int,int,double*,double*,double*);
 
@@ -63,7 +64,52 @@ int main(int argc,char** argv)
     cudaCheck(cudaMemcpy(s.gasWallEnergy,gas.data(),meshFaces*sizeof(double),cudaMemcpyHostToDevice));
     cudaCheck(cudaMemcpy(s.particleWallDepositedEnergy,dep.data(),meshFaces*sizeof(double),cudaMemcpyHostToDevice));
     cudaCheck(cudaMemcpy(s.particleWallReflectedEnergy,ref.data(),meshFaces*sizeof(double),cudaMemcpyHostToDevice));
+    // Replay one captured RK ledger graph with varying resident intervals.
+    // frozen affects stage-time selection, never the integrated heat interval;
+    // dt must multiply the RK weight exactly once, including after graph reuse.
+    std::vector<double> flux(meshFaces,0),ledger(meshFaces),ledgerExpected;
+    for(int i=0;i<count;++i)flux[faces[i]]=double(i%31-15)*0.3125;
+    cudaCheck(cudaMemcpy(s.gasWallFlux,flux.data(),meshFaces*sizeof(double),cudaMemcpyHostToDevice));
+    ugkwp::GasResidentInterval* interval=nullptr;allocate(interval,1);
+    cudaStream_t ledgerStream=nullptr;cudaCheck(cudaStreamCreateWithFlags(&ledgerStream,cudaStreamNonBlocking));
+    cudaGraph_t ledgerGraph=nullptr;cudaGraphExec_t ledgerExec=nullptr;
+    const double weights[]={1.0/6,2.0/3,1.0/6};
+    cudaCheck(cudaStreamBeginCapture(ledgerStream,cudaStreamCaptureModeThreadLocal));
+    for(double weight:weights)check(ugkpAccumulateGasWallEnergy64(&s,weight,ledgerStream,interval),s);
+    cudaCheck(cudaStreamEndCapture(ledgerStream,&ledgerGraph));
+    cudaCheck(cudaGraphInstantiateWithFlags(&ledgerExec,ledgerGraph,0));
+    int intervalChecks=0;
+    for(bool active:{false,true})for(bool frozen:{false,true})for(double dt:{0.0,0x1p-40,0.03125,16.75}){
+        const ugkwp::GasResidentInterval value{dt,2.0,2.0+dt,2.0+0.5*dt,active,frozen};
+        cudaCheck(cudaMemcpy(s.gasWallEnergy,gas.data(),meshFaces*sizeof(double),cudaMemcpyHostToDevice));
+        cudaCheck(cudaMemcpyAsync(interval,&value,sizeof value,cudaMemcpyHostToDevice,ledgerStream));
+        cudaCheck(cudaGraphLaunch(ledgerExec,ledgerStream));cudaCheck(cudaStreamSynchronize(ledgerStream));
+        cudaCheck(cudaMemcpy(ledger.data(),s.gasWallEnergy,meshFaces*sizeof(double),cudaMemcpyDeviceToHost));
+        ledgerExpected=gas;
+        for(double weight:weights)for(int face:faces)ledgerExpected[face]+=(active?weight*dt:weight)*flux[face];
+        for(int face=0;face<meshFaces;++face)equal(ledger[face],ledgerExpected[face]);
+        ++intervalChecks;
+    }
+    // The original explicit-time API remains identical when no resident
+    // interval is supplied.
+    cudaCheck(cudaMemcpy(s.gasWallEnergy,gas.data(),meshFaces*sizeof(double),cudaMemcpyHostToDevice));
+    check(ugkpAccumulateGasWallEnergy64(&s,0.125,ledgerStream),s);cudaCheck(cudaStreamSynchronize(ledgerStream));
+    cudaCheck(cudaMemcpy(ledger.data(),s.gasWallEnergy,meshFaces*sizeof(double),cudaMemcpyDeviceToHost));
+    ledgerExpected=gas;for(int face:faces)ledgerExpected[face]+=0.125*flux[face];
+    for(int face=0;face<meshFaces;++face)equal(ledger[face],ledgerExpected[face]);
+    cudaCheck(cudaMemcpy(s.gasWallEnergy,gas.data(),meshFaces*sizeof(double),cudaMemcpyHostToDevice));
+    cudaCheck(cudaGraphExecDestroy(ledgerExec));cudaCheck(cudaGraphDestroy(ledgerGraph));
+    cudaCheck(cudaStreamDestroy(ledgerStream));cudaCheck(cudaFree(interval));
+    std::printf("Wall ledger interval graph: %d active/frozen/dt combinations and explicit-time API PASS\n",intervalChecks);
     std::vector<double> actual(3*count+rows),expected(actual.size());
+    cudaStream_t radiationStream=nullptr;cudaCheck(cudaStreamCreateWithFlags(&radiationStream,cudaStreamNonBlocking));
+    const int boundaryFaces=meshFaces-s.nInternalFaces;
+    std::vector<double> boundaryRadiation(boundaryFaces,-12345),deviceEnergy(rows);
+    for(int i=0;i<count;++i)boundaryRadiation[faces[i]-s.nInternalFaces]=rad[i];
+    double* deviceRadiation=nullptr;allocate(deviceRadiation,boundaryFaces);
+    ugkp::gpu::RadiationMaterialDeviceView radiationView;
+    radiationView.enabled=true;radiationView.boundaryFaces=boundaryFaces;
+    radiationView.boundaryEnergy=deviceRadiation;radiationView.producerStream=radiationStream;
     for(int particles=0;particles<2;++particles)
     {
         s.particleWallHeatTransferEnabled=particles;
@@ -84,6 +130,19 @@ int main(int argc,char** argv)
             }
             check(ugkwpGpuResidentStrictPreviewInterfaceExchange(&s,dt,radiation?rad.data():nullptr,actual.data()),s);
             for(size_t i=0;i<actual.size();++i)equal(actual[i],expected[i]);
+            // The resident path consumes a different stream's complete boundary
+            // array, then exposes exactly the same compact solid-face energies.
+            cudaCheck(cudaMemcpyAsync(deviceRadiation,boundaryRadiation.data(),boundaryFaces*sizeof(double),cudaMemcpyHostToDevice,radiationStream));
+            ugkp::gpu::ThermalInterfaceEnergyDeviceView retained;
+            check(ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice(&s,dt,radiation?&radiationView:nullptr,actual.data(),&retained),s);
+            assert(retained.enabled&&retained.faces==rows&&retained.energy);
+            for(size_t i=0;i<actual.size();++i)equal(actual[i],expected[i]);
+            cudaCheck(cudaMemcpy(deviceEnergy.data(),retained.energy,rows*sizeof(double),cudaMemcpyDeviceToHost));
+            for(int i=0;i<rows;++i)equal(deviceEnergy[i],expected[3*count+i]);
+            // No host preview is required to publish the physical device view.
+            check(ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice(&s,dt,radiation?&radiationView:nullptr,nullptr,&retained),s);
+            cudaCheck(cudaMemcpy(deviceEnergy.data(),retained.energy,rows*sizeof(double),cudaMemcpyDeviceToHost));
+            for(int i=0;i<rows;++i)equal(deviceEnergy[i],expected[3*count+i]);
             // Preview is non-destructive and repeatable; pending/restart data
             // remains the exact input ledger, rather than an exchanged total.
             check(ugkwpGpuResidentStrictPreviewInterfaceExchange(&s,dt,radiation?rad.data():nullptr,actual.data()),s);
@@ -143,6 +202,19 @@ int main(int argc,char** argv)
                     meshFaces,count,rows,oldMs,newMs,oldMs/newMs,3*gas.size()*sizeof(double),actual.size()*sizeof(double));
         for(int row=0;row<rows;++row)equal(actual[3*count+row],hostSolid[row]);
     }
+    auto invalidRadiation=radiationView;invalidRadiation.boundaryFaces-=1;
+    ugkp::gpu::ThermalInterfaceEnergyDeviceView invalidOutput;
+    assert(ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice(&s,dt,&invalidRadiation,nullptr,&invalidOutput)!=0);
+    assert(!invalidOutput.enabled);
+    cudaCheck(cudaStreamSynchronize(radiationStream));cudaCheck(cudaStreamDestroy(radiationStream));cudaCheck(cudaFree(deviceRadiation));
+    // Empty local interface is a legitimate partition and never dereferences a
+    // null allocation or launches a zero-grid kernel.
+    GpuWallEnergyState empty;empty.errorBuffer=error;allocate(empty.deviceState,1);
+    const int emptyOffset=0;check(ugkwpGpuResidentStrictConfigureInterfaceExchange(&empty,0,&emptyOffset,nullptr,nullptr),empty);
+    ugkp::gpu::ThermalInterfaceEnergyDeviceView emptyOutput;
+    check(ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice(&empty,dt,nullptr,nullptr,&emptyOutput),empty);
+    assert(emptyOutput.enabled&&emptyOutput.faces==0&&!emptyOutput.energy);
+    ugkpReleaseGasWallEnergy64(&empty);cudaCheck(cudaFree(empty.deviceState));
     ugkpReleaseGasWallEnergy64(&s);
     cudaCheck(cudaFree(s.particleWallDepositedEnergy));
     cudaCheck(cudaFree(s.particleWallReflectedEnergy));
