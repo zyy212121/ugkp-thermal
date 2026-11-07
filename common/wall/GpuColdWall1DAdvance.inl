@@ -119,6 +119,10 @@
       : GPU_R(0.0);
     ColdWallThermalReal ringCoolingPower = GPU_R(0.0);
     ColdWallThermalReal acceptedWallPower = GPU_R(0.0);
+    ColdWallThermalReal previousBottomConductivity = GPU_R(-1.0);
+    ColdWallThermalReal ringConductance = GPU_R(0.0);
+    ColdWallThermalReal wallConductance = GPU_R(0.0);
+
 
     for
     (
@@ -138,25 +142,29 @@
           + (GPU_R(1.0) - solidFraction)*Foam::gpuThermal::aluminaThermalConductivityWmK;
         const ColdWallThermalReal bottomConductivity =
             __shfl_sync(mask, conductivity, 0, 8);
-        const ColdWallThermalReal particleResistance =
-            GPU_R(0.5)*nodeThickness/bottomConductivity;
-        const ColdWallThermalReal ringConductanceIntegral =
-            Foam::gpuThermal::wallInterfaceConductanceTimeIntegral
-            (
-                ringWetArea,
-                thermalAreaFactor,
-                localAge0,
-                localAge1,
-                s.coldWallSolidificationParameters.interfaceResistanceM2KW,
-                particleResistance,
-                wallEffusivity,
-                s.coldWallSolidificationParameters.wallTransientResistance != 0
-            );
-        const ColdWallThermalReal ringConductance =
-            ringConductanceIntegral/(deltaTSeconds + GPU_REAL_MIN);
-
-        const ColdWallThermalReal wallConductance =
-            coldWall1DGroupSum(ringConductance, mask);
+        // Geometry, ages, wall properties and dt are fixed during this
+        // nonlinear solve. Re-evaluate the resistance integral only if its
+        // sole changing input (bottom conductivity) actually changes.
+        if (iteration == 0 || bottomConductivity != previousBottomConductivity)
+        {
+            const ColdWallThermalReal particleResistance =
+                GPU_R(0.5)*nodeThickness/bottomConductivity;
+            const ColdWallThermalReal ringConductanceIntegral =
+                Foam::gpuThermal::wallInterfaceConductanceTimeIntegral
+                (
+                    ringWetArea,
+                    thermalAreaFactor,
+                    localAge0,
+                    localAge1,
+                    s.coldWallSolidificationParameters.interfaceResistanceM2KW,
+                    particleResistance,
+                    wallEffusivity,
+                    s.coldWallSolidificationParameters.wallTransientResistance != 0
+                );
+            ringConductance = ringConductanceIntegral/(deltaTSeconds + GPU_REAL_MIN);
+            wallConductance = coldWall1DGroupSum(ringConductance, mask);
+            previousBottomConductivity = bottomConductivity;
+        }
         const ColdWallThermalReal bottomTemperature =
             __shfl_sync(mask, guessedTemperature, 0, 8);
         ringCoolingPower =

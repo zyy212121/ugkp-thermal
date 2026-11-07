@@ -143,16 +143,154 @@ __global__ void gatherInterface(int count,const int* cells,const double* x,const
 __global__ void scatterInterface(int count,const int* cells,const double* packed,double* y){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)y[cells[i]]=packed[i];
 }
-__global__ void finishIteration(double* recurrence,const LocalSolveParameters* parameters,cudaGraphConditionalHandle handle){
-    if(blockIdx.x||threadIdx.x||recurrence[7])return;
-    const auto controls=parameters->controls;const double norm=parameters->norm,initial=parameters->initial;
-    const double residual=recurrence[4]/norm;
-    const bool converged=residual<controls.tolerance ||
-        (controls.relativeTolerance>controls.normalizationSmall&&residual<controls.relativeTolerance*initial);
-    recurrence[7]=recurrence[5] ||
-        ((recurrence[6]>=controls.maximumIterations||converged)&&recurrence[6]>=controls.minimumIterations);
-    cudaGraphSetConditional(handle,recurrence[7]?0:1);
+// Keep each reduction's original grid-stride order and binary FP64 tree, while
+// producing its terms in the vector/matrix kernel that already owns the row.
+__device__ double localBlockSum(double value,double* scratch){
+    scratch[threadIdx.x]=value;__syncthreads();
+    for(int stride=threads/2;stride;stride/=2){
+        if(threadIdx.x<stride)scratch[threadIdx.x]+=scratch[threadIdx.x+stride];
+        __syncthreads();
+    }
+    return scratch[0];
 }
+__global__ void preconditionAndDot(int n,const int* offsets,const double* values,
+    const double* r,double* z,double* partial,const double* recurrence){
+    if(recurrence[7])return;
+    __shared__ double scratch[threads];double sum=0;
+    for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<n;i+=blockDim.x*gridDim.x){
+        const double value=r[i]/values[offsets[i]];z[i]=value;sum+=value*r[i];
+    }
+    sum=localBlockSum(sum,scratch);if(!threadIdx.x)partial[blockIdx.x]=sum;
+}
+__global__ void multiplyAndDot(int n,const int* offsets,const int* columns,const double* values,
+    const double* p,double* ap,double* partial,const double* recurrence){
+    if(recurrence[7])return;
+    __shared__ double scratch[threads];double sum=0;
+    for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<n;i+=blockDim.x*gridDim.x){
+        double value=values[offsets[i]]*p[i];
+        for(int e=offsets[i]+1;e<offsets[i+1];++e)value+=values[e]*p[columns[e]];
+        ap[i]=value;sum+=value*p[i];
+    }
+    sum=localBlockSum(sum,scratch);if(!threadIdx.x)partial[blockIdx.x]=sum;
+}
+__global__ void updatePreconditionAndNorm(int n,const int* offsets,const double* values,
+    const double* recurrence,const double* p,const double* ap,double* x,double* r,double* z,double* partial){
+    if(recurrence[7])return;
+    __shared__ double scratch[threads];double norm=0,rho=0;
+    for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<n;i+=blockDim.x*gridDim.x){
+        double value=r[i];
+        if(!recurrence[5]){x[i]+=recurrence[3]*p[i];value-=recurrence[3]*ap[i];r[i]=value;}
+        const double preconditioned=value/values[offsets[i]];z[i]=preconditioned;
+        norm+=fabs(value);rho+=preconditioned*value;
+    }
+    norm=localBlockSum(norm,scratch);if(!threadIdx.x)partial[blockIdx.x]=norm;
+    __syncthreads();
+    rho=localBlockSum(rho,scratch);if(!threadIdx.x)partial[gridDim.x+blockIdx.x]=rho;
+}
+
+template<int Stage> __global__ void finishLocalReduction(int n,const double* partial,
+    double* recurrence,const LocalSolveParameters* parameters,cudaGraphConditionalHandle handle){
+    if(recurrence[7])return;
+    __shared__ double scratch[threads];double sum=0;
+    for(int i=threadIdx.x;i<n;i+=threads)sum+=partial[i];
+    sum=localBlockSum(sum,scratch);
+    double nextRho=0;
+    if constexpr(Stage==2){
+        for(int i=threadIdx.x;i<n;i+=threads)nextRho+=partial[n+i];
+        __syncthreads();
+        nextRho=localBlockSum(nextRho,scratch);
+    }
+    if(threadIdx.x)return;
+    if constexpr(Stage==0)recurrence[0]=sum;
+    else if constexpr(Stage==1){
+        recurrence[1]=sum;
+        recurrence[5]=fabs(sum)/parameters->norm<parameters->controls.singularSmall;
+        if(!recurrence[5]){recurrence[3]=recurrence[0]/sum;recurrence[6]+=1;}
+        recurrence[2]=recurrence[0];
+    }else{
+        recurrence[4]=sum;recurrence[0]=nextRho;
+        const auto& controls=parameters->controls;
+        const double residual=sum/parameters->norm;
+        const bool converged=residual<controls.tolerance ||
+            (controls.relativeTolerance>controls.normalizationSmall&&residual<controls.relativeTolerance*parameters->initial);
+        recurrence[7]=recurrence[5] ||
+            ((recurrence[6]>=controls.maximumIterations||converged)&&recurrence[6]>=controls.minimumIterations);
+        cudaGraphSetConditional(handle,recurrence[7]?0:1);
+    }
+}
+
+// A matrix with at most one row per lane needs no inter-block dependencies.
+// Keep the identical CSR order and 256-lane reduction tree, and synchronize
+// its complete PCG recurrence inside the owning block instead of dispatching
+// a graph node for each vector operation. No mesh/physics assumption is used.
+__global__ void solveLocalBlock(int n,const int* offsets,const int* columns,const double* values,
+    const double* rowSum,const double* b,const double* affine,double* x,double* r,double* z,double* p,double* ap,
+    ConjugateGradientControls settings,const ConjugateGradientControls* deviceSettings,
+    LocalSolveParameters* parameters,double* recurrence,ConjugateGradientReport* report){
+    __shared__ double scratch[threads];const int i=threadIdx.x;
+    if(!i){*parameters={0,0,0,deviceSettings?*deviceSettings:settings};for(int j=0;j<8;++j)recurrence[j]=0;}
+    __syncthreads();
+    double sum=localBlockSum(i<n?x[i]:0.,scratch);
+    if(!i)parameters->mean=sum/(n?n:1);
+    __syncthreads();
+    double product=0,normTerm=0,residual=0;
+    if(i<n){
+        product=values[offsets[i]]*x[i];
+        for(int e=offsets[i]+1;e<offsets[i+1];++e)product+=values[e]*x[columns[e]];
+        if(affine)product+=affine[i];
+        ap[i]=product;residual=b[i]-product;r[i]=residual;
+        const double reference=rowSum[i]*parameters->mean;
+        normTerm=fabs(product-reference)+fabs(b[i]-reference);
+    }
+    sum=localBlockSum(normTerm,scratch);
+    if(!i)parameters->norm=sum+parameters->controls.normalizationSmall;
+    __syncthreads();
+    sum=localBlockSum(fabs(residual),scratch);
+    if(!i){
+        recurrence[4]=sum;parameters->initial=sum/parameters->norm;
+        const auto& c=parameters->controls;
+        const bool converged=parameters->initial<c.tolerance ||
+            (c.relativeTolerance>c.normalizationSmall&&parameters->initial<c.relativeTolerance*parameters->initial);
+        recurrence[7]=c.minimumIterations<=0&&converged;
+    }
+    __syncthreads();
+    while(!recurrence[7]){
+        double preconditioned=0;if(i<n){preconditioned=r[i]/values[offsets[i]];z[i]=preconditioned;}
+        sum=localBlockSum(i<n?preconditioned*r[i]:0.,scratch);
+        if(!i)recurrence[0]=sum;
+        __syncthreads();
+        if(i<n)p[i]=recurrence[6]==0?preconditioned:preconditioned+(recurrence[0]/recurrence[2])*p[i];
+        __syncthreads();
+        product=0;
+        if(i<n){
+            product=values[offsets[i]]*p[i];
+            for(int e=offsets[i]+1;e<offsets[i+1];++e)product+=values[e]*p[columns[e]];
+            ap[i]=product;
+        }
+        sum=localBlockSum(i<n?product*p[i]:0.,scratch);
+        if(!i){
+            recurrence[1]=sum;recurrence[5]=fabs(sum)/parameters->norm<parameters->controls.singularSmall;
+            if(!recurrence[5]){recurrence[3]=recurrence[0]/sum;recurrence[6]+=1;}
+            recurrence[2]=recurrence[0];
+        }
+        __syncthreads();
+        if(i<n&&!recurrence[5]){x[i]+=recurrence[3]*p[i];r[i]-=recurrence[3]*ap[i];}
+        sum=localBlockSum(i<n?fabs(r[i]):0.,scratch);
+        if(!i){
+            recurrence[4]=sum;const auto& c=parameters->controls;const double value=sum/parameters->norm;
+            const bool converged=value<c.tolerance||(c.relativeTolerance>c.normalizationSmall&&value<c.relativeTolerance*parameters->initial);
+            recurrence[7]=recurrence[5]||((recurrence[6]>=c.maximumIterations||converged)&&recurrence[6]>=c.minimumIterations);
+        }
+        __syncthreads();
+    }
+    if(!i){
+        const auto& c=parameters->controls;const double value=recurrence[4]/parameters->norm;
+        report->iterations=int(recurrence[6]);report->initialResidual=parameters->initial;report->finalResidual=value;
+        report->singular=recurrence[5]!=0;report->converged=value<c.tolerance||
+            (c.relativeTolerance>c.normalizationSmall&&value<c.relativeTolerance*parameters->initial);
+    }
+}
+
 }
 struct SparseConjugateGradient::Implementation {
     cudaStream_t stream=nullptr;PinnedTransferQueue transfers;
@@ -258,6 +396,10 @@ struct SparseConjugateGradient::Implementation {
     cudaGraphNode_t appendLocal(cudaGraph_t graph,const std::vector<cudaGraphNode_t>& dependencies,
         int n,const ConjugateGradientControls& controls,const double* initialAffine,const ConjugateGradientControls* deviceControls=nullptr){
         using executionGraphDetail::appendCaptured;using executionGraphDetail::addWhile;
+        if(n<=threads)return appendCaptured(graph,dependencies,stream,[&]{
+            solveLocalBlock<<<1,threads,0,stream>>>(n,offsets.ptr,columns.ptr,values.ptr,rowSum.ptr,b.ptr,
+                initialAffine,x.ptr,r.ptr,z.ptr,p.ptr,ap.ptr,controls,deviceControls,localParameters.ptr,recurrence.ptr,localReport.ptr);
+        });
         cudaGraphConditionalHandle handle;
         checked(cudaGraphConditionalHandleCreate(&handle,graph,0,cudaGraphCondAssignDefault));
         const auto initialized=appendCaptured(graph,dependencies,stream,[&]{
@@ -270,11 +412,25 @@ struct SparseConjugateGradient::Implementation {
             reduce(n,3,ap.ptr,b.ptr,&localParameters.ptr->norm,{},0,nullptr,&localParameters.ptr->mean);
             reduce(n,1,r.ptr,nullptr,recurrence.ptr+4,{});
             initializeLocalCondition<<<1,1,0,stream>>>(localParameters.ptr,recurrence.ptr,handle);
+            const int blocks=std::max(1,std::min(1024,(n+threads-1)/threads));
+            preconditionAndDot<<<blocks,threads,0,stream>>>(n,offsets.ptr,values.ptr,r.ptr,z.ptr,partial.ptr,recurrence.ptr);
+            finishLocalReduction<0><<<1,threads,0,stream>>>(blocks,partial.ptr,recurrence.ptr,localParameters.ptr,handle);
         });
         cudaGraph_t body=nullptr;const auto loop=addWhile(graph,handle,{initialized},body);
         appendCaptured(body,{},stream,[&]{
-            iteration(n,0,0,{},true);
-            finishIteration<<<1,1,0,stream>>>(recurrence.ptr,localParameters.ptr,handle);
+            // No inter-rank callbacks are involved in this resident loop.
+            // MPI/interface solves keep their existing exchange ordering below.
+            const int blocks=std::max(1,std::min(1024,(n+threads-1)/threads));
+            // Amortize conditional-graph loop dispatch without changing a
+            // single physical iteration. Every stage observes the resident
+            // stop flag; unused stages after convergence perform no arithmetic.
+            for(int batch=0;batch<4;++batch){
+                if(n)direction<<<(n+threads-1)/threads,threads,0,stream>>>(n,z.ptr,recurrence.ptr,p.ptr);
+                multiplyAndDot<<<blocks,threads,0,stream>>>(n,offsets.ptr,columns.ptr,values.ptr,p.ptr,ap.ptr,partial.ptr,recurrence.ptr);
+                finishLocalReduction<1><<<1,threads,0,stream>>>(blocks,partial.ptr,recurrence.ptr,localParameters.ptr,handle);
+                updatePreconditionAndNorm<<<blocks,threads,0,stream>>>(n,offsets.ptr,values.ptr,recurrence.ptr,p.ptr,ap.ptr,x.ptr,r.ptr,z.ptr,partial.ptr);
+                finishLocalReduction<2><<<1,threads,0,stream>>>(blocks,partial.ptr,recurrence.ptr,localParameters.ptr,handle);
+            }
         });
         return appendCaptured(graph,{loop},stream,[&]{
             publishLocalReport<<<1,1,0,stream>>>(localParameters.ptr,recurrence.ptr,localReport.ptr);
@@ -292,7 +448,7 @@ struct SparseConjugateGradient::Implementation {
     }
     void enqueueLocal(int n,const ConjugateGradientControls& controls,const double* initialAffine,bool launch=true){
         localParameters.reserve(1);localReport.reserve(1);recurrence.reserve(8);
-        partial.reserve(std::max(1,std::min(1024,(n+threads-1)/threads)));
+        partial.reserve(2*std::max(1,std::min(1024,(n+threads-1)/threads)));
         const std::vector<const void*> addresses={offsets.ptr,columns.ptr,values.ptr,rowSum.ptr,
             r.ptr,z.ptr,p.ptr,ap.ptr,x.ptr,b.ptr,recurrence.ptr,partial.ptr,localParameters.ptr,localReport.ptr,initialAffine};
         const bool sameControls=graphControls.maximumIterations==controls.maximumIterations

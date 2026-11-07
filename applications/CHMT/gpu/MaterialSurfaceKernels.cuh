@@ -1,9 +1,11 @@
 #ifndef CHMT_GPU_MATERIALSURFACEKERNELS_CUH
 #define CHMT_GPU_MATERIALSURFACEKERNELS_CUH
+#include "gpu/OrderedBisectionCuda.cuh"
 #include "ablation/DrySurfaceInterfaceMath.H"
 #include "../../../common/gasWall/WallCudaTeam.cuh"
 #include "../../../common/gpu/DeviceValue.cuh"
 namespace chmt {
+template<int Depth> using MaterialSurfaceRootTeam=ugkp::gpu::OrderedBisectionTeam<Depth,ugkwp::gaswall::detail::CudaWallWarpGroup>;
 struct MaterialSurfaceStatus {
     bool success=false,numericalFailure=true;
     DeviceStatus device{};
@@ -58,15 +60,16 @@ __global__ void evaluateMaterialSurfaceKernel(View binding,const PhysicsConfig* 
 // A face retains its scalar reaction/root traversal. All team members follow
 // that same traversal; independent wall nodes/Jacobian blocks use the common
 // cooperative ODE implementation and the owner alone publishes face state.
-// One warp per worker keeps the bounded workspace ownership unchanged and
-// spreads even a small number of expensive faces across distinct blocks.
-template<class View>
-__global__ __launch_bounds__(ugkwp::gaswall::detail::wallWarpWidth)
+// A worker owns either one warp or a block of independent probe warps.
+// Each probe has a disjoint workspace; one worker still publishes each face.
+template<class View,class Team=ugkwp::gaswall::detail::CudaWallTeam>
+__global__ __launch_bounds__(Team::width)
 void evaluateMaterialSurfaceTeamKernel(View binding,const PhysicsConfig* physics) {
     const MaterialSurfaceView view=binding;
     const int worker=blockIdx.x;
     if(worker>=view.workers)return;
-    const ugkwp::gaswall::detail::CudaWallTeam team{};
+    const Team team{};
+    if constexpr(SurfaceProbeExecution<Team>::count>1)team.template initialize<SurfacePhysicsResult>(view.workspaceStride);
     for(std::size_t face=worker;face<std::size_t(view.count);face+=view.workers){
         MaterialSurfaceStatus status;
         if(view.active&&!view.active[face]){
@@ -82,10 +85,10 @@ void evaluateMaterialSurfaceTeamKernel(View binding,const PhysicsConfig* physics
             input.solid=input.solidBase=view.solid[cell];input.solidVolume=view.volumes[cell];
             input.solidLocalRate=view.materialRate?view.materialRate[cell]:SolidQ{};
         }
-        input.wallContext.workspace=static_cast<unsigned char*>(view.wallWorkspaces)+std::size_t(worker)*view.workspaceStride;
+        input.wallContext.workspace=static_cast<unsigned char*>(view.wallWorkspaces)+std::size_t(worker)*view.workspaceStride*SurfaceProbeExecution<Team>::count;
         input.wallContext.workspaceCapacity=view.workspaceCapacity;
         input.wallContext.failureStatus=&status.wall;
-        input.wallContext.teamOutput=view.wallTeamOutput+worker;
+        input.wallContext.teamOutput=view.wallTeamOutput+std::size_t(worker)*SurfaceProbeExecution<Team>::count;
         input.wallContext.teamDiagnostics=physics->diagnostics;
         input.wallContext.quietPhysics=view.quietPhysics;
         SurfacePhysicsResult result;

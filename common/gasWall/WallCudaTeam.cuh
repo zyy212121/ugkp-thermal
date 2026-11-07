@@ -30,6 +30,11 @@ struct CudaWallTeam {
         sync();return __shfl_sync(mask,value,0);
     }
 };
+// A warp subteam inside a larger block retains the same arithmetic/votes.
+struct CudaWallWarpGroup:CudaWallTeam {
+    __device__ int rank()const{return int(threadIdx.x)&(wallWarpWidth-1);}
+    __device__ bool leader()const{return rank()==0;}
+};
 // Four independent eight-lane teams may share one hardware warp. Each
 // collective names only its own tile, including when another wall has finished.
 struct CudaWallTile8 {

@@ -130,7 +130,6 @@ namespace
 
 
 constexpr int coldWallBlockThreads = 32;
-constexpr int coldWallSmBlocks = 0;
 constexpr int particlePayloadThreads = 128;
 constexpr int particlePayloadSmBlocks = 0;
 
@@ -2696,20 +2695,29 @@ int prepareCsrHeavyReductionTasks(DeviceState* s, const int block)
 
 #include "GpuParticleLaunchConfiguration.cuh"
 
-inline void configureAdditionalLaunchWorkGrids(DeviceState* s)
+inline int configureAdditionalLaunchWorkGrids(DeviceState* s)
 {
-    if constexpr (coldWallSmBlocks > 0)
+    // Contact groups contain eight cooperating lanes. Their register footprint
+    // and residency differ from the one-thread-per-particle transport kernels.
+    int residentBlocks = 0;
+    const auto error = cudaOccupancyMaxActiveBlocksPerMultiprocessor
+    (
+        &residentBlocks, relaxColdWall1DParticlesToResidentGasKernel,
+        coldWallBlockThreads, 0
+    );
+    if (error != cudaSuccess || residentBlocks <= 0)
     {
-        // Use the existing precision-specific block-count override.
-        s->coldWallWorkGrid = s->multiprocessorCount*coldWallSmBlocks;
+        if (error != cudaSuccess) setLastError("cold-wall launch occupancy", error);
+        else setLastErrorText("cold-wall kernel has zero launch occupancy");
+        return 1;
     }
-    else
-    {
-        // No independent block-count override: inherit the particle grid.
-        s->coldWallWorkGrid = s->particleWorkGrid;
-    }
-    std::fprintf(stderr, "Cold-wall launch geometry: threads=%d grid=%d\n",
-        coldWallBlockThreads, s->coldWallWorkGrid);
+    const int groupsPerBlock = coldWallBlockThreads/8;
+    const int capacityGrid = s->particleCapacity/groupsPerBlock
+        + (s->particleCapacity % groupsPerBlock != 0);
+    s->coldWallWorkGrid = std::min(capacityGrid, s->multiprocessorCount*residentBlocks);
+    std::fprintf(stderr, "Cold-wall launch geometry: threads=%d blocksPerSM=%d grid=%d\n",
+        coldWallBlockThreads, residentBlocks, s->coldWallWorkGrid);
+    return 0;
 }
 
 #include "GpuThermalLaunchOccupancy.cuh"

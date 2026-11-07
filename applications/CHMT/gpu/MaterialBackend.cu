@@ -205,6 +205,7 @@ struct MaterialBackend {
     Buffer<WallFaceSample> surfaceWall;
     Buffer<MaterialSurfaceStatus> surfaceStatus;
     Buffer<ugkwp::gaswall::WallOutput<Real,Ns>> surfaceTeamOutput;
+    bool surfaceProbePlanReady=false;int surfaceProbeResident2=0,surfaceProbeResident3=0;
     Buffer<Real> quadratureDistance,quadratureWeight,mechanismBasis;
     Buffer<ugkwp::GasReactionData<Real>> mechanismReactions;
     Buffer<ugkwp::GasStoichTerm<Real>> mechanismReactants,mechanismProducts;
@@ -639,6 +640,7 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
         q.volumeWeight=q.count?b.quadratureWeight.data()+quadratureOffsets[f]:nullptr;
     }
     MaterialSurfaceView view;view.count=int(count);view.workers=int(count);
+    int surfaceProbeDepth=1,surfaceProbes=1;
     const bool cooperativeWall=boundaryLayer&&p.wallModel.model==ugkwp::gaswall::BoundaryLayerModel::EquilibriumOde;
     if(boundaryLayer&&p.wallModel.model!=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport&&count){
         int device=0,sms=0;
@@ -646,13 +648,35 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
             ||!b.fault.check(cudaDeviceGetAttribute(&sms,cudaDevAttrMultiProcessorCount,device),"query material wall multiprocessors"))return b.failure(error);
         view.workspaceCapacity=ugkwp::gasBoundaryLayerWorkspaceCapacity(p.wallModel.nodes);
         view.workspaceStride=ugkwp::gasBoundaryLayerWorkspaceBytes<Real,Ns>(p.wallModel.nodes);
-        const auto sizing=ugkwp::resolveBoundaryLayerWorkspace(int(count),p.wallWorkspaceSlots,sms,0,view.workspaceStride);
+        auto sizing=ugkwp::resolveBoundaryLayerWorkspace(int(count),p.wallWorkspaceSlots,sms,0,view.workspaceStride);
         if(!sizing.slots){error="boundaryLayer workspace has no compiled capacity or its byte count is not representable";return false;}
+        if(cooperativeWall){
+            if(!b.surfaceProbePlanReady){
+                using Two=MaterialSurfaceRootTeam<2>;using Three=MaterialSurfaceRootTeam<3>;
+                if(!b.fault.check(ugkp::gpu::residentProbeBlocks(
+                        evaluateMaterialSurfaceTeamKernel<MaterialSurfaceView,Two>,Two::width,
+                        sizeof(Two::Storage<SurfacePhysicsResult>),sms,b.surfaceProbeResident2),"query two-round root residency")
+                    ||!b.fault.check(ugkp::gpu::residentProbeBlocks(
+                        evaluateMaterialSurfaceTeamKernel<MaterialSurfaceView,Three>,Three::width,
+                        sizeof(Three::Storage<SurfacePhysicsResult>),sms,b.surfaceProbeResident3),"query three-round root residency"))return b.failure(error);
+                b.surfaceProbePlanReady=true;
+            }
+            // Extra root probes use otherwise idle subteams. With enough
+            // independent faces, keep the ordinary one-warp traversal.
+            if(sizing.slots<=b.surfaceProbeResident3)surfaceProbeDepth=3;
+            else if(sizing.slots<=b.surfaceProbeResident2)surfaceProbeDepth=2;
+            surfaceProbes=(1<<surfaceProbeDepth)-1;
+            if(view.workspaceStride>std::numeric_limits<std::size_t>::max()/std::size_t(surfaceProbes)){
+                error="boundaryLayer probe workspace byte count is not representable";return false;
+            }
+            sizing=ugkwp::resolveBoundaryLayerWorkspace(int(count),p.wallWorkspaceSlots,sms,0,view.workspaceStride*surfaceProbes);
+            if(!sizing.slots){error="boundaryLayer probe workspace byte count is not representable";return false;}
+        }
         if(!b.allocate(b.wallWorkspace,sizing.bytes))return b.failure(error);
         view.workers=sizing.slots;view.wallWorkspaces=b.wallWorkspace.data();
     }
     if(cooperativeWall){
-        if(!b.allocate(b.surfaceTeamOutput,std::size_t(view.workers)))return b.failure(error);
+        if(!b.allocate(b.surfaceTeamOutput,std::size_t(view.workers)*surfaceProbes))return b.failure(error);
         view.wallTeamOutput=b.surfaceTeamOutput.data();view.quietPhysics=b.quietSurfacePhysics.data();
     }
     if(!b.upload(b.surfaceInput,inputs)||!b.upload(b.surfaceCells,solidCells)||!b.upload(b.surfaceActive,active)
@@ -662,7 +686,13 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
     view.active=b.surfaceActive.data();view.physicsOut=b.surfacePhysics.data();view.wallOut=b.surfaceWall.data();view.status=b.surfaceStatus.data();
     b.operation(h.time);
     if(count&&cooperativeWall){
-        evaluateMaterialSurfaceTeamKernel<<<view.workers,ugkwp::gaswall::detail::wallWarpWidth,0,b.stream.get()>>>(view,b.devicePhysics.data());
+        if(surfaceProbeDepth==3){
+            using Team=MaterialSurfaceRootTeam<3>;
+            evaluateMaterialSurfaceTeamKernel<MaterialSurfaceView,Team><<<view.workers,Team::width,sizeof(Team::Storage<SurfacePhysicsResult>),b.stream.get()>>>(view,b.devicePhysics.data());
+        }else if(surfaceProbeDepth==2){
+            using Team=MaterialSurfaceRootTeam<2>;
+            evaluateMaterialSurfaceTeamKernel<MaterialSurfaceView,Team><<<view.workers,Team::width,sizeof(Team::Storage<SurfacePhysicsResult>),b.stream.get()>>>(view,b.devicePhysics.data());
+        }else evaluateMaterialSurfaceTeamKernel<<<view.workers,ugkwp::gaswall::detail::wallWarpWidth,0,b.stream.get()>>>(view,b.devicePhysics.data());
     }else if(count){
         ugkp::gpu::ScalarWorkLaunch launch;
         if(!b.fault.check(ugkp::gpu::scalarWorkLaunch(evaluateMaterialSurfaceKernel<MaterialSurfaceView>,view.workers,launch),

@@ -20,7 +20,7 @@ def test_resident_material_surface_matches_cpu(tmp_path):
         "-DUGKWP_GAS_SPECIES=2", "-I"+str(SOURCE_ROOT/"applications/CHMT"),
         "-I"+str(SOURCE_ROOT/"common"), "-I"+str(VALIDATION_ROOT/"solvers/CHMT"),
         str(VALIDATION_ROOT/"solvers/CHMT/tests/resident_material_surface_cuda.cu"),
-        "-o", str(binary)], capture_output=True, text=True, timeout=240)
+        "-o", str(binary)], capture_output=True, text=True, timeout=600)
     (tmp_path/"build.log").write_text(compile_run.stdout+compile_run.stderr)
     assert compile_run.returncode == 0, compile_run.stdout+compile_run.stderr
     run = subprocess.run([str(binary)], capture_output=True, text=True, timeout=900)
@@ -32,3 +32,13 @@ def test_resident_material_surface_matches_cpu(tmp_path):
     assert "PASS cooperative material surface nonlinear-composition" in run.stdout
     assert "PASS cooperative material surface unavailable-domain" in run.stdout
     assert run.stdout.count("PASS cooperative ordered root mode=") == 4
+
+    # Keep both resident launch plans under the same production-function oracle.
+    for depth in (2, 3):
+        run = subprocess.run([str(binary), "--variant", "5", "--probe-depth", str(depth)],
+            capture_output=True, text=True, timeout=900)
+        (tmp_path/f"ordered-probes-{depth}.log").write_text(run.stdout+run.stderr)
+        assert run.returncode == 0, run.stdout+run.stderr
+        assert "PASS cooperative material surface variant=5" in run.stdout
+        assert "PASS cooperative material surface nonlinear-composition" in run.stdout
+        assert "PASS cooperative material surface unavailable-domain" in run.stdout

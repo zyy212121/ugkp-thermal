@@ -130,7 +130,7 @@ int configureLaunchOccupancy(DeviceState* s)
         return 1;
     setParticleWorkGridFromResidency(s, particleResidentBlocks);
     if (configureTrackingWorkGrid(s) != 0) return 1;
-    configureAdditionalLaunchWorkGrids(s);
+    if (configureAdditionalLaunchWorkGrids(s) != 0) return 1;
     std::fprintf
     (
         stderr,

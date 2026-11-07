@@ -43,27 +43,30 @@ __device__ inline ColdWallThermalReal coldWall1DPcrSolve
 {
     for (int stride = 1; stride < 8; stride *= 2)
     {
+        // All rows need the same neighbouring pivots. Form each reciprocal
+        // once and exchange it, instead of dividing by each neighbour twice.
+        const ColdWallThermalReal inverseDiagonal = GPU_R(1.0)/(diagonal + GPU_REAL_MIN);
         const ColdWallThermalReal lowerLower =
             __shfl_up_sync(mask, lower, stride, 8);
-        const ColdWallThermalReal lowerDiagonal =
-            __shfl_up_sync(mask, diagonal, stride, 8);
+        const ColdWallThermalReal lowerInverseDiagonal =
+            __shfl_up_sync(mask, inverseDiagonal, stride, 8);
         const ColdWallThermalReal lowerUpper =
             __shfl_up_sync(mask, upper, stride, 8);
         const ColdWallThermalReal lowerRightHandSide =
             __shfl_up_sync(mask, rightHandSide, stride, 8);
         const ColdWallThermalReal upperLower =
             __shfl_down_sync(mask, lower, stride, 8);
-        const ColdWallThermalReal upperDiagonal =
-            __shfl_down_sync(mask, diagonal, stride, 8);
+        const ColdWallThermalReal upperInverseDiagonal =
+            __shfl_down_sync(mask, inverseDiagonal, stride, 8);
         const ColdWallThermalReal upperUpper =
             __shfl_down_sync(mask, upper, stride, 8);
         const ColdWallThermalReal upperRightHandSide =
             __shfl_down_sync(mask, rightHandSide, stride, 8);
         const ColdWallThermalReal alpha = lane >= stride
-          ? -lower/(lowerDiagonal + GPU_REAL_MIN)
+          ? -lower*lowerInverseDiagonal
           : GPU_R(0.0);
         const ColdWallThermalReal beta = lane + stride < 8
-          ? -upper/(upperDiagonal + GPU_REAL_MIN)
+          ? -upper*upperInverseDiagonal
           : GPU_R(0.0);
         const ColdWallThermalReal nextLower = lane >= stride
           ? alpha*lowerLower
