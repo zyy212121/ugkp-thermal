@@ -6,8 +6,9 @@ namespace chmt {
 enum class MaterialInventoryCode : int {Success=0,DonorInventory,NonfiniteInventory,NonfiniteEnergy};
 // A CSR row contains every solid-consumed packet for this cell, in the original
 // packet order (including zero packets). Progress and porosity are unchanged.
-CHMT_HD inline MaterialInventoryCode applyMaterialPacketRow(const SolidQ& initial,
-    const ExchangePacket* packets,const int* indices,int begin,int end,SolidQ& output){
+template<class Packets>
+CHMT_HD inline MaterialInventoryCode applyMaterialPacketRowView(const SolidQ& initial,
+    Packets packets,const int* indices,int begin,int end,SolidQ& output){
     using Wide=ugkp::numerics::ExtendedAccumulator;
     Wide sum[Nc+Ns+1],scale[Nc+Ns];
     for(int c=0;c<Nc;++c){sum[c]=Wide(initial.condensed[c]);scale[c]=Wide(absValue(initial.condensed[c]));}
@@ -33,6 +34,12 @@ CHMT_HD inline MaterialInventoryCode applyMaterialPacketRow(const SolidQ& initia
     result.energy=sum[Nc+Ns].value();
     if(!finite(result.energy))return MaterialInventoryCode::NonfiniteEnergy;
     output=result;return MaterialInventoryCode::Success;
+}
+// Preserve the public contiguous-storage entry point. Resident history views
+// use the same ordered accumulator and donor bound without copying packets.
+CHMT_HD inline MaterialInventoryCode applyMaterialPacketRow(const SolidQ& initial,
+    const ExchangePacket* packets,const int* indices,int begin,int end,SolidQ& output){
+    return applyMaterialPacketRowView(initial,packets,indices,begin,end,output);
 }
 inline const char* materialInventoryMessage(MaterialInventoryCode code){
     switch(code){
