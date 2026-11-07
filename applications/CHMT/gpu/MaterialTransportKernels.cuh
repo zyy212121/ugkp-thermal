@@ -2,9 +2,12 @@
 #define CHMT_GPU_MATERIALTRANSPORTKERNELS_CUH
 #include "materials/MaterialTransportMath.H"
 #include <cuda_runtime.h>
+#include "../../../common/gpu/DeviceScalar.cuh"
 namespace chmt { namespace materialTransportGpu {
-static __global__ void initialize(const PhysicsConfig* p,Real interval,Real cfl,int cells,
+template<class Interval,class Cfl>
+static __global__ void initialize(const PhysicsConfig* p,Interval intervalValue,Cfl cflValue,int cells,
     MaterialTransportDeviceResult* result) {
+    const Real interval=intervalValue,cfl=cflValue;
     *result=MaterialTransportDeviceResult{};
     result->numerical=true; // Same initial failure classification as the host API.
     if(!(interval>0)||!finite(interval)||!(finite(cfl)&&cfl>0)){
@@ -25,13 +28,15 @@ static __global__ void pressure(MaterialMeshView mesh,const PhysicsConfig* p,
     const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=mesh.cells||result->errorCode)return;
     w.cellErrors[c]=int(materialTransport::pressureCell(mesh,*p,c,w));
 }
+template<class Interval>
 static __global__ void stability(MaterialMeshView mesh,const SolidQ* q,const PhysicsConfig* p,
-    const Real* swept,Real interval,MaterialTransportWorkspace w,const MaterialTransportDeviceResult* result) {
+    const Real* swept,Interval interval,MaterialTransportWorkspace w,const MaterialTransportDeviceResult* result) {
     const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=mesh.cells||result->errorCode)return;
     w.cellErrors[c]=int(materialTransport::stabilityCell(mesh,q,*p,swept,interval,c,w));
 }
+template<class Interval>
 static __global__ void faces(MaterialMeshView mesh,const SolidQ* q,const PhysicsConfig* p,
-    const Real* swept,Real interval,MaterialTransportWorkspace w,const MaterialTransportDeviceResult* result) {
+    const Real* swept,Interval interval,MaterialTransportWorkspace w,const MaterialTransportDeviceResult* result) {
     const int f=blockIdx.x*blockDim.x+threadIdx.x;if(f>=mesh.faces||result->errorCode)return;
     w.faceErrors[f]=int(materialTransport::face(mesh,q,*p,swept,interval,f,w));
 }
@@ -49,8 +54,9 @@ static __global__ void compactErrors(const int* errors,int count,MaterialTranspo
     }
     if(threadIdx.x==0&&first[0]<count){result->entity=first[0];result->errorCode=errors[first[0]];result->numerical=true;}
 }
+template<class Cfl>
 static __global__ void gather(MaterialMeshView mesh,const SolidQ* q,const PhysicsConfig* p,
-    Real cfl,MaterialTransportWorkspace w,const MaterialTransportDeviceResult* result) {
+    Cfl cfl,MaterialTransportWorkspace w,const MaterialTransportDeviceResult* result) {
     const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=mesh.cells||result->errorCode)return;
     materialTransport::gatherCell(mesh,q,*p,cfl,c,w);
 }
@@ -73,8 +79,9 @@ static __global__ void compactTimestep(const Real* dt,int count,MaterialTranspor
 } // namespace materialTransportGpu
 // All pointers, including p and result, refer to device storage. Geometry and
 // workspaces remain owned by the caller; stream completion bounds their use.
+template<class Interval,class Cfl>
 inline cudaError_t launchMaterialTransport(MaterialMeshView mesh,const SolidQ* q,
-    const PhysicsConfig* p,const Real* swept,Real interval,Real cfl,
+    const PhysicsConfig* p,const Real* swept,Interval interval,Cfl cfl,
     MaterialTransportWorkspace workspace,MaterialTransportDeviceResult* result,cudaStream_t stream) {
     using namespace materialTransportGpu;
     initialize<<<1,1,0,stream>>>(p,interval,cfl,mesh.cells,result);
