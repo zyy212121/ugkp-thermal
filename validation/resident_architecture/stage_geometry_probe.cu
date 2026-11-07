@@ -1,6 +1,8 @@
 #include "stage_geometry_probe.H"
 #include <cuda_runtime.h>
 #include <stdexcept>
+#include "common/gasTransport/GasGeometryPolicy.H"
+#include "common/operators/publishGasMeshGeometryKernel.cuh"
 namespace stageProbe {
 void check(cudaError_t e){if(e!=cudaSuccess)throw std::runtime_error(cudaGetErrorString(e));}
 template<class T> struct Device {
@@ -9,14 +11,17 @@ template<class T> struct Device {
     ~Device(){if(pointer)cudaFree(pointer);}
 };
 template<class T> std::vector<T> download(const T* source,int count){std::vector<T> out(count);if(count)check(cudaMemcpy(out.data(),source,count*sizeof(T),cudaMemcpyDeviceToHost));return out;}
+#include "gas_geometry_publication_probe.cuh"
 Result evaluate(const Topology& topology,const std::vector<Point>& old,const std::vector<Point>& end,const std::vector<int>& walls,
     const std::vector<int>& partner,int axis,const std::vector<int>& mate,StageGeometryControls controls){
     ResidentStageGeometry geometry(topology,old.size(),walls,partner,axis,mate);
     Device<Point> points(old),endpoint(end);Device<StageGeometryControls> control(std::vector<StageGeometryControls>{controls});
     Device<ugkp::diagnostics::DeviceContext> diagnostic(std::vector<ugkp::diagnostics::DeviceContext>(1));
+    GasPublicationProbe gas(topology,partner);
     cudaStream_t stream=nullptr;cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;
     check(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
     check(cudaStreamBeginCapture(stream,cudaStreamCaptureModeGlobal));geometry.prepare(points.pointer,endpoint.pointer,control.pointer,diagnostic.pointer,stream);
+    gas.capture(geometry.view(),control.pointer,stream);
     check(cudaStreamEndCapture(stream,&graph));
     std::size_t count=0;check(cudaGraphGetNodes(graph,nullptr,&count));std::vector<cudaGraphNode_t> nodes(count);check(cudaGraphGetNodes(graph,nodes.data(),&count));
     for(auto node:nodes){cudaGraphNodeType type;check(cudaGraphNodeGetType(node,&type));
@@ -26,6 +31,7 @@ Result evaluate(const Topology& topology,const std::vector<Point>& old,const std
         if(!target.empty())check(cudaMemcpyAsync(endpoint.pointer,target.data(),target.size()*sizeof(Point),cudaMemcpyHostToDevice,stream));
         check(cudaMemsetAsync(diagnostic.pointer,0,sizeof(ugkp::diagnostics::DeviceContext),stream));
         check(cudaGraphLaunch(executable,stream));check(cudaStreamSynchronize(stream));
+        gas.validate(view,controls);
         if(replay==1&&controls.interval>0&&std::isfinite(controls.interval)&&controls.absoluteTolerance>=0&&std::isfinite(controls.absoluteTolerance)
             &&controls.relativeTolerance>=0&&std::isfinite(controls.relativeTolerance)){
             StageGeometryStatus status;check(cudaMemcpy(&status,view.status,sizeof(status),cudaMemcpyDeviceToHost));
