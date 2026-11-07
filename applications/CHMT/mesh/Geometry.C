@@ -7,6 +7,7 @@
 #include "../../../common/gpu/SurfaceSeamMath.H"
 #ifdef CHMT_DEVICE_GEOMETRY
 #include "mesh/GeometryGpu.H"
+#include "../../../common/gpu/HarmonicSweepCorrection.H"
 #endif
 #include "mesh/GeometryDiagnostics.H"
 #include "mesh/Motion.H"
@@ -1012,8 +1013,10 @@ namespace chmt {
             using namespace sweep_detail;
             sweep_detail::Budget workspace(controls.maximumWorkspaceBytes,report.peakWorkspaceBytes);
             Reals pointWeight(np,0,Allocator<Real>(workspace));
+#ifndef CHMT_DEVICE_GEOMETRY
             HarmonicModes harmonic(old,prescribed,workspace,1e-12*length);
             Points boundary(np,Vec3{},Allocator<Vec3>(workspace));
+#endif
             Points correction(np,Vec3{},Allocator<Vec3>(workspace));
             for (int f:faces) {
                 const Real share=mag(old.areaVectors[f])/(old.faceOffsets[f+1]-old.faceOffsets[f]);
@@ -1026,6 +1029,28 @@ namespace chmt {
             // One deterministic streamed construction, independent of user budgets.
             // Each mode uses the same harmonic solve; no allocation-driven fallback.
             report.streamedModes=true;
+#ifdef CHMT_DEVICE_GEOMETRY
+            geometry_device::backend::HarmonicSweepDefinition definition;
+            definition.topology=geometry_device::faceTopology(old);definition.points=geometry_device::pack(old.points);
+            definition.fixed=prescribed;definition.faces=faces;definition.scales=sweepScale;definition.planar=devicePlanes;
+            definition.harmonicTolerance=1e-12*length;
+            std::set<std::pair<int,int>> edges;
+            for(std::size_t f=0;f<old.owner.size();++f){const int lo=old.faceOffsets[f],hi=old.faceOffsets[f+1];
+                for(int k=lo;k<hi;++k){const int a=old.facePoints[k],b=old.facePoints[k+1==hi?lo:k+1];
+                    edges.insert({a,b});edges.insert({b,a});}}
+            definition.offsets.assign(np+1,0);
+            for(const auto& edge:edges){++definition.offsets[edge.first+1];definition.neighbours.push_back(edge.second);}
+            for(std::size_t p=1;p<definition.offsets.size();++p)definition.offsets[p]+=definition.offsets[p-1];
+            for(int p:movable){
+                const Real weight=pointWeight[p]>0?pointWeight[p]:meanWeight;
+                Real scale=length*::sqrt(meanWeight/weight);int partner=-1;
+                if(hasEmpty){partner=extrusion.mate[p];const Real other=pointWeight[partner]>0?pointWeight[partner]:meanWeight;
+                    scale=empty_detail::pairedScale(scale,length*::sqrt(meanWeight/other));}
+                const Vec3 displacement=normalized(directions[p])*scale;
+                definition.modes.push_back({p,partner,{displacement.x,displacement.y,displacement.z}});
+            }
+            geometry_device::backend::HarmonicSweepCorrection deviceCorrection(definition);
+#else
             Points streamedMode(np,Vec3{},Allocator<Vec3>(workspace));
             auto generateMode=[&](int p,Points& end) {
                 std::fill(boundary.begin(),boundary.end(),Vec3{});
@@ -1041,6 +1066,7 @@ namespace chmt {
                 if(!harmonic.solve(boundary,end,tolerances.diagnostics))return errorAt(error,"harmonic point motion did not converge",-1);
                 return true;
             };
+#endif
             for (int iteration=0;iteration<=controls.maximumIterations;++iteration) {
                 report.iterations=iteration;
                 if (metric<=1) {
@@ -1054,19 +1080,44 @@ namespace chmt {
                     report.status=SweepConstraintStatus::Success; error.clear(); return true;
                 }
                 if (iteration==controls.maximumIterations) break;
+#ifdef CHMT_DEVICE_GEOMETRY
+                std::vector<double> rhs(residual.begin(),residual.end());
+                std::size_t planarRow=faces.size();
+                for(const auto& plane:planar)for(int coefficient=0;coefficient<3;++coefficient){
+                    if(absValue(rhs[planarRow])<=plane.tolerance)rhs[planarRow]=0;
+                    ++planarRow;
+                }
+                Real maxResidual=0;
+                for(Real& r:rhs){maxResidual=maxValue(maxResidual,absValue(r));r=-r;}
+                const Real consistencyTolerance=maxValue(128*std::numeric_limits<Real>::epsilon(),controls.rankTolerance*maxResidual);
+                const auto solved=deviceCorrection.solve(geometry_device::pack(points),rhs,controls.rankTolerance,consistencyTolerance);
+                report.modeSolves+=solved.status.modeSolves;
+                const auto modeWarning=[&](std::size_t m){
+                    const auto& value=solved.modes[m];
+                    if(value.errorPoint<0&&!old.points.empty()&&!(value.residual<=definition.harmonicTolerance))
+                        geometryWarning(tolerances.diagnostics,value.residual,definition.harmonicTolerance,-1,false);
+                };
+                for(std::size_t m=0;m<std::min(columns,solved.modes.size());++m)modeWarning(m);
+                if(solved.status.linearInitialized)report.rank=solved.status.rank;
+                for(std::size_t r=report.rank;r<solved.rhs.size();++r)
+                    if(absValue(solved.rhs[r])>consistencyTolerance)
+                        geometryWarning(tolerances.diagnostics,solved.rhs[r],consistencyTolerance,r,false);
+                for(std::size_t m=columns;m<solved.modes.size();++m)modeWarning(m);
+                if(solved.status.error==1)return errorAt(error,"nonfinite correction boundary mode",solved.status.errorPoint);
+                if(solved.status.error==2)return errorAt(error,"harmonic point motion did not converge",-1);
+                if(solved.status.error){
+                    std::ostringstream detail;detail << "incompatible swept-volume/planarity constraints: numerical rank "
+                        << report.rank << " of " << report.constraints << ", boundary DOFs " << report.degreesOfFreedom;
+                    return reject(SweepConstraintStatus::Incompatible,detail.str());
+                }
+                geometry_device::unpack(solved.correction,correction);
+#else
                 Rows jacobian{Allocator<Reals>(workspace)};
                 jacobian.reserve(rows);
                 for(std::size_t i=0;i<rows;++i)jacobian.emplace_back(columns,0,Allocator<Real>(workspace));
-#ifdef CHMT_DEVICE_GEOMETRY
-                linearization.endpoint(geometry_device::pack(points));
-#endif
                 for (std::size_t j=0;j<columns;++j) {
                     if(!generateMode(movable[j],streamedMode))return false;
                     const auto& mode=streamedMode;
-#ifdef CHMT_DEVICE_GEOMETRY
-                    const auto derivative=linearization.column(geometry_device::pack(mode));
-                    for(std::size_t row=0;row<rows;++row)jacobian[row][j]=derivative[row];
-#else
                     std::size_t row=0;
                     for (std::size_t i=0;i<faces.size();++i)
                         jacobian[row++][j]=sweepDerivative(old,points,mode.data(),faces[i])/sweepScale[i];
@@ -1080,7 +1131,6 @@ namespace chmt {
                             ++row;
                         }
                     }
-#endif
                 }
                 Reals rhs(residual.begin(),residual.end(),Allocator<Real>(workspace));
                 std::size_t planarRow=faces.size();
@@ -1098,22 +1148,12 @@ namespace chmt {
 
                     return reject(SweepConstraintStatus::Incompatible,detail.str());
                 }
-#ifdef CHMT_DEVICE_GEOMETRY
-                linearization.resetCorrection();
-#else
                 std::fill(correction.begin(),correction.end(),Vec3{});
-#endif
                 for (std::size_t j=0;j<columns;++j) {
                     if(!generateMode(movable[j],streamedMode))return false;
                     const auto& mode=streamedMode;
-#ifdef CHMT_DEVICE_GEOMETRY
-                    linearization.accumulate(geometry_device::pack(mode),delta[j]);
-#else
                     for (std::size_t p=0;p<np;++p) correction[p]+=mode[p]*delta[j];
-#endif
                 }
-#ifdef CHMT_DEVICE_GEOMETRY
-                geometry_device::unpack(linearization.correction(),correction);
 #endif
                 // Globalize this fixed-target Newton correction. Physical time,
                 // target sweeps, modes, Jacobian and delta remain unchanged.

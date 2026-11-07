@@ -153,6 +153,7 @@ struct SweepLinearizationDeviceInput {
     const double* scales=nullptr;
     const PlanarConstraint* planar=nullptr;
     double coefficient=0;
+    bool active=true; // caller-owned transaction status, not a numerical policy
 };
 struct SweepLinearizationDeviceView {
     const Polynomial* polynomials=nullptr;
@@ -242,6 +243,13 @@ public:
     // and tolerance may come from an upstream device geometry owner. A null
     // tolerance uses the constructor value; a null penalty means no penalty.
     // Result/status stay on device and are ordered on the caller's stream.
+    // For several modes on the same resident geometry, build inverse-edge
+    // weights once, then enqueue solves without recomputing them. The caller
+    // keeps coordinates unchanged until the last prepared solve completes.
+    void prepareDeviceGeometry(const Point* points,void* stream=nullptr);
+    HarmonicDeviceView solvePreparedDevice(const Point* points,const Point* boundary,
+        const MotionPenalty* penalties,const double* tolerance,
+        bool representedDisplacement=false,void* stream=nullptr);
     HarmonicDeviceView solveDevice(const Point* points,const Point* boundary,
         const MotionPenalty* penalties,const double* tolerance,
         bool representedDisplacement=false,void* stream=nullptr);

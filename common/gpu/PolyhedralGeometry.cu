@@ -524,6 +524,16 @@ HarmonicDeviceView HarmonicPointMotion::solveDevice(const Point* points,const Po
     data_->externalGeometryUsed=true;
     return data_->enqueue(points,boundary,penalties,tolerance,represented,static_cast<cudaStream_t>(stream),true);
 }
+void HarmonicPointMotion::prepareDeviceGeometry(const Point* points,void* rawStream){
+    auto& d=*data_;d.externalGeometryUsed=true;const auto stream=static_cast<cudaStream_t>(rawStream);
+    if(d.count)weightsKernel<<<(d.count-1)/128+1,128,0,stream>>>(d.count,points,d.offsets.pointer,
+        d.neighbours.pointer,d.fixed.pointer,d.weights.pointer,d.total.pointer,d.preErrors.pointer);
+    checked(cudaGetLastError());
+}
+HarmonicDeviceView HarmonicPointMotion::solvePreparedDevice(const Point* points,const Point* boundary,
+    const MotionPenalty* penalties,const double* tolerance,bool represented,void* stream){
+    return data_->enqueue(points,boundary,penalties,tolerance,represented,static_cast<cudaStream_t>(stream),false);
+}
 HarmonicResult HarmonicPointMotion::solve(const std::vector<Point>& boundary,bool represented){
     auto& d=*data_;if(boundary.size()!=std::size_t(d.count))throw std::invalid_argument("harmonic motion boundary shape mismatch");
     PinnedTransferQueue::Operation operation(d.transfer);d.boundary.upload(boundary,d.transfer);
@@ -671,13 +681,13 @@ void ResidentDenseMinimumNorm::solve(const MinimumNormDeviceProblem* input,void*
 namespace {
 template<class Input>
 __global__ void planarValues(int count,Input input,Polynomial* out){
-    const SweepLinearizationDeviceInput p=input;
+    const SweepLinearizationDeviceInput p=input;if(!p.active)return;
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)out[i]=planarPolynomial(p.old,p.endpoint,p.planar[i]);
 }
 template<class Input>
 __global__ void linearizationColumn(int faceCount,int planarCount,TopologyView t,Input input,
     const int* faces,double* out){
-    const SweepLinearizationDeviceInput p=input;
+    const SweepLinearizationDeviceInput p=input;if(!p.active)return;
     const int i=blockIdx.x*blockDim.x+threadIdx.x;
     if(i<faceCount)out[i]=sweepDerivative(t,p.old,p.endpoint,p.mode,faces[i])/p.scales[i];
     else if(i<faceCount+planarCount){const int j=i-faceCount;const auto plane=p.planar[j];
@@ -686,7 +696,7 @@ __global__ void linearizationColumn(int faceCount,int planarCount,TopologyView t
 }
 template<class Input>
 __global__ void accumulateMode(int count,Input input,Point* correction){
-    const SweepLinearizationDeviceInput q=input;
+    const SweepLinearizationDeviceInput q=input;if(!q.active)return;
     const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p<count)correction[p]+=q.mode[p]*q.coefficient;
 }
 __global__ void resetModeCorrection(int count,Point* correction){
@@ -784,3 +794,5 @@ void SweepLinearization::accumulate(const std::vector<Point>& mode,double coeffi
 std::vector<Point> SweepLinearization::correction(){auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);
     std::vector<Point> out;d.correction.download(out,d.points,d.transfer);d.transfer.finish();return out;}
 }}}
+
+#include "HarmonicSweepCorrection.cuh"
