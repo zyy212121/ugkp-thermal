@@ -52,7 +52,7 @@ int main(){
         assert(converged.converged&&converged.iterations==0);
         // maxIter remains a report, not a new runtime stop gate.
         if(side>2){x=old;controls.maximumIterations=1;auto shortRun=solver.solve(matrix,rhs.data(),x.data(),controls);assert(shortRun.iterations==1&&!shortRun.converged);}
-        if(side==5){for(int minimum:{0,3,9})for(int maximum:{1,7,11}){
+        if(side==5||side==13){for(int minimum:{0,3,9})for(int maximum:{1,7,11}){
             controls.minimumIterations=minimum;controls.maximumIterations=maximum;
             controls.relativeTolerance=.25;controls.tolerance=1e-12;
             x=old;unbatched=old;

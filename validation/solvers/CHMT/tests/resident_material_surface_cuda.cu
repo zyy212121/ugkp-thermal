@@ -192,6 +192,19 @@ void materialClosureCoverage(){
 }
 int main(int argc,char** argv){
     setvbuf(stdout,nullptr,_IOLBF,0);
+    // Instrument the production cooperative kernel without spending most of
+    // memcheck's runtime inside the unchanged scalar nonlinear oracle.
+    bool memoryOnly=false;
+    for(int i=1;i<argc;++i)if(std::strcmp(argv[i],"--memory-only")==0){
+        memoryOnly=true;for(int j=i;j<argc;++j)argv[j]=argv[j+1];--argc;--i;
+    }
+    int probeDepth=1;
+    if(argc==5&&std::strcmp(argv[3],"--probe-depth")==0){
+        if(std::strcmp(argv[4],"2")==0)probeDepth=2;
+        else if(std::strcmp(argv[4],"3")==0)probeDepth=3;
+        else {std::fprintf(stderr,"probe depth must be 2 or 3\n");return 2;}
+        argc=3;
+    }
     const bool closureOnly=argc==2&&std::strcmp(argv[1],"--closure-only")==0;
     int beginVariant=0,endVariant=6;
     if(closureOnly){}
@@ -199,7 +212,10 @@ int main(int argc,char** argv){
         char* end=nullptr;const long variant=std::strtol(argv[2],&end,10);
         if(!*argv[2]||*end||variant<0||variant>=endVariant){std::fprintf(stderr,"variant must be an integer in [0,5]\n");return 2;}
         beginVariant=int(variant);endVariant=beginVariant+1;
-    }else if(argc!=1){std::fprintf(stderr,"usage: resident-material-surface [--variant 0..5|--closure-only]\n");return 2;}
+    }else if(argc!=1){std::fprintf(stderr,"usage: resident-material-surface [--variant 0..5 [--probe-depth 2|3] [--memory-only]|--closure-only]\n");return 2;}
+    if(memoryOnly&&(beginVariant!=5||endVariant!=6||closureOnly)){
+        std::fprintf(stderr,"--memory-only requires --variant 5\n");return 2;
+    }
     cudaCheck(cudaDeviceSetLimit(cudaLimitStackSize,closureOnly?16384:65536));
     orderedRootCoverage();
     if(closureOnly){materialClosureCoverage();return 0;}
@@ -207,12 +223,19 @@ int main(int argc,char** argv){
     auto* p=allocate<PhysicsConfig>(1);auto* quiet=allocate<PhysicsConfig>(1);auto* inputs=allocate<SurfacePhysicsInput>(count);
     auto* cells=allocate<int>(count);auto* solid=allocate<SolidQ>(count);auto* volumes=allocate<double>(count);auto* rates=allocate<SolidQ>(count);
     auto* active=allocate<unsigned char>(count);auto* result=allocate<SurfacePhysicsResult>(count);auto* walls=allocate<WallFaceSample>(count);auto* status=allocate<MaterialSurfaceStatus>(count);
-    using Workspace=ugkwp::gaswall::WallWorkspace<double,Ns,24>;auto* scratch=allocate<Workspace>(workers);auto cpuScratch=std::make_unique<Workspace>();
-    auto* teamOutput=allocate<ugkwp::gaswall::WallOutput<double,Ns>>(workers);
+    using Workspace=ugkwp::gaswall::WallWorkspace<double,Ns,24>;auto* scratch=allocate<Workspace>(workers*7);auto cpuScratch=std::make_unique<Workspace>();
+    auto* teamOutput=allocate<ugkwp::gaswall::WallOutput<double,Ns>>(workers*7);
     auto* qDistance=allocate<double>(2);auto* qWeight=allocate<double>(2);qDistance[0]=.125;qDistance[1]=.375;qWeight[0]=qWeight[1]=.5;
     MaterialSurfaceView view;view.count=count;view.inputs=inputs;view.solidCells=cells;view.solid=solid;view.volumes=volumes;view.materialRate=rates;view.active=active;
     view.physicsOut=result;view.wallOut=walls;view.status=status;view.wallWorkspaces=scratch;view.workspaceStride=sizeof(Workspace);view.workspaceCapacity=24;view.workers=workers;
     view.quietPhysics=quiet;
+    auto launchCooperative=[&](){
+        if(probeDepth==3){using Team=MaterialSurfaceRootTeam<3>;
+            evaluateMaterialSurfaceTeamKernel<MaterialSurfaceView,Team><<<workers,Team::width,sizeof(Team::Storage<SurfacePhysicsResult>)>>>(view,p);
+        }else if(probeDepth==2){using Team=MaterialSurfaceRootTeam<2>;
+            evaluateMaterialSurfaceTeamKernel<MaterialSurfaceView,Team><<<workers,Team::width,sizeof(Team::Storage<SurfacePhysicsResult>)>>>(view,p);
+        }else evaluateMaterialSurfaceTeamKernel<<<workers,ugkwp::gaswall::detail::wallWarpWidth>>>(view,p);
+    };
     for(int variant=beginVariant;variant<endVariant;++variant){
         *p={};p->gasMode=ugkwp::GasMode::MixtureFrozen;p->gasConductivity=2;p->gasViscosity=.01;
         for(auto& x:p->species){x.R=287;x.cp0=1000;x.Tmin=100;x.Tmax=3000;}
@@ -250,6 +273,19 @@ int main(int argc,char** argv){
             // Device must read resident inventories, never these host placeholders.
             in.solid.energy=-1;in.solidVolume=-1;in.solidLocalRate.condensed[0]=1e30;
         }
+        if(memoryOnly){
+            *quiet=*p;quiet->diagnostics=nullptr;quiet->tolerances.diagnostics=nullptr;
+            view.wallTeamOutput=teamOutput;
+            for(int f=0;f<count;++f){result[f].gasEnergy=12345;walls[f].temperature=12345;status[f]={};}
+            launchCooperative();cudaCheck(cudaGetLastError());cudaCheck(cudaDeviceSynchronize());
+            for(int f=0;f<count;++f){
+                chmt_test::check(status[f].success,"instrumented cooperative surface solve");
+                compare(result[f],expected[f]);
+                chmt_test::near(walls[f].temperature,expectedWall[f].temperature,"instrumented wall T",2e-9);
+            }
+            std::printf("PASS instrumented production material surface depth=%d faces=%d workers=%d\n",probeDepth,count,workers);
+            continue;
+        }
         // Poison inactive output too: both launch plans must reset it, while
         // workers 0..2 serially own faces worker, worker+3, worker+6.
         for(int f=0;f<count;++f){result[f].gasEnergy=12345;walls[f].temperature=12345;status[f]={};}
@@ -258,7 +294,7 @@ int main(int argc,char** argv){
         const std::vector<SurfacePhysicsResult> original(result,result+count);
         const std::vector<WallFaceSample> originalWalls(walls,walls+count);
         const std::vector<MaterialSurfaceStatus> originalStatus(status,status+count);
-        for(int w=0;w<workers;++w)new(scratch+w)Workspace{};
+        for(int w=0;w<workers*7;++w)new(scratch+w)Workspace{};
         for(int f=0;f<count;++f){result[f]={};result[f].gasEnergy=12345;walls[f]={};walls[f].temperature=12345;status[f]={};}
         ugkp::gpu::ScalarWorkLaunch launch;cudaCheck(ugkp::gpu::scalarWorkLaunch(evaluateMaterialSurfaceKernel<MaterialSurfaceView>,workers,launch));
         std::fprintf(stderr,"BEGIN scheduled scalar material surface variant=%d\n",variant);
@@ -287,10 +323,10 @@ int main(int argc,char** argv){
         if(variant==5){
             *quiet=*p;quiet->diagnostics=nullptr;quiet->tolerances.diagnostics=nullptr;
             std::fprintf(stderr,"BEGIN cooperative material surface variant=5\n");
-            for(int w=0;w<workers;++w)new(scratch+w)Workspace{};
+            for(int w=0;w<workers*7;++w)new(scratch+w)Workspace{};
             for(int f=0;f<count;++f){result[f]={};result[f].gasEnergy=12345;walls[f]={};walls[f].temperature=12345;status[f]={};}
             view.wallTeamOutput=teamOutput;
-            evaluateMaterialSurfaceTeamKernel<<<workers,ugkwp::gaswall::detail::wallWarpWidth>>>(view,p);
+            launchCooperative();
             cudaCheck(cudaGetLastError());cudaCheck(cudaDeviceSynchronize());
             for(int f=0;f<count;++f){
                 identical(result[f],original[f]);identical(walls[f],originalWalls[f]);identical(status[f],originalStatus[f]);
@@ -301,7 +337,7 @@ int main(int argc,char** argv){
                 *quiet=*p;quiet->diagnostics=nullptr;quiet->tolerances.diagnostics=nullptr;
                 std::fprintf(stderr,"BEGIN scalar material surface %s\n",label);
                 auto reset=[&](){
-                    for(int w=0;w<workers;++w)new(scratch+w)Workspace{};
+                    for(int w=0;w<workers*7;++w)new(scratch+w)Workspace{};
                     for(int f=0;f<count;++f){result[f]={};result[f].gasEnergy=12345;walls[f]={};walls[f].temperature=12345;status[f]={};}
                 };
                 reset();
@@ -312,7 +348,7 @@ int main(int argc,char** argv){
                 const std::vector<MaterialSurfaceStatus> scalarStatus(status,status+count);
                 reset();view.wallTeamOutput=teamOutput;
                 std::fprintf(stderr,"BEGIN cooperative material surface %s\n",label);
-                evaluateMaterialSurfaceTeamKernel<<<workers,ugkwp::gaswall::detail::wallWarpWidth>>>(view,p);
+                launchCooperative();
                 cudaCheck(cudaGetLastError());cudaCheck(cudaDeviceSynchronize());
                 for(int f=0;f<count;++f){identical(result[f],scalarResult[f]);identical(walls[f],scalarWall[f]);identical(status[f],scalarStatus[f]);}
                 view.wallTeamOutput=nullptr;

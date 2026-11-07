@@ -1,5 +1,6 @@
 #ifndef CHMT_ABLATION_INTERFACEMATH_H
 #define CHMT_ABLATION_INTERFACEMATH_H
+#include "gpu/OrderedBisectionProbe.H"
 #include "film/FilmMath.H"
 #include "gpu/CommonGasTraction.H"
 #include "../../../common/gasWall/WallModel.H"
@@ -771,6 +772,12 @@ CHMT_HD inline Real surfaceThermalFluxTolerance(const SurfacePhysicsInput& in,co
 }
 // The owner copies immutable physics once per root solve. CUDA device atomics
 // must never target an automatic/thread-local DeviceContext.
+template<class Team,class=void> struct SurfaceProbeExecution {static constexpr int count=1,depth=1;};
+template<class Team> struct SurfaceProbeExecution<Team,std::void_t<decltype(Team::probeCount)>> {static constexpr int count=Team::probeCount,depth=Team::probeDepth;};
+template<class Evaluation,class=void> struct SurfaceBisectionProbeType {using type=ugkp::gpu::OrderedBisectionProbe<Real,1>;};
+template<class Evaluation> struct SurfaceBisectionProbeType<Evaluation,std::void_t<typename Evaluation::BisectionProbes>> {using type=typename Evaluation::BisectionProbes;};
+template<class Evaluation,class=void> struct HasSurfaceBisectionBatch:std::false_type {};
+template<class Evaluation> struct HasSurfaceBisectionBatch<Evaluation,std::void_t<decltype(&Evaluation::evaluateBisection)>>:std::true_type {};
 template<bool Track=false,class Evaluation=LegacySurfaceEvaluation,class Team=ugkwp::gaswall::detail::SerialWallTeam>
 CHMT_HD inline bool bisectFeasibleSurfaceImpl(const SurfacePhysicsInput& in, const PhysicsConfig& p,
     const PhysicsConfig& trialPhysics,const MaterialPrimitive& material, Real filmT, Real lo, Real hi,
@@ -780,11 +787,16 @@ CHMT_HD inline bool bisectFeasibleSurfaceImpl(const SurfacePhysicsInput& in, con
         && left.thermalResidual!=0 && right.thermalResidual!=0) return false;
     if (left.thermalResidual==0) { out=left; return true; }
     if (right.thermalResidual==0) { out=right; return true; }
+    typename SurfaceBisectionProbeType<Evaluation>::type probes;
     for (int iteration=0; iteration<100; ++iteration) {
         const Real T=0.5*(lo+hi);
         SurfacePhysicsResult candidate;
         if(Track){trace->attempted=T;trace->hasAttempt=true;}
-        if(!Evaluation::evaluate(in,trialPhysics,material,filmT,T,false,candidate,numericalFailure))return false;
+        bool valid=false;
+        if constexpr(HasSurfaceBisectionBatch<Evaluation>::value)
+            valid=Evaluation::evaluateBisection(in,trialPhysics,material,filmT,lo,hi,probes,candidate,numericalFailure);
+        else valid=Evaluation::evaluate(in,trialPhysics,material,filmT,T,false,candidate,numericalFailure);
+        if(!valid)return false;
         if(Track){trace->completedState=candidate;trace->hasCompleted=true;}
         const Real fluxTolerance=surfaceThermalFluxTolerance(in,p,candidate);
         const Real temperatureTolerance=auditTolerance(p.tolerances.absoluteTemperature,p.tolerances.relativeTemperature,T);

@@ -816,6 +816,83 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool solveLayerNewtonSystem(
 
     return true;
 }
+// Keep partial-pivot decisions and each row's scalar arithmetic order. Only
+// independent rows execute concurrently; all lanes enter the same barriers.
+template<class R,int B,class Team> UGKWP_GAS_HD inline bool eliminateBlockTeam(
+ R (&a)[B][B],R (&upper)[B][B],R* rhs,int active,const Team& team){
+    for(int col=0;col<active;++col){
+        int pivot=col;
+        for(int row=col+1;row<active;++row)
+            if(abs(a[row][col])>abs(a[pivot][col]))pivot=row;
+        if(!gasFinite(a[pivot][col])||abs(a[pivot][col])<std::numeric_limits<R>::min()*R(100))return false;
+        team.sync();
+        if(pivot!=col){
+            for(int k=team.rank();k<active;k+=team.size()){
+                R value=a[col][k];a[col][k]=a[pivot][k];a[pivot][k]=value;
+                value=upper[col][k];upper[col][k]=upper[pivot][k];upper[pivot][k]=value;
+            }
+            if(team.leader()){R value=rhs[col];rhs[col]=rhs[pivot];rhs[pivot]=value;}
+        }
+        team.sync();
+        const R diagonal=a[col][col];
+        // Publish every lane's pivot read before any lane overwrites it.
+        team.sync();
+        for(int k=team.rank();k<active;k+=team.size()){
+            a[col][k]/=diagonal;upper[col][k]/=diagonal;
+        }
+        if(team.leader())rhs[col]/=diagonal;
+        team.sync();
+        for(int row=team.rank();row<active;row+=team.size())if(row!=col){
+            const R factor=a[row][col];
+            for(int k=0;k<active;++k){
+                a[row][k]-=factor*a[col][k];upper[row][k]-=factor*upper[col][k];
+            }
+            rhs[row]-=factor*rhs[col];
+        }
+        team.sync();
+    }
+    return true;
+}
+template<class R,int N,int M,class Team> UGKWP_GAS_HD inline bool solveLayerNewtonSystem(
+ const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,const Team& team){
+    if constexpr(std::is_same<Team,SerialWallTeam>::value)return solveLayerNewtonSystem(c,w);
+    else{
+        constexpr int B=N+4;
+        const int active=c.model==BoundaryLayerModel::EquilibriumOde&&!c.enableSst?N+2:B;
+        for(int i=0;i<c.nodes;++i){
+            if(i>0){
+                for(int row=team.rank();row<active;row+=team.size()){
+                    R correction=0;
+                    for(int k=0;k<active;++k)correction+=w.lower[i][row][k]*w.delta[i-1][k];
+                    w.delta[i][row]-=correction;
+                    for(int col=0;col<active;++col){
+                        R sum=0;
+                        for(int k=0;k<active;++k)sum+=w.lower[i][row][k]*w.upper[i-1][k][col];
+                        w.diagonal[i][row][col]-=sum;
+                    }
+                }
+            }
+            team.sync();
+            if(!eliminateBlockTeam(w.diagonal[i],w.upper[i],w.delta[i],active,team))return false;
+        }
+        for(int i=c.nodes-2;i>=0;--i){
+            for(int row=team.rank();row<active;row+=team.size()){
+                R sum=0;
+                for(int col=0;col<active;++col)sum+=w.upper[i][row][col]*w.delta[i+1][col];
+                w.delta[i][row]-=sum;
+            }
+            team.sync();
+        }
+        for(int i=team.rank();i<c.nodes;i+=team.size()){
+            R scale=1;
+            for(int j=3;j<N+2;++j)scale=max(scale,abs(w.delta[i][j]));
+            const R roundoff=R(16*N)*std::numeric_limits<R>::epsilon()*scale;
+            for(int j=3;j<N+2;++j)
+                if(w.state[i][j]==0&&w.delta[i][j]<0&&-w.delta[i][j]<=roundoff)w.delta[i][j]=0;
+        }
+        team.sync();return true;
+    }
+}
 template<class R,int N,int M,class TableReal,class Team=SerialWallTeam>
 UGKWP_GAS_HD inline bool newtonStep(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,const Team& team=Team{}){
@@ -849,8 +926,7 @@ UGKWP_GAS_HD inline bool newtonStep(const WallInput<R,N,TableReal>& in,
         }
     }
     // Preserve partial pivoting, block-Thomas elimination and back substitution.
-    bool solved=false;if(team.leader())solved=solveLayerNewtonSystem(c,w);
-    return team.broadcast(solved);
+    return solveLayerNewtonSystem(c,w,team);
 }
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool makeContext(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,LayerContext<R,N>& ctx){
     if(!wallTangentBasis(in.normal,ctx.tangent))return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10013);

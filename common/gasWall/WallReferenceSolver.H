@@ -66,8 +66,7 @@ UGKWP_GAS_HD inline bool referenceCentralStep(
         if(!assembleReferenceCentralNode(in,c,ctx,w,i,storageAvailable)){valid=false;break;}
     storageAvailable=team.all(storageAvailable);
     if(!team.all(valid))return false;
-    bool solved=false;if(team.leader())solved=solveLayerNewtonSystem(c,w);
-    return team.broadcast(solved);
+    return solveLayerNewtonSystem(c,w,team);
 }
 template<class R,int N,int M,class Team>
 UGKWP_GAS_HD inline R referenceMerit(const WallModelConfig<R>& c,

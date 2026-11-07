@@ -30,6 +30,18 @@ template<class Team=ugkwp::gaswall::detail::SerialWallTeam>
 CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
     const PhysicsConfig& p, const MaterialPrimitive& material, Real filmT, Real topT,
     bool birth, SurfacePhysicsResult& out,bool* numericalFailure=nullptr,const Team& team=Team{}) {
+    if constexpr(SurfaceProbeExecution<Team>::count>1){
+        auto& slots=team.template storage<SurfacePhysicsResult>();
+        if(team.probe()==0){
+            bool numerical=true;SurfacePhysicsResult result;
+            const auto inner=team.inner();
+            const bool valid=evaluateDrySurfaceTemperature(in,p,material,filmT,topT,birth,result,&numerical,inner);
+            if(inner.leader()){slots.result[0]=result;slots.valid[0]=valid;slots.numerical[0]=numerical;}
+        }
+        team.sync();out=slots.result[0];
+        const bool valid=slots.valid[0];if(numericalFailure)*numericalFailure=slots.numerical[0];
+        team.sync();return valid;
+    }else{
     if(numericalFailure)*numericalFailure=true;
     if((p.wallModel.family!=ugkwp::gaswall::WallFamily::LowRe&&p.wallModel.family!=ugkwp::gaswall::WallFamily::BoundaryLayer))return false;
     const Real mechanicalPressure=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
@@ -249,13 +261,38 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
         -solidRatio*solidConductance*(material.temperature-topT)-result.radiationFlux;
     if ((!finite(result.thermalResidual) || !finite(result.phaseEnergy))) return surfaceEnergyFailure(p,result.thermalResidual,result.phaseEnergy);
     out=result; return true;
+    }
 }
 template<class Team=ugkwp::gaswall::detail::SerialWallTeam>
 struct DrySurfaceEvaluationWithTeam {
+    using BisectionProbes=ugkp::gpu::OrderedBisectionProbe<Real,SurfaceProbeExecution<Team>::depth>;
     CHMT_HD static bool evaluate(const SurfacePhysicsInput& in,const PhysicsConfig& p,
         const MaterialPrimitive& material,Real filmT,Real topT,bool birth,
         SurfacePhysicsResult& out,bool* numericalFailure) {
         return evaluateDrySurfaceTemperature(in,p,material,filmT,topT,birth,out,numericalFailure,Team{});
+    }
+    CHMT_HD static bool evaluateBisection(const SurfacePhysicsInput& in,const PhysicsConfig& p,
+        const MaterialPrimitive& material,Real filmT,Real lo,Real hi,
+        BisectionProbes& probes,SurfacePhysicsResult& out,bool* numericalFailure){
+        if constexpr(SurfaceProbeExecution<Team>::count==1)
+            return evaluate(in,p,material,filmT,Real(.5)*(lo+hi),false,out,numericalFailure);
+        else{
+            const Team team{};auto& slots=team.template storage<SurfacePhysicsResult>();
+            int selected=probes.find(Real(.5)*(lo+hi));
+            if(selected<0){
+                probes.prepare(lo,hi);const int probe=team.probe();const auto inner=team.inner();
+                auto input=in;
+                input.wallContext.workspace=static_cast<unsigned char*>(in.wallContext.workspace)+probe*slots.workspaceStride;
+                input.wallContext.teamOutput=in.wallContext.teamOutput+probe;
+                bool numerical=true;SurfacePhysicsResult result;
+                const bool valid=evaluateDrySurfaceTemperature(input,p,material,filmT,probes.temperature[probe],false,result,&numerical,inner);
+                if(inner.leader()){slots.result[probe]=result;slots.valid[probe]=valid;slots.numerical[probe]=numerical;}
+                team.sync();selected=0;
+            }
+            out=slots.result[selected];const bool valid=slots.valid[selected];
+            if(numericalFailure)*numericalFailure=slots.numerical[selected];
+            team.sync();return valid;
+        }
     }
 };
 using DrySurfaceEvaluation=DrySurfaceEvaluationWithTeam<>;
