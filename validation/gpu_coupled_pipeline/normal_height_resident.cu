@@ -33,3 +33,31 @@ std::vector<g::MotionPenalty> residentNormalHeight(const g::Topology& topology,i
     check(cudaMemcpy(&control,view.control,sizeof(control),cudaMemcpyDeviceToHost));
     check(cudaGraphExecDestroy(executable));check(cudaGraphDestroy(graph));check(cudaStreamDestroy(stream));return result;
 }
+
+namespace {
+__global__ void selectPointMotionInput(const g::NormalHeightPointMotionInput* seed,g::NormalHeightPointMotionInput* input){*input=*seed;}
+}
+g::NormalHeightPointMotionResult residentNormalHeightPointMotion(const g::NormalHeightPointMotionDefinition& definition,
+    const std::vector<g::Point>& displacement){
+    g::NormalHeightPointMotion solver(definition);
+    Device<g::Point> reference(definition.reference),points(definition.points),boundary(displacement);
+    Device<g::NormalHeightPointMotionInput> seed(std::vector<g::NormalHeightPointMotionInput>{{reference.p,points.p,boundary.p,definition.geometricTolerance}}),
+        input(std::vector<g::NormalHeightPointMotionInput>(1));
+    cudaStream_t stream;cudaGraph_t graph;cudaGraphExec_t executable;check(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
+    check(cudaStreamBeginCapture(stream,cudaStreamCaptureModeGlobal));
+    selectPointMotionInput<<<1,1,0,stream>>>(seed.p,input.p);const auto view=solver.solveDevice(input.p,stream);
+    check(cudaStreamEndCapture(stream,&graph));std::size_t count=0;check(cudaGraphGetNodes(graph,nullptr,&count));
+    std::vector<cudaGraphNode_t> nodes(count);check(cudaGraphGetNodes(graph,nodes.data(),&count));
+    for(auto node:nodes){cudaGraphNodeType type;check(cudaGraphNodeGetType(node,&type));
+        if(type!=cudaGraphNodeTypeKernel)throw std::runtime_error("composed normal-height graph contains host/transfer node");}
+    check(cudaGraphInstantiateWithFlags(&executable,graph,0));
+    for(int replay=0;replay<2;++replay)check(cudaGraphLaunch(executable,stream));check(cudaStreamSynchronize(stream));
+    g::NormalHeightPointMotionResult result;g::HarmonicDeviceStatus status;
+    check(cudaMemcpy(&status,view.status,sizeof(status),cudaMemcpyDeviceToHost));
+    check(cudaMemcpy(&result.constraints,solver.constraints().control,sizeof(result.constraints),cudaMemcpyDeviceToHost));
+    result.motion.iterations=status.iterations;result.motion.residual=status.residual;
+    result.motion.errorPoint=status.errorPoint;result.motion.errorKind=status.errorKind;
+    if(status.errorPoint<0){result.motion.points.resize(definition.points.size());
+        if(!result.motion.points.empty())check(cudaMemcpy(result.motion.points.data(),view.points,result.motion.points.size()*sizeof(g::Point),cudaMemcpyDeviceToHost));}
+    check(cudaGraphExecDestroy(executable));check(cudaGraphDestroy(graph));check(cudaStreamDestroy(stream));return result;
+}

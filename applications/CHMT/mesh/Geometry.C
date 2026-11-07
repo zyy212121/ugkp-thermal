@@ -9,6 +9,7 @@
 #ifdef CHMT_DEVICE_GEOMETRY
 #include "mesh/GeometryGpu.H"
 #include "../../../common/gpu/HarmonicSweepCorrection.H"
+#include "../../../common/gpu/NormalHeightMotion.H"
 #endif
 #include "mesh/GeometryDiagnostics.H"
 #include "mesh/Motion.H"
@@ -595,6 +596,31 @@ namespace chmt {
         return true;
     }
     namespace {
+    bool validatePrescribedPointMotion(const HostMesh& mesh,const std::vector<Vec3>& prescribedDisplacement,
+        const std::vector<unsigned char>& prescribed,const std::vector<std::set<int>>& adjacency,bool hasEmpty,
+        const empty_detail::Extrusion* knownExtrusion,std::string& error){
+        const int np=mesh.points.size();
+        if(prescribed.size()!=mesh.points.size()||prescribedDisplacement.size()!=mesh.points.size())
+            return errorAt(error,"point-motion array size",-1);
+        if(hasEmpty) {
+            empty_detail::Extrusion local;
+            if(!knownExtrusion) {
+                if(!empty_detail::build(mesh,local,error))return false;
+                knownExtrusion=&local;
+            }
+            if(!empty_detail::prescribedMotion(*knownExtrusion,prescribedDisplacement,prescribed,error))return false;
+        }
+        bool any = false;
+        for (int p = 0; p<np; ++p) {
+            if (prescribed[p]) {
+                if ((!finite(prescribedDisplacement[p])))return errorAt(error, "nonfinite prescribed motion", p);
+                any = true;
+            }
+            if ((adjacency[p].empty()))return errorAt(error, "isolated mesh point", p);
+        }
+        if ((np && !any))return errorAt(error, "harmonic motion lacks Dirichlet anchor", -1);
+        return true;
+    }
     bool harmonicPointMotionRepresentedImpl(const HostMesh& mesh, const std::vector<Vec3>& prescribedDisplacement,
         const std::vector<unsigned char>& prescribed, std::vector<Vec3>& output, std::string& error,
         const empty_detail::Extrusion* knownExtrusion,bool* numericalFailure=nullptr,ugkp::diagnostics::DeviceContext* diagnostics=nullptr,
@@ -616,25 +642,11 @@ namespace chmt {
                 adjacency[b].insert(a);
             }
         }
-        if(hasEmpty) {
-            empty_detail::Extrusion local;
-            if(!knownExtrusion) {
-                if(!empty_detail::build(mesh,local,error))return false;
-                knownExtrusion=&local;
-            }
-            if(!empty_detail::prescribedMotion(*knownExtrusion,prescribedDisplacement,prescribed,error))return false;
-        }
-        std::vector<Vec3> displacement(np), next(np);
-        bool any = false;
-        for (int p = 0; p<np; ++p) {
-            if (prescribed[p]) {
-                if ((!finite(prescribedDisplacement[p])))return errorAt(error, "nonfinite prescribed motion", p);
-                displacement[p] = prescribedDisplacement[p];
-                any = true;
-            }
-            if ((adjacency[p].empty()))return errorAt(error, "isolated mesh point", p);
-        }
-        if ((np && !any))return errorAt(error, "harmonic motion lacks Dirichlet anchor", -1);
+        if(!validatePrescribedPointMotion(mesh,prescribedDisplacement,prescribed,adjacency,hasEmpty,knownExtrusion,error))return false;
+#ifndef CHMT_DEVICE_GEOMETRY
+        std::vector<Vec3> displacement(np),next(np);
+        for(int p=0;p<np;++p)if(prescribed[p])displacement[p]=prescribedDisplacement[p];
+#endif
         Real tolerance = 1e-12*meshScale(mesh.points);
         tolerance=ugkp::gpu::geometry::normalHeightMotionTolerance(tolerance,normalLengthScale);
 #ifdef CHMT_DEVICE_GEOMETRY
@@ -1822,6 +1834,11 @@ namespace chmt {
         }
         HostMesh gas,solid;
         std::vector<Real> gasSweeps,solidSweeps;
+#ifdef CHMT_DEVICE_GEOMETRY
+        std::unique_ptr<ugkp::gpu::geometry::NormalHeightPointMotion> gasPointMotion;
+        std::vector<std::set<int>> gasPointAdjacency;empty_detail::Extrusion gasExtrusion;
+        bool gasMotionTopologyReady=false,gasHasEmpty=false;
+#endif
         auto buildGas=[&](const HostMesh& trialSolid,std::string& failure,ugkp::diagnostics::DeviceContext* diagnostics,bool& recoverable) {
             Tolerances evaluationTolerances=tolerances;evaluationTolerances.diagnostics=diagnostics;
             auto stage=[&](const std::vector<Vec3>& points) {
@@ -1852,6 +1869,36 @@ namespace chmt {
             // Soft constraints accommodate fixed seams and curved corners; all
             // prescribed wall points remain exact. No global length tolerance.
             using namespace ugkp::gpu::geometry;
+#ifdef CHMT_DEVICE_GEOMETRY
+            if(!gasMotionTopologyReady){
+                gasPointAdjacency.resize(oldGas.points.size());
+                for(std::size_t f=0;f<oldGas.owner.size();++f){
+                    gasHasEmpty=gasHasEmpty||(f<oldGas.boundaryKind.size()&&oldGas.boundaryKind[f]==BoundaryKind::Empty);
+                    const int lo=oldGas.faceOffsets[f],hi=oldGas.faceOffsets[f+1];
+                    for(int k=lo;k<hi;++k){const int a=oldGas.facePoints[k],b=oldGas.facePoints[k+1==hi?lo:k+1];
+                        gasPointAdjacency[a].insert(b);gasPointAdjacency[b].insert(a);}
+                }
+                if(gasHasEmpty&&!empty_detail::build(oldGas,gasExtrusion,failure))return false;
+                gasMotionTopologyReady=true;
+            }
+            if(!validatePrescribedPointMotion(oldGas,gasDisplacement,fixedGas,gasPointAdjacency,
+                gasHasEmpty,gasHasEmpty?&gasExtrusion:nullptr,failure))return false;
+            if(!gasPointMotion){
+                NormalHeightPointMotionDefinition definition;
+                definition.topology=geometry_device::meshTopology(oldGas).topology;definition.owner=oldGas.owner;
+                definition.wallFaces=reference.gasFace;definition.points=geometry_device::pack(oldGas.points);
+                definition.reference=geometry_device::pack(oldGas.referencePoints.empty()?oldGas.points:oldGas.referencePoints);
+                definition.fixed=fixedGas;definition.geometricTolerance=1e-12*meshScale(oldGas.points);
+                geometry_device::adjacency(gasPointAdjacency,definition.offsets,definition.neighbours);
+                gasPointMotion.reset(new NormalHeightPointMotion(definition));
+            }
+            const auto result=gasPointMotion->solve(geometry_device::pack(gasDisplacement));
+            if(result.motion.errorPoint>=0)return errorAt(failure,result.motion.errorKind==1
+                ?"zero-length motion edge":"nonfinite harmonic displacement",result.motion.errorPoint);
+            if(!oldGas.points.empty()&&!(result.motion.residual<=result.constraints.harmonicTolerance))
+                geometryWarning(diagnostics,result.motion.residual,result.constraints.harmonicTolerance,-1,false);
+            geometry_device::unpack(result.motion.points,gasPoints);const bool harmonicOk=true;
+#else
             std::vector<MotionPenalty> penalties(oldGas.points.size());
             Real minimumNormalHeight=std::numeric_limits<Real>::infinity();
             const auto& ref=oldGas.referencePoints.empty()?oldGas.points:oldGas.referencePoints;
@@ -1868,6 +1915,7 @@ namespace chmt {
                 }
             }
             const bool harmonicOk=harmonicPointMotionRepresentedImpl(oldGas,gasDisplacement,fixedGas,gasPoints,failure,nullptr,nullptr,diagnostics,penalties,minimumNormalHeight);
+#endif
             if(!harmonicOk || !stage(gasPoints))return false;
             // Keep the existing reduced-film boundary: moving curved offset
             // interfaces with unequal areas/normals are not a liquid-volume model.

@@ -245,6 +245,12 @@ struct HarmonicDeviceView {
     const Point* points=nullptr;
     const HarmonicDeviceStatus* status=nullptr;
 };
+struct HarmonicMotionDeviceInput {
+    const Point* points=nullptr;
+    const Point* boundary=nullptr;
+    const MotionPenalty* penalties=nullptr;
+    const double* tolerance=nullptr;
+};
 // Immutable geometry/adjacency is shared by every boundary mode in one solve.
 // All Jacobi updates and stopping decisions run on the GPU; no CPU solve path.
 class HarmonicPointMotion {
@@ -255,6 +261,11 @@ public:
         double tolerance,int maximumIterations=20000,const std::vector<MotionPenalty>& penalties={});
     ~HarmonicPointMotion();
     HarmonicResult solve(const std::vector<Point>& boundary,bool representedDisplacement=false);
+    HarmonicDeviceView deviceView()const;
+    const Point* initialPoints()const;
+    const unsigned char* fixedPoints()const;
+    HarmonicDeviceView solveSelectedDevice(const HarmonicMotionDeviceInput*,
+        bool representedDisplacement=false,void* stream=nullptr);
     // Adjacency and fixed-point mask remain immutable. Coordinates, constraints
     // and tolerance may come from an upstream device geometry owner. A null
     // tolerance uses the constructor value; a null penalty means no penalty.

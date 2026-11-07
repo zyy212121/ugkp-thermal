@@ -134,23 +134,29 @@ __global__ void wallDistanceKernel(int count,TopologyView t,const Point* points,
         if(invalid[0]!=INT_MAX)result.invalidFace=walls[invalid[0]];output[cell]=result;}
 }
 struct MotionControl {double residual=0,tolerance=0;int iterations=0,maximumIterations=0,active=0,errorPoint=INT_MAX;};
-__global__ void weightsKernel(int count,const Point* points,const int* offsets,const int* neighbours,const unsigned char* fixed,
+template<class Points>
+__global__ void weightsKernel(int count,Points inputPoints,const int* offsets,const int* neighbours,const unsigned char* fixed,
     double* weights,double* total,int* errors){
+    const Point* points=inputPoints;
     const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p>=count)return;
     total[p]=0;errors[p]=0;if(fixed[p])return;
     for(int k=offsets[p];k<offsets[p+1];++k){const double length=magnitude(points[p]-points[neighbours[k]]);
         if(!(length>0)){errors[p]=1;return;}weights[k]=1/length;total[p]+=weights[k];}
 }
-__global__ void initializeMotion(int count,const Point* boundary,const unsigned char* fixed,Point* displacement,
-    const int* preErrors,int* errors,MotionControl* control,double tolerance,int maximumIterations,const double* deviceTolerance){
+template<class Boundary,class Tolerance>
+__global__ void initializeMotion(int count,Boundary inputBoundary,const unsigned char* fixed,Point* displacement,
+    const int* preErrors,int* errors,MotionControl* control,double tolerance,int maximumIterations,Tolerance inputTolerance){
+    const Point* boundary=inputBoundary;const double* deviceTolerance=inputTolerance;
     const int p=blockIdx.x*blockDim.x+threadIdx.x;
     if(!p){*control={};control->tolerance=deviceTolerance?*deviceTolerance:tolerance;control->maximumIterations=maximumIterations;control->active=count>0&&maximumIterations>0;}
     if(p<count){displacement[p]=fixed[p]?boundary[p]:Point{};errors[p]=preErrors[p];}
 }
 // A cooperative grid owns the complete recurrence. Every iteration retains
 // the Jacobi barrier and original ordered neighbour sum, without host polling.
+template<class Penalties>
 __global__ void solveMotion(int count,const int* offsets,const int* neighbours,const double* weights,const double* total,
-    const unsigned char* fixed,const MotionPenalty* penalties,Point* displacement,Point* next,double* partial,int* errors,MotionControl* control){
+    const unsigned char* fixed,Penalties inputPenalties,Point* displacement,Point* next,double* partial,int* errors,MotionControl* control){
+    const MotionPenalty* penalties=inputPenalties;
     auto grid=cooperative_groups::this_grid();const int index=blockIdx.x*blockDim.x+threadIdx.x,stride=blockDim.x*gridDim.x;
     __shared__ double maxima[256];
     while(control->active){
@@ -181,11 +187,16 @@ template<class Kernel> int cooperativeBlocks(Kernel kernel,int requested,int thr
     checked(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&perSm,kernel,threads,0));
     return std::max(1,std::min(requested,perSm*sms));
 }
-__global__ void publishMotion(int count,const Point* points,const Point* displacement,const Point* boundary,
+template<class Points,class Boundary>
+__global__ void publishMotion(int count,Points inputPoints,const Point* displacement,Boundary inputBoundary,
     const unsigned char* fixed,bool represented,Point* result,const MotionControl* control){
+    const Point* points=inputPoints;const Point* boundary=inputBoundary;
     const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p>=count||control->errorPoint!=INT_MAX)return;
-    result[p]=points[p]+displacement[p];
-    if(represented){result[p]=result[p]-points[p];if(fixed[p])result[p]=boundary[p];}
+    // Borrowed inputs may refer to the previous result buffer. Capture this
+    // point before publication so represented displacement remains unchanged.
+    const Point original=points[p];const Point prescribed=represented&&fixed[p]?boundary[p]:Point{};
+    result[p]=original+displacement[p];
+    if(represented){result[p]=result[p]-original;if(fixed[p])result[p]=prescribed;}
  }
 __global__ void publishMotionStatus(const MotionControl* control,const int* errors,HarmonicDeviceStatus* output){
     if(blockIdx.x||threadIdx.x)return;
@@ -506,18 +517,21 @@ std::vector<EdgeResult> PolyhedralGeometry::surfaceEdges(const Topology& t,const
     std::vector<EdgeResult> out;d.edgeResult.download(out,count,d.transfer);d.transfer.finish();return out;
 }
 struct HarmonicPointMotion::Implementation {
-    int count,blocks,maximumIterations;double tolerance;bool externalGeometryUsed=false;
+    int count,blocks,selectedBlocks,maximumIterations;double tolerance;bool externalGeometryUsed=false;
     cudaStream_t stream=nullptr;PinnedTransferQueue transfer;
     Array<Point> points,boundary,displacement,next,result;Array<int> offsets,neighbours,preErrors,errors;Array<unsigned char> fixed;
     Array<double> weights,total,partial;Array<MotionControl> control;Array<MotionPenalty> penalties;Array<HarmonicDeviceStatus> status;
-    Implementation(int n,double tol,int limit):count(n),blocks(cooperativeBlocks(solveMotion,std::max(1,(n+255)/256),256)),maximumIterations(limit),tolerance(tol){
+    Implementation(int n,double tol,int limit):count(n),
+        blocks(cooperativeBlocks(solveMotion<const MotionPenalty*>,std::max(1,(n+255)/256),256)),
+        selectedBlocks(cooperativeBlocks(solveMotion<DeviceValue<const MotionPenalty*>>,std::max(1,(n+255)/256),256)),
+        maximumIterations(limit),tolerance(tol){
         checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);}
     ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
     void initialize(const std::vector<Point>& p,const std::vector<int>& row,const std::vector<int>& adjacent,const std::vector<unsigned char>& mask){
         PinnedTransferQueue::Operation operation(transfer);points.upload(p,transfer);offsets.upload(row,transfer);neighbours.upload(adjacent,transfer);fixed.upload(mask,transfer);
         for(auto* array:{&boundary,&displacement,&next,&result})array->reserve(count);
         for(auto* array:{&preErrors,&errors})array->reserve(count);
-        total.reserve(count);weights.reserve(adjacent.size());partial.reserve(blocks);control.reserve(1);status.reserve(1);
+        total.reserve(count);weights.reserve(adjacent.size());partial.reserve(std::max(blocks,selectedBlocks));control.reserve(1);status.reserve(1);
         if(count)weightsKernel<<<(count+127)/128,128,0,stream>>>(count,points.pointer,offsets.pointer,neighbours.pointer,fixed.pointer,weights.pointer,total.pointer,preErrors.pointer);
         transfer.finish();
 
@@ -536,7 +550,7 @@ struct HarmonicPointMotion::Implementation {
         checked(cudaGetLastError());
         void* arguments[]={&count,&offsets.pointer,&neighbours.pointer,&weights.pointer,&total.pointer,
             &fixed.pointer,&inputPenalties,&displacement.pointer,&next.pointer,&partial.pointer,&errors.pointer,&control.pointer};
-        checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveMotion),blocks,256,arguments,0,callerStream));
+        checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveMotion<const MotionPenalty*>),blocks,256,arguments,0,callerStream));
         if(count){
             publishMotion<<<(count+255)/256,256,0,callerStream>>>(count,inputPoints,displacement.pointer,
                 inputBoundary,fixed.pointer,represented,result.pointer,control.pointer);
@@ -570,6 +584,24 @@ void HarmonicPointMotion::prepareDeviceGeometry(const Point* points,void* rawStr
 HarmonicDeviceView HarmonicPointMotion::solvePreparedDevice(const Point* points,const Point* boundary,
     const MotionPenalty* penalties,const double* tolerance,bool represented,void* stream){
     return data_->enqueue(points,boundary,penalties,tolerance,represented,static_cast<cudaStream_t>(stream),false);
+}
+HarmonicDeviceView HarmonicPointMotion::deviceView()const{return {data_->result.pointer,data_->status.pointer};}
+const Point* HarmonicPointMotion::initialPoints()const{return data_->points.pointer;}
+const unsigned char* HarmonicPointMotion::fixedPoints()const{return data_->fixed.pointer;}
+HarmonicDeviceView HarmonicPointMotion::solveSelectedDevice(const HarmonicMotionDeviceInput* input,bool represented,void* rawStream){
+    auto& d=*data_;d.externalGeometryUsed=true;const auto stream=static_cast<cudaStream_t>(rawStream);
+    DeviceValue<const Point*> points{&input->points},boundary{&input->boundary};
+    DeviceValue<const MotionPenalty*> penalties{&input->penalties};DeviceValue<const double*> tolerance{&input->tolerance};
+    if(d.count)weightsKernel<<<(d.count-1)/128+1,128,0,stream>>>(d.count,points,d.offsets.pointer,d.neighbours.pointer,
+        d.fixed.pointer,d.weights.pointer,d.total.pointer,d.preErrors.pointer);
+    initializeMotion<<<std::max(1,(d.count+255)/256),256,0,stream>>>(d.count,boundary,d.fixed.pointer,
+        d.displacement.pointer,d.preErrors.pointer,d.errors.pointer,d.control.pointer,d.tolerance,d.maximumIterations,tolerance);
+    void* arguments[]={&d.count,&d.offsets.pointer,&d.neighbours.pointer,&d.weights.pointer,&d.total.pointer,
+        &d.fixed.pointer,&penalties,&d.displacement.pointer,&d.next.pointer,&d.partial.pointer,&d.errors.pointer,&d.control.pointer};
+    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveMotion<DeviceValue<const MotionPenalty*>>),d.selectedBlocks,256,arguments,0,stream));
+    if(d.count)publishMotion<<<(d.count-1)/256+1,256,0,stream>>>(d.count,points,d.displacement.pointer,boundary,
+        d.fixed.pointer,represented,d.result.pointer,d.control.pointer);
+    publishMotionStatus<<<1,1,0,stream>>>(d.control.pointer,d.errors.pointer,d.status.pointer);checked(cudaGetLastError());return deviceView();
 }
 HarmonicResult HarmonicPointMotion::solve(const std::vector<Point>& boundary,bool represented){
     auto& d=*data_;if(boundary.size()!=std::size_t(d.count))throw std::invalid_argument("harmonic motion boundary shape mismatch");

@@ -67,4 +67,56 @@ void ResidentNormalHeightMotion::evaluate(const NormalHeightMotionInput* input,v
         d.geometry.pointer,d.penalties.pointer,d.partial.pointer);
     normalHeightControl<<<1,128,0,stream>>>(d.blocks,d.partial.pointer,input,d.control.pointer);checked(cudaGetLastError());
 }
+namespace {
+__global__ void bindNormalHeightPointMotion(const NormalHeightPointMotionInput* input,const unsigned char* fixed,
+    NormalHeightMotionInput* height,HarmonicMotionDeviceInput* motion,NormalHeightMotionView constraints){
+    const auto p=*input;*height={p.reference,p.points,p.displacement,fixed,p.geometricTolerance};
+    *motion={p.points,p.displacement,constraints.penalty,&constraints.control->harmonicTolerance};
+}
+}
+struct NormalHeightPointMotion::Implementation {
+    int count=0;cudaStream_t stream=nullptr;PinnedTransferQueue transfer;
+    std::unique_ptr<ResidentNormalHeightMotion> height;
+    std::unique_ptr<HarmonicPointMotion> harmonic;
+    Array<Point> reference,boundary;
+    Array<NormalHeightPointMotionInput> hostInput;
+    Array<NormalHeightMotionInput> heightInput;
+    Array<HarmonicMotionDeviceInput> motionInput;
+    explicit Implementation(const NormalHeightPointMotionDefinition& d){
+        if(d.reference.size()!=d.points.size())throw std::invalid_argument("normal-height reference point shape mismatch");
+        count=d.points.size();height.reset(new ResidentNormalHeightMotion(d.topology,count,d.owner,d.wallFaces));
+        harmonic.reset(new HarmonicPointMotion(d.points,d.offsets,d.neighbours,d.fixed,d.geometricTolerance));
+        checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);
+        PinnedTransferQueue::Operation pending(transfer);boundary.reserve(count);
+        const bool sameReference=d.points.empty()||std::memcmp(d.points.data(),d.reference.data(),d.points.size()*sizeof(Point))==0;
+        if(!sameReference)reference.upload(d.reference,transfer);
+        hostInput.reserve(1);heightInput.reserve(1);motionInput.reserve(1);
+        const NormalHeightPointMotionInput input{sameReference?harmonic->initialPoints():reference.pointer,
+            harmonic->initialPoints(),boundary.pointer,d.geometricTolerance};
+        transfer.upload(hostInput.pointer,&input,sizeof(input));transfer.finish();
+    }
+    ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
+};
+NormalHeightPointMotion::NormalHeightPointMotion(const NormalHeightPointMotionDefinition& definition):data_(new Implementation(definition)){}
+NormalHeightPointMotion::~NormalHeightPointMotion()=default;
+NormalHeightMotionView NormalHeightPointMotion::constraints()const{return data_->height->view();}
+HarmonicDeviceView NormalHeightPointMotion::solveDevice(const NormalHeightPointMotionInput* input,void* streamHandle){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(streamHandle);
+    bindNormalHeightPointMotion<<<1,1,0,stream>>>(input,d.harmonic->fixedPoints(),d.heightInput.pointer,
+        d.motionInput.pointer,d.height->view());
+    d.height->evaluate(d.heightInput.pointer,stream);
+    return d.harmonic->solveSelectedDevice(d.motionInput.pointer,false,stream);
+}
+NormalHeightPointMotionResult NormalHeightPointMotion::solve(const std::vector<Point>& displacement){
+    auto& d=*data_;if(displacement.size()!=std::size_t(d.count))throw std::invalid_argument("normal-height boundary displacement shape mismatch");
+    PinnedTransferQueue::Operation pending(d.transfer);d.boundary.upload(displacement,d.transfer);
+    const auto view=solveDevice(d.hostInput.pointer,d.stream);HarmonicDeviceStatus status;NormalHeightPointMotionResult result;
+    result.motion.points.resize(d.count);
+    d.transfer.download(&status,view.status,sizeof(status));
+    d.transfer.download(&result.constraints,d.height->view().control,sizeof(result.constraints));
+    d.transfer.download(result.motion.points.data(),view.points,std::size_t(d.count)*sizeof(Point));d.transfer.finish();
+    result.motion.residual=status.residual;result.motion.iterations=status.iterations;
+    result.motion.errorPoint=status.errorPoint;result.motion.errorKind=status.errorKind;
+    if(status.errorPoint>=0)result.motion.points.clear();return result;
+}
 }}}
