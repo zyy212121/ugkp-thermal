@@ -9,11 +9,13 @@
 #include "../Diagnostics.H"
 #include "ExtendedGeometryMath.H"
 #include "PinnedTransferQueue.cuh"
+#include "DeviceValue.cuh"
 #include <cuda_runtime.h>
 #include <cub/device/device_merge_sort.cuh>
 #include <cooperative_groups.h>
 #include <algorithm>
 #include <climits>
+#include <limits>
 #include <cstring>
 #include <list>
 #include <unordered_map>
@@ -534,20 +536,26 @@ HarmonicResult HarmonicPointMotion::solve(const std::vector<Point>& boundary,boo
 }
 
 namespace {
-struct QrControl {double largest=0,length=0;int rank=0,active=0,error=0;};
-__global__ void qrNorms(int nr,int nc,const double* matrix,double* norm,int* order,int* invalid){
+using QrControl=MinimumNormDeviceStatus;
+template<class Rows,class Columns>
+__global__ void qrNorms(Rows rows,Columns columns,const double* matrix,double* norm,int* order,int* invalid){
+    const int nr=rows,nc=columns;
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=nr)return;
     order[i]=i;invalid[i]=0;double sum=0;
     for(int j=0;j<nc;++j){const double x=matrix[std::size_t(i)*nc+j];
         if(!isfinite(x)){invalid[i]=1;break;}sum+=x*x;}
     norm[i]=sum;if(!isfinite(sum))invalid[i]=1;
 }
-__global__ void qrInitialize(int nr,int nc,const double* norm,const int* invalid,QrControl* c){
+template<class Rows,class Columns>
+__global__ void qrInitialize(Rows rows,Columns columns,const double* norm,const int* invalid,QrControl* c){
+    const int nr=rows,nc=columns;
     *c={};for(int i=0;i<nr;++i){if(invalid[i]){c->error=1;return;}
         const double length=sqrt(norm[i]);if(c->largest<length)c->largest=length;}
     c->active=nr>0&&nc>0;
 }
-__global__ void solveQr(int nr,int nc,double tolerance,double* matrix,double* norm,int* order,double* rhs,double* delta,QrControl* c){
+template<class Rows,class Columns,class Tolerance>
+__global__ void solveQr(Rows rows,Columns columns,Tolerance rankTolerance,double* matrix,double* norm,int* order,double* rhs,double* delta,QrControl* c){
+    const int nr=rows,nc=columns;const double tolerance=rankTolerance;
     auto grid=cooperative_groups::this_grid();const int index=blockIdx.x*blockDim.x+threadIdx.x,stride=blockDim.x*gridDim.x;
     __shared__ double projection;
     for(;;){
@@ -589,7 +597,7 @@ struct DenseMinimumNorm::Implementation {
     Implementation(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);}
     ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
     void prepare(int nr,int nc){
-        blocks=cooperativeBlocks(solveQr,std::max(1,nr),128);
+        blocks=cooperativeBlocks(solveQr<int,int,double>,std::max(1,nr),128);
         matrix.reserve(std::size_t(nr)*nc);rhs.reserve(nr);norm.reserve(nr);delta.reserve(nc);
         order.reserve(nr);invalid.reserve(nr);control.reserve(1);
     }
@@ -605,13 +613,61 @@ MinimumNormResult DenseMinimumNorm::solve(int nr,int nc,const std::vector<double
     if(nr)qrNorms<<<(nr+127)/128,128,0,d.stream>>>(nr,nc,d.matrix.pointer,d.norm.pointer,d.order.pointer,d.invalid.pointer);
     qrInitialize<<<1,1,0,d.stream>>>(nr,nc,d.norm.pointer,d.invalid.pointer,d.control.pointer);
     void* arguments[]={&nr,&nc,&tolerance,&d.matrix.pointer,&d.norm.pointer,&d.order.pointer,&d.rhs.pointer,&d.delta.pointer,&d.control.pointer};
-    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveQr),d.blocks,128,arguments,0,d.stream));
+    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveQr<int,int,double>),d.blocks,128,arguments,0,d.stream));
     QrControl state;d.transfer.download(&state,d.control.pointer,sizeof(state));d.transfer.finish();
     MinimumNormResult result;result.rank=state.rank;result.initialized=state.error!=1;result.valid=state.error==0;
     if(result.initialized){d.delta.download(result.delta,nc,d.transfer);d.rhs.download(result.rhs,nr,d.transfer);}
     d.transfer.finish();return result;
 }
 
+namespace {
+__global__ void prepareQrProblem(const MinimumNormDeviceProblem* input,int rows,int columns,
+    MinimumNormDeviceProblem* operation,int* invalid){
+    auto problem=*input;
+    *invalid=problem.rows<0||problem.rows>rows||problem.columns<0||problem.columns>columns
+        ||(problem.rows&&problem.columns&&!problem.matrix)||(problem.rows&&!problem.rhs);
+    if(*invalid){problem.rows=problem.columns=0;}
+    *operation=problem;
+}
+__global__ void copyQrProblem(const MinimumNormDeviceProblem* operation,double* matrix,double* rhs,double* delta){
+    const auto problem=*operation;const std::size_t entries=std::size_t(problem.rows)*problem.columns;
+    const auto index=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x,stride=std::size_t(blockDim.x)*gridDim.x;
+    for(std::size_t i=index;i<entries;i+=stride)matrix[i]=problem.matrix[i];
+    for(std::size_t i=index;i<std::size_t(problem.rows);i+=stride)rhs[i]=problem.rhs[i];
+    for(std::size_t i=index;i<std::size_t(problem.columns);i+=stride)delta[i]=0;
+}
+__global__ void qrShapeStatus(const int* invalid,QrControl* control){if(*invalid){control->error=1;control->active=0;}}
+}
+struct ResidentDenseMinimumNorm::Implementation {
+    int rows=0,columns=0,blocks=1;
+    Array<double> matrix,rhs,norm,delta;Array<int> order,invalid,shapeInvalid;
+    Array<QrControl> control;Array<MinimumNormDeviceProblem> operation;
+    Implementation(int nr,int nc):rows(nr),columns(nc){
+        if(nr<0||nc<0||(nc&&std::size_t(nr)>std::numeric_limits<std::size_t>::max()/sizeof(double)/std::size_t(nc)))
+            throw std::invalid_argument("resident minimum-norm capacity is not representable");
+        blocks=cooperativeBlocks(solveQr<DeviceValue<int>,DeviceValue<int>,DeviceValue<double>>,std::max(1,nr),128);
+        matrix.reserve(std::size_t(nr)*nc);rhs.reserve(nr);norm.reserve(nr);delta.reserve(nc);
+        order.reserve(nr);invalid.reserve(nr);control.reserve(1);shapeInvalid.reserve(1);operation.reserve(1);
+    }
+};
+ResidentDenseMinimumNorm::ResidentDenseMinimumNorm(int nr,int nc):data_(new Implementation(nr,nc)){}
+ResidentDenseMinimumNorm::~ResidentDenseMinimumNorm()=default;
+MinimumNormDeviceView ResidentDenseMinimumNorm::view()const{
+    const auto& d=*data_;return {d.delta.pointer,d.rhs.pointer,d.control.pointer};
+}
+void ResidentDenseMinimumNorm::solve(const MinimumNormDeviceProblem* input,void* rawStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
+    prepareQrProblem<<<1,1,0,stream>>>(input,d.rows,d.columns,d.operation.pointer,d.shapeInvalid.pointer);
+    copyQrProblem<<<d.blocks,128,0,stream>>>(d.operation.pointer,d.matrix.pointer,d.rhs.pointer,d.delta.pointer);
+    DeviceValue<int> nr{&d.operation.pointer->rows},nc{&d.operation.pointer->columns};
+    DeviceValue<double> tolerance{&d.operation.pointer->rankTolerance};
+    if(d.rows)qrNorms<<<(d.rows-1)/128+1,128,0,stream>>>(nr,nc,d.matrix.pointer,d.norm.pointer,d.order.pointer,d.invalid.pointer);
+    qrInitialize<<<1,1,0,stream>>>(nr,nc,d.norm.pointer,d.invalid.pointer,d.control.pointer);
+    qrShapeStatus<<<1,1,0,stream>>>(d.shapeInvalid.pointer,d.control.pointer);
+    void* arguments[]={&nr,&nc,&tolerance,&d.matrix.pointer,&d.norm.pointer,&d.order.pointer,&d.rhs.pointer,&d.delta.pointer,&d.control.pointer};
+    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveQr<DeviceValue<int>,DeviceValue<int>,DeviceValue<double>>),d.blocks,128,arguments,0,stream));
+    checked(cudaGetLastError());
+}
 namespace {
 __global__ void planarValues(int count,const Point* old,const Point* end,const PlanarConstraint* planar,Polynomial* out){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)out[i]=planarPolynomial(old,end,planar[i]);

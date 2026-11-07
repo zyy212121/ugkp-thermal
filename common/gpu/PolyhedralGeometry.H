@@ -157,6 +157,34 @@ public:
     MinimumNormResult solve(int rows,int columns,const std::vector<double>& matrix,
         const std::vector<double>& rhs,double rankTolerance);
 };
+// A graph producer selects the actual dimensions and coefficient pointers on
+// device. Capacities are derived from initialized topology, not policy limits.
+struct MinimumNormDeviceProblem {
+    int rows=0,columns=0;
+    double rankTolerance=0;
+    const double* matrix=nullptr;
+    const double* rhs=nullptr;
+};
+struct MinimumNormDeviceStatus {
+    double largest=0,length=0;
+    int rank=0,active=0,error=0; // 1: invalid input; 2: nonfinite projected RHS
+};
+struct MinimumNormDeviceView {
+    const double* delta=nullptr;
+    const double* rhs=nullptr;
+    const MinimumNormDeviceStatus* status=nullptr;
+};
+class ResidentDenseMinimumNorm {
+    struct Implementation;std::unique_ptr<Implementation> data_;
+public:
+    ResidentDenseMinimumNorm(int rowCapacity,int columnCapacity);
+    ~ResidentDenseMinimumNorm();
+    MinimumNormDeviceView view()const;
+    // Borrows immutable device input and leaves the original matrix/RHS intact.
+    // Scratch is allocated at construction; enqueue has no host publication,
+    // allocation or synchronization and can be captured in the owner's graph.
+    void solve(const MinimumNormDeviceProblem*,void* stream=nullptr);
+};
 struct HarmonicResult {
     std::vector<Point> points;
     double residual=0;

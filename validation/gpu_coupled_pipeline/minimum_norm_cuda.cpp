@@ -6,6 +6,10 @@
 #include <cstring>
 #include <cstdlib>
 namespace gpu=ugkp::gpu::geometry;
+#if defined(TEST_RESIDENT_MINIMUM_NORM)
+gpu::MinimumNormResult residentMinimumNorm(int,int,const std::vector<double>&,const std::vector<double>&,double);
+void residentMinimumNormShapeChecks();
+#endif
 static void require(bool good,const char* what,int caseId){if(!good){std::cerr<<"case "<<caseId<<": "<<what<<'\n';std::exit(1);}}
 static bool same(double a,double b){return (std::isnan(a)&&std::isnan(b))||std::memcmp(&a,&b,sizeof(double))==0;}
 int main(){
@@ -18,7 +22,11 @@ int main(){
         chmt::sweep_detail::Reals b(rhs.begin(),rhs.end(),chmt::sweep_detail::Allocator<double>(budget)),expected(nc,27.25,chmt::sweep_detail::Allocator<double>(budget));
         int expectedRank=37;
         const bool expectedValid=chmt::minimumNormCorrection(rows,b,tolerance,1e-12,expected,expectedRank,nullptr);
+#if defined(TEST_RESIDENT_MINIMUM_NORM)
+        const auto result=residentMinimumNorm(nr,nc,matrix,rhs,tolerance);
+#else
         const auto result=solver.solve(nr,nc,matrix,rhs,tolerance);
+#endif
         bool valid=result.valid;int rank=result.initialized?result.rank:37;
         if(valid){for(int i=rank;i<nr;++i)if(!std::isfinite(result.rhs[i]))valid=false;
             for(double x:result.delta)if(!std::isfinite(x))valid=false;}
@@ -40,5 +48,8 @@ int main(){
         test(2,3,a,b,1e-12);test(2,3,{1,0,1,0,1,1},{3,4},1e-12);
     }
     for(double tolerance:{0.0,1e-16,1e-3,.999,1.,inf,nan})test(3,3,{1,0,0,0,1e-10,0,0,0,1e-14},{1,1,1},tolerance);
+#if defined(TEST_RESIDENT_MINIMUM_NORM)
+    residentMinimumNormShapeChecks();
+#endif
     std::cout<<"PASS "<<count<<" frozen QR cases: rank, validity and finite delta bitwise; IEEE classifications; reuse after failure\n";
 }
