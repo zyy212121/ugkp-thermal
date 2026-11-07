@@ -867,3 +867,5 @@ std::vector<Point> SweepLinearization::correction(){auto& d=*data_;PinnedTransfe
 #include "HarmonicSweepCorrection.cuh"
 
 #include "NormalHeightMotion.cuh"
+
+#include "SweepResidual.cuh"

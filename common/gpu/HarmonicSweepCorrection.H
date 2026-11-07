@@ -60,6 +60,8 @@ public:
     // Publication adapter for the remaining host Newton controller. Initial
     // geometry/modes/scales are retained from construction. This compatibility
     // call still forms an outer feedback loop; resident owners use appendTo.
+    HarmonicSweepResult solveBorrowed(const Point* endpoint,const double* rhs,
+        const double* consistencyTolerance,double rankTolerance);
     HarmonicSweepResult solve(const std::vector<Point>& endpoint,const std::vector<double>& rhs,
         double rankTolerance,double consistencyTolerance);
 };

@@ -10,6 +10,7 @@
 #include "mesh/GeometryGpu.H"
 #include "../../../common/gpu/HarmonicSweepCorrection.H"
 #include "../../../common/gpu/NormalHeightMotion.H"
+#include "../../../common/gpu/SweepResidual.H"
 #endif
 #include "mesh/GeometryDiagnostics.H"
 #include "mesh/Motion.H"
@@ -943,11 +944,37 @@ namespace chmt {
 #ifdef CHMT_DEVICE_GEOMETRY
             std::vector<geometry_device::backend::PlanarConstraint> devicePlanes;
             for(const auto& p:planar)devicePlanes.push_back({p.a,p.b,p.c,p.d,p.scale});
-            geometry_device::backend::SweepLinearization linearization(geometry_device::faceTopology(old),
-                geometry_device::pack(old.points),faces,sweepScale,devicePlanes);
+            geometry_device::backend::SweepResidualDefinition residualDefinition;
+            residualDefinition.topology=geometry_device::faceTopology(old);residualDefinition.old=geometry_device::pack(old.points);
+            residualDefinition.faces=faces;residualDefinition.targets=targets;residualDefinition.scales=sweepScale;
+            residualDefinition.planar=devicePlanes;for(const auto& plane:planar)residualDefinition.planeTolerance.push_back(plane.tolerance);
+            residualDefinition.faceCeiling=controls.faceVolumeTolerance;
+            residualDefinition.absoluteTolerance=controls.absoluteVolumeTolerance;residualDefinition.relativeTolerance=controls.relativeVolumeTolerance;
+            residualDefinition.rankTolerance=controls.rankTolerance;
+            if(hasEmpty&&paired){residualDefinition.emptyAxis=extrusion.axis;residualDefinition.emptyMate=extrusion.mate;}
+            geometry_device::backend::SweepResidualEvaluation deviceResidual(residualDefinition);
+            geometry_device::backend::SweepResidualStatus lastResidualStatus;
 #endif
             auto evaluate=[&](const std::vector<Vec3>& points,std::vector<Real>& residual,
                 std::vector<Real>& sweeps, Real& metric) {
+#ifdef CHMT_DEVICE_GEOMETRY
+                if(numericalFailure)*numericalFailure=true;
+                const auto result=deviceResidual.evaluate(geometry_device::pack(points));lastResidualStatus=result;
+                residual.clear();sweeps.clear();metric=result.metric;
+                report.maximumSweepResidual=result.maximumSweep;report.maximumPlanarityResidual=result.maximumPlanarity;
+                using Failure=geometry_device::backend::SweepResidualFailure;
+                switch(result.failure){
+                    case Failure::None:return true;
+                    case Failure::Endpoint:return errorAt(error,"nonfinite trajectory endpoint",result.index);
+                    case Failure::EmptyNormal:return empty_detail::reject(error,"nonzero normal trajectory displacement");
+                    case Failure::EmptyTangential:return empty_detail::reject(error,"layer-paired tangential trajectory differs");
+                    case Failure::Sweep:return errorAt(error,"nonfinite stage area/swept volume",result.index);
+                    case Failure::FaceResidual:return errorAt(error,"nonfinite swept-volume residual",result.index);
+                    case Failure::PlanarResidual:return errorAt(error,"nonfinite planarity residual",result.index);
+                    case Failure::Metric:return false;
+                }
+                return false;
+#else
                 std::vector<Vec3> area;
                 if (!stageIntegrals(old,points,area,sweeps,error,hasEmpty&&paired?&extrusion:nullptr,numericalFailure)) return false;
                 residual.clear(); metric=0;
@@ -959,16 +986,8 @@ namespace chmt {
                     metric=maxValue(metric,geometryResidualRatio(absValue(r),sweepTolerance(i,sweeps[faces[i]])));
                     report.maximumSweepResidual=maxValue(report.maximumSweepResidual,absValue(r));
                 }
-#ifdef CHMT_DEVICE_GEOMETRY
-                const auto devicePolynomials=linearization.planarity(geometry_device::pack(points));
-                std::size_t polynomialIndex=0;
-#endif
                 for (const auto& p:planar) {
-#ifdef CHMT_DEVICE_GEOMETRY
-                    const auto& coefficients=devicePolynomials[polynomialIndex++].value;
-#else
                     Real coefficients[3]; planarPolynomial(old,points,p,coefficients);
-#endif
                     for (Real coefficient:coefficients) {
                         const Real r=coefficient/p.scale;
                         if (!finite(r))return errorAt(error,"nonfinite planarity residual",p.a);
@@ -977,6 +996,7 @@ namespace chmt {
                     }
                 }
                 return finite(metric);
+#endif
             };
             auto certify=[&](const std::vector<Vec3>& localPoints,HostMesh& certified,
                 std::vector<Real>& measured,std::string& failure,bool enforceTargets,
@@ -1038,7 +1058,7 @@ namespace chmt {
             Real meanWeight=0; int weighted=0;
             for (int p:hasEmpty?metricMovable:movable) if (pointWeight[p]>0) { meanWeight+=pointWeight[p]; ++weighted; }
             meanWeight=weighted?meanWeight/weighted:1;
-            const std::size_t columns=movable.size(),rows=residual.size();
+            const std::size_t columns=movable.size(),rows=report.constraints;
             // One deterministic streamed construction, independent of user budgets.
             // Each mode uses the same harmonic solve; no allocation-driven fallback.
             report.streamedModes=true;
@@ -1094,16 +1114,10 @@ namespace chmt {
                 }
                 if (iteration==controls.maximumIterations) break;
 #ifdef CHMT_DEVICE_GEOMETRY
-                std::vector<double> rhs(residual.begin(),residual.end());
-                std::size_t planarRow=faces.size();
-                for(const auto& plane:planar)for(int coefficient=0;coefficient<3;++coefficient){
-                    if(absValue(rhs[planarRow])<=plane.tolerance)rhs[planarRow]=0;
-                    ++planarRow;
-                }
-                Real maxResidual=0;
-                for(Real& r:rhs){maxResidual=maxValue(maxResidual,absValue(r));r=-r;}
-                const Real consistencyTolerance=maxValue(128*std::numeric_limits<Real>::epsilon(),controls.rankTolerance*maxResidual);
-                const auto solved=deviceCorrection.solve(geometry_device::pack(points),rhs,controls.rankTolerance,consistencyTolerance);
+                const Real consistencyTolerance=lastResidualStatus.consistencyTolerance;
+                const auto residualView=deviceResidual.view();
+                const auto solved=deviceCorrection.solveBorrowed(deviceResidual.endpoint(),residualView.rhs,
+                    &residualView.status->consistencyTolerance,controls.rankTolerance);
                 report.modeSolves+=solved.status.modeSolves;
                 const auto modeWarning=[&](std::size_t m){
                     const auto& value=solved.modes[m];

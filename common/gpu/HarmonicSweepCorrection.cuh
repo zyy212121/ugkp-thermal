@@ -56,6 +56,11 @@ __global__ void acceptHarmonicQr(int rows,const HarmonicSweepDeviceProblem* inpu
     for(int c=0;c<input->columns;++c)if(!isfinite(qr.delta[c])){state->error=3;return;}
     state->linearValid=1;
 }
+__global__ void bindBorrowedHarmonicProblem(HarmonicSweepDeviceProblem definition,const Point* endpoint,
+    const double* rhs,const double* tolerance,double rankTolerance,HarmonicSweepDeviceProblem* output){
+    definition.endpoint=endpoint;definition.rhs=rhs;definition.consistencyTolerance=*tolerance;
+    definition.rankTolerance=rankTolerance;*output=definition;
+}
 __global__ void copyHarmonicProblem(const HarmonicSweepDeviceProblem* input,HarmonicSweepDeviceProblem* out){*out=*input;}
 }
 struct HarmonicSweepCorrection::Implementation {
@@ -94,6 +99,14 @@ struct HarmonicSweepCorrection::Implementation {
         input.reserve(1);operation.reserve(1);sweepInput.reserve(1);qrInput.reserve(1);state.reserve(1);
         hostInput={initial.pointer,endpoint.pointer,scales.pointer,planar.pointer,modes.pointer,rhs.pointer,
             columns,definition.harmonicTolerance,0,0};transfer.finish();
+    }
+    HarmonicSweepResult collect(){
+        HarmonicSweepResult result;transfer.download(&result.status,state.pointer,sizeof(result.status));transfer.finish();
+        result.modes.resize(result.status.modeSolves);
+        transfer.download(result.modes.data(),reports.pointer,result.modes.size()*sizeof(HarmonicDeviceStatus));
+        if(result.status.linearValid){result.rhs.resize(rows);transfer.download(result.rhs.data(),qr->view().rhs,std::size_t(rows)*sizeof(double));}
+        if(!result.status.error){result.correction.resize(points);transfer.download(result.correction.data(),sweep->view().correction,std::size_t(points)*sizeof(Point));}
+        transfer.finish();return result;
     }
     ~Implementation(){transfer.discard();if(stream)cudaStreamSynchronize(stream);
         if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);if(stream)cudaStreamDestroy(stream);}
@@ -150,6 +163,12 @@ void HarmonicSweepCorrection::solveDevice(const HarmonicSweepDeviceProblem* prob
     copyHarmonicProblem<<<1,1,0,stream>>>(problem,d.input.pointer);checked(cudaGetLastError());
     checked(cudaGraphLaunch(d.executable,stream));
 }
+HarmonicSweepResult HarmonicSweepCorrection::solveBorrowed(const Point* endpoint,const double* rhs,
+    const double* consistencyTolerance,double rankTolerance){
+    auto& d=*data_;PinnedTransferQueue::Operation pending(d.transfer);
+    bindBorrowedHarmonicProblem<<<1,1,0,d.stream>>>(d.hostInput,endpoint,rhs,consistencyTolerance,rankTolerance,d.input.pointer);
+    checked(cudaGetLastError());checked(cudaGraphLaunch(d.executable,d.stream));return d.collect();
+}
 HarmonicSweepResult HarmonicSweepCorrection::solve(const std::vector<Point>& endpoint,const std::vector<double>& rhs,
     double rankTolerance,double consistencyTolerance){
     auto& d=*data_;if(endpoint.size()!=std::size_t(d.points)||rhs.size()!=std::size_t(d.rows))
@@ -157,13 +176,6 @@ HarmonicSweepResult HarmonicSweepCorrection::solve(const std::vector<Point>& end
     PinnedTransferQueue::Operation pending(d.transfer);d.endpoint.upload(endpoint,d.transfer);d.rhs.upload(rhs,d.transfer);
     d.hostInput.rankTolerance=rankTolerance;d.hostInput.consistencyTolerance=consistencyTolerance;
     d.transfer.upload(d.input.pointer,&d.hostInput,sizeof(d.hostInput));checked(cudaGraphLaunch(d.executable,d.stream));
-    HarmonicSweepResult result;d.transfer.download(&result.status,d.state.pointer,sizeof(result.status));d.transfer.finish();
-    result.modes.resize(result.status.modeSolves);
-    d.transfer.download(result.modes.data(),d.reports.pointer,result.modes.size()*sizeof(HarmonicDeviceStatus));
-    if(result.status.linearValid){result.rhs.resize(d.rows);
-        d.transfer.download(result.rhs.data(),d.qr->view().rhs,std::size_t(d.rows)*sizeof(double));}
-    if(!result.status.error){result.correction.resize(d.points);
-        d.transfer.download(result.correction.data(),d.sweep->view().correction,std::size_t(d.points)*sizeof(Point));}
-    d.transfer.finish();return result;
+    return d.collect();
 }
 }}}
