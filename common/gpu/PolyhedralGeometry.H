@@ -15,6 +15,22 @@ struct Topology {
 struct WallDistanceResult {double distance=0;int invalidFace=-1;};
 struct BoundaryMotionFace {int face;double previousOffset,offset,thickness;Point supportVelocity;};
 struct BoundaryMotionPoint {Point displacement,direction;double weight=0,thickness=0;};
+struct BoundaryMotionDeviceInput {
+    const Point* area=nullptr;
+    const BoundaryMotionFace* faces=nullptr;
+    double interval=0;
+};
+// Incidence and face identity are immutable. Current areas, front positions,
+// support velocity, thickness and interval are produced by device owners.
+class ResidentBoundaryMotion {
+    struct Implementation;std::unique_ptr<Implementation> data_;
+public:
+    ResidentBoundaryMotion(const Topology&,int pointCount,const std::vector<int>& faces,
+        const std::vector<unsigned char>& sideFaces);
+    ~ResidentBoundaryMotion();
+    const BoundaryMotionPoint* points()const;
+    void evaluate(const BoundaryMotionDeviceInput*,void* stream=nullptr);
+};
 struct RebuildResult {
     std::vector<FaceResult> faces;std::vector<CellResult> cells;std::vector<WallDistanceResult> distance;
 };

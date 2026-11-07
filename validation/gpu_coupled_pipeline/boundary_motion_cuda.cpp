@@ -5,6 +5,12 @@
 #include <cassert>
 #include <iostream>
 namespace gpu=ugkp::gpu::geometry;
+#ifdef TEST_RESIDENT_BOUNDARY_MOTION
+std::vector<gpu::BoundaryMotionPoint> residentBoundaryMotion(const gpu::Topology&,int,
+    const std::vector<gpu::Point>&,const std::vector<gpu::BoundaryMotionFace>&,
+    const std::vector<unsigned char>&,double);
+#endif
+
 void exact(double a,double b){assert(std::memcmp(&a,&b,sizeof(a))==0);}
 int main(){std::mt19937_64 rng(39152);std::uniform_real_distribution<double> random(-1,1);gpu::PolyhedralGeometry device;int count=0;
     for(int np:{0,3,17,129,2049})for(double scale:{1e-70,1e-4,1.,1e4,1e70})for(int variation=0;variation<4;++variation){
@@ -23,7 +29,12 @@ int main(){std::mt19937_64 rng(39152);std::uniform_real_distribution<double> ran
             auto q=normal;for(auto n:normals[p])q-=n*chmt::dot(q,n);if(chmt::mag(q)>1e-10)normals[p].push_back(chmt::normalized(q));}}
         for(int p=0;p<np;++p){auto recession=displacement[p]-support[p];for(auto n:normals[p]){recession-=n*chmt::dot(recession,n);direction[p]-=n*chmt::dot(direction[p],n);}
             if(normals[p].size()==3){recession={};direction[p]={};}displacement[p]=recession+support[p];direction[p]=chmt::normalized(direction[p]);}
-        const auto out=device.boundaryMotion(topology,np,areas,fronts,side,dt);assert(out.size()==std::size_t(np));
+#ifdef TEST_RESIDENT_BOUNDARY_MOTION
+        const auto out=residentBoundaryMotion(topology,np,areas,fronts,side,dt);
+#else
+        const auto out=device.boundaryMotion(topology,np,areas,fronts,side,dt);
+#endif
+        assert(out.size()==std::size_t(np));
         for(int p=0;p<np;++p){exact(displacement[p].x,out[p].displacement.x);exact(displacement[p].y,out[p].displacement.y);exact(displacement[p].z,out[p].displacement.z);
             exact(direction[p].x,out[p].direction.x);exact(direction[p].y,out[p].direction.y);exact(direction[p].z,out[p].direction.z);exact(weight[p],out[p].weight);exact(thickness[p],out[p].thickness);}
         ++count;

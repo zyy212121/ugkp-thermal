@@ -47,9 +47,12 @@ __global__ void surfaceEdgesKernel(int count,TopologyView t,const Point* old,con
     bool empty,int segments,double scale,EdgeResult* out){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)out[i]=surfaceEdge(t,old,end,edges[i],empty,segments,scale);
 }
-__global__ void boundaryMotionKernel(int count,const Point* areas,const BoundaryMotionFace* faces,
-    const int* offsets,const int* incident,const int* sideOffsets,const int* sides,Point* normals,double dt,BoundaryMotionPoint* out){
+template<class Input>
+__global__ void boundaryMotionKernel(int count,Input input,
+    const int* offsets,const int* incident,const int* sideOffsets,const int* sides,Point* normals,BoundaryMotionPoint* out){
     const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p>=count)return;
+    const BoundaryMotionDeviceInput operation=input;const Point* areas=operation.area;
+    const BoundaryMotionFace* faces=operation.faces;const double dt=operation.interval;
     BoundaryMotionPoint r;Point support;
     for(int k=offsets[p];k<offsets[p+1];++k){const auto face=faces[incident[k]];const Point av=areas[face.face],normal=normalized(av);
         const double area=magnitude(av);const Point delta=normal*(face.offset-face.previousOffset)+face.supportVelocity*dt;
@@ -415,24 +418,58 @@ RebuildResult PolyhedralGeometry::rebuild(const Topology& t,const std::vector<Po
     d.transfer.download(out.distance.data(),device.distance,out.distance.size()*sizeof(WallDistanceResult));
     d.transfer.finish();d.rememberRebuild(hash,t,points,walls,out);return out;
 }
-std::vector<BoundaryMotionPoint> PolyhedralGeometry::boundaryMotion(const Topology& t,int count,const std::vector<Point>& areas,
-    const std::vector<BoundaryMotionFace>& faces,const std::vector<unsigned char>& sideFaces,double interval){
-    if(count<0||sideFaces.size()!=areas.size()||t.faceOffsets.size()!=areas.size()+1)
+namespace {
+struct MotionIncidence {std::vector<int> offsets,incident,sideOffsets,sideIncident;};
+MotionIncidence motionIncidence(const Topology& t,int count,const std::vector<int>& faces,
+    const std::vector<unsigned char>& sideFaces){
+    if(count<0||t.faceOffsets.size()!=sideFaces.size()+1)
         throw std::invalid_argument("boundary motion topology shape mismatch");
     // CSR preserves original surface-face order for every vertex. No atomics
     // change the area-weighted accumulation or Gram-Schmidt projection order.
     std::vector<int> offsets(count+1,0),sideOffsets(count+1,0);
-    for(const auto& f:faces)for(int k=t.faceOffsets[f.face];k<t.faceOffsets[f.face+1];++k)++offsets[t.facePoints[k]+1];
+    for(int f:faces)for(int k=t.faceOffsets[f];k<t.faceOffsets[f+1];++k)++offsets[t.facePoints[k]+1];
     for(std::size_t f=0;f<sideFaces.size();++f)if(sideFaces[f])for(int k=t.faceOffsets[f];k<t.faceOffsets[f+1];++k)++sideOffsets[t.facePoints[k]+1];
     for(int p=1;p<=count;++p){offsets[p]+=offsets[p-1];sideOffsets[p]+=sideOffsets[p-1];}
     std::vector<int> incident(offsets.back()),sideIncident(sideOffsets.back()),cursor=offsets,sideCursor=sideOffsets;
-    for(std::size_t i=0;i<faces.size();++i)for(int k=t.faceOffsets[faces[i].face];k<t.faceOffsets[faces[i].face+1];++k)incident[cursor[t.facePoints[k]]++]=i;
+    for(std::size_t i=0;i<faces.size();++i)for(int k=t.faceOffsets[faces[i]];k<t.faceOffsets[faces[i]+1];++k)incident[cursor[t.facePoints[k]]++]=i;
     for(std::size_t f=0;f<sideFaces.size();++f)if(sideFaces[f])for(int k=t.faceOffsets[f];k<t.faceOffsets[f+1];++k)sideIncident[sideCursor[t.facePoints[k]]++]=f;
+    return {std::move(offsets),std::move(incident),std::move(sideOffsets),std::move(sideIncident)};
+}
+}
+struct ResidentBoundaryMotion::Implementation {
+    int count=0;Array<int> offsets,incident,sideOffsets,sides;
+    Array<Point> normals;Array<BoundaryMotionPoint> result;
+};
+ResidentBoundaryMotion::ResidentBoundaryMotion(const Topology& topology,int count,const std::vector<int>& faces,
+    const std::vector<unsigned char>& sideFaces):data_(new Implementation){
+    const auto rows=motionIncidence(topology,count,faces,sideFaces);auto& d=*data_;d.count=count;
+    PinnedTransferQueue transfer;PinnedTransferQueue::Operation pending(transfer);
+    d.offsets.upload(rows.offsets,transfer);d.incident.upload(rows.incident,transfer);
+    d.sideOffsets.upload(rows.sideOffsets,transfer);d.sides.upload(rows.sideIncident,transfer);
+    d.normals.reserve(rows.sideIncident.size());d.result.reserve(count);transfer.finish();
+}
+ResidentBoundaryMotion::~ResidentBoundaryMotion()=default;
+const BoundaryMotionPoint* ResidentBoundaryMotion::points()const{return data_->result.pointer;}
+void ResidentBoundaryMotion::evaluate(const BoundaryMotionDeviceInput* input,void* rawStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
+    if(d.count)boundaryMotionKernel<<<(d.count-1)/128+1,128,0,stream>>>(d.count,DeviceValue<BoundaryMotionDeviceInput>{input},
+        d.offsets.pointer,d.incident.pointer,d.sideOffsets.pointer,d.sides.pointer,d.normals.pointer,d.result.pointer);
+    checked(cudaGetLastError());
+}
+std::vector<BoundaryMotionPoint> PolyhedralGeometry::boundaryMotion(const Topology& t,int count,const std::vector<Point>& areas,
+    const std::vector<BoundaryMotionFace>& faces,const std::vector<unsigned char>& sideFaces,double interval){
+    if(count<0||sideFaces.size()!=areas.size()||t.faceOffsets.size()!=areas.size()+1)
+        throw std::invalid_argument("boundary motion topology shape mismatch");
+    std::vector<int> identities;identities.reserve(faces.size());for(const auto& face:faces)identities.push_back(face.face);
+    const auto rows=motionIncidence(t,count,identities,sideFaces);
+    const auto& offsets=rows.offsets;const auto& incident=rows.incident;
+    const auto& sideOffsets=rows.sideOffsets;const auto& sideIncident=rows.sideIncident;
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);d.area.upload(areas,d.transfer);d.motionFaces.upload(faces,d.transfer);
     d.motionOffsets.upload(offsets,d.transfer);d.motionIncident.upload(incident,d.transfer);d.sideOffsets.upload(sideOffsets,d.transfer);d.sideIncident.upload(sideIncident,d.transfer);
     d.sideNormals.reserve(sideIncident.size());d.motionPoints.reserve(count);
-    if(count)boundaryMotionKernel<<<(count+127)/128,128,0,d.stream>>>(count,d.area.pointer,d.motionFaces.pointer,d.motionOffsets.pointer,d.motionIncident.pointer,
-        d.sideOffsets.pointer,d.sideIncident.pointer,d.sideNormals.pointer,interval,d.motionPoints.pointer);
+    if(count)boundaryMotionKernel<<<(count+127)/128,128,0,d.stream>>>(count,
+        BoundaryMotionDeviceInput{d.area.pointer,d.motionFaces.pointer,interval},d.motionOffsets.pointer,d.motionIncident.pointer,
+        d.sideOffsets.pointer,d.sideIncident.pointer,d.sideNormals.pointer,d.motionPoints.pointer);
     std::vector<BoundaryMotionPoint> out;d.motionPoints.download(out,count,d.transfer);d.transfer.finish();return out;
 }
 std::vector<FaceResult> PolyhedralGeometry::faces(const Topology& t,const std::vector<Point>& p){
