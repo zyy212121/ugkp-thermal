@@ -1,6 +1,7 @@
 #include "material_slice_probe.H"
 #include <iostream>
 #include "materials/MaterialInventoryMath.H"
+#include "materials/Reaction.H"
 #include <stdexcept>
 #include <limits>
 #include <iomanip>
@@ -44,7 +45,7 @@ ExchangePacket packet(std::size_t r,std::size_t f,int kind,double scale){
 int main(){try{
     std::size_t cases=0,slices=0,failures=0,rejected=0;
     for(std::size_t faces:{0u,1u,3u,17u,129u})for(int mode=0;mode<12;++mode){
-        materialSliceProbe::Test t;t.faces=faces;t.particles=mode%2;const int frames=mode==10?0:(mode==11?1:7);
+        materialSliceProbe::Test t;t.faces=faces;t.particles=mode%2;t.recessionCase=mode;const int frames=mode==10?0:(mode==11?1:7);
         const double dt=mode%3==0?0.125:0.1;Clock time;
         for(int r=0;r<frames;++r){const Clock end=time+dt;t.intervals.push_back({time,end,dt});time=end;
             for(std::size_t f=0;f<faces;++f){CoupledSurfaceDownload q;q.primary=packet(r,f,0,mode==9?1e20:1e-8);
@@ -68,6 +69,25 @@ int main(){try{
             if(ok){require(packets.size()==g.packets.size()&&radiation.size()==g.radiation.size(),"packet/radiation count differs");
                 for(std::size_t j=0;j<packets.size();++j)packetEqual(packets[j],g.packets[j]);
                 for(std::size_t f=0;f<radiation.size();++f)equal(radiation[f],g.radiation[f]);
+                // Independent original CpuMaterialDriver packet traversal;
+                // deliberately do not call the new recession math helper.
+                const auto material=materialSliceProbe::recessionInventory(mode);const auto physics=materialSliceProbe::recessionPhysics(mode);
+                std::vector<double> targets(faces,0);std::vector<int> errors(faces,0);
+                for(const auto& packet:packets)if(packet.kind==ExchangeKind::GasSolid){
+                    const auto f=packet.face;if(errors[f])continue;MaterialPrimitive primitive;
+                    if(!recoverMaterial(material[packet.solidCell],.001,physics,primitive)){errors[f]=1;continue;}
+                    for(int c=0;c<Nc;++c)if(packet.condensed[c]!=0){
+                        if(!chmt::finite(packet.condensed[c])||!chmt::finite(physics.condensed[c].rho)||!(physics.condensed[c].rho>0)){errors[f]=2;break;}
+                        targets[f]-=packet.condensed[c]/physics.condensed[c].rho/(1-primitive.porosity);
+                    }
+                }
+                for(std::size_t f=0;f<faces;++f){require(errors[f]==g.recessionStatus[f],"recession error differs");equal(targets[f],g.recession[f]);
+                    auto front=materialSliceProbe::recessionFront(f);
+                    if(!errors[f]&&f%4){const double area=1+.1*f;front.solidNormalVelocity=targets[f]/(area*.125);front.normalVelocity=front.solidNormalVelocity;
+                        front.solidFront+=.125*front.solidNormalVelocity;front.gasFront+=.125*front.normalVelocity;}
+                    equal(front.solidNormalVelocity,g.fronts[f].solidNormalVelocity);equal(front.normalVelocity,g.fronts[f].normalVelocity);
+                    equal(front.solidFront,g.fronts[f].solidFront);equal(front.gasFront,g.fronts[f].gasFront);equal(front.temperature,g.fronts[f].temperature);
+                }
                 bool sourceOk=true;
                 for(int c=0;c<3;++c){SolidQ initial;for(int j=0;j<Nc;++j)initial.condensed[j]=1e25*(c+1);
                     for(int j=0;j<Ns;++j)initial.pore[j]=1e25*(j+1);initial.energy=1e30;

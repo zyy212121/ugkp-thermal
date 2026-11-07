@@ -8,6 +8,7 @@
 #include "core/HostAuditReduction.H"
 #include "materials/MaterialTransport.H"
 #include "materials/MaterialDrive.H"
+#include "materials/MaterialRecessionMath.H"
 #include "materials/SurfacePacketAddressing.H"
 #include "ablation/CpuSurfaceInterface.H"
 #include "ablation/WallClosureHost.H"
@@ -520,22 +521,16 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     std::size_t match=0;
                     if(!packetAddressing.gasSolidIndex(state,packet,match,error))break;
                     const int donor=packet.solidCell;
-                    MaterialPrimitive material;
-                    if(!(recoverMaterial(state.solid[donor],state.solidMesh.volumes[donor],p,material))){
-                        lastFailure=MaterialFailureOrigin::GeometryNumerical;error="surface donor EOS failed";break;}
-                    for(int c=0;c<Nc;++c)if(packet.condensed[c]!=0){
-                        if((!finite(packet.condensed[c])||!finite(p.condensed[c].rho)||!(p.condensed[c].rho>0))){
-                            lastFailure=MaterialFailureOrigin::GeometryNumerical;error="invalid surface recession constituent";break;}
-                        target[match]-=packet.condensed[c]/p.condensed[c].rho/(1-material.porosity);
+                    const auto recession=addMaterialRecessionTarget(packet.condensed,state.solid[donor],state.solidMesh.volumes[donor],p,target[match]);
+                    if(recession!=MaterialRecessionError::None){
+                        lastFailure=MaterialFailureOrigin::GeometryNumerical;
+                        error=recession==MaterialRecessionError::DonorEos?"surface donor EOS failed":"invalid surface recession constituent";break;
                     }
-                    if(!error.empty())break;
                 }
                 if(!error.empty())break;
                 aux=evaluation.filmAux;
                 for(std::size_t f=0;f<aux.size();++f)if(state.surface.gasFace[f]>=0){const int sf=state.surface.solidFace[f];const Real as=sf>=0?mag(state.solidMesh.areaVectors[sf]):0;
-                    aux[f].solidNormalVelocity=as>0?target[f]/(as*dt):0;
-                    aux[f].normalVelocity=aux[f].solidNormalVelocity;
-                    aux[f].solidFront=state.filmAux[f].solidFront+dt*aux[f].solidNormalVelocity;aux[f].gasFront=state.filmAux[f].gasFront+dt*aux[f].normalVelocity;}
+                    aux[f]=materialRecessionFront(state.filmAux[f],target[f],as,dt);}
                 if(!error.empty())break;
                 // Local reaction/transport steps follow the already executed gas trajectory.
                 // Solve the material-volume correction and harmonic mesh only at

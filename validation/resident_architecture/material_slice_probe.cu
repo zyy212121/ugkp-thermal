@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include "common/gpu/StableRowIndex.cuh"
 #include "gpu/ResidentMaterialSource.cuh"
+#include "gpu/ResidentMaterialRecession.cuh"
 namespace materialSliceProbe {
 void check(cudaError_t e){if(e!=cudaSuccess)throw std::runtime_error(cudaGetErrorString(e));}
 template<class T>struct Device {
@@ -79,6 +80,17 @@ std::vector<Result> evaluate(const Test& t){
         indices{std::vector<int>(capacity)},counts{std::vector<int>(4)},offsets{std::vector<int>(4)},codes{std::vector<int>(3*n)};
     Device<SolidQ> inventory{std::vector<SolidQ>(3*n)};
     ugkp::gpu::StableRowIndexView rows{keys.p,sortedKeys.p,inputIndices.p,indices.p,counts.p,offsets.p};
+    Device<SolidQ> recessionSolid(recessionInventory(t.recessionCase));
+    Device<double> recessionVolume(std::vector<double>(3,.001));
+    Device<PhysicsConfig> recessionConfig(std::vector<PhysicsConfig>{recessionPhysics(t.recessionCase)});
+    std::vector<int> gasFaces(f),solidFaces(f);std::vector<Vec3> faceArea(f);std::vector<FilmAux> priorFront(f);
+    for(std::size_t j=0;j<f;++j){gasFaces[j]=j%4?int(j):-1;solidFaces[j]=int(j);faceArea[j]={0,1+.1*j,0};priorFront[j]=recessionFront(j);}
+    Device<int> gasFace(gasFaces),solidFace(solidFaces);Device<Vec3> areaVector(faceArea);
+    Device<FilmAux> previous(priorFront),fronts{std::vector<FilmAux>(n*f)};
+    Device<Real> recession{std::vector<Real>(n*f)};Device<MaterialRecessionStatus> recessionStatus{std::vector<MaterialRecessionStatus>(n*f)};
+    ResidentMaterialState recessionBinding;recessionBinding.current=recessionSolid.p;
+    recessionBinding.mesh.cells=3;recessionBinding.mesh.volumes=recessionVolume.p;recessionBinding.mesh.areaVectors=areaVector.p;
+    Device<ResidentMaterialState> recessionState(std::vector<ResidentMaterialState>{recessionBinding});
     std::size_t scratchBytes=0;check(ugkp::gpu::stableRowIndexWorkspace(int(capacity),3,rows,scratchBytes,nullptr));
     Device<unsigned char> scratch{std::vector<unsigned char>(scratchBytes)};check(cudaDeviceSynchronize());
     cudaStream_t stream;cudaGraph_t graph;cudaGraphExec_t exec;check(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
@@ -87,6 +99,8 @@ std::vector<Result> evaluate(const Test& t){
     reset<<<chmt::material_slice_detail::blocks(radCapacity),128,0,stream>>>(f,e,used,cursor.p);
     for(std::size_t i=0;i<n;++i){
         check(prepareResidentMaterialSlice(slice,cursor.p,targets.p+i,candidate,extra.p,e,t.total,rad.p,plan.p,stream));
+        if(f)prepareResidentMaterialRecession<<<chmt::material_slice_detail::blocks(f),128,0,stream>>>(slice,
+            recessionState.p,timing.p,recessionConfig.p,gasFace.p,solidFace.p,previous.p,recession.p+i*f,fronts.p+i*f,recessionStatus.p+i*f);
         check(ugkp::gpu::buildStableRowIndex(int(capacity),3,ResidentMaterialSliceRow{slice},rows,scratch.p,scratchBytes,stream));
         prepareSourceFixture<<<1,32,0,stream>>>(state.p);
         applyResidentMaterialSources<<<1,32,0,stream>>>(state.p,timing.p,rates.p,slice,offsets.p,indices.p,nullptr,nullptr,nullptr,nullptr,
@@ -111,8 +125,15 @@ std::vector<Result> evaluate(const Test& t){
     if(!radiation.empty())check(cudaMemcpy(radiation.data(),radOutput.p,radiation.size()*sizeof(double),cudaMemcpyDeviceToHost));
     std::vector<SolidQ> inventories(3*n);std::vector<int> statuses(3*n),parities(n);
     if(n){check(cudaMemcpy(parities.data(),parity.p,n*sizeof(int),cudaMemcpyDeviceToHost));check(cudaMemcpy(inventories.data(),inventory.p,inventories.size()*sizeof(SolidQ),cudaMemcpyDeviceToHost));check(cudaMemcpy(statuses.data(),codes.p,statuses.size()*sizeof(int),cudaMemcpyDeviceToHost));}
+    std::vector<Real> targetValues(n*f);std::vector<FilmAux> frontValues(n*f);std::vector<MaterialRecessionStatus> targetStatus(n*f);
+    if(n*f){check(cudaMemcpy(targetValues.data(),recession.p,n*f*sizeof(Real),cudaMemcpyDeviceToHost));
+        check(cudaMemcpy(frontValues.data(),fronts.p,n*f*sizeof(FilmAux),cudaMemcpyDeviceToHost));
+        check(cudaMemcpy(targetStatus.data(),recessionStatus.p,n*f*sizeof(MaterialRecessionStatus),cudaMemcpyDeviceToHost));}
     std::vector<Result> result(n);
     for(std::size_t i=0;i<n;++i){auto& out=result[i];out.plan=plans[i];out.cursor=cursors[i];out.bindingParity=parities[i];
+        out.recession.assign(targetValues.begin()+i*f,targetValues.begin()+(i+1)*f);
+        out.fronts.assign(frontValues.begin()+i*f,frontValues.begin()+(i+1)*f);
+        for(std::size_t j=0;j<f;++j)out.recessionStatus.push_back(int(targetStatus[i*f+j].error));
         out.inventory.assign(inventories.begin()+3*i,inventories.begin()+3*i+3);out.inventoryStatus.assign(statuses.begin()+3*i,statuses.begin()+3*i+3);
         for(std::size_t j=0;j<capacity;++j)if(enabled[i*capacity+j])out.packets.push_back(packets[i*capacity+j]);
         if(out.plan.error==ugkp::IntervalSliceError::None){const auto count=out.plan.hasRecords()&&f?f:e;
