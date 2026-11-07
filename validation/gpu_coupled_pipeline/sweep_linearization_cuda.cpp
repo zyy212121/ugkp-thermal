@@ -5,6 +5,9 @@
 #include <iostream>
 #include <cstring>
 #include <cstdlib>
+#ifdef TEST_RESIDENT_SWEEP
+#include "sweep_linearization_resident.H"
+#endif
 namespace device=ugkp::gpu::geometry;
 static void exact(double a,double b){if((std::isnan(a)&&std::isnan(b))||std::memcmp(&a,&b,sizeof(double))==0)return;
     std::cerr.precision(17);std::cerr<<"mismatch "<<a<<' '<<b<<'\n';std::exit(1);}
@@ -17,23 +20,50 @@ int main(){std::mt19937_64 random(61427);std::uniform_real_distribution<double> 
             mesh.faceOffsets.push_back(mesh.facePoints.size());faces.push_back(f);scales.push_back(1.0+.125*f);
             for(int j=3;j<3+f%5;++j){planar.push_back({a,a+1,a+2,a+j,1.0+.0625*f,0});planes.push_back({a,a+1,a+2,a+j,1.0+.0625*f});}}
         device::Topology t;t.faceOffsets=mesh.faceOffsets;t.facePoints=mesh.facePoints;
+#ifndef TEST_RESIDENT_SWEEP
         device::SweepLinearization gpu(t,pack(mesh.points),faces,scales,planes);
+#endif
         for(int update=0;update<4;++update){std::vector<chmt::Vec3> end=mesh.points,correction(end.size());
             for(auto& p:end)p+=chmt::Vec3{.001*scale*value(random),.001*scale*value(random),.001*scale*value(random)};
+            std::vector<std::vector<chmt::Vec3>> modes(11,std::vector<chmt::Vec3>(end.size()));
+            std::vector<std::vector<device::Point>> packedModes;std::vector<double> coefficients;
+            for(auto& mode:modes){
+                for(auto& p:mode)p={scale*value(random),scale*value(random),scale*value(random)};
+                packedModes.push_back(pack(mode));coefficients.push_back(value(random));
+            }
+#ifdef TEST_RESIDENT_SWEEP
+            const auto result=residentSweepProbe(t,pack(mesh.points),pack(end),faces,scales,planes,packedModes,coefficients);
+            const auto& polynomials=result.polynomials;
+#else
             const auto polynomials=gpu.planarity(pack(end));
+#endif
             for(std::size_t p=0;p<planar.size();++p){double expected[3];chmt::planarPolynomial(mesh,end,planar[p],expected);
                 for(int j=0;j<3;++j)exact(expected[j],polynomials[p].value[j]);}
+#ifndef TEST_RESIDENT_SWEEP
             gpu.endpoint(pack(end));gpu.resetCorrection();
-            for(int m=0;m<11;++m){std::vector<chmt::Vec3> mode(end.size());
-                for(auto& p:mode)p={scale*value(random),scale*value(random),scale*value(random)};
-                const auto column=gpu.column(pack(mode));std::size_t row=0;
+#endif
+            for(int m=0;m<11;++m){const auto& mode=modes[m];
+#ifdef TEST_RESIDENT_SWEEP
+                const auto& column=result.columns[m];
+#else
+                const auto column=gpu.column(pack(mode));
+#endif
+                std::size_t row=0;
                 for(int f=0;f<n;++f)exact(chmt::sweepDerivative(mesh,end,mode.data(),f)/scales[f],column[row++]);
                 for(const auto& plane:planar){double derivative[3];chmt::planarPolynomial(mesh,end,plane,derivative,mode.data());
                     for(double d:derivative)exact(d/plane.scale,column[row++]);}
-                const double coefficient=value(random);gpu.accumulate(pack(mode),coefficient);
+                const double coefficient=coefficients[m];
+#ifndef TEST_RESIDENT_SWEEP
+                gpu.accumulate(pack(mode),coefficient);
+#endif
                 for(std::size_t p=0;p<mode.size();++p)correction[p]+=mode[p]*coefficient;
             }
-            const auto result=gpu.correction();for(std::size_t p=0;p<result.size();++p){exact(correction[p].x,result[p].x);exact(correction[p].y,result[p].y);exact(correction[p].z,result[p].z);}
+#ifdef TEST_RESIDENT_SWEEP
+            const auto& got=result.correction;
+#else
+            const auto got=gpu.correction();
+#endif
+            for(std::size_t p=0;p<got.size();++p){exact(correction[p].x,got[p].x);exact(correction[p].y,got[p].y);exact(correction[p].z,got[p].z);}
             ++cases;
         }
     }

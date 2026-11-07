@@ -143,6 +143,36 @@ public:
     void accumulate(const std::vector<Point>& mode,double coefficient);
     std::vector<Point> correction();
 };
+// Numerical descriptors are produced on device; immutable face identities and
+// storage are initialized once. Coefficients may be selected directly from a
+// resident linear solve. No host round trip is required between streamed modes.
+struct SweepLinearizationDeviceInput {
+    const Point* old=nullptr;
+    const Point* endpoint=nullptr;
+    const Point* mode=nullptr;
+    const double* scales=nullptr;
+    const PlanarConstraint* planar=nullptr;
+    double coefficient=0;
+};
+struct SweepLinearizationDeviceView {
+    const Polynomial* polynomials=nullptr;
+    const double* column=nullptr;
+    const Point* correction=nullptr;
+};
+class ResidentSweepLinearization {
+    struct Implementation;std::unique_ptr<Implementation> data_;
+public:
+    ResidentSweepLinearization(const Topology&,int pointCount,
+        const std::vector<int>& faces,int planarCount);
+    ~ResidentSweepLinearization();
+    SweepLinearizationDeviceView view()const;
+    // All input arrays are borrowed, validated and kept alive by the graph
+    // owner. Each phase consumes its descriptor after prior stream producers.
+    void planarity(const SweepLinearizationDeviceInput*,void* stream=nullptr);
+    void column(const SweepLinearizationDeviceInput*,void* stream=nullptr);
+    void resetCorrection(void* stream=nullptr);
+    void accumulate(const SweepLinearizationDeviceInput*,void* stream=nullptr);
+};
 struct MinimumNormResult {
     std::vector<double> delta,rhs;
     int rank=0;

@@ -669,21 +669,75 @@ void ResidentDenseMinimumNorm::solve(const MinimumNormDeviceProblem* input,void*
     checked(cudaGetLastError());
 }
 namespace {
-__global__ void planarValues(int count,const Point* old,const Point* end,const PlanarConstraint* planar,Polynomial* out){
-    const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)out[i]=planarPolynomial(old,end,planar[i]);
+template<class Input>
+__global__ void planarValues(int count,Input input,Polynomial* out){
+    const SweepLinearizationDeviceInput p=input;
+    const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)out[i]=planarPolynomial(p.old,p.endpoint,p.planar[i]);
 }
-__global__ void linearizationColumn(int faceCount,int planarCount,TopologyView t,const Point* old,const Point* end,
-    const Point* mode,const int* faces,const double* scales,const PlanarConstraint* planar,double* out){
+template<class Input>
+__global__ void linearizationColumn(int faceCount,int planarCount,TopologyView t,Input input,
+    const int* faces,double* out){
+    const SweepLinearizationDeviceInput p=input;
     const int i=blockIdx.x*blockDim.x+threadIdx.x;
-    if(i<faceCount)out[i]=sweepDerivative(t,old,end,mode,faces[i])/scales[i];
-    else if(i<faceCount+planarCount){const int j=i-faceCount;const auto p=planar[j];
-        const auto polynomial=planarPolynomial(old,end,p,mode);
-        for(int k=0;k<3;++k)out[faceCount+3*j+k]=polynomial.value[k]/p.scale;}
+    if(i<faceCount)out[i]=sweepDerivative(t,p.old,p.endpoint,p.mode,faces[i])/p.scales[i];
+    else if(i<faceCount+planarCount){const int j=i-faceCount;const auto plane=p.planar[j];
+        const auto polynomial=planarPolynomial(p.old,p.endpoint,plane,p.mode);
+        for(int k=0;k<3;++k)out[faceCount+3*j+k]=polynomial.value[k]/plane.scale;}
 }
-__global__ void accumulateMode(int count,const Point* mode,double coefficient,Point* correction){
-    const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p<count)correction[p]+=mode[p]*coefficient;
+template<class Input>
+__global__ void accumulateMode(int count,Input input,Point* correction){
+    const SweepLinearizationDeviceInput q=input;
+    const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p<count)correction[p]+=q.mode[p]*q.coefficient;
+}
+__global__ void resetModeCorrection(int count,Point* correction){
+    const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p<count)correction[p]={};
 }
 }
+struct ResidentSweepLinearization::Implementation {
+    int points=0,faceCount=0,planarCount=0;
+    Array<int> offsets,indices,faces;Array<double> column;
+    Array<Point> correction;Array<Polynomial> polynomials;
+    TopologyView view()const{return {offsets.pointer,indices.pointer,nullptr,nullptr,nullptr,nullptr,nullptr};}
+};
+ResidentSweepLinearization::ResidentSweepLinearization(const Topology& topology,int points,
+    const std::vector<int>& faces,int planarCount):data_(new Implementation){
+    if(points<0||planarCount<0||faces.size()>std::size_t(INT_MAX)
+        ||std::size_t(planarCount)>(std::size_t(INT_MAX)-faces.size())/3)
+        throw std::invalid_argument("resident sweep linearization shape is not representable");
+    auto& d=*data_;d.points=points;d.faceCount=faces.size();d.planarCount=planarCount;
+    PinnedTransferQueue transfer;PinnedTransferQueue::Operation operation(transfer);
+    d.offsets.upload(topology.faceOffsets,transfer);d.indices.upload(topology.facePoints,transfer);
+    d.faces.upload(faces,transfer);d.column.reserve(std::size_t(d.faceCount)+3*std::size_t(planarCount));
+    d.correction.reserve(points);d.polynomials.reserve(planarCount);transfer.finish();
+}
+ResidentSweepLinearization::~ResidentSweepLinearization()=default;
+SweepLinearizationDeviceView ResidentSweepLinearization::view()const{
+    const auto& d=*data_;return {d.polynomials.pointer,d.column.pointer,d.correction.pointer};
+}
+void ResidentSweepLinearization::planarity(const SweepLinearizationDeviceInput* input,void* rawStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
+    if(d.planarCount)planarValues<<<(d.planarCount-1)/128+1,128,0,stream>>>(d.planarCount,
+        DeviceValue<SweepLinearizationDeviceInput>{input},d.polynomials.pointer);
+    checked(cudaGetLastError());
+}
+void ResidentSweepLinearization::column(const SweepLinearizationDeviceInput* input,void* rawStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);const int work=d.faceCount+d.planarCount;
+    if(work)linearizationColumn<<<(work-1)/128+1,128,0,stream>>>(d.faceCount,d.planarCount,d.view(),
+        DeviceValue<SweepLinearizationDeviceInput>{input},d.faces.pointer,d.column.pointer);
+    checked(cudaGetLastError());
+}
+void ResidentSweepLinearization::resetCorrection(void* rawStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
+    if(d.points)resetModeCorrection<<<(d.points-1)/128+1,128,0,stream>>>(d.points,d.correction.pointer);
+    checked(cudaGetLastError());
+}
+void ResidentSweepLinearization::accumulate(const SweepLinearizationDeviceInput* input,void* rawStream){
+    auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
+    if(d.points)accumulateMode<<<(d.points-1)/128+1,128,0,stream>>>(d.points,
+        DeviceValue<SweepLinearizationDeviceInput>{input},d.correction.pointer);
+    checked(cudaGetLastError());
+}
+
 struct SweepLinearization::Implementation {
     cudaStream_t stream=nullptr;PinnedTransferQueue transfer;int points=0,faceCount=0,planarCount=0;
     Array<int> offsets,indices,faces;Array<double> scales,column;Array<PlanarConstraint> planar;
@@ -708,21 +762,23 @@ void SweepLinearization::endpoint(const std::vector<Point>& points){
 }
 std::vector<Polynomial> SweepLinearization::planarity(const std::vector<Point>& points){
     endpoint(points);auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);
-    if(d.planarCount)planarValues<<<(d.planarCount+127)/128,128,0,d.stream>>>(d.planarCount,d.old.pointer,d.end.pointer,d.planar.pointer,d.polynomials.pointer);
+    if(d.planarCount)planarValues<<<(d.planarCount+127)/128,128,0,d.stream>>>(d.planarCount,
+        SweepLinearizationDeviceInput{d.old.pointer,d.end.pointer,nullptr,nullptr,d.planar.pointer,0},d.polynomials.pointer);
     std::vector<Polynomial> out;d.polynomials.download(out,d.planarCount,d.transfer);d.transfer.finish();return out;
 }
 std::vector<double> SweepLinearization::column(const std::vector<Point>& mode){
     auto& d=*data_;if(mode.size()!=std::size_t(d.points))throw std::invalid_argument("sweep mode shape mismatch");
     PinnedTransferQueue::Operation operation(d.transfer);d.mode.upload(mode,d.transfer);const int work=d.faceCount+d.planarCount;
-    if(work)linearizationColumn<<<(work+127)/128,128,0,d.stream>>>(d.faceCount,d.planarCount,d.view(),d.old.pointer,d.end.pointer,
-        d.mode.pointer,d.faces.pointer,d.scales.pointer,d.planar.pointer,d.column.pointer);
+    if(work)linearizationColumn<<<(work+127)/128,128,0,d.stream>>>(d.faceCount,d.planarCount,d.view(),
+        SweepLinearizationDeviceInput{d.old.pointer,d.end.pointer,d.mode.pointer,d.scales.pointer,d.planar.pointer,0},d.faces.pointer,d.column.pointer);
     std::vector<double> out;d.column.download(out,std::size_t(d.faceCount)+3*std::size_t(d.planarCount),d.transfer);d.transfer.finish();return out;
 }
 void SweepLinearization::resetCorrection(){auto& d=*data_;if(d.points)checked(cudaMemsetAsync(d.correction.pointer,0,std::size_t(d.points)*sizeof(Point),d.stream));}
 void SweepLinearization::accumulate(const std::vector<Point>& mode,double coefficient){
     auto& d=*data_;if(mode.size()!=std::size_t(d.points))throw std::invalid_argument("sweep correction mode shape mismatch");
     PinnedTransferQueue::Operation operation(d.transfer);d.mode.upload(mode,d.transfer);
-    if(d.points)accumulateMode<<<(d.points+127)/128,128,0,d.stream>>>(d.points,d.mode.pointer,coefficient,d.correction.pointer);
+    if(d.points)accumulateMode<<<(d.points+127)/128,128,0,d.stream>>>(d.points,
+        SweepLinearizationDeviceInput{nullptr,nullptr,d.mode.pointer,nullptr,nullptr,coefficient},d.correction.pointer);
     d.transfer.finish();
 }
 std::vector<Point> SweepLinearization::correction(){auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);
