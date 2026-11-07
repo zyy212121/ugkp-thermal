@@ -30,12 +30,14 @@ struct InterfaceGasStageResult {
 // Failure and warning state are trial-local; the caller decides acceptance.
 class InterfaceGasStage {
     struct Implementation;std::unique_ptr<Implementation> data_;
+    InterfaceGasStageResult collect();
 public:
     explicit InterfaceGasStage(const InterfaceGasStageDefinition&);
     ~InterfaceGasStage();
     InterfaceGasStageView view()const;
     ExecutionGraphNode appendTo(ExecutionGraph,ExecutionGraphNode,const InterfaceGasStageInput*);
     void prepare(const InterfaceGasStageInput*,void* stream=nullptr);
+    InterfaceGasStageResult solveBorrowed(const Point* solidEndpoint,const Point* solidArea,StageGeometryControls);
     InterfaceGasStageResult solve(const std::vector<Point>& solidEndpoint,
         const std::vector<Point>& solidArea,StageGeometryControls);
 };

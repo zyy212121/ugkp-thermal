@@ -23,6 +23,10 @@ __global__ void publishInterfaceGasStageStatus(const StageGeometryStatus* input,
     if(motion->failure!=InterfaceGasMotionFailure::None){*output={};*diagnostics={};}
     else *output=*input;
 }
+__global__ void bindBorrowedInterfaceStage(const InterfaceGasPointMotionInput* definition,const Point* endpoint,
+    const Point* area,StageGeometryControls controls,InterfaceGasStageInput* output){
+    output->motion=*definition;output->motion.interface.solidEndpoint=endpoint;output->motion.interface.solidArea=area;output->controls=controls;
+}
 __global__ void copyInterfaceGasStageInput(const InterfaceGasStageInput* input,InterfaceGasStageInput* output){*output=*input;}
 }
 struct InterfaceGasStage::Implementation {
@@ -69,22 +73,8 @@ void InterfaceGasStage::prepare(const InterfaceGasStageInput* input,void* rawStr
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
     copyInterfaceGasStageInput<<<1,1,0,stream>>>(input,d.input.pointer);checked(cudaGetLastError());checked(cudaGraphLaunch(d.executable,stream));
 }
-InterfaceGasStageResult InterfaceGasStage::solve(const std::vector<Point>& endpoint,const std::vector<Point>& area,StageGeometryControls controls){
-    auto& d=*data_;auto& m=*d.motion->data_;
-    if(endpoint.size()!=std::size_t(m.solidPoints)||area.size()!=std::size_t(m.solidFaces))
-        throw std::invalid_argument("interface gas stage input shape mismatch");
-    PinnedTransferQueue::Operation pending(d.transfer);
-    m.endpoint.upload(endpoint,d.transfer);m.area.upload(area,d.transfer);
-    // Immutable host-adapter bindings are restored independently of the last
-    // externally composed replay; no foreign borrowed pointer survives here.
-    InterfaceGasStageInput input{{{m.oldSolid.pointer,m.endpoint.pointer,m.area.pointer,m.motion->initialPoints(),
-        {m.thickness.pointer,sizeof(double)},{m.previousFilm.pointer,sizeof(double)},{m.film.pointer,sizeof(double)}},
-        m.motion->referencePoints(),0},controls};
-    // Geometric tolerance belongs to the initialized host descriptor, not an
-    // output from the previous solve. Copy that descriptor on the device.
-    d.transfer.upload(d.input.pointer,&input,sizeof(input));
-    copyInterfaceGasMotionInput<<<1,1,0,d.stream>>>(m.hostInput.pointer,&d.input.pointer->motion);
-    checked(cudaGetLastError());checked(cudaGraphLaunch(d.executable,d.stream));
+InterfaceGasStageResult InterfaceGasStage::collect(){
+    auto& d=*data_;
     InterfaceGasStageResult result;const auto v=view();const int faces=v.geometry.endpointGeometry.faces,cells=v.geometry.endpointGeometry.cells;
     const auto read=[&](auto& values,const auto* source,int count){values.resize(count);
         d.transfer.download(values.data(),source,std::size_t(count)*sizeof(*source));};
@@ -98,5 +88,17 @@ InterfaceGasStageResult InterfaceGasStage::solve(const std::vector<Point>& endpo
     if(result.motion.status.failure!=InterfaceGasMotionFailure::None||result.status.failure!=StageGeometryFailure::None){
         result.motion.points.clear();result.endpoint={};result.oldVolume.clear();result.sweep.clear();result.velocity.clear();}
     return result;
+}
+InterfaceGasStageResult InterfaceGasStage::solveBorrowed(const Point* endpoint,const Point* area,StageGeometryControls controls){
+    auto& d=*data_;auto& m=*d.motion->data_;PinnedTransferQueue::Operation pending(d.transfer);
+    bindBorrowedInterfaceStage<<<1,1,0,d.stream>>>(m.hostInput.pointer,endpoint,area,controls,d.input.pointer);
+    checked(cudaGetLastError());checked(cudaGraphLaunch(d.executable,d.stream));return collect();
+}
+InterfaceGasStageResult InterfaceGasStage::solve(const std::vector<Point>& endpoint,const std::vector<Point>& area,StageGeometryControls controls){
+    auto& d=*data_;auto& m=*d.motion->data_;
+    if(endpoint.size()!=std::size_t(m.solidPoints)||area.size()!=std::size_t(m.solidFaces))throw std::invalid_argument("interface gas stage input shape mismatch");
+    PinnedTransferQueue::Operation pending(d.transfer);m.endpoint.upload(endpoint,d.transfer);m.area.upload(area,d.transfer);
+    bindBorrowedInterfaceStage<<<1,1,0,d.stream>>>(m.hostInput.pointer,m.endpoint.pointer,m.area.pointer,controls,d.input.pointer);
+    checked(cudaGetLastError());checked(cudaGraphLaunch(d.executable,d.stream));return collect();
 }
 }}}

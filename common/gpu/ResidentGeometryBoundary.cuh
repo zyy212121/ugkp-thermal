@@ -103,6 +103,7 @@ ResidentGeometryBoundary::ResidentGeometryBoundary(const Topology& topology,Topo
         checked(cub::DeviceMergeSort::SortKeys(nullptr,d.sortBytes,d.keys.pointer,d.points,EmptyCoordinateLess{}));
         d.sortScratch.reserve(d.sortBytes);
     }
+    checked(cudaStreamSynchronize(nullptr)); // Initialization must publish completed default-stream uploads.
 }
 ResidentGeometryBoundary::~ResidentGeometryBoundary()=default;
 const GeometryBoundaryStatus* ResidentGeometryBoundary::periodicStatus()const{return data_->periodicResult.pointer;}

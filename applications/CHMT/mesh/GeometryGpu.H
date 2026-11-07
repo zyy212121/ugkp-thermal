@@ -4,6 +4,7 @@
 #include "mesh/GeometryDiagnostics.H"
 #include "gpu/PolyhedralGeometry.H"
 #include "gpu/InterfaceGasStage.H"
+#include "gpu/LocalFrameStageGeometry.H"
 #include "mesh/EmptyExtrusion.H"
 #include <algorithm>
 #include <map>
@@ -84,8 +85,8 @@ inline void adjacency(const std::vector<std::set<int>>& rows,std::vector<int>& o
 }
 // Output adaptation only: ordered checks and geometry are produced by the
 // common stage owner. This bridge performs no numerical mesh reconstruction.
-inline bool publishInterfaceStage(const HostMesh& accepted,const backend::InterfaceGasStageResult& result,
-    HostMesh& output,std::vector<double>& sweep,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics){
+template<class Result> inline bool publishStageGeometry(const HostMesh& accepted,const Result& result,
+    const std::vector<backend::Point>& points,HostMesh& output,std::vector<double>& sweep,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics){
     if(diagnostics)for(unsigned int category=0;category<ugkp::diagnostics::warningCategoryCount;++category){
         const auto& source=result.diagnostics.warnings[category];if(!source.count)continue;
         auto& target=diagnostics->warnings[category];
@@ -106,7 +107,7 @@ inline bool publishInterfaceStage(const HostMesh& accepted,const backend::Interf
             return empty_detail::reject(error,messages[int(status.failure)]);
         return failure(error,messages[int(status.failure)],status.index);
     }
-    HostMesh candidate=accepted;unpack(result.motion.points,candidate.points);
+    HostMesh candidate=accepted;unpack(points,candidate.points);
     candidate.oldPoints=accepted.points;candidate.oldVolumes=result.oldVolume;
     candidate.geometryVersion=accepted.geometryVersion+1;unpack(result.velocity,candidate.meshVelocity);
     const auto& geometry=result.endpoint;
@@ -116,6 +117,14 @@ inline bool publishInterfaceStage(const HostMesh& accepted,const backend::Interf
     for(std::size_t c=0;c<geometry.cells.size();++c){candidate.volumes[c]=geometry.cells[c].volume;candidate.cellCentres[c]=unpack(geometry.cells[c].centre);
         candidate.wallDistance[c]=geometry.distance[c].distance;}
     output=std::move(candidate);sweep=result.sweep;error.clear();return true;
+}
+inline bool publishInterfaceStage(const HostMesh& accepted,const backend::InterfaceGasStageResult& result,
+    HostMesh& output,std::vector<double>& sweep,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics){
+    return publishStageGeometry(accepted,result,result.motion.points,output,sweep,error,diagnostics);
+}
+inline bool publishLocalFrameStage(const HostMesh& accepted,const backend::LocalFrameStageResult& result,
+    HostMesh& output,std::vector<double>& sweep,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics){
+    return publishStageGeometry(accepted,result,result.points,output,sweep,error,diagnostics);
 }
 
 }}

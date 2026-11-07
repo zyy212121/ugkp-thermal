@@ -711,7 +711,11 @@ namespace chmt {
             GeometryTrialEnvironment(const GeometryTrialEnvironment&)=delete;
             GeometryTrialEnvironment&operator=(const GeometryTrialEnvironment&)=delete;
         };
+#ifdef CHMT_DEVICE_GEOMETRY
+        using TrajectoryCheck = std::function<bool(const HostMesh&,const geometry_device::backend::LocalFrameStageView&,std::string&,ugkp::diagnostics::DeviceContext*,bool&)>;
+#else
         using TrajectoryCheck = std::function<bool(const HostMesh&, std::string&,ugkp::diagnostics::DeviceContext*,bool&)>;
+#endif
         struct PlanarTriangleConstraint { int a,b,c,d; Real scale,tolerance; };
         Real triple(Vec3 a, Vec3 b, Vec3 c) { return dot(a,cross(b,c)); }
         Real tripleDerivative(Vec3 a, Vec3 b, Vec3 c, Vec3 da, Vec3 db, Vec3 dc) {
@@ -953,6 +957,14 @@ namespace chmt {
             if(hasEmpty&&paired){residualDefinition.emptyAxis=extrusion.axis;residualDefinition.emptyMate=extrusion.mate;}
             geometry_device::backend::SweepResidualEvaluation deviceResidual(residualDefinition,coordinateUncertainty);
             geometry_device::backend::SweepResidualStatus lastResidualStatus;
+            auto stageTopology=geometry_device::meshTopology(worldOld);
+            geometry_device::backend::LocalFrameStageDefinition stageDefinition;
+            stageDefinition.topology=std::move(stageTopology.topology);stageDefinition.walls=std::move(stageTopology.walls);
+            stageDefinition.worldOld=geometry_device::pack(worldOld.points);stageDefinition.localOld=geometry_device::pack(old.points);
+            stageDefinition.periodicPartner=worldOld.periodicPartner;
+            if(hasEmpty){empty_detail::Extrusion worldExtrusion;if(!empty_detail::build(worldOld,worldExtrusion,error))return false;
+                stageDefinition.emptyAxis=worldExtrusion.axis;stageDefinition.emptyMate=worldExtrusion.mate;}
+            geometry_device::backend::LocalFrameStageGeometry deviceStage(stageDefinition);
 #endif
 #ifdef CHMT_DEVICE_GEOMETRY
             const auto publishResidual=[&](const geometry_device::backend::SweepResidualStatus& result,Real& metric){
@@ -1007,14 +1019,27 @@ namespace chmt {
                 std::vector<Real>& measured,std::string& failure,bool enforceTargets,
                 ugkp::diagnostics::DeviceContext* diagnostics,bool& recoverable) {
                 recoverable=true;Tolerances evaluationTolerances=tolerances;evaluationTolerances.diagnostics=diagnostics;
+#ifdef CHMT_DEVICE_GEOMETRY
+                // Every caller first evaluates this same local endpoint. Borrow
+                // it directly: world conversion and all trajectory/GCL checks
+                // stay resident; only the certified result is published below.
+                const auto stage=deviceStage.solveBorrowed(deviceResidual.endpoint(),
+                    {interval,tolerances.absoluteGeometry,tolerances.relativeGeometry});
+                if(!geometry_device::publishLocalFrameStage(worldOld,stage,certified,measured,failure,diagnostics))return false;
+#else
                 std::vector<Vec3> worldPoints=worldOld.points;
                 for (std::size_t p=0;p<np;++p) {
                     const Vec3 displacement=localPoints[p]-old.points[p];
                     if (displacement.x!=0 || displacement.y!=0 || displacement.z!=0)
                         worldPoints[p]+=displacement;
                 }
-                if (!makeStageGeometry(worldOld,worldPoints,interval,certified,measured,failure,evaluationTolerances)
-                    || (extraCheck && !extraCheck(certified,failure,diagnostics,recoverable))) return false;
+                if (!makeStageGeometry(worldOld,worldPoints,interval,certified,measured,failure,evaluationTolerances))return false;
+#endif
+#ifdef CHMT_DEVICE_GEOMETRY
+                if(extraCheck&&!extraCheck(certified,deviceStage.view(),failure,diagnostics,recoverable))return false;
+#else
+                if(extraCheck&&!extraCheck(certified,failure,diagnostics,recoverable))return false;
+#endif
                 if (enforceTargets) {
                     report.maximumSweepResidual=0;
                     for (std::size_t i=0;i<faces.size();++i) {
@@ -1871,7 +1896,11 @@ namespace chmt {
         std::vector<std::set<int>> gasPointAdjacency;empty_detail::Extrusion gasExtrusion;
         bool gasMotionTopologyReady=false,gasHasEmpty=false;
 #endif
-        auto buildGas=[&](const HostMesh& trialSolid,std::string& failure,ugkp::diagnostics::DeviceContext* diagnostics,bool& recoverable) {
+        auto buildGas=[&](const HostMesh& trialSolid,
+#ifdef CHMT_DEVICE_GEOMETRY
+            const geometry_device::backend::LocalFrameStageView& residentSolid,
+#endif
+            std::string& failure,ugkp::diagnostics::DeviceContext* diagnostics,bool& recoverable) {
             Tolerances evaluationTolerances=tolerances;evaluationTolerances.diagnostics=diagnostics;
             auto stage=[&](const std::vector<Vec3>& points) {
                 return makeStageGeometry(oldGas,points,dt,gas,gasSweeps,failure,evaluationTolerances);
@@ -1904,7 +1933,7 @@ namespace chmt {
                 stageDefinition.wallFaces=geometry_device::meshTopology(oldGas).walls;stageDefinition.periodicPartner=oldGas.periodicPartner;
                 gasPointMotion.reset(new InterfaceGasStage(stageDefinition));
             }
-            const auto certified=gasPointMotion->solve(geometry_device::pack(trialSolid.points),geometry_device::pack(trialSolid.areaVectors),
+            const auto certified=gasPointMotion->solveBorrowed(residentSolid.points,residentSolid.geometry.endpointGeometry.area,
                 {dt,tolerances.absoluteGeometry,tolerances.relativeGeometry});
             const auto& result=certified.motion;
             using Failure=InterfaceGasMotionFailure;

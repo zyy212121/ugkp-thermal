@@ -242,6 +242,9 @@ void ResidentPolyhedralGeometry::configure(const Topology& topology,const std::v
     if(d.cachedWalls!=walls){upload(d.walls,walls);d.cachedWalls=walls;}
     d.face.reserve(d.faces);d.area.reserve(d.faces);d.sweptFaces.reserve(d.faces);
     d.cell.reserve(d.cells);d.centre.reserve(d.cells);d.distance.reserve(d.cells);d.boxes.reserve(d.wallCount);
+    // Pageable default-stream uploads may return before DMA completion. The
+    // initialized view is immediately borrowable by nonblocking streams.
+    if(!transfer)checked(cudaStreamSynchronize(nullptr));
 }
 ResidentPolyhedralGeometry::~ResidentPolyhedralGeometry()=default;
 PolyhedralGeometryDeviceView ResidentPolyhedralGeometry::view() const {
@@ -324,6 +327,7 @@ ResidentLinearTrajectory::ResidentLinearTrajectory(const Topology& topology,int 
     FIELD(faceOffsets);FIELD(facePoints);FIELD(cellOffsets);FIELD(cellFaces);FIELD(cellSigns);FIELD(vertexOffsets);FIELD(vertices);
 #undef FIELD
     d.status.reserve(1);d.failure.reserve(d.cells);d.diagnostics.reserve(d.cells);
+    checked(cudaStreamSynchronize(nullptr)); // Complete initialization before a borrowed stream consumes topology.
 }
 ResidentLinearTrajectory::~ResidentLinearTrajectory()=default;
 TrajectoryDeviceView ResidentLinearTrajectory::view()const{
@@ -881,3 +885,5 @@ std::vector<Point> SweepLinearization::correction(){auto& d=*data_;PinnedTransfe
 #include "InterfaceGasStage.cuh"
 
 #include "SweepPlanarity.cuh"
+
+#include "LocalFrameStageGeometry.cuh"

@@ -208,6 +208,7 @@ ResidentStageGeometry::ResidentStageGeometry(const Topology& topology,int pointC
     d.oldVolume.reserve(d.cells);d.newVolume.reserve(d.cells);d.sweptVolume.reserve(d.faces);
     d.partner.reserve(partner.size());if(!partner.empty())checked(cudaMemcpy(d.partner.pointer,partner.data(),partner.size()*sizeof(int),cudaMemcpyHostToDevice));
     d.status.reserve(1);d.execution.reserve(1);d.warnings.reserve(std::max(d.cells,d.faces));
+    checked(cudaStreamSynchronize(nullptr)); // Partner topology is ready before any nonblocking prepare stream.
 }
 ResidentStageGeometry::~ResidentStageGeometry()=default;
 StageGeometryDeviceView ResidentStageGeometry::view()const{

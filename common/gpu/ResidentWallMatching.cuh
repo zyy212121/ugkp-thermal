@@ -40,6 +40,7 @@ ResidentWallMatching::ResidentWallMatching(const WallMatchingDefinition& definit
     d.install(d.defaultConstrained,definition.constrained.empty()?std::vector<unsigned char>(d.cells,0):definition.constrained);d.install(d.defaultGas,definition.gasCell);
     d.constrained.reserve(d.cells);d.ring.reserve(definition.faceOffsets.back());d.polygonFailure.reserve(1);
     d.triangles.reserve(triangleOffsets.back());d.metrics.reserve(d.faces);d.result.reserve(d.rows);d.status.reserve(1);
+    checked(cudaStreamSynchronize(nullptr)); // Publish completed initialization to arbitrary consumer streams.
 }
 ResidentWallMatching::~ResidentWallMatching()=default;
 WallMatchingDeviceView ResidentWallMatching::view()const{const auto& d=*data_;return {d.rows,d.result.pointer,d.status.pointer};}

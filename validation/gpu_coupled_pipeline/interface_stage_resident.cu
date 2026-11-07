@@ -18,6 +18,7 @@ g::InterfaceGasStageResult probeInterfaceStage(g::InterfaceGasStage& owner,const
     Device<g::InterfaceGasStageInput> seed(std::vector<g::InterfaceGasStageInput>{{{
         {old.p,end.p,area.p,gas.p,{depth.p,sizeof(double)},{previous.p,sizeof(double)},{film.p,sizeof(double)}},reference.p,d.gas.geometricTolerance},controls}}),
         input(std::vector<g::InterfaceGasStageInput>(1));
+    check(cudaStreamSynchronize(nullptr)); // Complete default-stream fixture uploads before graph replay.
     cudaStream_t stream;cudaGraph_t graph;cudaGraphExec_t executable;cudaGraph_t child;
     check(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));check(cudaGraphCreate(&graph,0));
     check(cudaStreamBeginCapture(stream,cudaStreamCaptureModeGlobal));selectInterfaceMotion<<<1,1,0,stream>>>(seed.p,input.p);check(cudaStreamEndCapture(stream,&child));
@@ -38,5 +39,11 @@ g::InterfaceGasStageResult probeInterfaceStage(g::InterfaceGasStage& owner,const
         read(result.endpoint.distance,v.endpointGeometry.distance,v.endpointGeometry.cells);read(result.oldVolume,v.oldVolume,v.endpointGeometry.cells);
         read(result.sweep,v.sweptVolume,v.endpointGeometry.faces);read(result.velocity,v.meshVelocity,v.endpointGeometry.faces);
     }
-    check(cudaGraphExecDestroy(executable));check(cudaGraphDestroy(graph));check(cudaStreamDestroy(stream));return result;
+    const auto borrowed=owner.solveBorrowed(end.p,area.p,controls);
+    if(result.motion.status.failure!=borrowed.motion.status.failure||result.status.failure!=borrowed.status.failure||result.status.index!=borrowed.status.index||result.sweep!=borrowed.sweep)
+        throw std::runtime_error("borrowed interface stage differs from composed graph");
+    if(result.motion.points.size()!=borrowed.motion.points.size())throw std::runtime_error("borrowed interface point count differs");
+    for(std::size_t p=0;p<result.motion.points.size();++p){const auto a=result.motion.points[p],b=borrowed.motion.points[p];
+        if(a.x!=b.x||a.y!=b.y||a.z!=b.z)throw std::runtime_error("borrowed interface coordinates differ");}
+    check(cudaGraphExecDestroy(executable));check(cudaGraphDestroy(graph));check(cudaStreamDestroy(stream));return borrowed;
 }
