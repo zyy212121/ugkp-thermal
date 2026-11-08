@@ -198,6 +198,36 @@ struct ImplicitDiffusion::Implementation {
 };
 ImplicitDiffusion::ImplicitDiffusion():data_(new Implementation){}
 ImplicitDiffusion::~ImplicitDiffusion()=default;
+ExecutionGraphSignature ImplicitDiffusion::residentExecutionSignature()const{
+    const auto& d=*data_;ExecutionGraphSignature key;key.add(this);
+    for(const void* p:{
+        static_cast<const void*>(d.offsets.ptr),static_cast<const void*>(d.faces.ptr),static_cast<const void*>(d.signs.ptr),
+        static_cast<const void*>(d.deviceOwner.ptr),static_cast<const void*>(d.deviceNeighbour.ptr),static_cast<const void*>(d.coupled.ptr),
+        static_cast<const void*>(d.fluxAdjacentCells.ptr),static_cast<const void*>(d.fluxJump.ptr),static_cast<const void*>(d.solution.ptr),
+        static_cast<const void*>(d.previousSolution.ptr),static_cast<const void*>(d.residual.ptr),static_cast<const void*>(d.neighbourTemperature.ptr),
+        static_cast<const void*>(d.faceFlux.ptr),static_cast<const void*>(d.conductivityWeights.ptr),static_cast<const void*>(d.conductivityBoundary.ptr),
+        static_cast<const void*>(d.conductivityNeighbour.ptr),static_cast<const void*>(d.conductivityCoupled.ptr),static_cast<const void*>(d.conductivityAdjacentCells.ptr),
+        static_cast<const void*>(d.conductivityJump.ptr),static_cast<const void*>(d.gradientWeights.ptr),static_cast<const void*>(d.valueInternal.ptr),
+        static_cast<const void*>(d.valueBoundary.ptr),static_cast<const void*>(d.normalInternal.ptr),static_cast<const void*>(d.normalBoundary.ptr),
+        static_cast<const void*>(d.jump.ptr),static_cast<const void*>(d.faceTemperature.ptr),static_cast<const void*>(d.boundaryValueDelta.ptr),
+        static_cast<const void*>(d.prescribedEnergy.ptr),static_cast<const void*>(d.prescribedSelected.ptr),static_cast<const void*>(d.gradientNeighbour.ptr),
+        static_cast<const void*>(d.faceArea.ptr),static_cast<const void*>(d.correctionDirection.ptr),static_cast<const void*>(d.neighbourTransform.ptr),
+        static_cast<const void*>(d.gradient.ptr),static_cast<const void*>(d.volume.ptr),static_cast<const void*>(d.gamma.ptr),
+        static_cast<const void*>(d.area.ptr),static_cast<const void*>(d.delta.ptr),static_cast<const void*>(d.gradientInternal.ptr),
+        static_cast<const void*>(d.gradientBoundary.ptr),static_cast<const void*>(d.correction.ptr),static_cast<const void*>(d.capacity.ptr),
+        static_cast<const void*>(d.rhs.ptr),static_cast<const void*>(d.diagonal.ptr),static_cast<const void*>(d.source.ptr),
+        static_cast<const void*>(d.upper.ptr),static_cast<const void*>(d.lower.ptr),static_cast<const void*>(d.boundaryDiagonal.ptr),
+        static_cast<const void*>(d.boundarySource.ptr),static_cast<const void*>(d.flux.ptr)
+    })key.add(p);
+    key.add(d.cells);key.add(d.internal);key.add(d.owner.size());
+    key.add(d.asymmetric);key.add(d.residentBoundary);key.add(d.residentConductivity);
+    key.add(d.prescribedConductivity);key.add(d.prescribedInterval);
+    key.add(d.prepared.faces);key.add(d.prepared.valid);key.add(d.prepared.corrected);
+    key.add(d.prepared.harmonic);key.add(d.prepared.transient);key.add(d.prepared.sourceFromCapacity);
+    key.add(d.prepared.conductivity);key.add(d.prepared.boundaryConductivity);key.add(d.prepared.temperature);
+    key.add(d.prepared.capacity);key.add(d.prepared.rhs);key.add(d.prepared.interval);
+    return key;
+}
 void ImplicitDiffusion::assembleResident(const DiffusionInput& input,const DiffusionTransientInput* transient){
     auto& d=*data_;const int n=input.cells,ni=input.internalFaces,nf=input.owner.size(),nb=nf-ni;
     d.asymmetric=false;d.residentBoundary=input.deviceTemperature;d.residentConductivity=input.deviceConductivity;

@@ -2394,6 +2394,7 @@ int launchCsrHeavyPoolReduction
 #include "../../../common/GpuCollisionPoolSampling.cuh"
 
 #include "operators/samplePoissonPoolParticlesKernel.cuh"
+#include "GpuPoissonSampleReduction.cuh"
 
 #include "../../../common/GpuCollisionPoolCorrection.cuh"
 
@@ -5099,17 +5100,8 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             err=cudaGetLastError();if(err!=cudaSuccess){setLastError("preparePoissonPoolSamplingKernel launch",err);return 1;}
         }
 
-        samplePoissonPoolParticlesKernel<<<particleGrid, s->particleBlockThreads,0,stream>>>
-        (
-            s->deviceState,
-            0
-        );
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("samplePoissonPoolParticlesKernel launch", err);
-            return 1;
-        }
+        if(launchPoissonPoolSampling(s,block,particleGrid,
+            static_cast<int>(currentPreTransportDirectoryKind(s)),stream))return 1;
 
         correctPoissonThermalizedParticlesKernel<<<particleGrid, s->particleBlockThreads,0,stream>>>
         (

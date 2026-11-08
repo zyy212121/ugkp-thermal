@@ -12,8 +12,9 @@ struct MaterialBackend;
 MaterialBackend* createMaterialBackend(std::string&);
 void destroyMaterialBackend(MaterialBackend*) noexcept;
 void setMaterialDiagnosticsSink(MaterialBackend&,const ugkp::diagnostics::HostSink&);
-// Upload the accepted inventory once. Subsequent source steps retain both
-// current/candidate inventories, transport work and donor changes on device.
+// Accepted material inventories remain resident across windows. A supplied
+// state differing from the last full publication is explicitly re-imported;
+// unchanged window handoffs retain the device inventory and workspaces.
 bool beginMaterialWindow(MaterialBackend&,const HostState&,const PhysicsConfig&,std::string&);
 bool prepareResidentMaterialConduction(MaterialBackend&,const HostMesh&,
     const std::vector<Real>& nativeVolumes,std::vector<MaterialThermalInput>&,
@@ -68,14 +69,15 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend&,const HostState&,
     const std::vector<MaterialSurfaceRequest>&,Real dt,bool useTransportRates,
     bool candidateState,std::vector<CpuSurfaceResult>&,std::string&,bool& numericalFailure,
     const std::vector<Real>* sideVolume=nullptr,bool* terminalWallFailure=nullptr);
-// The host mirror is retained for the not-yet-migrated geometry and implicit
-// conduction owners; it never feeds the next reaction/transport stage back.
+// The optional observation selects only material cells read by the geometry
+// owner. In that mode hostMirror is packed in observedCells order; the full
+// authoritative inventory stays resident through local source steps.
 bool advanceResidentMaterialSources(MaterialBackend&,const HostMesh& endpointMesh,
     const SurfaceMesh&,const std::vector<ExchangePacket>&,
     const std::vector<Real>& radiation,const std::vector<unsigned>& radiationReceiver,
     Real dt,const CpuMaterialControls&,bool finalStep,
     std::vector<SolidQ>& hostMirror,std::vector<SolidQ>& cumulativeDonor,
-    std::string&,bool& numericalFailure);
+    std::string&,bool& numericalFailure,const std::vector<int>* observedCells=nullptr);
 void commitResidentMaterialStep(MaterialBackend&,Real time);
 }
 #endif

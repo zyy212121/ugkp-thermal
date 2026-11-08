@@ -2619,6 +2619,7 @@ __device__ void finalizeOneThermalizedMobileParticle
 #include "operators/finalizeOneThermalizedParticlePath.cuh"
 
 #include "operators/samplePoissonPoolParticlesKernel.cuh"
+#include "GpuPoissonSampleReduction.cuh"
 
 #include "operators/correctOnePoissonThermalizedParticlePath.cuh"
 
@@ -4709,17 +4710,8 @@ int submitResidentThermalParticles(DeviceState* s,double dt,double simulationTim
             return 1;
         }
 
-        samplePoissonPoolParticlesKernel<<<particleGrid, s->particleBlockThreads,0,stream>>>
-        (
-            s->deviceState,
-            0
-        );
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("samplePoissonPoolParticlesKernel launch", err);
-            return 1;
-        }
+        if(launchPoissonPoolSampling(s,block,particleGrid,
+            s->splitPreDirectoryActive?1:0,stream))return 1;
 
         if (pairedHeatActive)
             correctPoissonThermalizedMobileParticlesKernel<true>

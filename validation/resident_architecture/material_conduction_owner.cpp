@@ -28,6 +28,16 @@ int main(int argc,char** argv){
  Foam::argList args(argc,argv);if(!args.checkRootCase())return 2;
  Foam::Time time(Foam::Time::controlDictName,args);Foam::fvMesh mesh(Foam::IOobject(Foam::polyMesh::defaultRegion,time.timeName(),time,Foam::IOobject::MUST_READ));
  int id=0;std::cout<<std::setprecision(17);
+ std::string backendError;
+ std::unique_ptr<MaterialBackend,decltype(&destroyMaterialBackend)> owner(createMaterialBackend(backendError),destroyMaterialBackend);
+ if(!owner){std::cerr<<backendError<<'\n';return 2;}
+ auto* thermal=owner.get();
+ ugkp::gpu::SparseConjugateGradient sparse;
+#if defined(CHMT_RETAINED_CONDUCTION_WORKSPACE)
+ MaterialConductionWorkspace retainedWorkspace;
+#elif defined(CHMT_RETAINED_DIFFUSION)
+ ugkp::gpu::ImplicitDiffusion retainedDiffusion;
+#endif
  for(double cp1:{0.,2.,20.})for(double dt:{.01,10.,10000.})for(double tol:{1e-2,1e-5,1e-8}){
  ModelConfig model;auto&p=model.physics;p.gasMode=ugkwp::GasMode::MixtureFrozen;
  for(auto&c:p.condensed){c.rho=1000;c.cp0=1000;c.cp1=cp1;c.conductivity=1000;c.Tmin=100;c.Tmax=3000;}
@@ -42,11 +52,14 @@ int main(int argc,char** argv){
  CpuMaterialControls controls;controls.nonlinearMaxIterations=100;controls.nonlinearRelativeTolerance=tol;controls.energyAbsoluteTolerance=1e-8;controls.energyRelativeTolerance=1e-12;
  HostState next=base;CpuMaterialReport report;std::string error;
  if(Foam::Pstream::master())std::cout<<"CASE "<<id++<<' '<<cp1<<' '<<dt<<' '<<tol<<'\n';
- auto* thermal=createMaterialBackend(error);if(!thermal){std::cerr<<error<<'\n';return 2;}
  if(!beginMaterialWindow(*thermal,base,p,error)){std::cerr<<error<<'\n';return 3;}
- ugkp::gpu::SparseConjugateGradient sparse;
- bool ok=nativeConduction(mesh,base,next,p,dt,controls,report,error,sparse,*thermal);
- destroyMaterialBackend(thermal);
+ bool ok=nativeConduction(mesh,base,next,p,dt,controls,report,error,sparse,*thermal
+#if defined(CHMT_RETAINED_CONDUCTION_WORKSPACE)
+ ,retainedWorkspace
+#elif defined(CHMT_RETAINED_DIFFUSION)
+ ,retainedDiffusion
+#endif
+ );
 
  // Independent per-cell balance from returned inventories and Cartesian
  // Fourier face fluxes, not the nonlinear solver's reported global residual.

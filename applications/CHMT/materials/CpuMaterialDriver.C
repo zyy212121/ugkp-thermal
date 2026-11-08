@@ -17,6 +17,7 @@
 #include "mesh/TrajectorySurface.H"
 #include "coupling/IntervalAudit.H"
 #include "fvCFD.H"
+#include "OStringStream.H"
 #include "DiagnosticsFoam.H"
 #include "DiagnosticsCatalogue.H"
 #include "fixedValueFvPatchFields.H"
@@ -41,19 +42,73 @@ bool controlsValid(const CpuMaterialControls& c){return (finite(c.maxSubstep)&&c
     &&finite(c.driveRelativeTolerance)&&c.driveRelativeTolerance>=0&&finite(c.driveSourceFraction)&&c.driveSourceFraction>0
     &&finite(c.driveTractionScale)&&c.driveTractionScale>0&&(c.maxSubsteps>0)&&((c.nonlinearMaxIterations>0&&finite(c.nonlinearRelativeTolerance)&&c.nonlinearRelativeTolerance>=0
     &&finite(c.energyAbsoluteTolerance)&&c.energyAbsoluteTolerance>=0&&finite(c.energyRelativeTolerance)&&c.energyRelativeTolerance>=0)));}
+struct MaterialGeometryInventory {
+    std::vector<int> cells,row;
+    std::vector<SolidQ> values;
+    MaterialGeometryInventory(const HostState& base,const IntervalHistory& history):row(base.solid.size(),-1){
+        const auto include=[&](int cell){
+            if(cell>=0&&std::size_t(cell)<row.size()&&row[cell]<0){
+                row[cell]=cells.size();cells.push_back(cell);values.push_back(base.solid[cell]);
+            }
+        };
+        for(int cell:base.surface.solidCell)include(cell);
+        for(const auto& record:history.records())for(const auto& packet:record.packets)
+            if(packet.kind==ExchangeKind::GasSolid)include(packet.solidCell);
+    }
+    const SolidQ& at(int cell)const{return values.at(row.at(cell));}
+};
+struct MaterialConductionWorkspace {
+    // Destroy fields before their private native region. Geometry changes
+    // replace that region without movePoints callbacks on the accepted mesh;
+    // the common GPU matrix/workspace survives those native metadata changes.
+    std::unique_ptr<Foam::fvMesh> mesh;
+    std::unique_ptr<Foam::volScalarField> temperature,capacity,conductivity,source;
+    ugkp::gpu::ImplicitDiffusion diffusion;
+    const Foam::fvMesh* origin=nullptr;
+    std::uint64_t topology=0;
+    std::vector<Vec3> points;
+    Foam::wordList temperatureTypes;
+    Foam::string boundaryDefinition;
+    static Foam::string boundaryPolicy(const Foam::fvMesh& region){
+        Foam::OStringStream output;
+        forAll(region.boundaryMesh(),patch){
+            output<<region.boundaryMesh()[patch].name()<<Foam::nl;
+            region.boundaryMesh()[patch].write(output);
+        }
+        return output.str();
+    }
+    bool sameGeometry(const Foam::fvMesh& accepted,const HostMesh& state)const{
+        if(!mesh||origin!=&accepted||topology!=state.topologyHash||points.size()!=state.points.size()
+            ||mesh->nCells()!=accepted.nCells()||mesh->nFaces()!=accepted.nFaces())return false;
+        if(mesh->faces()!=accepted.faces()||mesh->faceOwner()!=accepted.faceOwner()
+            ||mesh->faceNeighbour()!=accepted.faceNeighbour()||boundaryDefinition!=boundaryPolicy(accepted))return false;
+        for(std::size_t i=0;i<points.size();++i)
+            if(points[i].x!=state.points[i].x||points[i].y!=state.points[i].y||points[i].z!=state.points[i].z)return false;
+        return true;
+    }
+    void clearFields(){temperature.reset();capacity.reset();conductivity.reset();source.reset();}
+};
 bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState& next,const PhysicsConfig& p,
-    Real dt,const CpuMaterialControls& controls,CpuMaterialReport& report,std::string& error,ugkp::gpu::SparseConjugateGradient& sparse,MaterialBackend& thermal){
-    const std::size_t n=next.solid.size();if(n==0)return true;
+    Real dt,const CpuMaterialControls& controls,CpuMaterialReport& report,std::string& error,ugkp::gpu::SparseConjugateGradient& sparse,MaterialBackend& thermal,
+    MaterialConductionWorkspace& workspace){
+    auto& residentDiffusion=workspace.diffusion;
+    const std::size_t n=next.solidMesh.volumes.size();if(n==0)return true;
+    next.solid.resize(n);
     if(!validateThermalBoundaries(next.solidMesh,error)){report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
     if((acceptedMesh.nCells()!=static_cast<Foam::label>(n)||next.solidMesh.points.size()!=static_cast<std::size_t>(acceptedMesh.nPoints()))){report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;error="CPU material fvMesh topology mismatch";return false;}
-    // A fresh unregistered full native region avoids movePoints side effects
-    // (old volumes, meshPhi, moving flag and Time callbacks) on accepted state.
-    Foam::fvMesh mesh(Foam::IOobject(acceptedMesh.name(),acceptedMesh.time().timeName(),acceptedMesh.time(),
-        Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),foamPoints(next.solidMesh.points),
-        Foam::faceList(acceptedMesh.faces()),Foam::labelList(acceptedMesh.faceOwner()),Foam::labelList(acceptedMesh.faceNeighbour()));
-    Foam::List<Foam::polyPatch*> patches(acceptedMesh.boundaryMesh().size());
-    forAll(patches,patch)patches[patch]=acceptedMesh.boundaryMesh()[patch].clone(mesh.boundaryMesh()).ptr();
-    mesh.addFvPatches(patches);
+    if(!workspace.sameGeometry(acceptedMesh,next.solidMesh)){
+        workspace.clearFields();
+        workspace.mesh.reset(new Foam::fvMesh(Foam::IOobject(acceptedMesh.name(),acceptedMesh.time().timeName(),acceptedMesh.time(),
+            Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),foamPoints(next.solidMesh.points),
+            Foam::faceList(acceptedMesh.faces()),Foam::labelList(acceptedMesh.faceOwner()),Foam::labelList(acceptedMesh.faceNeighbour())));
+        auto& mesh=*workspace.mesh;
+        Foam::List<Foam::polyPatch*> patches(acceptedMesh.boundaryMesh().size());
+        forAll(patches,patch)patches[patch]=acceptedMesh.boundaryMesh()[patch].clone(mesh.boundaryMesh()).ptr();
+        mesh.addFvPatches(patches);
+        workspace.origin=&acceptedMesh;workspace.topology=next.solidMesh.topologyHash;workspace.points=next.solidMesh.points;
+        workspace.boundaryDefinition=MaterialConductionWorkspace::boundaryPolicy(acceptedMesh);
+    }
+    auto& mesh=*workspace.mesh;
     for(std::size_t c=0;c<n;++c)if(!closeEnough(mesh.V()[c],next.solidMesh.volumes[c],p.tolerances.absoluteGeometry,p.tolerances.relativeGeometry)){
         materialWarning(next,ugkp::diagnostics::Code::ConservationResidual,"OpenFOAM / conservative material volume discrepancy",mesh.V()[c]-next.solidMesh.volumes[c],p.tolerances.absoluteGeometry+p.tolerances.relativeGeometry*absValue(next.solidMesh.volumes[c]));}
     Foam::wordList patchTypes(mesh.boundary().size(),Foam::zeroGradientFvPatchScalarField::typeName);
@@ -62,14 +117,19 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
 
             const bool fixed=next.solidMesh.boundaryKind[face]!=BoundaryKind::Interface&&fixedTemperature(next.solidMesh.thermalBoundary.empty()?nullptr:next.solidMesh.thermalBoundary.data(),face);
             hasFixed=hasFixed||fixed;hasFree=hasFree||!fixed;}if(hasFixed&&hasFree){report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;error="mixed per-face material thermal policy within one native patch";return false;}if(hasFixed)patchTypes[patch]=Foam::fixedValueFvPatchScalarField::typeName;}}
-    Foam::volScalarField temperature(Foam::IOobject("CHMTMaterialTemperature",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,
-        Foam::dimensionedScalar("initial",Foam::dimTemperature,300),patchTypes);
+    if(!workspace.temperature||workspace.temperatureTypes!=patchTypes){
+        workspace.temperature.reset(new Foam::volScalarField(Foam::IOobject("CHMTMaterialTemperature",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,
+            Foam::dimensionedScalar("initial",Foam::dimTemperature,300),patchTypes));
+        workspace.temperatureTypes=patchTypes;
+    }
+    auto& temperature=*workspace.temperature;
     std::vector<MaterialCaloric> caloric(n);std::vector<Real> anchor(n),target(n);
     std::vector<MaterialThermalInput> thermalInput;bool numerical=false;
     const std::vector<Real> nativeVolumes(mesh.V().begin(),mesh.V().end());
     if(!prepareResidentMaterialConduction(thermal,next.solidMesh,nativeVolumes,thermalInput,error,numerical)){
         if(numerical)report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;
     }
+    if(thermalInput.size()!=n){error="resident material conduction inventory/mesh extent mismatch";return false;}
     for(std::size_t c=0;c<n;++c){const auto& input=thermalInput[c];
         caloric[c]=input.caloric;anchor[c]=input.anchor;target[c]=input.target;temperature[c]=input.anchor;}
     forAll(mesh.boundary(),patch)if(patchTypes[patch]==Foam::fixedValueFvPatchScalarField::typeName)forAll(mesh.boundary()[patch],f){const int face=mesh.boundary()[patch].start()+f;temperature.boundaryFieldRef()[patch][f]=next.solidMesh.boundaryPrimitive[face].temperature;}
@@ -79,17 +139,27 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
     const Foam::dimensionSet conductivityDimensions=Foam::dimPower/Foam::dimLength/Foam::dimTemperature;
     const Foam::dimensionedScalar deltaT("materialDt",Foam::dimTime,dt);
     Foam::dictionary solver;solver.add("solver",Foam::word("PCG"));solver.add("preconditioner",Foam::word("DIC"));solver.add("tolerance",Foam::scalar(1e-12));solver.add("relTol",Foam::scalar(0));solver.add("maxIter",Foam::label(2000));
-    ugkp::gpu::ImplicitDiffusion residentDiffusion;
     const auto initialDeviceFields=residentMaterialConductionFields(thermal);
     residentDiffusion.copySolution(initialDeviceFields.initialTemperature,n,initialDeviceFields.readyStream);
     ugkp::gpu::installGpuImplicitDiffusion();
     mesh.schemes().setFluxRequired(temperature.name());
     bool residentConvergence=false;std::vector<int> externalBoundary;
     forAll(mesh.boundary(),patch)forAll(mesh.boundary()[patch],f)externalBoundary.push_back(mesh.boundary()[patch].coupled()?0:1);
+    if(!workspace.capacity){
+        workspace.capacity.reset(new Foam::volScalarField(Foam::IOobject("CHMTMaterialSecant",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,Foam::dimensionedScalar("zero",capacityDimensions,0),coefficientTypes));
+        workspace.conductivity.reset(new Foam::volScalarField(Foam::IOobject("CHMTMaterialKappa",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,Foam::dimensionedScalar("zero",conductivityDimensions,0),coefficientTypes));
+        workspace.source.reset(new Foam::volScalarField(Foam::IOobject("CHMTMaterialEnergySource",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,Foam::dimensionedScalar("zero",Foam::dimPower/Foam::dimVolume,0)));
+    }
+    auto& capacity=*workspace.capacity;auto& conductivity=*workspace.conductivity;auto& source=*workspace.source;
     for(int iteration=0;iteration<(controls.nonlinearMaxIterations);++iteration){Foam::scalarField previous(temperature.primitiveField());
-        Foam::volScalarField capacity(Foam::IOobject("CHMTMaterialSecant",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,Foam::dimensionedScalar("zero",capacityDimensions,0),coefficientTypes);
-        Foam::volScalarField conductivity(Foam::IOobject("CHMTMaterialKappa",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,Foam::dimensionedScalar("zero",conductivityDimensions,0),coefficientTypes);
-        Foam::volScalarField source(Foam::IOobject("CHMTMaterialEnergySource",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,Foam::dimensionedScalar("zero",Foam::dimPower/Foam::dimVolume,0));
+        // Preserve the native scheme's original fresh-field inputs while
+        // reusing their allocations, including nonlocal configured policies.
+        capacity.primitiveFieldRef()=Foam::scalar(0);conductivity.primitiveFieldRef()=Foam::scalar(0);source.primitiveFieldRef()=Foam::scalar(0);
+        forAll(mesh.boundary(),patch){
+            capacity.boundaryFieldRef()[patch]==Foam::scalar(0);
+            conductivity.boundaryFieldRef()[patch]==Foam::scalar(0);
+            source.boundaryFieldRef()[patch]==Foam::scalar(0);
+        }
         std::vector<Real> trial(temperature.primitiveField().begin(),temperature.primitiveField().end());
         std::vector<MaterialThermalCoefficients> coefficients;
         if(!evaluateResidentMaterialConduction(thermal,trial,dt,coefficients,error,
@@ -242,6 +312,7 @@ bool baseTrace(const HostState& base,const PhysicsConfig& p,std::vector<GasPrimi
 } // namespace
 struct CpuMaterialDriver::Implementation {
     std::unique_ptr<ugkp::gpu::SparseConjugateGradient> conduction;
+    MaterialConductionWorkspace conductionWorkspace;
     ModelConfig model;Foam::fvMesh* mesh;
     ugkwp::GasMechanismConfiguration mechanism;
     std::unique_ptr<WallClosureHost> wall;bool terminalWallFailure=false,surfaceNumericalFailure=false;
@@ -417,7 +488,12 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
             origin=numerical?MaterialFailureOrigin::GeometryNumerical:MaterialFailureOrigin::None;
             return false;
         };
+        MaterialGeometryInventory geometryInventory(base,history);
         HostState state=base;state.filmAux=dryGeometryAux(base);state.ledger.clear();state.filmStorage.clear();
+        // Local sources own material inventories on device. Geometry reads a
+        // separate packed observation; publish a full state only at the window
+        // endpoint, after conduction, rather than copying it every substep.
+        state.solid.clear();
         const bool staticGeometry=p.meshMotion.policy==MeshMotionPolicy::Static;
         HostState trial;
         if(staticGeometry){trial.gasMesh=state.gasMesh;trial.solidMesh=state.solidMesh;
@@ -521,7 +597,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     std::size_t match=0;
                     if(!packetAddressing.gasSolidIndex(state,packet,match,error))break;
                     const int donor=packet.solidCell;
-                    const auto recession=addMaterialRecessionTarget(packet.condensed,state.solid[donor],state.solidMesh.volumes[donor],p,target[match]);
+                    const auto recession=addMaterialRecessionTarget(packet.condensed,geometryInventory.at(donor),state.solidMesh.volumes[donor],p,target[match]);
                     if(recession!=MaterialRecessionError::None){
                         lastFailure=MaterialFailureOrigin::GeometryNumerical;
                         error=recession==MaterialRecessionError::DonorEos?"surface donor EOS failed":"invalid surface recession constituent";break;
@@ -584,10 +660,10 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                         for(std::size_t f=0;f<surface.physics.size();++f){if(state.surface.gasFace[f]<0)continue;
                             const auto& a=surface.physics[f];const auto& b=response.physics[f];const Real scale=state.surface.area[f]*dt;
                             const int cell=state.surface.solidCell[f];Real solidDonor=0;
-                            if(cell>=0)for(int c=0;c<Nc;++c)solidDonor+=state.solid[cell].condensed[c];
+                            if(cell>=0)for(int c=0;c<Nc;++c)solidDonor+=geometryInventory.at(cell).condensed[c];
                             for(int species=0;species<Ns;++species){const Real donor=solidDonor;
                                 fraction=maxValue(fraction,scale*absValue(a.gasSpecies[species]-b.gasSpecies[species])/maxValue(p.tolerances.absoluteMass,donor));
-                                if(cell>=0)fraction=maxValue(fraction,scale*absValue(a.poreSpecies[species]-b.poreSpecies[species])/maxValue(p.tolerances.absoluteMass,state.solid[cell].pore[species]));}
+                                if(cell>=0)fraction=maxValue(fraction,scale*absValue(a.poreSpecies[species]-b.poreSpecies[species])/maxValue(p.tolerances.absoluteMass,geometryInventory.at(cell).pore[species]));}
                         }
                         if(fraction>controls.driveSourceFraction)materialWarning(state,ugkp::diagnostics::Code::AccuracyResidual,"material source variation",fraction,controls.driveSourceFraction);
                     }
@@ -602,10 +678,10 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     break;
                 }}
                 if(dt>transport.dtLimit)materialWarning(state,ugkp::diagnostics::Code::AccuracyResidual,"ALE material transport step bound",dt,transport.dtLimit);
-                bool sourceNumerical=false;
+                bool sourceNumerical=false;std::vector<SolidQ> nextGeometryInventory;
                 if(!advanceResidentMaterialSources(*data_->gpu,trial.solidMesh,state.surface,packets,
                     radiation,driveRecord->radiationReceiver,dt,controls,trialElapsed==windowEnd,
-                    trial.solid,cumulativeDonor,error,sourceNumerical)){
+                    nextGeometryInventory,cumulativeDonor,error,sourceNumerical,&geometryInventory.cells)){
                     lastFailure=sourceNumerical?MaterialFailureOrigin::ReactionNumerical:MaterialFailureOrigin::None;
                     break;
                 }
@@ -630,6 +706,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 }
                 accumulated.materialSteps++;
                 commitResidentMaterialStep(*data_->gpu,trial.time);
+                geometryInventory.values=std::move(nextGeometryInventory);
                 if(staticGeometry)std::swap(static_cast<HostDynamicState&>(state),static_cast<HostDynamicState&>(trial));
                 else state=std::move(trial);
                 elapsed=trialElapsed;cursor=trialCursor;accepted=true;
@@ -639,10 +716,10 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
         // Lie/IMEX splitting: all conservative local sources are now in Utarget.
         // This is one true 3-D backward-Euler conduction candidate per window,
         // regardless of gas microstep or local reaction step count.
-        if(!state.solid.empty()){
+        if(!state.solidMesh.volumes.empty()){
             if(p.diagnostics)ugkp::diagnostics::beginOperation(*p.diagnostics,window.identity.sequence,base.acceptedSteps,state.time);
             if(!data_->conduction)data_->conduction.reset(new ugkp::gpu::SparseConjugateGradient);
-            const bool solved=nativeConduction(*data_->mesh,base,state,p,interval,controls,accumulated,error,*data_->conduction,*data_->gpu);
+            const bool solved=nativeConduction(*data_->mesh,base,state,p,interval,controls,accumulated,error,*data_->conduction,*data_->gpu,data_->conductionWorkspace);
             if(!solved){report=accumulated;return false;}
         }
         const auto samePoints=[](const HostMesh& a,const HostMesh& b){if(a.points.size()!=b.points.size())return false;for(std::size_t i=0;i<a.points.size();++i)if(a.points[i].x!=b.points[i].x||a.points[i].y!=b.points[i].y||a.points[i].z!=b.points[i].z)return false;return true;};

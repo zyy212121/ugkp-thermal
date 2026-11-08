@@ -17,7 +17,7 @@ struct CsrChoiceKey {
     }
 };
 struct CsrChoiceGraph {CsrChoiceKey key{};cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;};
-struct CsrChoiceGraphs {CsrChoiceGraph entry[8]{};};
+struct CsrChoiceGraphs {CsrChoiceGraph entry[11]{};};
 inline cudaError_t releaseCsrChoiceGraph(CsrChoiceGraph& graph) {
     cudaError_t error=cudaSuccess;
     if(graph.executable)error=cudaGraphExecDestroy(graph.executable);

@@ -4,6 +4,8 @@ namespace mixtureParticles {
 struct SerialCouplingTeam {
  __device__ int rank()const{return 0;} __device__ int width()const{return 1;}
  __device__ double sum(double x)const{return x;}
+ __device__ double minimum(double x)const{return x;}
+ __device__ double maximum(double x)const{return x;}
  template<class T> __device__ T broadcast(T x)const{return x;}
  __device__ void sync()const{}
 };
@@ -12,6 +14,14 @@ struct WarpCouplingTeam {
  __device__ int rank()const{return threadIdx.x%32;} __device__ int width()const{return 32;}
  __device__ double sum(double x)const{
   for(int offset=16;offset;offset/=2)x+=__shfl_down_sync(0xffffffffu,x,offset);
+  return __shfl_sync(0xffffffffu,x,0);
+ }
+ __device__ double minimum(double x)const{
+  for(int offset=16;offset;offset/=2)x=fmin(x,__shfl_down_sync(0xffffffffu,x,offset));
+  return __shfl_sync(0xffffffffu,x,0);
+ }
+ __device__ double maximum(double x)const{
+  for(int offset=16;offset;offset/=2)x=fmax(x,__shfl_down_sync(0xffffffffu,x,offset));
   return __shfl_sync(0xffffffffu,x,0);
  }
  template<class T> __device__ T broadcast(T x)const{return __shfl_sync(0xffffffffu,x,0);}

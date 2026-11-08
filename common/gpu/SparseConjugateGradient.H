@@ -75,6 +75,7 @@ class SparseConjugateGradient {
     void prepareLdu(const SparseLduView&,const SparseDeviceLduValues*,bool assemble=true);
 public:
     SparseConjugateGradient();
+    ExecutionGraphSignature residentExecutionSignature() const;
     ~SparseConjugateGradient();
     SparseConjugateGradient(const SparseConjugateGradient&)=delete;
     SparseConjugateGradient& operator=(const SparseConjugateGradient&)=delete;

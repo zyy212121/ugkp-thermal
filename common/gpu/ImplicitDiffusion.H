@@ -45,6 +45,7 @@ class ImplicitDiffusion {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:
     ImplicitDiffusion();~ImplicitDiffusion();
+    ExecutionGraphSignature residentExecutionSignature() const;
     // This owner retains matrix factors and the iterate across its shared
     // assembly, sparse solve, residual and flux operators.
     void assembleResident(const DiffusionInput&,const DiffusionTransientInput* transient=nullptr);

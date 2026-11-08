@@ -1,10 +1,12 @@
 #pragma once
 // Shared Gaussian sampling and weighted moments; native contact metadata remains an extension.
+template<bool AtomicMoments = true>
 __device__ void sampleOnePoissonPoolParticle
 (
     DeviceState& s,
     const int i,
-    const bool applyThetaDrag
+    const bool applyThetaDrag,
+    GPU_OPERATOR_REAL* moments = nullptr
 )
 {
     if (i >= s.particleCapacity || s.pStatus[i] != 2)
@@ -110,31 +112,22 @@ __device__ void sampleOnePoissonPoolParticle
     const GPU_OPERATOR_REAL sampleFluctuationX = s.pux[i] - targetUx;
     const GPU_OPERATOR_REAL sampleFluctuationY = s.puy[i] - targetUy;
     const GPU_OPERATOR_REAL sampleFluctuationZ = s.puz[i] - targetUz;
-    atomicAdd
-    (
-        &s.poolThermalSumUx[c],
-        sampleMass*sampleFluctuationX
-    );
-    atomicAdd
-    (
-        &s.poolThermalSumUy[c],
-        sampleMass*sampleFluctuationY
-    );
-    atomicAdd
-    (
-        &s.poolThermalSumUz[c],
-        sampleMass*sampleFluctuationZ
-    );
-    atomicAdd
-    (
-        &s.poolThermalSumU2[c],
-        sampleMass*sqr3
-        (
-            sampleFluctuationX,
-            sampleFluctuationY,
-            sampleFluctuationZ
-        )
-    );
+    const GPU_OPERATOR_REAL contribution[4] = {
+        sampleMass*sampleFluctuationX, sampleMass*sampleFluctuationY,
+        sampleMass*sampleFluctuationZ,
+        sampleMass*sqr3(sampleFluctuationX,sampleFluctuationY,sampleFluctuationZ)};
+    if constexpr (AtomicMoments)
+    {
+        atomicAdd(&s.poolThermalSumUx[c],contribution[0]);
+        atomicAdd(&s.poolThermalSumUy[c],contribution[1]);
+        atomicAdd(&s.poolThermalSumUz[c],contribution[2]);
+        atomicAdd(&s.poolThermalSumU2[c],contribution[3]);
+    }
+    else
+    {
+        #pragma unroll
+        for(int k=0;k<4;++k) moments[k]+=contribution[k];
+    }
 #if GPU_OPERATOR_THERMAL
     appendSelectedStuckParticleIndex(s, i);
 #endif

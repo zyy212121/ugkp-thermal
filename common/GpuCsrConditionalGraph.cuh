@@ -62,12 +62,20 @@ int launchCsrConditional(State* s,int kind,int block,int directory,int variant,S
     if(recording){
         cudaStreamCaptureStatus status;cudaGraph_t graph=nullptr;unsigned long long id=0;
         const cudaGraphNode_t* dependencies=nullptr;std::size_t count=0;
+#if CUDART_VERSION >= 13000
+        auto error=cudaStreamGetCaptureInfo(recording,&status,&id,&graph,&dependencies,nullptr,&count);
+#else
         auto error=cudaStreamGetCaptureInfo_v2(recording,&status,&id,&graph,&dependencies,&count);
+#endif
         if(error==cudaSuccess&&status!=cudaStreamCaptureStatusActive)error=cudaErrorStreamCaptureInvalidated;
         cudaGraphNode_t joined[2];
         if(error==cudaSuccess)error=appendCsrChoiceNodes(s,ugkp::gpu::particleRecordingRoot(s),graph,
             dependencies,count,joined,submit,inspectionOnly);
+#if CUDART_VERSION >= 13000
+        if(error==cudaSuccess)error=cudaStreamUpdateCaptureDependencies(recording,joined,nullptr,2,cudaStreamSetCaptureDependencies);
+#else
         if(error==cudaSuccess)error=cudaStreamUpdateCaptureDependencies(recording,joined,2,cudaStreamSetCaptureDependencies);
+#endif
         if(error!=cudaSuccess){setLastError("append resident CSR choice",error);return 1;}
         return 0;
     }

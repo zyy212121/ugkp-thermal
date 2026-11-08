@@ -27,26 +27,11 @@ __device__ ugkwp::ParticleCaloricHeatResponse cachedResponse(const State& s,int 
     return {particleCaloricDevice(s,i),s.mixtureHeatInitialTemperature[i],
         s.mixtureHeatFraction[i],s.TpMin,s.TpMax};
 }
-template<class State,class Team>
-struct Response {
-    const State& state;int cell;double dt,volume;bool csr,split;Team team;
-    __device__ ugkwp::ThermoStatus operator()(double T,double& q,double& derivative)const noexcept {
-        q=0.;derivative=0.;
-        const int n=mixtureParticles::count(state,cell,csr,split);
-        for(int pos=team.rank();pos<n;pos+=team.width()) {
-            const int i=mixtureParticles::parcel(state,cell,pos,csr,split);
-            if(!member(state,i,cell))continue;
-            double h,dh;cachedResponse(state,i)(T,h,dh);
-            q+=state.pm[i]*h/volume;derivative+=state.pm[i]*dh/volume;
-        }
-        q=team.sum(q);derivative=team.sum(derivative);
-        return ugkwp::gasFinite(q)&&ugkwp::gasFinite(derivative)?
-            ugkwp::ThermoStatus::Success:ugkwp::ThermoStatus::NonFiniteInput;
-    }
-};
+#include "GpuParticleCaloricResponseSum.cuh"
 }
 // Freeze only quantities independent of the gas root. Parcel enthalpy and its
-// derivative still use every trial gas temperature in the original equation.
+// derivative retain the original piecewise law at every trial temperature.
+// Repeated trials inside the same open segment reuse its aggregate polynomial.
 // This source-epoch kernel runs after drag and before any thermal publication.
 template<class State>
 __global__ void prepareMixtureThermalParticleHeatKernel(State*sp,double requestedDt){

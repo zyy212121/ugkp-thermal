@@ -16,6 +16,8 @@ for kind,source,build in [('baseline',a.baseline_source,a.baseline_build),('cand
     code=(app/'materials/CpuMaterialDriver.C').read_text();code=code[:code.index('// The dry interface owns geometry')]
     (out/'native_conduction.inc').write_text(code)
     flags=['g++','-std=c++17','-O2','-ffp-contract=off','-fopenmp','-ffunction-sections','-fdata-sections','-DNoRepository','-DWM_DP','-DWM_LABEL_SIZE=32','-DUGKWP_GAS_SPECIES=2']
+    if 'MaterialConductionWorkspace& workspace' in code:flags+=['-DCHMT_RETAINED_CONDUCTION_WORKSPACE']
+    elif 'ugkp::gpu::ImplicitDiffusion& residentDiffusion' in code:flags+=['-DCHMT_RETAINED_DIFFUSION']
     flags+=['-I'+str(x) for x in [out,app,app/'materials',source/'common',foam/'src/OpenFOAM/lnInclude',foam/'src/finiteVolume/lnInclude',foam/'src/meshTools/lnInclude',foam/'src/OSspecific/POSIX/lnInclude']]
     objects=[build/(x+'.o') for x in ['MaterialBackend','SparseConjugateGradient','MaterialThermalBackend','ImplicitDiffusion','ThermalFieldOperators']]
     command=flags+[str(ROOT/'validation/resident_architecture/material_conduction_owner.cpp'),str(app/'mesh/Geometry.C'),str(app/'materials/MaterialTransport.C'),*map(str,objects),'-Wl,--gc-sections','-L'+str(lib),'-lfiniteVolume','-lmeshTools','-lOpenFOAM','-L'+str(lib/mpi),'-lPstream','-L/usr/local/cuda/lib64','-Wl,-rpath,/usr/local/cuda/lib64','-lcudart','-o',str(out/'probe')]

@@ -470,6 +470,26 @@ struct SparseConjugateGradient::Implementation {
 };
 SparseConjugateGradient::SparseConjugateGradient():data_(new Implementation){}
 SparseConjugateGradient::~SparseConjugateGradient()=default;
+ExecutionGraphSignature SparseConjugateGradient::residentExecutionSignature()const{
+    const auto& d=*data_;ExecutionGraphSignature key;key.add(this);
+    for(const void* p:{
+        static_cast<const void*>(d.offsets.ptr),static_cast<const void*>(d.columns.ptr),static_cast<const void*>(d.entrySource.ptr),
+        static_cast<const void*>(d.entryKind.ptr),static_cast<const void*>(d.boundaryOffsets.ptr),static_cast<const void*>(d.boundaryIndices.ptr),
+        static_cast<const void*>(d.boundaryNeighbour.ptr),static_cast<const void*>(d.boundaryJump.ptr),static_cast<const void*>(d.affine.ptr),
+        static_cast<const void*>(d.values.ptr),static_cast<const void*>(d.rowSum.ptr),static_cast<const void*>(d.x.ptr),
+        static_cast<const void*>(d.b.ptr),static_cast<const void*>(d.r.ptr),static_cast<const void*>(d.z.ptr),
+        static_cast<const void*>(d.p.ptr),static_cast<const void*>(d.ap.ptr),static_cast<const void*>(d.partial.ptr),
+        static_cast<const void*>(d.recurrence.ptr),static_cast<const void*>(d.localParameters.ptr),static_cast<const void*>(d.localReport.ptr)
+    })key.add(p);
+    key.add(d.residentRows);key.add(d.residentConfigured);key.add(d.residentAffine);
+    const auto& v=d.residentValues;
+    key.add(v.diagonal);key.add(v.upper);key.add(v.lower);key.add(v.source);
+    key.add(v.boundaryDiagonal);key.add(v.boundarySource);key.add(v.boundaryJump);
+    const auto& c=d.graphControls;
+    key.add(c.maximumIterations);key.add(c.minimumIterations);key.add(c.tolerance);
+    key.add(c.relativeTolerance);key.add(c.normalizationSmall);key.add(c.singularSmall);
+    return key;
+}
 ConjugateGradientReport SparseConjugateGradient::solve(const SparseMatrixView& matrix,
     const double* source,double* solution,const ConjugateGradientControls& controls,const SparseCommunication& comm){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);const int n=matrix.rows;

@@ -155,6 +155,12 @@ __global__ void finishConductionIteration(MaterialConductionIteration* report,co
     }
 }
 }
+namespace {
+__global__ void gatherMaterialObservation(int count,const int* cells,const SolidQ* state,SolidQ* observed){
+    const int row=blockIdx.x*blockDim.x+threadIdx.x;
+    if(row<count)observed[row]=state[cells[row]];
+}
+}
 struct MaterialRowStorage {
     Buffer<int> keys,sortedKeys,inputIndices,counts;
 };
@@ -177,10 +183,35 @@ struct MaterialBackend {
     std::uint64_t sequence=0,step=0;Real time=0;
     Buffer<PhysicsConfig> devicePhysics,quietSurfacePhysics;
     Buffer<SolidQ> current,next,initial,gasChange,candidateGasChange,donor;
+    // Geometry still consumes a published host mirror. Remember that exact
+    // publication so a window handoff need not upload it back to the GPU.
+    // Compare fields, not a hash/sequence: external callers may replace state.
+    Buffer<int> observationCells;Buffer<SolidQ> observation;
+    std::vector<int> cachedObservationCells;int observedInventorySize=-1;
+    std::vector<SolidQ> publishedCurrent;
+    bool publishedCurrentValid=false;
+    bool retains(const std::vector<SolidQ>& input)const{
+        if(!publishedCurrentValid||input.size()!=publishedCurrent.size())return false;
+        for(std::size_t c=0;c<input.size();++c){
+            const auto& a=input[c];const auto& v=publishedCurrent[c];
+            for(int k=0;k<Nc;++k)if(a.condensed[k]!=v.condensed[k])return false;
+            for(int k=0;k<Ns;++k)if(a.pore[k]!=v.pore[k])return false;
+            for(int k=0;k<Nr;++k)if(a.progress[k]!=v.progress[k])return false;
+            if(a.energy!=v.energy||a.porosity!=v.porosity)return false;
+        }
+        return true;
+    }
     Buffer<Real> initialVolumes,conductionVolumes,conductionTemperature;
     Buffer<Real> conductionCapacity,conductionSource,conductionConductivity;
     Buffer<MaterialThermalInput> conductionInput;
     Buffer<MaterialThermalCoefficients> conductionCoefficients;
+    Buffer<MaterialConductionIteration> conductionReport;
+    struct ConductionGraph{
+        cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;
+        ugkp::gpu::ExecutionGraphSignature signature;
+        void clear(){if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);executable=nullptr;graph=nullptr;}
+        ~ConductionGraph(){clear();}
+    } conductionGraph;
     Buffer<MaterialConductionAudit> conductionAuditParts,conductionAuditResult;Buffer<int> conductionExternal;std::vector<int> cachedConductionExternal;
     Buffer<Real> volumes,nextVolumes,sweeps,gradientSensitivity,stabilityRate,lossLeft,lossRight,cellDt;
     Buffer<Vec3> centres,areas,faceCentres,pressureGradient,poreVelocity;
@@ -333,14 +364,22 @@ bool beginMaterialWindow(MaterialBackend& b,const HostState& state,const Physics
     auto devicePhysics=physics;devicePhysics.diagnostics=b.diagnostics.device();
     devicePhysics.tolerances.diagnostics=b.diagnostics.device();
     b.sequence=state.commitSequence+1;b.step=state.acceptedSteps;b.time=state.time;
-    if(!b.upload(b.current,state.solid)||!b.initial.copy(b.current,b.fault,b.stream.get())
+    if(!b.retains(state.solid)){
+        b.publishedCurrentValid=false;
+        if(!b.upload(b.current,state.solid))return b.failure(error);
+        b.publishedCurrent=state.solid;b.publishedCurrentValid=true;
+    }
+    if(!b.configureMesh(state.solidMesh,error))return false;
+    if(state.solid.empty()){
+        if(!b.allocate(b.initialVolumes,0)||!b.allocate(b.nextVolumes,0))return b.failure(error);
+    }else if(!b.initialVolumes.copy(b.volumes,b.fault,b.stream.get())
+        ||!b.nextVolumes.copy(b.volumes,b.fault,b.stream.get()))return b.failure(error);
+    if(!b.initial.copy(b.current,b.fault,b.stream.get())
         ||!b.allocate(b.next,state.solid.size())
         ||!b.allocate(b.gasChange,state.solid.size())||!b.gasChange.zero(b.stream.get())
         ||!b.allocate(b.candidateGasChange,state.solid.size())
         ||!b.allocate(b.sourceStatus,state.solid.size())||!b.allocate(b.stepResult,1)
-        ||!b.uploadRaw(b.devicePhysics,&devicePhysics,1)||!b.uploadRaw(b.quietSurfacePhysics,&quietPhysics,1)||!b.upload(b.initialVolumes,state.solidMesh.volumes)
-        ||!b.upload(b.nextVolumes,state.solidMesh.volumes))return b.failure(error);
-    if(!b.configureMesh(state.solidMesh,error))return false;
+        ||!b.uploadRaw(b.devicePhysics,&devicePhysics,1)||!b.uploadRaw(b.quietSurfacePhysics,&quietPhysics,1))return b.failure(error);
     b.operation(state.time);
     return b.finish(error);
 }
@@ -400,14 +439,28 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
     if(!b.waitConduction(diffusion.deviceValues().readyStream))return b.failure(error);
     if(b.cachedConductionExternal!=external){if(!b.upload(b.conductionExternal,external))return b.failure(error);b.cachedConductionExternal=external;}
     const int blocks=(std::max(b.cells,static_cast<int>(external.size()))+127)/128;
-    Buffer<MaterialConductionIteration> report;
+    auto& report=b.conductionReport;
     if(!b.allocate(b.conductionAuditParts,blocks)||!b.allocate(b.conductionAuditResult,1)||!b.allocate(report,1))return b.failure(error);
-    // Graph storage is local to this candidate geometry. All nonlinear and PCG
-    // iterations consume device state; only the completed candidate is observed.
-    struct Graph {cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;
-        ~Graph(){if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);}} graph;
+    // Reuse the complete nonlinear/sparse graph while every captured argument
+    // remains valid. Matrix values and geometry coefficients update in place.
+    // Changed extents, storage addresses, interval or controls recapture it.
+    auto& graph=b.conductionGraph;
+    auto signature=diffusion.residentExecutionSignature();
+    signature.append(sparse.residentExecutionSignature());
+    signature.add(b.cells);signature.add(external.size());signature.add(dt);
+    signature.add(normalizationSmall);signature.add(singularSmall);
+    signature.add(controls.nonlinearMaxIterations);signature.add(controls.nonlinearRelativeTolerance);
+    signature.add(controls.energyAbsoluteTolerance);signature.add(controls.energyRelativeTolerance);
+    for(const void* pointer:{static_cast<const void*>(report.data()),static_cast<const void*>(b.diagnostics.device()),
+        static_cast<const void*>(b.conductionInput.data()),static_cast<const void*>(b.devicePhysics.data()),
+        static_cast<const void*>(b.conductionCoefficients.data()),static_cast<const void*>(b.conductionCapacity.data()),
+        static_cast<const void*>(b.conductionSource.data()),static_cast<const void*>(b.conductionConductivity.data()),
+        static_cast<const void*>(b.conductionAuditParts.data()),static_cast<const void*>(b.conductionAuditResult.data()),
+        static_cast<const void*>(b.conductionExternal.data())})signature.add(pointer);
+    if(!(graph.signature==signature)){graph.clear();graph.signature=std::move(signature);}
     using namespace ugkp::gpu;using executionGraphDetail::appendCaptured;
     try{
+        if(!graph.executable){
         executionGraphDetail::checked(cudaGraphCreate(&graph.graph,0));cudaGraphConditionalHandle handle,permitted;
         executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&handle,graph.graph,0,cudaGraphCondAssignDefault));
         ConjugateGradientControls linear;linear.maximumIterations=2000;linear.normalizationSmall=normalizationSmall;linear.singularSmall=singularSmall;
@@ -436,6 +489,7 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
             finishConductionIteration<<<1,1,0,b.stream.get()>>>(report.data(),b.conductionAuditResult.data(),sparse.deviceReport(),controls,b.diagnostics.device(),handle);
         });
         executionGraphDetail::checked(cudaGraphInstantiateWithFlags(&graph.executable,graph.graph,0));
+        }
         executionGraphDetail::checked(cudaGraphLaunch(graph.executable,b.stream.get()));
         MaterialConductionIteration result;
         if(!b.transfers.download(&result,report.data(),1)||!b.finish(error))return b.failure(error);
@@ -446,7 +500,7 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
             return false;
         }
         error.clear();return true;
-    }catch(const std::exception& exception){error=exception.what();return false;}
+    }catch(const std::exception& exception){graph.clear();error=exception.what();return false;}
 }
 bool auditResidentMaterialConduction(MaterialBackend& b,const Real* temperature,const Real* previous,
     const Real* residual,const Real* flux,const std::vector<int>& external,Real dt,void* stream,
@@ -478,7 +532,9 @@ bool finishResidentMaterialConduction(MaterialBackend& b,const std::vector<Real>
     if(result.phase){numerical=result.numerical;error="implicit material endpoint EOS invalid";return false;}
     std::vector<SolidQ> candidate;
     if(!b.read(b.next,candidate)||!b.finish(error))return b.failure(error);
-    b.current.swap(b.next);hostMirror.swap(candidate);error.clear();return true;
+    b.current.swap(b.next);hostMirror.swap(candidate);
+    b.publishedCurrent=hostMirror;b.publishedCurrentValid=true;
+    error.clear();return true;
 }
 bool evaluateResidentMaterialTransport(MaterialBackend& b,const HostMesh& mesh,
     const std::vector<Real>& swept,Real interval,Real cfl,Real& dtLimit,std::string& error,bool& numerical){
@@ -504,7 +560,7 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
     const SurfaceMesh& surface,const std::vector<ExchangePacket>& packets,
     const std::vector<Real>& radiation,const std::vector<unsigned>& receivers,
     Real dt,const CpuMaterialControls& controls,bool finalStep,std::vector<SolidQ>& shadow,
-    std::vector<SolidQ>& cumulative,std::string& error,bool& numerical){
+    std::vector<SolidQ>& cumulative,std::string& error,bool& numerical,const std::vector<int>* observedCells){
     numerical=true;
     const int count=int(b.current.size());
     if(controls.retainDonorHistory&&!b.allocate(b.donor,count))return b.failure(error);
@@ -539,7 +595,19 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
     selectSourceFailure<<<1,256,0,b.stream.get()>>>(b.sourceStatus.data(),count,b.stepResult.data());
     if(!b.fault.check(cudaGetLastError(),"launch resident material local sources"))return b.failure(error);
     MaterialStepResult result;std::vector<SolidQ> candidateShadow,candidateDonor;
-    if(!b.transfers.download(&result,b.stepResult.data(),1)||!b.read(b.next,candidateShadow)||(controls.retainDonorHistory&&!b.read(b.donor,candidateDonor))
+    if(observedCells){
+        if(b.cachedObservationCells!=*observedCells||b.observedInventorySize!=count){
+            for(int cell:*observedCells)if(cell<0||cell>=count){error="material observation cell outside inventory";return false;}
+            if(!b.upload(b.observationCells,*observedCells))return b.failure(error);
+            b.cachedObservationCells=*observedCells;b.observedInventorySize=count;
+        }
+        if(!b.allocate(b.observation,observedCells->size()))return b.failure(error);
+        const int rows=observedCells->size();
+        if(rows)gatherMaterialObservation<<<(rows+127)/128,128,0,b.stream.get()>>>(rows,b.observationCells.data(),b.next.data(),b.observation.data());
+        if(!b.fault.check(cudaGetLastError(),"gather material geometry observation")
+            ||!b.read(b.observation,candidateShadow))return b.failure(error);
+    }else if(!b.read(b.next,candidateShadow))return b.failure(error);
+    if(!b.transfers.download(&result,b.stepResult.data(),1)||(controls.retainDonorHistory&&!b.read(b.donor,candidateDonor))
         ||!b.finish(error))return b.failure(error);
     if(result.phase){
         numerical=result.numerical;
@@ -553,6 +621,8 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
 }
 void commitResidentMaterialStep(MaterialBackend& b,Real time){
     b.current.swap(b.next);b.volumes.swap(b.nextVolumes);b.gasChange.swap(b.candidateGasChange);b.time=time;
+    // A local-source commit changes current before the conduction publication.
+    b.publishedCurrentValid=false;
 }
 
 bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
