@@ -1,3 +1,4 @@
+#include "BoundaryInjectionApi.H"
 #include "GpuParticlePhaseGraph.cuh"
 #include "ParticleResidentInterval.H"
 #include "GpuParticleDirectoryGraph.H"
@@ -638,6 +639,7 @@ struct DeviceState
 
     bool particleInjectionVelocitySpecified = false;
     double particleInjectionVelocity[3]{};
+    ugkwp::BoundaryInjectionStorage boundaryInjection;
     int nBoundarySources = 0;
     int* sourceCell = nullptr;
     int* sourceFace = nullptr;
@@ -1104,6 +1106,8 @@ enum ParticleGasFieldIndex {
 };
 static_assert(particleGasFieldCount<=64,"particle gas ownership mask capacity");
 
+#include "GpuBoundaryInjectionStorage.cuh"
+
 void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=nullptr)
 {
     if (s == nullptr)
@@ -1425,6 +1429,7 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->csrHeavyInjectionCellTaskCount);
     release(s->csrHeavyInjectionPartials);
 
+    releaseBoundaryInjection(s->boundaryInjection);
     release(s->sourceCell);
     release(s->sourceFace);
     release(s->sourcePx);
@@ -3653,6 +3658,7 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 
 
 
+    releaseBoundaryInjection(s->boundaryInjection);
     release(s->sourceCell);
     release(s->sourceFace);
     release(s->sourcePx);

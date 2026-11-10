@@ -1,5 +1,6 @@
 #include "FoamSommerfeldConfiguration.H"
 #include "FoamParticleInjectionVelocity.H"
+#include "FoamBoundaryInjectionSampling.H"
 #include "thermal/ParticleTrackingGeometry.H"
 #include "gasBoundary/FoamInput.H"
 #include "gasBoundary/Api.H"
@@ -3928,6 +3929,7 @@ protected:
           (handle_,injectionVelocity.specified,injectionVelocity.value.x(),
            injectionVelocity.value.y(),injectionVelocity.value.z()),
           "configure particle injection velocity");
+        BoundaryInjectionGeometry sourceGeometry;
         DynamicList<label> sourceCell;
         DynamicList<label> sourceFace;
         DynamicList<scalar> sourcePx;
@@ -4019,6 +4021,7 @@ protected:
                     thetaValue = scalar(0);
                 }
 
+                sourceGeometry.append(mesh, faceI);
                 sourceCell.append(cellI);
                 sourceFace.append(faceI);
                 sourcePx.append(x.x());
@@ -4085,6 +4088,7 @@ protected:
             ),
             "upload GPU resident boundary particle sources"
         );
+        check(sourceGeometry.upload(handle_), "upload boundary injection polygons");
 
     }
 

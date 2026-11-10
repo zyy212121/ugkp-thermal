@@ -111,7 +111,9 @@ def test_actual_injection_initializes_reused_slot_without_other_solver_storage(t
 #define GPU_OPERATOR_R(x) static_cast<double>(x)
 #define GPU_OPERATOR_THERMAL 0
 struct Dim { int x=0; } blockIdx, threadIdx, blockDim;
+#include "BoundaryInjectionApi.H"
 struct DeviceState {
+ ugkwp::BoundaryInjectionStorage boundaryInjection;
  bool particleInjectionVelocitySpecified=false; double particleInjectionVelocity[3]{};
  int nBoundarySources=1,nFaces=1,nCells=1,particleCapacity=1,n=0;
  double injectionParcelMass=1,rhoSolid=1,TpMin=1,TpMax=4000,particleDiameterFallback=.001;

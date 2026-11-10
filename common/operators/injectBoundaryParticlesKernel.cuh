@@ -1,5 +1,6 @@
 #include "ParticleInjectionVelocity.H"
 #pragma once
+#include "BoundaryInjectionSampling.H"
 #include "ParticleResidentInterval.H"
 #include "GpuParticleThermalCarryStorage.cuh"
 __global__ void injectBoundaryParticlesKernel
@@ -111,6 +112,16 @@ __global__ void injectBoundaryParticlesKernel
         s.px[slot] = finiteOr(s.sourcePx[j], s.Cx[sourceCell]);
         s.py[slot] = finiteOr(s.sourcePy[j], s.Cy[sourceCell]);
         s.pz[slot] = finiteOr(s.sourcePz[j], s.Cz[sourceCell]);
+        const auto& geometry = s.boundaryInjection;
+        if (geometry.offsets) {
+            double x = s.px[slot], y = s.py[slot], z = s.pz[slot];
+            const int begin = geometry.offsets[j];
+            ugkwp::sampleBoundaryInjection(geometry.triangles,
+                begin, begin + geometry.counts[j],
+                ugkwp::injectionPositionSeed(s.rngSeed, sourceFace,
+                    double(simulationTime), k), x, y, z);
+            s.px[slot] = x; s.py[slot] = y; s.pz[slot] = z;
+        }
         s.pux[slot] = sourceUx;
         s.puy[slot] = sourceUy;
         s.puz[slot] = sourceUz;

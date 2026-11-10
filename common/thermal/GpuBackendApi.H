@@ -1,3 +1,4 @@
+#include "BoundaryInjectionApi.H"
 #include "gasBoundary/Api.H"
 #include "gasTransport/GasWallApi.H"
 #include "gasTransport/GasSpeciesApi.H"

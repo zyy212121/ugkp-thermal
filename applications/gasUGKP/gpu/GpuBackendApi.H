@@ -1,3 +1,4 @@
+#include "BoundaryInjectionApi.H"
 #include "gasBoundary/Api.H"
 #include "gasTransport/GasSpeciesApi.H"
 #ifndef UGKWP_GPU_BACKEND_API_H

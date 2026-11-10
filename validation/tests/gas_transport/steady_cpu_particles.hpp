@@ -1,6 +1,8 @@
 // Included after the gas reference adapter. CPU-only serial launch/atomic adapters.
 #include "GpuParticleBoundaryModel.H"
+#include "BoundaryInjectionApi.H"
 struct ParticleState : DeviceState {
+ ugkwp::BoundaryInjectionStorage boundaryInjection;
  int particleCapacity=0,particleCount=0,*particleCountDevice=&particleCount,nBoundarySources=1,maxFaceWalkHops=1000;
  int solveParticleTemperature=1,particleGasHeatTransferModelId=1,dragModel=0;
  double rhoSolid=1000,invRhoSolid=.001,epsSMin=1e-12,particleThermalRho=1000,particleCp=1000,particleThermalCapacity=1e6;

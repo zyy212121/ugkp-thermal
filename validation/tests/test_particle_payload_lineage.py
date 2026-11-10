@@ -55,7 +55,9 @@ template<class T>T atomicAdd(T*p,T d){T old=*p;*p+=d;return old;}template<class 
 constexpr Real OfSmall=Real(1e-12);
 namespace ugkwp {inline Real radialDistributionG0FromRatio(Real r){return 1/(1-r);}}
 namespace Foam{namespace gpuThermal{enum{particleWallMobile=0,coldWallAxialNodeCount=8,coldWallRadialRingCount=8,coldWall2DNodeCount=64,coldWall2DRadialNodeCount=8};}namespace gpuWall{template<class S>void publishWallBoundParticleIndex(S&s,int){++s.published;}}}
+#include "BoundaryInjectionApi.H"
 struct DeviceState{
+ ugkwp::BoundaryInjectionStorage boundaryInjection;
  int particleInjectionVelocitySpecified=0; Real particleInjectionVelocity[3]={};
 FIELDS
  int nCells=1,nFaces=1,nInternalFaces=0,particleCapacity=4,nBoundarySources=1,coldWallSolidificationEnabled=1,coldWall2DEnabled=1,published=0;

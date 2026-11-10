@@ -1,3 +1,4 @@
+#include "BoundaryInjectionApi.H"
 #include "GpuFrozenParticleRelease.cuh"
 #include "gasBoundary/Resident.cuh"
 #include "gasBoundary/Evaluate.H"
@@ -538,6 +539,7 @@ struct DeviceState
 
     bool particleInjectionVelocitySpecified = false;
     double particleInjectionVelocity[3]{};
+    ugkwp::BoundaryInjectionStorage boundaryInjection;
     int nBoundarySources = 0;
     int* sourceCell = nullptr;
     int* sourceFace = nullptr;

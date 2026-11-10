@@ -72,6 +72,18 @@ public:
                     inlet.velocity[0],inlet.velocity[1],inlet.velocity[2]),error)
                 ||!result(ugkwpGpuResidentStrictConfigureScheduledInlet(owner_,inlet.faces.size(),inlet.faces.data(),inlet.temperature,
                     0,nullptr,nullptr,inlet.times.size(),inlet.times.data(),inlet.volumeFraction.data()),error))return false;
+            // Deliberately retain this initial inlet geometry across mesh motion.
+            std::vector<int> offsets{0},vertices;
+            for(int f:inlet.faces){
+                for(int j=state.gasMesh.faceOffsets[f];j<state.gasMesh.faceOffsets[f+1];++j)
+                    vertices.push_back(state.gasMesh.facePoints[j]);
+                offsets.push_back(int(vertices.size()));
+            }
+            std::vector<ugkp::thermal::ParticleGeometryPoint> points;
+            for(const auto& p:state.gasMesh.points)points.push_back({p.x,p.y,p.z});
+            if(!result(ugkwpGpuResidentStrictUploadBoundarySourceGeometry(owner_,
+                int(vertices.size()),offsets.data(),vertices.data(),
+                int(points.size()),points.data()),error))return false;
         }
         return load(model,state,gas,stream,error);
     }
