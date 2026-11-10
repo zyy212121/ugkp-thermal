@@ -1,13 +1,15 @@
 #include "ParticleInjectionVelocity.H"
 #pragma once
-#include "BoundaryInjectionSampling.H"
+#include "BoundaryInjectionSequence.H"
 #include "ParticleResidentInterval.H"
 #include "GpuParticleThermalCarryStorage.cuh"
 __global__ void injectBoundaryParticlesKernel
 (
     DeviceState* sp,
     const GPU_OPERATOR_TIME requestedDt,
-    const GPU_OPERATOR_TIME requestedSimulationTime
+    const GPU_OPERATOR_TIME requestedSimulationTime,
+    const unsigned long long positionSequence=0,
+    const bool positionSequenceEnabled=false
 )
 {
     const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
@@ -118,8 +120,8 @@ __global__ void injectBoundaryParticlesKernel
             const int begin = geometry.offsets[j];
             ugkwp::sampleBoundaryInjection(geometry.triangles,
                 begin, begin + geometry.counts[j],
-                ugkwp::injectionPositionSeed(s.rngSeed, sourceFace,
-                    double(simulationTime), k), x, y, z);
+                ugkwp::particleInjectionPositionSeed(s,s.rngSeed,sourceFace,
+                    double(simulationTime),k,positionSequence,positionSequenceEnabled),x,y,z);
             s.px[slot] = x; s.py[slot] = y; s.pz[slot] = z;
         }
         s.pux[slot] = sourceUx;

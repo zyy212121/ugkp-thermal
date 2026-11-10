@@ -8,7 +8,11 @@
 #endif
 namespace ugkwp {
 // Particle end time is the caller's committed time, not the gas RK clock.
-struct ParticleResidentInterval { double dt=0,end=0;bool active=false; };
+struct ParticleResidentInterval {
+    double dt=0,end=0;
+    bool active=false,positionSequenceEnabled=false;
+    unsigned long long positionSequence=0;
+};
 template<class State,class=void>struct HasParticleResidentInterval:std::false_type{};
 template<class State>struct HasParticleResidentInterval<State,std::void_t<
     decltype(std::declval<const State&>().particleResidentInterval)>>:std::true_type{};

@@ -2,12 +2,14 @@
 #include "SteadyConfigurationSync.cuh"
 #include "../../../common/GpuBatchedMaximum.cuh"
 
-extern "C" int ugkwpGpuResidentStrictConfigureSteadySampling(void* handle,double boundaryTime)
+extern "C" int ugkwpGpuResidentStrictConfigureSteadySamplingFromRestart(void* handle,double boundaryTime,std::uint64_t completedSamples)
 {
     DeviceState* s=asState(handle);
     s->gasSteadyMode=false; // keep the complete original physical-dt scheme
     s->gasSteadyBoundaryFrozen=true;
     s->gasSteadyBoundaryTime=boundaryTime;
+    s->particlePhaseGraphs.positionSequenceEnabled=true;
+    s->particlePhaseGraphs.positionSequence=completedSamples;
     // Sampling retains physical time steps; only boundary forcing is frozen.
     invalidateSharedGasConfiguration(s);
     const size_t n=size_t(GpuSteadySamplingReport::fields)*s->nCells;
@@ -38,6 +40,12 @@ extern "C" int ugkwpGpuResidentStrictConfigureSteadySampling(void* handle,double
     if(syncSteadyMember(s,&DeviceState::steadySampleReductionWorkspace,"sync steady sample statistics"))return 1;
     if(syncSteadyMember(s,&DeviceState::steadyBoundaryBudget,"sync steady steadyBoundaryBudget"))return 1;
     return 0;
+}
+
+// Retain the original two-argument ABI for fresh sampling callers.
+extern "C" int ugkwpGpuResidentStrictConfigureSteadySampling(void* handle,double boundaryTime)
+{
+    return ugkwpGpuResidentStrictConfigureSteadySamplingFromRestart(handle,boundaryTime,0);
 }
 
 extern "C" int ugkwpGpuResidentStrictBeginSamplingWindow(void* handle)

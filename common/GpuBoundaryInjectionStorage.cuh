@@ -15,7 +15,9 @@ __global__ void buildBoundaryInjectionKernel(DeviceState* sp) {
         s.sourcePx[j]-s.faceCx[f],s.sourcePy[j]-s.faceCy[f],s.sourcePz[j]-s.faceCz[f]};
     const int begin=g.offsets[j],count=g.offsets[j+1]-begin;
     g.counts[j]=ugkwp::buildBoundaryInjectionTriangles(g.points,
-        g.vertices+begin,count,g.scratch+begin,g.triangles+begin,shift);
+        g.vertices+begin,count,g.scratch+begin,g.triangles+begin,
+        {s.faceCx[f],s.faceCy[f],s.faceCz[f]},
+        {s.Sfx[f],s.Sfy[f],s.Sfz[f]},shift);
 }
 
 extern "C" int ugkwpGpuResidentStrictUploadBoundarySourceGeometry

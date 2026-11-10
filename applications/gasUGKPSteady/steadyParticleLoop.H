@@ -19,14 +19,15 @@ wordList samplingNames(GpuSteadySamplingReport::fields);
 for(label component=0;component<14;++component)samplingNames[component]=baseSamplingNames[component];
 for(label species=0;species<ugkwp::compiledGasSpecies;++species)
     samplingNames[14+species]="rhoY"+Foam::name(species);
-resident.configureSteadySampling(samplingBoundaryTime);
+resident.configureSteadySampling(samplingBoundaryTime,samplingRestart.sampleCount);
 resident.beginSamplingWindow();
 Info<< "Particle statistical steady sampling: physical dt=" << samplingDeltaT
     << ", fixed external boundary time=" << samplingBoundaryTime
     << ", samples/window=" << windowSamples << nl
     << "Gas and particle operators share this physical step; no particle LTS acceleration." << nl
     << "Time directory labels count samples. Window RMS is reported, not used as a stationarity gate." << nl;
-label samplesInWindow=0,windows=0,stableWindows=0,totalSamples=label(samplingRestart.sampleCount);
+label samplesInWindow=0,windows=0,stableWindows=0;
+std::uint64_t totalSamples=samplingRestart.sampleCount;
 scalar samplingTime=samplingRestart.samplingTime,windowDuration=0;
 Info<< "Steady restart metadata loaded=" << samplingRestartLoaded
     << "; samplingTime=" << samplingTime << "; samples=" << totalSamples

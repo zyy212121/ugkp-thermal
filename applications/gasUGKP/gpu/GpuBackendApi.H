@@ -230,7 +230,8 @@ extern "C" void ugkwpGpuResidentStrictSetDiagnosticSink(void*,const ugkp::diagno
 
 #ifdef UGKWP_STEADY_APPLICATION
 #include "../../gasUGKPSteady/gpu/GpuSteadySampling.H"
-extern "C" int ugkwpGpuResidentStrictConfigureSteadySampling(void*, double);
+extern "C" int ugkwpGpuResidentStrictConfigureSteadySampling(void*,double);
+extern "C" int ugkwpGpuResidentStrictConfigureSteadySamplingFromRestart(void*,double,std::uint64_t);
 extern "C" int ugkwpGpuResidentStrictBeginSamplingWindow(void*);
 extern "C" int ugkwpGpuResidentStrictAccumulateSamplingWindow(void*,double);
 extern "C" int ugkwpGpuResidentStrictFinishSamplingWindow(void*,double,GpuSteadySamplingReport*);

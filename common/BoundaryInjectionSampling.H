@@ -17,29 +17,41 @@ struct BoundaryInjectionTriangle {
 
 
 // Scratch contains face-local indices. Both output arrays have vertexCount
-// capacity. All application backends use this same polygon construction.
-// Simple polygons are ear-clipped in the plane of their area normal. Warped
-// polygons use that projection to choose diagonals and physical 3D areas.
+// capacity. Geometry is built once on the same Sf/Cf plane used by tracking;
+// ear clipping, collinearity, areas and sampled positions all use that plane.
+UGKP_INJECTION_HD inline ugkp::gpu::geometry::Point injectionPlanePoint(
+    ugkp::gpu::geometry::Point point,ugkp::gpu::geometry::Point centre,
+    ugkp::gpu::geometry::Point normal)
+{
+    using namespace ugkp::gpu::geometry;
+    const Point relative=point-centre;
+    return relative-normal*dot(relative,normal);
+}
+
 UGKP_INJECTION_HD inline int buildBoundaryInjectionTriangles(
     const ugkp::gpu::geometry::Point* points,const int* vertexIds,
     int vertexCount,int* scratch,BoundaryInjectionTriangle* triangles,
+    ugkp::gpu::geometry::Point faceCentre,
+    ugkp::gpu::geometry::Point faceArea,
     ugkp::gpu::geometry::Point shift)
 {
     using namespace ugkp::gpu::geometry;
     if(vertexCount<3)return 0;
-    const Point origin=points[vertexIds[0]];
-    Point normal;
-    double scale2=0;
+    const double norm=magnitude(faceArea);
+    if(!(norm>0)||!std::isfinite(norm))return 0;
+    Point normal=faceArea/norm;
+    const Point origin=injectionPlanePoint(points[vertexIds[0]],faceCentre,normal);
+    double scale2=0,signedArea=0;
     for(int i=0;i<vertexCount;++i){
         scratch[i]=i;
-        const Point a=points[vertexIds[i]]-origin;
-        const Point b=points[vertexIds[(i+1)%vertexCount]]-origin;
-        normal+=cross(a,b);
+        const Point a=injectionPlanePoint(points[vertexIds[i]],faceCentre,normal)-origin;
+        const Point b=injectionPlanePoint(points[vertexIds[(i+1)%vertexCount]],faceCentre,normal)-origin;
+        signedArea+=dot(cross(a,b),normal);
         const double d=dot(a,a);if(d>scale2)scale2=d;
     }
-    const double norm=magnitude(normal);
-    if(!(norm>0)||!std::isfinite(norm))return 0;
-    normal=normal/norm;
+    if(!(::fabs(signedArea)>0)||!std::isfinite(signedArea))return 0;
+    // Vertex ordering may be opposite the owner-side tracking normal.
+    if(signedArea<0)normal=normal*(-1);
     const double tolerance=32*2.2204460492503130808472633361816e-16*scale2;
     int remaining=vertexCount,count=0;
     double area=0;
@@ -47,11 +59,11 @@ UGKP_INJECTION_HD inline int buildBoundaryInjectionTriangles(
         bool removed=false;
         for(int i=0;i<remaining;++i){
             const int before=(i+remaining-1)%remaining,after=(i+1)%remaining;
-            const Point a=points[vertexIds[scratch[before]]];
-            const Point b=points[vertexIds[scratch[i]]];
-            const Point c=points[vertexIds[scratch[after]]];
+            const Point a=injectionPlanePoint(points[vertexIds[scratch[before]]],faceCentre,normal);
+            const Point b=injectionPlanePoint(points[vertexIds[scratch[i]]],faceCentre,normal);
+            const Point c=injectionPlanePoint(points[vertexIds[scratch[after]]],faceCentre,normal);
             const double turn=dot(cross(b-a,c-a),normal);
-            // Remove redundant collinear vertices only when between neighbours.
+            // Collinearity and the between-neighbours test use projected points.
             if(::fabs(turn)<=tolerance && dot(b-a,b-c)<=tolerance){
                 for(int k=i;k+1<remaining;++k)scratch[k]=scratch[k+1];
                 --remaining;removed=true;break;
@@ -60,7 +72,7 @@ UGKP_INJECTION_HD inline int buildBoundaryInjectionTriangles(
             bool occupied=false;
             for(int k=0;k<remaining;++k){
                 if(k==before||k==i||k==after)continue;
-                const Point q=points[vertexIds[scratch[k]]];
+                const Point q=injectionPlanePoint(points[vertexIds[scratch[k]]],faceCentre,normal);
                 if(dot(cross(b-a,q-a),normal)>=-tolerance
                     &&dot(cross(c-b,q-b),normal)>=-tolerance
                     &&dot(cross(a-c,q-c),normal)>=-tolerance){
@@ -68,7 +80,7 @@ UGKP_INJECTION_HD inline int buildBoundaryInjectionTriangles(
                 }
             }
             if(occupied)continue;
-            const Point ab=b-a,ac=c-a,position=a+shift;
+            const Point ab=b-a,ac=c-a,position=faceCentre+a+shift;
             const double triangleArea=.5*magnitude(cross(ab,ac));
             if(!(triangleArea>0)||!std::isfinite(triangleArea))return 0;
             area+=triangleArea;

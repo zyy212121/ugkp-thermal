@@ -2863,8 +2863,8 @@ public:
     void downloadSharedGasSpecies(SharedGasModelInput& model,const volScalarField& rho)
     { model.downloadSpecies(handle_,rho); }
 #ifdef UGKWP_STEADY_APPLICATION
-    void configureSteadySampling(scalar time)
-    { check(ugkwpGpuResidentStrictConfigureSteadySampling(handle_,time),"configure particle steady sampling"); }
+    void configureSteadySampling(scalar time,std::uint64_t completedSamples=0)
+    { check(ugkwpGpuResidentStrictConfigureSteadySamplingFromRestart(handle_,time,completedSamples),"configure particle steady sampling"); }
     void beginSamplingWindow()
     { check(ugkwpGpuResidentStrictBeginSamplingWindow(handle_),"begin steady sampling window"); }
     void accumulateSamplingWindow(scalar dt)

@@ -5016,7 +5016,8 @@ extern "C" int ugkwpGpuResidentStrictAdvance
            /s->particleBlockThreads;
         injectBoundaryParticlesKernel
             <<<sourceGrid, s->particleBlockThreads,0,stream>>>
-            (s->deviceState, dt, simulationTime);
+            (s->deviceState,dt,simulationTime,s->particlePhaseGraphs.positionSequence+1,
+                s->particlePhaseGraphs.positionSequenceEnabled);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -5361,7 +5362,14 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 
     // Both physical-time drivers consume the same completed transaction before
     // accepting a sample or writing transient fields/restart data.
-    if(pairedMixture)return SharedGasTrialPolicy::complete(s);
+    if(pairedMixture&&SharedGasTrialPolicy::complete(s))return 1;
+    // Graph submission advances its host mirror. Probes bypass that graph;
+    // empty particle phases still count as completed steady samples.
+    if(s->particlePhaseGraphs.positionSequenceEnabled
+#ifndef UGKP_DEVELOPMENT_PROBES
+        &&skipParticlePath
+#endif
+    )++s->particlePhaseGraphs.positionSequence;
     return 0;
 }
 

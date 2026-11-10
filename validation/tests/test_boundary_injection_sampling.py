@@ -6,13 +6,14 @@ import pytest
 
 ROOT=Path(__file__).resolve().parents[2]
 
-def test_initial_inlet_geometry_cpu(tmp_path):
+@pytest.mark.parametrize('fixture',['inlet_builder','inlet_tracking'])
+def test_initial_inlet_geometry_cpu(tmp_path,fixture):
     exe=tmp_path/'geometry'
     subprocess.run(['g++','-std=c++14','-O2','-x','c++','-I'+str(ROOT/'common'),
-        str(ROOT/'validation/pr41/inlet_builder.cu'),'-o',str(exe)],check=True)
+        str(ROOT/'validation/pr41'/f'{fixture}.cu'),'-o',str(exe)],check=True)
     subprocess.run([str(exe)],check=True)
 
-@pytest.mark.parametrize('fixture',['inlet_builder','inlet_sampling'])
+@pytest.mark.parametrize('fixture',['inlet_builder','inlet_sampling','inlet_tracking'])
 def test_initial_inlet_sampling_cuda(tmp_path,fixture):
     nvcc=shutil.which('nvcc') or '/usr/local/cuda/bin/nvcc'
     smi=shutil.which('nvidia-smi')

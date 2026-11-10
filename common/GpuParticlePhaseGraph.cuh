@@ -6,7 +6,7 @@ namespace ugkp { namespace gpu {
 struct ParticlePhaseGraph {
     cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;
     cudaGraphNode_t intervalNode=nullptr;cudaKernelNodeParams intervalParameters{};
-    ugkwp::ParticleResidentInterval parameters{};bool advances=false;
+    ugkwp::ParticleResidentInterval parameters{};bool advances=false,sequenceAdvances=false;
     unsigned long long epoch=0;
     int tasksReady=0,preparedKind=0,baseReady=0,splitActive=0,injectionActive=0;
 };
@@ -29,7 +29,9 @@ struct ParticlePhaseGraphs {
     ParticlePhaseGraph entry[4]{};
     ugkwp::ParticleResidentInterval* clock=nullptr;
     ugkwp::ParticleResidentInterval previous{};
-    bool submitted=false;
+    bool submitted=false,positionSequenceEnabled=false;
+    // Last submitted sample. Configuration restores the last completed count.
+    unsigned long long positionSequence=0;
 };
 inline cudaError_t releaseParticlePhaseGraph(ParticlePhaseGraph& entry){
     cudaError_t error=cudaSuccess;
@@ -42,16 +44,23 @@ inline void releaseParticlePhaseGraphs(ParticlePhaseGraphs& graphs){
     if(graphs.clock)cudaFree(graphs.clock);
     graphs={};
 }
-inline bool sameParticleInterval(const ugkwp::ParticleResidentInterval& a,
+inline bool sameParticlePhysicalInterval(const ugkwp::ParticleResidentInterval& a,
     const ugkwp::ParticleResidentInterval& b){
     return std::memcmp(&a.dt,&b.dt,sizeof(double))==0
         &&std::memcmp(&a.end,&b.end,sizeof(double))==0&&a.active==b.active;
 }
+inline bool sameParticleInterval(const ugkwp::ParticleResidentInterval& a,
+    const ugkwp::ParticleResidentInterval& b){
+    return sameParticlePhysicalInterval(a,b)
+        &&a.positionSequenceEnabled==b.positionSequenceEnabled
+        &&a.positionSequence==b.positionSequence;
+}
 template<class State>
 __global__ void publishParticlePhaseInterval(State* state,ugkwp::ParticleResidentInterval* clock,
-    ugkwp::ParticleResidentInterval interval,bool advance){
+    ugkwp::ParticleResidentInterval interval,bool advance,bool advanceSequence){
     if(!threadIdx.x&&!blockIdx.x){
         if(advance)interval.end=__dadd_rn(clock->end,interval.dt);
+        if(advanceSequence)interval.positionSequence=clock->positionSequence+1;
         *clock=interval;state->particleResidentInterval=interval;
     }
 }
@@ -67,11 +76,17 @@ int launchParticlePhaseGraph(State* state,double dt,double end,Submit&& submit,A
     auto& owner=state->particlePhaseGraphs;
     auto& entry=owner.entry[(state->preBaseDirectoryReady?1:0)+(dt==0?2:0)];
     auto failed=[&](const char* label,cudaError_t error){report(label,error);return 1;};
-    const ugkwp::ParticleResidentInterval requested{dt,end,true};
+    ugkwp::ParticleResidentInterval requested{dt,end,true};
+    requested.positionSequenceEnabled=owner.positionSequenceEnabled;
+    if(requested.positionSequenceEnabled)requested.positionSequence=owner.positionSequence+1;
     auto next=owner.previous;next.end=next.end+next.dt;
-    bool advance=owner.submitted&&sameParticleInterval(next,requested);
+    bool advance=owner.submitted&&sameParticlePhysicalInterval(next,requested);
+    bool advanceSequence=requested.positionSequenceEnabled&&owner.submitted
+        &&owner.previous.positionSequenceEnabled
+        &&owner.previous.positionSequence+1==requested.positionSequence;
     auto parameters=requested;
     if(advance)parameters.end=0; // ignored by device continuation; stable replay metadata
+    if(advanceSequence)parameters.positionSequence=0; // independent of the physical clock
     if(!owner.clock){
         const auto error=cudaMalloc(reinterpret_cast<void**>(&owner.clock),sizeof(*owner.clock));
         if(error!=cudaSuccess)return failed("allocate particle graph clock",error);
@@ -84,7 +99,7 @@ int launchParticlePhaseGraph(State* state,double dt,double end,Submit&& submit,A
         auto& kernel=entry.intervalParameters;
         kernel.func=reinterpret_cast<void*>(publishParticlePhaseInterval<State>);
         kernel.gridDim=dim3(1);kernel.blockDim=dim3(1);
-        void* arguments[]={&state->deviceState,&owner.clock,&parameters,&advance};
+        void* arguments[]={&state->deviceState,&owner.clock,&parameters,&advance,&advanceSequence};
         kernel.kernelParams=arguments;
         error=cudaGraphAddKernelNode(&entry.intervalNode,entry.graph,nullptr,0,&kernel);
         kernel.kernelParams=nullptr;
@@ -113,19 +128,21 @@ int launchParticlePhaseGraph(State* state,double dt,double end,Submit&& submit,A
         if(error!=cudaSuccess)return failed("instantiate particle phase graph",error);
         entry.tasksReady=mirror.tasksReady;entry.preparedKind=mirror.preparedKind;
         entry.baseReady=mirror.baseReady;entry.splitActive=mirror.splitActive;entry.injectionActive=mirror.injectionActive;
-        entry.parameters=parameters;entry.advances=advance;entry.epoch=state->particleGraphEpoch;
-    }else if(entry.advances!=advance||!sameParticleInterval(entry.parameters,parameters)){
-        void* arguments[]={&state->deviceState,&owner.clock,&parameters,&advance};
+        entry.parameters=parameters;entry.advances=advance;entry.sequenceAdvances=advanceSequence;entry.epoch=state->particleGraphEpoch;
+    }else if(entry.advances!=advance||entry.sequenceAdvances!=advanceSequence
+        ||!sameParticleInterval(entry.parameters,parameters)){
+        void* arguments[]={&state->deviceState,&owner.clock,&parameters,&advance,&advanceSequence};
         auto kernel=entry.intervalParameters;kernel.kernelParams=arguments;
         const auto error=cudaGraphExecKernelNodeSetParams(entry.executable,entry.intervalNode,&kernel);
         if(error!=cudaSuccess)return failed("update particle phase interval",error);
-        entry.parameters=parameters;entry.advances=advance;
+        entry.parameters=parameters;entry.advances=advance;entry.sequenceAdvances=advanceSequence;
     }
     const auto error=cudaGraphLaunch(entry.executable,nullptr);
     if(error!=cudaSuccess)return failed("launch particle phase graph",error);
     adapt();
     restoreParticleDirectoryMirror(*state,entry);
     owner.previous=requested;owner.submitted=true;
+    if(requested.positionSequenceEnabled)owner.positionSequence=requested.positionSequence;
     return 0;
 }
 }}
