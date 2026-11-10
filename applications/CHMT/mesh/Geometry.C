@@ -1762,7 +1762,7 @@ namespace chmt {
         return rebuildTrajectorySurface(base.gasMesh,base.solidMesh,base.surface,gas,solid,interval,output,error,tolerances,numericalFailure);
     }
     bool moveCoupledMeshesConstrainedImpl(const HostState& accepted, const std::vector<FilmAux>& candidateFilm,
-        const std::vector<Real>& solidTargets, Real dt, HostMesh& gasOut, HostMesh& solidOut,
+        const std::vector<Real>& solidTargets, std::size_t materialCellCount, Real dt, HostMesh& gasOut, HostMesh& solidOut,
         SurfaceMesh& surfaceOut, SweepConstraintReport& report, std::string& error,
         const SweepConstraintControls& controls, const Tolerances& tolerances,bool* numericalFailure) {
         report=SweepConstraintReport{};
@@ -2020,9 +2020,9 @@ namespace chmt {
         // legacy wrapper) must meet the same cell-inventory accuracy. Geometry-
         // only callers retain their explicit controls and geometric floor.
         SweepConstraintControls materialControls=controls;
-        if (!accepted.solid.empty()) {
+        if (materialCellCount!=0) {
             std::vector<Real> limits;
-            if ((accepted.solid.size()!=oldSolid.volumes.size())
+            if ((materialCellCount!=oldSolid.volumes.size())
                 ||!materialSweepResidualLimits(oldSolid,reference.solidFace,limits)
                 ||(!controls.faceVolumeTolerance.empty()&&controls.faceVolumeTolerance.size()!=limits.size()))
                 return errorAt(error,"invalid material swept-volume accuracy ownership",-1);
@@ -2044,9 +2044,9 @@ namespace chmt {
         // the total difference from the unshifted physical target.
         const auto physicalSolveTargets=solveTargets;
         auto physicalLimits=materialControls.faceVolumeTolerance;
-        const Real materialMeshScale=!accepted.solid.empty()&&!solveTargets.empty()
+        const Real materialMeshScale=materialCellCount!=0&&!solveTargets.empty()
             ?meshScale(oldSolid.points):Real(0);
-        if(!accepted.solid.empty())for(std::size_t f=0;f<solveTargets.size();++f){
+        if(materialCellCount!=0)for(std::size_t f=0;f<solveTargets.size();++f){
             const Real requested=controls.absoluteVolumeTolerance+controls.relativeVolumeTolerance*absValue(solveTargets[f]);
             const Real floor=32*std::numeric_limits<Real>::epsilon()*mag(oldSolid.areaVectors[reference.solidFace[f]])*materialMeshScale;
             physicalLimits[f]=minValue(physicalLimits[f],maxValue(requested,floor));
@@ -2057,7 +2057,7 @@ namespace chmt {
         }
         if (!constrainedMotion(oldSolid,reference.solidFace,solveTargets,displacement,fixedSolid,directions,
             dt,solid,solidSweeps,report,error,materialControls,buildGas,tolerances,numericalFailure)) return false;
-        if(!accepted.solid.empty()){
+        if(materialCellCount!=0){
             report.maximumSweepResidual=0;
             for(std::size_t f=0;f<physicalLimits.size();++f){
                 const Real residual=solidSweeps[reference.solidFace[f]]-physicalSolveTargets[f];
@@ -2077,11 +2077,18 @@ namespace chmt {
         return true;
     }
     bool moveCoupledMeshesConstrained(const HostState& state,const std::vector<FilmAux>& film,const std::vector<Real>& targets,
-        Real dt,HostMesh& gas,HostMesh& solid,SurfaceMesh& surface,SweepConstraintReport& report,std::string& error,
+        std::size_t materialCellCount,Real dt,HostMesh& gas,HostMesh& solid,SurfaceMesh& surface,SweepConstraintReport& report,std::string& error,
         const SweepConstraintControls& controls,const Tolerances& tolerances,bool* numericalFailure) {
-        try{return moveCoupledMeshesConstrainedImpl(state,film,targets,dt,gas,solid,surface,report,error,controls,tolerances,numericalFailure);}
+        try{return moveCoupledMeshesConstrainedImpl(state,film,targets,materialCellCount,dt,gas,solid,surface,report,error,controls,tolerances,numericalFailure);}
         catch(const std::bad_alloc&){if(numericalFailure)*numericalFailure=false;throw;}
         catch(const std::length_error&){if(numericalFailure)*numericalFailure=false;throw;}
+    }
+
+    bool moveCoupledMeshesConstrained(const HostState& state,const std::vector<FilmAux>& film,const std::vector<Real>& targets,
+        Real dt,HostMesh& gas,HostMesh& solid,SurfaceMesh& surface,SweepConstraintReport& report,std::string& error,
+        const SweepConstraintControls& controls,const Tolerances& tolerances,bool* numericalFailure) {
+        return moveCoupledMeshesConstrained(state,film,targets,state.solid.size(),dt,gas,solid,surface,report,error,
+            controls,tolerances,numericalFailure);
     }
 
     bool moveCoupledMeshes(const HostState& accepted, const std::vector<FilmAux>& candidateFilm, double dt,

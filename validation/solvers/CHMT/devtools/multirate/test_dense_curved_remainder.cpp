@@ -69,7 +69,7 @@ int main(){
    require(validateMaterialSweepRemainder(restarted,error),error);base=std::move(restarted);}
  }
  auto saved=base;HostMesh gas=base.gasMesh,solid=base.solidMesh;SurfaceMesh surface=base.surface;SweepConstraintReport report;
- require(!moveCoupledMeshesConstrained(base,base.filmAux,{-1,-1},1,gas,solid,surface,report,error),"invalid motion rejects");
+ require(!moveCoupledMeshesConstrained(base,base.filmAux,{undefinedValue(),0},1,gas,solid,surface,report,error),"nonfinite motion target rejects");
  require(base.solidSweepRemainder==saved.solidSweepRemainder&&base.solid[0].condensed[0]==saved.solid[0].condensed[0],"rejection preserves physical inventory and remainder");
  std::cout<<std::setprecision(17)<<"PASS dense curved material 24 windows; checkpoint at 12; phi "<<minimumPhi<<" "<<maximumPhi<<" accountedVolumeResidual "<<maximumResidual<<"\n";
 }

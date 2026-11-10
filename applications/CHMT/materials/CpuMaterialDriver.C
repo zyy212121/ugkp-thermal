@@ -615,7 +615,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 if(p.meshMotion.policy==MeshMotionPolicy::CoupledRecession&&!target.empty()
                     &&(!executedProgram||trialElapsed==windowEnd)){SweepConstraintReport motion;
                     bool numerical=false;
-                    if(!moveCoupledMeshesConstrained(state,aux,target,dt,trial.gasMesh,trial.solidMesh,trial.surface,motion,error,SweepConstraintControls{},p.tolerances,&numerical)){
+                    if(!moveCoupledMeshesConstrained(state,aux,target,geometryInventory.row.size(),dt,trial.gasMesh,trial.solidMesh,trial.surface,motion,error,SweepConstraintControls{},p.tolerances,&numerical)){
                         lastFailure=numerical?MaterialFailureOrigin::GeometryNumerical:MaterialFailureOrigin::None;
                         {
                             if(!numerical)lastFailure=MaterialFailureOrigin::None;

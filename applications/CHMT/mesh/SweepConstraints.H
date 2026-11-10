@@ -135,6 +135,14 @@ bool constrainFaceSweeps(const HostMesh&, const std::vector<int>& faces,
 // be reconstructed from a macro-end porosity, a front, or a mean mass rate.
 // Legacy moveCoupledMeshes instead uses old face area * front increment and is
 // retained only for the explicit compatibility path.
+// Resident material owners may omit the host solid snapshot. The full inventory
+// row count selects the same material geometry accuracy as a populated snapshot.
+bool moveCoupledMeshesConstrained(const HostState&, const std::vector<FilmAux>&,
+    const std::vector<Real>& solidTargetSweeps, std::size_t materialCellCount, Real interval,
+    HostMesh& gas, HostMesh& solid, SurfaceMesh&, SweepConstraintReport&,
+    std::string& error, const SweepConstraintControls& controls=SweepConstraintControls{},
+    const Tolerances& tolerances=Tolerances{},bool* numericalFailure=nullptr);
+// Compatibility entry forwards the number of material cells in the host snapshot.
 bool moveCoupledMeshesConstrained(const HostState&, const std::vector<FilmAux>&,
     const std::vector<Real>& solidTargetSweeps, Real interval,
     HostMesh& gas, HostMesh& solid, SurfaceMesh&, SweepConstraintReport&,
