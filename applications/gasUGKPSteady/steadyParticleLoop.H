@@ -90,6 +90,7 @@ while(runTime.run())
         else resident.downloadNutToHostMirror(runTime,nut);
         if(converged || !runTime.run())runTime.writeNow();else runTime.write();
         rhoHp.write(); // Export the actual downloaded material-heat moment.
+        resident.writeBoundaryLayerDiagnostics(boundaryLayerInput,runTime);
         (void)resident.writeParticleRestartMirror(runTime);
         const SteadyRestartState checkpoint{samplingBoundaryTime,samplingTime,std::uint64_t(totalSamples),samplingDeltaT};
         if(!writeSteadyRestartState((runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),checkpoint))

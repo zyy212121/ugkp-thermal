@@ -558,6 +558,8 @@ struct DeviceState
     int* preInjectionHeavyCellTaskCount = nullptr;
     double* preInjectionHeavyPartials = nullptr;
 
+    bool particleInjectionVelocitySpecified = false;
+    double particleInjectionVelocity[3]{};
     int nBoundarySources = 0;
     int* sourceCell = nullptr;
     int* sourceFace = nullptr;
@@ -4038,6 +4040,8 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     return rc == 0 ? 0 : 1;
 }
 
+#include "GpuParticleInjectionVelocityConfiguration.cuh"
+
 extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 (
     void* handle,
@@ -4825,6 +4829,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 #define UGKP_DEV_PROBE_LEAVE_IF(STAGE, EXECUTED) ((void)0)
 #endif
 
+    ugkwp::invalidateGasBoundaryLayerPreparation(*s);
     UGKP_DEV_PROBE_ENTER(ProbeGasFlux);
     if (advanceGasFluxStage(s, dt, simulationTime-dt) != 0)
     {
@@ -5344,7 +5349,10 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 
     // Both physical-time drivers consume the same completed transaction before
     // accepting a sample or writing transient fields/restart data.
-    if(pairedMixture)return SharedGasTrialPolicy::complete(s);
+    if(pairedMixture){
+        if(SharedGasTrialPolicy::validate(s)!=0 || SharedGasTrialPolicy::commitInterval(s)!=0)return 1;
+        return SharedGasTrialPolicy::complete(s);
+    }
     return 0;
 }
 

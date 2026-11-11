@@ -501,10 +501,11 @@ int main(int argc, char *argv[])
             , &sharedGasModel
         );
         configureResidentSst(resident);
+        resident.configureMolecularTransport(molecularTransport.config());
+        resident.configureBoundaryLayer(boundaryLayerInput, runTime, mesh, Tgas);
         configureScheduledBoundary(resident);
 
         scalar lastMeasuredCo = scalar(0);
-        resident.configureMolecularTransport(molecularTransport.config());
         label stepsSinceCourant = gpuResidentCourantUpdateInterval;
 
 #ifdef UGKWP_STEADY_APPLICATION
@@ -601,6 +602,7 @@ int main(int argc, char *argv[])
                     resident.downloadNutToHostMirror(runTime, nut);
                 }
 
+                resident.writeBoundaryLayerDiagnostics(boundaryLayerInput, runTime);
                 runTime.write();
                 (void)resident.writeParticleRestartMirror(runTime);
             }
