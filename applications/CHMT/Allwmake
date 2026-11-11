@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 app=$(cd "$(dirname "$0")" && pwd)
+if [[ -z ${UGKP_INTERNAL_PRECISION_BITS:-} && $# == 0 ]]; then
+    exec bash "$app/../../tool/precision/build_dual.sh" --solver CHMT
+fi
 cuda_arch=${CHMT_CUDA_ARCH:-${UGKWP_CUDA_ARCH:-sm_89}}
 frontend=false
 case ${1:-} in

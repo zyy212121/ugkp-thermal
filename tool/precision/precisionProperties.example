@@ -1,0 +1,9 @@
+FoamFile
+{
+    format ascii;
+    class dictionary;
+    object precisionProperties;
+}
+
+// Copy to the case's constant/precisionProperties. Absence defaults to 32.
+precision 32;

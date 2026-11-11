@@ -85,16 +85,23 @@ while(runTime.run())
         ugkwp::logging::writeProgressLog(runTime);
     if(runTime.writeTime() || converged || !runTime.run())
     {
+        ugkp::precision::ScopedRestartWritePrecision writePrecision;
+        ugkp::precision::beginPrecisionWrite(runTime.timePath().c_str());
         resident.downloadToHostMirror(runTime,rho,rhoU,rhoE,U,p,Tgas,epsS,rhoUs,rhoEs,rhoDs,rhoHp,Us,theta,Tp,dMeanCell);
         resident.downloadSharedGasSpecies(sharedGasModel,rho);
         if(gasTurbulenceModel==3)resident.downloadSstToHostMirror(runTime,k,omega,nut);
         else resident.downloadNutToHostMirror(runTime,nut);
-        if(converged || !runTime.run())runTime.writeNow();else runTime.write();
-        rhoHp.write(); // Export the actual downloaded material-heat moment.
+        const bool fieldsWritten = (converged || !runTime.run())
+            ? runTime.writeNow() : runTime.write();
+        const bool heatWritten = rhoHp.write(); // Export the actual downloaded material-heat moment.
         (void)resident.writeParticleRestartMirror(runTime);
         const SteadyRestartState checkpoint{samplingBoundaryTime,samplingTime,std::uint64_t(totalSamples),samplingDeltaT};
-        if(!writeSteadyRestartState((runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),checkpoint))
+        const bool clockWritten = writeSteadyRestartState(
+            (runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),checkpoint);
+        if(!clockWritten)
             WarningInFunction<<"Could not write steady clock metadata; retain explicit boundaryTime on restart."<<nl;
+        if(fieldsWritten && heatWritten && clockWritten)
+            ugkp::precision::writeRestartPrecision(runTime.timePath().c_str());
         if(haveSamplingMean && (windowComplete || converged || !runTime.run()))
         {
             scalarField means;resident.downloadSamplingMean(means);

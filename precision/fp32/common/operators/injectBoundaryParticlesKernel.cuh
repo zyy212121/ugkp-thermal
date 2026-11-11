@@ -1,0 +1,169 @@
+#include "ParticleInjectionVelocity.H"
+#pragma once
+#include "BoundaryInjectionSequence.H"
+#include "ParticleResidentInterval.H"
+#include "GpuParticleThermalCarryStorage.cuh"
+__global__ void injectBoundaryParticlesKernel
+(
+    DeviceState* sp,
+    const GPU_OPERATOR_TIME requestedDt,
+    const GPU_OPERATOR_TIME requestedSimulationTime,
+    const unsigned long long positionSequence=0,
+    const bool positionSequenceEnabled=false
+)
+{
+    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
+    const auto simulationTime=ugkwp::particleResidentEndTime(*sp,requestedSimulationTime);
+    DeviceState& s = *sp;
+    const int j = blockIdx.x*blockDim.x + threadIdx.x;
+    if (j >= s.nBoundarySources)
+    {
+        return;
+    }
+#if defined(UGKP_DEVELOPMENT_PROBES) && !GPU_OPERATOR_THERMAL
+    if (s.sourceInjectedCount != nullptr)
+    {
+        s.sourceInjectedCount[j] = 0;
+    }
+#endif
+    if (s.particleCapacity <= 0 || s.injectionParcelMass <= GPU_OPERATOR_R(0.0))
+    {
+        return;
+    }
+
+    const int sourceFace = s.sourceFace[j];
+    if (sourceFace < 0 || sourceFace >= s.nFaces)
+    {
+        return;
+    }
+
+    const int sourceCell = s.sourceCell[j];
+    if (sourceCell < 0 || sourceCell >= s.nCells)
+    {
+        return;
+    }
+
+    const bool scheduledInletActive =
+        scheduledInletFaceDevice(s, sourceFace);
+    const GPU_OPERATOR_REAL sourceUx = ugkwp::particleInjectionVelocityComponent
+      (s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[0], scheduledInletActive
+      ? finiteOr(s.gasBoundaryUx[sourceFace], finiteOr(s.sourceUx[j], GPU_OPERATOR_R(0.0)))
+      : finiteOr(s.sourceUx[j], GPU_OPERATOR_R(0.0)));
+    const GPU_OPERATOR_REAL sourceUy = ugkwp::particleInjectionVelocityComponent
+      (s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[1], scheduledInletActive
+      ? finiteOr(s.gasBoundaryUy[sourceFace], finiteOr(s.sourceUy[j], GPU_OPERATOR_R(0.0)))
+      : finiteOr(s.sourceUy[j], GPU_OPERATOR_R(0.0)));
+    const GPU_OPERATOR_REAL sourceUz = ugkwp::particleInjectionVelocityComponent
+      (s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[2], scheduledInletActive
+      ? finiteOr(s.gasBoundaryUz[sourceFace], finiteOr(s.sourceUz[j], GPU_OPERATOR_R(0.0)))
+      : finiteOr(s.sourceUz[j], GPU_OPERATOR_R(0.0)));
+    const GPU_OPERATOR_REAL sourceTheta = scheduledInletActive
+      ? clampMin(finiteOr(s.theta[sourceCell], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0))
+      : clampMin(finiteOr(s.sourceTheta[j], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
+    const GPU_OPERATOR_REAL scheduledRate =
+        scheduledSolidVolumeFractionDevice(s, simulationTime)
+       *s.rhoSolid
+       *clampMin
+        (
+           -(sourceUx*s.Sfx[sourceFace]
+           + sourceUy*s.Sfy[sourceFace]
+           + sourceUz*s.Sfz[sourceFace]),
+            GPU_OPERATOR_R(0.0)
+        );
+    const GPU_OPERATOR_REAL rate = scheduledInletActive
+      ? scheduledRate
+      : finiteOr(s.sourceMassRate[j], GPU_OPERATOR_R(0.0));
+    if (rate <= GPU_OPERATOR_R(0.0))
+    {
+        return;
+    }
+
+    const GPU_OPERATOR_REAL injectionParcelMass = s.injectionParcelMass;
+    double available =
+        clampMin(finiteOr(s.sourceResidualMass[j], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0)) + rate*dt;
+    if (available < injectionParcelMass)
+    {
+        s.sourceResidualMass[j] = available;
+        return;
+    }
+
+    const int nNew = static_cast<int>(floor(available/injectionParcelMass));
+    double consumed = 0.0;
+    int created = 0;
+
+    for (int k = 0; k < nNew; ++k)
+    {
+        const int slot = atomicAdd(s.particleCountDevice, 1);
+        if (slot >= s.particleCapacity)
+        {
+            atomicSub(s.particleCountDevice, 1);
+            break;
+        }
+
+        unsigned long long rng =
+            mixSeed
+            (
+                s.rngSeed
+              ^ static_cast<unsigned long long>
+                (
+                    0xd1b54a32d192ed03ULL
+                  + (static_cast<unsigned long long>(j) << 32)
+                  + static_cast<unsigned long long>(slot)
+                )
+            );
+        s.px[slot] = finiteOr(s.sourcePx[j], s.Cx[sourceCell]);
+        s.py[slot] = finiteOr(s.sourcePy[j], s.Cy[sourceCell]);
+        s.pz[slot] = finiteOr(s.sourcePz[j], s.Cz[sourceCell]);
+        const auto& geometry = s.boundaryInjection;
+        if (geometry.offsets) {
+            double x = s.px[slot], y = s.py[slot], z = s.pz[slot];
+            const int begin = geometry.offsets[j];
+            ugkwp::sampleBoundaryInjection(geometry.triangles,
+                begin, begin + geometry.counts[j],
+                ugkwp::particleInjectionPositionSeed(s,s.rngSeed,sourceFace,
+                    double(simulationTime),k,positionSequence,positionSequenceEnabled),x,y,z);
+            s.px[slot] = x; s.py[slot] = y; s.pz[slot] = z;
+        }
+        s.pux[slot] = sourceUx;
+        s.puy[slot] = sourceUy;
+        s.puz[slot] = sourceUz;
+        s.pT[slot] =
+            clampRange(finiteOr(s.sourceT[j], s.TpMin), s.TpMin, s.TpMax);
+        resetParticleThermalEnthalpyResidual(s, slot, 0);
+        s.pTheta[slot] = sourceTheta;
+        resetSeparateContactAge(s, slot, 0);
+        s.pd[slot] = sampleDiameterAroundDevice(s, finiteOr(s.sourceD[j], s.particleDiameterFallback), rng);
+        s.pm[slot] = injectionParcelMass;
+        s.pCellId[slot] = sourceCell;
+        s.pStatus[slot] = 1;
+#if GPU_OPERATOR_THERMAL
+        s.pStuck[slot] = 0;
+        s.pStuckFaceId[slot] = -1;
+        s.pDepositionArea[slot] = 0.0f;
+        s.pContactDuration[slot] = 0.0f;
+        s.pContactMaximumArea[slot] = 0.0f;
+        s.pContactPeakFraction[slot] = 0.0f;
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+        // Injection follows the macro heat partition and can reuse old slots.
+        if(s.particleContactHeatEpoch)s.particleContactHeatEpoch[slot]=0;
+#endif
+        clearColdWallParticleState(s, slot);
+        clearColdWall2DParticleState(s, slot);
+#endif
+        s.pRng[slot] = rng;
+        s.pOrigId[slot] =
+            (static_cast<unsigned long long>(j) << 40)
+          ^ static_cast<unsigned long long>(slot);
+        // Debit the actual published parcel mass in the residual ledger's precision.
+        consumed += static_cast<double>(s.pm[slot]);
+        ++created;
+    }
+
+    s.sourceResidualMass[j] = available - consumed;
+#if defined(UGKP_DEVELOPMENT_PROBES) && !GPU_OPERATOR_THERMAL
+    if (s.sourceInjectedCount != nullptr)
+    {
+        s.sourceInjectedCount[j] = created;
+    }
+#endif
+}

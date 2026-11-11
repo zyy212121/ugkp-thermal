@@ -1,0 +1,113 @@
+#ifndef UGKP_GPU_SPARSE_CONJUGATE_GRADIENT_H
+#define UGKP_GPU_SPARSE_CONJUGATE_GRADIENT_H
+#include <memory>
+#include "ExecutionGraph.H"
+namespace ugkp { namespace gpu {
+// Scalar finite-volume matrix in ordered CSR form. Each row starts with its
+// diagonal; subsequent entries retain the original face accumulation order.
+struct SparseMatrixView {
+    int rows=0, entries=0;
+    const int* offsets=nullptr;
+    const int* columns=nullptr;
+    const double* values=nullptr;
+    const double* rowSum=nullptr;
+};
+// Native LDU factors plus boundary coefficients, before boundary completion.
+// Boundary neighbour: >=0 local cyclic cell, -1 physical source, -2 remote.
+struct SparseLduView {
+    int rows=0, faces=0, boundaryFaces=0;
+    const int* owner=nullptr;
+    const int* neighbour=nullptr;
+    const int* boundaryOwner=nullptr;
+    const int* boundaryNeighbour=nullptr;
+    const double* diagonal=nullptr;
+    const double* upper=nullptr;
+    const double* lower=nullptr;
+    const double* source=nullptr;
+    const double* boundaryDiagonal=nullptr;
+    const double* boundarySource=nullptr;
+    // Optional signed coupled jump per boundary face. Its weighted affine
+    // contribution belongs to the initial A*solution, not A*KrylovDirection.
+    const double* boundaryJump=nullptr;
+};
+// Coefficients are borrowed device storage. Topology and boundary semantics
+// remain in SparseLduView; readyStream orders their producer without a host wait.
+struct SparseDeviceLduValues {
+    const double* diagonal=nullptr;
+    const double* upper=nullptr;
+    const double* lower=nullptr;
+    const double* source=nullptr;
+    const double* boundaryDiagonal=nullptr;
+    const double* boundarySource=nullptr;
+    void* readyStream=nullptr;
+    const double* boundaryJump=nullptr;
+};
+struct ConjugateGradientControls {
+    int maximumIterations=1000, minimumIterations=0;
+    double tolerance=1e-6, relativeTolerance=0;
+    double normalizationSmall=1e-20, singularSmall=1e-300;
+};
+// Both residual fields are FP64 physical b-A*x-affine norms, using the
+// original FV normalization. The recursive PCG residual is never published.
+struct ConjugateGradientReport {
+    int iterations=0;
+    double initialResidual=0, finalResidual=0;
+    bool converged=false, singular=false;
+    // Number of row applications that continued with the original FP64 divide
+    // because FP32 inputs/results were outside its normal finite range.
+    unsigned long long preconditionerFallbackApplications=0;
+    int physicalResidualEvaluations=0, residualRestarts=0;
+};
+struct ConjugateGradientDeviceReport {
+    const ConjugateGradientReport* report=nullptr;
+    void* readyStream=nullptr;
+};
+// Communication hooks only: all local matrix/vector arithmetic remains CUDA.
+// addInterface supplies the missing coupled-interface contribution to A*x.
+// Local cyclic interfaces may instead be represented directly in the CSR.
+struct SparseCommunication {
+    void* context=nullptr;
+    void (*globalSum)(void*,double*,int)=nullptr;
+    void (*addInterface)(void*,const double*,double*,int)=nullptr;
+    // Exact union of local cells read/written by addInterface. Negative count
+    // retains the unrestricted callback contract; native FV supplies this set.
+    const int* interfaceCells=nullptr;
+    int interfaceCellCount=-1;
+};
+class SparseConjugateGradient {
+    struct Implementation;
+    std::unique_ptr<Implementation> data_;
+    ConjugateGradientReport solvePrepared(int,double*,const ConjugateGradientControls&,const SparseCommunication&,const double* initialAffine=nullptr,double* deviceSolution=nullptr);
+    void prepareLdu(const SparseLduView&,const SparseDeviceLduValues*,bool assemble=true);
+public:
+    SparseConjugateGradient();
+    ExecutionGraphSignature residentExecutionSignature() const;
+    ~SparseConjugateGradient();
+    SparseConjugateGradient(const SparseConjugateGradient&)=delete;
+    SparseConjugateGradient& operator=(const SparseConjugateGradient&)=delete;
+    ConjugateGradientReport solveLdu(const SparseLduView&,double* solution,
+        const ConjugateGradientControls&,const SparseCommunication& communication={});
+    ConjugateGradientReport solveResidentLdu(const SparseLduView&,const SparseDeviceLduValues&,
+        double* deviceSolution,const ConjugateGradientControls&,const SparseCommunication& communication={});
+    // Bind local topology/controls once. In-place device coefficient updates
+    // are consumed on each enqueue; output publication is an explicit action.
+    // Native distributed-interface callbacks remain in solveResidentLdu.
+    void configureResidentLocalLdu(const SparseLduView&,const SparseDeviceLduValues&,
+        const ConjugateGradientControls&);
+    ConjugateGradientDeviceReport enqueueResidentLocalLdu(double* deviceSolution);
+    // Compose the same local solve into an enclosing device-controlled loop.
+    // Caller orders input/output ownership through graph dependencies.
+    ExecutionGraphNode appendResidentLocalLdu(ExecutionGraph,ExecutionGraphNode dependency,double* deviceSolution,
+        const ConjugateGradientControls* deviceControls=nullptr);
+    ExecutionGraphNode appendResidentLocalResidual(ExecutionGraph,ExecutionGraphNode dependency,
+        double* deviceSolution,double* deviceResidual);
+    const ConjugateGradientReport* deviceReport() const;
+    ConjugateGradientReport collectResidentLocalReport();
+    void residualResidentLdu(const SparseLduView&,const SparseDeviceLduValues&,
+        const double* deviceSolution,double* deviceResidual,const SparseCommunication& communication={});
+    ConjugateGradientReport solve(const SparseMatrixView&,const double* source,
+        double* solution,const ConjugateGradientControls&,
+        const SparseCommunication& communication={});
+};
+}}
+#endif

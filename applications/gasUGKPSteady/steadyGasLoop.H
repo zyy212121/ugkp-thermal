@@ -81,17 +81,23 @@ while (runTime.run())
         ugkwp::logging::writeProgressLog(runTime);
     if(runTime.writeTime() || converged || !runTime.run())
     {
+        ugkp::precision::ScopedRestartWritePrecision writePrecision;
+        ugkp::precision::beginPrecisionWrite(runTime.timePath().c_str());
         resident.downloadToHostMirror(runTime,rho,rhoU,rhoE,U,p,Tgas);
         resident.downloadSharedGasSpecies(sharedGasModel,rho);
         resident.writeBoundaryLayerDiagnostics(boundaryLayerInput,runTime);
         if(gasTurbulenceModel==3)resident.downloadSstToHostMirror(runTime,k,omega,nut);
         else resident.downloadNutToHostMirror(runTime,nut);
-        if(converged || !runTime.run())runTime.writeNow();
-        else runTime.write();
+        const bool fieldsWritten = (converged || !runTime.run())
+            ? runTime.writeNow() : runTime.write();
         const SteadyRestartState checkpoint{steadyBoundaryTime,0,
             gasSteadyRestart.sampleCount+std::uint64_t(steadyIteration)};
-        if(!writeSteadyRestartState((runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),checkpoint))
+        const bool clockWritten = writeSteadyRestartState(
+            (runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),checkpoint);
+        if(!clockWritten)
             WarningInFunction<<"Could not write steady clock metadata; retain explicit boundaryTime on restart."<<nl;
+        if(fieldsWritten && clockWritten)
+            ugkp::precision::writeRestartPrecision(runTime.timePath().c_str());
     }
     if(converged)
     {

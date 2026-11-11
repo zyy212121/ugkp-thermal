@@ -1,0 +1,235 @@
+CHECKPOINT 02 REDO / INTERNAL 2E: ONE DECLARED FOUR-PROCESS CONTINUATION
+Internal2E preparation only. No2E numerical, operator, consistency or
+microbenchmark run has occurred. Compile/freeze status is recorded separately;
+this plan itself is not evidence of a passed test.
+Accepted parent: a3793e59dbfd6a9120ca80e4bb653c771c90ee59.
+Rejected old checkpoint02 62132492 is never a new baseline or a pass oracle.
+
+1. Scope and sequencing
+- Keep original FP64 data/operators at root. Complete independent materialized
+  FP64/FP32 sources and all eight backends. Read precision32 default or explicit
+  32/64 only at process start. Both variants retain supported model, scheduling,
+  output and parameter functionality.
+- Parent owns the unique nvcc slot. prepare_fixtures.py compiles serially with
+  assertions enabled and never launches fixtures. It is not called by run_once.
+- Internal2E reuses38 successful top-level records from batch-final-03, with
+  the original11 earlier reuse chains intact. Only detailed radiation is
+  rebuilt with g++; all23 other fixtures and all8 backends retain hashes.
+  Actual old results are REUSED_PASS, never claimed as new executions.
+- Freeze source, overlays, materialization manifests, fixture executables,
+  launchers, all eight backends, commands/logs, SHA256, git diff/HEAD, environment
+  and accepted-parent root FP64 diff before numerical execution.
+- Execute one frozen batch. No repair/rerun/code loop. A failed independent
+  check remains FAIL while other independent fresh-process cases continue.
+  Failed producer dependencies are SKIP_DEPENDENCY. Only after an existing
+  failure, environment/GPU invalidity stops its affected branch. No exit0
+  result is changed to FAIL by stderr/telemetry classification. Parent decides
+  final review and rollback. No production runtime behavior is changed.
+
+2. Prepared commands (not executed by preparation worker)
+From sourced OpenFOAM10 on lss / WSL Ubuntu-22.04:
+  ROOT=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111
+  A=$ROOT/validation/checkpoint02/acceptance
+  P=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-pr41-packages/checkpoint-02-redo/acceptance
+  # compiled-final-04 was prepared by exact reuse plus one g++ compilation.
+  # Do not call the original all-fixture compiler again; durable command/exit
+  # evidence is in compiled-final-04-control and prepare-2E.
+  python3 "$A/run_batch.py" freeze --root "$ROOT" --fixtures "$P/compiled-final-04" --output "$P/batch-final-04"
+  # Only at parent's explicitly declared once-only checkpoint:
+  bash "$P/batch-final-04/source/validation/checkpoint02/acceptance/run_once.sh" "$P/batch-final-04"
+Fresh output directories preserve each evidence set. Compiler failures are not
+numerical failures. Build-recipe fixes may be required before freeze; do not
+describe uncompiled/unexecuted recipes as verified.
+
+3. Retained FP64
+- Review root vs a3793e59 diff. Only intended build/selection/restart metadata
+  glue may differ; new FP32 formulas templated to double are not preservation.
+- Original double poisson_sample_reduction retains total-energy/momentum
+  semantics; FP32 same-name fields are centralQ/mean. Never cast old test to
+  float and claim the same operator was checked.
+- Original sparse_conjugate_gradient, resident_sparse_publication and strict
+  radiation_batches run against original FP64 materialization.
+- All four real solver launchers run explicit64 again. Native injection,
+  transport, particle budgets and same-precision restart use new binaries.
+
+4. FP32 critical regressions
+- Full-cell and selected-pool massM/mean/Q; light/split/heavy/fallback plus
+  production sampling/correction. N1/3/31/1025/4097, directory variants,
+  block32/128, boost0/1000. Synthetic partial counts >2^24 retain integer count
+  semantics without allocating millions of particles.
+- Empty cell and singleton10000 iterations: absent real update retains theta
+  and velocity exactly; RNG advances intentionally. Real theta-drag still
+  updates. Thermal contact stub tests routing, not contact force law.
+- Record max mass/mean/Q errors; current fixture thresholds relativeM2e-5,
+  absolute mean x2e-4, y/z2e-5, relativeQ .004. These cannot hide incorrect
+  collision rate, variance, sampling or correction algebra.
+- Material wall1200K must not become gasBoundary300K. WALE normalized
+  invariants finite without high-power overflow; float epsilon where needed.
+- Mixed EOS/RK, chemistry, particle/coupling energy, moving volume/time preserve
+  deliberate FP64 authoritative energy/geometry and convergence.
+- Sparse: diag/z/preconditioner divisionFP32; physical matrix, outer state,
+  true b-A*x and global conservationFP64. n7/513, strong contrast, interface
+  callbacks, scales1e-150/1/1e150. Report iterations, finalResidual, fallback,
+  physicalResidualEvaluations and residualRestarts. Independent normalized
+  true residual1e-12 not weakened; dimensional normalization floor scales
+  with the physical matrix. Old exact2x2<=2iterations remains FP64-only.
+- Radiation: isolated/chain/cycle/reverse dependencies; cold zero recovery;
+  published residual, exact and +/-1e-6K near equilibrium; warm hot-to-zero,
+  rebase/metric refresh; zero/high scattering; angular weights, phase,
+  specular/diffuse closure; residentFP32 boundary; workspace1/2/8; visible
+  warning for unattainable requested tolerance. True source/residual/net
+  energy remainFP64. Detailed fixture contains its own recorded thresholds.
+
+5. Shared paired radiation and performance
+- New acceptance-only radiation_pair.cpp derives from original pr33 geometry,
+  material, angular directions and boundary setup. Old64 strict test unchanged.
+- Both modes request identical sourceTolerance1e-12 and same iteration limit.
+  Record published-field difference, closure, mirror power, source-change
+  metric, iterations, solve seconds and cudaMemGetInfo allocation delta.
+- Paired32 maximum published relative difference <=2e-5 with denominator
+  max(1,|I|); normalized closure<=2e-5; mirror absolute power<=1e-9.
+  Paired64 keeps difference<=1e-12 and closure<=1e-10. Detailed strict-warning
+  and near-equilibrium fixtures remain separate.
+- Correctness first. Then3 matched process repetitions with alternating64/32
+  order,1024cells,128angles,chain, original concurrency sweep. Each process
+  retains3 internal solve timings. All use solve(false): run0 is the first
+  cold solve; run>0 repeats cold-start solves in an already constructed process.
+  Compare repeated-cold medians/ranges for the same concurrency; no warm-start
+  algorithm benchmark or asserted speedup.
+- cudaMemGetInfo is observed per-instance allocated memory, not peak including
+  later allocations. GPU.csv is device-wide200ms telemetry, possiblyN/A onWSL.
+  Never label it exact per-process peakVRAM or turn missing readings into0.
+- Linear has no dedicated speed benchmark. Whole-fixture time/telemetry is
+  descriptive only. Different workloads/tolerances are never speedup evidence.
+
+6. Four-solver native and actual restart
+- gasUGKP,gasUGKPSteady,CHT,CHMT, both modes. Use baseline-supported cht-contact,
+  not cht-mixture which accepted parent already rejects.
+- Preserve real fields, particles, source remainder and steadyState.dat.
+- Default/no precisionProperties launches32; explicit64 launches64. Verify
+  written ugkpPrecision computePrecision/restartPrecision, not wrapper exit.
+- Real32->64 code2+stated error, no new time/checkpoint. Real64->32 warning,
+  continue32, finite output and expected inventory.32->32/64->64 continue.
+- For each of the4 producer/consumer combinations, copied state with missing
+  ugkpPrecision gives unknown+warning and original reader behavior. Wire width
+  alone does not prove producer precision. Delete only copied sidecar; CHMT
+  restart payload is private so another fixture's checkpoint is not mutated.
+- Cross64->32 versus32->32 field errors recorded; no bitwise stochastic demand.
+- Closed gas1000K/particle10000K: particle cools, authoritative gas energy rises.
+  CachedFP32 gasT may stay unchanged within8*epsilon32*max(1000,|T|). Original
+  combined budget remains256*epsilon32 relative + mass1e-10,momentum1e-8,
+  energy1e-5. Do not relax a correctable physical error.
+- Injection mass+remainder<=32*epsilon32 relative; restart fields<=5e-4 relative
+  denominator>=1; position<=2e-7 absolute. Retain measured values in results.
+
+7. Verdict and limits
+FROZEN_NOT_RUN, FAIL_COLLECTED_REVIEW_REQUIRED, FAIL_STOPPED and
+PASS_EXECUTION_REVIEW_REQUIRED are distinct. REUSED_PASS and RUN_PASS count
+as coverage only with verified inputs. FAIL and SKIP_DEPENDENCY never pass.
+Parent reviews source preservation, all actual errors/residuals/closure,
+warnings, trend/convergence, scheduling parity and provenance before acceptance.
+Short synthetic native runs do not prove production steady-state convergence.
+Old45CPU+17native results remain historical only; this new matrix does not claim
+to rerun exactly those62 old checks. Full scheduling cross-product, sanitizers,
+large production mesh and distributedMPI remain NOT RUN unless separately
+executed inside an explicitly declared plan. No README/production edit,
+commit/push/PR/merge or cloud execution is performed by this preparation worker.
+
+8. Internal2A diagnosis and authorized2B preparation
+Evidence: checkpoint-02-redo/diagnostic-2A/REPORT.txt and2B_STATIC_REVIEW.txt.
+At requested2e-5 the unchanged FP64 operator stops after14 outer iterations
+with normalized closure4.5860013133065542e-5, exceeding64 bound1e-10.
+At1e-12 the same operator takes40 iterations and all15 existing loops pass
+with closure5.2348625529275942e-12. Production inputs are unchanged.
+The user explicitly approved changing this paired fixture's input from2e-5
+to1e-12 after disclosure that the existing source assertion also uses it.
+Both paired correctness and performance use the same new request. Original
+64/32 closure, mirror, finite, published-field and source assertion text is
+unchanged; no new tests, scans, production error gates or rollback are added.
+Actual closure/mirror/source metric/iterations/warnings are flushed before
+existing assertions. FP32 prints existing publishedResidual/publishedTarget;
+original64's API does not expose those final physical residuals.
+A zero outer source metric can be float publication stagnation, not proof
+of physical residual1e-12. Review published residuals, warnings and closure.
+published_delta is within-mode repetition/scheduling difference, not a direct
+32-versus64 field comparison. All paired calls use solve(false), so repeat
+samples are repeated cold-start solves, not warmStart=true measurements.
+Repair production file/mode/hash records exactly match final build-01 hash
+18cc68b372596900c034402f9e0ace0a11c6d8f96bd487eebfa20ab15aef24ac.
+The exact retained4 launchers/8 backends are reused with recorded authoritative
+hashes and relative-source mapping; no backend recompilation is needed.
+Only acceptance fixtures are compiled against the new materialized trees.
+Historical2B ran once: first11 steps passed, central-gas crashed, later steps
+did not run. Internal2C located an asynchronous managed-memory host read.
+This history is not a global passing checkpoint.
+
+9. Internal2D exact matrix and independent collection
+- Only central CUDA fixture host launch geometry is read earlier, before GPU
+  work. No production source, synchronization, physical formula or assertion
+  changed. Final source SHA b78a2937b00a2269c034c38db5a23612ccd73e04dfe283d1d662b9d5096dfe00.
+- 33 fixture entries:11 REUSED_PASS candidates,22 new executions. Reuse list:
+  fp64-sparse-legacy, fp64-poisson-original, fp64-resident-sparse-legacy,
+  fp64-radiation-original-{0,1,2}, fp64-radiation-pair-{0,1,2},
+  fp32-sparse-fp32, fp32-central-host. Exact original stdout/execution/GPU
+  evidence, argv, binary, compile-command and source-dependency hashes travel
+  in the new frozen snapshot. A mismatch invalidates reuse, never triggers
+  an unplanned repeated test. All remaining fixture entries run once.
+- Native suites retain exactly17 existing branches per precision:4 continuous
+  injection cases,3 first-segment producers,3 resumed comparisons,3 closed
+  heat/drag cases,4 transport cases. Resume depends on valid first segment
+  and continuous reference. No extra finite_outputs(first) assertion is added.
+- Restart suite retains44 existing branches: for each of4 solvers,2 producers,
+  4 known-precision consumers,4 missing-metadata consumers,1 cross comparison.
+  Each consumer depends only on its actual producer. Cross comparison depends
+  on successful64->32 and32->32 cases. No incomplete state is consumed.
+- 6 performance processes retain3 alternating precision repeats at identical
+  1024cells/128angles/chain and sourceTolerance1e-12. Each precision requires
+  its own radiation correctness evidence;32 also requires detailed ordered
+  and near-equilibrium/residual fixtures. Failed/incomplete processes supply
+  no performance samples. All solve(false) repeats are cold starts.
+- Total logical nodes:117 (33fixture+34native+44restart+6performance);11 reuse
+  and106 prospective executions/comparisons. Top-level runner has42 records
+  because native/restart contain named child branches. No new physical case.
+- A numerical assertion failure does not contaminate another fresh process.
+  After an already-failed GPU process, illegal address/device-loss/driver
+  initialization errors or unexplained SIGSEGV/SIGBUS/SIGILL invalidate the
+  later GPU branch; independent host fixtures may still run. A failed process
+  indicating disk/I/O/runtime-loader failure invalidates its environment
+  branch. No health-probe numerical process or retry is added.
+- Every original Assert AST in native/restart and every paired-radiation
+  assertion remains unchanged. New logic only records and narrows the scope
+  of the old global stop after an existing failure.
+- Parent may stop only this batch's process group on user pause. Final result
+  is review-required; no commit, remote push or accepted checkpoint claim.
+
+10. Internal2E supersedes the execution portion of historical2D section9
+- The accepted fixture-only correction uses each actual directional transport
+  diagonal D_a/(D_a+k*V) for all5 near-equilibrium/resident expected powers.
+  Geometry still has0.37-radian rotated normals; no geometry change is hidden.
+  Only scatter30 sourceTolerance changes2e-6 to2e-8. Its800 iteration maximum
+  and every original require() line, including closure/power thresholds, stay
+  byte-identical. Production912 records remain18cc68...24ac.
+- New detailed source SHA3756301ab69c9e21264f07123cacda0ace2aa0654c49917d1f86d7463bcc9640.
+  Compile only its C++ translation unit against new repair3 materialized32
+  sources. Link reused DiscreteOrdinateRadiation-counted.o and Mie object.
+  Never call the whole prepare_fixtures.py or build_only.sh recipe again.
+- Original top-level42 entries remain:38 REUSED_PASS candidates;1 complete
+  detailed-radiation process;3 previously skipped FP32 performance processes.
+  No native/restart/operator/correctness item already passed is rerun.
+  Logical117 nodes:113 reused and4 new if all dependencies are valid.
+- Reuse checks match original result, normalized path-only argv, program and
+  script hashes, full raw evidence, and conservative corresponding source
+  dependency supersets. Native/restart case outputs are copied normally, not
+  hard-linked. Previous11 REUSED_PASS entries retain their2B chain records.
+  A mismatch is FAIL/NOT_EXECUTED_INVALID_REUSE and is never silently rerun.
+- Detailed radiation must pass before its dependent32 performance processes.
+  Independent collection remains unchanged. Any failure stays FAIL and the
+  final outcome remains review-required, not an accepted checkpoint.
+- Old64 performance and new32 performance are CROSS-BATCH evidence. Preserve
+  source/program/runtime/GPU identity, parameters and available telemetry.
+  Power/thermal/competing-workload parity was not fully recorded in2D, so
+  report timings separately and do not emit a speed ratio or speedup claim.
+- Outer source_metric0 is still not proof of physical residual1e-12; retain
+  actual publishedResidual, publishedTarget, warning count and closure.
+- This continuation is a single predefined batch. No diagnostic small run,
+  numerical retry, production change, README edit, commit or remote push.

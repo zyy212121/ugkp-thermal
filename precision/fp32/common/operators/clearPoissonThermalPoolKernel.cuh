@@ -1,0 +1,58 @@
+#pragma once
+// One operator implementation; scalar/time adapters are compile-time only.
+#if GPU_POOL_INITIALIZATION_WITH_PROBABILITY
+__global__ void clearPoissonThermalPoolKernel(DeviceState* sp, const GPU_OPERATOR_TIME dt)
+#else
+__global__ void clearPoissonThermalPoolKernel(DeviceState* sp)
+#endif
+{
+    DeviceState& s = *sp;
+    const int c = blockIdx.x*blockDim.x + threadIdx.x;
+#if GPU_POOL_INITIALIZATION_WITH_PROBABILITY
+#ifdef UGKP_DEVELOPMENT_PROBES
+    if (c == 0 && s.diagnosticPreTransportParticleCount != nullptr)
+    {
+        *s.diagnosticPreTransportParticleCount =
+            clampRange(*s.particleCountDevice, 0, s.particleCapacity);
+    }
+#endif
+#endif
+    if (c >= s.nCells)
+    {
+        return;
+    }
+
+#if GPU_POOL_INITIALIZATION_WITH_PROBABILITY
+    // Preserve pressure kick -> primitive recovery -> probability publication.
+#ifdef UGKP_RESIDENT_CSR_CHOICE
+    const bool heavy=s.csrHeavyReductionMode==2&&s.csrAutomaticRuntime
+        ?s.csrAutomaticRuntime->active!=0:s.csrHeavyReductionEnabled!=0;
+#else
+    const bool heavy=s.csrHeavyReductionEnabled!=0;
+#endif
+    if (heavy && s.csrCellTaskCount[c] > 1)
+    {
+        s.poissonCellCollisionProbability[c] =
+            poissonCollisionProbabilityForCell(s, c, dt);
+    }
+#endif
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+    // Gas RK is complete; rhoENext is now dead scratch. This existing launch
+    // supplies the global clear-before-correction/heat-atomics boundary.
+    clearPairedParticleHeatCell(s, c);
+#endif
+    s.poolThermalCount[c] = 0;
+    s.poolThermalSumUx[c] = GPU_OPERATOR_R(0.0);
+    s.poolThermalSumUy[c] = GPU_OPERATOR_R(0.0);
+    s.poolThermalSumUz[c] = GPU_OPERATOR_R(0.0);
+    s.poolThermalSumU2[c] = GPU_OPERATOR_R(0.0);
+    s.poolThermalMass[c] = GPU_OPERATOR_R(0.0);
+    s.poissonPoolSampleTargetCount[c] = 0;
+    s.poissonPoolMass[c] = GPU_OPERATOR_R(0.0);
+    s.poissonPoolMomX[c] = GPU_OPERATOR_R(0.0);
+    s.poissonPoolMomY[c] = GPU_OPERATOR_R(0.0);
+    s.poissonPoolMomZ[c] = GPU_OPERATOR_R(0.0);
+    s.poissonPoolEnergy[c] = GPU_OPERATOR_R(0.0);
+    s.poissonPoolDiameter[c] = GPU_OPERATOR_R(0.0);
+    s.poissonPoolDiameter2[c] = GPU_OPERATOR_R(0.0);
+}

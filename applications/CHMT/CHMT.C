@@ -2,6 +2,7 @@
 #include "DiagnosticsFoam.H"
 #include "configuration/CouplingInput.H"
 #include "ProgressLogging.H"
+#include "PrecisionBuild.H"
 #include "io/CoupledOutput.H"
 #include "io/MultirateEvolution.H"
 #ifndef CHMT_FRONTEND_COMPILE_ONLY
@@ -22,6 +23,8 @@ int main(int argc,char** argv) {
         if(args.optionFound("build-info")){std::cout<<CHMT_BUILD_MANIFEST_JSON<<'\n';return 0;}
         if(!args.checkRootCase())return 2;
         Foam::Time time(Foam::Time::controlDictName,args);
+        std::cout << "GPU precision=" << ugkp::precision::compiledBits
+                  << " (fixed at startup)" << std::endl;
         const Foam::label progressLogInterval =
             ugkwp::logging::progressLogInterval(time.controlDict());
         Foam::IOdictionary properties(Foam::IOobject("chmtProperties",time.constant(),time,

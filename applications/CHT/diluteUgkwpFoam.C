@@ -6,6 +6,7 @@
 #include "wallDist.H"
 #include "uniformDimensionedFields.H"
 #include "ProgressLogging.H"
+#include "FoamPrecisionIO.H"
 #include <limits>
 #include <exception>
 
@@ -44,6 +45,13 @@ int main(int argc, char *argv[])
 {
     #include "setRootCase.H"
     #include "createTime.H"
+
+    std::string precisionError;
+    if (!ugkp::precision::checkRestartPrecision(runTime.timePath().c_str(), precisionError))
+    {
+        SeriousError<< precisionError << nl;
+        return 2;
+    }
 
     try
     {
@@ -106,7 +114,8 @@ int main(int argc, char *argv[])
     }
 
 #ifdef UGKWP_USE_CUDA
-    Info<< "GPU precision physical=64 time=64 wallEnergyAccumulation=64" << nl;
+    Info<< "GPU precision=" << ugkp::precision::compiledBits
+        << " (fixed at startup), time=64 wallEnergyAccumulation=64" << nl;
 #endif
     constexpr bool gpuResidentStrict = true;
     const bool gpuResidentPureGasOnly = gpuScheduling.pureGasOnly;
@@ -482,6 +491,8 @@ int main(int argc, char *argv[])
 
                 if (runTime.writeTime())
                 {
+                    ugkp::precision::ScopedRestartWritePrecision writePrecision;
+                    ugkp::precision::beginPrecisionWrite(runTime.timePath().c_str());
 
                     resident.downloadToHostMirror
                     (
@@ -516,6 +527,7 @@ int main(int argc, char *argv[])
                             << "OpenFOAM field write failed; time=" << runTime.timeName()
                             << exit(FatalIOError);
                     }
+                    ugkp::precision::writeRestartPrecision(runTime.timePath().c_str());
                 }
             }
 
@@ -813,6 +825,8 @@ int main(int argc, char *argv[])
              || (writeAtThermalCoupling && thermalCoupledThisStep)
             )
             {
+                ugkp::precision::ScopedRestartWritePrecision writePrecision;
+                ugkp::precision::beginPrecisionWrite(runTime.timePath().c_str());
                 const bool thermalCouplingWrite =
                     writeAtThermalCoupling && thermalCoupledThisStep;
 
@@ -892,6 +906,7 @@ int main(int argc, char *argv[])
                     (void)resident.writeParticleRestartMirror(runTime);
                 }
                 resident.writeBoundaryLayerDiagnostics(boundaryLayerInput, runTime);
+                ugkp::precision::writeRestartPrecision(runTime.timePath().c_str());
             }
         }
 

@@ -1,3 +1,15 @@
+# Bound the compiler stack within this build process, never the OS/user setting.
+ugkp_cuda_stack_soft=$(ulimit -S -s)
+ugkp_cuda_stack_hard=$(ulimit -H -s)
+if [[ "$ugkp_cuda_stack_soft" != unlimited && "$ugkp_cuda_stack_soft" -lt 262144 ]]; then
+    ugkp_cuda_stack_target=262144
+    if [[ "$ugkp_cuda_stack_hard" != unlimited && "$ugkp_cuda_stack_hard" -lt 262144 ]]; then
+        ugkp_cuda_stack_target=$ugkp_cuda_stack_hard
+    fi
+    ulimit -S -s "$ugkp_cuda_stack_target"
+fi
+unset ugkp_cuda_stack_soft ugkp_cuda_stack_hard ugkp_cuda_stack_target
+
 # Shared CUDA compilation policy. Requires a toolkit supporting --Ofast-compile.
 # The minimal level curbs expensive compiler passes while retaining the selected
 # optimization level and all precision/FMA options. No automatic retries.

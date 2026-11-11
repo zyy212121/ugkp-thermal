@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+if [[ -z ${UGKP_INTERNAL_PRECISION_BITS:-} ]]; then
+    exec bash "$source_root/tool/precision/build_dual.sh" --solver gasUGKPSteady
+fi
 cuda_home="${CUDA_HOME:-/usr/local/cuda}"
 source "$source_root/tool/cuda_build_flags.sh"
 gas_species="${UGKWP_GAS_SPECIES-2}"

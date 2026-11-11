@@ -1,5 +1,6 @@
 #include "../../../common/gasBoundary/Wire.H"
 #include "Checkpoint.H"
+#include "../../../common/PrecisionRestart.H"
 #include <algorithm>
 #include <cerrno>
 #include <cstring>
@@ -666,6 +667,7 @@ bool writeCheckpoint(const std::string& directory,const ModelConfig& config,cons
     std::string temp;int fd=-1;
     try{
         if(directory.empty()){error="empty checkpoint directory";return false;}
+        ugkp::precision::beginPrecisionWrite(directory);
         Encoder configData,payload;configData(config);
         configData.integer(0x31474643504b4755ULL,8); // UGKPCFG1
         ugkp::thermal::visitParticlePhaseConfiguration(configData,config.particlePhase);
@@ -696,11 +698,13 @@ bool writeCheckpoint(const std::string& directory,const ModelConfig& config,cons
         if(::close(fd)!=0){fd=-1;error=systemError("close checkpoint");::unlink(temp.c_str());return false;}fd=-1;
         if(::rename(temp.c_str(),(directory+"/state.chmt").c_str())!=0){error=systemError("atomic checkpoint rename");::unlink(temp.c_str());return false;}temp.clear();
         if(!syncDirectory(directory,"sync checkpoint directory",error))return false;
+        ugkp::precision::writeRestartPrecision(directory);
         error.clear();return true;
     }catch(const std::exception& e){if(fd>=0)::close(fd);if(!temp.empty())::unlink(temp.c_str());error=std::string("checkpoint write: ")+e.what();return false;}
 }
 bool readCheckpoint(const std::string& directory,const ModelConfig& expected,HostState& output,std::string& error){
     try{
+        if(!ugkp::precision::checkRestartPrecision(directory,error))return false;
         std::ifstream input(directory+"/state.chmt",std::ios::binary|std::ios::ate);if(!input){error="cannot open checkpoint state.chmt";return false;}
         const auto size=input.tellg();if(size<0){error="cannot determine checkpoint size";return false;}
         Bytes bytes(static_cast<std::size_t>(size));input.seekg(0);if(!bytes.empty())input.read(reinterpret_cast<char*>(bytes.data()),size);if(!input){error="truncated checkpoint read";return false;}

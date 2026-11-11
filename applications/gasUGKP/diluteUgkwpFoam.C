@@ -6,6 +6,7 @@
 #include "uniformDimensionedFields.H"
 #include "gasTransport/GasNumericsIO.H"
 #include "ProgressLogging.H"
+#include "FoamPrecisionIO.H"
 
 #ifndef UGKWP_USE_CUDA
 #error gasUGKP must be built with UGKWP_USE_CUDA; use private_backend/build_private_backend.sh
@@ -40,6 +41,14 @@ int main(int argc, char *argv[])
 {
     #include "setRootCase.H"
     #include "createTime.H"
+
+    Info<< "GPU precision=" << ugkp::precision::compiledBits << " (fixed at startup)" << nl;
+    std::string precisionError;
+    if (!ugkp::precision::checkRestartPrecision(runTime.timePath().c_str(), precisionError))
+    {
+        SeriousError<< precisionError << nl;
+        return 2;
+    }
 
     const label progressLogInterval =
         ugkwp::logging::progressLogInterval(runTime.controlDict());
@@ -401,6 +410,8 @@ int main(int argc, char *argv[])
 
                 if (runTime.writeTime())
                 {
+                    ugkp::precision::ScopedRestartWritePrecision writePrecision;
+                    ugkp::precision::beginPrecisionWrite(runTime.timePath().c_str());
                     resident.downloadToHostMirror
                     (
                         runTime,
@@ -428,7 +439,8 @@ int main(int argc, char *argv[])
                         resident.downloadNutToHostMirror(runTime, nut);
                     }
 
-                    runTime.write();
+                    if (runTime.write())
+                        ugkp::precision::writeRestartPrecision(runTime.timePath().c_str());
                 }
             }
 
@@ -567,6 +579,8 @@ int main(int argc, char *argv[])
 
             if (runTime.writeTime())
             {
+                ugkp::precision::ScopedRestartWritePrecision writePrecision;
+                ugkp::precision::beginPrecisionWrite(runTime.timePath().c_str());
                 resident.downloadToHostMirror
                 (
                     runTime,
@@ -602,8 +616,10 @@ int main(int argc, char *argv[])
                     resident.downloadNutToHostMirror(runTime, nut);
                 }
 
-                runTime.write();
+                const bool fieldsWritten = runTime.write();
                 (void)resident.writeParticleRestartMirror(runTime);
+                if (fieldsWritten)
+                    ugkp::precision::writeRestartPrecision(runTime.timePath().c_str());
             }
         }
 
