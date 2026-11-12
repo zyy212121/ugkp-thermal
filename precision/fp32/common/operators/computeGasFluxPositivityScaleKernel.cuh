@@ -62,13 +62,14 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
     GPU_OPERATOR_REAL scale = GPU_OPERATOR_R(1.0);
     if (outgoingMassFlux > GPU_OPERATOR_R(0.0) && dt > GPU_OPERATOR_R(0.0))
     {
-        const Geometry* volumes;
+        bool haveVolume=s.V!=nullptr;
         if constexpr(ugkwp::GasGeometryCapability<GasState>::value)
-            volumes=ugkwp::gasMovingGeometry(s)?s.gasGeometry.oldVolume:s.V;
-        else volumes=s.V;
-        if(!volumes)
+            if(ugkwp::gasMovingGeometry(s))haveVolume=s.gasGeometry.oldVolume!=nullptr;
+        if(!haveVolume)
         {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
-        inventoryVolume=volumes[c];
+        if constexpr(ugkwp::GasGeometryCapability<GasState>::value)
+            inventoryVolume=ugkwp::gasMovingGeometry(s)?Geometry(s.gasGeometry.oldVolume[c]):Geometry(s.V[c]);
+        else inventoryVolume=s.V[c];
         if(!ugkwp::gasFinite(inventoryVolume))
         {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);return;}
         inventoryVolumeComputed=true;
@@ -104,13 +105,14 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
                 {
                     if(!inventoryVolumeComputed)
                     {
-                        const Geometry* volumes;
+                        bool haveVolume=s.V!=nullptr;
                         if constexpr(ugkwp::GasGeometryCapability<GasState>::value)
-                            volumes=ugkwp::gasMovingGeometry(s)?s.gasGeometry.oldVolume:s.V;
-                        else volumes=s.V;
-                        if(!volumes)
+                            if(ugkwp::gasMovingGeometry(s))haveVolume=s.gasGeometry.oldVolume!=nullptr;
+                        if(!haveVolume)
                         {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
-                        inventoryVolume=volumes[c];
+                        if constexpr(ugkwp::GasGeometryCapability<GasState>::value)
+                            inventoryVolume=ugkwp::gasMovingGeometry(s)?Geometry(s.gasGeometry.oldVolume[c]):Geometry(s.V[c]);
+                        else inventoryVolume=s.V[c];
                         if(!ugkwp::gasFinite(inventoryVolume))
                         {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);return;}
                         inventoryVolumeComputed=true;

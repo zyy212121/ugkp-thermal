@@ -21,14 +21,14 @@ struct MieDoControls
 {
     label nTheta;
     label nPhi;
-    label maxSourceIterations;
-    scalar sourceRelativeTolerance;
-    scalar phaseBalanceTolerance;
-    label maxPhaseBalanceIterations;
-    scalar radiationActiveEpsilonMin;
-    scalar conservationRelativeTolerance;
-    scalar maxPhaseScalingCorrection;
-    label angleParallelThreads;
+    label maxSourceIterations{300};
+    scalar sourceRelativeTolerance{1e-10};
+    scalar phaseBalanceTolerance{1e-12};
+    label maxPhaseBalanceIterations{200};
+    scalar radiationActiveEpsilonMin{0};
+    scalar conservationRelativeTolerance{0};
+    scalar maxPhaseScalingCorrection{0};
+    label angleParallelThreads{1};
 };
 
 struct MieDoSnapshot

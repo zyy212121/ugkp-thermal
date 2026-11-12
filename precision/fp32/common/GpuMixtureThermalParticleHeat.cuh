@@ -2,6 +2,7 @@
 #include "ParticleResidentInterval.H"
 #include "gasTransport/MixtureParticleDirectory.cuh"
 #include "gasTransport/MixtureCouplingTeam.cuh"
+#include "gasTransport/MixtureParticleResponse.cuh"
 // Caloric adaptation of the shared frozen-mixture finite-bath source. Free
 // parcels alone participate; contact/profile heat has its own accepted ledger.
 // One cell owns all candidate evaluations and all publication for its parcels.
@@ -11,16 +12,43 @@ __device__ bool member(const State& s,int i,int c) {
     return mixtureParticles::member(s,i,c) && s.pStuck[i]==0;
 }
 template<class State>
-__device__ ugkwp::ParticleCaloricHeatResponse response(const State& s,int c,int i,double dt) {
+__device__ ugkwp::ParticleCaloricHeatResponse response(const State& s,int i,GpuTime dt,
+    const mixtureParticles::HeatCellProperties& properties) {
     const auto law=particleCaloricDevice(s,i);
-    const double oldT=particleEffectiveTemperatureDevice(s,i);
-    const double d=s.pd[i];
-    const double dx=s.Ux[c]-s.pux[i],dy=s.Uy[c]-s.puy[i],dz=s.Uz[c]-s.puz[i];
-    const double mu=ugkwp::gasCellMolecularViscosityAt(s,c,s.Tgas[c]);
-    const double re=s.rho[c]*d*sqrt(dx*dx+dy*dy+dz*dz)/fmax(mu,1e-30);
-    const double rate=particleGasHeatRelaxationRate(s,c,s.Tgas[c],re,d,
+    const float oldT=particleEffectiveTemperatureDevice(s,i);
+    const float d=s.pd[i];
+    const auto& gas=properties.gas;
+    const float dx=gas.ux-s.pux[i],dy=gas.uy-s.puy[i],dz=gas.uz-s.puz[i];
+    const float mu=gas.viscosity;
+    const float re=gas.rho*d*sqrt(dx*dx+dy*dy+dz*dz)/fmax(mu,1e-30f);
+    const float rate=mixtureParticles::caloricHeatRate(properties,re,d,
         s.rhoSolid*law.specificHeat(oldT));
-    return {law,oldT,-expm1(-fmax(0.,rate)*dt),s.TpMin,s.TpMax};
+    return {law,oldT,-expm1(-fmax(0.f,rate)*GpuReal(dt)),s.TpMin,s.TpMax};
+}
+template<class State>
+__device__ ugkwp::ParticleCaloricHeatResponse response(const State& s,int c,int i,GpuTime dt) {
+    return response(s,i,dt,mixtureParticles::heatCellProperties(s,c));
+}
+// Called by the same cell team that owns root trials and publication. All
+// eligible entries are written before any trial, independently of old scratch
+// contents, sorting, migration or the previous source epoch.
+template<class State,class Team>
+__device__ void prepareCell(State& s,int c,GpuTime dt,bool csr,bool split,const Team& team) {
+    mixtureParticles::HeatCellProperties properties{};
+    bool propertiesReady=false;
+    const int n=mixtureParticles::count(s,c,csr,split);
+    for(int pos=team.rank();pos<n;pos+=team.width()) {
+        const int i=mixtureParticles::parcel(s,c,pos,csr,split);
+        if(!member(s,i,c))continue;
+        if(!propertiesReady) {
+            properties=mixtureParticles::heatCellProperties(s,c);
+            propertiesReady=true;
+        }
+        const auto value=response(s,i,dt,properties);
+        s.mixtureHeatInitialTemperature[i]=value.initialTemperature;
+        s.mixtureHeatFraction[i]=value.fraction;
+    }
+    team.sync();
 }
 template<class State>
 __device__ ugkwp::ParticleCaloricHeatResponse cachedResponse(const State& s,int i){
@@ -32,12 +60,13 @@ __device__ ugkwp::ParticleCaloricHeatResponse cachedResponse(const State& s,int 
 // Freeze only quantities independent of the gas root. Parcel enthalpy and its
 // derivative retain the original piecewise law at every trial temperature.
 // Repeated trials inside the same open segment reuse its aggregate polynomial.
-// This source-epoch kernel runs after drag and before any thermal publication.
+// Retain the standalone preparation entry for reference callers. Production
+// prepares inside its heat-cell team after drag, avoiding this extra launch.
 template<class State>
-__global__ void prepareMixtureThermalParticleHeatKernel(State*sp,double requestedDt){
+__global__ void prepareMixtureThermalParticleHeatKernel(State*sp,GpuTime requestedDt){
     const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
     State&s=*sp;
-    if(!s.solveParticleTemperature||!s.particleGasHeatTransferModelId||dt==0.)return;
+    if(!s.solveParticleTemperature||!s.particleGasHeatTransferModelId||dt==0.f)return;
     const int count=mixtureParticles::activeCount(s);
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<count;i+=blockDim.x*gridDim.x){
         const int c=s.pCellId[i];
@@ -48,15 +77,16 @@ __global__ void prepareMixtureThermalParticleHeatKernel(State*sp,double requeste
     }
 }
 template<class State,class Team>
-__device__ void mixtureThermalParticleHeatCell(State&s,int c,double dt,bool csr,bool split,const Team&team) {
+__device__ void mixtureThermalParticleHeatCell(State&s,int c,GpuTime dt,bool csr,bool split,const Team&team) {
+    mixtureThermalParticles::prepareCell(s,c,dt,csr,split,team);
     constexpr int Ns=ugkwp::GasStateTraits<State>::speciesCount;
-    double species[Ns];for(int k=0;k<Ns;++k)species[k]=s.gasSpecies.rho[k*s.nCells+c];
-    const double volume=s.epsGPrev[c]*s.V[c];
-    const double kinetic=.5*(double(s.rhoUx[c])*double(s.rhoUx[c])
-        +double(s.rhoUy[c])*double(s.rhoUy[c])+double(s.rhoUz[c])*double(s.rhoUz[c]))/double(s.rho[c]);
-    const double oldInternal=s.rhoE[c]-kinetic;
+    float species[Ns];for(int k=0;k<Ns;++k)species[k]=s.gasSpecies.rho[k*s.nCells+c];
+    const float volume=s.epsGPrev[c]*GpuReal(s.V[c]);
+    const float kinetic=.5f*(float(s.rhoUx[c])*float(s.rhoUx[c])
+        +float(s.rhoUy[c])*float(s.rhoUy[c])+float(s.rhoUz[c])*float(s.rhoUz[c]))/float(s.rho[c]);
+    const float oldInternal=s.rhoE[c]-kinetic;
     const mixtureThermalParticles::Response<State,Team> response{s,c,dt,volume,csr,split,team};
-    double target=s.Tgas[c];
+    float target=s.Tgas[c];
     const auto status=ugkwp::invertMixtureParticleHeatExchange(species,oldInternal,response,
         s.gasSpecies.thermo,s.gasSpecies.thermoControls,target);
     if(status!=ugkwp::ThermoStatus::Success) {
@@ -67,20 +97,20 @@ __device__ void mixtureThermalParticleHeatCell(State&s,int c,double dt,bool csr,
         failure.metadata=static_cast<unsigned>(status);recordFatal(s.diagnostics,failure);}
         return;
     }
-    double heat=0.;bool failed=false;
+    float heat=0.f;bool failed=false;
     const int n=mixtureParticles::count(s,c,csr,split);
     for(int pos=team.rank();pos<n;pos+=team.width()) {
         const int i=mixtureParticles::parcel(s,c,pos,csr,split);
         if(!mixtureThermalParticles::member(s,i,c))continue;
         const auto response=mixtureThermalParticles::cachedResponse(s,i);
-        double q,derivative;response(target,q,derivative);
-        ugkwp::ParticleThermalCarry<GpuReal> state{s.pT[i],s.pThermalEnthalpyResidual[i]};
+        float q,derivative;response(target,q,derivative);
+        ugkwp::ParticleThermalCarry<GpuReal> state{s.pT[i]};
         const auto publication=ugkwp::publishParticleThermalHeat(state,q,s.TpMin,s.TpMax,response.law);
         if(!publication.valid){failed=true;break;}
-        s.pT[i]=state.temperature;s.pThermalEnthalpyResidual[i]=state.specificEnthalpyResidual;
+        s.pT[i]=state.temperature;
         heat+=s.pm[i]*publication.acceptedSpecificHeat;
     }
-    heat=team.sum(heat);const bool anyFailure=team.sum(failed?1.:0.)>0;
+    heat=team.sum(heat);const bool anyFailure=team.sum(failed?1.f:0.f)>0;
     if(team.rank()==0){
         s.rhoE[c]-=heat/volume;recoverGasPrimitiveCell(s,c);
         if(anyFailure){
@@ -93,9 +123,9 @@ __device__ void mixtureThermalParticleHeatCell(State&s,int c,double dt,bool csr,
 }
 
 template<bool Cooperative=false,class State>
-__global__ void mixtureThermalParticleHeatKernel(State*sp,double requestedDt,bool csr=true,bool split=false,bool skipHeavy=false){
+__global__ void mixtureThermalParticleHeatKernel(State*sp,GpuTime requestedDt,bool csr=true,bool split=false,bool skipHeavy=false){
     const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
- State&s=*sp;if(!s.solveParticleTemperature||!s.particleGasHeatTransferModelId||dt==0.)return;
+ State&s=*sp;if(!s.solveParticleTemperature||!s.particleGasHeatTransferModelId||dt==0.f)return;
  const int thread=blockIdx.x*blockDim.x+threadIdx.x;
 #if defined(__CUDACC__)
  if constexpr(Cooperative){
@@ -109,7 +139,7 @@ __global__ void mixtureThermalParticleHeatKernel(State*sp,double requestedDt,boo
 }
 #if defined(__CUDACC__)
 template<class State>
-inline cudaError_t launchMixtureThermalParticleHeatCells(State*state,int cells,double dt,bool csr,bool split,cudaStream_t stream=nullptr){
+inline cudaError_t launchMixtureThermalParticleHeatCells(State*state,int cells,GpuTime dt,bool csr,bool split,cudaStream_t stream=nullptr){
  if(cells<=0)return cudaSuccess;
  mixtureThermalParticleHeatKernel<<<(cells+127)/128,128,0,stream>>>(state,dt,csr,split,true);
  auto error=cudaGetLastError();if(error!=cudaSuccess)return error;

@@ -164,7 +164,8 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
                 nuFace,
                 sqrt(dux*dux + duy*duy + duz*duz)*s.deltaCoeffs[f],
                 s.sstWallKappa,
-                s.sstWallE, s.diagnostics, f
+                s.sstWallE, s.diagnostics, f,
+                s.gasScalarSolvers.spaldingMaximumIterations, s.gasScalarSolvers.spaldingTolerance
             ).nut;
         }
     }
@@ -411,7 +412,8 @@ __device__ GPU_OPERATOR_REAL sstKProductionForCell
             s.sstWallCmu,
             s.sstWallKappa,
             s.sstWallE,
-            production, s.diagnostics, f
+            production, s.diagnostics, f,
+            s.gasScalarSolvers.laminarMaximumIterations, s.gasScalarSolvers.laminarRelativeTolerance
         ).production;
         ++wallCount;
     }

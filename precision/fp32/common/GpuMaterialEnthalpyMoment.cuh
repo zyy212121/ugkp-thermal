@@ -1,24 +1,13 @@
 #pragma once
 template<class Real>
-__device__ __forceinline__ double materialEnthalpyMoment(const Real mass, const Real temperature)
+__device__ __forceinline__ float materialEnthalpyMoment(const Real mass, const Real temperature)
 {
-    return double(mass)*double(particleSpecificEnthalpyDevice(temperature));
+    return float(mass)*float(particleSpecificEnthalpyDevice(temperature));
 }
 
-// Material moments are derived caches: retain their legacy alumina base and
-// mixed-cell recovery law, adding the particle carry without changing either.
-// Paired heat exchange reads actual active-law/profile authority separately.
+// Material moments are derived from the single published thermal state.
 template<bool CompactParticles = false, class State, class Real>
-__device__ __forceinline__ auto materialEnthalpyMomentFromParticle
-(const State& s, const int i, const Real mass, const Real temperature, int)
-    -> decltype(s.pThermalEnthalpyResidual[i], double(0))
-{
-    return double(materialEnthalpyMoment(mass, temperature)) + double(mass)*
-        (CompactParticles ? s.compactPThermalEnthalpyResidual[i] : s.pThermalEnthalpyResidual[i]);
-}
-
-template<bool CompactParticles = false, class State, class Real>
-__device__ __forceinline__ double materialEnthalpyMomentFromParticle
+__device__ __forceinline__ float materialEnthalpyMomentFromParticle
 (const State&, const int, const Real mass, const Real temperature, long)
 {
     return materialEnthalpyMoment(mass, temperature);

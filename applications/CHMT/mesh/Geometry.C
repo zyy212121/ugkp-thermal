@@ -625,7 +625,7 @@ namespace chmt {
     bool harmonicPointMotionRepresentedImpl(const HostMesh& mesh, const std::vector<Vec3>& prescribedDisplacement,
         const std::vector<unsigned char>& prescribed, std::vector<Vec3>& output, std::string& error,
         const empty_detail::Extrusion* knownExtrusion,bool* numericalFailure=nullptr,ugkp::diagnostics::DeviceContext* diagnostics=nullptr,
-        const std::vector<ugkp::gpu::geometry::MotionPenalty>& penalties={},Real normalLengthScale=0) {
+        const std::vector<ugkp::gpu::geometry::MotionPenalty>& penalties={},Real normalLengthScale=0,const SweepConstraintControls& controls=SweepConstraintControls{}) {
         if(numericalFailure)*numericalFailure=true;
 
         const int np = static_cast<int>(mesh.points.size());
@@ -648,11 +648,11 @@ namespace chmt {
         std::vector<Vec3> displacement(np),next(np);
         for(int p=0;p<np;++p)if(prescribed[p])displacement[p]=prescribedDisplacement[p];
 #endif
-        Real tolerance = 1e-12*meshScale(mesh.points);
+        Real tolerance = controls.harmonicRelativeTolerance*meshScale(mesh.points);
         tolerance=ugkp::gpu::geometry::normalHeightMotionTolerance(tolerance,normalLengthScale);
 #ifdef CHMT_DEVICE_GEOMETRY
         std::vector<int> offsets,neighbours;geometry_device::adjacency(adjacency,offsets,neighbours);
-        geometry_device::backend::HarmonicPointMotion device(geometry_device::pack(mesh.points),offsets,neighbours,prescribed,tolerance,20000,penalties);
+        geometry_device::backend::HarmonicPointMotion device(geometry_device::pack(mesh.points),offsets,neighbours,prescribed,tolerance,controls.harmonicMaximumIterations,penalties);
         const auto result=device.solve(geometry_device::pack(prescribedDisplacement));
         if(result.errorPoint>=0)return errorAt(error,result.errorKind==1?"zero-length motion edge":"nonfinite harmonic displacement",result.errorPoint);
         if(np && !(result.residual<=tolerance))geometryWarning(diagnostics,result.residual,tolerance,-1,false);
@@ -660,7 +660,7 @@ namespace chmt {
 #else
         bool converged = np == 0;
         Real finalResidual=0;
-        for (int iter = 0; iter<20000 && !converged; ++iter) {
+        for (int iter = 0; iter<controls.harmonicMaximumIterations && !converged; ++iter) {
             Real residual = 0;
             for (int p = 0; p<np; ++p) {
                 if (prescribed[p]) {
@@ -946,7 +946,7 @@ namespace chmt {
 #endif
             std::vector<Vec3> start;
             if (!harmonicPointMotionRepresentedImpl(old,prescribedDisplacement,prescribed,start,error,
-                hasEmpty&&paired?&extrusion:nullptr,numericalFailure,tolerances.diagnostics)) return false;
+                hasEmpty&&paired?&extrusion:nullptr,numericalFailure,tolerances.diagnostics,{},0,controls)) return false;
 #ifdef CHMT_DEVICE_GEOMETRY
             geometry_device::backend::SweepResidualDefinition residualDefinition;
             residualDefinition.topology=geometry_device::faceTopology(old);residualDefinition.old=geometry_device::pack(old.points);
@@ -1077,7 +1077,7 @@ namespace chmt {
             sweep_detail::Budget workspace(controls.maximumWorkspaceBytes,report.peakWorkspaceBytes);
             Reals pointWeight(np,0,Allocator<Real>(workspace));
 #ifndef CHMT_DEVICE_GEOMETRY
-            HarmonicModes harmonic(old,prescribed,workspace,1e-12*length);
+            HarmonicModes harmonic(old,prescribed,workspace,controls.harmonicRelativeTolerance*length,controls.harmonicMaximumIterations);
             Points boundary(np,Vec3{},Allocator<Vec3>(workspace));
 #endif
             Points correction(np,Vec3{},Allocator<Vec3>(workspace));
@@ -1096,7 +1096,8 @@ namespace chmt {
             geometry_device::backend::HarmonicSweepDefinition definition;
             definition.topology=geometry_device::faceTopology(old);definition.points=geometry_device::pack(old.points);
             definition.fixed=prescribed;definition.faces=faces;definition.scales=sweepScale;
-            definition.harmonicTolerance=1e-12*length;
+            definition.harmonicTolerance=controls.harmonicRelativeTolerance*length;
+            definition.harmonicMaximumIterations=controls.harmonicMaximumIterations;
             std::set<std::pair<int,int>> edges;
             for(std::size_t f=0;f<old.owner.size();++f){const int lo=old.faceOffsets[f],hi=old.faceOffsets[f+1];
                 for(int k=lo;k<hi;++k){const int a=old.facePoints[k],b=old.facePoints[k+1==hi?lo:k+1];
@@ -1924,7 +1925,8 @@ namespace chmt {
                 gasDefinition.topology=geometry_device::meshTopology(oldGas).topology;gasDefinition.owner=oldGas.owner;
                 gasDefinition.wallFaces=reference.gasFace;gasDefinition.points=geometry_device::pack(oldGas.points);
                 gasDefinition.reference=geometry_device::pack(oldGas.referencePoints.empty()?oldGas.points:oldGas.referencePoints);
-                gasDefinition.fixed=fixedGas;gasDefinition.geometricTolerance=1e-12*meshScale(oldGas.points);
+                gasDefinition.fixed=fixedGas;gasDefinition.geometricTolerance=controls.harmonicRelativeTolerance*meshScale(oldGas.points);
+                gasDefinition.harmonicMaximumIterations=controls.harmonicMaximumIterations;
                 geometry_device::adjacency(gasPointAdjacency,gasDefinition.offsets,gasDefinition.neighbours);
                 definition.solidTopology=geometry_device::faceTopology(oldSolid);definition.oldSolid=geometry_device::pack(oldSolid.points);
                 definition.solidFaces=reference.solidFace;definition.solidToGas=solidToGas;definition.pointThickness=newThickness;
@@ -1990,7 +1992,7 @@ namespace chmt {
                     minimumNormalHeight=std::min(minimumNormalHeight,height);
                 }
             }
-            const bool harmonicOk=harmonicPointMotionRepresentedImpl(oldGas,gasDisplacement,fixedGas,gasPoints,failure,nullptr,nullptr,diagnostics,penalties,minimumNormalHeight);
+            const bool harmonicOk=harmonicPointMotionRepresentedImpl(oldGas,gasDisplacement,fixedGas,gasPoints,failure,nullptr,nullptr,diagnostics,penalties,minimumNormalHeight,controls);
 
             if(!harmonicOk)return false;
             if(!stage(gasPoints))return false;

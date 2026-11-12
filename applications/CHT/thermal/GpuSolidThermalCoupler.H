@@ -93,6 +93,8 @@ class GpuSolidThermalCandidateSolver
     labelList coupledPatchIds_;
     labelList ownerConductivityPatchIds_;
     GpuSolidThermalControls controls_;
+    dictionary normalLinearControls_, finalLinearControls_;
+    const dictionary& selectedLinearControls() const;
     mutable std::unique_ptr<ugkp::gpu::SparseConjugateGradient> sparse_;
     mutable std::unique_ptr<ugkp::gpu::SolidThermalProperties> deviceProperties_;
     mutable std::unique_ptr<ugkp::gpu::ImplicitDiffusion> residentDiffusion_;

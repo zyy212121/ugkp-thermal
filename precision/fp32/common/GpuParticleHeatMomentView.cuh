@@ -3,7 +3,7 @@
 // supply the mobile subset without changing the common finite-capacity law.
 struct ParticleGasHeatMoments
 {
-    double mass, px, py, pz, diameter, enthalpy;
+    float mass, px, py, pz, diameter, enthalpy;
 };
 template<class State>
 __device__ ParticleGasHeatMoments particleCellHeatMoments(const State& s,int c)

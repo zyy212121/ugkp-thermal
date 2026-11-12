@@ -130,6 +130,7 @@ def build_probe(root, meta, app):
                 raise ValueError(f'{app}: missing/wrong declaration {name}; expected {f["storage"][app]}, got {pointers.get(name)}')
     release = function_body(text, 'releaseState')
     upload = function_body(text, 'ugkwpGpuResidentStrictUploadParticleRestartMirror')
+    upload = upload.replace('importedTemperature.data()', 'pT').replace('importedCold1D.data()', 'pColdNodeSpecificEnthalpy').replace('importedCold2D.data()', 'pCold2DNodeSpecificEnthalpy')
     download = function_body(text, 'ugkwpGpuResidentStrictDownloadParticleRestartMirror')
     if app != 'gasUGKP':
         saved = (root / 'common/GpuParticleSavedVelocityRestart.inl').read_text()
@@ -317,7 +318,7 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
         code += f'for(size_t j=0;j<n*{f["width"]};++j) if({name}[j]!=static_cast<{f["host"][app]}>({index+1}*7+j)) throw std::runtime_error("roundtrip: {name}");\n'
     if app != 'gasUGKP':
         code += 'View v;\n' + ''.join(f'v.{f["name"]}={f["name"]};\n' for f in fields if (f['schema7'] is not None or f['name']=='pThermalEnthalpyResidual'))
-        has_carry = 'true' if app == 'CHT' else 'false'
+        has_carry = 'true' if any(f['name']=='pThermalEnthalpyResidual' for f in fields) else 'false'
         marker = 'currentChtMarker' if app == 'CHT' else 'currentFshMarker'
         code += f'std::ostringstream wire(std::ios::binary);Foam::gpuThermalRestart::writeCurrent<{has_carry}>(wire,Foam::gpuThermalRestart::{marker},v);\n'
         code += 'std::ofstream out(argv[1],std::ios::binary);out<<wire.str();out.close();\n'

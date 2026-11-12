@@ -12,9 +12,9 @@ __device__ GPU_RECOVERY_INLINE void solidRecoveryFromParticleMomentsCell(DeviceS
     const GPU_OPERATOR_REAL totalMomX = finiteOr(s.momRhoUPx[c], GPU_OPERATOR_R(0.0));
     const GPU_OPERATOR_REAL totalMomY = finiteOr(s.momRhoUPy[c], GPU_OPERATOR_R(0.0));
     const GPU_OPERATOR_REAL totalMomZ = finiteOr(s.momRhoUPz[c], GPU_OPERATOR_R(0.0));
-    double totalEnergy = clampMin(finiteOr(s.momRhoEP[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
+    GPU_OPERATOR_REAL totalEnergy = clampMin(finiteOr(s.momRhoEP[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
     const GPU_OPERATOR_REAL totalDiameter = clampMin(finiteOr(s.momRhoPD[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
-    const double totalHeat = clampMin(finiteOr(s.momRhoHpP[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
+    const GPU_OPERATOR_REAL totalHeat = clampMin(finiteOr(s.momRhoHpP[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
 
     s.epsS[c] = rhoP/s.rhoSolid;
     s.rhoUsx[c] = totalMomX;
@@ -26,23 +26,23 @@ __device__ GPU_RECOVERY_INLINE void solidRecoveryFromParticleMomentsCell(DeviceS
     s.Usy[c] = totalMomY/rhoP;
     s.Usz[c] = totalMomZ/rhoP;
 
-    const double invRhoP = 1.0/double(rhoP);
-    const double kinetic =
-        0.5*(sqr3(totalMomX*invRhoP, totalMomY*invRhoP, totalMomZ*invRhoP)*rhoP);
+    const GPU_OPERATOR_REAL invRhoP = GPU_OPERATOR_R(1.0)/rhoP;
+    const GPU_OPERATOR_REAL kinetic =
+        GPU_OPERATOR_R(0.5)*(sqr3(totalMomX*invRhoP, totalMomY*invRhoP, totalMomZ*invRhoP)*rhoP);
     if (totalEnergy < kinetic)
     {
         totalEnergy = kinetic;
     }
     s.rhoEs[c] = totalEnergy;
-    s.theta[c] = clampMin((totalEnergy - kinetic)/(1.5*double(rhoP)), GPU_OPERATOR_R(0.0));
+    s.theta[c] = clampMin((totalEnergy - kinetic)/(GPU_OPERATOR_R(1.5)*rhoP), GPU_OPERATOR_R(0.0));
     s.dMeanCell[c] =
         clampMin(finiteOr(totalDiameter/rhoP, s.particleDiameterFallback), GPU_OPERATOR_R(1.0e-12));
 
 #if GPU_OPERATOR_THERMAL
     if (s.solveParticleTemperature != 0)
     {
-        const double specificEnthalpy =
-            finiteOr(totalHeat/(double(rhoP) + double(OfSmall)), -GPU_OPERATOR_R(1.0));
+        const GPU_OPERATOR_REAL specificEnthalpy =
+            finiteOr(totalHeat/(GPU_OPERATOR_REAL(rhoP) + GPU_OPERATOR_REAL(OfSmall)), -GPU_OPERATOR_R(1.0));
         s.Tp[c] = clampRange
         (
             finiteOr

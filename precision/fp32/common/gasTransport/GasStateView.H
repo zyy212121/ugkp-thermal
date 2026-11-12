@@ -13,6 +13,7 @@
 #include "GasGeometryPolicy.H"
 #include "GasBoundaryLayerState.H"
 #include "../chemistry/ChemistryTypes.H"
+#include "../gasNumerics/GasScalarSolverControls.H"
 
 namespace ugkwp
 {
@@ -279,7 +280,7 @@ inline auto makeGasStateView(const State& state)
         typename std::remove_pointer<decltype(state.pressureScheduleTimes)>::type,
         decltype(state.sstCoefficients),
         typename std::remove_pointer<decltype(state.rhoE)>::type,
-        typename std::remove_pointer<decltype(state.V)>::type,
+        typename std::remove_pointer<decltype(state.Cx)>::type,
         typename GasWallScalar<State>::type
     >
 {
@@ -287,7 +288,7 @@ inline auto makeGasStateView(const State& state)
     using Time = typename std::remove_pointer<decltype(state.pressureScheduleTimes)>::type;
     using SstCoefficients = decltype(state.sstCoefficients);
     using Energy = typename std::remove_pointer<decltype(state.rhoE)>::type;
-    using Geometry = typename std::remove_pointer<decltype(state.V)>::type;
+    using Geometry = typename std::remove_pointer<decltype(state.Cx)>::type;
     using Wall = typename GasWallScalar<State>::type;
     static_assert(std::is_same<decltype(state.rhoE), decltype(state.rhoENext)>::value,
         "live and RK gas energy must have identical storage types");

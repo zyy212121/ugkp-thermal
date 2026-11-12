@@ -36,7 +36,7 @@ __global__ void refreshParticleTrackingGeometryKernel(DeviceState* sp,
     for(int p=begin;p<end;++p) {
         const int f=s.cellFaceId[p];
         const auto plane=ugkp::thermal::particleTrackingPlane(c,s.faceOwner[f],
-            s.Sfx[f],s.Sfy[f],s.Sfz[f],s.magSf[f],s.faceCx[f],s.faceCy[f],s.faceCz[f],GpuGeometry(OfSmall));
+            s.trackingSfx[f],s.trackingSfy[f],s.trackingSfz[f],s.trackingMagSf[f],s.faceCx[f],s.faceCy[f],s.faceCz[f],GpuGeometry(OfSmall));
         s.planeNx[p]=plane.x;s.planeNy[p]=plane.y;s.planeNz[p]=plane.z;s.planeD[p]=plane.d;
         const bool internal=f<s.nInternalFaces;
         const int kind=internal?0:boundary.kind[f];

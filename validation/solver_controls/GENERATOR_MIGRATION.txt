@@ -1,0 +1,15 @@
+INPUT PREPARATION ONLY; no solver or operator execution performed.
+Core helpers now translate generator edits to scheme and migrate fresh copies before native launch.
+Molecular fixture inheritance merges scheme and provenance; raw baselines restore old controls.
+Physical settings remain in old files. PR41 continuation input retains its original format.
+Historical validation/steady_cuda/evidence cases are not edited; their generated copies migrate before native launch.
+Gas numerical fvSchemes structure remains for OpenFOAM framework; solver controls are copied into gasNumerics.
+Changed Python files syntax checked with ast.parse, no imports of generator modules:
+validation/molecular_transport/native_matrix.py
+validation/pr41/native_transient_restart.py
+validation/shared_boundary/native_cases.py
+validation/shared_boundary/native_smoke.py
+validation/solvers/gasUGKP/tests/test_gas_model_io.py
+validation/steady_cpu/of_cases.py
+validation/tests/gas_transport/test_steady_mixture_particle_coupling.py
+validation/transient_particles/check_native.py

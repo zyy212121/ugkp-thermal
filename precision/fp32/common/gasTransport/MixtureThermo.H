@@ -46,7 +46,7 @@ UGKWP_GAS_HD inline bool mixtureMassFractionsFromDensities(
         if(clipped!=value)recordWarning(diagnostics,makeRecord(Code::FiniteYClip,10002,0,0,EntityKind::Species,k,k,value,0,clipped,Quantity::MassFraction));
         fractions[k]=clipped;
     }
-    if(!gasFinite(total) || ::fabs(total-Real(1))>closureTolerance)
+    if(!gasFinite(total) || std::fabs(total-Real(1))>closureTolerance)
         recordWarning(diagnostics,makeRecord(Code::ConservationResidual,10003,0,0,EntityKind::None,-1,-1,total,1,total,Quantity::Conservation));
     return true;
 }
@@ -136,13 +136,13 @@ UGKWP_GAS_HD inline ThermoStatus evaluateSpecies
                 if(CompleteEntropy)
                     return failure(view.diagnostics,ThermoStatus::NonFiniteInput,Code::ZeroDenominator,species,temperature,Quantity::Temperature);
             } else {
-                local.entropy=Real(data.referenceEntropy)+Real(c[0])*::log(temperature/Real(data.referenceTemperature))+Real(c[1])*(temperature-Real(data.referenceTemperature));
+                local.entropy=Real(data.referenceEntropy)+Real(c[0])*std::log(temperature/Real(data.referenceTemperature))+Real(c[1])*(temperature-Real(data.referenceTemperature));
             }
         }
     } else {
         local.cp=R*(Real(c[0])+temperature*(Real(c[1])+temperature*(Real(c[2])+temperature*(Real(c[3])+temperature*Real(c[4])))));
         local.h=available>=6?R*(Real(c[5])+temperature*(Real(c[0])+temperature*(Real(c[1])/Real(2)+temperature*(Real(c[2])/Real(3)+temperature*(Real(c[3])/Real(4)+temperature*Real(c[4])/Real(5)))))):invalidValue<Real>();
-        local.entropy=available>=7 && temperature>Real(0)?R*(Real(c[0])*::log(temperature)+Real(c[6])+temperature*(Real(c[1])+temperature*(Real(c[2])/Real(2)+temperature*(Real(c[3])/Real(3)+temperature*Real(c[4])/Real(4))))):invalidValue<Real>();
+        local.entropy=available>=7 && temperature>Real(0)?R*(Real(c[0])*std::log(temperature)+Real(c[6])+temperature*(Real(c[1])+temperature*(Real(c[2])/Real(2)+temperature*(Real(c[3])/Real(3)+temperature*Real(c[4])/Real(4))))):invalidValue<Real>();
     }
     local.cv=local.cp-R;local.e=local.h-R*temperature;
     if(!gasFinite(local.cp) || !gasFinite(local.cv) || (CompleteEnthalpy && !gasFinite(local.h)) || (CompleteEntropy && !gasFinite(local.entropy))) {

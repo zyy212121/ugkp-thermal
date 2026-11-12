@@ -1,7 +1,10 @@
 // Included after the gas reference adapter. CPU-only serial launch/atomic adapters.
 #include "GpuParticleBoundaryModel.H"
 #include "BoundaryInjectionApi.H"
+#include <vector>
 struct ParticleState : DeviceState {
+ // CPU fixture owns scratch independently of particle payload and its copies.
+ std::vector<double> couplingDragBeta,couplingResponseFraction;
  ugkwp::BoundaryInjectionStorage boundaryInjection;
  int particleCapacity=0,particleCount=0,*particleCountDevice=&particleCount,nBoundarySources=1,maxFaceWalkHops=1000;
  int solveParticleTemperature=1,particleGasHeatTransferModelId=1,dragModel=0;
@@ -93,6 +96,7 @@ template<class DragModel> void referenceEulerianDrag(ParticleState*sp,double dt)
 #undef GPU_RECOVERY_INLINE
 #undef DeviceState
 void initialiseParticles(ParticleState&s,int capacity){
+ s.couplingDragBeta.resize(capacity);s.couplingResponseFraction.resize(capacity);
  s.particleCapacity=capacity;s.gasPrOneThird=std::cbrt(s.gasPrClamped);
 #define PA(name) s.name=new double[capacity]{};
  PA(px) PA(py) PA(pz) PA(pux) PA(puy) PA(puz) PA(puxOld) PA(puyOld) PA(puzOld) PA(pT) PA(pTheta) PA(pd) PA(pm) PA(referenceAge)

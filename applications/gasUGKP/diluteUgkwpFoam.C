@@ -1,3 +1,10 @@
+#include "FoamGasNumericsControls.H"
+#include "FoamSolverScheme.H"
+#include "FoamGasTimeStepControls.H"
+#include "FoamParticleSolverControls.H"
+#include "FoamGasSteadyControls.H"
+#include "gasNumerics/FoamGasScalarSolverControls.H"
+#include <type_traits>
 #include "FoamParticleDiameterDistribution.H"
 #include "fvCFD.H"
 #include "physicoChemicalConstants.H"
@@ -41,6 +48,7 @@ int main(int argc, char *argv[])
 {
     #include "setRootCase.H"
     #include "createTime.H"
+    (void)ugkp::solverControls::startupScheme(runTime);
 
     Info<< "GPU precision=" << ugkp::precision::compiledBits << " (fixed at startup)" << nl;
     std::string precisionError;
@@ -101,10 +109,9 @@ int main(int argc, char *argv[])
 
         const label gpuResidentMaxFaceWalkHops =
             gpuScheduling.maxFaceWalkHops;
-        const label gpuResidentCourantUpdateInterval =
-            gpuScheduling.courantUpdateInterval;
-        const scalar gpuResidentMaxDeltaTGrowth =
-            gpuScheduling.maxDeltaTGrowth;
+        const auto gasTimeStepControls=ugkp::solverControls::readGasTimeStepControls(runTime,mesh.name());
+        const label gpuResidentCourantUpdateInterval=gasTimeStepControls.courantUpdateInterval;
+        const scalar gpuResidentMaxDeltaTGrowth=gasTimeStepControls.maximumTimeStepGrowth;
 
         const scalar epsSMinStrict =
             ugkwpProps.lookupOrDefault<scalar>("epsSMin", 1.0e-12);
@@ -256,8 +263,12 @@ int main(int argc, char *argv[])
             );
         };
 
+        using GasSolverReal=typename std::conditional<ugkp::precision::compiledBits==32,float,double>::type;
+        const auto gasScalarSolvers=ugkp::gasNumerics::readGasScalarSolverControls<GasSolverReal>
+            (ugkp::solverControls::startupScheme(runTime),mesh.name());
         const auto configureResidentSst = [&](auto& resident)
         {
+            resident.configureGasScalarSolvers(gasScalarSolvers);
             if (gasTurbulenceModel != 3)
             {
                 return;
@@ -295,9 +306,9 @@ int main(int argc, char *argv[])
             );
         };
 
-        bool adjustTimeStep = false;
-        scalar maxCo = 0.5;
-        scalar maxDeltaT = GREAT;
+        const bool adjustTimeStep = gasTimeStepControls.adjustTimeStep;
+        const scalar maxCo = gasTimeStepControls.maxCo;
+        const scalar maxDeltaT = gasTimeStepControls.maxDeltaT;
 
         if (gpuResidentPureGasOnly)
         {
@@ -347,7 +358,6 @@ int main(int argc, char *argv[])
 #else
             while (runTime.run())
             {
-                #include "readTimeControls.H"
 
                 const bool courantRefreshDue =
                     adjustTimeStep
@@ -525,7 +535,6 @@ int main(int argc, char *argv[])
 #else
         while (runTime.run())
         {
-            #include "readTimeControls.H"
 
             const bool courantRefreshDue =
                 adjustTimeStep

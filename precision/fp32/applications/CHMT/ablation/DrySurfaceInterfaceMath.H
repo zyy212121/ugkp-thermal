@@ -1,0 +1,362 @@
+#ifndef CHMT_ABLATION_DRYSURFACEINTERFACEMATH_H
+#define CHMT_ABLATION_DRYSURFACEINTERFACEMATH_H
+#include "ablation/InterfaceMath.H"
+#include "coupling/IntervalContracts.H"
+#include "materials/dry/DrySurfaceResponse.H"
+#include "materials/DryMaterialAdapter.H"
+#include "materials/dry/PoreTransport.H"
+namespace chmt {
+// Shared material adapter: proposals retain WallFaceSample reference-area
+// units. The validated dry kernels always see current physical material area.
+// No accepted gas ExchangePacket is constructed, changed, or applied here.
+CHMT_HD inline dry::SurfaceProduction<Nc,Ns> drySurfaceProduction(const SurfacePhysicsInput& in,
+    const GasPrimitive& gas,PhysicalReal T,const PhysicsConfig& p) {
+    std::array<dry::SurfaceMassAction<Nc,Ns>,Nr> reactions{};
+    std::array<PhysicalReal,Nc> condensed{};std::array<PhysicalReal,Ns> partial{};
+    for(int c=0;c<Nc;++c)condensed[c]=in.solid.condensed[c]/in.solidVolume;
+    for(int species=0;species<Ns;++species)partial[species]=gas.rho*gas.Y[species];
+    for(int r=0;r<p.material.nSurfaceReactions;++r){
+        const auto& old=p.material.surfaceReactions[r];auto& rate=reactions[r];
+        rate.prefactor=old.A;rate.temperaturePower=old.temperaturePower;rate.activationEnergy=old.activationEnergy;
+        for(int c=0;c<Nc;++c){rate.condensedOrder[c]=old.order[c];rate.stoichiometry.condensed[c]=old.condensedNu[c];}
+        for(int species=0;species<Ns;++species){rate.gasOrder[species]=p.material.surfaceGasOrder[r][species];rate.stoichiometry.gas[species]=old.gasNu[species];}
+    }
+    return dry::surfaceProduction(reactions,T,condensed,partial);
+}
+// Sharp recession represents one exposed effective phase or a congruent mixture.
+// Bulk pyrolysis may contain independent condensed constituents; it does not by
+// itself imply their selective surface loss is a closed sharp-front model.
+template<class Team=ugkwp::gaswall::detail::SerialWallTeam>
+CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
+    const PhysicsConfig& p, const MaterialPrimitive& material, EnergyReal filmT, EnergyReal topT,
+    bool birth, SurfacePhysicsResult& out,bool* numericalFailure=nullptr,const Team& team=Team{}) {
+    if constexpr(SurfaceProbeExecution<Team>::count>1){
+        auto& slots=team.template storage<SurfacePhysicsResult>();
+        if(team.probe()==0){
+            bool numerical=true;SurfacePhysicsResult result;
+            const auto inner=team.inner();
+            const bool valid=evaluateDrySurfaceTemperature(in,p,material,filmT,topT,birth,result,&numerical,inner);
+            if(inner.leader()){slots.result[0]=result;slots.valid[0]=valid;slots.numerical[0]=numerical;}
+        }
+        team.sync();out=slots.result[0];
+        const bool valid=slots.valid[0];if(numericalFailure)*numericalFailure=slots.numerical[0];
+        team.sync();return valid;
+    }else{
+    if(numericalFailure)*numericalFailure=true;
+    if((p.wallModel.family!=ugkwp::gaswall::WallFamily::LowRe&&p.wallModel.family!=ugkwp::gaswall::WallFamily::BoundaryLayer))return false;
+    const EnergyReal mechanicalPressure=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
+        ?in.wallContext.mechanicalPressure:in.bulk.pressure;
+    if((!finite(mechanicalPressure)||mechanicalPressure<=0))return surfacePressureFailure(p,mechanicalPressure);
+    SurfacePhysicsResult result;
+    (void)filmT; (void)birth;
+    const EnergyReal gasRatio=EnergyReal(in.gasArea)/EnergyReal(in.area);
+    const EnergyReal solidRatio=in.hasSolid ? EnergyReal(in.solidArea)/EnergyReal(in.area) : 0;
+    result.wet=false;
+    result.topTemperature=topT;
+    const EnergyReal gasConductivity=gasMolecularConductivity(p,topT,in.bulk.Y);
+    const EnergyReal gasConductance=gasConductivity>0
+        ? EnergyReal(1)/(EnergyReal(in.gasDistance)/gasConductivity+EnergyReal(p.material.gasContactResistance)) : 0;
+    const EnergyReal solidConductance=in.hasSolid && material.conductivity>0
+        ? EnergyReal(1)/(EnergyReal(in.solidDistance)/EnergyReal(material.conductivity)+EnergyReal(p.material.solidContactResistance)) : 0;
+    result.radiationFlux=gasRatio*grayRadiation(topT,p);
+    result.bottomTemperature=topT;
+    PhysicalReal Y[Ns]{};
+    for (int s=0; s<Ns; ++s) Y[s]=in.bulk.Y[s];
+    bool compositionConverged=false;PhysicalReal compositionChange=0;
+    InterfaceGasClosure wallClosure;
+    EnergyReal physicalPoreEnergy[Ns]{};
+    // This cache lives only inside this fixed-temperature evaluation. The bulk,
+    // model, geometry and matching state cannot change during this loop.
+    bool wallClosureReady=false;
+    PhysicalReal wallClosureSpecies[Ns]{},wallClosureSpeed=0;
+    PhysicalVec3 wallClosureVelocity{};
+    for (int iteration=0; iteration<p.numerics.surface.compositionMaximumIterations; ++iteration) {
+        SurfacePhysicsResult trial;
+        EnergyReal trialPoreEnergy[Ns]{};
+        trial.wet=result.wet;
+        GasPrimitive provisional;
+        if (!makeInterfacePrimitive(Y,topT,in.bulk.pressure,{},in.gasNormal,0,0,p,provisional,numericalFailure)) return false;
+        if (in.useAcceptedFlux) {
+            for (int s=0; s<Ns; ++s) {
+                trial.gasSpecies[s]=in.acceptedGasSpecies[s];
+                trial.poreSpecies[s]=in.acceptedPoreSpecies[s];
+                trial.poreSweep[s]=in.acceptedPoreSweep[s];
+                trial.poreDarcy[s]=trial.poreSpecies[s]-trial.poreSweep[s];
+                trialPoreEnergy[s]=EnergyReal(trial.poreDarcy[s])*speciesH(p.species[s],trial.poreDarcy[s]>=0?material.temperature:topT);
+            }
+            for (int c=0; c<Nc; ++c) trial.condensed[c]=in.acceptedCondensed[c];
+        } else {
+            if (in.ablating && p.material.enableSurfaceReactions) {
+                if (!in.hasSolid) {if(numericalFailure)*numericalFailure=false;return false;}
+                const auto production=drySurfaceProduction(in,provisional,topT,p);
+                // Core uses CURRENT physical material area. Existing wall proposals
+                // use reference area; convert exactly here, never in the gas ledger.
+                for(int c=0;c<Nc;++c)trial.condensed[c]=-solidRatio*production.condensed[c];
+                for(int species=0;species<Ns;++species)trial.gasSpecies[species]=solidRatio*production.gas[species];
+            }
+        }
+        if(in.hasSolid){
+            dry::SurfaceProduction<Nc,Ns> geometryProduction;
+            for(int c=0;c<Nc;++c)geometryProduction.condensed[c]=-trial.condensed[c]/solidRatio;
+            const dry::PoreSurfaceFlux<Ns> noPore;
+            const auto geometry=dry::congruentDryInterfaceFlux(geometryProduction,noPore,
+                dryAdapter::condensed(p),material.porosity);
+            trial.solidSpeed=geometry.normalInterfaceSpeed;
+        }
+        trial.solidWallSpeed=in.hasSolid && in.useSweptGeometry
+            ? PhysicalReal(in.solidSweptRate)/in.solidArea : trial.solidSpeed;
+        if (!in.useAcceptedFlux && in.hasSolid) {
+            PhysicalReal superficial=0;
+            if (in.ablating && p.material.enablePoreOutflow && p.permeability>0) {
+                superficial=p.permeability/p.poreViscosity
+                    *((material.pressure-in.bulk.pressure)/in.solidDistance
+                        +material.poreDensity*dot(p.gravity,in.solidNormal));
+            }
+            auto inside=dryAdapter::poreState(in.solid,material);
+            dry::PoreFaceState<Ns> outside;
+            outside.density=provisional.rho;outside.temperature=topT;
+            std::array<PhysicalReal,Ns> effectiveDiffusivity{};
+            for(int species=0;species<Ns;++species){
+                outside.massFraction[species]=Y[species];
+                effectiveDiffusivity[species]=in.ablating?p.poreEffectiveDiffusivity[species]:0;
+            }
+            dryAdapter::completePorePair(inside,outside);
+            const auto physical=dry::poreFaceFlux(inside,outside,in.solidDistance,
+                superficial,effectiveDiffusivity,0,dryAdapter::GasCalorics{p});
+            // Recession exposes pore inventory even with zero permeability.
+            const PhysicalReal poreSweep=-material.porosity*trial.solidWallSpeed;
+            for (int species=0; species<Ns; ++species) {
+                const PhysicalReal poreDensity=material.porosity>0
+                    ? in.solid.pore[species]/(material.porosity*in.solidVolume) : 0;
+                // Legacy name: poreDarcy now includes physical diffusion too.
+                trial.poreDarcy[species]=solidRatio*physical.species[species];
+                trialPoreEnergy[species]=solidRatio*physical.speciesEnergy[species];
+                trial.poreSweep[species]=solidRatio*(poreSweep>=0 ? poreSweep*poreDensity
+                    : poreSweep*provisional.rho*Y[species]);
+                trial.poreSpecies[species]=trial.poreDarcy[species]+trial.poreSweep[species];
+            }
+        }
+        PhysicalReal factor=1;
+        if (!in.useAcceptedFlux && in.dt>0) {
+            const PhysicalReal scale=in.area*PhysicalReal(in.dt);
+            for (int c=0; c<Nc; ++c) {
+                const PhysicalReal loss=trial.condensed[c];
+                if (loss>0) {
+                    const PhysicalReal available=in.solidBase.condensed[c]+PhysicalReal(in.dt)*in.solidLocalRate.condensed[c];
+                    factor=energyArithmetic::minimum(factor,surfaceDonorFraction(available,scale,loss));
+                }
+            }
+            for (int s=0; s<Ns; ++s) {
+                if (trial.poreSpecies[s]>0) {
+                    const PhysicalReal available=in.solidBase.pore[s]+PhysicalReal(in.dt)*in.solidLocalRate.pore[s];
+                    factor=energyArithmetic::minimum(factor,surfaceDonorFraction(available,scale,trial.poreSpecies[s]));
+                }
+                const PhysicalReal gasLoss=-trial.gasSpecies[s]-trial.poreSpecies[s];
+                if (gasLoss>0) factor=energyArithmetic::minimum(factor,surfaceDonorFraction(in.gasInventory.species[s],scale,gasLoss));
+            }
+            if ((!finite(factor) || factor<0)) return false;
+        }
+        // A frozen, steady wall layer cannot withdraw a species absent at
+        // its matching boundary. This transport supply condition is independent
+        // of the time interval used for the finite-inventory bound.
+        if(!in.useAcceptedFlux&&p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
+            &&in.wallContext.mechanism.reactionCount==0){
+            for(int s=0;s<Ns;++s)if(trial.gasSpecies[s]+trial.poreSpecies[s]<0
+                &&in.wallContext.matching.massFraction[s]==0)factor=0;
+        }
+        // Actual geometric sweep is immutable during this evaluation. If a
+        // donor limit would rescale it, the entire geometry/source trial must be
+        // recomputed instead of silently changing only its diagnostic mass.
+        if (in.useSweptGeometry && factor<1) {
+            for (int species=0; species<Ns; ++species) if ((trial.poreSweep[species]!=0)) return false;
+        }
+        trial.solidSpeed*=factor;
+        if (!in.useSweptGeometry) trial.solidWallSpeed=trial.solidSpeed;
+        PhysicalReal J=0;
+        PhysicalReal allSpecies[Ns]{};
+        for (int c=0; c<Nc; ++c) trial.condensed[c]*=factor;
+        for (int s=0; s<Ns; ++s) {
+            trial.gasSpecies[s]*=factor;
+            trial.poreSpecies[s]*=factor;
+            trial.poreDarcy[s]*=factor;
+            trial.poreSweep[s]*=factor;
+            trialPoreEnergy[s]*=EnergyReal(factor);
+            allSpecies[s]=trial.gasSpecies[s]+trial.poreSpecies[s];
+            J+=allSpecies[s];
+        }
+        trial.topSpeed=trial.solidSpeed;
+        trial.gasWallSpeed=in.useSweptGeometry ? PhysicalReal(in.gasSweptRate)/in.gasArea : trial.topSpeed;
+        trial.solidRecessionResidual=in.hasSolid && in.useSweptGeometry
+            ? in.solidSweptRate-Real(in.solidArea*trial.solidSpeed) : 0;
+        for (int species=0; species<Ns; ++species) allSpecies[species]/=gasRatio;
+        PhysicalReal nextY[Ns]{};
+        const PhysicalReal fluxTolerance=in.dt>0
+            ? p.tolerances.absoluteMass/(PhysicalReal(in.dt)*in.gasArea) : p.tolerances.absoluteMass;
+        if(p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){
+            PhysicalVec3 velocity=in.baseVelocity;
+            bool sameClosure=wallClosureReady && trial.gasWallSpeed==wallClosureSpeed
+                && velocity.x==wallClosureVelocity.x && velocity.y==wallClosureVelocity.y
+                && velocity.z==wallClosureVelocity.z;
+            for(int s=0;s<Ns;++s) sameClosure=sameClosure && allSpecies[s]==wallClosureSpecies[s];
+            if(!sameClosure){
+                if(!evaluateInterfaceGasClosure(in.bulk,in.gradient,topT,in.gasDistance,velocity,in.gasNormal,
+                    trial.gasWallSpeed,allSpecies,fluxTolerance,p,in.wallContext,wallClosure,numericalFailure,team))return false;
+                wallClosureReady=true;wallClosureSpeed=trial.gasWallSpeed;wallClosureVelocity=velocity;
+                for(int s=0;s<Ns;++s)wallClosureSpecies[s]=allSpecies[s];
+            }
+            for(int s=0;s<Ns;++s)nextY[s]=wallClosure.trace.Y[s];
+        }else if (!interfaceComposition(allSpecies,in.bulk.Y,in.bulk.pressure,topT,in.gasDistance,
+            p,fluxTolerance,nextY)) return false;
+        PhysicalReal change=0;
+        for (int s=0; s<Ns; ++s) change=energyArithmetic::maximum(change,energyArithmetic::absolute(nextY[s]-Y[s]));
+        for (int s=0; s<Ns; ++s) Y[s]=p.numerics.surface.compositionRelaxation==PhysicalReal(.5)
+            ? PhysicalReal(.5)*(Y[s]+nextY[s])
+            : (PhysicalReal(1)-p.numerics.surface.compositionRelaxation)*Y[s]+p.numerics.surface.compositionRelaxation*nextY[s];
+        result.gasState=provisional;
+        for (int s=0; s<Ns; ++s) {
+            result.gasSpecies[s]=trial.gasSpecies[s]; result.poreSpecies[s]=trial.poreSpecies[s];
+            result.poreDarcy[s]=trial.poreDarcy[s]; result.poreSweep[s]=trial.poreSweep[s];
+            physicalPoreEnergy[s]=trialPoreEnergy[s];
+        }
+        for (int c=0; c<Nc; ++c) result.condensed[c]=trial.condensed[c];
+        result.solidSpeed=trial.solidSpeed; result.topSpeed=trial.topSpeed;
+        result.solidWallSpeed=trial.solidWallSpeed; result.gasWallSpeed=trial.gasWallSpeed;
+        result.solidRecessionResidual=trial.solidRecessionResidual;
+        if (!makeInterfacePrimitive(nextY,topT,in.bulk.pressure,in.baseVelocity,in.gasNormal,
+            trial.gasWallSpeed,J/gasRatio,p,result.gasState,numericalFailure)) return false;
+        compositionChange=change;
+        if (change<=p.tolerances.relativeMass+p.numerics.surface.compositionAbsoluteTolerance) { compositionConverged=true; break; }
+    }
+    if (!compositionConverged) surfaceCompositionWarning(p,compositionChange,p.tolerances.relativeMass+p.numerics.surface.compositionAbsoluteTolerance);
+    GasGradient gradient=surfaceVelocityGradient(in.gradient,in.bulk.velocity,result.gasState.velocity,in.gasNormal,EnergyReal(in.gasDistance));
+    // Physical low-Re wall: molecular stress only, no owner nut or k stress.
+    result.traction=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
+        ?wallClosure.traction:surfaceViscousTraction(gradient,in.gasNormal,surfaceMolecularViscosity(p,result.gasState.temperature,result.gasState.Y));
+    result.gasShear=result.traction-in.gasNormal*dot(result.traction,in.gasNormal);
+    result.shear=(result.gasShear-in.normal*dot(result.gasShear,in.normal))*gasRatio;
+    EnergyReal primaryJ=0, poreJ=0, poreDonorEnergy=0, solidDonorEnergy=0;
+    for (int s=0; s<Ns; ++s) {
+        primaryJ+=EnergyReal(result.gasSpecies[s]); poreJ+=EnergyReal(result.poreSpecies[s]);
+        result.gasAdvective+=EnergyReal(result.gasSpecies[s])*speciesH(p.species[s],topT);
+        result.poreEnergy+=EnergyReal(result.poreSpecies[s])*speciesH(p.species[s],topT);
+        const EnergyReal sweepT=result.poreSweep[s]>=0 ? material.temperature : topT;
+        poreDonorEnergy+=physicalPoreEnergy[s]
+            +EnergyReal(result.poreSweep[s])*speciesE(p.species[s],sweepT);
+    }
+    const EnergyReal gasKE=EnergyReal(.5)*surfaceEnergyDot(result.gasState.velocity,result.gasState.velocity);
+    result.gasAdvective+=primaryJ*gasKE;
+    result.poreEnergy+=poreJ*gasKE;
+    result.gasConductive=gasRatio*((p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer||p.gasTransportCoefficients.prandtlSpecies>=0)
+        ?wallClosure.conductiveHeatFlux:gasConductance*(topT-EnergyReal(in.bulk.temperature)));
+    result.gasPressureWork=gasRatio*mechanicalPressure*EnergyReal(result.gasWallSpeed);
+    result.gasViscousWork=-gasRatio*surfaceEnergyDot(result.traction,result.gasState.velocity);
+    result.gasEnergy=result.gasAdvective+result.gasConductive+result.gasPressureWork+result.gasViscousWork;
+    for (int c=0; c<Nc; ++c) if (result.condensed[c]!=0)
+        solidDonorEnergy+=EnergyReal(result.condensed[c])*condensedE(p.condensed[c],topT);
+    // The accepted gas flux remains authoritative. This residual only closes a
+    // constitutive proposal; swept pore inventory carries e, Darcy transport h.
+    result.thermalResidual=result.gasEnergy+result.poreEnergy-solidDonorEnergy-poreDonorEnergy
+        -solidRatio*solidConductance*(EnergyReal(material.temperature)-topT)-result.radiationFlux;
+    if ((!finite(result.thermalResidual) || !finite(result.phaseEnergy))) return surfaceEnergyFailure(p,result.thermalResidual,result.phaseEnergy);
+    out=result; return true;
+    }
+}
+template<class Team=ugkwp::gaswall::detail::SerialWallTeam>
+struct DrySurfaceEvaluationWithTeam {
+    using BisectionProbes=ugkp::gpu::OrderedBisectionProbe<EnergyReal,SurfaceProbeExecution<Team>::depth>;
+    CHMT_HD static bool evaluate(const SurfacePhysicsInput& in,const PhysicsConfig& p,
+        const MaterialPrimitive& material,EnergyReal filmT,EnergyReal topT,bool birth,
+        SurfacePhysicsResult& out,bool* numericalFailure) {
+        return evaluateDrySurfaceTemperature(in,p,material,filmT,topT,birth,out,numericalFailure,Team{});
+    }
+    CHMT_HD static bool evaluateBisection(const SurfacePhysicsInput& in,const PhysicsConfig& p,
+        const MaterialPrimitive& material,EnergyReal filmT,EnergyReal lo,EnergyReal hi,
+        BisectionProbes& probes,SurfacePhysicsResult& out,bool* numericalFailure){
+        if constexpr(SurfaceProbeExecution<Team>::count==1)
+            return evaluate(in,p,material,filmT,EnergyReal(.5)*(lo+hi),false,out,numericalFailure);
+        else{
+            const Team team{};auto& slots=team.template storage<SurfacePhysicsResult>();
+            int selected=probes.find(EnergyReal(.5)*(lo+hi));
+            if(selected<0){
+                probes.prepare(lo,hi);const int probe=team.probe();const auto inner=team.inner();
+                auto input=in;
+                input.wallContext.workspace=static_cast<unsigned char*>(in.wallContext.workspace)+probe*slots.workspaceStride;
+                input.wallContext.teamOutput=in.wallContext.teamOutput+probe;
+                bool numerical=true;SurfacePhysicsResult result;
+                const bool valid=evaluateDrySurfaceTemperature(input,p,material,filmT,probes.temperature[probe],false,result,&numerical,inner);
+                if(inner.leader()){slots.result[probe]=result;slots.valid[probe]=valid;slots.numerical[probe]=numerical;}
+                team.sync();selected=0;
+            }
+            out=slots.result[selected];const bool valid=slots.valid[selected];
+            if(numericalFailure)*numericalFailure=slots.numerical[selected];
+            team.sync();return valid;
+        }
+    }
+};
+using DrySurfaceEvaluation=DrySurfaceEvaluationWithTeam<>;
+template<class Team=ugkwp::gaswall::detail::SerialWallTeam>
+CHMT_HD inline bool solveDrySurfaceInterface(const SurfacePhysicsInput& in,const PhysicsConfig& p,
+    SurfacePhysicsResult& out,DeviceStatus* status=nullptr,bool* numericalFailure=nullptr,const Team& team=Team{}) {
+    const auto& lanePhysics=team.leader()?p:*in.wallContext.quietPhysics;
+    if(numericalFailure)*numericalFailure=true;
+    if ((!(in.area>0 && in.gasArea>0 && in.gasDistance>0) || !finite(in.normal) || !finite(in.gasNormal)
+        || mag(in.normal)==0
+        || mag(in.gasNormal)==0 || dot(in.normal,in.gasNormal)<=0
+        || (in.hasSolid && (mag(in.baseVelocity)!=0 || in.solidDistance<=0 || in.solidArea<=0
+            || !finite(in.solidNormal) || mag(in.solidNormal)==0
+            || dot(in.normal,in.solidNormal)<=0))
+        || (in.useSweptGeometry && (!finite(in.gasSweptRate) || !finite(in.solidSweptRate))))) return surfaceGeometryFailure(lanePhysics,in.area,in.gasDistance);
+    const PhysicalReal normalResidual=energyArithmetic::maximum(energyArithmetic::absolute(mag(in.normal)-1),energyArithmetic::maximum(energyArithmetic::absolute(mag(in.gasNormal)-1),in.hasSolid?energyArithmetic::absolute(mag(in.solidNormal)-1):0));
+    if(normalResidual>PhysicalReal(1e-12))surfaceNormalWarning(lanePhysics,normalResidual);
+    MaterialPrimitive material;
+    if (in.hasSolid && !recoverMaterial(in.solid,in.solidVolume,lanePhysics,material,nullptr,-1,numericalFailure)) return false;
+    if(!in.hasSolid){if(numericalFailure)*numericalFailure=false;return false;}
+    if(!closeEnough(in.gasArea,in.solidArea,p.tolerances.absoluteGeometry,
+        p.tolerances.relativeGeometry)||mag(in.gasNormal-in.solidNormal)>PhysicalReal(1e-10))
+        surfaceAreaWarning(lanePhysics,in.gasArea-in.solidArea,mag(in.gasNormal-in.solidNormal));
+    EnergyReal lo=0,hi=std::numeric_limits<EnergyReal>::max();
+    for(int species=0;species<Ns;++species){lo=energyArithmetic::maximum(lo,p.species[species].Tmin);hi=energyArithmetic::minimum(hi,p.species[species].Tmax);}
+    for(int c=0;c<Nc;++c)if(in.solid.condensed[c]>0){lo=energyArithmetic::maximum(lo,p.condensed[c].Tmin);hi=energyArithmetic::minimum(hi,p.condensed[c].Tmax);}
+    SurfacePhysicsResult candidate;
+    if constexpr(std::is_same<Team,ugkwp::gaswall::detail::SerialWallTeam>::value){
+        if(!findFeasibleSurfaceRoot<false,DrySurfaceEvaluation>(in,p,material,material.temperature,
+            lo,hi,candidate,nullptr,numericalFailure))return false;
+    }else {
+        if(!findFeasibleSurfaceRootImpl<false,DrySurfaceEvaluationWithTeam<Team>>(in,p,
+            *in.wallContext.quietPhysics,material,material.temperature,lo,hi,candidate,
+            nullptr,numericalFailure,team))return false;
+    }
+    if(!evaluateDrySurfaceTemperature(in,lanePhysics,material,material.temperature,
+        candidate.topTemperature,false,candidate,numericalFailure,team))return false;
+    // A common current-area/reference-area scale is an exact unit conversion.
+    // Other moving offsets retain the existing unsupported-geometry behavior;
+    // no tilted/nonconformal moving-front extension is claimed by this adapter.
+    const bool scalarAreaNormalization=closeEnough(in.gasArea,in.solidArea,0,p.tolerances.relativeGeometry)
+        &&mag(in.gasNormal-in.normal)<=PhysicalReal(1e-10)&&mag(in.solidNormal-in.normal)<=PhysicalReal(1e-10);
+    const bool offsetGeometry=!closeEnough(in.gasArea,in.area,0,p.tolerances.relativeGeometry)
+        ||mag(in.gasNormal-in.normal)>PhysicalReal(1e-10)
+        ||!closeEnough(in.solidArea,in.area,0,p.tolerances.relativeGeometry)
+        ||mag(in.solidNormal-in.normal)>PhysicalReal(1e-10);
+    const Real rateTolerance=p.tolerances.absoluteGeometry/(in.dt>0?in.dt:1);
+    if(offsetGeometry&&!scalarAreaNormalization
+        &&(Real(energyArithmetic::absolute(candidate.topSpeed)*in.gasArea)>rateTolerance
+            ||Real(energyArithmetic::absolute(candidate.solidSpeed)*in.solidArea)>rateTolerance
+            ||(in.useSweptGeometry&&(std::abs(in.gasSweptRate)>rateTolerance
+                ||std::abs(in.solidSweptRate)>rateTolerance))))
+        return failStatus(status,ErrorCode::Unsupported,-1,candidate.filmVolumeResidual,ErrorLocation::Face);
+    out=candidate;return true;
+}
+// The proposal adapter uses the same reference-area units on CPU and GPU.
+CHMT_HD inline WallFaceSample dryWallFaceSample(const SurfacePhysicsInput& input,
+    const SurfacePhysicsResult& physics,const PhysicsConfig& config) {
+    WallFaceSample wall;wall.temperature=physics.topTemperature;wall.primaryKind=ExchangeKind::GasSolid;
+    wall.velocity=physics.gasState.velocity-input.gasNormal*dot(physics.gasState.velocity,input.gasNormal);
+    for(int s=0;s<Ns;++s){wall.speciesRate[s]=physics.gasSpecies[s];wall.poreRate[s]=physics.poreSpecies[s];wall.poreSweepRate[s]=physics.poreSweep[s];}
+    for(int c=0;c<Nc;++c)wall.condensedRate[c]=physics.condensed[c];
+    wall.materialEffusivity=materialThermalEffusivity(input.solid,input.solidVolume,config);
+    wall.radiationFlux=physics.radiationFlux;wall.solidNormalVelocity=physics.solidSpeed;wall.normalVelocity=physics.topSpeed;
+    return wall;
+}
+
+}
+#endif

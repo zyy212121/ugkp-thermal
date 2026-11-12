@@ -22,7 +22,7 @@ GPU_COUPLING_HD inline GpuEnergy gpuCouplingOneMinusExpNeg(const GpuEnergy x)
         return x*(GPU_R(1.0) - GPU_R(0.5)*x + x*x/GPU_R(6.0));
     }
 
-    return GPU_R(1.0) - ::exp(-x);
+    return GPU_R(1.0) - ::expf(-x);
 }
 
 GPU_COUPLING_HD inline GpuEnergy gpuFiniteCapacityHeatExchange
@@ -54,7 +54,7 @@ GPU_COUPLING_HD inline GpuEnergy gpuFiniteCapacityHeatExchange
 
     return effectiveCapacity
        *(gasTemperature - solidTemperature)
-       *gpuCouplingOneMinusExpNeg(coupledRate*dt);
+       *gpuCouplingOneMinusExpNeg(coupledRate*GpuEnergy(dt));
 }
 
 #undef GPU_COUPLING_HD

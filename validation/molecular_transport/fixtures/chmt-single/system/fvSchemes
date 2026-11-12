@@ -1,5 +1,5 @@
 FoamFile { version 2.0; format ascii; class dictionary; object fvSchemes; }
-fluxScheme Tadmor;
+
 ddtSchemes { default Euler; } gradSchemes { default Gauss linear; }
 divSchemes { default none;
  "div(phi,U)" Gauss upwind; "div(phi,e)" Gauss upwind;

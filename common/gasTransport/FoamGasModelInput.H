@@ -2,6 +2,7 @@
 #define UGKWP_SHARED_GAS_MODEL_INPUT_H
 
 #include "fvCFD.H"
+#include "../FoamGasSolverControls.H"
 #include "../gasBoundary/FoamInput.H"
 #include "GpuBackendApi.H"
 #include "gasTransport/GasBuildConfig.H"
@@ -101,10 +102,12 @@ public:
         {
             IOdictionary dictionary(IOobject("gasModelProperties",time.constant(),mesh,
                 IOobject::MUST_READ,IOobject::NO_WRITE,false));
+            ugkp::solverControls::applyGasSolverControlOverrides(dictionary,time,mesh.name());
             OStringStream output;output.precision(std::numeric_limits<double>::max_digits10);
             static_cast<const Foam::dictionary&>(dictionary).write(output,false);
             modelText_=output.str();
             model_=ugkwp::parseGasModelProperties(modelText_);
+            ugkp::solverControls::reportGasSolverControls(model_,time,mesh.name());
             if(!active()) return;
             if(model_.speciesNames.size()<ugkwp::compiledGasSpecies
                 || model_.species.size()<ugkwp::compiledGasSpecies)

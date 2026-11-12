@@ -1,6 +1,7 @@
 #include "GpuPrecisionTypes.H"
 #include "../../../common/GpuCollisionCentralMoment.H"
 #include "BoundaryInjectionApi.H"
+#include "gasNumerics/GasScalarSolverControlsApi.H"
 #include "GpuParticlePhaseGraph.cuh"
 #include "ParticleResidentInterval.H"
 #include "GpuParticleExecutionContext.H"
@@ -40,7 +41,7 @@
 #define GPU_WALL_COORDINATE(hit, eps, normal) hit - eps*normal
 #define GPU_RESET_CONTACT_AGE(s, i)
 #define GPU_CONTACT_DURATION(value) static_cast<double>(value)
-#define GPU_CONTACT_PEAK(value) static_cast<double>(value)
+#define GPU_CONTACT_PEAK(value) static_cast<GpuReal>(value)
 #define GPU_OPERATOR_REAL GpuReal
 #define GPU_OPERATOR_GEOMETRY GpuGeometry
 #define GPU_OPERATOR_TIME GpuTime
@@ -144,17 +145,17 @@ struct DeviceState
 
     ugkp::boundary::View gasBoundaryProgram;
     ugkp::boundary::Resident* gasBoundaryOwner=nullptr;
-    ugkwp::MolecularViscosityView<double> gasViscosity;
+    ugkwp::MolecularViscosityView<GpuReal> gasViscosity;
     ugkwp::MolecularTransportDevice* gasTransportOwner=nullptr;
     ugkp::diagnostics::DeviceContext* diagnostics = nullptr;
     ugkp::diagnostics::GpuOwner* diagnosticOwner = nullptr;
 #include "GpuAutomaticCsrScheduleFields.inl"
     DeviceState* deviceState = nullptr;
-    ugkwp::GasSpeciesState<GpuReal,ugkwp::compiledGasSpecies,double> gasSpecies;
-    ugkwp::GasSpeciesState<GpuReal,ugkwp::compiledGasSpecies,double> gasRejectedView;
-    ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
-    ugkwp::GasBoundaryLayerModelState<double,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
-    double *gasWallQuadratureDistance=nullptr,*gasWallQuadratureWeight=nullptr;
+    ugkwp::GasSpeciesState<GpuReal,ugkwp::compiledGasSpecies,GpuReal> gasSpecies;
+    ugkwp::GasSpeciesState<GpuReal,ugkwp::compiledGasSpecies,GpuReal> gasRejectedView;
+    ugkwp::GasBoundaryLayerState<GpuReal> gasBoundaryLayer;
+    ugkwp::GasBoundaryLayerModelState<GpuReal,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
+    GpuReal *gasWallQuadratureDistance=nullptr,*gasWallQuadratureWeight=nullptr;
     GpuTime gasBoundaryLayerStageTime=0;
     int (*gasBoundaryLayerLaunch)(DeviceState*)=&launchBoundaryLayer<false>;
     GpuReal gasThermalConductivity=-1;
@@ -219,6 +220,7 @@ struct DeviceState
     GpuReal turbulentPrandtl = 0.9;
     GpuReal waleCw = 0.325;
     GpuReal smagorinskyCs = 0.17;
+    ugkp::gasNumerics::ScalarSolverControls<GpuReal> gasScalarSolvers;
     int sstConfigured = 0;
     ugkwp::SstCoefficients sstCoefficients =
         ugkwp::defaultSstCoefficients();
@@ -294,19 +296,19 @@ struct DeviceState
     GpuGeometry* facePeriodicDx = nullptr;
     GpuGeometry* facePeriodicDy = nullptr;
     GpuGeometry* facePeriodicDz = nullptr;
-    GpuGeometry* V = nullptr;
+    GpuReal* V = nullptr;
     GpuGeometry* Cx = nullptr;
     GpuGeometry* Cy = nullptr;
     GpuGeometry* Cz = nullptr;
     GpuGeometry* faceCx = nullptr;
     GpuGeometry* faceCy = nullptr;
     GpuGeometry* faceCz = nullptr;
-    GpuGeometry* Sfx = nullptr;
-    GpuGeometry* Sfy = nullptr;
-    GpuGeometry* Sfz = nullptr;
-    GpuGeometry* magSf = nullptr;
-    GpuGeometry* deltaCoeffs = nullptr;
-    GpuGeometry* faceWeight = nullptr;
+    GpuReal* Sfx = nullptr;
+    GpuReal* Sfy = nullptr;
+    GpuReal* Sfz = nullptr;
+    GpuReal* magSf = nullptr;
+    GpuReal* deltaCoeffs = nullptr;
+    GpuReal* faceWeight = nullptr;
     GpuGeometry* cellLength = nullptr;
     int* cellPlaneStart = nullptr;
     int* cellPlaneCount = nullptr;
@@ -326,15 +328,15 @@ struct DeviceState
     GpuTime gasPseudoReferenceDt = 1.0;
     bool gasSteadyMode = false;
     bool gasSteadyBoundaryFrozen = false;
-    double *steadySampleSum=nullptr,*steadySampleSquare=nullptr;
-    double *steadySampleMean=nullptr,*steadySampleBegin=nullptr;
-    double *steadySampleScratch=nullptr,*steadyBoundaryBudget=nullptr;
-    double* steadySampleReductionWorkspace=nullptr;
-    double* steadyAuditWorkspace=nullptr;
+    GpuReal *steadySampleSum=nullptr,*steadySampleSquare=nullptr;
+    GpuReal *steadySampleMean=nullptr,*steadySampleBegin=nullptr;
+    GpuReal *steadySampleScratch=nullptr,*steadyBoundaryBudget=nullptr;
+    GpuReal* steadySampleReductionWorkspace=nullptr;
+    GpuReal* steadyAuditWorkspace=nullptr;
     int steadyAuditParts=0;
     GpuTime gasSteadyBoundaryTime = 0.0;
-    double* gasSteadyResidual = nullptr;
-    double* gasSteadyMaximumWorkspace = nullptr;
+    GpuReal* gasSteadyResidual = nullptr;
+    GpuReal* gasSteadyMaximumWorkspace = nullptr;
 
 #endif
 
@@ -432,7 +434,7 @@ struct DeviceState
     GpuReal* rhoOmegaInitial = nullptr;
     GpuReal* k = nullptr;
     GpuReal* omega = nullptr;
-    GpuGeometry* sstWallDistance = nullptr;
+    GpuReal* sstWallDistance = nullptr;
     GpuReal* sstF1 = nullptr;
     GpuReal* sstF2 = nullptr;
     GpuReal* gradKX = nullptr;
@@ -536,6 +538,10 @@ struct DeviceState
     GpuReal* pux = nullptr;
     GpuReal* puy = nullptr;
     GpuReal* puz = nullptr;
+    // Source-epoch scratch, not particle payload: each coupling pass writes
+    // before reading, so restart, sorting and migration need no cache copies.
+    GpuReal* couplingDragBeta = nullptr;
+    GpuReal* couplingResponseFraction = nullptr;
     GpuReal* puxOld = nullptr;
     GpuReal* puyOld = nullptr;
     GpuReal* puzOld = nullptr;
@@ -592,7 +598,7 @@ struct DeviceState
     GpuEnergy* preInjectionHeavyPartials = nullptr;
 
     bool particleInjectionVelocitySpecified = false;
-    double particleInjectionVelocity[3]{};
+    GpuReal particleInjectionVelocity[3]{};
     ugkwp::BoundaryInjectionStorage boundaryInjection;
     int nBoundarySources = 0;
     int* sourceCell = nullptr;
@@ -607,7 +613,7 @@ struct DeviceState
     GpuReal* sourceTheta = nullptr;
     GpuReal* sourceD = nullptr;
     GpuReal* sourceMassRate = nullptr;
-    double* sourceResidualMass = nullptr;
+    GpuReal* sourceResidualMass = nullptr;
 #ifdef UGKP_DEVELOPMENT_PROBES
     int* sourceInjectedCount = nullptr;
 #endif
@@ -818,7 +824,7 @@ struct DevelopmentProbeState
     DevelopmentProbeDeviceSummary* deviceSummary = nullptr;
     std::vector<int> occupancy;
     std::vector<int> injectedBySource;
-    std::vector<double> sourceResidualMass;
+    std::vector<GpuReal> sourceResidualMass;
 };
 
 DevelopmentProbeState developmentProbe;
@@ -1319,6 +1325,7 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->pux);
     release(s->puy);
     release(s->puz);
+    release(s->couplingDragBeta);release(s->couplingResponseFraction);
     release(s->puxOld);
     release(s->puyOld);
     release(s->puzOld);
@@ -1637,6 +1644,8 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->pux, np, "cudaMalloc strict particle ux");
     rc |= allocate(s->puy, np, "cudaMalloc strict particle uy");
     rc |= allocate(s->puz, np, "cudaMalloc strict particle uz");
+    rc |= allocate(s->couplingDragBeta,np,"allocate particle coupling drag beta");
+    rc |= allocate(s->couplingResponseFraction,np,"allocate particle coupling response fraction");
     rc |= allocate(s->puxOld, np, "cudaMalloc strict particle old ux");
     rc |= allocate(s->puyOld, np, "cudaMalloc strict particle old uy");
     rc |= allocate(s->puzOld, np, "cudaMalloc strict particle old uz");
@@ -1866,7 +1875,7 @@ __device__ void recordDevelopmentProbeParticleFailure
 
 #endif
 
-__device__ double particleHeatFactorDevice(const DeviceState& s)
+__device__ GpuReal particleHeatFactorDevice(const DeviceState& s)
 {
     if
     (
@@ -1878,8 +1887,8 @@ __device__ double particleHeatFactorDevice(const DeviceState& s)
         return 0.0;
     }
 
-    return double(s.particleThermalRho)*double(s.particleCp)
-       /clampMin(double(s.rhoSolid), 1.0e-300);
+    return GpuReal(s.particleThermalRho)*GpuReal(s.particleCp)
+       /clampMin(GpuReal(s.rhoSolid), GPU_REAL_TINY);
 }
 
 #include "operators/clearSolidCell.cuh"
@@ -2742,7 +2751,7 @@ int rebuildResidentParticleMomentsFromParticles
             }
 
             const size_t momentSharedBytes =
-                8u*static_cast<size_t>(warpCount)*sizeof(double);
+                8u*static_cast<size_t>(warpCount)*sizeof(GpuEnergy);
 
             if (s->csrHeavyReductionEnabled != 0)
             {
@@ -3273,7 +3282,7 @@ int collectDevelopmentProbeSample
             (
                 developmentProbe.sourceResidualMass.data(),
                 s->sourceResidualMass,
-                static_cast<size_t>(s->nBoundarySources)*sizeof(double),
+                static_cast<size_t>(s->nBoundarySources)*sizeof(GpuReal),
                 cudaMemcpyDeviceToHost
             );
         }
@@ -3608,9 +3617,9 @@ int configureParticleLaunchGeometry(DeviceState* s)
     }
     const int warpCount = (reductionBlock + 31)/32;
     const size_t poolSharedBytes =
-        8u*static_cast<size_t>(reductionBlock)*sizeof(double);
+        8u*static_cast<size_t>(reductionBlock)*sizeof(GpuEnergy);
     const size_t componentSharedBytes =
-        8u*static_cast<size_t>(warpCount)*sizeof(double);
+        8u*static_cast<size_t>(warpCount)*sizeof(GpuEnergy);
 
     int gasBlocks = 0;
     if (queryKernelBlocksPerSm(gasBlocks,
@@ -3946,10 +3955,10 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->gasPrClamped = gasPr < 1.0e-12 ? 1.0e-12 : gasPr;
     s->gasPrOneThird = std::pow(s->gasPrClamped, 1.0/3.0);
     s->dragModel = dragModel;
-    s->dragParameter0 = dragParameter0;
-    s->dragParameter1 = dragParameter1;
-    s->dragParameter2 = dragParameter2;
-    s->dragParameter3 = dragParameter3;
+    s->dragParameter0 = GpuReal(dragParameter0);
+    s->dragParameter1 = GpuReal(dragParameter1);
+    s->dragParameter2 = GpuReal(dragParameter2);
+    s->dragParameter3 = GpuReal(dragParameter3);
     s->gravityX = gravityX;
     s->gravityY = gravityY;
     s->gravityZ = gravityZ;
@@ -4276,7 +4285,7 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
         }
     }
 
-    cudaError_t err = cudaMemset(s->sourceResidualMass, 0, n*sizeof(double));
+    cudaError_t err = cudaMemset(s->sourceResidualMass, 0, n*sizeof(GpuReal));
     if (err != cudaSuccess)
     {
         setLastError("cudaMemset strict sourceResidualMass", err);
@@ -4644,6 +4653,28 @@ extern "C" int ugkwpGpuResidentStrictUploadFields
 
     s->gasInitialFieldsUploaded = true;
     scrubHostCalculationScalars(s);
+    return 0;
+}
+
+extern "C" int ugkwpGpuResidentStrictConfigureGasScalarSolvers(
+    void* handle, const ugkp::gasNumerics::ScalarSolverControls<double>* controls)
+{
+    DeviceState* s=static_cast<DeviceState*>(handle);
+    if(!s || !controls) {
+        setLastErrorText("null gas scalar solver configuration");
+        return 1;
+    }
+    s->gasScalarSolvers=ugkp::gasNumerics::castScalarSolverControls<GpuReal>(*controls);
+    // Publish only the startup controls: gasUGKP scrubs unrelated host physical
+    // scalars after field upload, so a whole-state upload would overwrite them.
+    const cudaError_t error=cudaMemcpy(
+        reinterpret_cast<unsigned char*>(s->deviceState)+offsetof(DeviceState,gasScalarSolvers),
+        &s->gasScalarSolvers,sizeof(s->gasScalarSolvers),cudaMemcpyHostToDevice);
+    if(error!=cudaSuccess) {
+        setLastError("configure gas scalar solver controls",error);
+        return 1;
+    }
+    invalidateSharedGasConfiguration(s);
     return 0;
 }
 

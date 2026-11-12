@@ -15,11 +15,12 @@ struct ParticleGasBinding {
 #define UGKP_PARTICLE_GAS_FIELD(Type,Name) Type* Name=nullptr;
 #include "ParticleGasFields.inc"
 #undef UGKP_PARTICLE_GAS_FIELD
-    double gammaGas=1.4,Rgas=287,gasCp=1004.5,gasMu=0,gasPrClamped=.7,gasPrOneThird=0;
-    double rhoMin=1e-12,TgasMin=1,gasThermalConductivity=-1;
+    GpuReal gammaGas=1.4,Rgas=287,gasCp=1004.5,gasMu=0,gasPrClamped=.7,gasPrOneThird=0;
+    GpuReal rhoMin=1e-12,TgasMin=1,gasThermalConductivity=-1;
+    ugkp::gasNumerics::ScalarSolverControls<GpuReal> gasScalarSolvers;
     int sstConfigured=0;
-    ugkwp::GasSpeciesState<GpuReal,ugkwp::compiledGasSpecies,double> species;
-    ugkwp::MolecularViscosityView<double> viscosity;
+    ugkwp::GasSpeciesState<GpuReal,ugkwp::compiledGasSpecies,GpuReal> species;
+    ugkwp::MolecularViscosityView<GpuReal> viscosity;
     ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
 };
 template<class Gas> ParticleGasBinding particleGasBinding(const Gas& gas) {
@@ -29,8 +30,9 @@ template<class Gas> ParticleGasBinding particleGasBinding(const Gas& gas) {
 #include "ParticleGasFields.inc"
 #undef UGKP_PARTICLE_GAS_FIELD
     out.gammaGas=gas.gammaGas;out.Rgas=gas.Rgas;out.gasCp=gas.gasCp;out.gasMu=gas.gasMu;
-    out.gasPrClamped=gas.gasPrClamped;out.gasPrOneThird=std::pow(gas.gasPrClamped,1./3.);
+    out.gasPrClamped=gas.gasPrClamped;out.gasPrOneThird=std::pow(GpuReal(gas.gasPrClamped),GpuReal(1)/GpuReal(3));
     out.rhoMin=gas.rhoMin;out.TgasMin=gas.TgasMin;out.gasThermalConductivity=gas.gasThermalConductivity;
+    out.gasScalarSolvers=gas.gasScalarSolvers;
     out.sstConfigured=gas.sstConfigured;out.species=gas.gasSpecies;
     out.viscosity=gas.gasViscosity;out.diagnostics=gas.diagnostics;
     return out;

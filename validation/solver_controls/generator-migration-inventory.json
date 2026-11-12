@@ -1,0 +1,19 @@
+{
+  "status": "STATIC_SYNTAX_ONLY_NOT_NUMERICALLY_RUN",
+  "files": {
+    "validation/solver_controls/migrate_case.py": "21f1b1493ee9740578e8ec0236c0688d2c6f2f703f68517041be77e6f49968fd",
+    "validation/molecular_transport/native_matrix.py": "6df1ee5565fdf2385519e4fea1cef092724091905d4f76a3b3142438e5f921e0",
+    "validation/transient_particles/check_native.py": "737fd998fdc99607e2093cfbfa56383f1ce3bfb05c7661ea025d8429ad4a9839",
+    "validation/pr41/native_transient_restart.py": "fccba4b1187b401b6b4cbe12ff5e746dba3bb212ad073d1d9759b234a55f94a0",
+    "validation/shared_boundary/native_cases.py": "bff3d25c55c96ef5a8eb23d2586f81926a8f38379c77142b2b220920effe4600",
+    "validation/shared_boundary/native_smoke.py": "22dc6e8d2ca3ef435647031a2c91f537833337490d6d2a55e2b573bc368472ac",
+    "validation/checkpoint03/native.py": "3eeab7882961c6491a3887568bbff8bc875958ff3961e1e0ef906f86327b3ce7",
+    "validation/checkpoint03_combined/native.py": "46f736e4afc61df2ecebdb50a92be32fbde82709978ddbd52d208952b05b6b35",
+    "validation/checkpoint03_combined/steady_default.py": "d531b34f8fe63393d29827e57fbb91ada680f835505383f046726bdd069d4d17",
+    "validation/checkpoint03_combined/prepare_continuation.py": "1759f068942de1a8aa651086449a44164943a013107b2f36a2ab8dfb3ccf90ed",
+    "validation/steady_cpu/of_cases.py": "e7c31e345b537177b9fd871fa682bd3fbfbf8b2316df11b1ec2adf2008fd7899",
+    "validation/steady_cuda/check_heat_failure.py": "443290fea4bb1e091dd72f407e72ae34fa8c4b3d6d58e63d2b7409fcd6eced04"
+  },
+  "framework_note": "fvSchemes framework sections retained; fluxScheme/gasLimiter removed from old location. UGKP reader uses scheme only.",
+  "coverage": "Common launch/copy helpers cover downstream generators transitively; no claimed count of 16 directly patched generators"
+}

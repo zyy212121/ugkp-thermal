@@ -4,10 +4,10 @@
   "disk_schema_role": "Historical schema7 ordinal map; current output layouts are owner-specific.",
   "current_disk_layouts": {
     "CHT": {
-      "marker": "UGKP_CHT_PARTICLES_SCHEMA9_FLOAT_COLD_PROFILES_BIN",
-      "field_order": "schema7 ordinals followed by pThermalEnthalpyResidual",
-      "scalar_types": "host.CHT; only the 8/64-node enthalpy profiles are float",
-      "bytes_per_particle": 613
+      "marker": "UGKP_CHT_PARTICLES_SCHEMA10_FP32_SINGLE_STATE_BIN",
+      "field_order": "schema7 ordinals; no thermal carry",
+      "scalar_types": "host.CHT wire conversion; 8/64-node enthalpy profiles float; resident thermal scalars float",
+      "bytes_per_particle": 605
     },
     "FSH": {
       "marker": "UGKP_FSH_PARTICLES_SCHEMA8_FP64_FIELDS_BIN",
@@ -381,7 +381,7 @@
       "width_symbol": "1",
       "storage": {
         "FSH": "double",
-        "CHT": "double"
+        "CHT": "GpuReal"
       },
       "host": {
         "FSH": "double",
@@ -415,7 +415,7 @@
       "width_symbol": "1",
       "storage": {
         "FSH": "double",
-        "CHT": "double"
+        "CHT": "GpuReal"
       },
       "host": {
         "FSH": "double",
@@ -432,7 +432,7 @@
       "width_symbol": "1",
       "storage": {
         "FSH": "double",
-        "CHT": "double"
+        "CHT": "GpuReal"
       },
       "host": {
         "FSH": "double",
@@ -449,7 +449,7 @@
       "width_symbol": "1",
       "storage": {
         "FSH": "double",
-        "CHT": "double"
+        "CHT": "GpuReal"
       },
       "host": {
         "FSH": "double",
@@ -483,7 +483,7 @@
       "width_symbol": "1",
       "storage": {
         "FSH": "double",
-        "CHT": "double"
+        "CHT": "GpuReal"
       },
       "host": {
         "FSH": "double",
@@ -517,7 +517,7 @@
       "width_symbol": "Foam::gpuThermal::coldWallRadialRingCount",
       "storage": {
         "FSH": "double",
-        "CHT": "double"
+        "CHT": "GpuReal"
       },
       "host": {
         "FSH": "double",
@@ -578,26 +578,6 @@
         "condition": "pStuck != 0",
         "schema": 7
       }
-    },
-    {
-      "name": "pThermalEnthalpyResidual",
-      "compact": "compactPThermalEnthalpyResidual",
-      "group": "THERMAL_CARRY",
-      "copy_value": "s.pThermalEnthalpyResidual[i]",
-      "width": 1,
-      "width_symbol": "1",
-      "storage": {
-        "CHT": "double"
-      },
-      "host": {
-        "CHT": "double"
-      },
-      "schema7": null,
-      "wire_extension": {
-        "schema": 8,
-        "ordinal": 30,
-        "legacy_default": 0.0
-      }
     }
   ],
   "scratch_fields": [
@@ -631,5 +611,7 @@
       },
       "reason": "Per-step saved pre-relaxation velocity; recomputed before use, not persistent payload or restart state."
     }
-  ]
+  ],
+  "host_role": "The host entries describe C/OpenFOAM/restart wire arrays, not sustained ParticleState storage.",
+  "snapshot_role": "Complete FP32 ParticleState physical scalars and velocities are GpuReal; global positions are GpuGeometry, contact clocks are GpuTime. No thermal carry."
 }

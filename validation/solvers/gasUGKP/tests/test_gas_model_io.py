@@ -23,7 +23,7 @@ int main(int argc, char**) {
         }
         if (model.mode == ugkwp::GasMode::MixtureChemistry)
             std::cout << " " << model.chemistryControls.relativeTolerance << " "
-                      << model.chemistryControls.maximumSteps << " " << model.chemistryControls.thermo.maximumIterations;
+                      << model.chemistryControls.maximumNewtonIterations << " " << model.chemistryControls.thermo.maximumIterations;
         std::cout << "\n";
     } catch (const std::exception& error) { std::cerr << error.what(); return 2; }
 }
@@ -127,19 +127,19 @@ def chemistry():
     return mixture().replace("mixtureFrozen", "mixtureChemistry") + 'mechanism "model.mechanism"; phase gas;\n'
 
 def test_chemistry_controls_are_loaded_from_shared_types(build):
-    p = parse(build, chemistry() + 'chemistryControls { relativeTolerance 2e-7; maximumSteps 300; thermo { maximumIterations 123; } }')
+    p = parse(build, chemistry() + 'solverControlOverrides { chemistry { relativeTolerance 2e-7; maximumNewtonIterations 300; } thermo { maximumIterations 123; } }')
     assert p.returncode == 0, p.stderr
     assert p.stdout.split()[-3:] == ["2e-07", "300", "123"]
 
 @pytest.mark.parametrize("controls,diagnostic", [
     ("relativeTolerance -1;", "chemistryControls"),
-    ("maximumSteps 0;", "chemistryControls"),
-    ("maximumSteps 2.5;", "integer"),
+    ("maximumNewtonIterations 0;", "chemistryControls"),
+    ("maximumNewtonIterations 2.5;", "integer"),
     ("minimumStep 1; maximumStep 0.1;", "chemistryControls"),
     ("unknownStep 1;", "unknown"),
 ])
 def test_read_chemistry_controls_without_range_or_unused_key_admission(build,controls,diagnostic):
-    p = parse(build, chemistry() + 'chemistryControls {' + controls + '}')
+    p = parse(build, chemistry() + 'solverControlOverrides { chemistry {' + controls + '} }')
     if diagnostic == "integer":
         assert p.returncode == 2 and diagnostic in p.stderr,p.stderr
     else:
@@ -178,7 +178,7 @@ def test_thermo_parser_retains_finite_nonstandard_inputs(build,old,new):
     assert p.returncode==0,p.stderr
 
 def test_integer_chemistry_budgets_keep_actual_signed_value(build):
-    p=parse(build,chemistry()+"chemistryControls {maximumSteps -3;}")
+    p=parse(build,chemistry()+"solverControlOverrides {chemistry {maximumNewtonIterations -3;}}")
     assert p.returncode==0,p.stderr
     assert p.stdout.split()[-2]=="-3"
 
@@ -206,3 +206,10 @@ int main(){
     assert build.returncode==0,build.stderr
     run=subprocess.run([str(binary)],input=mixture().replace("molarMass 0.028","molarMass nan"),capture_output=True,text=True)
     assert run.returncode==0,run.stderr
+
+
+def test_legacy_numerical_controls_are_not_an_active_input(build):
+    reference = parse(build, chemistry())
+    obsolete = parse(build, chemistry() + 'chemistryControls { relativeTolerance 2e-7; maximumNewtonIterations 300; thermo { maximumIterations 123; } }')
+    assert reference.returncode == obsolete.returncode == 0
+    assert reference.stdout == obsolete.stdout

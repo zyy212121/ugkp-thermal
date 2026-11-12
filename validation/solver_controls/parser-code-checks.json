@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "checks": [
+    "unquoted nested operator keys and quoted regex roundtrip",
+    "unresolved recursive reference remains explicit",
+    "$ solver inheritance; final overrides; duplicate names in independent regions; existing region merge",
+    "legacy restoration after regional migration",
+    "no solver, compiler, mathematics or numerical operator invoked"
+  ],
+  "parser_sha256": "da4eec4c7e4a8cc9c3c176d21a3cf752d220e594fd9b871de47341ca59c43aa5"
+}

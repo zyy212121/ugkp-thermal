@@ -25,26 +25,26 @@ __global__ void applyEulerianParticleMaterialHeatKernel
 
     const auto heatMoments=particleGasHeatMoments(s,c,0);
 #if !GPU_OPERATOR_THERMAL
-    const double heatFactor = particleHeatFactorDevice(s);
+    const GPU_OPERATOR_REAL heatFactor = particleHeatFactorDevice(s);
     if (heatFactor <= GPU_OPERATOR_R(0.0)) return;
 #endif
-    const double rhoP = clampMin(finiteOr(heatMoments.mass, GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
+    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(heatMoments.mass, GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
     if (rhoP <= s.epsSMin*s.rhoSolid)
     {
         return;
     }
-    const double epsG = GPU_OPERATOR_R(1.0) - solidEpsFromMomentDevice(s, c);
-    const double epsGsafe = clampMin(epsG, OfSmall);
+    const GPU_OPERATOR_REAL epsG = GPU_OPERATOR_R(1.0) - solidEpsFromMomentDevice(s, c);
+    const GPU_OPERATOR_REAL epsGsafe = clampMin(epsG, OfSmall);
 
-    const double hp = clampMin(finiteOr(heatMoments.enthalpy, GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
+    const GPU_OPERATOR_REAL hp = clampMin(finiteOr(heatMoments.enthalpy, GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
     if (hp <= GPU_OPERATOR_R(0.0))
     {
         return;
     }
 
 #if GPU_OPERATOR_THERMAL
-    const double specificEnthalpy = finiteOr(hp/(rhoP + OfSmall), -GPU_OPERATOR_R(1.0));
-    const double tpAvg =
+    const GPU_OPERATOR_REAL specificEnthalpy = finiteOr(hp/(rhoP + OfSmall), -GPU_OPERATOR_R(1.0));
+    const GPU_OPERATOR_REAL tpAvg =
         clampRange
         (
             finiteOr
@@ -60,7 +60,7 @@ __global__ void applyEulerianParticleMaterialHeatKernel
         );
 
 
-    const double particleCp = tpAvg > GPU_OPERATOR_R(0.0)
+    const GPU_OPERATOR_REAL particleCp = tpAvg > GPU_OPERATOR_R(0.0)
         && Foam::gpuThermal::finiteAluminaValue(tpAvg)
       ? particleSpecificHeatDevice(tpAvg) : GPU_OPERATOR_R(0.0);
     if (!(particleCp > GPU_OPERATOR_R(0.0)))
@@ -68,19 +68,19 @@ __global__ void applyEulerianParticleMaterialHeatKernel
         return;
     }
 
-    const double rateCapacity = s.rhoSolid*particleCp;
+    const GPU_OPERATOR_REAL rateCapacity = s.rhoSolid*particleCp;
 #else
-    const double tpAvg = clampRange
+    const GPU_OPERATOR_REAL tpAvg = clampRange
     (
         finiteOr(hp/(rhoP*heatFactor + OfSmall), s.TpMin),
         s.TpMin, s.TpMax
     );
-    const double particleCp = heatFactor;
-    const double rateCapacity = s.particleThermalRho*s.particleCp;
+    const GPU_OPERATOR_REAL particleCp = heatFactor;
+    const GPU_OPERATOR_REAL rateCapacity = s.particleThermalRho*s.particleCp;
 #endif
-    const double rhoG =
+    const GPU_OPERATOR_REAL rhoG =
         clampMin(finiteOr(s.couplingRhoOld[c], GPU_OPERATOR_R(0.0)), s.rhoMin);
-    const double tg =
+    const GPU_OPERATOR_REAL tg =
         clampRange
         (
             finiteOr(s.couplingTgasOld[c], s.TgasMin),
@@ -89,51 +89,51 @@ __global__ void applyEulerianParticleMaterialHeatKernel
         );
 
 #if GPU_OPERATOR_THERMAL
-    const double rhoDP = clampMin(finiteOr(heatMoments.diameter, GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
+    const GPU_OPERATOR_REAL rhoDP = clampMin(finiteOr(heatMoments.diameter, GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
 #else
-    const double rhoDP = heatMoments.diameter;
+    const GPU_OPERATOR_REAL rhoDP = heatMoments.diameter;
 #endif
-    const double dLocal =
+    const GPU_OPERATOR_REAL dLocal =
         clampMin
         (
             finiteOr(rhoDP/rhoP, s.particleDiameterFallback),
             GPU_OPERATOR_R(1.0e-12)
         );
 
-    const double usx = finiteOr(heatMoments.px, GPU_OPERATOR_R(0.0))/(rhoP + OfSmall);
-    const double usy = finiteOr(heatMoments.py, GPU_OPERATOR_R(0.0))/(rhoP + OfSmall);
-    const double usz = finiteOr(heatMoments.pz, GPU_OPERATOR_R(0.0))/(rhoP + OfSmall);
+    const GPU_OPERATOR_REAL usx = finiteOr(heatMoments.px, GPU_OPERATOR_R(0.0))/(rhoP + OfSmall);
+    const GPU_OPERATOR_REAL usy = finiteOr(heatMoments.py, GPU_OPERATOR_R(0.0))/(rhoP + OfSmall);
+    const GPU_OPERATOR_REAL usz = finiteOr(heatMoments.pz, GPU_OPERATOR_R(0.0))/(rhoP + OfSmall);
 
-    const double urx = finiteOr(s.couplingUxOld[c], GPU_OPERATOR_R(0.0)) - usx;
-    const double ury = finiteOr(s.couplingUyOld[c], GPU_OPERATOR_R(0.0)) - usy;
-    const double urz = finiteOr(s.couplingUzOld[c], GPU_OPERATOR_R(0.0)) - usz;
-    const double urMag = sqrt(sqr3(urx, ury, urz));
+    const GPU_OPERATOR_REAL urx = finiteOr(s.couplingUxOld[c], GPU_OPERATOR_R(0.0)) - usx;
+    const GPU_OPERATOR_REAL ury = finiteOr(s.couplingUyOld[c], GPU_OPERATOR_R(0.0)) - usy;
+    const GPU_OPERATOR_REAL urz = finiteOr(s.couplingUzOld[c], GPU_OPERATOR_R(0.0)) - usz;
+    const GPU_OPERATOR_REAL urMag = sqrtf(sqr3(urx, ury, urz));
 
-    const double mu = clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]), GPU_OPERATOR_R(1.0e-30));
-    const double re = rhoG*dLocal*urMag/mu;
+    const GPU_OPERATOR_REAL mu = clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]), GPU_OPERATOR_R(1.0e-30));
+    const GPU_OPERATOR_REAL re = rhoG*dLocal*urMag/mu;
 
-    const double pr = ugkwp::gasCellMolecularPrandtl(s,c);
-    const double gasConductivity = molecularGasConductivity(s,c,s.couplingTgasOld[c]);
+    const GPU_OPERATOR_REAL pr = ugkwp::gasCellMolecularPrandtl(s,c);
+    const GPU_OPERATOR_REAL gasConductivity = molecularGasConductivity(s,c,s.couplingTgasOld[c]);
 
-    const double nu = ugkwp::ranzMarshallNuFromPr
+    const GPU_OPERATOR_REAL nu = ugkwp::ranzMarshallNuFromPr
     (
         clampMin(re, GPU_OPERATOR_R(0.0)),
         clampMin(pr, GPU_OPERATOR_R(1.0e-12))
     );
 
-    const double rate =
+    const GPU_OPERATOR_REAL rate =
         GPU_OPERATOR_R(6.0)*nu*gasConductivity
        /(rateCapacity*dLocal*dLocal + GPU_OPERATOR_TINY(1.0e-300));
 
-    const double gasCv =
+    const GPU_OPERATOR_REAL gasCv =
         s.Rgas/clampMin(s.gammaGas - GPU_OPERATOR_R(1.0), OfSmall);
-    const double gasCapacity = epsG*rhoG*gasCv;
-    const double solidCapacity = rhoP*particleCp;
+    const GPU_OPERATOR_REAL gasCapacity = epsG*rhoG*gasCv;
+    const GPU_OPERATOR_REAL solidCapacity = rhoP*particleCp;
 
                                                                            
                                                                              
                                                                         
-    const double dHp =
+    const GPU_OPERATOR_REAL dHp =
         gpuFiniteCapacityHeatExchange
         (
             gasCapacity,
@@ -147,7 +147,7 @@ __global__ void applyEulerianParticleMaterialHeatKernel
     const Energy rhoEold = ugkwp::gasEnergyFiniteOr(s.rhoE[c], Energy(0));
     Energy rhoEnew = rhoEold - Energy(dHp)/Energy(epsGsafe);
 
-    const double rhoGCurrent =
+    const GPU_OPERATOR_REAL rhoGCurrent =
         clampMin(finiteOr(s.rho[c], rhoG), s.rhoMin);
     const Energy mx=Energy(finiteOr(s.rhoUx[c],GPU_OPERATOR_R(0))),
         my=Energy(finiteOr(s.rhoUy[c],GPU_OPERATOR_R(0))),

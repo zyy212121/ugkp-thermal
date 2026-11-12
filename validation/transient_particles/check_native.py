@@ -4,6 +4,11 @@ Source OpenFOAM's bashrc first; all output directories are created fresh.
 """
 from pathlib import Path
 import argparse,hashlib,importlib.util,json,math,os,re,shutil,struct,subprocess,time
+
+import sys as _scheme_sys
+_scheme_sys.path.insert(0, str(Path(__file__).resolve().parents[2]/"validation/solver_controls"))
+import migrate_case as scheme_controls
+
 ROOT=Path(__file__).resolve().parents[2]
 def module(name,path):
  spec=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
@@ -12,6 +17,7 @@ fields=module('fields',ROOT/'validation/steady_cpu/export_of.py')
 ENV=dict(os.environ,OMP_NUM_THREADS='4',GAS_UGKP_CUDA_STACK_BYTES='65536')
 def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 def set_entry(path,name,value):
+ if scheme_controls.edit_legacy_entry(path,name,value):return
  t=path.read_text();pat=r'\b'+re.escape(name)+r'\s+[^;{}]+;'
  if re.search(pat,t):t=re.sub(pat,name+' '+str(value)+';',t)
  else:t+='\n'+name+' '+str(value)+';\n'
@@ -24,7 +30,7 @@ def run(binary,case,mesh=False):
  if mesh:
   with (case/'mesh.log').open('w') as log:p=subprocess.run(['blockMesh','-case',str(case)],env=ENV,stdout=log,stderr=subprocess.STDOUT)
   assert p.returncode==0,case
- cmd=[str(binary),'-case',str(case)];begin=time.monotonic()
+ cmd=[str(binary),'-case',str(case)];scheme_controls.before_solver(cmd);begin=time.monotonic()
  with (case/'run.log').open('w') as log:p=subprocess.run(cmd,env=ENV,stdout=log,stderr=subprocess.STDOUT)
  return {'command':cmd,'exit':p.returncode,'seconds':time.monotonic()-begin,'log_sha256':sha(case/'run.log')}
 def dirs(case):
@@ -60,6 +66,7 @@ def compare(a,b,n):
 def copy_inputs(source,d):
  d.mkdir()
  for name in ['0','constant','system']:shutil.copytree(source/name,d/name)
+ if (source/scheme_controls.MANIFEST).is_file():shutil.copy2(source/scheme_controls.MANIFEST,d/scheme_controls.MANIFEST)
 def one_cell(d,mass,diameter,steps=1,cp_slope=0,velocity=0):
  failure.prepare(d,mass,diameter,1,100);control(d,steps,write=1)
  if cp_slope:

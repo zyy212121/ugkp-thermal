@@ -8,12 +8,12 @@ const GPU_MOMENT_REAL theta = particleMomentThetaDevice(s, i);
 const GPU_MOMENT_REAL theta = clampMin(finiteOr(s.pTheta[i], GPU_MOMENT_R(0.0)), GPU_MOMENT_R(0.0));
 #endif
 const GPU_MOMENT_REAL d = clampMin(finiteOr(s.pd[i], s.particleDiameterFallback), GPU_MOMENT_R(1.0e-12));
-const double particleEnergy = double(m)*(0.5*(double(ux)*ux + double(uy)*uy + double(uz)*uz) + 1.5*double(theta));
-double particleHeat = 0.0;
+const GPU_MOMENT_REAL particleEnergy = GPU_MOMENT_REAL(m)*(GPU_MOMENT_R(.5)*(GPU_MOMENT_REAL(ux)*ux + GPU_MOMENT_REAL(uy)*uy + GPU_MOMENT_REAL(uz)*uz) + GPU_MOMENT_R(1.5)*GPU_MOMENT_REAL(theta));
+GPU_MOMENT_REAL particleHeat = 0.0;
 #if GPU_MOMENT_THERMAL
 const GPU_MOMENT_REAL tp = clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
 particleHeat = materialEnthalpyMomentFromParticle(s, i, m, tp, 0);
 #else
 if (heatFactor > GPU_MOMENT_R(0.0))
-    particleHeat = double(m)*double(heatFactor)*clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
+    particleHeat = GPU_MOMENT_REAL(m)*GPU_MOMENT_REAL(heatFactor)*clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
 #endif

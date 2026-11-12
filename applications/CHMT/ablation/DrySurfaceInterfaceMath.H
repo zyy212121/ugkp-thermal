@@ -70,7 +70,7 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
     bool wallClosureReady=false;
     Real wallClosureSpecies[Ns]{},wallClosureSpeed=0;
     Vec3 wallClosureVelocity{};
-    for (int iteration=0; iteration<60; ++iteration) {
+    for (int iteration=0; iteration<p.numerics.surface.compositionMaximumIterations; ++iteration) {
         SurfacePhysicsResult trial;
         Real trialPoreEnergy[Ns]{};
         trial.wet=result.wet;
@@ -209,7 +209,9 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
             p,fluxTolerance,nextY)) return false;
         Real change=0;
         for (int s=0; s<Ns; ++s) change=maxValue(change,absValue(nextY[s]-Y[s]));
-        for (int s=0; s<Ns; ++s) Y[s]=0.5*(Y[s]+nextY[s]);
+        for (int s=0; s<Ns; ++s) Y[s]=p.numerics.surface.compositionRelaxation==Real(.5)
+            ? Real(.5)*(Y[s]+nextY[s])
+            : (Real(1)-p.numerics.surface.compositionRelaxation)*Y[s]+p.numerics.surface.compositionRelaxation*nextY[s];
         result.gasState=provisional;
         for (int s=0; s<Ns; ++s) {
             result.gasSpecies[s]=trial.gasSpecies[s]; result.poreSpecies[s]=trial.poreSpecies[s];
@@ -223,9 +225,9 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
         if (!makeInterfacePrimitive(nextY,topT,in.bulk.pressure,in.baseVelocity,in.gasNormal,
             trial.gasWallSpeed,J/gasRatio,p,result.gasState,numericalFailure)) return false;
         compositionChange=change;
-        if (change<=p.tolerances.relativeMass+1e-12) { compositionConverged=true; break; }
+        if (change<=p.tolerances.relativeMass+p.numerics.surface.compositionAbsoluteTolerance) { compositionConverged=true; break; }
     }
-    if (!compositionConverged) surfaceCompositionWarning(p,compositionChange,p.tolerances.relativeMass+1e-12);
+    if (!compositionConverged) surfaceCompositionWarning(p,compositionChange,p.tolerances.relativeMass+p.numerics.surface.compositionAbsoluteTolerance);
     GasGradient gradient=in.gradient;
     const Vec3 difference=in.bulk.velocity-result.gasState.velocity;
     gradient.velocity[0]+=in.gasNormal*(difference.x/in.gasDistance-dot(gradient.velocity[0],in.gasNormal));

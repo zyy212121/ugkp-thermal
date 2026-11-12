@@ -53,7 +53,7 @@ template<class Real,int Ns,int MaxNodes=48> struct GasBoundaryLayerModelState
 template<class Real,int Ns,int MaxNodes>
 UGKWP_GAS_HD inline bool gasBoundaryLayerUsesCoherent(
     const GasBoundaryLayerModelState<Real,Ns,MaxNodes>& m,int slot) {
-    if constexpr(std::is_same<Real,double>::value&&Ns==2)
+    if constexpr(std::is_same<Real,GpuReal>::value&&Ns==2)
         return m.coherentEnabled&&m.coherentScratch&&m.coherentState
             &&m.referenceScratch&&m.acceptedHistory&&m.candidateHistory
             &&m.acceptedFrame&&m.candidateFrame&&m.referenceStats
@@ -112,7 +112,7 @@ UGKWP_GAS_HD UGKWP_WALL_WORKSPACE_CALL bool evaluateGasBoundaryLayerWorkspace(
         std::is_same<Team,gaswall::detail::SerialWallTeam>::value
         || !std::is_same<Real,gaswall::WallReal>::value>;
     bool evaluated=false,coherentRoute=false;
-    if constexpr(std::is_same<Real,double>::value&&Ns==2) {
+    if constexpr(std::is_same<Real,GpuReal>::value&&Ns==2) {
         coherentRoute=coherentScratch&&coherentWall&&statistics
             &&config.model==gaswall::BoundaryLayerModel::ReactingSst;
         if(coherentRoute)evaluated=evaluateGasCoherentWallWorkspace(input,config,workspace,
@@ -208,7 +208,7 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerHistory(State&state,int slot,in
    Real*next=m.candidateHistory+std::size_t(slot)*m.config.nodes*B;
    for(int i=team.rank();i<m.config.nodes;i+=team.size())for(int j=0;j<B;++j)next[i*B+j]=w.state[i][j];
    team.sync();if(team.leader()){
-       frame.valid=true;double stress2=0;for(int d=0;d<3;++d)stress2+=m.output[slot].traction[d]*m.output[slot].traction[d];
+       frame.valid=true;GpuReal stress2=0;for(int d=0;d<3;++d)stress2+=m.output[slot].traction[d]*m.output[slot].traction[d];
        frame.wallStress=::sqrt(stress2);m.candidateFrame[slot]=frame;
    }
  }

@@ -1,0 +1,142 @@
+{
+  "discarded": [],
+  "input_sha256": {
+    "constant/schedulingProperties": "9395a537debcfca36fca5de28c870a8fe96b66537e65558d87648c8a63c7a835",
+    "system/controlDict": "938f49a469804107ecca7218fb4e67550ea7db56940f284850c107ba028b3ef1",
+    "system/fvSchemes": "03e932c664b406e41cf5493d4fd0906112d7c4375a3d31b3acef79bfb51c0c99"
+  },
+  "moves": [
+    {
+      "key": "adjustTimeStep",
+      "new_scheme_fp32": "true",
+      "new_scheme_fp64": "true",
+      "old_effective_fp32": "true",
+      "old_effective_fp64": "true",
+      "old_requested": "true",
+      "raw": "true",
+      "source": "system/controlDict",
+      "source_path": [
+        "adjustTimeStep"
+      ],
+      "target": [
+        "gasTimeStep",
+        "adjustTimeStep"
+      ],
+      "value": "true"
+    },
+    {
+      "key": "gpuResidentCourantUpdateInterval",
+      "new_scheme_fp32": "1",
+      "new_scheme_fp64": "1",
+      "old_effective_fp32": "1",
+      "old_effective_fp64": "1",
+      "old_requested": "1",
+      "raw": "1",
+      "source": "constant/schedulingProperties",
+      "source_path": [
+        "gpuResidentCourantUpdateInterval"
+      ],
+      "target": [
+        "gasTimeStep",
+        "courantUpdateInterval"
+      ],
+      "value": "1"
+    },
+    {
+      "key": "maxCo",
+      "new_scheme_fp32": "0.3",
+      "new_scheme_fp64": "0.3",
+      "old_effective_fp32": "0.3",
+      "old_effective_fp64": "0.3",
+      "old_requested": "0.3",
+      "raw": "0.3",
+      "source": "system/controlDict",
+      "source_path": [
+        "maxCo"
+      ],
+      "target": [
+        "gasTimeStep",
+        "maxCo"
+      ],
+      "value": "0.3"
+    },
+    {
+      "key": "maxDeltaT",
+      "new_scheme_fp32": "0.00001",
+      "new_scheme_fp64": "0.00001",
+      "old_effective_fp32": "0.00001",
+      "old_effective_fp64": "0.00001",
+      "old_requested": "0.00001",
+      "raw": "0.00001",
+      "source": "system/controlDict",
+      "source_path": [
+        "maxDeltaT"
+      ],
+      "target": [
+        "gasTimeStep",
+        "maxDeltaT"
+      ],
+      "value": "0.00001"
+    },
+    {
+      "key": "gpuResidentMaxDeltaTGrowth",
+      "new_scheme_fp32": "1",
+      "new_scheme_fp64": "1",
+      "old_effective_fp32": "1",
+      "old_effective_fp64": "1",
+      "old_requested": "1",
+      "raw": "1",
+      "source": "constant/schedulingProperties",
+      "source_path": [
+        "gpuResidentMaxDeltaTGrowth"
+      ],
+      "target": [
+        "gasTimeStep",
+        "maximumTimeStepGrowth"
+      ],
+      "value": "1"
+    },
+    {
+      "key": "gpuResidentMaxFaceWalkHops",
+      "new_scheme_fp32": "8",
+      "new_scheme_fp64": "8",
+      "old_effective_fp32": "8",
+      "old_effective_fp64": "8",
+      "old_requested": "8",
+      "raw": "8",
+      "source": "constant/schedulingProperties",
+      "source_path": [
+        "gpuResidentMaxFaceWalkHops"
+      ],
+      "target": [
+        "particle",
+        "tracking",
+        "maxFaceWalkHops"
+      ],
+      "value": "8"
+    }
+  ],
+  "notes": [
+    "Copied system/fvSchemes:fluxScheme to gasNumerics; framework dictionary retained, not a UGKP fallback",
+    "Copied system/fvSchemes:gasLimiter to gasNumerics; framework dictionary retained, not a UGKP fallback",
+    "Copied system/fvSchemes:ddtSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+    "Copied system/fvSchemes:gradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+    "Copied system/fvSchemes:divSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+    "Copied system/fvSchemes:laplacianSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+    "Copied system/fvSchemes:interpolationSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+    "Copied system/fvSchemes:snGradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback"
+  ],
+  "original_files": {
+    "constant/schedulingProperties": "FoamFile { version 2.0; format ascii; class dictionary; object schedulingProperties; }\n\nschemaVersion 1;\ngpuResidentPureGasOnly true;\ngpuResidentDynamicInlet false;\ngpuResidentParticleCapacity 0;\ngpuResidentMaxFaceWalkHops 8;\ngpuResidentCourantUpdateInterval 1;\ngpuResidentMaxDeltaTGrowth 1;\ngpuCsrLevel L0;\ngpuParticleBlockThreads 128;\ngpuReductionBlockThreads 128;\n",
+    "system/controlDict": "FoamFile { version 2.0; format ascii; class dictionary; object controlDict; }\n\napplication gasUGKP;\nstartFrom startTime;\nstartTime 0;\nstopAt endTime;\nendTime 0.00020000000000000001;\ndeltaT 0.00001;\nwriteControl adjustableRunTime;\nwriteInterval 0.00020000000000000001;\npurgeWrite 0;\nwriteFormat ascii;\nwritePrecision 17;\nwriteCompression off;\ntimeFormat general;\ntimePrecision 17;\nrunTimeModifiable false;\nadjustTimeStep true;\nmaxCo 0.3;\nmaxDeltaT 0.00001;\n",
+    "system/fvSchemes": "FoamFile { version 2.0; format ascii; class dictionary; object fvSchemes; }\n\nfluxScheme Kurganov;\ngasLimiter barthJespersen;\nddtSchemes { default SSPRK2; }\ngradSchemes { default Gauss linear; }\ndivSchemes\n{\n default none;\n div(phi,U) Gauss MUSCL;\n div(phi,e) Gauss MUSCL;\n div(phi,K) Gauss MUSCL;\n div(phi,(p|rho)) Gauss MUSCL;\n div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear;\n}\nlaplacianSchemes { default Gauss linear corrected; }\ninterpolationSchemes { default linear; }\nsnGradSchemes { default corrected; }\n"
+  },
+  "output_sha256": {
+    "constant/schedulingProperties": "d6e44f5ee7aec14ff13ea163c985ae86fa437cbb160ff82abc84c9bf1127bc9e",
+    "constant/scheme": "87a7d771acbed107d6de1268d29ea380f22a284fc485b7245b273b2962b8118e",
+    "system/controlDict": "51006578851f5a3a6de31c18c9ec0157135a57a1fa79de39bfee57c47ae320f5",
+    "system/fvSchemes": "8beb2ac8d3e9a9985727a134de1a3dc2ec430cb7a57079a02124633fda0f3bf0"
+  },
+  "precision": 64,
+  "schema": 1
+}

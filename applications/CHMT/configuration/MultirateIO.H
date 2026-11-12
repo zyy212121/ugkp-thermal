@@ -1,6 +1,7 @@
 #ifndef CHMT_CONFIGURATION_MULTIRATEIO_H
 #define CHMT_CONFIGURATION_MULTIRATEIO_H
 #include "configuration/ModelIO.H"
+#include "FoamSolverScheme.H"
 #include "configuration/CouplingEntry.H"
 #include "coupling/IntervalContracts.H"
 #include "materials/CpuMaterialDriver.H"
@@ -12,36 +13,18 @@ inline ExecutionMode readExecutionMode(const Foam::dictionary& d,const HostState
     return ExecutionMode::Multirate;
 }
 
-inline CouplingControls readCouplingControls(const Foam::dictionary& d, Real controlDeltaT, Real thermalInterval=0) {
-    require(d.found("multirate") && (thermalInterval>0||d.subDict("multirate").found("couplingInterval")),
-        "multirate.couplingInterval is required for executionMode Multirate");
-    const auto& m = d.subDict("multirate");
+inline CouplingControls readCouplingControls(const Foam::Time& time, Real controlDeltaT, Real thermalInterval=0) {
+    const auto controlsDictionary=ugkp::solverControls::startupScheme(time).section("thermalCoupling");
+    require(thermalInterval>0||controlsDictionary.found("couplingInterval"),
+        "thermalCoupling.couplingInterval is required for executionMode Multirate");
     CouplingControls controls;
-    controls.interval = thermalInterval>0?thermalInterval:readNumber(m, "couplingInterval");
+    controls.interval = thermalInterval>0?thermalInterval:readNumber(controlsDictionary,"couplingInterval");
     // deltaT is a gas cap only. Neither it nor a material local step limits H.
-    controls.gasMaxDt = readNumber(m, "gasMaxDt", controlDeltaT);
-    controls.materialMaxSubstep = readNumber(m, "materialMaxSubstep", 0);
+    (void)controlDeltaT; // Gas numerical caps are supplied by constant/scheme.
+    // Numerical material steps are configured only by constant/scheme.
     return controls;
 }
 
-inline CpuMaterialControls readCpuMaterialControls(const Foam::dictionary& d, const CouplingControls& coupling) {
-    CpuMaterialControls controls;
-    controls.maxSubstep = coupling.materialMaxSubstep;
-    if (d.found("cpuMaterial")) {
-        const auto& m = d.subDict("cpuMaterial");
-        controls.transportCfl = readNumber(m, "transportCfl", controls.transportCfl);
-        controls.reactionCfl = readNumber(m, "reactionCfl", controls.reactionCfl);
-        controls.reactionMaxSubstep = readNumber(m, "reactionMaxSubstep", controls.reactionMaxSubstep);
-        controls.driveRelativeTolerance = readNumber(m, "driveRelativeTolerance", controls.driveRelativeTolerance);
-        controls.driveSourceFraction = readNumber(m, "driveSourceFraction", controls.driveSourceFraction);
-        controls.driveTractionScale = readNumber(m, "driveTractionScale", controls.driveTractionScale);
-        controls.maxSubsteps = m.lookupOrDefault<Foam::label>("maxSubsteps", controls.maxSubsteps);
-        controls.nonlinearMaxIterations = m.lookupOrDefault<Foam::label>("nonlinearMaxIterations", controls.nonlinearMaxIterations);
-        controls.nonlinearRelativeTolerance = readNumber(m, "nonlinearRelativeTolerance", controls.nonlinearRelativeTolerance);
-        controls.energyAbsoluteTolerance = readNumber(m, "energyAbsoluteTolerance", controls.energyAbsoluteTolerance);
-        controls.energyRelativeTolerance = readNumber(m, "energyRelativeTolerance", controls.energyRelativeTolerance);
-    }
-    return controls;
-}
+
 }}
 #endif

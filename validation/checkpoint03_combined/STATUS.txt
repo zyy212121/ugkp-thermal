@@ -1,0 +1,4 @@
+PREPARATION_ONLY_NOT_FROZEN_NOT_RUN
+115 fixed top-level nodes. Current host type preparation complete provisionally.
+Waiting for final production source/binaries, all fixture compilation, and parent freeze/start.
+No solver, numerical/operator/mathematical/consistency/performance executable was run.

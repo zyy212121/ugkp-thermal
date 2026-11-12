@@ -51,7 +51,8 @@ struct IndexedParticleRadiationResponse {
 struct CaloricRadiationResult {double temperature=0,energy=0,residual=0,fraction=0;int iterations=0;};
 template<class Response,class Power>
 UGKP_RAD_RESPONSE_HD CaloricRadiationResult solveCaloricParticleRadiation(
-    const Response& response,const Power& power,double elapsed)
+    const Response& response,const Power& power,double elapsed,
+    int maximumIterations=256,RadiationReal energyRelativeTolerance=RadiationReal(64)*radiationMath::radiationDoubleEpsilon)
 {
     const auto old=response(0.,true);
     if(!(old.mass>0)||elapsed==0)return {old.temperature,0,0,0,0};
@@ -72,11 +73,11 @@ UGKP_RAD_RESPONSE_HD CaloricRadiationResult solveCaloricParticleRadiation(
         // An exchange-sized first trial keeps arbitrarily weak, representable
         // heat away from an error floor proportional to the full capacity.
         fraction=radiationMath::radiationMinimum(1.,elapsed*sign*initialPower/capacity);
-        for(iterations=1;iterations<=256;++iterations){
+        for(iterations=1;iterations<=maximumIterations;++iterations){
             const double exchange=capacity*fraction,source=elapsed*fractionPower(fraction);
             const double residual=exchange-source;
             const double scale=radiationMath::radiationMaximum(std::abs(exchange),std::abs(source));
-            if(residual==0.||std::abs(residual)<=64* radiationMath::radiationDoubleEpsilon*scale)break;
+            if(residual==0.||std::abs(residual)<=energyRelativeTolerance*scale)break;
             if(radiationMath::oppositeSigns(rlo,residual))hi=fraction;
             else {lo=fraction;rlo=residual;}
             const double next=lo+(hi-lo)*.5;

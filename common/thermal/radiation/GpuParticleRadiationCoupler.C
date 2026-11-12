@@ -1,3 +1,4 @@
+#include "FoamSolverScheme.H"
 #include "GpuParticleRadiationCoupler.H"
 
 #include "MieDoRadiationMath.H"
@@ -18,6 +19,18 @@ namespace gpuThermal
 {
 namespace
 {
+ugkp::gpu::ParticleRadiationSolveControls startupMaterialControls(const fvMesh& mesh)
+{
+    ugkp::gpu::ParticleRadiationSolveControls controls;
+    const auto& scheme=ugkp::solverControls::startupScheme(mesh.time());
+    scheme.read("radiation.material","boundedMaximumIterations",controls.boundedMaximumIterations,"effectiveDefault",mesh.name());
+    scheme.read("radiation.material","boundedTemperatureRelativeTolerance",controls.boundedTemperatureRelativeTolerance,"effectiveDefault",mesh.name());
+    scheme.read("radiation.material","boundedEnergyRelativeTolerance",controls.boundedEnergyRelativeTolerance,"effectiveDefault",mesh.name());
+    scheme.read("radiation.material","caloricMaximumIterations",controls.caloricMaximumIterations,"effectiveDefault",mesh.name());
+    scheme.read("radiation.material","caloricEnergyRelativeTolerance",controls.caloricEnergyRelativeTolerance,"effectiveDefault",mesh.name());
+    scheme.read("radiation.material","boundaryEnergyRelativeTolerance",controls.boundaryEnergyRelativeTolerance,"effectiveDefault",mesh.name());
+    return controls;
+}
 [[noreturn]] void materialFailure
 (
     const std::string& reason,
@@ -259,7 +272,7 @@ try
     // own one temporary workspace and execute the identical CUDA operator.
     std::unique_ptr<ugkp::gpu::ParticleRadiationMaterial> temporary;
     auto* device=context.materialDevice;
-    if(!device){temporary.reset(new ugkp::gpu::ParticleRadiationMaterial(context.mieTable.exportGpuTable()));device=temporary.get();}
+    if(!device){temporary.reset(new ugkp::gpu::ParticleRadiationMaterial(context.mieTable.exportGpuTable(),startupMaterialControls(context.mesh)));device=temporary.get();}
     const auto completed=device->solve(input,context.exportFields||bool(temporary));
     if(!context.exportFields&&!temporary){result.resident=completed.resident;return result;}
     result.finalMeanTemperatureK.setSize(cells);
@@ -304,7 +317,7 @@ GpuParticleRadiationCoupler::GpuParticleRadiationCoupler
     particleTemperatureMinK_(particleTemperatureMinK),
     particleTemperatureMaxK_(particleTemperatureMaxK),
     radiationWorkspace_(radiationSolver.makeWorkspace()),
-    materialDevice_(new ugkp::gpu::ParticleRadiationMaterial(mieTable.exportGpuTable()))
+    materialDevice_(new ugkp::gpu::ParticleRadiationMaterial(mieTable.exportGpuTable(),startupMaterialControls(mesh)))
 {
 }
 

@@ -702,7 +702,16 @@ inline void readV8Payload(std::istream& is, std::uint32_t bound, const MutableVi
 }
 
 
-static const char* const currentFormatName = gpuThermalRestart::currentChtMarker;
+static const char* const schema9FormatName = gpuThermalRestart::schema9ChtMarker;
+static const char* const singleStateFormatName = "UGKP_CHT_PARTICLES_SCHEMA10_FP32_SINGLE_STATE_BIN";
+static const char* const currentFormatName = schema9FormatName;
+inline void readLegacyCarryPayload(std::istream& os,std::uint32_t bound,const MutableView& v)
+{ gpuThermalRestart::readCurrentPayload<true>(os,bound,v); }
+inline void readSingleStatePayload(std::istream& os,std::uint32_t bound,const MutableView& v)
+{
+ gpuThermalRestart::readCurrentPayload<false>(os,bound,v);
+ if(v.pThermalEnthalpyResidual)std::fill(v.pThermalEnthalpyResidual,v.pThermalEnthalpyResidual+v.count,0.0);
+}
 inline void writeCurrent(std::ostream& os,const ConstView& v)
 { gpuThermalRestart::writeCurrent<true>(os,currentFormatName,v); }
 inline void readCurrentPayload(std::istream& is,std::uint32_t bound,const MutableView& v)

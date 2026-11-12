@@ -104,7 +104,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
         {ALLOC_SHARED(chemistryStatus,cells);}
 #undef ALLOC_SHARED
         // Copy only canonical immutable metadata into separate device allocations.
-        candidate.thermo=hostThermo;
+        candidate.thermo=ugkwp::castSpeciesThermoViewMetadata<GpuReal>(hostThermo);
         candidate.thermo.diagnostics=state->diagnostics;
         candidate.thermo.species=nullptr;candidate.thermo.coefficients=nullptr;candidate.thermo.elementComposition=nullptr;
         rc|=uploadSharedGasTable(candidate.thermo.species,model.species.data(),model.species.size());
@@ -113,11 +113,11 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
         if(model.diffusionModel==ugkwp::GasDiffusionModel::Constant)
             rc|=uploadSharedGasTable(candidate.diffusivity,model.diffusionCoefficients.data(),species);
         candidate.turbulentSchmidt=model.turbulentSchmidt;
-        candidate.chemistryControls=model.chemistryControls;
-        candidate.thermoControls=model.chemistryControls.thermo;
+        candidate.chemistryControls=ugkwp::castChemistryControls<GpuReal>(model.chemistryControls);
+        candidate.thermoControls=ugkwp::castThermoControls<GpuReal>(model.chemistryControls.thermo);
         if(model.mode==ugkwp::GasMode::MixtureChemistry)
         {
-            candidate.mechanism=mechanism.mechanismView<ugkwp::compiledGasSpecies>();
+            candidate.mechanism=ugkwp::castGasMechanismViewMetadata<GpuReal>(mechanism.mechanismView<ugkwp::compiledGasSpecies>());
             candidate.mechanism.reactions=nullptr;candidate.mechanism.reactants=nullptr;candidate.mechanism.products=nullptr;
             candidate.mechanism.efficiencies=nullptr;candidate.mechanism.stoichiometricBasis=nullptr;
             rc|=uploadSharedGasTable(candidate.mechanism.reactions,mechanism.reactions.data(),mechanism.reactions.size());

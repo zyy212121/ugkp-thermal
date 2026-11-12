@@ -1,0 +1,185 @@
+CHECKPOINT 03 - ONE FROZEN, PAIRED ACCEPTANCE BATCH
+Preparation only. No numerical/operator/consistency/performance case has run.
+Accepted baseline: 8bde9d6d0bf4638ad498b803a5c26f921dab2ae7.
+Baseline root: ugkp-thermal-opt-checkpoint2-repair3-20261111 (read only).
+Candidate root: ugkp-thermal-opt-checkpoint3-20261111, local/checkpoint03.
+Evidence root: ugkp-thermal-opt-pr41-packages/checkpoint-03.
+
+1. Admission and scope
+The parent alone declares the start of checkpoint03 after production and fixture
+compilation, source review, parameters, programs and provenance are frozen.
+Compile-only and Python syntax checks are not numerical acceptance.
+No solver, generated fixture, pytest, numerical probe or benchmark is run during
+preparation. All CP2 baseline AND CP3 candidate results below are new executions
+inside the same batch, never historical CP2 passes presented as reruns.
+No README, production refusal gate, remote push, PR or merge is done here.
+
+2. Exact top-level matrix: 116 nodes
+- 16 correctness processes: baseline/candidate x FP32/FP64 x
+  pressure/face/coupling/bath.
+- 44 native processes: baseline/candidate x FP32/FP64 x 11 branches.
+- 8 same-precision operator comparisons: 2 precisions x 4 families,
+  each dependent on both corresponding correctness processes.
+- 48 performance processes: 3 repetitions x 2 variants x 2 precisions x 4
+  families. Per family/precision the variant order is AB, BA, AB.
+All independent correctness/native processes continue after a numerical failure.
+A failed dependency skips its comparison/performance. An already failed process
+showing invalid GPU or loader/storage environment stops only its affected branch.
+There are no retries, fixture repairs, extra probes or code changes inside the
+batch. Every failure/skipped item remains explicit; the result requires review.
+Temperature/load/telemetry differences never become new acceptance refusal rules.
+
+3. Pressure: real CUDA production kernels, mixed precision is intentional
+Correctness: 3 blocks {32,64,128} x 4 populations {0,1,31,1025} x
+3 directory routes {full,split,compact} x {analytic,constrained} = 72 cases
+per variant/precision. Each uses one cell and one face; capacity1100.
+Zero population checks inactive-cell handling. Particle/ordinary field storage
+uses GpuReal; geometry V/cellLength and authoritative energy/pressure parameters
+use double (production GpuGeometry/GpuEnergy) as in the
+real production DeviceState. FP32 is not a blanket float conversion.
+Record every particle ux/theta, cell momentum/energy/theta and represented
+parcel totals. Require finite values and represented particle/cell momentum
+closure <5e-4 (32) or1e-9 (64), energy closure <4 times that bound.
+A separate correctness-only compile counts actual makePressureParameters:
+baseline analytic once per lane, candidate analytic once per cell; constrained
+already once per cell in both. These are source-level call counts, not hardware
+instructions. Actual nonlinear root iteration count is not exposed by the
+current public API; do not invent it or claim per-iteration acceleration.
+Count fields are not physical paired measurements.
+Performance uses an uninstrumented binary and only analytic nonempty cases:
+3 blocks x3 populations x3 routes=27 workloads, 100 launches per workload,
+one warmup launch before each workload, 5 CUDA-event samples; explicit
+device allocation with host-staging H2D reset/synchronization before event start.
+Setup/reset/transfers are excluded; correctness uses managed memory separately.
+Report actual per-block sizeof(AnalyticPressureOperation::Shared) for each
+variant, plus sizeof(PressureParameters); derive actual shared-storage increase
+from baseline/candidate values. Global cache increase0.
+No CSR flattening or unmeasured alternative execution path is accepted here.
+
+4. Face: actual host execution of production device arithmetic
+2 flux schemes {1,2} x3 limiters {0,1,2} x2 nativeRefinement values=false/true.
+Each uses2cells/3faces: internal, fixed thermochemical boundary, extrapolated
+boundary. Fixed Y=.25/.75 differs from owner Y=.9/.1 and species molar masses.
+Record actual reconstructed face T/R/e/cv, fixed-boundary T/R/rho, cell calorics,
+mass/species/energy flux. Check finite, EOS consistency, successful face status,
+species mass closure at5e-4 (32) or1e-9 (64) scaled by1+|massFlux|.
+Keep the existing spatial-refinement fixture and original bounds:
+first-order16/32 ratio in(1.8,2.2); MUSCL16/32/64 successive ratios>3.5;
+MUSCL32 error<.02 times first-order32 error. Both flux schemes.
+The same fixture text is assembled statically from existing source, never by
+running/importing a test. Generation is not mathematical execution.
+Performance: actual uninstrumented face operator only; 12configurations,
+3faces/configuration, 10000 repetitions per sample,1warmup+5samples.
+Host arithmetic timing is NOT CUDA throughput or an application speedup.
+Face State uses the production mixed energy/geometry/wall-energy types in
+FP32 and double in FP64. Species metadata and coefficient tables are double
+in both precisions; each State field is allocated using its declared type.
+This remains serial host arithmetic, not CUDA face-kernel execution.
+
+5. Coupling: actual typed production cell transaction and thermal heatCell
+2cells/3heterogeneous active parcels plus1inactive slot.
+Directory order scan,CSR,split. Split layout is bulk cell0={0}, cell1={};
+indexed injection cell0={1}, cell1={2}, with unchanged particle physical data.
+SerialCouplingTeam is host arithmetic, not GPU warp or nonempty-split native
+coupling coverage. Native injection with drag/heat disabled is not coupling
+coverage. Each directory has10 declared physical outputs:
+normal nonlinear twice; hot cross-segment twice; cold cross-segment twice;
+Schiller-Naumann constant-heat twice; Gidaspow constant-heat twice. Total30.
+Includes zero dt, two successive states with poisoned scratch, drag recovery
+before temperature-dependent heat evaluation, inactive preservation, hot/cold
+trend, finite states and successful caloric inversion.
+Normal nonlinear cases use MassFractionSutherland (species0,Tref300,
+muCoefficients={1.8e-5,0,0},sCoefficients={110.4,0,0}) and derivedk=mu(T)Cp(T,Y)/Pr.
+Initial parcel ux is fixed {-200,300,20}. Before heat, record the post-drag
+response fraction and the response with onlyTgas restored to its pre-drag value.
+At least one differs by>1e-10; actual prepared fraction must match the post-drag
+prediction within1e-10 absolute. These observations are compiled out of perf.
+Hot gas4500/cold gas300; cross-segment parcels2100/4100 span2327/4000 cuts.
+Real mutable Response is compared with fresh instances at
+2327,2327.001,4000,3999.999,100,5000,2600. Trial calls must not publish state.
+Record per-case Tgas0/1,rhoE0/1,pT0/1/2,pux0/1/2 and independent budget error,
+with17 significant digits; no summed-temperature surrogate.
+Fixed budget absolute bounds: FP32 mass2e-5,momentum2e-4,energy2;
+FP64 mass1e-14,momentum1e-12,energy5e-8. Nonlinear energy uses the same
+precision-specific energy bound. Report actual errors, not only assertions.
+Baseline complete nonlinear operation includes original separate preparation.
+Candidate heatCell performs preparation internally and is not called twice.
+Compile switches: CP3_FP64 only FP64 coupling; CP3_CELL_PREPARES_HEAT
+only candidate coupling. No arithmetic/reference formula is altered by flags.
+Performance1warmup+5samples, each1152 full steps (128 x3 directories x
+2constant-heat drag models plus1nonlinear drag/heat model), reset excluded.
+Report host-only timing; production extra scratch12B/capacity particle FP32,
+16B FP64 (one GpuReal beta plus one double response), not fixture total memory.
+
+6. Independent finite-bath inversion
+6 gas/particle temperature pairs: (300,1600),(1600,300),(2200,2600),
+(2400,2100),(4100,3900),(5000,5000). Actual invertMixtureParticleHeatExchange
+and ParticleCaloricHeatResponse; double-authoritative gas calorics in both builds.
+Request relative energy and temperature tolerances1e-8, native absolute default.
+Successful/finite root lies between input temperatures (absolute margin.01).
+Independent physical residual is bounded by4 times the production centered
+heat-request scale: absolute tolerance +4epsilon*(|oldEnergy|+|referenceHeat|)
++1e-8*|referenceHeat|. Print allowed and actual; never call zero source change
+proof of a smaller physical residual.
+Performance128 x6 roots/sample,1warmup+5samples. Fixed response construction/
+old-energy setup remains included and is explicitly identified, not hidden.
+
+7. Native:11 branches per variant/precision
+Four injection branches: gasUGKP,gasUGKPSteady,CHT,CHMT, using actual public
+launchers and their full precision backend. Gas/CHT seed12345 explicit,
+CHMT existing randomSeed default1. Frozen input hashes recorded before execution.
+Three closed gas branches: hot-constant,hot-nonlinear,closed-drag-heat,
+same accepted CP2 inputs and budgets (one heat step or100closed drag/heat steps).
+Four transport branches: gas-wave,gas-ode,cht-contact,chmt-diffusion.
+Native adapter retains existing CP2 acceptance assertions, not CP2 execution:
+injection mass+remainder relative<=32epsilon32; >1000parcels; transverse
+means within.03, variances within.01; positions/outputs finite.
+Closed budgets<=256epsilon32*|initial|+[1e-10,1e-8,1e-5] for mass,momentum,energy.
+Gas authoritative energy rises, hot parcel cools; cached gasT uses
+8epsilon32*max(1000,|T|) margin; species closure<=128epsilon32*max(1,|rho|).
+These accepted practical bounds apply both native precisions; report exact errors.
+Native short windows verify completion/finite/trend/budget, NOT production
+steady-state convergence. Nonlinear root and spatial refinement are separate
+operator checks. No restart cross-product or unrelated radiation rerun in CP3.
+Historical CP2 accepted fixtures included precision-limited residual warnings.
+The separately authorized pre-CP3 CHT short run completed with8 DO iteration-
+budget warnings and representative true residual4.909006e-7>requested1e-8.
+That is historical evidence, not a new CP3 result, not meeting1e-8, and never
+a reason to relax CP3 criteria. CP3 adds no radiation modification or case.
+The separate requested CHT continuation starts from the original baseline case's
+last written output checkpoint and compares PR41 with CP2 FP32. This is not
+development checkpoint06 and adds no case to this116-node CP3 batch.
+
+8. Paired comparison and performance interpretation
+Same precision, same input, same actual operator only. Physical observations
+must be finite and share identical keys. Bounds |A-B|<=atol+rtol*max(|A|,|B|):
+FP32 atol5e-5/rtol5e-4; FP64 atol1e-10/rtol1e-9. Diagnostic residual/budget-error observations are retained and finite but are
+judged by their independent fixture bounds, not by equality of two errors.
+These pair bounds supplement,
+never replace, each fixture's independent physical/refinement/budget checks.
+Performance records all5 internal samples for each of3 alternating process
+pairs, medians/ranges, workload/iteration counts, compiler flags, GPU/runtime,
+clocks/power/temperature/utilization and extra scratch. Native wall time is
+descriptive. Device-wide200ms telemetry on WSL may be unavailable; no missing
+reading becomes0 and no number is described as per-process peakVRAM.
+Do not infer GPU acceleration from CPU arithmetic, mix precision/tolerance,
+silently change outer iterations, or claim speedup if timing noise/conditions
+do not justify it. Correctness counters NEVER enter performance binaries.
+
+9. Preparation, freeze, execution separation
+prepare.py only assembles source and compiles, records command/exit/log/hash.
+Each materialized tree is complete and independent; no overlay include fallback.
+Failed compiler attempts keep distinct evidence directories/revisions.
+The unused materialized checkpoint03/prepare.py is explicitly excluded from C++
+dependencies; its original/current hashes are retained when materialization
+refreshes it. Actual invoked commands and copied fixture/generator sources
+remain hashed. No production, fixture input or executable mismatch is ignored. A successful
+syntax-only attempt is not a linked binary or a numerical pass.
+run_batch.py freeze copies both source roots, actual4launchers/8backend binaries
+per variant, fixture executables and build provenance; hashes source, programs,
+matrix and parameters. Parent separately verifies build-to-source lineage.
+Only after explicit start:
+bash <frozen-source>/validation/checkpoint03/run_once.sh <batch-directory>
+No executable is launched by freeze. Existing results directories are not reused.
+Final states distinguish FROZEN_NOT_RUN, FAIL_STOPPED,
+FAIL_COLLECTED_REVIEW_REQUIRED and PASS_EXECUTION_REVIEW_REQUIRED.

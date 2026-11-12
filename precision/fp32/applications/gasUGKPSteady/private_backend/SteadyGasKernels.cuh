@@ -1,56 +1,59 @@
 #pragma once
 #include "SteadyChemistryResidual.cuh"
+#include <cmath>
+#include <limits>
 
 // Steady driving deliberately calls the same face, reconstruction, molecular
 // transport, turbulence and wall stages as the transient resident solver.
 // The common operators scale only their cell updates by gasPseudoDt/referenceDt.
-__global__ void prepareSteadyGasTimeStepKernel(DeviceState* sp,double courant,double maximumDt)
+__global__ void prepareSteadyGasTimeStepKernel(DeviceState* sp,GpuReal courant,GpuTime maximumDt)
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     DeviceState& s=*sp;
     const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if(c>=s.nCells)return;
     const bool mixture=ugkwp::mixtureGasActive(s);
-    const double cp=mixture?s.gasSpecies.heatCapacity[c]:s.gasCp;
-    const double R=mixture?s.gasSpecies.gasConstant[c]:s.Rgas;
-    const double cv=cp-R;
-    double diffusionRate=0;
+    const GpuReal cp=mixture?s.gasSpecies.heatCapacity[c]:s.gasCp;
+    const GpuReal R=mixture?s.gasSpecies.gasConstant[c]:s.Rgas;
+    const GpuReal cv=cp-R;
+    GpuReal diffusionRate=0;
     const int begin=s.cellPlaneStart[c],count=s.cellPlaneCount[c];
     for(int j=0;j<count;++j)
     {
         const int f=s.cellFaceId[begin+j];
         const int other=coupledFaceNeighbour(s,f);
         const int own=s.faceOwner[f];
-        const double mu=ugkwp::gasFaceMolecularViscosity(s,f,own,other);
+        const GpuReal mu=ugkwp::gasFaceMolecularViscosity(s,f,own,other);
         const int adjacent=own==c?other:own;
-        const double nut=fmax(s.nut[c],adjacent>=0?s.nut[adjacent]:s.nut[c]);
-        const double faceCp=ugkwp::gasFaceMolecularHeatCapacity(s,f,own,other);
-        const double densityRatio=adjacent>=0?fmax(1.0,s.rho[adjacent]/s.rho[c]):1.0;
-        const double nu=mu/s.rho[c];
-        const double thermal=s.gasThermalConductivity>=0
+        const GpuReal nut=std::fmax(s.nut[c],adjacent>=0?s.nut[adjacent]:s.nut[c]);
+        const GpuReal faceCp=ugkwp::gasFaceMolecularHeatCapacity(s,f,own,other);
+        const GpuReal densityRatio=adjacent>=0?std::fmax(GpuReal(1),s.rho[adjacent]/s.rho[c]):GpuReal(1);
+        const GpuReal nu=mu/s.rho[c];
+        const GpuReal thermal=s.gasThermalConductivity>=0
             ?s.gasThermalConductivity/(s.rho[c]*cv)
             :nu*faceCp/(cv*(ugkwp::gasVariablePrandtl(s)?ugkwp::gasFaceMolecularPrandtl(s,f,own,other):s.gasPr));
-        double diffusivity=fmax(4.0/3.0*(nu+densityRatio*nut),
-            fmax(thermal+densityRatio*nut*faceCp/(cv*s.turbulentPrandtl),nu+densityRatio*nut));
+        GpuReal diffusivity=std::fmax(GpuReal(4)/GpuReal(3)*(nu+densityRatio*nut),
+            std::fmax(thermal+densityRatio*nut*faceCp/(cv*s.turbulentPrandtl),nu+densityRatio*nut));
         if(mixture)
             for(int k=0;k<ugkwp::compiledGasSpecies;++k)
             {
-                const double w=ugkwp::gasTransportFaceWeight(s,f,own,other);
-                const double T=ugkwp::gasTransportFaceTemperature(s,f,own,other);
-                const double pressure=other>=0?w*s.p[own]+(1-w)*s.p[other]
+                const GpuReal w=ugkwp::gasTransportFaceWeight(s,f,own,other);
+                const GpuReal T=ugkwp::gasTransportFaceTemperature(s,f,own,other);
+                const GpuReal pressure=other>=0?w*s.p[own]+(1-w)*s.p[other]
                     :(s.riemannBoundaryPFix[f]?s.riemannBoundaryP[f]:s.p[own]);
-                const double D=ugkwp::gasLocalMolecularDiffusivity(s,k,T,pressure);
+                const GpuReal D=ugkwp::gasLocalMolecularDiffusivity(s,k,T,pressure);
                 // Mixture correction couples species: sum of raw diagonal
                 // diffusion plus correction has row norm bounded by 2 max D.
-                diffusivity=fmax(diffusivity,2*densityRatio*(D+nut/s.gasSpecies.turbulentSchmidt));
+                diffusivity=std::fmax(diffusivity,2*densityRatio*(D+nut/s.gasSpecies.turbulentSchmidt));
             }
         diffusionRate+=2*diffusivity*s.magSf[f]*s.deltaCoeffs[f]/s.V[c];
     }
     // Courant scratch contains Co(dt=1). Add explicit diffusive and SST
     // destruction rates; recomputed every pseudo iteration, never host fields.
-    const double sourceRate=s.sstConfigured?s.omega[c]:0;
-    const double rate=s.gasFluxPositivityScale[c]+diffusionRate+sourceRate;
-    s.gasPseudoDt[c]=fmin(maximumDt,courant/fmax(rate,1e-300));
+    const GpuReal sourceRate=s.sstConfigured?s.omega[c]:0;
+    const GpuReal rate=s.gasFluxPositivityScale[c]+diffusionRate+sourceRate;
+    s.gasPseudoDt[c]=std::fmin(maximumDt,GpuTime(courant
+        /std::fmax(rate,std::numeric_limits<GpuReal>::min())));
 }
 
 // Raw FV equation residual, not a timestep-weighted update norm. Components:
@@ -61,13 +64,13 @@ __global__ void steadyGasSpatialResidualKernel(DeviceState* sp)
     const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if(c>=s.nCells)return;
     constexpr int Ns=ugkwp::compiledGasSpecies;
-    double r[7+Ns]={};
-    double volumeFlux=0;
+    GpuReal r[7+Ns]={};
+    GpuReal volumeFlux=0;
     bool constrainedOmega=ugkwp::gasBoundaryLayerOwnerSlot(s,c)>=0;
     for(int j=0;j<s.cellPlaneCount[c];++j)
     {
         const int f=s.cellFaceId[s.cellPlaneStart[c]+j];
-        const double sign=s.faceOwner[f]==c?-1:1;
+        const GpuReal sign=s.faceOwner[f]==c?-1:1;
         r[0]+=sign*s.gasPhiRho[f];
         r[1]+=sign*s.gasPhiRhoUx[f];
         r[2]+=sign*s.gasPhiRhoUy[f];
@@ -103,5 +106,5 @@ __global__ void steadyGasSpatialResidualKernel(DeviceState* sp)
         r[5+Ns]+=sourceK;
         r[6+Ns]=constrainedOmega?0:r[6+Ns]+sourceOmega;
     }
-    for(int k=0;k<7+Ns;++k)s.gasSteadyResidual[k*s.nCells+c]=fabs(r[k]);
+    for(int k=0;k<7+Ns;++k)s.gasSteadyResidual[k*s.nCells+c]=std::fabs(r[k]);
 }

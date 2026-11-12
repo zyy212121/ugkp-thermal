@@ -1,7 +1,8 @@
 """Read current owner-specific particle layouts, without guessing old widths.
 
 Historical schema7 files are decoded by thermal_particle_restart_schema7.py.
-CHT schema9 retains only its two float enthalpy profiles; FSH schema8 is FP64.
+CHT schema9 has float enthalpy profiles and a double carry; schema10 omits
+the carry for single-state FP32 computation. FSH schema8 is FP64.
 """
 from __future__ import annotations
 import struct
@@ -10,6 +11,7 @@ import numpy as np
 from thermal_particle_restart_schema7 import field_specs as legacy_specs
 
 CHT_MARKER = "UGKP_CHT_PARTICLES_SCHEMA9_FLOAT_COLD_PROFILES_BIN"
+SINGLE_STATE_CHT_MARKER = "UGKP_CHT_PARTICLES_SCHEMA10_FP32_SINGLE_STATE_BIN"
 FSH_MARKER = "UGKP_FSH_PARTICLES_SCHEMA8_FP64_FIELDS_BIN"
 LEGACY_CHT_MARKER = "UGKP_CHT_PARTICLES_SCHEMA8_THERMAL_CARRY_BIN"
 PROFILES = {"pColdNodeSpecificEnthalpy", "pCold2DNodeSpecificEnthalpy"}
@@ -19,9 +21,9 @@ def field_specs(marker):
 
     if marker == LEGACY_CHT_MARKER:
         return legacy_specs("UGKP_THERMAL_PARTICLES_SCHEMA7_T64_BIN") + [("pThermalEnthalpyResidual", "<f8", 1)]
-    if marker not in (CHT_MARKER, FSH_MARKER):
+    if marker not in (CHT_MARKER, SINGLE_STATE_CHT_MARKER, FSH_MARKER):
         return legacy_specs(marker)
-    specs = [(name, "<f4" if marker == CHT_MARKER and name in PROFILES else
+    specs = [(name, "<f4" if marker in (CHT_MARKER, SINGLE_STATE_CHT_MARKER) and name in PROFILES else
               "<f8" if dtype in ("<f4", "<f8") else dtype, width)
              for name, dtype, width in legacy_specs("UGKP_THERMAL_PARTICLES_SCHEMA7_T64_BIN")]
     if marker == CHT_MARKER:

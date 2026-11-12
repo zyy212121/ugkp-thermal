@@ -8,6 +8,11 @@ inside production code). Output retains inputs, logs, exits and binary hashes.
 from pathlib import Path
 import argparse,hashlib,json,math,os,re,shutil,struct,subprocess
 
+
+import sys as _scheme_sys
+_scheme_sys.path.insert(0, str(Path(__file__).resolve().parents[2]/"validation/solver_controls"))
+import migrate_case as scheme_controls
+
 ROOT=Path(__file__).resolve().parents[2]
 
 def prepare(d,mass,diameter,end_time,window):
@@ -26,6 +31,8 @@ def prepare(d,mass,diameter,end_time,window):
   out.write(b'UGKP_PARTICLES_SCHEMA1_BIN 1 1\n');out.write(struct.pack('<I',1))
   for x in [.35,.5,.5,0,0,0,10000,0,diameter,mass]:out.write(struct.pack('<d',x))
   out.write(struct.pack('<iiQQ',0,1,12345,1))
+
+ scheme_controls.migrate_case(d)
 
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def field(path):
@@ -54,6 +61,7 @@ def main():
   assert mesh.returncode==0,(name,'blockMesh failed')
   command=[str(binary),'-case',str(d)]
   with (d/'run.log').open('w') as f:
+   scheme_controls.before_solver(command)
    run=subprocess.run(command,env=env,stdout=f,stderr=subprocess.STDOUT)
   text=(d/'run.log').read_text()
   written=sorted(f.name for f in d.iterdir() if f.is_dir() and f.name.isdigit() and f.name!='0')

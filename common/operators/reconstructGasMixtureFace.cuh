@@ -12,7 +12,8 @@ template<class GasState>
 __device__ bool reconstructGasMixtureFace
 (
     const GasState& s, const int c, const int f,
-    GasPrimDevice& output, GPU_OPERATOR_REAL* massFractions, const bool nativeRefinement=false, bool* evaluated=nullptr
+    GasPrimDevice& output, GPU_OPERATOR_REAL* massFractions, const bool nativeRefinement=false, bool* evaluated=nullptr,
+    GPU_OPERATOR_REAL* reconstructedGasConstant=nullptr
 )
 {
     if(evaluated)*evaluated=false;
@@ -183,6 +184,8 @@ __device__ bool reconstructGasMixtureFace
         return false;
     }
     output=candidate;for(int k=0;k<Ns;++k)massFractions[k]=y[k];
+    // This R belongs to the same limited composition that determined T.
+    if(reconstructedGasConstant)*reconstructedGasConstant=gasConstant;
     if(evaluated)*evaluated=true;
     return true;
 }

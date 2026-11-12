@@ -751,10 +751,18 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
                     oldParticle(saved.physics.enableParticles);newParticle(expected.physics.enableParticles);
                     auto oldModel=ugkp::thermal::particleModelIdentity(saved.particlePhase);
                     auto newModel=ugkp::thermal::particleModelIdentity(expected.particlePhase);
+                    // Startup numerical controls may change across a restart.
+                    // Normalize comparison copies only; keep the archive layout
+                    // and every physical model field unchanged.
+                    oldModel.packingIterations=newModel.packingIterations;
+                    oldModel.maxFaceWalkHops=newModel.maxFaceWalkHops;
+                    auto oldContact=saved.particleContact;
+                    auto newContact=expected.particleContact;
+                    oldContact.nonlinearIterations=newContact.nonlinearIterations;
                     ugkp::thermal::visitParticlePhaseConfiguration(oldParticle,oldModel);
                     ugkp::thermal::visitParticlePhaseConfiguration(newParticle,newModel);
-                    ugkp::thermal::visitParticleContactConfiguration(oldParticle,saved.particleContact);
-                    ugkp::thermal::visitParticleContactConfiguration(newParticle,expected.particleContact);
+                    ugkp::thermal::visitParticleContactConfiguration(oldParticle,oldContact);
+                    ugkp::thermal::visitParticleContactConfiguration(newParticle,newContact);
                     if(oldParticle.data!=newParticle.data)
                         throw std::runtime_error("checkpoint particle model identity differs from current configuration");
                 }

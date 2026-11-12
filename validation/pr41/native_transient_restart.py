@@ -4,11 +4,17 @@ Inputs and outputs are confined to fresh synthetic case directories.
 from pathlib import Path
 import argparse,importlib.util,json,shutil,subprocess,hashlib,time
 import numpy as np
+
+import sys as _scheme_sys
+_scheme_sys.path.insert(0, str(Path(__file__).resolve().parents[2]/"validation/solver_controls"))
+import migrate_case as scheme_controls
+
 ROOT=Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location("inlet",ROOT/"validation/pr41/native_injection.py")
 inlet=importlib.util.module_from_spec(spec);spec.loader.exec_module(inlet)
 
 def execute(binary,case,label,runs):
+    scheme_controls.before_solver([str(binary),"-case",str(case)])
     start=time.perf_counter()
     with (case/(label+".log")).open("w") as log:
         result=subprocess.run([str(binary),"-case",str(case)],stdout=log,stderr=subprocess.STDOUT)
@@ -34,6 +40,7 @@ def positions(case,solver):
 def resumed_case(first,target,solver):
     target.mkdir()
     for item in ("0","constant","system"):shutil.copytree(first/item,target/item)
+    if (first/scheme_controls.MANIFEST).is_file():shutil.copy2(first/scheme_controls.MANIFEST,target/scheme_controls.MANIFEST)
     if solver=="CHMT":
         checkpoint=first/"chmtOutput/checkpoint-1"
         inlet.g.set_entry(target/"constant/chmtProperties","restartDirectory",'"'+str(checkpoint)+'"')

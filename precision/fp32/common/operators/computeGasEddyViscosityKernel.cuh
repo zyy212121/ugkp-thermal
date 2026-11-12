@@ -146,7 +146,7 @@ __global__ void computeGasEddyViscosityKernel(GasState* sp)
         || !gasEddyFinite(s,c,s.lesDeltaCoeff,30314,0)
         || !gasEddyFinite(s,c,s.cellLength[c],30325,1)
         || !gasEddyFinite(s,c,s.turbulenceModel==2?s.smagorinskyCs:s.waleCw,30326,2)) return;
-    const GPU_OPERATOR_REAL delta = s.lesDeltaCoeff*clampMin(s.cellLength[c], OfSmall);
+    const GPU_OPERATOR_REAL delta = s.lesDeltaCoeff*clampMin(GPU_OPERATOR_R(s.cellLength[c]), OfSmall);
     if(!gasEddyFinite(s,c,delta,30315)) return;
     GPU_OPERATOR_REAL nuT = GPU_OPERATOR_R(0.0);
     if (s.turbulenceModel == 2)

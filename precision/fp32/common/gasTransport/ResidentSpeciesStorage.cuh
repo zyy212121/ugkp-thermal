@@ -1,4 +1,5 @@
 #pragma once
+#include "GasModelCast.H"
 // Application-owned allocation only. All physical evaluations remain common.
 // Include after the resident allocation/copy/error helpers.
 #include <limits>
@@ -64,7 +65,10 @@ int uploadSharedGasTable(const T*& pointer,const Source* source,std::size_t coun
     T* allocation=nullptr;
     const int rc=allocate(allocation,count,"allocate immutable gas model table");
     pointer=allocation;
-    return rc?rc:copyToDevice(allocation,source,count,"upload immutable gas model table");
+    if(rc)return rc;
+    std::vector<T> staged(count);
+    for(std::size_t i=0;i<count;++i)staged[i]=ugkwp::castGasModel<T>(source[i]);
+    return copyToDevice(allocation,staged.data(),count,"upload immutable gas model table");
 }
 inline int syncSharedGasSpecies(DeviceState* state)
 {

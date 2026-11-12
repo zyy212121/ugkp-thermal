@@ -1,9 +1,12 @@
+#include "FoamParticleSolverControls.H"
+#include "FoamSolverScheme.H"
 #include "FoamSommerfeldConfiguration.H"
 #include "FoamParticleInjectionVelocity.H"
 #include "FoamBoundaryInjectionSampling.H"
 #include "thermal/ParticleTrackingGeometry.H"
 #include "gasBoundary/FoamInput.H"
 #include "gasBoundary/Api.H"
+#include "gasNumerics/GasScalarSolverControlsApi.H"
 #include "gasTransport/FoamBoundaryLayerInput.H"
 #include "gasTransport/FoamGasModelInput.H"
 #include "gasTransport/MolecularTransportApi.H"
@@ -572,6 +575,15 @@ public:
 
     void useSharedGasModel(SharedGasModelInput& model){sharedGasModel_=&model;}
     void downloadSharedGasSpecies(const volScalarField& rho){if(sharedGasModel_)sharedGasModel_->downloadSpecies(handle_,rho);}
+
+    template<class Real>
+    void configureGasScalarSolvers(const ugkp::gasNumerics::ScalarSolverControls<Real>& controls)
+    {
+        requireInitialised("configureGasScalarSolvers");
+        const auto hostControls=ugkp::gasNumerics::castScalarSolverControls<double>(controls);
+        check(ugkwpGpuResidentStrictConfigureGasScalarSolvers(handle_,&hostControls),
+            "configure gas scalar solver controls");
+    }
 
     void configureMolecularTransport(const ugkwp::MolecularTransportConfiguration& config){
         if(ugkwpGpuResidentStrictConfigureMolecularTransport(handle_,&config))
@@ -1426,14 +1438,8 @@ protected:
                 "gpuResidentPackingFraction",
                 scalar(0.63)
             );
-        const label packingProjectionIterations =
-            particleWallProps == nullptr
-          ? label(20)
-          : particleWallProps->lookupOrDefault<label>
-            (
-                "gpuResidentPackingProjectionIterations",
-                label(20)
-            );
+        const auto particleNumericalControls=ugkp::solverControls::readParticleNumericalControls(mesh.time(),mesh.name());
+        const label packingProjectionIterations=particleNumericalControls.packingIterations;
                                                                       
                                                                          
 
@@ -1518,6 +1524,8 @@ protected:
 
         check(createRc, "create GPU resident strict state");
         handle_ = raw;
+        check(ugkp::thermal::setParticleNumericalControls(handle_,particleNumericalControls),
+            "configure particle numerical controls");
         diagnosticTime_=&mesh.time();
         const auto diagnosticSink=ugkp::diagnostics::makeFoamSink();
         ugkwpGpuResidentStrictSetDiagnosticSink(handle_,&diagnosticSink);
@@ -1580,7 +1588,7 @@ protected:
                 }
                 if
                 (
-                    restartHeader == gpuFshRestart::currentFormatName
+                    (restartHeader == gpuFshRestart::currentFormatName || restartHeader == gpuFshRestart::schema9FormatName || restartHeader == gpuFshRestart::singleStateFormatName)
                  || (restartHeader == gpuFshRestart::formatName || restartHeader == gpuFshRestart::schema5FormatName)
                  || restartHeader == gpuFshRestart::schema7FormatName
                  || restartHeader == gpuFshRestart::schema8FormatName
@@ -1768,6 +1776,9 @@ protected:
 
         check(createRc, "create GPU resident pure-gas state");
         handle_ = raw;
+        const auto particleNumericalControls=ugkp::solverControls::readParticleNumericalControls(mesh.time(),mesh.name());
+        check(ugkp::thermal::setParticleNumericalControls(handle_,particleNumericalControls),
+            "configure particle numerical controls");
         diagnosticTime_=&mesh.time();
         const auto diagnosticSink=ugkp::diagnostics::makeFoamSink();
         ugkwpGpuResidentStrictSetDiagnosticSink(handle_,&diagnosticSink);
@@ -2763,7 +2774,7 @@ protected:
                 << "Invalid GPU resident particle restart mirror: "
                 << restartFile << exit(FatalError);
         }
-        if (restartHeader == gpuFshRestart::currentFormatName)
+        if ((restartHeader == gpuFshRestart::currentFormatName || restartHeader == gpuFshRestart::schema9FormatName || restartHeader == gpuFshRestart::singleStateFormatName))
         {
             currentLayout = true;
             if (!(is >> nParticles >> maximumChunk))
@@ -2946,7 +2957,9 @@ protected:
             {
                 if (currentLayout)
                 {
-                    gpuFshRestart::readCurrentPayload(is,static_cast<std::uint32_t>(maximumChunk),restartView);
+                    if(restartHeader == gpuFshRestart::singleStateFormatName)
+                        gpuFshRestart::readSingleStatePayload(is,static_cast<std::uint32_t>(maximumChunk),restartView);
+                    else gpuFshRestart::readLegacyCarryPayload(is,static_cast<std::uint32_t>(maximumChunk),restartView);
                 }
                 else if (weightedV8)
                 {
@@ -3396,9 +3409,9 @@ protected:
         const bool wallTransientResistance = model == nullptr
           ? true
           : model->lookupOrDefault<bool>("wallTransientResistance", true);
-        const label nonlinearIterations = model == nullptr
-          ? label(4)
-          : model->lookupOrDefault<label>("solidificationIterations", 4);
+        label nonlinearIterations = 4;
+        ugkp::solverControls::startupScheme(mesh.time()).read("coldWall1D",
+            "solidificationIterations",nonlinearIterations,"effectiveDefault",mesh.name());
         const word heatFluxField =
             model == nullptr
           ? word("particleStuckWallHeatFlux")

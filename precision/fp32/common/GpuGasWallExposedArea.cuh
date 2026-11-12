@@ -31,14 +31,14 @@ __device__ auto gasWallExposedAreaFractionImpl
         return GPU_R(0.0);
     }
 
-    GpuGeometry exposed=GpuGeometry(1);
+    GpuReal exposed=GPU_R(1.0);
     if(!ugkwp::wallHeatExposedFraction(s.magSf[f],s.particleWallRepresentedContactArea[f],
         s.particleWallContactAreaScale[f],exposed))
     {
         asm("trap;");
         return GPU_R(0.0);
     }
-    return GpuReal(exposed);
+    return exposed;
 }
 template<class State>
 __device__ GpuReal gasWallExposedAreaFraction(const State& s,int face)

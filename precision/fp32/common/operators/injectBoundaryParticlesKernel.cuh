@@ -79,16 +79,16 @@ __global__ void injectBoundaryParticlesKernel
     }
 
     const GPU_OPERATOR_REAL injectionParcelMass = s.injectionParcelMass;
-    double available =
-        clampMin(finiteOr(s.sourceResidualMass[j], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0)) + rate*dt;
+    GPU_OPERATOR_REAL available =
+        clampMin(finiteOr(s.sourceResidualMass[j], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0)) + rate*GPU_OPERATOR_REAL(dt);
     if (available < injectionParcelMass)
     {
         s.sourceResidualMass[j] = available;
         return;
     }
 
-    const int nNew = static_cast<int>(floor(available/injectionParcelMass));
-    double consumed = 0.0;
+    const int nNew = static_cast<int>(floorf(available/injectionParcelMass));
+    GPU_OPERATOR_REAL consumed = GPU_OPERATOR_R(0.0);
     int created = 0;
 
     for (int k = 0; k < nNew; ++k)
@@ -155,7 +155,7 @@ __global__ void injectBoundaryParticlesKernel
             (static_cast<unsigned long long>(j) << 40)
           ^ static_cast<unsigned long long>(slot);
         // Debit the actual published parcel mass in the residual ledger's precision.
-        consumed += static_cast<double>(s.pm[slot]);
+        consumed += GPU_OPERATOR_REAL(s.pm[slot]);
         ++created;
     }
 

@@ -13,7 +13,8 @@ template<class GasState>
 __device__ bool reconstructGasMixtureFace
 (
     const GasState& s, const int c, const int f,
-    GasPrimDevice& output, GPU_OPERATOR_REAL* massFractions, const bool nativeRefinement=false, bool* evaluated=nullptr
+    GasPrimDevice& output, GPU_OPERATOR_REAL* massFractions, const bool nativeRefinement=false, bool* evaluated=nullptr,
+    GPU_OPERATOR_REAL* reconstructedGasConstant=nullptr
 )
 {
     if(evaluated)*evaluated=false;
@@ -70,7 +71,7 @@ __device__ bool reconstructGasMixtureFace
     }
     GPU_OPERATOR_GEOMETRY cx,cy,cz;
     periodicMappedCellCentre(s,f,c,cx,cy,cz);
-    const GPU_OPERATOR_REAL dx=GPU_OPERATOR_R(s.faceCx[f]-cx), ddy=s.faceCy[f]-cy, dz=s.faceCz[f]-cz;
+    const GPU_OPERATOR_REAL dx=GPU_OPERATOR_R(s.faceCx[f]-cx), ddy=GPU_OPERATOR_R(s.faceCy[f]-cy), dz=GPU_OPERATOR_R(s.faceCz[f]-cz);
     ugkpcharacteristic::Increment increment
     {
         s.gasGradientLimiterRho[c]*(s.gradRhoX[c]*dx+s.gradRhoY[c]*ddy+s.gradRhoZ[c]*dz),
@@ -184,6 +185,8 @@ __device__ bool reconstructGasMixtureFace
         return false;
     }
     output=candidate;for(int k=0;k<Ns;++k)massFractions[k]=y[k];
+    // This R belongs to the same limited composition that determined T.
+    if(reconstructedGasConstant)*reconstructedGasConstant=gasConstant;
     if(evaluated)*evaluated=true;
     return true;
 }

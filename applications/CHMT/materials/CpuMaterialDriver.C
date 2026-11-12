@@ -138,7 +138,7 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
     const Foam::dimensionSet capacityDimensions=Foam::dimEnergy/Foam::dimVolume/Foam::dimTemperature;
     const Foam::dimensionSet conductivityDimensions=Foam::dimPower/Foam::dimLength/Foam::dimTemperature;
     const Foam::dimensionedScalar deltaT("materialDt",Foam::dimTime,dt);
-    Foam::dictionary solver;solver.add("solver",Foam::word("PCG"));solver.add("preconditioner",Foam::word("DIC"));solver.add("tolerance",Foam::scalar(1e-12));solver.add("relTol",Foam::scalar(0));solver.add("maxIter",Foam::label(2000));
+    Foam::dictionary solver;solver.add("solver",Foam::word("PCG"));solver.add("preconditioner",Foam::word("DIC"));solver.add("tolerance",Foam::scalar(1e-12));solver.add("relTol",Foam::scalar(0));solver.add("maxIter",Foam::label(controls.linearMaxIterations));
     const auto initialDeviceFields=residentMaterialConductionFields(thermal);
     residentDiffusion.copySolution(initialDeviceFields.initialTemperature,n,initialDeviceFields.readyStream);
     ugkp::gpu::installGpuImplicitDiffusion();
@@ -224,7 +224,7 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
         // Split the existing error budget between the linear equation and
         // nonlinear caloric closure. This is not a new user/case tolerance.
         const Real relativeLinearTarget=initialEnergy>0
-            ?static_cast<Real>(std::min(1.L,(linearEnergyTolerance/initialEnergy)/2)):1;
+            ?static_cast<Real>(std::min(1.L,(linearEnergyTolerance/initialEnergy)*controls.linearEnergyBudgetFraction)):1;
         solver.set("tolerance",std::numeric_limits<Foam::scalar>::min());
         solver.set("relTol",minValue(1,relativeLinearTarget));
         const Foam::solverPerformance linear=equation.solve(solver,!residentConvergence);
@@ -424,7 +424,7 @@ bool CpuMaterialDriver::predictWallImpl(const HostState& base,const CouplingInte
         for(std::size_t f=0;f<aux.size();++f){aux[f].solidNormalVelocity=surface.physics[f].solidSpeed;aux[f].normalVelocity=surface.physics[f].topSpeed;aux[f].solidFront+=dt*aux[f].solidNormalVelocity;aux[f].gasFront+=dt*aux[f].normalVelocity;
             const int sf=base.surface.solidFace[f];targets[f]=sf>=0?dt*aux[f].solidNormalVelocity*mag(base.solidMesh.areaVectors[sf]):0;}
         HostMesh gas,solid;SurfaceMesh moved;SweepConstraintReport report;
-        if(!moveCoupledMeshesConstrained(geometryBase,aux,targets,dt,gas,solid,moved,report,error,SweepConstraintControls{},p.tolerances,&numerical)){
+        if(!moveCoupledMeshesConstrained(geometryBase,aux,targets,dt,gas,solid,moved,report,error,materialSweepControls(p.numerics.meshMotion),p.tolerances,&numerical)){
             if(diagnostics)diagnostics->recoverable=false;
             return fail(numerical?MaterialFailureOrigin::GeometryNumerical:MaterialFailureOrigin::None);
         }
@@ -615,7 +615,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 if(p.meshMotion.policy==MeshMotionPolicy::CoupledRecession&&!target.empty()
                     &&(!executedProgram||trialElapsed==windowEnd)){SweepConstraintReport motion;
                     bool numerical=false;
-                    if(!moveCoupledMeshesConstrained(state,aux,target,geometryInventory.row.size(),dt,trial.gasMesh,trial.solidMesh,trial.surface,motion,error,SweepConstraintControls{},p.tolerances,&numerical)){
+                    if(!moveCoupledMeshesConstrained(state,aux,target,geometryInventory.row.size(),dt,trial.gasMesh,trial.solidMesh,trial.surface,motion,error,materialSweepControls(p.numerics.meshMotion),p.tolerances,&numerical)){
                         lastFailure=numerical?MaterialFailureOrigin::GeometryNumerical:MaterialFailureOrigin::None;
                         {
                             if(!numerical)lastFailure=MaterialFailureOrigin::None;

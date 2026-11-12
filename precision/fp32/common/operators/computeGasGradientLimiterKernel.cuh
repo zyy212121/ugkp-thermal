@@ -51,8 +51,8 @@ __global__ void computeGasGradientLimiterKernel(GasState* sp, const bool nativeR
                     const int f=s.cellFaceId[start+i];
                     // The range and coupling were checked in the extrema pass.
                     GPU_OPERATOR_GEOMETRY cx,cy,cz;periodicMappedCellCentre(s,f,c,cx,cy,cz);
-                    const GPU_OPERATOR_REAL predicted=yc+s.gasSpecies.gradX[index]*(s.faceCx[f]-cx)
-                        +s.gasSpecies.gradY[index]*(s.faceCy[f]-cy)+s.gasSpecies.gradZ[index]*(s.faceCz[f]-cz);
+                    const GPU_OPERATOR_REAL predicted=yc+s.gasSpecies.gradX[index]*GPU_OPERATOR_R(s.faceCx[f]-cx)
+                        +s.gasSpecies.gradY[index]*GPU_OPERATOR_R(s.faceCy[f]-cy)+s.gasSpecies.gradZ[index]*GPU_OPERATOR_R(s.faceCz[f]-cz);
                     if(!gasProducerScalarValid(s,c,predicted,30065))return;
                     if(s.gasLimiter!=0)updateConfiguredGasLimiter(s.gasLimiter,yc,predicted,ymin,ymax,joint);
                     updateBarthLimiter(yc,predicted,GPU_OPERATOR_R(0.0),GPU_OPERATOR_R(1.0),joint);
@@ -132,9 +132,9 @@ __global__ void computeGasGradientLimiterKernel(GasState* sp, const bool nativeR
     {
         const int f = s.cellFaceId[start + i];
         // The extrema pass checked this immutable face index and coupling.
-        const GPU_OPERATOR_REAL dx = s.faceCx[f] - s.Cx[c];
-        const GPU_OPERATOR_REAL dy = s.faceCy[f] - s.Cy[c];
-        const GPU_OPERATOR_REAL dz = s.faceCz[f] - s.Cz[c];
+        const GPU_OPERATOR_REAL dx = GPU_OPERATOR_R(s.faceCx[f] - s.Cx[c]);
+        const GPU_OPERATOR_REAL dy = GPU_OPERATOR_R(s.faceCy[f] - s.Cy[c]);
+        const GPU_OPERATOR_REAL dz = GPU_OPERATOR_R(s.faceCz[f] - s.Cz[c]);
         updateConfiguredGasLimiter(s.gasLimiter, qc.rho, qc.rho + s.gradRhoX[c]*dx + s.gradRhoY[c]*dy + s.gradRhoZ[c]*dz, rMin, rMax, rhoLimiter);
         updateConfiguredGasLimiter(s.gasLimiter, qc.ux, qc.ux + s.gradUxX[c]*dx + s.gradUxY[c]*dy + s.gradUxZ[c]*dz, uxMin, uxMax, uxLimiter);
         updateConfiguredGasLimiter(s.gasLimiter, qc.uy, qc.uy + s.gradUyX[c]*dx + s.gradUyY[c]*dy + s.gradUyZ[c]*dz, uyMin, uyMax, uyLimiter);

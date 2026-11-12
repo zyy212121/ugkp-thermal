@@ -1,0 +1,31 @@
+FoamFile { version 2.0; format ascii; class dictionary; object scheme; }
+
+wallLayer
+{
+    maxIterations 60;
+    relativeTolerance 1e-8;
+    absoluteTolerance 1e-10;
+    nodes 8;
+    stretch 2;
+}
+precisionOverrides
+{
+    fp32
+    {
+        wallLayer
+        {
+            relativeTolerance 0.0001;
+            absoluteTolerance 9.5367431640625e-07;
+        }
+    }
+}
+gasTimeStep
+{
+    minDeltaT 1e-12;
+    maxCo 0.4;
+    maxDeltaT 1.0000000000000001e-05;
+}
+thermalCoupling
+{
+    couplingInterval 7.450580596923828e-09;
+}

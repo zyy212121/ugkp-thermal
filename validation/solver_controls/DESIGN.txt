@@ -1,0 +1,50 @@
+UNIFIED NUMERICAL SOLVER CONTROLS
+Source: case-root constant/scheme, a standard OpenFOAM dictionary.
+Read exactly once per case root at application startup. Multiple regions share
+the immutable snapshot. No per-step file reload and no device dictionary IO.
+Control precedence: regions.<region>.<module>.<key>, then <module>.<key>,
+then the current typed/effective precision-specific default.
+Former numerical-control locations are no longer fallback inputs.
+Material properties, physical/model selection, restart precision, domain
+geometry and physical start/end times remain in their existing files.
+
+Every exposed key must have a real solver consumer. Parsed but unused historical
+keys are not advertised as effective. Fixed stencil/storage layout, exact
+algebraic stage counts, representation-range bounds and constitutive constants
+are not interchangeable with iteration budgets. Existing warning/continuation
+or failure semantics are preserved; no new refusal/rollback rule is introduced.
+
+FP32 defaults preserve current engineering stopping budgets. Explicit scheme
+values are applied after default formation and are not silently raised by
+legacy precision floors. FP64 values remain FP64; FP32 state/physics remain
+FP32, with existing approved geometry/tracking/time exceptions unchanged.
+The scheme interface itself is host input/output, not extra precision in the
+solver arithmetic.
+
+Case migration is part of this change. Relevant active repository cases and
+generators move numerical settings into scheme and remove their old keys.
+Historical frozen runs, their source, and the original case-current remain
+unchanged. Original-case validation uses independent migrated candidate copies;
+PR41/CP2 keep their original control format. Record both requested and effective
+values, including the specifically approved FP32 solid engineering defaults,
+rather than claiming identical configuration where it has changed.
+
+A few old readers had required values rather than usable defaults. For example,
+CHMT gas minDt/maxDt/cfl initialize to zero and existing validation requires
+positive values. Migration supplies each case's original values in gasTimeStep;
+the interface does not invent new physics-dependent values or remove the
+existing validation. A minimal-scheme default test must retain those required
+values rather than incorrectly assuming an empty CHMT scheme can run.
+
+Implementation and migration are in progress. This document is design, not a
+numerical pass. Old D source 063aa86f38b9c7e38c6fc9195fd2036635e0f852047d1b1309af83babc18dadc
+compiled four FP32 applications and the launcher, but ran zero numerical nodes.
+The final combined checkpoint will be frozen only after module implementations,
+case migration, all builds and the explicit expanded run list are complete.
+No interim mathematical/operator test is authorized.
+
+Optional precisionOverrides.fp32 / precisionOverrides.fp64 blocks let one case
+retain distinct selected-precision numerical values. Resolution order, low to
+high: module; selected-precision module; region module; selected-precision region.
+These are explicit controls, not floors or conversions applied after reading.
+Migration records old requested/effective values before choosing these entries.

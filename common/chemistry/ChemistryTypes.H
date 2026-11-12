@@ -40,6 +40,7 @@ template<class Real> struct ChemistryControls {
     int maximumRejectedSteps = 100;
     int maximumNewtonIterations = 16;
     int maximumLineSearchIterations = 24; // Mathematical search within one fixed implicit stage.
+    Real lineSearchReduction = Real(.5);
     Real absoluteMassTolerance = Real(1e-14); // kg
     Real relativeConservationTolerance = Real(1e-10);
     Real absoluteElementTolerance = Real(1e-12); // mol atoms, NOT kg
@@ -76,6 +77,7 @@ UGKWP_GAS_HD inline ChemistryControls<To> castChemistryControls
     out.maximumRejectedSteps=input.maximumRejectedSteps;
     out.maximumNewtonIterations=input.maximumNewtonIterations;
     out.maximumLineSearchIterations=input.maximumLineSearchIterations;
+    out.lineSearchReduction=input.lineSearchReduction;
     out.absoluteMassTolerance=input.absoluteMassTolerance;
     out.relativeConservationTolerance=input.relativeConservationTolerance;
     out.absoluteElementTolerance=input.absoluteElementTolerance;

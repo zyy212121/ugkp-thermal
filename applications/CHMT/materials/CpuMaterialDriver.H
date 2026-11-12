@@ -12,6 +12,8 @@ struct CpuMaterialControls {
     Real driveRelativeTolerance=.05,driveSourceFraction=.05,driveTractionScale=1;
     bool retainDonorHistory=true; // Explicit external consumer capability.
     int maxSubsteps=100000,nonlinearMaxIterations=50;
+    int linearMaxIterations=2000;
+    Real linearEnergyBudgetFraction=Real(.5);
     Real nonlinearRelativeTolerance=1e-10,energyAbsoluteTolerance=1e-10,energyRelativeTolerance=1e-10;
 };
 struct CpuMaterialReport {

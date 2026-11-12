@@ -62,7 +62,7 @@ public:
         bool deviceCorrection=false;
         if(transient&&transient->resident&&corrected
             &&dynamic_cast<const FoamThermalCorrectedGradient*>(&this->tsnGradScheme_())){
-            const auto selected=fv::gradScheme<scalar>::New(mesh,mesh.schemes().grad("grad("+temperature.name()+')'));
+            const auto selected=fv::gradScheme<scalar>::New(mesh,ugkp::solverControls::thermalDiscretization(mesh).selection("gradSchemes","grad("+temperature.name()+')'));
             const auto* gauss=dynamic_cast<const FoamThermalGaussGradient*>(&selected());
             deviceCorrection=gauss&&gauss->linearInterpolation();
             forAll(temperature.boundaryField(),p){const auto& field=temperature.boundaryField()[p];
@@ -205,7 +205,9 @@ template<class Conductivity> inline Foam::tmp<Foam::fvScalarMatrix> gpuImplicitT
     std::vector<double> b(rhs.primitiveField().begin(),rhs.primitiveField().end());
     FoamTransientAssembly request;request.input={&c,&b,dt,sourceFromCapacity};
     FoamTransientAssembly::Scope scope(request);
-    auto result=Foam::fvm::laplacian(conductivity,temperature);
+    auto selected=Foam::fv::laplacianScheme<Foam::scalar,Foam::scalar>::New(temperature.mesh(),
+        ugkp::solverControls::thermalDiscretization(temperature.mesh()).selection("laplacianSchemes","laplacian("+conductivity.name()+','+temperature.name()+')'));
+    auto result=selected.ref().fvmLaplacian(conductivity,temperature);
     // A separately registered non-Gauss scheme owns its native assembly.
     // Preserve that explicit dictionary selection and its existing completion.
     if(!request.consumed)formGpuImplicitEquation(result.ref(),capacity,rhs,dt,sourceFromCapacity);
@@ -350,7 +352,7 @@ template<class Conductivity> inline FoamResidentThermalEquation residentImplicit
     FoamTransientAssembly::Scope scope(request);
     if(!retainSolution)resident.uploadSolution(temperature.primitiveField().begin(),temperature.size());
     auto selected=Foam::fv::laplacianScheme<Foam::scalar,Foam::scalar>::New(temperature.mesh(),
-        temperature.mesh().schemes().laplacian("laplacian("+conductivity.name()+','+temperature.name()+')'));
+        ugkp::solverControls::thermalDiscretization(temperature.mesh()).selection("laplacianSchemes","laplacian("+conductivity.name()+','+temperature.name()+')'));
     Foam::tmp<Foam::fvScalarMatrix> equation;
     if constexpr(std::is_same<Conductivity,Foam::surfaceScalarField>::value){
         if(harmonicSource&&!dynamic_cast<FoamImplicitDiffusion*>(&selected.ref())){
@@ -386,7 +388,7 @@ template<class Conductivity> inline FoamResidentThermalEquation residentImplicit
 // the standard linear policy needs no intermediate full face-field transfer.
 inline Foam::tmp<Foam::surfaceScalarField> thermalHarmonicBoundaryValues(const Foam::volScalarField& field){
     using namespace Foam;
-    const auto selected=fvc::scheme<scalar>(field.mesh(),"interpolate("+field.name()+')');
+    const auto selected=surfaceInterpolationScheme<scalar>::New(field.mesh(),ugkp::solverControls::thermalDiscretization(field.mesh()).selection("interpolationSchemes","interpolate("+field.name()+')'));
     if(!dynamic_cast<const FoamThermalLinear*>(&selected()))return selected().interpolate(field);
     auto result=surfaceScalarField::New("interpolate("+field.name()+')',field.mesh(),field.dimensions());
     result.ref().primitiveFieldRef()=0;

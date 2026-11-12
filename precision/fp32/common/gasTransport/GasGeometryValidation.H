@@ -69,7 +69,7 @@ UGKWP_GAS_HD inline bool gasGeometryFaceFrame(const State& s,int f,Time dt,GasFa
         using Geometry=std::remove_cv_t<std::remove_reference_t<decltype(s.Sfx[f])>>;
         GasFaceFrame<Geometry> geometricFrame;
         const bool valid=makeGasFaceFrame(s.Sfx[f],s.Sfy[f],s.Sfz[f],
-            s.gasGeometry.faceSweptVolume[f],s.gasGeometry.interval,geometricFrame);
+            Geometry(s.gasGeometry.faceSweptVolume[f]),Geometry(s.gasGeometry.interval),geometricFrame);
         frame.nx=Real(geometricFrame.nx);frame.ny=Real(geometricFrame.ny);frame.nz=Real(geometricFrame.nz);
         frame.area=Real(geometricFrame.area);frame.wx=Real(geometricFrame.wx);
         frame.wy=Real(geometricFrame.wy);frame.wz=Real(geometricFrame.wz);

@@ -1,3 +1,4 @@
+#include "FoamSolverScheme.H"
 #include "../../common/HostMemory.H"
 #include "DiagnosticsFoam.H"
 #include "configuration/CouplingInput.H"
@@ -23,6 +24,7 @@ int main(int argc,char** argv) {
         if(args.optionFound("build-info")){std::cout<<CHMT_BUILD_MANIFEST_JSON<<'\n';return 0;}
         if(!args.checkRootCase())return 2;
         Foam::Time time(Foam::Time::controlDictName,args);
+        (void)ugkp::solverControls::startupScheme(time);
         std::cout << "GPU precision=" << ugkp::precision::compiledBits
                   << " (fixed at startup)" << std::endl;
         const Foam::label progressLogInterval =
@@ -54,15 +56,40 @@ int main(int argc,char** argv) {
         options.fluxScheme=input.gasNumerics.gasFluxScheme;options.reconstruction=input.gasNumerics.gasReconstruction;
         options.limiter=input.gasNumerics.gasLimiter;options.timeIntegrator=input.gasNumerics.gasTimeIntegrator;
         options.turbulenceModel=input.model.physics.enableSst?3:0;
-        const auto& scheduling=properties.subDict("multirate");
-        options.courantUpdateInterval=scheduling.lookupOrDefault<Foam::label>("courantUpdateInterval",1);
-        options.maximumTimeStepGrowth=chmt::io::readNumber(scheduling,"maximumTimeStepGrowth",1.05);
+        const Foam::word gasRegion(chmt::io::text(properties,"gasRegion",Foam::polyMesh::defaultRegion));
+        const auto& scheme=ugkp::solverControls::startupScheme(time);
+        options.courantUpdateInterval=1;options.maximumTimeStepGrowth=1.05;
+        scheme.read("gasTimeStep","courantUpdateInterval",options.courantUpdateInterval,"default",gasRegion);
+        scheme.read("gasTimeStep","maximumTimeStepGrowth",options.maximumTimeStepGrowth,"default",gasRegion);
         chmt::io::require(options.courantUpdateInterval>0&&std::isfinite(options.maximumTimeStepGrowth)
             &&options.maximumTimeStepGrowth>=1,"invalid gas Courant scheduling");
         std::unique_ptr<chmt::Backend,void(*)(chmt::Backend*)> backend(
             chmt::createBackend(input.model,input.gasModel,input.gasMechanism,options,input.state,error),chmt::destroyBackend);
         chmt::io::require(bool(backend),error);
         chmt::setDiagnosticsSink(*backend,ugkp::diagnostics::makeFoamSink());
+        // Observe the actual startup structures passed to the backend/driver.
+        // No residual evaluation, device transfer or per-step logging is added.
+        std::cout<<"CHMT_SOLVER_CONTROLS gasMinDt="<<input.model.physics.minDt
+            <<" gasMaxDt="<<input.model.physics.maxDt<<" gasMaxCo="<<input.model.physics.cfl
+            <<" materialMaxSubstep="<<input.material.maxSubstep
+            <<" materialMaxSubsteps="<<input.material.maxSubsteps
+            <<" materialNonlinearMaxIterations="<<input.material.nonlinearMaxIterations
+            <<" materialNonlinearRelativeTolerance="<<input.material.nonlinearRelativeTolerance
+            <<" materialEnergyAbsoluteTolerance="<<input.material.energyAbsoluteTolerance
+            <<" materialEnergyRelativeTolerance="<<input.material.energyRelativeTolerance
+            <<" materialLinearMaxIterations="<<input.material.linearMaxIterations
+            <<" materialLinearEnergyBudgetFraction="<<input.material.linearEnergyBudgetFraction
+            <<" thermoMaximumIterations="<<input.model.physics.numerics.thermoMaximumIterations
+            <<" reconstructionMaximumIterations="<<input.model.physics.numerics.reconstructionMaximumIterations
+            <<" surfaceCompositionMaximumIterations="<<input.model.physics.numerics.surface.compositionMaximumIterations
+            <<" surfaceThermalMaximumIterations="<<input.model.physics.numerics.surface.thermalMaximumIterations
+            <<" meshMaximumIterations="<<input.model.physics.numerics.meshMotion.maximumIterations
+            <<" particlesActive="<<input.model.physics.enableParticles
+            <<" finiteContactMaximumIterations="<<input.model.particleNumerics.finiteContactMaximumIterations
+            <<" packingIterations="<<input.model.particleNumerics.packingIterations
+            <<" maxFaceWalkHops="<<input.model.particlePhase.maxFaceWalkHops
+            <<" contactNonlinearIterations="<<input.model.particleContact.nonlinearIterations
+            <<std::endl;
         chmt::CpuMaterialDriver material(input.model,input.solidMesh.get(),&input.gasMechanism);
         std::unique_ptr<chmt::CoupledRadiation> radiation;
         if(input.thermalSchedule.radiationEnabled)

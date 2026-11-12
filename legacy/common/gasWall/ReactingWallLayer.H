@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdio>
 #include "../../../common/gasWall/WallLayerTransport.H"
 namespace ugkwp { namespace gaswall {
 template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> UGKWP_GAS_HD inline bool evaluateReactingWallLayerImpl(
@@ -39,15 +40,19 @@ template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> 
     const bool measured=allResidual(in,c,ctx,w.state,w.y,w.residual,norm,team);
     if(!measured){if(team.leader())fail(status,WallCode::InadmissibleState);return false;}
     const R tolerance=c.absoluteTolerance+c.relativeTolerance;
+    const R initialNorm=norm;
+    R lastAlpha=0;
+    bool stalledUpdate=false,newtonAttempted=false;
     int iteration=0;
     for(;norm>tolerance&&iteration<c.maxIterations;++iteration){
         if(!newtonStep(in,c,ctx,w,team)){
             if(team.leader())wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,2421);
             return false;
         }
-        R alpha=0;
+        R alpha=0;newtonAttempted=true;
         if(!applyLayerNewtonUpdate(in,c,ctx,w,norm,alpha,team))return false;
-        if(alpha==0)break;
+        lastAlpha=alpha;
+        if(alpha==0){stalledUpdate=true;break;}
     }
     if(team.leader()){status.iteration=iteration;status.residual=double(norm);}
     // A finite, admissible iterate is not a solved wall boundary condition.
@@ -55,6 +60,27 @@ template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> 
     // Keep output untouched on failure so it cannot become a ready closure.
     if(!gasFinite(norm)||norm>tolerance){
         if(team.leader()){
+            // Failure-only observation: no additional residual evaluation or
+            // alteration of the accepted state, iteration budget or tolerance.
+            int maximumNode=0,maximumComponent=0;
+            R maximumResidual=abs(w.residual[0][0]);
+            for(int i=0;i<c.nodes;++i)for(int j=0;j<N+4;++j){
+                const R value=abs(w.residual[i][j]);
+                if((gasFinite(maximumResidual)&&!gasFinite(value))
+                    ||value>maximumResidual){
+                    maximumResidual=value;maximumNode=i;maximumComponent=j;
+                }
+            }
+            const char* reason=!gasFinite(norm)?"nonfinite":
+                (stalledUpdate?"lineSearchStalled":
+                 (iteration>=c.maxIterations?"iterationBudget":"other"));
+            const R lastDelta=newtonAttempted?w.delta[maximumNode][maximumComponent]:R(0);
+            printf("WALL_REACTING_NONCONVERGENCE face=%d nodes=%d iteration=%d newtonAttempts=%d maxIterations=%d reason=%s initialResidual=%.17g finalResidual=%.17g tolerance=%.17g relativeTolerance=%.17g absoluteTolerance=%.17g maximumNode=%d maximumComponent=%d signedResidual=%.17g componentScale=%.17g stateValue=%.17g lastNewtonDelta=%.17g lastAcceptedAlpha=%.17g\n",
+                int(in.diagnosticEntity),c.nodes,iteration,iteration+(stalledUpdate?1:0),c.maxIterations,reason,
+                double(initialNorm),double(norm),double(tolerance),double(c.relativeTolerance),double(c.absoluteTolerance),
+                maximumNode,maximumComponent,double(w.residual[maximumNode][maximumComponent]),
+                double(ctx.scale[maximumComponent]),double(w.state[maximumNode][maximumComponent]),
+                double(lastDelta),double(lastAlpha));
             fail(status,WallCode::NonConvergence);
             using namespace ugkp::diagnostics;
             if(in.diagnostics)recordFatal(in.diagnostics,makeRecord(

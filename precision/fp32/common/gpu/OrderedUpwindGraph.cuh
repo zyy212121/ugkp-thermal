@@ -3,15 +3,15 @@
 #include "ExecutionGraph.cuh"
 #include "OrderedUpwindPlan.H"
 #include "OrderedUpwindSweep.cuh"
-#include "OrderedMaximum.cuh"
+#include "RadiationMaximum.cuh"
 #include <climits>
 #include <stdexcept>
 #include <string>
 #include <vector>
 namespace ugkp { namespace gpu {
-struct UpwindLinearControls {double tolerance=1e-12,relativeTolerance=0,small=1e-15;int maximumIterations=1000;};
+struct UpwindLinearControls {RadiationReal tolerance=RadiationReal(1e-12),relativeTolerance=0,small=RadiationReal(1e-15);int maximumIterations=1000;bool controlsAlreadyResolved=false;};
 struct UpwindLinearReport {
-    double initialResidual=0,finalResidual=0,target=0,maximumResidual=0,maximumMagnitude=0,errorValue=0;
+    RadiationReal initialResidual=0,finalResidual=0,target=0,maximumResidual=0,maximumMagnitude=0,errorValue=0;
     int iterations=0,errorCell=-1,active=0;
     unsigned long long externalFailure=ULLONG_MAX;
 };
@@ -24,20 +24,16 @@ template<class T> struct Array {
     Array(const Array&)=delete;Array& operator=(const Array&)=delete;
 };
 static __global__ void initialize(UpwindLinearReport* report,unsigned int* failure){if(!threadIdx.x){*report={};*failure=UINT_MAX;}}
-template<class Real> __global__ void normalizationFaces(int cells,int faces,const int* owner,const int* neighbour,const double* flux,
-    const Real* values,double* magnitude,unsigned char* valid,const Real* low=nullptr,const double* offset=nullptr){
+static __global__ void normalizationFaces(int cells,int faces,const int* owner,const int* neighbour,const RadiationReal* flux,
+    const RadiationReal* values,RadiationReal* magnitude,unsigned char* valid){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;
     if(i<cells)valid[i]=1;
-    if(i<faces){const double f=flux[i];bool present=false;double value=0;
-        if(f>0){value=f*((offset?*offset:0)+double(values[owner[i]])+(low?double(low[owner[i]]):0));present=true;}else if(f<0){value=f*((offset?*offset:0)+double(values[neighbour[i]])+(low?double(low[neighbour[i]]):0));present=true;}
+    if(i<faces){const RadiationReal f=flux[i];bool present=false;RadiationReal value=0;
+        if(f>0){value=f*values[owner[i]];present=true;}else if(f<0){value=f*values[neighbour[i]];present=true;}
         magnitude[cells+i]=fabs(value);valid[cells+i]=present;}
 }
-template<class Real> __global__ void residualForSweep(int count,double* values,Real* correctionSource){
-    const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count){
-        if(correctionSource)correctionSource[i]=Real(-values[i]);values[i]=fabs(values[i]);}
-}
-static __global__ void publishedResidual(UpwindLinearReport* report){if(!threadIdx.x)report->finalResidual=report->maximumResidual/report->maximumMagnitude;}
-static __global__ void maximumResult(OrderedMaximum* maximum,double initial,double* output){if(!threadIdx.x)*output=applyMaximum(initial,*maximum);}
+static __global__ void absoluteResidual(int count,RadiationReal* values){const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)values[i]=fabs(values[i]);}
+static __global__ void maximumResult(RadiationMaximum* maximum,RadiationReal initial,RadiationReal* output){if(!threadIdx.x)*output=applyRadiationMaximum(initial,*maximum);}
 static __global__ void setContinuation(const UpwindLinearReport* report,cudaGraphConditionalHandle handle){
     if(!threadIdx.x)cudaGraphSetConditional(handle,report->active?1:0);
 }
@@ -52,7 +48,7 @@ static __global__ void beginSolve(UpwindLinearReport* report,UpwindLinearControl
     const unsigned long long* externalFailure){
     if(threadIdx.x)return;
     report->initialResidual=report->finalResidual=report->maximumResidual/report->maximumMagnitude;
-    const double relative=controls.relativeTolerance*report->initialResidual;
+    const RadiationReal relative=controls.relativeTolerance*report->initialResidual;
     report->target=controls.tolerance>relative?controls.tolerance:relative;
     report->externalFailure=externalFailure?*externalFailure:ULLONG_MAX;
     report->active=report->externalFailure==ULLONG_MAX&&needsSweep(*report,controls);
@@ -70,70 +66,79 @@ static __global__ void finishSweep(UpwindLinearReport* report,UpwindLinearContro
 // Immutable launch graph for the original sequential-cell linear iteration.
 // All pointers are device pointers and remain owned by the caller, except the
 // compact report and scratch storage owned here. Launches use the caller stream.
-template<class Real> class OrderedUpwindGraphT {
+class OrderedUpwindGraph {
     using Report=UpwindLinearReport;
     int cells_,faces_;
-    upwindGraphDetail::Array<double> residual_,magnitude_;
+    upwindGraphDetail::Array<RadiationReal> residual_,magnitude_;
     upwindGraphDetail::Array<unsigned char> valid_;
-    upwindGraphDetail::Array<OrderedMaximum> partialA_,partialB_;
+    upwindGraphDetail::Array<RadiationMaximum> partialA_,partialB_;
     upwindGraphDetail::Array<unsigned int> failure_;
+    upwindGraphDetail::Array<int> levels_;
     upwindGraphDetail::Array<UpwindIntensityFailure> failures_;
     upwindGraphDetail::Array<Report> report_;
     cudaGraph_t graph_=nullptr,initializeGraph_=nullptr,solveGraph_=nullptr;
     cudaGraphExec_t executable_=nullptr,initializeExecutable_=nullptr,solveExecutable_=nullptr;
     Report* hostReport_=nullptr;
-    void maximum(int count,double* values,unsigned char* valid,double initial,double* output,cudaStream_t stream){
+    void maximum(int count,RadiationReal* values,unsigned char* valid,RadiationReal initial,RadiationReal* output,cudaStream_t stream){
         int blocks=std::max(1,(count+255)/256);
-        orderedMaximumPartials<<<blocks,256,0,stream>>>(count,values,valid,partialA_.ptr);
+        radiationMaximumPartials<<<blocks,256,0,stream>>>(count,values,valid,partialA_.ptr);
         auto* current=partialA_.ptr;auto* next=partialB_.ptr;
-        while(blocks>1){const int n=(blocks+255)/256;orderedMaximumMerge<<<n,256,0,stream>>>(blocks,current,next);std::swap(current,next);blocks=n;}
+        while(blocks>1){const int n=(blocks+255)/256;radiationMaximumMerge<<<n,256,0,stream>>>(blocks,current,next);std::swap(current,next);blocks=n;}
         upwindGraphDetail::maximumResult<<<1,1,0,stream>>>(current,initial,output);
     }
-    void residual(OrderedUpwindDeviceT<Real> matrix,const int* owner,const int* neighbour,const double* flux,
-        const Real* diagonal,const Real* source,const Real* values,UpwindLinearControls controls,cudaStream_t stream,
-        const Real* low,const double* trueDiagonal,const double* trueSource,const double* offset,Real* correctionSource=nullptr){
-        upwindResidual<<<std::max(1,(cells_+127)/128),128,0,stream>>>(matrix,diagonal,source,values,residual_.ptr,magnitude_.ptr,low,trueDiagonal,trueSource,offset);
-        upwindGraphDetail::normalizationFaces<<<std::max(1,(std::max(cells_,faces_)+127)/128),128,0,stream>>>(cells_,faces_,owner,neighbour,flux,values,magnitude_.ptr,valid_.ptr,low,offset);
-        upwindGraphDetail::residualForSweep<Real><<<std::max(1,(cells_+127)/128),128,0,stream>>>(cells_,residual_.ptr,correctionSource);
+    void residual(OrderedUpwindDevice matrix,const int* owner,const int* neighbour,const RadiationReal* flux,
+        const RadiationReal* diagonal,const RadiationReal* source,const RadiationReal* values,UpwindLinearControls controls,cudaStream_t stream){
+        upwindResidual<<<std::max(1,(cells_+127)/128),128,0,stream>>>(matrix,diagonal,source,values,residual_.ptr,magnitude_.ptr);
+        upwindGraphDetail::normalizationFaces<<<std::max(1,(std::max(cells_,faces_)+127)/128),128,0,stream>>>(cells_,faces_,owner,neighbour,flux,values,magnitude_.ptr,valid_.ptr);
+        upwindGraphDetail::absoluteResidual<<<std::max(1,(cells_+127)/128),128,0,stream>>>(cells_,residual_.ptr);
         maximum(cells_,residual_.ptr,nullptr,0,&report_.ptr->maximumResidual,stream);
         maximum(cells_+faces_,magnitude_.ptr,valid_.ptr,controls.small,&report_.ptr->maximumMagnitude,stream);
     }
 public:
-    OrderedUpwindGraphT(const OrderedUpwindPlan& plan,OrderedUpwindDeviceT<Real> matrix,int faces,
-        const int* owner,const int* neighbour,const double* flux,const Real* diagonal,const Real* source,
-        Real* values,Real* previous,const double* reference,UpwindLinearControls controls,
-        const unsigned long long* externalFailure=nullptr,bool concurrentDirections=false,bool standalone=true,
-        Real* low=nullptr,const double* trueDiagonal=nullptr,const double* trueSource=nullptr,const double* offset=nullptr,
-        Real* correctionSource=nullptr):cells_(plan.cells),faces_(faces),
+    OrderedUpwindGraph(const OrderedUpwindPlan& plan,OrderedUpwindDevice matrix,int faces,
+        const int* owner,const int* neighbour,const RadiationReal* flux,const RadiationReal* diagonal,const RadiationReal* source,
+        RadiationReal* values,RadiationReal* previous,const RadiationReal* reference,UpwindLinearControls controls,
+        const unsigned long long* externalFailure=nullptr,bool concurrentDirections=false,bool standalone=true):cells_(plan.cells),faces_(faces),
         residual_(cells_),magnitude_(cells_+faces_),valid_(cells_+faces_),
         partialA_(std::max(1,(cells_+faces_+255)/256)),partialB_(std::max(1,(cells_+faces_+255)/256)),
-        failure_(1),failures_(cells_),report_(1){
+        failure_(1),levels_(plan.levelOffsets.size()),failures_(cells_),report_(1){
+        if(!controls.controlsAlreadyResolved)controls.tolerance=radiationConvergenceTolerance(controls.tolerance);
         (void)concurrentDirections; // Scheduling is independent of the angular iteration policy.
         using upwindGraphDetail::checkedCudaUpwind;cudaStream_t stream=nullptr;
         checkedCudaUpwind(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
         try {
             checkedCudaUpwind(cudaMallocHost(reinterpret_cast<void**>(&hostReport_),sizeof(Report)));
+            checkedCudaUpwind(cudaMemcpyAsync(levels_.ptr,plan.levelOffsets.data(),plan.levelOffsets.size()*sizeof(int),cudaMemcpyHostToDevice,stream));
             checkedCudaUpwind(cudaStreamSynchronize(stream));
             checkedCudaUpwind(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));
             upwindGraphDetail::initialize<<<1,1,0,stream>>>(report_.ptr,failure_.ptr);
-            residual(matrix,owner,neighbour,flux,diagonal,source,values,controls,stream,low,trueDiagonal,trueSource,offset,correctionSource);
+            residual(matrix,owner,neighbour,flux,diagonal,source,values,controls,stream);
             upwindGraphDetail::beginSolve<<<1,1,0,stream>>>(report_.ptr,controls,externalFailure);
             checkedCudaUpwind(cudaStreamEndCapture(stream,&initializeGraph_));
             checkedCudaUpwind(cudaGraphInstantiateWithFlags(&initializeExecutable_,initializeGraph_,0));
             checkedCudaUpwind(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));
-            // Precision-only migration: retain one original ordered launch per level.
-            if(low)prepareUpwindCorrection<<<std::max(1,(cells_+127)/128),128,0,stream>>>(cells_,previous,&report_.ptr->active);
-            else snapshotUpwind<<<std::max(1,(cells_+127)/128),128,0,stream>>>(cells_,values,previous,&report_.ptr->active);
-            const Real* sweepSource=low?correctionSource:source;
-            const Real* sweepPrevious=previous;
-            Real* sweepValues=low?previous:values;
-            UpwindCorrectionState<Real> correction{low?values:nullptr,low,offset,trueDiagonal,residual_.ptr,correctionSource};
-            for(std::size_t level=0;level+1<plan.levelOffsets.size();++level){
+            // Keep the existing 128-thread wide-level path. Up to 32 adjacent
+            // levels fitting one CTA share a graph node, with a barrier per level.
+            // These are scheduling constants, identical for FP32 and FP64.
+            constexpr int levelThreads=128,narrowLevelBatch=32;
+            snapshotUpwind<<<std::max(1,(cells_+levelThreads-1)/levelThreads),levelThreads,0,stream>>>(cells_,values,previous,&report_.ptr->active);
+            for(std::size_t level=0;level+1<plan.levelOffsets.size();){
                 const int begin=plan.levelOffsets[level],end=plan.levelOffsets[level+1];
-                orderedUpwindLevel<<<(end-begin+127)/128,128,0,stream>>>(begin,end,matrix,
-                    diagonal,sweepSource,sweepPrevious,sweepValues,0,failures_.ptr,failure_.ptr,reference,&report_.ptr->active,correction);
+                std::size_t next=level+1;
+                if(end-begin<=levelThreads){
+                    while(next+1<plan.levelOffsets.size()&&next-level<std::size_t(narrowLevelBatch)
+                        &&plan.levelOffsets[next+1]-plan.levelOffsets[next]<=levelThreads)++next;
+                }
+                if(next>level+1){
+                    orderedUpwindNarrowLevels<<<1,levelThreads,0,stream>>>(int(level),int(next),levels_.ptr,
+                        matrix,diagonal,source,previous,values,0,failures_.ptr,failure_.ptr,reference,&report_.ptr->active);
+                }else{
+                    orderedUpwindLevel<<<(end-begin+levelThreads-1)/levelThreads,levelThreads,0,stream>>>(
+                        begin,end,matrix,diagonal,source,previous,values,0,failures_.ptr,failure_.ptr,reference,&report_.ptr->active);
+                }
+                level=next;
             }
-            residual(matrix,owner,neighbour,flux,diagonal,source,values,controls,stream,low,trueDiagonal,trueSource,offset,correctionSource);
+            residual(matrix,owner,neighbour,flux,diagonal,source,values,controls,stream);
             upwindGraphDetail::finishSweep<<<1,1,0,stream>>>(report_.ptr,controls,failure_.ptr,failures_.ptr);
             checkedCudaUpwind(cudaStreamEndCapture(stream,&graph_));checkedCudaUpwind(cudaGraphInstantiateWithFlags(&executable_,graph_,0));
             if(standalone){
@@ -149,8 +154,8 @@ public:
             release();cudaStreamDestroy(stream);throw;
         }
     }
-    ~OrderedUpwindGraphT(){release();}
-    OrderedUpwindGraphT(const OrderedUpwindGraphT&)=delete;OrderedUpwindGraphT& operator=(const OrderedUpwindGraphT&)=delete;
+    ~OrderedUpwindGraph(){release();}
+    OrderedUpwindGraph(const OrderedUpwindGraph&)=delete;OrderedUpwindGraph& operator=(const OrderedUpwindGraph&)=delete;
     // Batches are a scheduling choice only: the device active flag freezes
     // the first converged/failed iterate, including within a queued batch.
     void begin(cudaStream_t stream){upwindGraphDetail::checkedCudaUpwind(cudaGraphLaunch(initializeExecutable_,stream));}
@@ -183,16 +188,14 @@ private:
         if(graph_)cudaGraphDestroy(graph_);if(initializeGraph_)cudaGraphDestroy(initializeGraph_);if(hostReport_)cudaFreeHost(hostReport_);
     }
 public:
-    // Call after publication: the reported residual then belongs to the actual
-    // single-component stored field, not the temporary refinement solution.
-    void measurePublished(OrderedUpwindDeviceT<Real> matrix,const int* owner,const int* neighbour,const double* flux,
-        const Real* diagonal,const Real* source,const Real* values,UpwindLinearControls controls,cudaStream_t stream,
-        const double* trueDiagonal,const double* trueSource,const double* offset){
-        residual(matrix,owner,neighbour,flux,diagonal,source,values,controls,stream,nullptr,trueDiagonal,trueSource,offset);
-        upwindGraphDetail::publishedResidual<<<1,1,0,stream>>>(report_.ptr);
+    // Measure the actual stored field after relaxation without changing the
+    // solve's iteration count, continuation state, target, or failure outcome.
+    void measurePublished(OrderedUpwindDevice matrix,const int* owner,const int* neighbour,
+        const RadiationReal* flux,const RadiationReal* diagonal,const RadiationReal* source,
+        const RadiationReal* values,UpwindLinearControls controls,cudaStream_t stream){
+        residual(matrix,owner,neighbour,flux,diagonal,source,values,controls,stream);
     }
     const Report* report()const noexcept{return report_.ptr;}
 };
-using OrderedUpwindGraph=OrderedUpwindGraphT<double>;
 }}
 #endif

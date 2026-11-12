@@ -133,14 +133,14 @@ UGKWP_GAS_HD inline bool evaluateWallReference(
         if(!newtonStep(in,c,ctx,w,team)){if(team.leader())wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,2421);return false;}
         const R merit=referenceMerit(c,w,team);R bestMerit=merit,alpha=1;
         bool improved=false;
-        for(int line=0;line<40;++line){
+        for(int line=0;line<c.numerics.maximumLineSearchIterations;++line){
             const bool feasible=trialResidual(alpha);
             if(!storageAvailable)return false;
             const R nextMerit=referenceMerit(c,w,team);
             if(feasible&&gasFinite(nextMerit)&&nextMerit<merit){
                 improved=true;bestMerit=nextMerit;break;
             }
-            alpha/=R(2);
+            alpha*=c.numerics.lineSearchReduction;
         }
         if(improved&&alpha>::sqrt(std::numeric_limits<R>::epsilon())){
             for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<B;++j)w.state[i][j]=w.trial[i][j];
@@ -154,7 +154,7 @@ UGKWP_GAS_HD inline bool evaluateWallReference(
         if(team.leader()){++stats.jacobianEvaluations;++stats.centralDirections;}
         if(referenceCentralStep(in,c,ctx,w,team,storageAvailable)){
             R a=1;
-            for(int line=0;line<40;++line){
+            for(int line=0;line<c.numerics.maximumLineSearchIterations;++line){
                 const bool feasible=trialResidual(a);
                 if(!storageAvailable)return false;
                 const R candidate=referenceMerit(c,w,team);
@@ -162,7 +162,7 @@ UGKWP_GAS_HD inline bool evaluateWallReference(
                     for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<B;++j)scratch.best[i][j]=w.trial[i][j];
                     improved=true;break;
                 }
-                a/=R(2);
+                a*=c.numerics.lineSearchReduction;
             }
         }
         if(!storageAvailable)return false;

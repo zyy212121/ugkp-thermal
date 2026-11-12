@@ -20,7 +20,7 @@ template<class S,int N> UGKWP_GAS_HD inline WallInput<WallReal,N,S> wallComputat
     return dst;
 }
 template<class S> UGKWP_GAS_HD inline WallModelConfig<WallReal> wallComputationConfig(const WallModelConfig<S>& src){
-    WallModelConfig<WallReal> dst;dst.family=src.family;dst.model=src.model;dst.nodes=src.nodes;dst.maxIterations=src.maxIterations;
+    WallModelConfig<WallReal> dst;dst.numerics=castWallIterationControls<WallReal>(src.numerics);dst.family=src.family;dst.model=src.model;dst.nodes=src.nodes;dst.maxIterations=src.maxIterations;
     dst.relativeTolerance=src.relativeTolerance;dst.absoluteTolerance=src.absoluteTolerance;dst.stretch=src.stretch;
     dst.localStressCorrection=src.localStressCorrection;
     dst.equilibriumKappa=src.equilibriumKappa;dst.equilibriumAPlus=src.equilibriumAPlus;

@@ -95,7 +95,7 @@ struct HarmonicSweepCorrection::Implementation {
         sweep.reset(new ResidentSweepLinearization(definition.topology,points,definition.faces,planarCount));
         rows=definition.faces.size()+3*std::size_t(planarCount);
         harmonic.reset(new HarmonicPointMotion(definition.points,definition.offsets,definition.neighbours,
-            definition.fixed,definition.harmonicTolerance));
+            definition.fixed,definition.harmonicTolerance,definition.harmonicMaximumIterations));
         qr.reset(new ResidentDenseMinimumNorm(rows,columns));
         checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);
         PinnedTransferQueue::Operation pending(transfer);

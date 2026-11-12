@@ -5,47 +5,23 @@
 #include "MixtureHeatExchange.H"
 #include "MixtureParticleDirectory.cuh"
 #include "MixtureCouplingTeam.cuh"
-#include "../gasNumerics/GpuParticlePhysicsAlgebra.cuh"
-#include "../gasNumerics/GpuDragModels.cuh"
+#include "MixtureParticleResponse.cuh"
 
 // Physical-time source transaction shared by gasUGKP and gasUGKPSteady. One cell worker
 // owns all parcel writes and the reverse gas publication for its cell. CSR and
 // split direct-base + indexed-injection ranges consume the same post-collision
 // epoch. A full scan remains available only for the serial reference oracle.
-namespace mixtureParticles
-{
-template<class DragModel,class State>
-__device__ GpuReal beta(const State&s,int c,int i,GpuReal epsG)
-{
-    const GpuReal dx=s.Ux[c]-s.pux[i],dy=s.Uy[c]-s.puy[i],dz=s.Uz[c]-s.puz[i];
-    const ugkwpGpuDrag::DragInput input={s.rho[c],
-        ugkwp::gasCellMolecularViscosityAt(s,c,s.Tgas[c]),epsG,s.rhoSolid,
-        s.pd[i],sqrt(dx*dx+dy*dy+dz*dz),GPU_TINY(1e-300),
-        GpuReal(s.dragParameter0),GpuReal(s.dragParameter1),GpuReal(s.dragParameter2),GpuReal(s.dragParameter3)};
-    return fmax(GpuReal(0),DragModel::inverseResponseTime(input));
-}
-
-template<class State>
-__device__ double heatFraction(const State&s,int c,int i,double dt)
-{
-    const GpuReal dx=s.Ux[c]-s.pux[i],dy=s.Uy[c]-s.puy[i],dz=s.Uz[c]-s.puz[i];
-    const GpuReal mu=ugkwp::gasCellMolecularViscosityAt(s,c,s.Tgas[c]);
-    const GpuReal re=s.rho[c]*s.pd[i]*sqrt(dx*dx+dy*dy+dz*dz)/fmax(mu,GpuReal(1e-30));
-    const GpuReal nu=ugkwp::ranzMarshallNuFromPrOneThird(fmax(GpuReal(0),re),ugkwp::gasCellPrandtlOneThird(s,c));
-    const GpuReal rate=GpuReal(6)*nu*molecularGasConductivity(s,c,s.Tgas[c])
-        /(s.particleThermalCapacity*s.pd[i]*s.pd[i]+GPU_TINY(1e-300));
-    return -expm1(-fmax(0.,rate)*dt);
-}
-}
 
 template<class DragModel,bool ConstantHeat,class State,class Team>
-__device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragActive,bool useCsr,bool useSplit,const Team&team)
+__device__ void mixtureParticleCouplingCell(State&s,int c,GpuTime dt,bool dragActive,bool useCsr,bool useSplit,const Team&team)
 {
     const int begin=0,end=mixtureParticles::count(s,c,useCsr,useSplit);
     const GpuReal epsG=s.epsGPrev[c];
-    const double volume=double(epsG)*s.V[c];
-    const double gasMass=volume*s.rho[c];
-    double weight=0,x=0,y=0,z=0;
+    const GpuReal volume=epsG*GpuReal(s.V[c]);
+    const GpuReal gasMass=volume*s.rho[c];
+    GpuReal weight=0,x=0,y=0,z=0;
+    mixtureParticles::DragCellProperties dragProperties{};
+    bool dragPropertiesReady=false;
     // No parcel or gas state is changed while forming the finite-bath target.
     for(int pos=begin+team.rank();pos<end;pos+=team.width())
     {
@@ -54,32 +30,40 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragAct
         s.puxOld[i]=s.pux[i];s.puyOld[i]=s.puy[i];s.puzOld[i]=s.puz[i];
         if(dragActive)
         {
-            const double a=-expm1(-mixtureParticles::beta<DragModel>(s,c,i,epsG)*dt);
-            const double w=s.pm[i]*a;
+            if(!dragPropertiesReady) {
+                dragProperties=mixtureParticles::dragCellProperties(s,c);
+                dragPropertiesReady=true;
+            }
+            const auto b=mixtureParticles::beta<DragModel>(s,i,epsG,dragProperties);
+            const GpuReal a=-expm1f(-b*GpuReal(dt));
+            // Every eligible parcel is overwritten before the second pass.
+            // No sorting, migration or physical publication occurs in between.
+            s.couplingDragBeta[i]=b;s.couplingResponseFraction[i]=a;
+            const GpuReal w=s.pm[i]*a;
             weight+=w;x+=w*s.pux[i];y+=w*s.puy[i];z+=w*s.puz[i];
         }
     }
     weight=team.sum(weight);x=team.sum(x);y=team.sum(y);z=team.sum(z);
     if(dragActive)
     {
-        const double ux=(gasMass*s.Ux[c]+x)/(gasMass+weight);
-        const double uy=(gasMass*s.Uy[c]+y)/(gasMass+weight);
-        const double uz=(gasMass*s.Uz[c]+z)/(gasMass+weight);
-        double dpx=0,dpy=0,dpz=0,dEnergy=0;
+        const GpuReal ux=(gasMass*s.Ux[c]+x)/(gasMass+weight);
+        const GpuReal uy=(gasMass*s.Uy[c]+y)/(gasMass+weight);
+        const GpuReal uz=(gasMass*s.Uz[c]+z)/(gasMass+weight);
+        GpuReal dpx=0,dpy=0,dpz=0,dEnergy=0;
         for(int pos=begin+team.rank();pos<end;pos+=team.width())
         {
             const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
             if(!mixtureParticles::member(s,i,c))continue;
-            const GpuReal b=mixtureParticles::beta<DragModel>(s,c,i,epsG);
-            const double a=-expm1(-b*dt),oldX=s.pux[i],oldY=s.puy[i],oldZ=s.puz[i],oldTheta=s.pTheta[i];
+            const auto b=s.couplingDragBeta[i];
+            const GpuReal a=s.couplingResponseFraction[i],oldX=s.pux[i],oldY=s.puy[i],oldZ=s.puz[i],oldTheta=s.pTheta[i];
             s.pux[i]=oldX+a*(ux-oldX);s.puy[i]=oldY+a*(uy-oldY);s.puz[i]=oldZ+a*(uz-oldZ);
-            s.pTheta[i]=oldTheta*exp(-2*b*dt);
-            const double dx=s.pux[i]-oldX,dy=s.puy[i]-oldY,dz=s.puz[i]-oldZ;
+            s.pTheta[i]=oldTheta*expf(-2*b*GpuReal(dt));
+            const GpuReal dx=s.pux[i]-oldX,dy=s.puy[i]-oldY,dz=s.puz[i]-oldZ;
             dpx+=s.pm[i]*dx;dpy+=s.pm[i]*dy;dpz+=s.pm[i]*dz;
             // Actual represented differences, not independently recomputed work
             // or subtraction of two large mechanical energies.
-            dEnergy+=s.pm[i]*(.5*(dx*(s.pux[i]+oldX)+dy*(s.puy[i]+oldY)+dz*(s.puz[i]+oldZ))
-                              +1.5*(s.pTheta[i]-oldTheta));
+            dEnergy+=s.pm[i]*(GpuReal(.5)*(dx*(s.pux[i]+oldX)+dy*(s.puy[i]+oldY)+dz*(s.puz[i]+oldZ))
+                              +GpuReal(1.5)*(s.pTheta[i]-oldTheta));
         }
         dpx=team.sum(dpx);dpy=team.sum(dpy);dpz=team.sum(dpz);dEnergy=team.sum(dEnergy);
         if(team.rank()==0){
@@ -89,30 +73,40 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragAct
         }team.sync();
     }
     if constexpr(ConstantHeat) {
-    const double heatFactor=s.particleThermalRho*s.particleCp/s.rhoSolid;
+    const GpuReal heatFactor=s.particleThermalRho*s.particleCp/s.rhoSolid;
     if(s.solveParticleTemperature!=0 && s.particleGasHeatTransferModelId!=0 && heatFactor>0.)
     {
         constexpr int Ns=ugkwp::GasStateTraits<State>::speciesCount;
-        double species[Ns];for(int k=0;k<Ns;++k)species[k]=s.gasSpecies.rho[k*s.nCells+c];
-        const double kinetic=.5*(double(s.rhoUx[c])*double(s.rhoUx[c])
-        +double(s.rhoUy[c])*double(s.rhoUy[c])+double(s.rhoUz[c])*double(s.rhoUz[c]))/double(s.rho[c]);
-        const double oldInternal=s.rhoE[c]-kinetic;
-        const double referenceTemperature=s.Tgas[c];
-        double A=0,B=0;
+        GpuReal species[Ns];for(int k=0;k<Ns;++k)species[k]=s.gasSpecies.rho[k*s.nCells+c];
+        const GpuReal kinetic=GpuReal(.5)*(GpuReal(s.rhoUx[c])*GpuReal(s.rhoUx[c])
+        +GpuReal(s.rhoUy[c])*GpuReal(s.rhoUy[c])+GpuReal(s.rhoUz[c])*GpuReal(s.rhoUz[c]))/GpuReal(s.rho[c]);
+        const GpuReal oldInternal=s.rhoE[c]-kinetic;
+        const GpuReal referenceTemperature=s.Tgas[c];
+        // Drag has published and recovered the gas state. Its viscosity
+        // cache is no longer valid for this heat source epoch.
+        mixtureParticles::HeatCellProperties heatProperties{};
+        bool heatPropertiesReady=false;
+        GpuReal A=0,B=0;
         for(int pos=begin+team.rank();pos<end;pos+=team.width())
         {
             const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
             if(!mixtureParticles::member(s,i,c))continue;
-            const double w=s.pm[i]*heatFactor*mixtureParticles::heatFraction(s,c,i,dt);
+            if(!heatPropertiesReady) {
+                heatProperties=mixtureParticles::heatCellProperties(s,c);
+                heatPropertiesReady=true;
+            }
+            const GpuReal a=mixtureParticles::heatFraction(s,i,dt,heatProperties);
+            s.couplingResponseFraction[i]=a;
+            const GpuReal w=s.pm[i]*heatFactor*a;
             A+=w;B+=w*(s.pT[i]-referenceTemperature);
         }
         A=team.sum(A);B=team.sum(B);
         if(A==0.)return;
-        double target=referenceTemperature;
+        GpuReal target=referenceTemperature;
         auto status=ugkwp::ThermoStatus::Success;
         if(team.rank()==0)status=ugkwp::invertMixtureHeatExchange
         (species,oldInternal,A/volume,B/volume,s.gasSpecies.thermo,
-         s.gasSpecies.thermoControls,target);
+         ugkwp::castThermoControls<GpuReal>(s.gasSpecies.thermoControls),target);
         target=team.broadcast(target);status=static_cast<ugkwp::ThermoStatus>(team.broadcast(int(status)));
         if(status!=ugkwp::ThermoStatus::Success)
         {
@@ -126,12 +120,12 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragAct
             recordFatal(s.diagnostics,failure);}
             return;
         }
-        double heat=0;
+        GpuReal heat=0;
         for(int pos=begin+team.rank();pos<end;pos+=team.width())
         {
             const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
             if(!mixtureParticles::member(s,i,c))continue;
-            const double oldT=s.pT[i],a=mixtureParticles::heatFraction(s,c,i,dt);
+            const GpuReal oldT=s.pT[i],a=s.couplingResponseFraction[i];
             s.pT[i]=fmin(s.TpMax,fmax(s.TpMin,oldT+a*(target-oldT)));
             heat+=s.pm[i]*heatFactor*(s.pT[i]-oldT);
         }
@@ -145,8 +139,8 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragAct
 // cells. Giving every light cell a full warp regresses sparse populations.
 template<class DragModel,bool ConstantHeat=true,bool Cooperative=false,class State>
 __global__ void mixtureParticleCouplingKernel
-(State*sp,double requestedDt,bool dragActive,bool useCsr=true,bool useSplit=false,bool skipHeavy=false){
-    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
+(State*sp,GpuTime requestedDt,bool dragActive,bool useCsr=true,bool useSplit=false,bool skipHeavy=false){
+    const GpuTime dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
  State&s=*sp;const int thread=blockIdx.x*blockDim.x+threadIdx.x;
 #if defined(__CUDACC__)
  if constexpr(Cooperative){
@@ -161,7 +155,7 @@ __global__ void mixtureParticleCouplingKernel
 }
 #if defined(__CUDACC__)
 template<class DragModel,bool ConstantHeat=true,class State>
-inline cudaError_t launchMixtureParticleCouplingCells(State*state,int cells,double dt,bool drag,bool csr,bool split,cudaStream_t stream=nullptr){
+inline cudaError_t launchMixtureParticleCouplingCells(State*state,int cells,GpuTime dt,bool drag,bool csr,bool split,cudaStream_t stream=nullptr){
  if(cells<=0)return cudaSuccess;
  mixtureParticleCouplingKernel<DragModel,ConstantHeat><<<(cells+127)/128,128,0,stream>>>(state,dt,drag,csr,split,true);
  auto error=cudaGetLastError();if(error!=cudaSuccess)return error;
@@ -176,16 +170,16 @@ inline cudaError_t launchMixtureParticleCouplingCells(State*state,int cells,doub
 // External pressure/gravity work is not internal drag exchange. Launch after
 // the paired transaction; gas gravity has already been applied by its owner.
 template<class State>
-__global__ void mixtureParticleExternalKickKernel(State*sp,double requestedDt)
+__global__ void mixtureParticleExternalKickKernel(State*sp,GpuTime requestedDt)
 {
-    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
+    const GpuTime dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
     State&s=*sp;const int count=mixtureParticles::activeCount(s);
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<count;i+=gridDim.x*blockDim.x)
     {
         if(s.pStatus[i]!=1 || !mixtureParticles::mobile(s,i))continue;
         const int c=s.pCellId[i];if(c<0 || c>=s.nCells)continue;
-        s.pux[i]+=dt*(s.gravityX-s.gradPx[c]/s.rhoSolid);
-        s.puy[i]+=dt*(s.gravityY-s.gradPy[c]/s.rhoSolid);
-        s.puz[i]+=dt*(s.gravityZ-s.gradPz[c]/s.rhoSolid);
+        s.pux[i]+=GpuReal(dt)*(s.gravityX-s.gradPx[c]/s.rhoSolid);
+        s.puy[i]+=GpuReal(dt)*(s.gravityY-s.gradPy[c]/s.rhoSolid);
+        s.puz[i]+=GpuReal(dt)*(s.gravityZ-s.gradPz[c]/s.rhoSolid);
     }
 }

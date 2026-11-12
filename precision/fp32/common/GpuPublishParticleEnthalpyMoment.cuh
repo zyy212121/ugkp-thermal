@@ -4,7 +4,7 @@ __device__ void publishParticleEnthalpyMoment
 (
     DeviceState& s,
     const int c,
-    const double heatDensity
+    const GpuReal heatDensity
 )
 {
     const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
@@ -19,10 +19,10 @@ __device__ void publishParticleEnthalpyMoment
         s.Tp[c] = s.TpMin;
         return;
     }
-    const double totalHeat = clampMin(finiteOr(heatDensity, GPU_R(0.0)), GPU_R(0.0));
+    const GpuReal totalHeat = clampMin(finiteOr(heatDensity, GPU_R(0.0)), GPU_R(0.0));
     s.momRhoHpP[c] = totalHeat;
     s.rhoHp[c] = totalHeat;
-    const double specificEnthalpy =
+    const GpuReal specificEnthalpy =
         finiteOr(totalHeat/(rhoP + OfSmall), -GPU_R(1.0));
     s.Tp[c] = clampRange
     (

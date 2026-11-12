@@ -110,16 +110,19 @@ UGKP_TRANSPORT_HD Vector3T<Real> linearInterpolate
     );
 }
 
-template<class Real,class NormalReal>
-UGKP_TRANSPORT_HD SnGradGeometryT<Real> makeInternalSnGradGeometry
+template<class Coordinate,class NormalReal>
+UGKP_TRANSPORT_HD SnGradGeometryT<GpuReal> makeInternalSnGradGeometry
 (
-    const Vector3T<Real>& ownerCentre,
-    const Vector3T<Real>& neighbourCentre,
+    const Vector3T<Coordinate>& ownerCentre,
+    const Vector3T<Coordinate>& neighbourCentre,
     const Vector3T<NormalReal>& inputNormal
 )
 {
-    const Vector3T<Real> unitNormal{inputNormal.x,inputNormal.y,inputNormal.z};
-    const Vector3T<Real> centreDelta = subtract(neighbourCentre, ownerCentre);
+    using Real=GpuReal;
+    const Vector3T<Real> unitNormal{Real(inputNormal.x),Real(inputNormal.y),Real(inputNormal.z)};
+    // Global coordinates retain tracking precision; local flux geometry does not.
+    const Vector3T<Real> centreDelta{Real(neighbourCentre.x-ownerCentre.x),
+        Real(neighbourCentre.y-ownerCentre.y),Real(neighbourCentre.z-ownerCentre.z)};
     const Real centreDistance = magnitude(centreDelta);
     const Real normalDistance = dot(unitNormal, centreDelta);
     const Real denominator = maximum
@@ -199,7 +202,7 @@ UGKP_TRANSPORT_HD Vector3T<Real> openFoamNewtonianTraction
 }
 
 using Vector3 = Vector3T<GpuReal>;
-using SnGradGeometry = SnGradGeometryT<GpuGeometry>;
+using SnGradGeometry = SnGradGeometryT<GpuReal>;
 
 }                           
 

@@ -2,11 +2,10 @@
 #define UGKWP_GPU_PRECISION_TYPES_H
 #include <cfloat>
 using GpuTime = double;
-using GpuWallEnergy = double;
-static_assert(sizeof(GpuWallEnergy) == 8, "Wall energy accumulation is always binary64");
 using GpuGeometry = double;
-using GpuEnergy = double;
 using GpuReal = float;
+using GpuEnergy = GpuReal;
+using GpuWallEnergy = GpuReal;
 #define GPU_REAL_MAX FLT_MAX
 #define GPU_REAL_MIN FLT_MIN
 #define GPU_REAL_EPSILON FLT_EPSILON

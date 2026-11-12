@@ -68,16 +68,17 @@ class HarmonicModes {
     Reals weights_,totals_;
     Points displacement_,next_;
     Real tolerance_;
+    int maximumIterations_;
 #ifdef CHMT_DEVICE_GEOMETRY
     std::unique_ptr<geometry_device::backend::HarmonicPointMotion> device_;
 #endif
 public:
     HarmonicModes(const HostMesh& mesh,const std::vector<unsigned char>& fixed,
-        Budget& budget,Real tolerance):mesh_(mesh),fixed_(fixed),
+        Budget& budget,Real tolerance,int maximumIterations=20000):mesh_(mesh),fixed_(fixed),
         edges_(Allocator<Edge>(budget)),offsets_(mesh.points.size()+1,0,Allocator<std::size_t>(budget)),
         weights_(Allocator<Real>(budget)),totals_(mesh.points.size(),0,Allocator<Real>(budget)),
         displacement_(mesh.points.size(),Vec3{},Allocator<Vec3>(budget)),
-        next_(mesh.points.size(),Vec3{},Allocator<Vec3>(budget)),tolerance_(tolerance) {
+        next_(mesh.points.size(),Vec3{},Allocator<Vec3>(budget)),tolerance_(tolerance),maximumIterations_(maximumIterations) {
         edges_.reserve(product(2,mesh.facePoints.size()));
         for(std::size_t f=0;f<mesh.owner.size();++f) {
             const int begin=mesh.faceOffsets[f],end=mesh.faceOffsets[f+1];
@@ -105,7 +106,7 @@ public:
 #ifdef CHMT_DEVICE_GEOMETRY
         std::vector<int> rows(offsets_.begin(),offsets_.end()),neighbours;neighbours.reserve(edges_.size());
         for(const auto& edge:edges_)neighbours.push_back(edge.second);
-        device_.reset(new geometry_device::backend::HarmonicPointMotion(geometry_device::pack(mesh_.points),rows,neighbours,fixed_,tolerance_));
+        device_.reset(new geometry_device::backend::HarmonicPointMotion(geometry_device::pack(mesh_.points),rows,neighbours,fixed_,tolerance_,maximumIterations_));
 #endif
     }
     bool solve(const Points& boundary,Points& output,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
@@ -120,7 +121,7 @@ public:
         for(std::size_t p=0;p<fixed_.size();++p)if(fixed_[p])displacement_[p]=boundary[p];
         bool converged=mesh_.points.empty();
         Real finalResidual=0;
-        for(int iteration=0;iteration<20000 && !converged;++iteration) {
+        for(int iteration=0;iteration<maximumIterations_ && !converged;++iteration) {
             Real residual=0;
             for(std::size_t p=0;p<fixed_.size();++p) {
                 if(fixed_[p]){next_[p]=displacement_[p];continue;}

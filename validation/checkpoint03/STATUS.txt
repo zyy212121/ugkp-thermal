@@ -1,0 +1,1 @@
+COMPILED_NOT_RUN. Twenty fixture program entries (16 host executables and8 pressure CUDA executables including separate counted correctness/uncounted performance) linked successfully. No numerical/operator/consistency/performance execution has occurred. Frozen batch state is recorded separately.

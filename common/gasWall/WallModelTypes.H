@@ -1,6 +1,7 @@
 #pragma once
 #include "../GpuPrecisionTypes.H"
 #include "WallResolutionDefaults.H"
+#include "WallIterationControls.H"
 #include "../Diagnostics.H"
 #include <type_traits>
 #include "../gasTransport/MixtureThermo.H"
@@ -16,10 +17,11 @@ enum class WallCode : int { Success=0, InvalidInput, InvalidThermodynamics, Unsu
     InvalidGeometry, ChemistryFailure, NonConvergence, SingularJacobian, InadmissibleState };
 struct WallStatus { WallCode code=WallCode::Success; int node=-1,iteration=0; double residual=std::numeric_limits<double>::quiet_NaN(); };
 template<class R> struct WallModelConfig {
+    WallIterationControls<R> numerics;
     WallFamily family=WallFamily::BoundaryLayer;
     BoundaryLayerModel model=BoundaryLayerModel::ReactingSst;
     int nodes=defaultWallNodes,maxIterations=60;
-    R relativeTolerance=R(1e-8),absoluteTolerance=R(1e-10),stretch=R(defaultWallStretch);
+    R relativeTolerance=R(defaultWallRelativeTolerance),absoluteTolerance=R(defaultWallAbsoluteTolerance),stretch=R(defaultWallStretch);
     R turbulentPrandtl=R(.9),turbulentSchmidt=R(.7);
     R equilibriumKappa=R(.41),equilibriumAPlus=R(17);
     bool localStressCorrection=true; // blowing/suction local stress; wall damping retained

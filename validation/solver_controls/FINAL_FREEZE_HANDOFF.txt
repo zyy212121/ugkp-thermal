@@ -1,0 +1,66 @@
+NOT FROZEN; NO TESTS RUN.
+Updated acceptance-draft.json retains all115 original node IDs and explicitly
+lists30 additional process slots in20 groups: loader10/default8/override8/restart4.
+Proposed total135 top-level groups. Old115 includes nested subprocesses.
+Command templates now use explicit candidate backends and disposable case paths.
+CHMT minimal controls corrected to gasTimeStep(.4,1e-12,1e-5), restart uses a new
+outputDirectory. Original continuation three runs must NOT be duplicated.
+Original run_batch.py still covers old115 only; extension integration is pending.
+Runtime coverage gaps are explicit in JSON. SCHEME_VALUE alone is not proof of
+consumer activity. Inactive radiation/chemistry/interface/particles cannot pass.
+No source/runtime gates or acceptance tolerance changes introduced by this plan.
+Before freeze: exact consumer contracts, suitable steady-default input, compiled
+dual-precision binaries, fully prepared input hashes, nested process inventory,
+bound argv and one integrated sequential runner. No interim pilot authorized.
+
+EXECUTABLE INTEGRATION UPDATE (not executed)
+Files: unified_acceptance.py and compile_loader.py, Python syntax compilation
+only completed. No loader or solver execution.
+
+Let R be current repair2 worktree, E the new evidence directory, S32/S64 be
+the final complete materialized precision source trees, BASE accepted CP2 tree.
+1. Rebuild original115 fixture programs using the existing compile-only driver:
+ python3 R/validation/checkpoint03_combined/prepare.py --baseline BASE --candidate R --output E/formal-fixtures --variant baseline --source32 BASE32 --source64 BASE64 --manifest32 BASEMANIFEST32 --manifest64 BASEMANIFEST64
+ python3 R/validation/checkpoint03_combined/prepare.py --baseline BASE --candidate R --output E/formal-fixtures --variant candidate --source32 S32 --source64 S64 --manifest32 MANIFEST32 --manifest64 MANIFEST64
+ Do not reuse superseded D source hashes. Parent coordinates compile revisions.
+2. Compile/link loader, never run:
+ python3 R/validation/solver_controls/compile_loader.py --source S32 --output E/loader-build --bits 32
+ python3 R/validation/solver_controls/compile_loader.py --source S64 --output E/loader-build --bits 64
+ Copies of loader_fixture.cpp and current FoamSolverScheme.H must be present
+ inside each materialized tree; generated PrecisionBuild.H selects32/64.
+3. Use original run_batch.py freeze with original flags:
+ --baseline BASE --candidate R --compiled E/formal-fixtures --output BATCH
+ --continuation PREPARED_ORIGINAL_CONTINUATION --pr41-binary PR41CHT
+ This copies sources/backend bins and generates old115 immutable matrix.
+4. Copy loader-fp32 and loader-fp64 plus compile metadata to BATCH/fixtures.
+ They are separately hashed by extension manifest; original frozen hash list
+ remains unchanged.
+5. Prepare extension inputs, no execution:
+ python3 R/validation/solver_controls/unified_acceptance.py prepare --batch BATCH --source BATCH/source/candidate
+ Exact runtime argv and every copied input hash are saved in
+ BATCH/scheme-manifest.json. This manifest supersedes proposal command templates.
+ All30 cases use existing complete shared_boundary fixture geometry, no mesh
+ changes or blockMesh invocation. Numerical controls change only in copies.
+6. Parent reviews frozen evidence, then one integrated invocation:
+ python3 R/validation/solver_controls/unified_acceptance.py run --batch BATCH
+ Execute in configured OpenFOAM shell. Runner sets OMP4/CUDA stack64KiB,
+ invokes original old115 once through run_once.sh, then fixed30 processes.
+ run refuses already-started old115 to prevent accidental duplicated cases.
+ No numerical retries, tuning or runtime process discovery.
+ Default and override cases deliberately insert a distinct valid obsolete key;
+ candidate remains on unified scheme/default interface.
+ Loader snapshot/reload is one expected mutable test-only input sequence.
+ CHMT restart uses a separate case/output path, reads initial checkpoint-1,
+ changes only conduction budget50->61 and checks actual typed summary.
+ Parent must confirm source checkpoint output is accepted-step1 for the
+ retained .0005 coupling step; no pilot is necessary.
+
+EVIDENCE DIVISION AGREED BY PARENT
+The30 added processes are interface smoke and typed-control transfer checks.
+They do not assert or tune mathematical convergence. Existing115 fixed nodes
+retain numerical/convergence/conservation criteria. Interface PASS is never
+an overall checkpoint PASS. Results explicitly retain all coverage gaps.
+Gas default maxCo=.5 and override=.4; steady minIterations1/2;
+CHT solid nonlinear budget50/57; CHMT actual material budget50/57;
+CHMT restart50/61. Shared-boundary gas-total is nonreacting, not wall/chemistry
+coverage. Thermal radiation/interface/material-root alternatives remain gaps.

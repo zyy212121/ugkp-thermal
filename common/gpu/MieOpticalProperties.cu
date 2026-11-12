@@ -18,8 +18,8 @@ __global__ void evaluateOptics(int count,MieOpticalTableView table,const MieOpti
 }
 struct MieOpticalProperties::Implementation {
     cudaStream_t stream=nullptr;PinnedTransferQueue transfers;
-    Array<double> temperature,diameter,mu,band,absorption,scattering,extinction,phase;
-    Array<double> weights,cosines,scaling,nextScaling,rowError,columnError;
+    Array<RadiationReal> temperature,diameter,mu,band,absorption,scattering,extinction,phase;
+    Array<RadiationReal> weights,cosines,scaling,nextScaling,rowError,columnError;
     Array<MieBracket> phaseBrackets;Array<MiePhaseMetrics> phaseMetrics;
     Array<MieOpticalQuery> queries;Array<MieOpticalResult> results;MieOpticalTableView table;
     Implementation(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfers.bind(stream);}
@@ -36,11 +36,12 @@ MieOpticalProperties::MieOpticalProperties(const MieOpticalTable& table):data_(n
 }
 MieOpticalProperties::~MieOpticalProperties()=default;
 MieOpticalTableView MieOpticalProperties::deviceTable()const noexcept{return data_->table;}
-void MieOpticalProperties::balance(const std::vector<MieOpticalQuery>& input,const std::vector<double>& weights,
-    const std::vector<double>& cosines,double tolerance,int maximumIterations,std::vector<double>& scaling,
+void MieOpticalProperties::balance(const std::vector<MieOpticalQuery>& input,const std::vector<RadiationReal>& weights,
+    const std::vector<RadiationReal>& cosines,RadiationReal tolerance,int maximumIterations,std::vector<RadiationReal>& scaling,
     std::vector<MiePhaseMetrics>& metrics){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);
-    const int directions=weights.size();const std::size_t entries=input.size()*weights.size();
+    const int directions=weights.size();tolerance=radiationPhaseTolerance(tolerance,directions);
+    const std::size_t entries=input.size()*weights.size();
     d.queries.upload(input,d.transfers);d.weights.upload(weights,d.transfers);d.cosines.upload(cosines,d.transfers);
     d.phaseBrackets.reserve(cosines.size());d.scaling.reserve(entries);d.nextScaling.reserve(entries);
     d.rowError.reserve(entries);d.columnError.reserve(entries);d.phaseMetrics.reserve(input.size());
@@ -49,7 +50,7 @@ void MieOpticalProperties::balance(const std::vector<MieOpticalQuery>& input,con
     if(!input.empty()){
         mieDetail::balancePhase<<<input.size(),128,0,d.stream>>>(input.size(),directions,d.table,d.queries.ptr,d.weights.ptr,
             d.phaseBrackets.ptr,tolerance,maximumIterations,d.scaling.ptr,d.nextScaling.ptr,d.rowError.ptr,d.columnError.ptr,d.phaseMetrics.ptr);
-        d.transfers.download(scaling.data(),d.scaling.ptr,entries*sizeof(double));
+        d.transfers.download(scaling.data(),d.scaling.ptr,entries*sizeof(RadiationReal));
         d.transfers.download(metrics.data(),d.phaseMetrics.ptr,metrics.size()*sizeof(MiePhaseMetrics));
     }
     d.transfers.finish();

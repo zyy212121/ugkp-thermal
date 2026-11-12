@@ -1,0 +1,46 @@
+#ifndef CHMT_MATERIALS_CPUMATERIALDRIVER_H
+#define CHMT_MATERIALS_CPUMATERIALDRIVER_H
+#include "core/HostState.H"
+#include "coupling/IntervalContracts.H"
+#include <memory>
+#include "../../../common/gasTransport/GasMechanismIO.H"
+namespace Foam {class fvMesh;}
+namespace chmt {
+enum class MaterialFailureOrigin { None,ConductionNumerical,ReactionNumerical,FilmNumerical,SurfaceNumerical,GeometryNumerical,TransportNumerical,OwnerNumerical,LocalSourceNumerical };
+struct CpuMaterialControls {
+    Real maxSubstep=0,reactionMaxSubstep=0;
+    PhysicalReal transportCfl=.4f,reactionCfl=.1f;
+    PhysicalReal driveRelativeTolerance=.05f,driveSourceFraction=.05f,driveTractionScale=1;
+    bool retainDonorHistory=true; // Explicit external consumer capability.
+    int maxSubsteps=100000,nonlinearMaxIterations=50;
+    int linearMaxIterations=2000;
+    PhysicalReal linearEnergyBudgetFraction=PhysicalReal(.5);
+    PhysicalReal nonlinearRelativeTolerance=1e-10f,energyAbsoluteTolerance=1e-10f,energyRelativeTolerance=1e-10f;
+};
+struct CpuMaterialReport {
+    MaterialFailureOrigin failureOrigin=MaterialFailureOrigin::None;
+    std::uint64_t materialSteps=0;
+    bool recoverable=false,geometryCorrection=false;Real eventTime=0,eventDuration=0;
+    MaterialDonorPlan donorPlan{};
+};
+// Orchestrates resident CUDA material updates and the native implicit conduction solve.
+// Candidate solve never mutates the accepted native mesh: it builds an unregistered full-topology fvMesh for the real sparse solve.
+
+class CpuMaterialDriver {
+    struct Implementation;std::unique_ptr<Implementation> data_;
+    bool predictWallImpl(const HostState&,const CouplingInterval&,WallProgram&,std::string&,CpuMaterialReport*,const PhysicsConfig&)const;
+    bool advanceCandidateImpl(const HostState&,const HostState&,const IntervalHistory&,
+        const CpuMaterialControls&,HostState&,WallProgram&,CpuMaterialReport&,std::string&,const WallProgram*,const PhysicsConfig&);
+public:
+    CpuMaterialDriver(const ModelConfig&,Foam::fvMesh* actualSolidMesh);
+    CpuMaterialDriver(const ModelConfig&,Foam::fvMesh* actualSolidMesh,const ugkwp::GasMechanismConfiguration* mechanism);
+    ~CpuMaterialDriver();
+    CpuMaterialDriver(const CpuMaterialDriver&)=delete;
+    CpuMaterialDriver& operator=(const CpuMaterialDriver&)=delete;
+    bool predictWall(const HostState&,const CouplingInterval&,WallProgram&,std::string&,CpuMaterialReport* diagnostics=nullptr)const;
+    bool advanceCandidate(const HostState&,const HostState& geometryEndpoint,
+        const IntervalHistory&,const CpuMaterialControls&,HostState& candidate,
+        WallProgram& corrected,CpuMaterialReport&,std::string&,const WallProgram* executedProgram=nullptr);
+};
+}
+#endif

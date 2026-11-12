@@ -163,7 +163,7 @@ GPU_ALUMINA_HD inline AluminaLiquidProperties liquidAluminaProperties
     const GpuReal surfaceTensionNM =
         GPU_R(0.632) - GPU_R(2.310e-5)*(temperatureK - GPU_R(2327.0));
     const GpuReal viscosityPaS =
-        GPU_R(5.77e-4)*::exp(GPU_R(9743.0)/temperatureK);
+        GPU_R(5.77e-4)*std::exp(GPU_R(9743.0)/temperatureK);
     const GpuReal specificHeatJkgK = aluminaSpecificHeatJkgK(temperatureK);
     const GpuReal thermalConductivityWmK = aluminaThermalConductivityWmK;
 

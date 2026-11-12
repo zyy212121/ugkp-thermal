@@ -85,6 +85,7 @@ struct CoupledState : State {
     int pStatus[1]={1},pCellId[1]={0};unsigned char pStuck[1]={0};
     GpuReal pm[1]={.2f},pd[1]={.001f},pux[1]{},puy[1]{},puz[1]{};
     GpuReal puxOld[1]{},puyOld[1]{},puzOld[1]{},pTheta[1]{},pT[1]={500};
+    GpuReal couplingDragBeta[1]{};double couplingResponseFraction[1]{};
     GpuReal epsGPrev[1]={.75f},rhoSolid=2500,particleThermalRho=2500;
     GpuReal particleCp=1000,particleThermalCapacity=2500000;
     GpuReal dragParameter0=0,dragParameter1=0,dragParameter2=0,dragParameter3=0;

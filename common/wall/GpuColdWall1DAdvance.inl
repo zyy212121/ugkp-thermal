@@ -124,6 +124,19 @@
     ColdWallThermalReal wallConductance = GPU_R(0.0);
 
 
+    // Gas exchange is already published in the paired path. For the
+    // standalone path include its uniform gas increment before classifying.
+    const ColdWallThermalReal postGasTemperature = coldWallCarryTemperature
+        (oldEnthalpy + gasSpecificEnthalpyIncrement, s.coldWallSolidificationParameters);
+    const ColdWallThermalReal solidusTemperature =
+        Foam::gpuThermal::coldWallSolidusTemperature(s.coldWallSolidificationParameters);
+    const bool initiallyAllSolid = __all_sync(mask, postGasTemperature <= solidusTemperature);
+    if (initiallyAllSolid)
+    {
+        candidateEnthalpy = oldEnthalpy + gasSpecificEnthalpyIncrement;
+        guessedTemperature = postGasTemperature;
+    }
+
     for
     (
         int iteration = 0;
@@ -235,6 +248,10 @@
                 s.coldWallSolidificationParameters
             );
         acceptedWallPower = wallPower;
+        // Constant solid Cp and conductivity make the first solve complete.
+        // A candidate crossing the solidus retains the original iterations.
+        if (iteration == 0 && initiallyAllSolid && __all_sync(mask, guessedTemperature <= solidusTemperature))
+            break;
     }
 
 #include "GpuColdWall1DPublish.inl"

@@ -58,9 +58,10 @@ const dictionary& momentumTransportProperties =
     fluidPropertiesFile.subDict("turbulence");
 const dictionary& ugkwpProps = particlePropertiesFile;
 const GpuSchedulingConfiguration gpuScheduling =
-    readGpuSchedulingConfiguration(schedulingPropertiesFile);
+    readGpuSchedulingConfiguration(schedulingPropertiesFile,
+        ugkp::solverControls::readParticleTrackingMaxFaceWalkHops(runTime,mesh.name()));
 
-const dictionary& fvSchemesDict = mesh.schemes().dict();
+const dictionary fvSchemesDict = ugkp::solverControls::readGasNumericsDictionary(runTime,mesh.name());
 const dictionary& fvSolutionDict = mesh.solution().dict();
 const dictionary* gpuSolutionControls =
     fvSolutionDict.found("UGKP")
@@ -336,6 +337,7 @@ BoundaryLayerInput boundaryLayerInput
     momentumTransportProperties, sharedGasModel.model(), gasTurbulenceModel,
     gpuScheduling.pureGasOnly, turbulentPrandtl
 );
+boundaryLayerInput.configureSolverControls(runTime,mesh.name());
 if (boundaryLayerInput.active())
 {
     sstWallTreatment = 2;

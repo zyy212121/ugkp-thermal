@@ -13,9 +13,6 @@ template<class GasState>
 using GasChemistryStateReal = typename std::remove_pointer
 <decltype(std::declval<GasState>().rho)>::type;
 
-template<class GasState>
-using GasChemistryVolumeReal = std::remove_cv_t<std::remove_reference_t<decltype(std::declval<GasState>().V[0])>>;
-
 namespace gasChemistryAdapterDetail
 {
 // Preserve the first fatal and keep warning-only numerical residuals usable.
@@ -78,15 +75,13 @@ UGKWP_GAS_HD inline ChemistryStatus recordFailure
 // recovery remains the caller's common recovery stage after successful chemistry.
 // Optional audit storage is overwritten per successful call, never accumulated:
 // the orchestrator owns half-stage identity and accepted diagnostic publication.
-// Explicit cell calls infer the supplied volume without requiring state.V.
-// Resident array entry points retain GasChemistryVolumeReal<GasState> below.
-template<class GasState, class Time, class Volume>
+template<class GasState, class Time>
 UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
 (
     GasState& state,
     const int cell,
     const Time chemicalInterval,
-    const Volume stageVolume,
+    const GasChemistryStateReal<GasState> stageVolume,
     const bool nativeRefinement=false,
     bool* evaluated=nullptr
 ) noexcept
@@ -253,9 +248,9 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
 
 
 
-template<class GasState,class Time>
+template<class GasState,class Time,class Volumes>
 UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCellWithVolumes
-(GasState& state,int cell,Time interval,const GasChemistryVolumeReal<GasState>* volumes,
+(GasState& state,int cell,Time interval,Volumes volumes,
  bool nativeRefinement=false,bool* evaluated=nullptr) noexcept
 {
     if(evaluated)*evaluated=false;
@@ -280,12 +275,12 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCellWithVolumes
 #if defined(__CUDACC__)
 // No application-specific chemical body: a CUDA launch merely assigns cells to
 // the same tested host/device adapter. Stage volumes are mandatory and immutable.
-template<class GasState, class Time>
+template<class GasState, class Time,class Volumes>
 __global__ void advanceGasChemistryKernel
 (
     GasState* state,
     const Time chemicalInterval,
-    const ugkwp::GasChemistryVolumeReal<GasState>* stageVolumes,
+    const Volumes stageVolumes,
     const bool nativeRefinement=false
 )
 {

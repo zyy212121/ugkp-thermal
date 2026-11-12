@@ -143,7 +143,7 @@
     const GPU_OPERATOR_REAL alphaI =
         clampRange
         (
-            finiteOr(exp(-GPU_OPERATOR_R(2.0)*dt*invTauDragCell), GPU_OPERATOR_R(1.0)),
+            finiteOr(exp(-GPU_OPERATOR_R(2.0)*GPU_OPERATOR_REAL(dt)*invTauDragCell), GPU_OPERATOR_R(1.0)),
             GPU_OPERATOR_R(0.0),
             GPU_OPERATOR_R(1.0)
         );
@@ -171,7 +171,7 @@
     if (!repairGasInternal && wx==GPU_OPERATOR_R(0) && wy==GPU_OPERATOR_R(0)
         && wz==GPU_OPERATOR_R(0) && dI==GPU_OPERATOR_R(0)) return;
 
-    const GPU_OPERATOR_REAL kW = dt*invTauDragCell*(GPU_OPERATOR_R(1.0) + ms/(mg + OfSmall));
+    const GPU_OPERATOR_REAL kW = GPU_OPERATOR_REAL(dt)*invTauDragCell*(GPU_OPERATOR_R(1.0) + ms/(mg + OfSmall));
     const GPU_OPERATOR_REAL alphaW = exp(-kW);
 
     const GPU_OPERATOR_REAL wxNew = wx*alphaW;

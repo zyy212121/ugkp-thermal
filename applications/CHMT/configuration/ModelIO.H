@@ -59,13 +59,6 @@ namespace chmt {
             p.enableParticles = flag(d, "enableParticles");
             p.enableSst = flag(d, "enableSst");
             p.enableRadiation = flag(d, "enableRadiation");
-            const auto recon = text(d, "materialReconstruction", "LimitedLinear");
-
-            p.reconstruction = recon == "SmoothVerification"?ReconstructionMode::SmoothVerification:ReconstructionMode::LimitedLinear;
-            p.minDt = readNumber(d, "minDt");
-            p.maxDt = readNumber(d, "maxDt");
-            p.cfl = readNumber(d, "cfl");
-            p.spatialOrder = d.lookupOrDefault<Foam::label>("spatialOrder", 2);
             p.gravity = readVector(d, "gravity");
             p.gasViscosity = readNumber(d, "gasViscosity", 0);
             p.gasConductivity = readNumber(d, "gasConductivity", 0);
@@ -107,23 +100,6 @@ namespace chmt {
                     }
                 }
             }
-            if (d.found("tolerances")) {
-                const auto& a = d.subDict("tolerances");
-                auto& t = p.tolerances;
-#define CHMT_READ_TOL(name) t.name=readNumber(a,#name,t.name)
-                CHMT_READ_TOL(absoluteMass);
-                CHMT_READ_TOL(relativeMass);
-                CHMT_READ_TOL(absoluteEnergy);
-                CHMT_READ_TOL(relativeEnergy);
-                CHMT_READ_TOL(absoluteTemperature);
-                CHMT_READ_TOL(relativeTemperature);
-                CHMT_READ_TOL(absoluteGeometry);
-                CHMT_READ_TOL(relativeGeometry);
-#undef CHMT_READ_TOL
-                t.maxCouplingIterations = a.lookupOrDefault<Foam::label>("maxCouplingIterations",
-                    t.maxCouplingIterations);
-                t.maxRetries = a.lookupOrDefault<Foam::label>("maxRetries", t.maxRetries);
-            }
             if (d.found("sst")) {
                 const auto& a = d.subDict("sst");
                 const auto family=text(a,"wallTreatment","lowRe");
@@ -141,11 +117,6 @@ namespace chmt {
                     require(stress=="wallStress"||stress=="localStress","unknown equilibriumStressClosure: "+stress);
                     wall.localStressCorrection=stress=="localStress";
                     p.wallWorkspaceSlots=layer.lookupOrDefault<Foam::label>("workspaceSlots",p.wallWorkspaceSlots);
-                    wall.nodes=layer.lookupOrDefault<Foam::label>("nodes",wall.nodes);
-                    wall.maxIterations=layer.lookupOrDefault<Foam::label>("maxIterations",wall.maxIterations);
-                    wall.relativeTolerance=readNumber(layer,"relativeTolerance",wall.relativeTolerance);
-                    wall.absoluteTolerance=readNumber(layer,"absoluteTolerance",wall.absoluteTolerance);
-                    wall.stretch=readNumber(layer,"stretch",wall.stretch);
                 }
                 auto& t = p.sst;
 #define CHMT_READ_SST(name) t.name=readNumber(a,#name,t.name)
@@ -170,7 +141,6 @@ namespace chmt {
                 const auto& a=d.subDict("particle");
                 auto& t=m.particlePhase;
                 t.capacity=a.lookupOrDefault<Foam::label>("capacity",t.capacity);
-                t.maxFaceWalkHops=a.lookupOrDefault<Foam::label>("maxFaceCrossings",t.maxFaceWalkHops);
                 t.randomSeed=std::stoull(text(a,"randomSeed","1"));
 #define CHMT_PARTICLE_NUMBER(name) t.name=readNumber(a,#name,t.name)
                 CHMT_PARTICLE_NUMBER(injectionParcelMass);
@@ -185,7 +155,6 @@ namespace chmt {
                 t.solveTemperature=flag(a,"solveTemperature",t.solveTemperature);
                 t.collisionalPressure=flag(a,"collisionalPressure",t.collisionalPressure);
                 t.packingPressure=flag(a,"packingPressure",t.packingPressure);
-                t.packingIterations=a.lookupOrDefault<Foam::label>("packingIterations",t.packingIterations);
                 t.csrCellLocalPath=flag(a,"csrCellLocalPath",t.csrCellLocalPath);
                 t.warpAggregatedBinning=flag(a,"warpAggregatedBinning",t.warpAggregatedBinning);
                 t.heavyReductionMode=a.lookupOrDefault<Foam::label>("heavyReductionMode",t.heavyReductionMode);
@@ -218,7 +187,6 @@ namespace chmt {
 #undef CHMT_CONTACT_NUMBER
                     w.heatTransfer=flag(c,"heatTransfer",w.heatTransfer);
                     w.wallTransientResistance=flag(c,"wallTransientResistance",w.wallTransientResistance);
-                    w.nonlinearIterations=c.lookupOrDefault<Foam::label>("nonlinearIterations",w.nonlinearIterations);
                 }
             }
             if (d.found("meshMotion")) {

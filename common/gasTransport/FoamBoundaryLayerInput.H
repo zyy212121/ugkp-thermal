@@ -2,6 +2,7 @@
 #define UGKWP_BOUNDARY_LAYER_INPUT_H
 
 #include "fvCFD.H"
+#include "../FoamWallSolverControls.H"
 #include "wallPolyPatch.H"
 #include "GpuBackendApi.H"
 #include "gasTransport/GasModelIO.H"
@@ -138,24 +139,28 @@ public:
         if(d.lookupOrDefault<bool>("writeProfiles",false))profileWriter_=&BoundaryLayerInput::writeProfiles;
         speciesNames_=gasModel.speciesNames;
         config_.speciesCount=checkedCount(speciesNames_.size(),"species count");
-        const label nodes=d.lookupOrDefault<label>("nodes",ugkwp::gaswall::defaultWallNodes);
-        const label iterations=d.lookupOrDefault<label>("maxIterations",60);
+        const label nodes=ugkwp::gaswall::defaultWallNodes;
         const label slots=d.lookupOrDefault<label>("workspaceSlots",0);
-        config_.nodes=nodes;config_.maxIterations=iterations;config_.workspaceSlots=slots;
+        config_.nodes=nodes;config_.workspaceSlots=slots;
         geometryOptions_.reconstructMatching=true;
         geometryOptions_.constructQuadrature=turbulenceModel==3&&config_.model==1;
         geometryOptions_.profileNodes=nodes;
-        config_.relativeTolerance=coefficient(d,"relativeTolerance","rtol",1e-8);
-        config_.absoluteTolerance=coefficient(d,"absoluteTolerance","atol",1e-10);
-        config_.stretch=d.lookupOrDefault<scalar>("stretch",ugkwp::gaswall::defaultWallStretch);
+        // Numerical iteration controls come exclusively from constant/scheme.
+        config_.stretch=ugkwp::gaswall::defaultWallStretch;
         geometryOptions_.profileStretch=config_.stretch;
         config_.turbulentPrandtl=coefficient(d,"turbulentPrandtl","Prt",turbulentPrandtl);
         config_.turbulentSchmidt=coefficient(d,"turbulentSchmidt","Sct",gasModel.turbulentSchmidt);
-        geometryOptions_.relativeTolerance=d.lookupOrDefault<scalar>("geometryTolerance",1e-9);
-        geometryOptions_.maxRayCells=d.lookupOrDefault<label>("maxRayCells",32);
-        geometryOptions_.quadratureRefinement=d.lookupOrDefault<label>("quadratureRefinement",1);
         // Production consumes physical wall response, never the auxiliary
         // owner-k integral; profile controls do not create geometry points.
+    }
+    void configureSolverControls(const Time& time,const word& region=word::null)
+    {
+        if(!active_)return;
+        ugkp::solverControls::readWallLayerSolverControls(config_,time,region);
+        ugkp::solverControls::startupScheme(time).read("wallLayer","quadratureRefinement",
+            geometryOptions_.quadratureRefinement,"effectiveDefault",region);
+        geometryOptions_.profileNodes=config_.nodes;
+        geometryOptions_.profileStretch=config_.stretch;
     }
     bool active() const {return active_;}
     label model() const {return config_.model;}

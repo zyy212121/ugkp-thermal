@@ -1,0 +1,111 @@
+{
+  "schema": 1,
+  "status": "HOST_TYPE_ADAPTED_PROVISIONAL_NOT_FROZEN",
+  "fixture_directory": "{fixture}",
+  "source_contract": "{source} must be one final materialized precision source tree including common and applications/CHMT; never mix owner overlay paths with base includes. Compile same recipe once per selected precision. Historical object closures are separately frozen FP64.",
+  "precompile_objects": [
+    {
+      "name": "chmt_legacy_cp2",
+      "source_root": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source",
+      "commit": "8bde9d6d",
+      "argv": [
+        "g++",
+        "-std=c++17",
+        "-O0",
+        "-g0",
+        "-DUGKWP_GAS_SPECIES=2",
+        "-Dchmt=chmt_cp2",
+        "-Dugkp=ugkp_cp2",
+        "-Dugkwp=ugkwp_cp2",
+        "-DCHMT_LEGACY_CHECKPOINT=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/applications/CHMT/restart/Checkpoint.C\"",
+        "-DCHMT_LEGACY_EXPORT=chmt_write_cp2",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/applications/CHMT",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common",
+        "-c",
+        "{fixture}/chmt_legacy_writer.cpp",
+        "-o",
+        "{build}/chmt_legacy_cp2.o"
+      ],
+      "execution": "compile only; linked writer is invoked only by authorized codec family execution"
+    },
+    {
+      "name": "chmt_legacy_cp3",
+      "source_root": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source",
+      "commit": "cbbacfc6",
+      "argv": [
+        "g++",
+        "-std=c++17",
+        "-O0",
+        "-g0",
+        "-DUGKWP_GAS_SPECIES=2",
+        "-Dchmt=chmt_cp3",
+        "-Dugkp=ugkp_cp3",
+        "-Dugkwp=ugkwp_cp3",
+        "-DCHMT_LEGACY_CHECKPOINT=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/applications/CHMT/restart/Checkpoint.C\"",
+        "-DCHMT_LEGACY_EXPORT=chmt_write_cp3",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/applications/CHMT",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common",
+        "-c",
+        "{fixture}/chmt_legacy_writer.cpp",
+        "-o",
+        "{build}/chmt_legacy_cp3.o"
+      ],
+      "execution": "compile only; linked writer is invoked only by authorized codec family execution"
+    }
+  ],
+  "chmt_codec": {
+    "sources": [
+      "{fixture}/chmt_codec.cpp",
+      "{source}/applications/CHMT/restart/Checkpoint.C"
+    ],
+    "include_dirs": [
+      "{source}/applications/CHMT",
+      "{source}/common"
+    ],
+    "defines": [
+      "UGKWP_GAS_SPECIES=2"
+    ],
+    "compile_flags": [
+      "-std=c++17",
+      "-O0",
+      "-g0"
+    ],
+    "objects": [
+      "{build}/chmt_legacy_cp2.o",
+      "{build}/chmt_legacy_cp3.o"
+    ],
+    "link_flags": [],
+    "arguments": [],
+    "expected_terminal": "PASS",
+    "expected_exit": 0
+  },
+  "chmt_closure": {
+    "sources": [
+      "{fixture}/chmt_closure.cpp"
+    ],
+    "include_dirs": [
+      "{source}/applications/CHMT",
+      "{source}/common"
+    ],
+    "defines": [
+      "UGKWP_GAS_SPECIES=2"
+    ],
+    "compile_flags": [
+      "-std=c++17",
+      "-O0",
+      "-g0"
+    ],
+    "link_flags": [],
+    "arguments": [],
+    "expected_terminal": "PASS",
+    "expected_exit": 0
+  },
+  "tracking": {
+    "node_count": 4,
+    "kind": "extended",
+    "run_owner": "prepare_combined_precision_acceptance",
+    "no_run_before_explicit_authorization": true,
+    "not_final_candidates": "chmt_compile_evidence.json records provisional source closures only"
+  },
+  "design_revision": 3
+}

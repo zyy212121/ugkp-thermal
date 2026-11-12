@@ -1,6 +1,7 @@
 #ifndef CHMT_MESH_SWEEP_CONSTRAINTS_H
 #define CHMT_MESH_SWEEP_CONSTRAINTS_H
 #include "mesh/Motion.H"
+#include "core/NumericalControls.H"
 #include "mesh/GeometryDiagnostics.H"
 namespace chmt {
 // Fixed-topology Newton solve. Invalid geometry and resource failures return
@@ -11,6 +12,8 @@ struct SweepConstraintControls {
     std::vector<Real> faceVolumeTolerance{};
     Real rankTolerance=1e-11;
     int maximumIterations=24;
+    int harmonicMaximumIterations=20000;
+    Real harmonicRelativeTolerance=1e-12;
     int maximumLineSearch=24; // Bounded mathematical damping at fixed target/interval.
     // Compatibility-only fields. Allocation is limited by actual representable
     // sizes and allocator availability, never by a configured policy cap.
@@ -18,6 +21,17 @@ struct SweepConstraintControls {
     std::size_t maximumModeEntries=0;
     std::size_t maximumWorkspaceBytes=0;
 };
+inline SweepConstraintControls materialSweepControls(const MeshNumericalControls& input) {
+    SweepConstraintControls controls;
+    controls.absoluteVolumeTolerance=input.absoluteVolumeTolerance;
+    controls.relativeVolumeTolerance=input.relativeVolumeTolerance;
+    controls.rankTolerance=input.rankTolerance;
+    controls.maximumIterations=input.maximumIterations;
+    controls.maximumLineSearch=input.maximumLineSearch;
+    controls.harmonicMaximumIterations=input.harmonicMaximumIterations;
+    controls.harmonicRelativeTolerance=input.harmonicRelativeTolerance;
+    return controls;
+}
 // Bound both cell-inventory arithmetic and endpoint coordinate quantization.
 // A thin cell far from the coordinate origin cannot resolve eight epsilon of
 // its volume in world-coordinate vertices. Its actual face-area-weighted ULP

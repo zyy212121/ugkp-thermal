@@ -11,6 +11,11 @@ import math
 from pathlib import Path
 import re
 
+
+import sys as _scheme_sys
+_scheme_sys.path.insert(0, str(Path(__file__).resolve().parents[2]/"validation/solver_controls"))
+import migrate_case as scheme_controls
+
 HERE = Path(__file__).resolve().parent
 
 def inputs(path):
@@ -103,6 +108,7 @@ gpuResidentCollisionalPressure false; gpuResidentJammingPressure false;
         field('Y_A','0 0 0 0 0 0 0',composition,a['y0']);field('Y_B','0 0 0 0 0 0 0',[1-y for y in composition],1-a['y0'])
     manifest={'foam_universal_gas_constant':foam_universal_gas_constant,'reference_legacy_Rgas':287,'particle_escape_boundaries':['left','right'] if particles else [],'input':a,'particles':particles,'source_cfg':str(Path(cfg).resolve()),'notes':['Initial fields only; no expected solution generated.','OpenFOAM inlet parcels use gas U, not Us.','Output labels are iteration/sample numbers, not physical time.']}
     (dest/'reference-input.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    scheme_controls.migrate_case(dest)
     return dest
 
 if __name__=='__main__':

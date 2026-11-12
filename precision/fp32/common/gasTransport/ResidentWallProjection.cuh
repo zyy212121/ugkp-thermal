@@ -2,22 +2,22 @@
 #include "gasTransport/GasPseudoTime.H"
 #include "gasTransport/GasConservativeMatching.H"
 // The PB inventories, primitives and reconstructed gradients retain their own
-// double storage. Geometry and immutable tables are borrowed in double; bulk
+// selected-precision storage. Global geometry is borrowed in double; bulk
 // boundary data and other read-only gas fields retain their actual float type.
 // This view never aliases a bulk float allocation through a double pointer.
 using WallProjectionBulkView=ugkwp::GasStateView<GpuReal,GpuTime,
     ugkwp::SstCoefficients,GpuEnergy,GpuGeometry,GpuWallEnergy>;
-using WallProjectionBorrowedSpecies=ugkwp::GasSpeciesState<GpuReal,2,double>;
+using WallProjectionBorrowedSpecies=ugkwp::GasSpeciesState<GpuReal,2,GpuReal>;
 struct WallProjectionSpecies : WallProjectionBorrowedSpecies {
-  double *rho=nullptr,*flux=nullptr,*gradX=nullptr,*gradY=nullptr,*gradZ=nullptr;
-  double *limiter=nullptr,*soundSpeed=nullptr,*heatCapacity=nullptr,*gasConstant=nullptr;
+  GpuReal *rho=nullptr,*flux=nullptr,*gradX=nullptr,*gradY=nullptr,*gradZ=nullptr;
+  GpuReal *limiter=nullptr,*soundSpeed=nullptr,*heatCapacity=nullptr,*gasConstant=nullptr;
 };
 struct WallProjectionView : WallProjectionBulkView {
-#define WALL_PROJECTION_CELL(Name) double* Name=nullptr;
+#define WALL_PROJECTION_CELL(Name) GpuReal* Name=nullptr;
 #include "gasTransport/ResidentWallCellFields.inc"
 #undef WALL_PROJECTION_CELL
-  double *riemannBoundaryRho=nullptr,*riemannBoundaryUx=nullptr,*riemannBoundaryUy=nullptr;
-  double *riemannBoundaryUz=nullptr,*riemannBoundaryP=nullptr,*riemannBoundaryT=nullptr;
+  GpuReal *riemannBoundaryRho=nullptr,*riemannBoundaryUx=nullptr,*riemannBoundaryUy=nullptr;
+  GpuReal *riemannBoundaryUz=nullptr,*riemannBoundaryP=nullptr,*riemannBoundaryT=nullptr;
   WallProjectionSpecies gasSpecies;
 };
 template <int M, class State>
@@ -34,7 +34,7 @@ __launch_bounds__(32) void reconstructConservativeWallPool(State *state) {
     if (team.broadcast(team.leader() &&
                        ugkp::diagnostics::hasFatal(s.diagnostics)))
       return;
-    auto &w = static_cast<ugkwp::gaswall::WallWorkspace<double, 2, M> *>(
+    auto &w = static_cast<ugkwp::gaswall::WallWorkspace<GpuReal, 2, M> *>(
         m.workspace)[worker];
     for (int slot = worker; slot < s.gasBoundaryLayer.count;
          slot += m.workspaceCount) {
@@ -45,11 +45,11 @@ __launch_bounds__(32) void reconstructConservativeWallPool(State *state) {
           !ugkwp::gasBoundaryLayerSlotReady(s, slot))
         continue;
       const auto &in = m.input[slot];
-      const double *profile =
+      const GpuReal *profile =
           m.candidateHistory + std::size_t(slot) * m.config.nodes * 6;
       for (int i = team.rank(); i < m.config.nodes; i += team.size()) {
         w.y[i] = in.matchingDistance *
-                 ::pow(double(i) / (m.config.nodes - 1), m.config.stretch);
+                 ::powf(GpuReal(i) / (m.config.nodes - 1), m.config.stretch);
         for (int j = 0; j < 6; ++j)
           w.state[i][j] = profile[i * 6 + j];
       }
@@ -180,7 +180,7 @@ __global__ void prepareConservativeWallMatching(State *state) {
       ugkwp::sampleConservativeWallThermocomposition(s, f, physicalFace.T, m);
     }
   }
-  double weight = s.faceWeight[f];
+  GpuReal weight = s.faceWeight[f];
   int a = s.faceOwner[f], b = s.faceNeighbour[f];
   m.k = weight * s.k[a] + (1 - weight) * s.k[b];
   m.omega = weight * s.omega[a] + (1 - weight) * s.omega[b];
@@ -205,15 +205,15 @@ __global__ void assembleConservativeWallFlux(State *state) {
       !computeRiemannGasFaceFluxDevice<false>(pb, f, b[0], b[1], b[2], b[3],
                                               b[4], false, true))
     return;
-  double result[9]{};
+  GpuReal result[9]{};
   for (int j = 0; j < 5; ++j)
-    result[j] = double(q[j]) - double(b[j])
+    result[j] = GpuReal(q[j]) - GpuReal(b[j])
         + v.orientation * (v.reference[j] + v.diffusion[j]);
   int own = s.faceOwner[f], nei = coupledFaceNeighbour(s, f),
       up = result[0] >= 0 ? own : nei;
   auto trace = v.base;
   const auto &in = s.gasBoundaryLayerModel.input[slot];
-  double blowing = in.massFlux[0] + in.massFlux[1];
+  GpuReal blowing = in.massFlux[0] + in.massFlux[1];
   if (blowing != 0 && up >= 0 && d.cellSlot[up] == slot)
     trace = v.trace[result[0] / v.orientation >= 0 ? 0 : 1];
   else if (up >= 0) {
@@ -221,15 +221,15 @@ __global__ void assembleConservativeWallFlux(State *state) {
     trace.k = s.k[up];
     trace.omega = s.omega[up];
     for (int j = 0; j < 2; ++j)
-      trace.Y[j] = double(s.gasSpecies.rho[j * s.nCells + up]) / double(s.rho[up]);
+      trace.Y[j] = GpuReal(s.gasSpecies.rho[j * s.nCells + up]) / GpuReal(s.rho[up]);
   }
   v.kUpwind = trace.k;
   v.omegaUpwind = trace.omega;
   for (int j = 0; j < 2; ++j) {
-    double old = s.gasSpecies.flux[j * s.nFaces + f] -
+    GpuReal old = s.gasSpecies.flux[j * s.nFaces + f] -
                  pb.gasSpecies.flux[j * s.nFaces + f] +
                  v.orientation * v.reference[7 + j];
-    double adv = result[0] * trace.Y[j];
+    GpuReal adv = result[0] * trace.Y[j];
     result[4] += ugkwp::speciesH(j, trace.T, in.model.thermo) * (adv - old);
     s.gasSpecies.flux[j * s.nFaces + f] =
         GpuReal(adv + v.orientation * v.diffusion[7 + j]);
@@ -241,16 +241,16 @@ __global__ void assembleConservativeWallFlux(State *state) {
   s.gasPhiRhoE[f] = GpuReal(result[4]);
 }
 template <class State>
-__global__ void conservativeKFluxBudget(State *state, double stepDt) {
+__global__ void conservativeKFluxBudget(State *state, GpuTime stepDt) {
   if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
   auto &s = *state;
   int c = blockIdx.x * blockDim.x + threadIdx.x;
   if (c >= s.nCells)
     return;
-  const double dt = ugkwp::gasCellTimeStep(s, c, stepDt);
+  const GpuReal dt = GpuReal(ugkwp::gasCellTimeStep(s, c, stepDt));
 
   auto &d = s.gasBoundaryLayerModel.conservative;
-  double oldVolume = s.V[c], newVolume = s.V[c];
+  GpuReal oldVolume = s.V[c], newVolume = s.V[c];
   const bool moving = ugkwp::gasMovingGeometry(s);
   if (moving) {
     bool available = false;
@@ -258,14 +258,14 @@ __global__ void conservativeKFluxBudget(State *state, double stepDt) {
                                        &available))
       return;
   }
-  double outgoing = 0, div = 0;
+  GpuReal outgoing = 0, div = 0;
   for (int j = 0; j < s.cellPlaneCount[c]; ++j) {
     int f = s.cellFaceId[s.cellPlaneStart[c] + j];
-    double sign = s.faceOwner[f] == c ? 1 : -1;
-    outgoing += fmax(0., sign * s.sstPhiRhoK[f]);
-    double volumeFlux = double(s.gasPhiRho[f]) / double(sstFaceDensity(s, f));
+    GpuReal sign = s.faceOwner[f] == c ? 1 : -1;
+    outgoing += fmax(0.f, sign * s.sstPhiRhoK[f]);
+    GpuReal volumeFlux = GpuReal(s.gasPhiRho[f]) / GpuReal(sstFaceDensity(s, f));
     if (moving) {
-      ugkwp::GasFaceFrame<double> frame;
+      ugkwp::GasFaceFrame<GpuReal> frame;
       bool available = false;
       if (!ugkwp::gasGeometryFaceFrame(s, f, dt, frame, &available))
         return;
@@ -273,17 +273,17 @@ __global__ void conservativeKFluxBudget(State *state, double stepDt) {
     }
     div += sign * volumeFlux / oldVolume;
   }
-  // Active wall sources are double outputs of the coherent reconstruction.
+  // Active wall sources use the coherent reconstruction precision.
   // Ordinary bulk sources convert only when crossing this output boundary.
-  double source = 0, omegaSource = 0;
+  GpuReal source = 0, omegaSource = 0;
   if (!sstSourcesForCell(s, c, GpuReal(div), source, omegaSource))
     return;
   d.sourceK[c] = source;
   d.sourceOmega[c] = omegaSource;
-  double available =
-      (double(s.rhoK[c]) - double(s.rho[c]) * s.sstKMin + dt * source) * oldVolume;
+  GpuReal available =
+      (GpuReal(s.rhoK[c]) - GpuReal(s.rho[c]) * s.sstKMin + dt * source) * oldVolume;
   d.kFluxScale[c] = dt > 0 && outgoing > 0 && dt * outgoing > available
-                        ? fmax(0., .999 * available / (dt * outgoing))
+                        ? fmax(0.f, .999f * available / (dt * outgoing))
                         : 1;
 }
 template <class State>

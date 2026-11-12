@@ -1,0 +1,84 @@
+{
+  "discarded": [],
+  "input_sha256": {
+    "system/controlDict": "c2159c73fa1904d049c8ad3e5aef4f87bb6950ba81d5fcd228e2ecfc0efef2e6",
+    "system/fvSchemes": "484eceecc5f2eb4682ce78d33c2a532be9317176958e7949304f37c3d7d720c5"
+  },
+  "moves": [
+    {
+      "key": "adjustTimeStep",
+      "new_scheme_fp32": "true",
+      "new_scheme_fp64": "true",
+      "old_effective_fp32": "true",
+      "old_effective_fp64": "true",
+      "old_requested": "true",
+      "raw": "true",
+      "source": "system/controlDict",
+      "source_path": [
+        "adjustTimeStep"
+      ],
+      "target": [
+        "gasTimeStep",
+        "adjustTimeStep"
+      ],
+      "value": "true"
+    },
+    {
+      "key": "maxCo",
+      "new_scheme_fp32": "0.3",
+      "new_scheme_fp64": "0.3",
+      "old_effective_fp32": "0.3",
+      "old_effective_fp64": "0.3",
+      "old_requested": "0.3",
+      "raw": "0.3",
+      "source": "system/controlDict",
+      "source_path": [
+        "maxCo"
+      ],
+      "target": [
+        "gasTimeStep",
+        "maxCo"
+      ],
+      "value": "0.3"
+    },
+    {
+      "key": "maxDeltaT",
+      "new_scheme_fp32": "0.00001",
+      "new_scheme_fp64": "0.00001",
+      "old_effective_fp32": "0.00001",
+      "old_effective_fp64": "0.00001",
+      "old_requested": "0.00001",
+      "raw": "0.00001",
+      "source": "system/controlDict",
+      "source_path": [
+        "maxDeltaT"
+      ],
+      "target": [
+        "gasTimeStep",
+        "maxDeltaT"
+      ],
+      "value": "0.00001"
+    }
+  ],
+  "notes": [
+    "Copied system/fvSchemes:fluxScheme to gasNumerics; framework dictionary retained, not a UGKP fallback",
+    "Copied system/fvSchemes:gasLimiter to gasNumerics; framework dictionary retained, not a UGKP fallback",
+    "Copied system/fvSchemes:ddtSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+    "Copied system/fvSchemes:gradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+    "Copied system/fvSchemes:divSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+    "Copied system/fvSchemes:laplacianSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+    "Copied system/fvSchemes:interpolationSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+    "Copied system/fvSchemes:snGradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback"
+  ],
+  "original_files": {
+    "system/controlDict": "FoamFile { version 2.0; format ascii; class dictionary; object controlDict; }\n\napplication gasUGKP;\nstartFrom startTime;\nstartTime 0;\nstopAt endTime;\nendTime 1e-05;\ndeltaT 0.00001;\nwriteControl adjustableRunTime;\nwriteInterval 1.0000000000000002e-06;\npurgeWrite 0;\nwriteFormat ascii;\nwritePrecision 17;\nwriteCompression off;\ntimeFormat general;\ntimePrecision 17;\nrunTimeModifiable false;\nadjustTimeStep true;\nmaxCo 0.3;\nmaxDeltaT 0.00001;\n",
+    "system/fvSchemes": "FoamFile { version 2.0; format ascii; class dictionary; object fvSchemes; }\n\nfluxScheme Kurganov;\ngasLimiter barthJespersen;\nddtSchemes { default SSPRK2; }\ngradSchemes { default Gauss linear; }\ndivSchemes\n{\n default none;\n div(phi,U) Gauss MUSCL;\n div(phi,e) Gauss MUSCL;\n div(phi,K) Gauss MUSCL;\n div(phi,(p|rho)) Gauss MUSCL;\n div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear;\n}\nlaplacianSchemes { default Gauss linear corrected; }\ninterpolationSchemes { default linear; }\nsnGradSchemes { default corrected; }\n\nwallDist { method meshWave; }\n"
+  },
+  "output_sha256": {
+    "constant/scheme": "43c22c56b24e48195261e177b55052bea70c6aad9a40ea79cae015c4292e89c1",
+    "system/controlDict": "65d8c5a4e5f0b3d6b6562416cfc950e918f0150e1f1c75c6e9b0197d082097cf",
+    "system/fvSchemes": "024a4098d83c2226738a9619ecc885e5b3c7c99f35fb7216e2bccd2ff2845ee9"
+  },
+  "precision": 64,
+  "schema": 1
+}

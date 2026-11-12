@@ -1,0 +1,265 @@
+[
+  {
+    "case": "validation/shared_boundary/fixtures/chmt",
+    "moves": 4,
+    "discarded": 0,
+    "notes": [
+      "Copied system/fvSchemes:fluxScheme to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:ddtSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:divSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:laplacianSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:interpolationSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:snGradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/solid/fvSchemes:laplacianSchemes to regions.solid.solidDiscretization; framework structure retained",
+      "Copied system/solid/fvSchemes:gradSchemes to regions.solid.solidDiscretization; framework structure retained",
+      "Copied system/solid/fvSchemes:interpolationSchemes to regions.solid.solidDiscretization; framework structure retained",
+      "Copied system/solid/fvSchemes:ddtSchemes to regions.solid.solidDiscretization; framework structure retained"
+    ]
+  },
+  {
+    "case": "validation/shared_boundary/fixtures/cht",
+    "moves": 18,
+    "discarded": 1,
+    "notes": [
+      "Copied system/fvSchemes:fluxScheme to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gasLimiter to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:ddtSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:divSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:laplacianSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:interpolationSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:snGradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/solid/fvSchemes:laplacianSchemes to regions.solid.solidDiscretization; framework structure retained",
+      "Copied system/solid/fvSchemes:gradSchemes to regions.solid.solidDiscretization; framework structure retained",
+      "Copied system/solid/fvSchemes:interpolationSchemes to regions.solid.solidDiscretization; framework structure retained",
+      "Copied system/solid/fvSchemes:ddtSchemes to regions.solid.solidDiscretization; framework structure retained"
+    ]
+  },
+  {
+    "case": "validation/shared_boundary/fixtures/gas-legacy",
+    "moves": 23,
+    "discarded": 0,
+    "notes": [
+      "Copied system/fvSchemes:fluxScheme to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gasLimiter to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:ddtSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:divSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:laplacianSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:interpolationSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:snGradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback"
+    ]
+  },
+  {
+    "case": "validation/shared_boundary/fixtures/gas-table",
+    "moves": 23,
+    "discarded": 0,
+    "notes": [
+      "Copied system/fvSchemes:fluxScheme to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gasLimiter to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:ddtSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:divSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:laplacianSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:interpolationSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:snGradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback"
+    ]
+  },
+  {
+    "case": "validation/shared_boundary/fixtures/gas-total",
+    "moves": 23,
+    "discarded": 0,
+    "notes": [
+      "Copied system/fvSchemes:fluxScheme to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gasLimiter to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:ddtSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:divSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:laplacianSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:interpolationSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:snGradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback"
+    ]
+  },
+  {
+    "case": "validation/shared_boundary/fixtures/steady-table",
+    "moves": 23,
+    "discarded": 0,
+    "notes": [
+      "Copied system/fvSchemes:fluxScheme to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gasLimiter to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:ddtSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:divSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:laplacianSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:interpolationSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:snGradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback"
+    ]
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/chmt-diffusion",
+    "moves": 4,
+    "discarded": 0,
+    "notes": []
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/chmt-mixture",
+    "moves": 4,
+    "discarded": 0,
+    "notes": []
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/chmt-moving",
+    "moves": 9,
+    "discarded": 0,
+    "notes": []
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/chmt-moving-short",
+    "moves": 9,
+    "discarded": 0,
+    "notes": []
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/chmt-single",
+    "moves": 4,
+    "discarded": 0,
+    "notes": [
+      "Copied system/fvSchemes:fluxScheme to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:ddtSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:divSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:laplacianSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:interpolationSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:snGradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/solid/fvSchemes:laplacianSchemes to regions.solid.solidDiscretization; framework structure retained",
+      "Copied system/solid/fvSchemes:gradSchemes to regions.solid.solidDiscretization; framework structure retained",
+      "Copied system/solid/fvSchemes:interpolationSchemes to regions.solid.solidDiscretization; framework structure retained",
+      "Copied system/solid/fvSchemes:ddtSchemes to regions.solid.solidDiscretization; framework structure retained"
+    ]
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/cht-contact",
+    "moves": 18,
+    "discarded": 1,
+    "notes": [
+      "Copied system/fvSchemes:fluxScheme to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gasLimiter to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:ddtSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:divSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:laplacianSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:interpolationSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:snGradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/solid/fvSchemes:laplacianSchemes to regions.solid.solidDiscretization; framework structure retained",
+      "Copied system/solid/fvSchemes:gradSchemes to regions.solid.solidDiscretization; framework structure retained",
+      "Copied system/solid/fvSchemes:interpolationSchemes to regions.solid.solidDiscretization; framework structure retained",
+      "Copied system/solid/fvSchemes:ddtSchemes to regions.solid.solidDiscretization; framework structure retained"
+    ]
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/cht-mixture",
+    "moves": 0,
+    "discarded": 0,
+    "notes": []
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/cht-ode",
+    "moves": 5,
+    "discarded": 0,
+    "notes": []
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/cht-wall",
+    "moves": 5,
+    "discarded": 0,
+    "notes": [
+      "Copied system/fvSchemes:fluxScheme to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gasLimiter to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:ddtSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:divSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:laplacianSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:interpolationSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:snGradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback"
+    ]
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/cht-wallfunction",
+    "moves": 0,
+    "discarded": 0,
+    "notes": []
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/gas-ode",
+    "moves": 5,
+    "discarded": 0,
+    "notes": []
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/gas-single",
+    "moves": 0,
+    "discarded": 0,
+    "notes": []
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/gas-sst",
+    "moves": 3,
+    "discarded": 0,
+    "notes": [
+      "Copied system/fvSchemes:fluxScheme to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gasLimiter to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:ddtSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:divSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:laplacianSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:interpolationSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:snGradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback"
+    ]
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/gas-unequal-mass",
+    "moves": 0,
+    "discarded": 0,
+    "notes": []
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/gas-wall",
+    "moves": 5,
+    "discarded": 0,
+    "notes": []
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/gas-wallfunction",
+    "moves": 0,
+    "discarded": 0,
+    "notes": []
+  },
+  {
+    "case": "validation/molecular_transport/fixtures/gas-wave",
+    "moves": 6,
+    "discarded": 0,
+    "notes": [
+      "Copied system/fvSchemes:fluxScheme to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gasLimiter to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:ddtSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:gradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:divSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:laplacianSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:interpolationSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback",
+      "Copied system/fvSchemes:snGradSchemes to gasNumerics; framework dictionary retained, not a UGKP fallback"
+    ]
+  },
+  {
+    "case": "validation/tests/fixtures/conduction_energy/case",
+    "moves": 0,
+    "discarded": 0,
+    "notes": []
+  },
+  {
+    "case": "validation/tests/fixtures/film_geometry_coupling/case",
+    "moves": 0,
+    "discarded": 0,
+    "notes": []
+  }
+]

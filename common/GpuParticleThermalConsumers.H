@@ -27,7 +27,8 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleWallThermalPublication publishFiniteWal
     const double conductanceIntegral,
     const Storage minimumTemperature,
     const Storage maximumTemperature,
-    const Caloric& caloric
+    const Caloric& caloric,
+    const int maximumIterations=96
 )
 {
     if (!(physicalMass>0.) || !finiteThermalCarry(physicalMass)
@@ -50,7 +51,7 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleWallThermalPublication publishFiniteWal
     double proposedSpecificHeat=equilibriumHeat;
     if (finiteThermalCarry(conductanceIntegral)) {
         double lower=delta<0.?delta:0.,upper=delta>0.?delta:0.;
-        for (int iteration=0;iteration<96;++iteration) {
+        for (int iteration=0;iteration<maximumIterations;++iteration) {
             const double middle=lower+.5*(upper-lower);
             if(middle==lower||middle==upper)break;
             const double heat=caloric.enthalpyIncrement(oldTemperature,middle)+anchorCorrection;

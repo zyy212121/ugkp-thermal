@@ -48,7 +48,7 @@ struct Backend {
     std::unique_ptr<ResidentCoupledGeometry> residentGeometry;
     CudaFault surfaceTransferFault;
     Buffer<int> interfaceFaces,interfaceFaceSlots,interfaceCells;
-    Buffer<Real> interfaceProgress;
+    Buffer<PhysicalReal> interfaceProgress;
     Buffer<unsigned char> interfaceWallChanged;
     Buffer<WallFaceSample> interfaceStageWall;
     Buffer<CoupledSurfaceInput> interfaceInputs;
@@ -65,8 +65,8 @@ struct Backend {
     std::size_t historyFrameCount=0,historyFrameCapacity=1,historyPublishedFrames=0;
     std::vector<CoupledSurfaceDownload> historyRecordStaging;
     std::vector<CoupledWallDownload> historyWallStaging;
-    Buffer<ugkwp::gaswall::WallExchangeOutput<Real,Ns>> interfaceWallDiagnostics;
-    std::vector<ugkwp::gaswall::WallExchangeOutput<Real,Ns>> wallDiagnosticStaging;
+    Buffer<ugkwp::gaswall::WallExchangeOutput<EnergyReal,Ns>> interfaceWallDiagnostics;
+    std::vector<ugkwp::gaswall::WallExchangeOutput<EnergyReal,Ns>> wallDiagnosticStaging;
     bool wallDiagnosticsReady=false;Real wallDiagnosticTime=0;
     Buffer<PhysicsConfig> interfacePhysics;
     bool poisoned=false;std::string error;
@@ -77,9 +77,9 @@ struct Backend {
     WindowTime elapsed{};Real nextGasSeed=0;bool microGeometryPrepared=false;int gasStageIndex=0;
     int nCells=0,nFaces=0,nInternalFaces=0,fixedCellBlockThreads=128,fixedFaceBlockThreads=128;
     int hostTurbulenceModel=0,hostGasFluxScheme=1,hostGasTimeIntegrator=1,hasPeriodicFaces=0;
-    ugkwp::GasSpeciesState<GpuReal,Ns,double> gasSpecies;
+    ugkwp::GasSpeciesState<PhysicalReal,Ns> gasSpecies;
     ugkwp::GasGeometryState<Real> gasGeometry;
-    ugkwp::GasBoundaryLayerState<Real> gasBoundaryLayer;
+    ugkwp::GasBoundaryLayerState<PhysicalReal> gasBoundaryLayer;
     Real gasBoundaryLayerStageTime=0;
     Real preparedWallTime=0,preparedWallDt=0;bool preparedWallReady=false;
     SharedGasDeviceView* deviceState=nullptr;cudaStream_t gasCaptureStream=nullptr;
@@ -137,7 +137,6 @@ bool archiveCoupledRecord(Backend&);
 namespace transport {
 using std::isfinite;
 #define GPU_OPERATOR_REAL GpuReal
-#define GPU_OPERATOR_GEOMETRY GpuGeometry
 #define GPU_OPERATOR_TIME GpuTime
 #define GPU_OPERATOR_R(x) GPU_R(x)
 #define GPU_OPERATOR_TINY(x) GPU_TINY(x)
@@ -224,7 +223,12 @@ struct CoupledTrialPolicy {
             b->particles.owner(),b->gasCaptureStream),b->error))return 1;
         return 0;
     }
-    static const Real* stageVolumes(Backend* b,bool after){const auto& g=b->storage.hostView().gasGeometry;return g.enabled?(after?g.newVolume:g.oldVolume):b->storage.hostView().V;}
+    struct StageVolumes {
+        const Real* geometry;const PhysicalReal* physical;
+        CHMT_HD explicit operator bool()const{return geometry||physical;}
+        CHMT_HD PhysicalReal operator[](int i)const{return geometry?PhysicalReal(geometry[i]):physical[i];}
+    };
+    static StageVolumes stageVolumes(Backend* b,bool after){const auto& v=b->storage.hostView();const auto& g=v.gasGeometry;return {g.enabled?(after?g.newVolume:g.oldVolume):nullptr,g.enabled?nullptr:v.V};}
 
     static int validateTimeStep(Backend*,Real){return 0;}
     static int applySources(Backend* b,Real dt){
@@ -341,9 +345,9 @@ int prepareCoupledGeometry(Backend* b){
         if(!b->interfaceGeometryReady){
             const auto& surface=base.surface;std::vector<CoupledSurfaceInput> inputs(surface.area.size());
             for(std::size_t i=0;i<inputs.size();++i){const int f=surface.gasFace[i];auto& in=inputs[i];
-                in.area=surface.area[i];in.gasDistance=surface.gasDistance[i];in.normal=surface.normal[i];
-                const Vec3 support=surface.baseVelocity.empty()?Vec3{}:surface.baseVelocity[i];
-                const Vec3 motion{};in.particleMaterialVelocity=support+in.normal*dot(motion-support,in.normal);
+                in.area=surface.area[i];in.gasDistance=surface.gasDistance[i];in.normal=toPhysical(surface.normal[i]);
+                const PhysicalVec3 support=surface.baseVelocity.empty()?PhysicalVec3{}:surface.baseVelocity[i];
+                const PhysicalVec3 motion{};in.particleMaterialVelocity=support+in.normal*dot(motion-support,in.normal);
                 in.identity.face=surface.persistentId[i];in.identity.stage=1;in.identity.gasCell=base.gasMesh.owner[f];
                 in.identity.solidCell=surface.solidCell[i];in.identity.filmFace=int(i);
             }
@@ -369,8 +373,8 @@ int advanceCoupledParticles(Backend* b,Real dt){
     if(count){const auto surface=b->particles.surface();
         publishParticleMaterialSurfaceKernel<<<(count+127)/128,128,0,b->gasCaptureStream>>>(count,
             b->interfaceFaces.data(),b->interfaceInputs.data(),b->interfaceWallProgram.data(),GasWallProgramPosition{},
-            const_cast<double*>(surface.temperature),const_cast<double*>(surface.velocityX),
-            const_cast<double*>(surface.velocityY),const_cast<double*>(surface.velocityZ),const_cast<double*>(surface.effusivity),b->coupledInterval.data());
+            const_cast<GpuReal*>(surface.temperature),const_cast<GpuReal*>(surface.velocityX),
+            const_cast<GpuReal*>(surface.velocityY),const_cast<GpuReal*>(surface.velocityZ),const_cast<GpuReal*>(surface.effusivity),b->coupledInterval.data());
         if(!b->surfaceTransferFault.check(cudaGetLastError(),"publish resident particle material surface")){
             b->error=b->surfaceTransferFault.message;return 1;}
     }
@@ -603,15 +607,15 @@ bool beginGasWindow(Backend& b,const WallProgram& program,std::string& error){
     return success&&healthy;
 }
 struct CoupledCourantMaximum {
-    __host__ __device__ double operator()(double a,double b)const{return a!=a?a:b!=b?b:fmax(a,b);}
+    __host__ __device__ PhysicalReal operator()(PhysicalReal a,PhysicalReal b)const{return a!=a?a:b!=b?b:fmaxf(a,b);}
 };
-struct CoupledCourantValue {double value;bool unavailable;unsigned char initializedTail[7]{};};
+struct CoupledCourantValue {PhysicalReal value;bool unavailable;unsigned char initializedTail[7]{};};
 struct CoupledCourantRead {
-    const GpuReal* field;const int* status;const ugkp::diagnostics::DeviceContext* diagnostics;
+    const PhysicalReal* field;const int* status;const ugkp::diagnostics::DeviceContext* diagnostics;
     __host__ __device__ CoupledCourantValue operator()(int cell)const{
         // This is the reduction identity, never a replacement physical state.
         // The host discards the reduction after observing the fatal latch.
-        if(ugkp::diagnostics::hasFatal(diagnostics))return {-std::numeric_limits<double>::infinity(),false};
+        if(ugkp::diagnostics::hasFatal(diagnostics))return {-std::numeric_limits<PhysicalReal>::infinity(),false};
         return {field[cell],status&&status[cell]==int(ugkwp::GasTransportCode::InvalidStorage)};
     }
 };
@@ -624,15 +628,15 @@ static bool currentGasCourant(Backend& b,Real referenceDt,transport::GasCourantM
     const auto& v=b.storage.hostView();
     struct View {
         int nCells,nFaces,nInternalFaces;SharedGasDeviceView* deviceState;
-        GpuReal* gasFluxPositivityScale;
+        PhysicalReal* gasFluxPositivityScale;
     } view{b.nCells,b.nFaces,b.nInternalFaces,b.deviceState,v.gasFluxPositivityScale};
-    const auto maximum=[&](const GpuReal* field,int count,cudaStream_t stream,double& value){
+    const auto maximum=[&](const PhysicalReal* field,int count,cudaStream_t stream,double& value){
         CoupledCourantValue reduced{};
         try {
             const auto first=thrust::make_counting_iterator(0);
             reduced=thrust::transform_reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),first,first+count,
                 CoupledCourantRead{field,v.gasSpecies.cellStatus,b.diagnostics.device()},
-                CoupledCourantValue{-std::numeric_limits<double>::infinity(),false},CoupledCourantReduce{});
+                CoupledCourantValue{-std::numeric_limits<PhysicalReal>::infinity(),false},CoupledCourantReduce{});
         }
         catch(const std::exception& e){transport::setLastErrorText(e.what());return 1;}
         // Dispatch outside the Thrust exception adapter: a frontend fatal
@@ -770,7 +774,7 @@ bool downloadGasWindow(Backend& b,HostState& out,std::string& error){
     if(b.wallDiagnosticsReady){
         b.trial.gasWallDiagnostics.resize(b.wallDiagnosticStaging.size());
         for(std::size_t i=0;i<b.wallDiagnosticStaging.size();++i)
-            static_cast<ugkwp::gaswall::WallExchangeOutput<Real,Ns>&>(b.trial.gasWallDiagnostics[i])=b.wallDiagnosticStaging[i];
+            static_cast<ugkwp::gaswall::WallExchangeOutput<EnergyReal,Ns>&>(b.trial.gasWallDiagnostics[i])=b.wallDiagnosticStaging[i];
         b.trial.gasWallDiagnosticTime=b.wallDiagnosticTime;
     }
     out=b.trial;return gasWindowStageGeometry(b,out.gasStages,out.solidStages,error);
@@ -826,7 +830,6 @@ bool borrowRadiationState(Backend& b,ParticleRadiationState& out,std::string& er
     // CHMT's accepted material wall program supplies temperature; particle
     // coverage remains the same shared independent contact contribution.
     out.resident.boundaryTemperature=nullptr;
-    out.resident.boundaryTemperatureFp32=nullptr;
     return true;
 }
 bool applyResidentRadiationEnergy(Backend& b,const ugkp::gpu::RadiationMaterialDeviceView& heat,ugkp::gpu::RadiationAcceptedEnergyDeviceView& actual,HostState& endpoint,std::string& error){
@@ -842,19 +845,23 @@ bool downloadRadiationState(Backend& b,ParticleRadiationState& out,std::string& 
     out.diameter.assign(b.nCells,0);out.occupiedArea.assign(b.nFaces,0);
     if(!b.particles.active())return true;
     if(!b.particles.result(ugkp::thermal::orderParticlePhaseAfterGas(b.particles.owner(),b.gasCaptureStream),error))return false;
-    std::vector<Real> tm(b.nCells),dm(b.nCells);
-    if(!b.particles.result(ugkwpGpuResidentStrictDownloadMobileParticleRadiationSums(b.particles.owner(),b.nCells,out.mass.data(),tm.data(),dm.data()),error)
-        ||!b.particles.result(ugkwpGpuResidentStrictDownloadParticleWallOccupiedArea(b.particles.owner(),b.nFaces,out.occupiedArea.data()),error)
+    std::vector<double> wireMass(b.nCells),tm(b.nCells),dm(b.nCells),wireArea(b.nFaces);
+    if(!b.particles.result(ugkwpGpuResidentStrictDownloadMobileParticleRadiationSums(b.particles.owner(),b.nCells,wireMass.data(),tm.data(),dm.data()),error)
+        ||!b.particles.result(ugkwpGpuResidentStrictDownloadParticleWallOccupiedArea(b.particles.owner(),b.nFaces,wireArea.data()),error)
         ||!b.particles.result(ugkwpGpuResidentStrictParticleRadiationResponse(b.particles.owner(),&out.response),error))return false;
-    for(int c=0;c<b.nCells;++c)if(out.mass[c]>0){out.temperature[c]=tm[c]/out.mass[c];out.diameter[c]=dm[c]/out.mass[c];}
+    for(int f=0;f<b.nFaces;++f)out.occupiedArea[f]=EnergyReal(wireArea[f]);
+    for(int c=0;c<b.nCells;++c){out.mass[c]=EnergyReal(wireMass[c]);if(out.mass[c]>0){
+        out.temperature[c]=EnergyReal(tm[c])/out.mass[c];out.diameter[c]=EnergyReal(dm[c])/out.mass[c];}}
     return true;
 }
-bool applyRadiationEnergy(Backend& b,const std::vector<Real>& heat,std::vector<Real>& actual,HostState& endpoint,std::string& error){
+bool applyRadiationEnergy(Backend& b,const std::vector<EnergyReal>& heat,std::vector<EnergyReal>& actual,HostState& endpoint,std::string& error){
     actual.assign(b.nCells,0);if(!b.particles.active())return true;
     if(heat.size()!=std::size_t(b.nCells)){error="radiation cell layout mismatch";return false;}
-    if(!b.particles.result(ugkwpGpuResidentStrictApplyParticleRadiationEnergy(b.particles.owner(),b.nCells,heat.data(),actual.data()),error)
+    std::vector<double> wireHeat(heat.begin(),heat.end()),wireActual(b.nCells);
+    if(!b.particles.result(ugkwpGpuResidentStrictApplyParticleRadiationEnergy(b.particles.owner(),b.nCells,wireHeat.data(),wireActual.data()),error)
         ||!b.particles.result(ugkwpGpuResidentStrictRefreshParticleEnthalpyPacked(b.particles.owner()),error))return false;
+    actual.assign(wireActual.begin(),wireActual.end());
     return b.particles.download(endpoint,error);
 }
-void setWindowRadiationEnergy(Backend& b,const std::vector<Real>& energy){b.history.setExternalRadiationEnergy(energy);}
+void setWindowRadiationEnergy(Backend& b,const std::vector<EnergyReal>& energy){b.history.setExternalRadiationEnergy(energy);}
 }

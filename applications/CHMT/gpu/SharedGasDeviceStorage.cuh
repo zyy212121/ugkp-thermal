@@ -504,6 +504,7 @@ private:
         view_.gasViscosity.diffusion=transport.gasPowerLawEnabled?powerLawData_.data():nullptr;
         view_.gasPrClamped=1;
         view_.gasThermalConductivity=model.physics.gasConductivity;
+        view_.gasScalarSolvers=model.physics.gasScalarSolvers;
         // CHMT uses zero for disabled conduction, never a negative unset sentinel.
         view_.gasThermalConductivityConfigured=true;
         view_.turbulentPrandtl=model.physics.sst.turbulentPrandtl;

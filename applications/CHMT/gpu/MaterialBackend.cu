@@ -111,7 +111,7 @@ __global__ void prepareConductionLinearControls(MaterialConductionIteration* rep
     ScaledThermalSum scale;scale.add(1);if(scale.lessEqual(initial))scale=initial;
     auto tolerance=scale.multiplied(controls.energyRelativeTolerance);tolerance.add(controls.energyAbsoluteTolerance);
     tolerance.merge(audit->inventory.multiplied(64*std::numeric_limits<Real>::epsilon()));
-    const Real relative=initial.populated?fmin(1.,tolerance.ratioTo(initial)*.5):1.;
+    const Real relative=initial.populated?fmin(1.,tolerance.ratioTo(initial)*controls.linearEnergyBudgetFraction):1.;
     report->linear.tolerance=std::numeric_limits<Real>::min();report->linear.relativeTolerance=relative;
     cudaGraphSetConditional(permitted,1);
 }
@@ -451,6 +451,7 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
     signature.add(normalizationSmall);signature.add(singularSmall);
     signature.add(controls.nonlinearMaxIterations);signature.add(controls.nonlinearRelativeTolerance);
     signature.add(controls.energyAbsoluteTolerance);signature.add(controls.energyRelativeTolerance);
+    signature.add(controls.linearMaxIterations);signature.add(controls.linearEnergyBudgetFraction);
     for(const void* pointer:{static_cast<const void*>(report.data()),static_cast<const void*>(b.diagnostics.device()),
         static_cast<const void*>(b.conductionInput.data()),static_cast<const void*>(b.devicePhysics.data()),
         static_cast<const void*>(b.conductionCoefficients.data()),static_cast<const void*>(b.conductionCapacity.data()),
@@ -463,7 +464,7 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
         if(!graph.executable){
         executionGraphDetail::checked(cudaGraphCreate(&graph.graph,0));cudaGraphConditionalHandle handle,permitted;
         executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&handle,graph.graph,0,cudaGraphCondAssignDefault));
-        ConjugateGradientControls linear;linear.maximumIterations=2000;linear.normalizationSmall=normalizationSmall;linear.singularSmall=singularSmall;
+        ConjugateGradientControls linear;linear.maximumIterations=controls.linearMaxIterations;linear.normalizationSmall=normalizationSmall;linear.singularSmall=singularSmall;
         const auto initialized=appendCaptured(graph.graph,{},b.stream.get(),[&]{
             beginConductionLoop<<<1,1,0,b.stream.get()>>>(report.data(),linear,b.diagnostics.device(),handle);});
         cudaGraph_t body=nullptr;executionGraphDetail::addWhile(graph.graph,handle,{initialized},body);

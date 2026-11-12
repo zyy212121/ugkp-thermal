@@ -33,6 +33,7 @@ public:
         cudaStream_t stream,std::string& error) {
         if(!model.physics.enableParticles)return true;
         auto config=model.particlePhase;
+        config.packingIterations=model.particleNumerics.packingIterations;
         config.capacity=std::max(config.capacity,std::max(1,int(state.particles.size())));
         const int faces=state.gasMesh.owner.size();
         std::vector<unsigned char> contact(faces,0);
@@ -42,6 +43,7 @@ public:
         if(!result(ugkp::thermal::createBoundParticlePhase(config,model.particleContact,
             ugkp::thermal::particleGasBinding(gas.hostView()),state.gasMesh.cellFaces.size(),
             contact.data(),gravity,&owner_),error))return false;
+        if(!result(ugkp::thermal::setParticleNumericalControls(owner_,model.particleNumerics),error))return false;
         if(!boundaryKind_.resize(faces,fault_)||!restitution_.resize(faces,fault_)||!tangential_.resize(faces,fault_)
             ||!surfaceTemperature_.resize(faces,fault_)||!surfaceUx_.resize(faces,fault_)
             ||!surfaceUy_.resize(faces,fault_)||!surfaceUz_.resize(faces,fault_)||!surfaceEffusivity_.resize(faces,fault_)){

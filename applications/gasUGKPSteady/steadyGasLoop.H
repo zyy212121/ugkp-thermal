@@ -8,14 +8,16 @@ if(sharedGasModel.model().mode==ugkwp::GasMode::MixtureChemistry)
 SteadyRestartState gasSteadyRestart;
 const bool gasSteadyRestartLoaded=readSteadyRestartState
     ((runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),gasSteadyRestart);
-const dictionary steadyControls = runTime.controlDict().subOrEmptyDict("steadyGas");
-const scalar steadyCourant = steadyControls.lookupOrDefault<scalar>("maxCo", 0.5);
-const scalar steadyMaxDt = steadyControls.lookupOrDefault<scalar>("maxDeltaT", GREAT);
-const scalar steadyBoundaryTime = steadyControls.lookupOrDefault<scalar>("boundaryTime", gasSteadyRestart.boundaryTime);
-const scalar steadyRelativeTolerance = steadyControls.lookupOrDefault<scalar>("relativeTolerance", 1e-8);
-const scalar steadyAbsoluteTolerance = steadyControls.lookupOrDefault<scalar>("absoluteTolerance", 0);
-const label steadyCheckInterval = max(label(1), steadyControls.lookupOrDefault<label>("residualInterval", 10));
-const label steadyMinimumIterations = steadyControls.lookupOrDefault<label>("minimumIterations", 1);
+const auto steadyControls=ugkp::solverControls::readGasSteadyControls(
+    runTime,gasSteadyRestart.boundaryTime,mesh.name());
+using SteadyReal=ugkp::solverControls::SteadySolverReal;
+const SteadyReal steadyCourant=steadyControls.maxCo;
+const scalar steadyMaxDt=steadyControls.maxDeltaT;
+const scalar steadyBoundaryTime=steadyControls.boundaryTime;
+const SteadyReal steadyRelativeTolerance=steadyControls.relativeTolerance;
+const SteadyReal steadyAbsoluteTolerance=steadyControls.absoluteTolerance;
+const label steadyCheckInterval=steadyControls.residualInterval;
+const label steadyMinimumIterations=steadyControls.minimumIterations;
 resident.configureSteady(steadyBoundaryTime);
 Info<< "Steady local pseudo-time: Co=" << steadyCourant
     << ", fixed boundary time=" << steadyBoundaryTime
@@ -26,7 +28,7 @@ resident.steadyResidual(initialSteadyResidual);
 Info<< "Initial steady spatial Linf residual " << initialSteadyResidual << nl;
 // Initial host mirrors supply fixed dimensional reference scales only; no
 // active solution update or transport operator is evaluated on the host.
-const scalar referenceTime=steadyControls.lookupOrDefault<scalar>("referenceTime",1);
+const scalar referenceTime=steadyControls.referenceTime;
 const scalar densityScale=gMax(mag(rho.primitiveField()))/referenceTime;
 const scalar pressureScale=gMax(mag(p.primitiveField()))/referenceTime;
 const scalar energyScale=pressureScale

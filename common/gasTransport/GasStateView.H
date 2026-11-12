@@ -13,6 +13,7 @@
 #include "GasGeometryPolicy.H"
 #include "GasBoundaryLayerState.H"
 #include "../chemistry/ChemistryTypes.H"
+#include "../gasNumerics/GasScalarSolverControls.H"
 
 namespace ugkwp
 {
