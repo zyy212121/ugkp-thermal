@@ -69,7 +69,6 @@ def prepare(args):
                     mesh_source=source/"validation/shared_boundary/fixtures/cht"
                     for mesh in ("constant/polyMesh","constant/solid/polyMesh"):
                         shutil.copytree(mesh_source/mesh,case/mesh)
-                (case/"constant/precisionProperties").write_text(HEADER.replace("object scheme","object precisionProperties")+f"precision {bits};\n")
                 is_override=mode=="override"
                 if not is_override:
                     # Preserve required physical scheduling while testing numerical defaults.
@@ -77,6 +76,14 @@ def prepare(args):
                     if app=="CHT":controls+="thermalCoupling { couplingInterval .00002; solidContactCouplingInterval .00002; radiationCouplingFrequency 1; }\n"
                     if app=="CHMT":controls+="thermalCoupling { couplingInterval .0005; }\ngasTimeStep { minDeltaT 1e-12; maxDeltaT 1e-5; maxCo .4; }\n"
                     (case/"constant/scheme").write_text(controls)
+                edit(case/"constant/scheme","precision",str(bits))
+                if is_override and bits==32:
+                    if app in ("gasUGKP","gasUGKPSteady"):
+                        edit(case/"constant/scheme","wallLayer.relativeTolerance",".05")
+                        edit(case/"constant/scheme","wallLayer.absoluteTolerance","9.5367431640625e-7")
+                    elif app=="CHT":
+                        edit(case/"constant/scheme","solid.nonlinear.nonlinearRelativeTolerance","1e-5")
+                        edit(case/"constant/scheme","solid.nonlinear.energyRelativeTolerance","1e-4")
                 if app=="gasUGKP":
                     if is_override:edit(case/"constant/scheme","gasTimeStep.maxCo",".4")
                     edit(case/"system/controlDict","maxCo",".123")
@@ -101,7 +108,7 @@ def prepare(args):
         for stage in ("initial","restart"):
             ident=f"restart-CHMT-{bits}-{stage}"; case=dest/ident
             shutil.copytree(source/"validation/shared_boundary/fixtures/chmt",case)
-            (case/"constant/precisionProperties").write_text(HEADER.replace("object scheme","object precisionProperties")+f"precision {bits};\n")
+            edit(case/"constant/scheme","precision",str(bits))
             edit(case/"system/controlDict","endTime",".0005" if stage=="initial" else ".001")
             edit(case/"constant/chmtProperties","outputDirectory",'"chmtOutput"')
             value=50 if stage=="initial" else 61

@@ -9,8 +9,7 @@ ROOT=Path(os.environ.get("UGKP_SOURCE_ROOT",Path(__file__).resolve().parents[3])
 native=module("dual_native",Path(__file__).with_name("native_dual.py"))
 steady=module("steady_native",ROOT/"validation/pr41/native_steady_restart.py")
 def write_precision(case,bits):
-    p=case/"constant/precisionProperties"
-    p.write_text("FoamFile { version 2.0; format ascii; class dictionary; object precisionProperties; }\nprecision "+str(bits)+";\n")
+    native.configure_precision(case,bits)
 def outputs(case,solver):
     if solver=="CHMT": return sorted(str(p.relative_to(case)) for p in (case/"chmtOutput").glob("checkpoint-*"))
     return sorted(p.name for p in native.inlet.m.times(case))
@@ -41,7 +40,7 @@ def main():
     def save(): (out/"results.json").write_text(json.dumps(report,indent=2)+"\n")
     def launch(case,solver,bits,label,expect="success",default=False):
         if not default: write_precision(case,bits)
-        elif (case/"constant/precisionProperties").exists(): (case/"constant/precisionProperties").unlink()
+        else: native.configure_precision(case,bits,select=False)
         previous=outputs(case,solver);start=time.perf_counter()
         log=case/(label+".log")
         with log.open("w") as stream:

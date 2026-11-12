@@ -106,7 +106,7 @@ describe uncompiled/unexecuted recipes as verified.
 - gasUGKP,gasUGKPSteady,CHT,CHMT, both modes. Use baseline-supported cht-contact,
   not cht-mixture which accepted parent already rejects.
 - Preserve real fields, particles, source remainder and steadyState.dat.
-- Default/no precisionProperties launches32; explicit64 launches64. Verify
+- Default/no scheme precision entry launches32; explicit precision 64 launches64. Verify
   written ugkpPrecision computePrecision/restartPrecision, not wrapper exit.
 - Real32->64 code2+stated error, no new time/checkpoint. Real64->32 warning,
   continue32, finite output and expected inventory.32->32/64->64 continue.

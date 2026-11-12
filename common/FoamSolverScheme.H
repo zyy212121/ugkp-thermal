@@ -14,6 +14,8 @@ namespace ugkp { namespace solverControls {
 
 // Case-level numerical controls. The dictionary is read only at startup;
 // device owners receive their existing typed controls, never this dictionary.
+// Top-level precision selects the launcher backend. One explicit numerical
+// setting applies to either backend; omitted settings retain its typed defaults.
 class Scheme {
     Foam::dictionary values_;
     Foam::fileName path_;
@@ -37,18 +39,14 @@ public:
         values_=input;
         Foam::Info<<"SCHEME_STARTUP file="<<path_<<" present="<<Foam::isFile(path_)
             <<" precision="<<ugkp::precision::compiledBits
-            <<" readOnce=1 precedence=precisionRegion,region,precisionModule,module,effectiveDefault"<<Foam::nl;
+            <<" readOnce=1 precedence=region,module,backendDefault"<<Foam::nl;
     }
     Foam::dictionary section(const std::string& path,
         const Foam::word& region=Foam::word::null) const {
         Foam::dictionary result=nested(values_,path);
-        const auto precision=values_.subOrEmptyDict("precisionOverrides").subOrEmptyDict(
-            ugkp::precision::compiledBits==32?"fp32":"fp64");
-        result.merge(nested(precision,path));
         if(!region.empty()) {
             const auto regions=values_.subOrEmptyDict("regions");
             result.merge(nested(regions.subOrEmptyDict(region),path));
-            result.merge(nested(precision.subOrEmptyDict("regions").subOrEmptyDict(region),path));
         }
         return result;
     }
@@ -63,18 +61,10 @@ public:
         if(!region.empty())Foam::Info<<" region="<<region;
         Foam::Info<<" effective="<<value<<" source=";
         if(overridden) {
-            const Foam::word precisionName(ugkp::precision::compiledBits==32?"fp32":"fp64");
-            const auto precision=values_.subOrEmptyDict("precisionOverrides").subOrEmptyDict(precisionName);
-            bool regional=false,precisionRegional=false;
-            if(!region.empty()) {
-                regional=nested(values_.subOrEmptyDict("regions").subOrEmptyDict(region),path).found(key,false,false);
-                precisionRegional=nested(precision.subOrEmptyDict("regions").subOrEmptyDict(region),path).found(key,false,false);
-            }
-            const bool precisionModule=nested(precision,path).found(key,false,false);
+            const bool regional=!region.empty()
+                &&nested(values_.subOrEmptyDict("regions").subOrEmptyDict(region),path).found(key,false,false);
             Foam::Info<<"constant/scheme:";
-            if(precisionRegional||(!regional&&precisionModule))
-                Foam::Info<<"precisionOverrides."<<precisionName<<'.';
-            if(regional||precisionRegional)Foam::Info<<"regions."<<region<<'.';
+            if(regional)Foam::Info<<"regions."<<region<<'.';
             Foam::Info<<path.c_str()<<'.'<<key;
         } else Foam::Info<<inheritedSource;
         Foam::Info<<Foam::nl;

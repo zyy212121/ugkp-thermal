@@ -1,4 +1,5 @@
 FoamFile { version 2.0; format ascii; class dictionary; object scheme; }
+precision 64;
 
 wallLayer
 {
@@ -8,17 +9,7 @@ wallLayer
     nodes 16;
     stretch 2;
 }
-precisionOverrides
-{
-    fp32
-    {
-        wallLayer
-        {
-            relativeTolerance 0.05;
-            absoluteTolerance 9.5367431640625e-07;
-        }
-    }
-}
+
 steadyGas
 {
     maxCo .01;

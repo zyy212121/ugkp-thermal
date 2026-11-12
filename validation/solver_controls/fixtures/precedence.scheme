@@ -4,19 +4,3 @@ regions {
  solidA { fixture { inner { priority 44; regionWins 45; } } }
  solidB { fixture { inner { priority 46; } } }
 }
-precisionOverrides {
- fp32 {
-  fixture { inner { priority 323; regionWins 326; } }
-  regions {
-   solidA { fixture { inner { priority 324; } } }
-   solidC { fixture { inner { priority 325; } } }
-  }
- }
- fp64 {
-  fixture { inner { priority 643; regionWins 646; } }
-  regions {
-   solidA { fixture { inner { priority 644; } } }
-   solidC { fixture { inner { priority 645; } } }
-  }
- }
-}

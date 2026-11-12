@@ -1,4 +1,5 @@
 FoamFile { version 2.0; format ascii; class dictionary; object scheme; }
+precision 64;
 
 gasTimeStep
 {

@@ -33,8 +33,29 @@ MOMENTUM_ATOL = 1e-8
 NUMBER = re.compile(r"(?<![A-Za-z_])[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?")
 NONFINITE = re.compile(r"(?<![A-Za-z_])[-+]?(?:nan|inf|infinity)(?![A-Za-z_])", re.I)
 
+def configure_precision(case,bits,select=True):
+    # Fixed acceptance-case values, written as one explicit set. No fallback
+    # dictionary, per-precision override, or legacy-value inference is used.
+    scheme=case/"constant/scheme"
+    controls=scheme.read_text() if scheme.exists() else "FoamFile { version 2.0; format ascii; class dictionary; object scheme; }\n"
+    controls=re.sub(r'(?m)^precision\s+(?:32|64)\s*;[ \t]*\n?', '', controls)
+    molecular_wall=case.name in ("gas-ode","gas-wave")
+    wall_rtol='1e-4' if molecular_wall else '.05'
+    wall_atol='9.5367431640625e-7'
+    def wall(match):
+        body=re.sub(r'\brelativeTolerance\s+[^;]+;', 'relativeTolerance '+wall_rtol+';',match[2])
+        body=re.sub(r'\babsoluteTolerance\s+[^;]+;', 'absoluteTolerance '+wall_atol+';',body)
+        return match[1]+body+match[3]
+    if bits==32: controls=re.sub(r'(\bwallLayer\s*\{)([^{}]*)(\})',wall,controls)
+    def solid(match):
+        body=re.sub(r'\bnonlinearRelativeTolerance\s+[^;]+;', 'nonlinearRelativeTolerance '+'1e-5'+';',match[2])
+        body=re.sub(r'\benergyRelativeTolerance\s+[^;]+;', 'energyRelativeTolerance '+'1e-4'+';',body)
+        return match[1]+body+match[3]
+    if bits==32: controls=re.sub(r'(\bsolid\s*\{\s*nonlinear\s*\{)([^{}]*)(\})',solid,controls)
+    scheme.write_text(controls+("\nprecision "+str(bits)+";\n" if select else ""))
+
 def execute(binary, case, report, label="run"):
-    (case/"constant/precisionProperties").write_text("FoamFile { version 2.0; format ascii; class dictionary; object precisionProperties; }\nprecision "+str(BITS)+";\n")
+    configure_precision(case,BITS)
     log = case / (label + ".log")
     start = time.perf_counter()
     with log.open("w") as output:

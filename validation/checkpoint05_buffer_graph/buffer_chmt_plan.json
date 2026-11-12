@@ -76,7 +76,7 @@
   "inputPreparation": [
     "Use existing fixture mesh/preparation path after review; source fixtures may need generated mesh.",
     "Read numerical values from constant/scheme, never legacy keys.",
-    "Use existing precisionProperties for selected width; migrate only fresh copies if needed.",
+    "Write the selected precision and explicit numerical values directly in each fresh case constant/scheme.",
     "Bind final executable, case, env and output argv before running.",
     "Do not run original baseline 0.295 continuation in this checkpoint."
   ],

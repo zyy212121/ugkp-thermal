@@ -49,10 +49,13 @@ class PrecisionToolingTests(unittest.TestCase):
                     fake.write_text("#!/bin/sh\nprintf 'FAKE_MODE=" + str(bits) + "\\n'\nprintf '<%s>\\n' \"$@\"\n")
                     fake.chmod(0o755)
                     shutil.copy2(launcher, bindir / solver)
-            config = case / "constant/precisionProperties"
+            config = case / "constant/scheme"
             for solver in ("gasUGKP", "gasUGKPSteady", "CHT", "CHMT"):
                 for value, expected in ((None, 32), ("precision 64;", 64), ("precision 32;", 32),
-                                        ("precision 16;", 32), ("precision broken;", 32)):
+                                        ("precision 16;", 32), ("precision broken;", 32),
+                                        ("wallLayer { maxIterations 77; }", 32),
+                                        ("precision 64; wallLayer { maxIterations 77; }", 64),
+                                        ("precision 32; solid { nonlinear { nonlinearMaxIterations 19; } }", 32)):
                     if value is None:
                         config.unlink(missing_ok=True)
                     else:
@@ -60,10 +63,17 @@ class PrecisionToolingTests(unittest.TestCase):
                     result = subprocess.run([str(bindir / solver), "-case", str(case),
                                              "-unchangedOption", "value with spaces"],
                                             text=True, capture_output=True)
+                    print("STUB", solver, repr(value), "expected", expected, "exit", result.returncode, result.stdout.strip(), result.stderr.strip())
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertIn("FAKE_MODE=" + str(expected), result.stdout)
                     self.assertIn("<value with spaces>", result.stdout)
                     self.assertIn("<" + str(case) + ">", result.stdout)
+            config.unlink(missing_ok=True)
+            (case / "constant/precisionProperties").write_text("precision 64;\n")
+            result = subprocess.run([str(bindir / "CHMT"), "-case", str(case)], text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("FAKE_MODE=32", result.stdout)
+            print("STUB obsolete-file-ignored", result.stdout.strip())
             (case / "constant/precisionChoice").write_text("precision 64;\n")
             config.write_text('#include "precisionChoice"\n')
             result = subprocess.run([str(bindir / "gasUGKP"), "-case", str(case)],

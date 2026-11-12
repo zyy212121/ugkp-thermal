@@ -43,8 +43,10 @@ The final combined checkpoint will be frozen only after module implementations,
 case migration, all builds and the explicit expanded run list are complete.
 No interim mathematical/operator test is authorized.
 
-Optional precisionOverrides.fp32 / precisionOverrides.fp64 blocks let one case
-retain distinct selected-precision numerical values. Resolution order, low to
-high: module; selected-precision module; region module; selected-precision region.
-These are explicit controls, not floors or conversions applied after reading.
-Migration records old requested/effective values before choosing these entries.
+Precision selection is the top-level precision entry in constant/scheme.
+Omitting precision selects FP32; precision 64 selects the FP64 backend.
+Each case has one explicit set of numerical controls, independent of selection.
+Resolution order: typed backend default, module, region module. Missing values
+retain that backend's defaults. Fixed validation templates explicitly select 64
+with their declared values; FP32 preparation writes its own explicit case values.
+No separate precision configuration file or precision-specific override tree is used.

@@ -12,8 +12,6 @@ int main(int argc,char** argv) {
     const Foam::word mode=args.optionLookupOrDefault<Foam::word>("scenario","precedence");
     using ugkp::solverControls::startupScheme;
     const auto& s=startupScheme(runTime);
-    const bool fp32=ugkp::precision::compiledBits==32;
-    const Foam::label precisionModule=fp32?323:643,precisionRegion=fp32?324:644;
     int failures=0;
     auto check=[&](bool ok,const char* name) {
         std::cout<<"LOADER_CHECK name="<<name<<" pass="<<ok<<"\n";
@@ -33,13 +31,13 @@ int main(int argc,char** argv) {
         check(read("priority",22,Foam::word("solidA"))==88,"new_process_region_replacement");
     } else {
         check(read("moduleOnly",22)==55,"global_module_beats_typed_default");
-        check(read("priority",22)==precisionModule,"precision_module_beats_global_module");
-        check(read("priority",22,Foam::word("solidA"))==precisionRegion,"precision_region_beats_global_region");
-        check(read("regionWins",22,Foam::word("solidA"))==45,"global_region_beats_precision_module");
+        check(read("priority",22)==33,"explicit_module_value");
+        check(read("priority",22,Foam::word("solidA"))==44,"explicit_region_value");
+        check(read("regionWins",22,Foam::word("solidA"))==45,"region_beats_module");
         check(read("priority",22,Foam::word("solidB"))==46,"other_region_has_independent_global_override");
-        check(read("priority",22,Foam::word("solidC"))==(fp32?325:645),"precision_only_region");
+        check(read("priority",22,Foam::word("solidC"))==33,"missing_region_inherits_module");
         check(read("moduleOnly",22,Foam::word("solidA"))==55,"partial_region_inherits_module");
-        check(read("priority",22,Foam::word("unknownRegion"))==precisionModule,"unknown_region_precision_module_fallback");
+        check(read("priority",22,Foam::word("unknownRegion"))==33,"unknown_region_module_fallback");
         if(mode=="snapshot") {
             const auto path=runTime.path()/runTime.constant()/"scheme";
             std::ofstream out(path.c_str());
@@ -49,8 +47,8 @@ int main(int argc,char** argv) {
             out.close();
             check(bool(out),"replacement_file_written");
             check(&s==&startupScheme(runTime),"snapshot_identity_after_file_change");
-            check(read("priority",22)==precisionModule,"precision_module_snapshot_unchanged");
-            check(read("priority",22,Foam::word("solidA"))==precisionRegion,"precision_region_snapshot_unchanged");
+            check(read("priority",22)==33,"module_snapshot_unchanged");
+            check(read("priority",22,Foam::word("solidA"))==44,"region_snapshot_unchanged");
         }
     }
     std::cout<<"LOADER_SUMMARY scenario="<<mode<<" failures="<<failures<<"\n";

@@ -29,9 +29,8 @@ def prepare(source,output,baseline32,baseline64,candidate32,candidate64,mesh_don
          for key,value in [('deltaT',1 if steady else '1e-8'),('endTime',6 if steady else '4e-7'),('writeControl','timeStep'),('writeInterval',1)]:entry(case/'system/controlDict',key,value)
          patch(case,'T','inlet','type uniformFixedValue; uniformValue table ((0 300) (1e-6 400)); value uniform 300;')
          header='FoamFile { version 2.0; format ascii; class dictionary; object scheme; }\n'
-         (case/'constant/precisionProperties').write_text(header.replace('object scheme','object precisionProperties')+f'precision {bits};\n')
          # Explicit fixed Graph-test controls, not values inferred from old inputs.
-         controls=header+"gasTimeStep { adjustTimeStep "+('false' if steady else 'true')+"; maxCo .1; maxDeltaT 1e-7; maximumTimeStepGrowth 1.3; courantUpdateInterval 1; }\n"
+         controls=header+f"precision {bits};\n"+"gasTimeStep { adjustTimeStep "+('false' if steady else 'true')+"; maxCo .1; maxDeltaT 1e-7; maximumTimeStepGrowth 1.3; courantUpdateInterval 1; }\n"
          controls+="gasNumerics { fluxScheme Kurganov; gasLimiter barthJespersen; ddtSchemes { default SSPRK2; } gradSchemes { default Gauss linear; } divSchemes { default none; div(phi,U) Gauss MUSCL; div(phi,e) Gauss MUSCL; div(phi,K) Gauss MUSCL; div(phi,(p|rho)) Gauss MUSCL; div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear; } laplacianSchemes { default Gauss linear corrected; } interpolationSchemes { default linear; } snGradSchemes { default corrected; } }\n"
          controls+="particle { tracking { maxFaceWalkHops 8; } }\n"
          controls+="steadyParticle { samplingDeltaT 1e-7; boundaryTime 0; windowSamples 1; minimumWindows 100; stableWindows 2; meanTolerance 0; inventoryTolerance 0; }\n"

@@ -40,7 +40,14 @@ def main():
         if kind=='static':
             runner.entry(case/'system/controlDict','deltaT','1e-5')
             runner.entry(case/'constant/scheme','maxDeltaT','1e-5')
-        (case/'constant/precisionProperties').write_text('FoamFile {version 2.0;format ascii;class dictionary;object precisionProperties;}\nprecision '+str(bits)+';\n')
+        scheme_path=case/'constant/scheme'
+        text=scheme_path.read_text()
+        text=re.sub(r'^precision\s+\d+\s*;\s*', '', text, flags=re.M)
+        text+='\nprecision '+str(bits)+';\n'
+        if kind=='moving' and bits==32:
+            text=re.sub(r'(wallLayer\s*\{[^{}]*\brelativeTolerance\s+)[^;]+;',r'\g<1>0.0001;',text)
+            text=re.sub(r'(wallLayer\s*\{[^{}]*\babsoluteTolerance\s+)[^;]+;',r'\g<1>9.5367431640625e-7;',text)
+        scheme_path.write_text(text)
         meshes=copy_mesh(case,donor.resolve())
         # Reproduce the existing fixture's thin-3D patch preparation only.
         if kind=='moving':

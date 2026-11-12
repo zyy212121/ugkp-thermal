@@ -21,7 +21,7 @@ std::filesystem::path caseDirectory(int argc, char** argv)
 
 int selectedPrecision(const std::filesystem::path& directory)
 {
-    const auto path = directory / "constant" / "precisionProperties";
+    const auto path = directory / "constant" / "scheme";
     if (!std::filesystem::exists(path)) return 32;
     Foam::FatalError.throwExceptions();
     Foam::FatalIOError.throwExceptions();

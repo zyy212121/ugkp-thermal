@@ -56,7 +56,7 @@ def main():
             declaration=[line for line in declaration.read_text().splitlines()
                          if 'steadyRelativeTolerance =' in line],
             input_has_no_relative_tolerance=not re.search(r'\brelativeTolerance\s', re.search(r'steadyGas\s*\{([^{}]*)\}',changed)[1]),
-            note='The production binary is selected by precisionProperties. No production probe or log modification. The actual converged branch and final reported residual must also satisfy the selected default.')
+            note='The production binary is selected by constant/scheme precision. No production probe or log modification. The actual converged branch and final reported residual must also satisfy the selected default.')
         native.inlet.m.run(['blockMesh', '-case', case], case/'mesh.log')
         native.BITS = args.precision
         native.execute(ROOT/'bin/gasUGKPSteady', case, report)

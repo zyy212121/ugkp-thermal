@@ -22,10 +22,15 @@ def prepare(original,out):
   ctrl=dest/'system/controlDict';text=ctrl.read_text()
   for key,value in [('startFrom','startTime'),('startTime',START),('endTime',END),('deltaT',DT)]:text=entry(text,key,value)
   ctrl.write_text(text)
-  (dest/'constant/precisionProperties').write_text('FoamFile { version 2.0; format ascii; class dictionary; object precisionProperties; }\nprecision '+('32' if label.endswith('32') else '64')+';\n')
   (dest/START/'ugkpPrecision').write_text('schema 1\ncomputePrecision 64\nrestartPrecision 64\nstoragePolicy legacy64-v1\nwireEncoding existingFieldSchemas\n')
   if label.startswith('candidate-'):
-   shutil.copy2(Path(__file__).with_name('baseline-continuation.scheme'),dest/'constant/scheme')
+   scheme=dest/'constant/scheme'
+   controls=Path(__file__).with_name('baseline-continuation.scheme').read_text()
+   controls=re.sub(r'(?m)^precision\s+(?:32|64)\s*;[ \t]*\n?', '', controls)
+   if label.endswith('32'):
+    for key,value in [('nonlinearRelativeTolerance','1e-5'),('energyRelativeTolerance','1e-4'),('sourceRelativeTolerance','1e-5'),('phaseBalanceTolerance','7.62939453125e-6'),('linearSolverTolerance','3.814697265625e-6')]:
+     controls=re.sub(r'\b'+key+r'\s+[^;]+;',key+' '+value+';',controls)
+   scheme.write_text(controls+'\nprecision '+('32' if label.endswith('32') else '64')+';\n')
   manifest['cases'].append({'label':label,'directory':dest.name,'input_sha256':{str(f.relative_to(dest)):sha(f) for f in sorted(dest.rglob('*')) if f.is_file()},
    'changes':['startTime','endTime','initial deltaT','selected precision','copied checkpoint metadata64 only','candidate uses reviewed explicit baseline-continuation.scheme; PR41 retains old inputs'],
    'original_checkpoint_sha256':{name:sha(dest/name) for name in initial if name.startswith(START+'/')}})
