@@ -980,7 +980,7 @@ int copyToHost(D* dst, const S* src, const size_t n, const char* name)
     return 0;
 }
 
-int syncDeviceState(DeviceState* s, const char* name)
+int syncDeviceState(DeviceState* s, const char* name, bool invalidateParticleGraph=true)
 {
     if (s == nullptr || s->deviceState == nullptr)
     {
@@ -988,7 +988,7 @@ int syncDeviceState(DeviceState* s, const char* name)
         return 1;
     }
 
-    ++s->particleGraphEpoch;
+    if(invalidateParticleGraph)++s->particleGraphEpoch;
     static_assert(offsetof(DeviceState, wallEnergy) == 0, "wall-energy state must be first");
     s->wallEnergy.deviceState = reinterpret_cast<GpuWallEnergyState*>(s->deviceState);
     s->wallEnergy.errorBuffer = lastError;
@@ -5173,8 +5173,9 @@ int bindParticleSurface(void* handle,int nFaces,const ParticleSurfaceState& surf
     if(nFaces!=s->nFaces || (any && !complete)) {
         setLastErrorText("particle material surface needs matching faces and four resident arrays");return 1;
     }
+    const bool changed=!ugkp::gpu::sameParticleGraphBindingValue(s->particleSurface,surface);
     s->particleSurface=surface;
-    return syncDeviceState(s,"bind non-owning particle surface");
+    return syncDeviceState(s,"bind non-owning particle surface",changed);
 }
 int bindParticleGas(void* handle,const ParticleGasBinding& gas) {
     auto* s=asState(handle);
@@ -5206,6 +5207,28 @@ int bindParticleGas(void* handle,const ParticleGasBinding& gas) {
         const auto err=cudaEventCreateWithFlags(&s->particleGasDone,cudaEventDisableTiming);
         if(err!=cudaSuccess){setLastError("particle gas done event",err);return 1;}
     }
+    // Compare every rebound input, not the entire owner (which also contains
+    // evolving interval, directory and graph-cache metadata). Real address or
+    // model changes still invalidate; repeated publication alone does not.
+    bool changed=!s->borrowedGasFields||!s->borrowedGasSpecies;
+#define UGKP_PARTICLE_GAS_FIELD(Type,Name) \
+    changed=changed||(s->Name!=gas.Name)||!(s->borrowedGasFields&(std::uint64_t(1)<<particleGasField_##Name));
+#include "ParticleGasFields.inc"
+#undef UGKP_PARTICLE_GAS_FIELD
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasSpecies,gas.species);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasViscosity,gas.viscosity);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->diagnostics,gas.diagnostics);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gammaGas,gas.gammaGas);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->Rgas,gas.Rgas);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasCp,gas.gasCp);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasMu,gas.gasMu);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasPrClamped,gas.gasPrClamped);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasPrOneThird,gas.gasPrOneThird);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->rhoMin,gas.rhoMin);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->TgasMin,gas.TgasMin);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasScalarSolvers,gas.gasScalarSolvers);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasThermalConductivity,gas.gasThermalConductivity);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->sstConfigured,gas.sstConfigured);
 #define UGKP_PARTICLE_GAS_FIELD(Type,Name) \
     if(!(s->borrowedGasFields&(std::uint64_t(1)<<particleGasField_##Name))) { \
         if(releaseSharedGasPointer(s->Name))return 1; \
@@ -5224,14 +5247,16 @@ int bindParticleGas(void* handle,const ParticleGasBinding& gas) {
     s->rhoMin=gas.rhoMin;s->TgasMin=gas.TgasMin;
     s->gasScalarSolvers=gas.gasScalarSolvers;
     s->gasThermalConductivity=gas.gasThermalConductivity;s->sstConfigured=gas.sstConfigured;
-    return syncDeviceState(s,"bind non-owning particle gas view");
+    return syncDeviceState(s,"bind non-owning particle gas view",changed);
 }
 int setParticleNumericalControls(void* handle,const ParticleNumericalControls& controls) {
     auto* s=asState(handle);
     if(validateState(s,"set particle numerical controls"))return 1;
+    const bool changed=s->particleFiniteContactMaximumIterations!=controls.finiteContactMaximumIterations
+        ||s->packingProjectionIterations!=controls.packingIterations;
     s->particleFiniteContactMaximumIterations=controls.finiteContactMaximumIterations;
     s->packingProjectionIterations=controls.packingIterations;
-    return syncDeviceState(s,"set particle numerical controls");
+    return syncDeviceState(s,"set particle numerical controls",changed);
 }
 int createBoundParticlePhase(const ParticlePhaseConfiguration& p,
     const ParticleContactConfiguration& wall,const ParticleGasBinding& gas,

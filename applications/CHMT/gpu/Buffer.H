@@ -30,17 +30,17 @@ public:
     bool sync()const{return fault_&&fault_->check(cudaStreamSynchronize(value_),"synchronize CUDA stream");}
 };
 template<class T>class Buffer {
-    T* pointer_=nullptr;std::size_t size_=0;CudaFault* fault_=nullptr;
+    T* pointer_=nullptr;std::size_t size_=0,capacity_=0;CudaFault* fault_=nullptr;
 public:
     Buffer()=default;Buffer(const Buffer&)=delete;Buffer& operator=(const Buffer&)=delete;
     Buffer(Buffer&& other)noexcept{swap(other);}Buffer& operator=(Buffer&& other)noexcept{if(this!=&other){release();swap(other);}return *this;}
     ~Buffer(){release();}
-    void swap(Buffer& other)noexcept{std::swap(pointer_,other.pointer_);std::swap(size_,other.size_);std::swap(fault_,other.fault_);}
-    bool release()noexcept{bool ok=true;if(pointer_){const auto code=cudaFree(pointer_);if(fault_)ok=fault_->check(code,"free CUDA buffer");}pointer_=nullptr;size_=0;return ok;}
-    bool resize(std::size_t count,CudaFault& fault){if(count==size_){fault_=&fault;return true;}if(!release())return false;fault_=&fault;
+    void swap(Buffer& other)noexcept{std::swap(pointer_,other.pointer_);std::swap(size_,other.size_);std::swap(capacity_,other.capacity_);std::swap(fault_,other.fault_);}
+    bool release()noexcept{bool ok=true;if(pointer_){const auto code=cudaFree(pointer_);if(fault_)ok=fault_->check(code,"free CUDA buffer");}pointer_=nullptr;size_=0;capacity_=0;return ok;}
+    bool resize(std::size_t count,CudaFault& fault){if(count<=capacity_){size_=count;fault_=&fault;return true;}if(!release())return false;fault_=&fault;
         if(count>std::numeric_limits<std::size_t>::max()/sizeof(T)){fault.message="CUDA buffer size overflow";return false;}
         if(count&&!fault.check(cudaMalloc(reinterpret_cast<void**>(&pointer_),count*sizeof(T)),"allocate CUDA buffer"))return false;
-        size_=count;return true;}
+        size_=capacity_=count;return true;}
     bool upload(const std::vector<T>& values,CudaFault& fault){if(!resize(values.size(),fault))return false;
         return !size_||fault.check(cudaMemcpy(pointer_,values.data(),size_*sizeof(T),cudaMemcpyHostToDevice),"upload CUDA buffer");}
     bool uploadOne(const T& value,CudaFault& fault){if(!resize(1,fault))return false;return fault.check(cudaMemcpy(pointer_,&value,sizeof(T),cudaMemcpyHostToDevice),"upload CUDA scalar");}
@@ -52,7 +52,10 @@ public:
         out=std::move(value);return true;}
     bool downloadOne(T& out,cudaStream_t stream)const{if(size_!=1)return false;std::vector<T> values;if(!download(values,stream))return false;out=values[0];return true;}
     void rebindFault(CudaFault& fault)noexcept{fault_=&fault;}
-    T* data()const{return pointer_;}std::size_t size()const{return size_;}
+    // Empty views retain allocation privately, but preserve the historical null
+    // binding seen by optional CUDA arguments. Transfers always use logical size.
+    T* data()const{return size_?pointer_:nullptr;}std::size_t size()const{return size_;}
+    std::size_t capacity()const{return capacity_;}
 };
 }
 #endif

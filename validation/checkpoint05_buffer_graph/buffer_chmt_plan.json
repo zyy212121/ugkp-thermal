@@ -1,0 +1,145 @@
+{
+  "status": "ACCEPTED_REGRESSION_AND_MECHANISM_SCOPE",
+  "baselineCommit": "3e93bcbe8c25e65765dbd1b9e154a73099ed6a26",
+  "scope": [
+    "shared CHMT Buffer allocation reuse",
+    "CHMT gas graph cross-window capture reuse"
+  ],
+  "build": [
+    {
+      "name": "buffer_fixture",
+      "argv": [
+        "/usr/local/cuda/bin/nvcc",
+        "-std=c++17",
+        "-O2",
+        "-I{candidate_source}",
+        "{candidate_source}/validation/checkpoint05_buffer_graph/buffer_fixture.cu",
+        "-o",
+        "{evidence}/buffer_fixture"
+      ],
+      "compileObserved": "Successful final frozen-tree compile and Buffer float/double fixture execution; exact compiler command retained with review evidence."
+    },
+    {
+      "name": "CHMT",
+      "variants": [
+        "baseline32",
+        "baseline64",
+        "candidate32",
+        "candidate64"
+      ],
+      "recipe": "existing full materialized precision build recipe; never combine overlay and base include trees"
+    }
+  ],
+  "nodes": [
+    {
+      "name": "buffer_f32_f64",
+      "command": "{evidence}/buffer_fixture",
+      "coverage": [
+        "capacity grow/shrink/zero/regrow",
+        "size-only memset/copy/download with tail sentinels",
+        "move ctor/assignment/swap",
+        "release resets size/capacity",
+        "empty data preserves nullptr optional binding"
+      ]
+    },
+    {
+      "name": "chmt_static_three_windows",
+      "caseSource": "validation/molecular_transport/fixtures/chmt-mixture",
+      "freshCopyOnly": true,
+      "changesBeforeFreeze": {
+        "system/controlDict.endTime": 0.0015,
+        "constant/scheme.thermalCoupling.couplingInterval": 0.0005
+      },
+      "variants": [
+        "baseline32",
+        "candidate32",
+        "baseline64",
+        "candidate64"
+      ],
+      "windows": 3
+    },
+    {
+      "name": "chmt_moving_eight_windows",
+      "caseSource": "validation/molecular_transport/fixtures/chmt-moving-short",
+      "freshCopyOnly": true,
+      "changesBeforeFreeze": {},
+      "variants": [
+        "baseline32",
+        "candidate32",
+        "baseline64",
+        "candidate64"
+      ],
+      "windows": 8,
+      "interval": 7.450580596923828e-09
+    }
+  ],
+  "inputPreparation": [
+    "Use existing fixture mesh/preparation path after review; source fixtures may need generated mesh.",
+    "Read numerical values from constant/scheme, never legacy keys.",
+    "Use existing precisionProperties for selected width; migrate only fresh copies if needed.",
+    "Bind final executable, case, env and output argv before running.",
+    "Do not run original baseline 0.295 continuation in this checkpoint."
+  ],
+  "observation": {
+    "tool": "/usr/local/bin/nsys available",
+    "mode": "Same preset CUDA API profiling for each baseline/candidate native run; no production instrumentation needed.",
+    "apiCounts": [
+      "cudaMalloc",
+      "cudaFree",
+      "cudaStreamBeginCaptureToGraph",
+      "cudaGraphInstantiateWithFlags",
+      "cudaGraphExecKernelNodeSetParams",
+      "cudaGraphLaunch"
+    ],
+    "limits": [
+      "Total API counts combine graph types; need event/correlation/context attribution before calling changes gas-graph-specific.",
+      "Profiling changes timing; short single runs are indicative, not statistically significant throughput confidence.",
+      "Identical inputs can exercise reuse and time changes; runtime model/shape toggles require a dedicated predeclared driver and are not falsely claimed covered by static cases."
+    ],
+    "expected": [
+      "Buffer fixture has no allocation on capacity-sufficient changes.",
+      "Stable CHMT gas captures should no longer be forced once per window.",
+      "Model/shape/address conditional invalidations and gas interval node update code remain present.",
+      "Check saved temperature/species/mass/energy fields, finite values, accepted window counts, warnings and physical trends versus same-precision baseline.",
+      "Do not infer convergence from exit code alone."
+    ]
+  },
+  "implementationFiles": [
+    "applications/CHMT/gpu/Buffer.H",
+    "applications/CHMT/gpu/Backend.cu",
+    "precision/fp32/applications/CHMT/gpu/Backend.cu"
+  ],
+  "designBoundary": "Shared GasAdvance interval updates remain unchanged. Thermal particle binding dependency checks and fixtures are included in the full checkpoint.",
+  "executionRecord": {
+    "originalBatch": 31,
+    "originalStaticStartupRejections": 4,
+    "boundedStaticRepairBatch": 4,
+    "repairReason": "chmt-single is outside the existing CHMT frozen multicomponent capability; selected the existing chmt-mixture fixture, with no production gate or numerical change.",
+    "workspacePolicy": "Independent repair workspace starts from accepted3e93; original workspace and all failed evidence retained.",
+    "noOriginalBaselineRerun": true
+  },
+  "verifiedResults": {
+    "nativeGasPairs": 8,
+    "nativeGasFiniteAndExact": true,
+    "chmtCheckpointPairs": 26,
+    "chmtHeaderConfigurationPayloadExact": true,
+    "chmtPublishedFiniteValuesExact": true,
+    "expectedDiagnosticSentinelsRetained": [
+      "dry-film temperature NaN",
+      "uncollected owner_k_source_integral NaN"
+    ],
+    "stableParticleBindingCaptures": {
+      "old": 8,
+      "new": 1
+    },
+    "withFourDependencyChangesCaptures": {
+      "old": 12,
+      "new": 5
+    },
+    "nativeChmtCudaMallocFreeReduction": {
+      "staticEach": 30,
+      "movingEach": 7
+    },
+    "performanceClaim": "No statistically established throughput claim; single profiled timings and API counts only."
+  }
+}

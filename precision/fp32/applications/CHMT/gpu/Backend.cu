@@ -119,7 +119,9 @@ inline void validateCoupledGraphBindings(Backend& b){
         b.fixedFaceBlockThreads,b.hostTurbulenceModel,b.hostGasFluxScheme,b.hostGasTimeIntegrator,
         b.hasPeriodicFaces,int(b.interfaceFaces.size()),int(b.interfaceCells.size()),
         int(b.gasBoundaryLayer.enabled),b.gasBoundaryLayer.count,model.workspaceCount,
-        model.workspaceCapacity,int(model.config.model),model.config.nodes,int(model.conservative.enabled)};
+        model.workspaceCapacity,int(model.config.model),model.config.nodes,int(model.conservative.enabled),
+        int(b.gasSpecies.mode),int(b.model.physics.material.enableSurfaceReactions),
+        int(b.model.physics.material.enablePoreOutflow)};
     if(pointers!=b.graphPointers||shape!=b.graphShape){
         b.gasGraphDt=std::numeric_limits<Real>::quiet_NaN();
         b.graphPointers=pointers;b.graphShape=shape;
@@ -446,7 +448,8 @@ int accountCoupledFaces(Backend* b,Real ledgerDt){
 bool loadGasWindowState(Backend& b,const HostState& snapshot,std::string& error){
     b.storage.beginOperation();
     b.wallDiagnosticsReady=false;b.historyFrameCount=0;b.historyPublishedFrames=0;
-    b.gasGraphDt=std::numeric_limits<Real>::quiet_NaN();
+    // Window contents are republished through the resident state. Structural
+    // changes are checked before replay by validateCoupledGraphBindings.
     b.microGeometryPrepared=false;b.preparedWallReady=false;ugkwp::invalidateGasBoundaryLayerPreparation(b);
     if(b.gasBoundaryLayer.enabled&&b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static)b.storage.invalidateWallGeometry();
     if(!b.storage.uploadGeometry(snapshot.gasMesh,false)||!b.storage.clearGeometry()
@@ -562,7 +565,8 @@ static bool dispatchHostDiagnostics(Backend& b){
 static bool beginGasWindowImpl(Backend& b,const WallProgram& program,std::string& error){
     if(b.poisoned){error="gas backend is unusable after a failed device operation";return false;}
     if(program.knots.size()<2){error="wall program sample outside interval";return false;}
-    b.gasGraphDt=std::numeric_limits<Real>::quiet_NaN();
+    // Reuse capture across windows when addresses, launch shape and host
+    // branches match; the existing resident interval node updates the clock.
     b.trial=b.accepted;b.program=program;
     b.movingWindow=false;
     if(b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static){
