@@ -4,6 +4,8 @@ gasTimeStep
 {
     maxCo 0.3;
     maxDeltaT 0.00001;
+    courantUpdateInterval 1;
+    maximumTimeStepGrowth 1;
     adjustTimeStep true;
 }
 gasNumerics
@@ -38,5 +40,12 @@ gasNumerics
     snGradSchemes
     {
         default corrected;
+    }
+}
+particle
+{
+    tracking
+    {
+        maxFaceWalkHops 8;
     }
 }

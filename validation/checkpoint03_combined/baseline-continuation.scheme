@@ -1,0 +1,181 @@
+FoamFile { version 2.0; format ascii; class dictionary; object scheme; }
+
+gasNumerics
+{
+    fluxScheme SLAU2.2;
+    ddtSchemes
+    {
+        default Euler;
+    }
+    gradSchemes
+    {
+        default Gauss linear;
+    }
+    divSchemes
+    {
+        default none;
+        div(phi,U) Gauss upwind;
+        div(phid,p) Gauss limitedLinear 1;
+        div(phi,e) Gauss upwind;
+        div(phi,K) Gauss upwind;
+        div(phi,(p|rho)) Gauss upwind;
+        div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear;
+    }
+    laplacianSchemes
+    {
+        default Gauss linear corrected;
+    }
+    interpolationSchemes
+    {
+        default linear;
+    }
+    snGradSchemes
+    {
+        default corrected;
+    }
+}
+regions
+{
+    fluid
+    {
+        solidDiscretization
+        {
+            laplacianSchemes
+            {
+                default Gauss linear corrected;
+            }
+            gradSchemes
+            {
+                default Gauss linear;
+            }
+            interpolationSchemes
+            {
+                default linear;
+            }
+            ddtSchemes
+            {
+                default Euler;
+            }
+        }
+    }
+    graphite
+    {
+        solidDiscretization
+        {
+            laplacianSchemes
+            {
+                default Gauss linear corrected;
+            }
+            gradSchemes
+            {
+                default Gauss linear;
+            }
+            interpolationSchemes
+            {
+                default linear;
+            }
+            ddtSchemes
+            {
+                default Euler;
+            }
+        }
+        solid
+        {
+            linear
+            {
+                normal
+                {
+                    tolerance 1e-10;
+                    relTol 0;
+                }
+                final
+                {
+                    tolerance 1e-10;
+                    relTol 0;
+                }
+            }
+        }
+    }
+}
+gasTimeStep
+{
+    maxCo 0.7;
+    maxDeltaT 1e-6;
+    courantUpdateInterval 1000;
+    maximumTimeStepGrowth 1.1;
+    adjustTimeStep yes;
+}
+solid
+{
+    nonlinear
+    {
+        nonlinearMaxIterations 100;
+        nonlinearRelativeTolerance 1e-8;
+        energyRelativeTolerance 1e-7;
+        energyAbsoluteTolerance 1e-10;
+        nonlinearAitken true;
+        nonlinearInitialRelaxation 0.2;
+        nonlinearMinimumRelaxation 0.01;
+        nonlinearMaximumRelaxation 1.0;
+    }
+}
+precisionOverrides
+{
+    fp32
+    {
+        solid
+        {
+            nonlinear
+            {
+                nonlinearRelativeTolerance 1.0000000000000001e-05;
+                energyRelativeTolerance 0.0001;
+            }
+        }
+        radiation
+        {
+            do
+            {
+                sourceRelativeTolerance 1.0000000000000001e-05;
+                phaseBalanceTolerance 7.62939453125e-06;
+                linearSolverTolerance 3.814697265625e-06;
+            }
+        }
+    }
+}
+radiation
+{
+    do
+    {
+        maxSourceIterations 10000;
+        sourceRelativeTolerance 1e-5;
+        phaseBalanceTolerance 1e-8;
+        maxPhaseBalanceIterations 100;
+        radiationActiveEpsilonMin 1e-12;
+        angleParallelThreads 4;
+        sourceRelaxation 0.7;
+        linearSolverTolerance 1e-8;
+        linearSolverRelTol 0;
+        linearSolverMaxIterations 200;
+    }
+}
+coldWall1D
+{
+    solidificationIterations 4;
+}
+particle
+{
+    packing
+    {
+        iterations 20;
+    }
+    tracking
+    {
+        maxFaceWalkHops 12;
+    }
+}
+thermalCoupling
+{
+    couplingInterval 0.005;
+    solidContactCouplingInterval 0.005;
+    radiationCouplingFrequency 2;
+}

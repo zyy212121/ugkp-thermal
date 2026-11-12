@@ -4,13 +4,33 @@ Short extension cases prove configuration wiring, NOT mathematical convergence.
 """
 from pathlib import Path
 import argparse, hashlib, json, math, os, re, shutil, subprocess, time
-import migrate_case as migration
 HERE=Path(__file__).resolve().parent
-HEADER=migration.HEADER
+HEADER='FoamFile { version 2.0; format ascii; class dictionary; object scheme; }\n'
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 def save(path,obj): path.write_text(json.dumps(obj,indent=2,sort_keys=True)+"\n")
 def edit(path,key,value):
-    path.write_text(migration.write_entry(path.read_text(),tuple(key.split(".")),value))
+    # Explicit target entry edits for this fixed test only. No legacy lookup,
+    # inferred aliases, include expansion or migration is performed.
+    text=path.read_text();parts=key.split(".")
+    start,end=0,len(text)
+    for index,part in enumerate(parts[:-1]):
+        match=re.search(r'(?<![\w])'+re.escape(part)+r'\s*\{',text[start:end])
+        if not match:
+            body=parts[-1]+" "+str(value)+";"
+            for remaining in reversed(parts[index:-1]):body=remaining+" { "+body+" }"
+            text=text[:end]+"\n"+body+"\n"+text[end:]
+            path.write_text(text);return
+        opening=start+match.end()-1;depth=1;closing=opening+1
+        while depth:
+            if text[closing]=='{':depth+=1
+            elif text[closing]=='}':depth-=1
+            closing+=1
+        start,end=opening+1,closing-1
+    body=text[start:end];pattern=r'(?<![\w])'+re.escape(parts[-1])+r'\s+[^;{}]+;'
+    replacement=parts[-1]+" "+str(value)+";"
+    if re.search(pattern,body):body=re.sub(pattern,lambda _:replacement,body,count=1)
+    else:body+="\n"+replacement+"\n"
+    path.write_text(text[:start]+body+text[end:])
 def hashes(root):
     return {str(p.relative_to(root)):sha(p) for p in sorted(root.rglob("*")) if p.is_file()}
 def scheme_expected(module,key,value):
@@ -49,33 +69,28 @@ def prepare(args):
                     mesh_source=source/"validation/shared_boundary/fixtures/cht"
                     for mesh in ("constant/polyMesh","constant/solid/polyMesh"):
                         shutil.copytree(mesh_source/mesh,case/mesh)
-                # Never migrate after deliberate conflicting obsolete entries are inserted.
-                migration.migrate_case(case)
                 (case/"constant/precisionProperties").write_text(HEADER.replace("object scheme","object precisionProperties")+f"precision {bits};\n")
                 is_override=mode=="override"
                 if not is_override:
                     # Preserve required physical scheduling while testing numerical defaults.
-                    schedule=migration.tree((case/"constant/scheme").read_text()).get("thermalCoupling",{})
-                    (case/"constant/scheme").write_text(HEADER)
-                    for key,val in schedule.items():
-                        migration.set_control(case,"thermalCoupling",key,val)
-                    if app=="CHMT":
-                        for key,val in (("minDeltaT","1e-12"),("maxDeltaT","1e-5"),("maxCo",".4")):
-                            migration.set_control(case,"gasTimeStep",key,val)
+                    controls=HEADER
+                    if app=="CHT":controls+="thermalCoupling { couplingInterval .00002; solidContactCouplingInterval .00002; radiationCouplingFrequency 1; }\n"
+                    if app=="CHMT":controls+="thermalCoupling { couplingInterval .0005; }\ngasTimeStep { minDeltaT 1e-12; maxDeltaT 1e-5; maxCo .4; }\n"
+                    (case/"constant/scheme").write_text(controls)
                 if app=="gasUGKP":
-                    if is_override:migration.set_control(case,"gasTimeStep","maxCo",".4")
+                    if is_override:edit(case/"constant/scheme","gasTimeStep.maxCo",".4")
                     edit(case/"system/controlDict","maxCo",".123")
                     expect=[scheme_expected("gasTimeStep","maxCo",.4 if is_override else .5)]
                 elif app=="gasUGKPSteady":
-                    if is_override:migration.set_control(case,"steadyGas","minimumIterations","2")
+                    if is_override:edit(case/"constant/scheme","steadyGas.minimumIterations","2")
                     edit(case/"system/controlDict","steadyGas.minimumIterations","17")
                     expect=[scheme_expected("steadyGas","minimumIterations",2 if is_override else 1)]
                 elif app=="CHT":
-                    if is_override:migration.set_control(case,"solid.nonlinear","nonlinearMaxIterations","57")
+                    if is_override:edit(case/"constant/scheme","solid.nonlinear.nonlinearMaxIterations","57")
                     edit(case/"constant/solidRegionProperties","solidThermalCoupling.nonlinearMaxIterations","73")
                     expect=[scheme_expected("solid.nonlinear","nonlinearMaxIterations",57 if is_override else 50)]
                 else:
-                    if is_override:migration.set_control(case,"chmt.material.conduction","nonlinearMaxIterations","57")
+                    if is_override:edit(case/"constant/scheme","chmt.material.conduction.nonlinearMaxIterations","57")
                     edit(case/"constant/chmtProperties","cpuMaterial.nonlinearMaxIterations","73")
                     expect=[scheme_expected("chmt.material.conduction","nonlinearMaxIterations",57 if is_override else 50),
                             dict(kind="chmt",key="materialNonlinearMaxIterations",value=57 if is_override else 50)]
@@ -86,12 +101,11 @@ def prepare(args):
         for stage in ("initial","restart"):
             ident=f"restart-CHMT-{bits}-{stage}"; case=dest/ident
             shutil.copytree(source/"validation/shared_boundary/fixtures/chmt",case)
-            migration.migrate_case(case)
             (case/"constant/precisionProperties").write_text(HEADER.replace("object scheme","object precisionProperties")+f"precision {bits};\n")
             edit(case/"system/controlDict","endTime",".0005" if stage=="initial" else ".001")
             edit(case/"constant/chmtProperties","outputDirectory",'"chmtOutput"')
             value=50 if stage=="initial" else 61
-            migration.set_control(case,"chmt.material.conduction","nonlinearMaxIterations",str(value))
+            edit(case/"constant/scheme","chmt.material.conduction.nonlinearMaxIterations",str(value))
             if previous:
                 edit(case/"constant/chmtProperties","restartDirectory",'"'+str(dest/previous/"chmtOutput/checkpoint-1")+'"')
             manifest["processes"].append(dict(id=ident,argv=[str(source/"bin/.precision"/str(bits)/"CHMT"),"-case",str(case)],

@@ -1,12 +1,23 @@
 FoamFile { version 2.0; format ascii; class dictionary; object scheme; }
 
-wallLayer
+gasTimeStep
 {
-    maxIterations 60;
-    relativeTolerance 1e-8;
-    absoluteTolerance 1e-10;
-    nodes 8;
-    stretch 2;
+    maxCo 0.4;
+    maxDeltaT 1.0000000000000001e-05;
+    courantUpdateInterval 1;
+    maximumTimeStepGrowth 1;
+    minDeltaT 1e-12;
+    adjustTimeStep false;
+}
+solid
+{
+    nonlinear
+    {
+        nonlinearMaxIterations 100;
+        nonlinearRelativeTolerance 1e-10;
+        energyRelativeTolerance 1e-8;
+        energyAbsoluteTolerance 1e-10;
+    }
 }
 precisionOverrides
 {
@@ -16,6 +27,55 @@ precisionOverrides
         {
             relativeTolerance 0.0001;
             absoluteTolerance 9.5367431640625e-07;
+        }
+        solid
+        {
+            nonlinear
+            {
+                nonlinearRelativeTolerance 1.0000000000000001e-05;
+                energyRelativeTolerance 0.0001;
+            }
+        }
+    }
+}
+regions
+{
+    solid
+    {
+        solid
+        {
+            linear
+            {
+                normal
+                {
+                    tolerance 1e-12;
+                    relTol 0;
+                }
+                final
+                {
+                    tolerance 1e-12;
+                    relTol 0;
+                }
+            }
+        }
+        solidDiscretization
+        {
+            laplacianSchemes
+            {
+                default Gauss linear corrected;
+            }
+            gradSchemes
+            {
+                default Gauss linear;
+            }
+            interpolationSchemes
+            {
+                default linear;
+            }
+            ddtSchemes
+            {
+                default SSPRK2;
+            }
         }
     }
 }
@@ -52,4 +112,26 @@ gasNumerics
     {
         default corrected;
     }
+}
+particle
+{
+    tracking
+    {
+        maxFaceWalkHops 8;
+    }
+}
+thermalCoupling
+{
+    couplingInterval .00002;
+    solidContactCouplingInterval .00002;
+    radiationCouplingFrequency 1;
+}
+
+wallLayer
+{
+    maxIterations 60;
+    relativeTolerance 1e-8;
+    absoluteTolerance 1e-10;
+    nodes 8;
+    stretch 2;
 }

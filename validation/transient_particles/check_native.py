@@ -5,9 +5,6 @@ Source OpenFOAM's bashrc first; all output directories are created fresh.
 from pathlib import Path
 import argparse,hashlib,importlib.util,json,math,os,re,shutil,struct,subprocess,time
 
-import sys as _scheme_sys
-_scheme_sys.path.insert(0, str(Path(__file__).resolve().parents[2]/"validation/solver_controls"))
-import migrate_case as scheme_controls
 
 ROOT=Path(__file__).resolve().parents[2]
 def module(name,path):
@@ -17,7 +14,6 @@ fields=module('fields',ROOT/'validation/steady_cpu/export_of.py')
 ENV=dict(os.environ,OMP_NUM_THREADS='4',GAS_UGKP_CUDA_STACK_BYTES='65536')
 def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 def set_entry(path,name,value):
- if scheme_controls.edit_legacy_entry(path,name,value):return
  t=path.read_text();pat=r'\b'+re.escape(name)+r'\s+[^;{}]+;'
  if re.search(pat,t):t=re.sub(pat,name+' '+str(value)+';',t)
  else:t+='\n'+name+' '+str(value)+';\n'
@@ -25,12 +21,22 @@ def set_entry(path,name,value):
 def control(case,steps,steady=False,write=20,dt=2e-5):
  p=case/'system/controlDict'
  for k,v in dict(application='gasUGKPSteady' if steady else 'gasUGKP',endTime=steps if steady else format(steps*dt,'.12g'),deltaT=1 if steady else dt,writeInterval=write,timePrecision=12).items():set_entry(p,k,v)
- set_entry(p,'windowSamples',20);set_entry(p,'samplingDeltaT',dt)
+ # Fixed transport controls for this test family, not derived from legacy files.
+ (case/'constant/scheme').write_text(f'''FoamFile {{version 2.0; format ascii; class dictionary; object scheme;}}
+gasTimeStep {{adjustTimeStep false; courantUpdateInterval 1; maximumTimeStepGrowth 1;}}
+steadyGas {{maxCo .15; maxDeltaT .001; boundaryTime 0; relativeTolerance 0; absoluteTolerance 0; minimumIterations 20001; residualInterval 1000;}}
+steadyParticle {{samplingDeltaT {dt}; boundaryTime 0; windowSamples 20; minimumWindows 20001; stableWindows 2; meanTolerance 0; inventoryTolerance 0;}}
+particle {{tracking {{maxFaceWalkHops 1000;}}}}
+gasNumerics {{fluxScheme Tadmor; gasLimiter none; ddtSchemes {{default Euler;}} gradSchemes {{default Gauss linear;}}
+divSchemes {{default none; div(phi,U) Gauss upwind; div(phi,e) Gauss upwind; div(phi,K) Gauss upwind; div(phi,(p|rho)) Gauss upwind; div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear;}}
+laplacianSchemes {{default Gauss linear corrected;}} interpolationSchemes {{default linear;}} snGradSchemes {{default corrected;}}}}
+''')
+
 def run(binary,case,mesh=False):
  if mesh:
   with (case/'mesh.log').open('w') as log:p=subprocess.run(['blockMesh','-case',str(case)],env=ENV,stdout=log,stderr=subprocess.STDOUT)
   assert p.returncode==0,case
- cmd=[str(binary),'-case',str(case)];scheme_controls.before_solver(cmd);begin=time.monotonic()
+ cmd=[str(binary),'-case',str(case)];begin=time.monotonic()
  with (case/'run.log').open('w') as log:p=subprocess.run(cmd,env=ENV,stdout=log,stderr=subprocess.STDOUT)
  return {'command':cmd,'exit':p.returncode,'seconds':time.monotonic()-begin,'log_sha256':sha(case/'run.log')}
 def dirs(case):
@@ -66,7 +72,6 @@ def compare(a,b,n):
 def copy_inputs(source,d):
  d.mkdir()
  for name in ['0','constant','system']:shutil.copytree(source/name,d/name)
- if (source/scheme_controls.MANIFEST).is_file():shutil.copy2(source/scheme_controls.MANIFEST,d/scheme_controls.MANIFEST)
 def one_cell(d,mass,diameter,steps=1,cp_slope=0,velocity=0):
  failure.prepare(d,mass,diameter,1,100);control(d,steps,write=1)
  if cp_slope:

@@ -12,9 +12,6 @@ from pathlib import Path
 import re
 
 
-import sys as _scheme_sys
-_scheme_sys.path.insert(0, str(Path(__file__).resolve().parents[2]/"validation/solver_controls"))
-import migrate_case as scheme_controls
 
 HERE = Path(__file__).resolve().parent
 
@@ -59,6 +56,17 @@ ddtSchemes {{ default Euler; }} gradSchemes {{ default Gauss linear; }}
 divSchemes {{ default none; div(phi,U) Gauss {divu}; div(phi,e) Gauss {dive}; div(phi,K) Gauss {dive}; div(phi,(p|rho)) Gauss {dive}; div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear; }}
 laplacianSchemes {{ default Gauss linear corrected; }} interpolationSchemes {{ default linear; }} snGradSchemes {{ default corrected; }}
 wallDist {{ method meshWave; }}''')
+    # Direct unified controls for this reference-case generator; no legacy import.
+    write('constant','scheme',f'''gasTimeStep {{ adjustTimeStep false; courantUpdateInterval 1; maximumTimeStepGrowth 1; }}
+steadyGas {{ maxCo {a['courant']}; maxDeltaT {a['maxDt']}; boundaryTime 0;
+relativeTolerance 0; absoluteTolerance 0; minimumIterations {int(a['iterations'])+1}; residualInterval {int(a['outputEvery'])}; }}
+steadyParticle {{ samplingDeltaT {a['dt']}; boundaryTime 0; windowSamples {int(a.get('windowSamples',a['outputEvery']))};
+minimumWindows {int(a['iterations'])+1}; stableWindows 2; meanTolerance 0; inventoryTolerance 0; }}
+particle {{ tracking {{ maxFaceWalkHops 1000; }} }}
+gasNumerics {{ fluxScheme {schemes[int(a['scheme'])]}; gasLimiter {['none','barthJespersen','venkatakrishnan'][int(a['limiter'])]};
+ddtSchemes {{ default Euler; }} gradSchemes {{ default Gauss linear; }}
+divSchemes {{ default none; div(phi,U) Gauss {divu}; div(phi,e) Gauss {dive}; div(phi,K) Gauss {dive}; div(phi,(p|rho)) Gauss {dive}; div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear; }}
+laplacianSchemes {{ default Gauss linear corrected; }} interpolationSchemes {{ default linear; }} snGradSchemes {{ default corrected; }} }}''')
     write('system','fvSolution','solvers {}\nrelaxationFactors {}\nUGKP { robustFallback true; rhoMin 1e-12; TMin 1e-9; }')
     turb='simulationType RAS; RAS { model kOmegaSST; turbulence on; printCoeffs on; kOmegaSSTCoeffs { wallTreatment lowRe; } }' if a['sst'] else 'simulationType laminar;'
     write('constant','fluidProperties',f'''schemaVersion 1;
@@ -108,7 +116,6 @@ gpuResidentCollisionalPressure false; gpuResidentJammingPressure false;
         field('Y_A','0 0 0 0 0 0 0',composition,a['y0']);field('Y_B','0 0 0 0 0 0 0',[1-y for y in composition],1-a['y0'])
     manifest={'foam_universal_gas_constant':foam_universal_gas_constant,'reference_legacy_Rgas':287,'particle_escape_boundaries':['left','right'] if particles else [],'input':a,'particles':particles,'source_cfg':str(Path(cfg).resolve()),'notes':['Initial fields only; no expected solution generated.','OpenFOAM inlet parcels use gas U, not Us.','Output labels are iteration/sample numbers, not physical time.']}
     (dest/'reference-input.json').write_text(json.dumps(manifest,indent=2)+'\n')
-    scheme_controls.migrate_case(dest)
     return dest
 
 if __name__=='__main__':

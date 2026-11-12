@@ -36,8 +36,11 @@ def main():
         control = case/'system/controlDict'
         scheme_path=case/'constant/scheme'
         original=scheme_path.read_text()
-        source.scheme_controls.remove_control(case,'steadyGas','relativeTolerance')
-        source.scheme_controls.set_control(case,'steadyGas','minimumIterations',1000)
+        # Fixed reservoir test: only its explicit steadyGas block is edited.
+        match=re.search(r'(steadyGas\s*\{)([^{}]*)(\})',original)
+        body=re.sub(r'\brelativeTolerance\s+[^;]+;', '', match[2])
+        body=re.sub(r'\bminimumIterations\s+[^;]+;', 'minimumIterations 1000;', body)
+        scheme_path.write_text(original[:match.start(2)]+body+original[match.end(2):])
         changed=scheme_path.read_text()
         report['control_changes']=dict(removed='steadyGas.relativeTolerance',
             replaced=['steadyGas.minimumIterations',1000],
@@ -52,7 +55,7 @@ def main():
             source=str(declaration), sha256=sha(declaration),
             declaration=[line for line in declaration.read_text().splitlines()
                          if 'steadyRelativeTolerance =' in line],
-            input_has_no_relative_tolerance=source.scheme_controls.get(source.scheme_controls.tree(changed),('steadyGas','relativeTolerance')) is None,
+            input_has_no_relative_tolerance=not re.search(r'\brelativeTolerance\s', re.search(r'steadyGas\s*\{([^{}]*)\}',changed)[1]),
             note='The production binary is selected by precisionProperties. No production probe or log modification. The actual converged branch and final reported residual must also satisfy the selected default.')
         native.inlet.m.run(['blockMesh', '-case', case], case/'mesh.log')
         native.BITS = args.precision

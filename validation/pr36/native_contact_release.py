@@ -12,7 +12,7 @@ def main():
   for name,state,frozen,threshold in [('frozen_rebound',2,True,100),('liquid_rebound',2,False,100),('frozen_deposit',3,True,0),('disabled_frozen_rebound',2,True,'false')]:
    case=out/(model+'-'+name);m.prepare(ROOT/'validation/molecular_transport/fixtures/chmt-mixture',case,meta)
    m.entry(case/'system/controlDict','endTime',2e-6)
-   props=case/'constant/chmtProperties';m.entry(props,'couplingInterval',1e-6);m.entry(props,'gasMaxDt',1e-6)
+   props=case/'constant/chmtProperties';m.entry(case/'constant/scheme','couplingInterval',1e-6);m.entry(case/'constant/scheme','maxDeltaT',1e-6)
    boundary=(case/'constant/polyMesh/boundary').read_text();left=re.search(r'\bleft\s*\{([^}]+)',boundary)[1];face=int(re.search(r'startFace\s+(\d+)',left)[1])
    temperature=2000 if frozen else 3000
    cp=lambda t:(153.5+.0031*(t-2327.))/.101961276
@@ -62,7 +62,7 @@ particles {{attached {{id "42"; rng "1234567"; cell 0; face {face}; state {state
  for threshold in ('0','false'):
   case=prepare(out/('impact-'+threshold),'coldWall1D',True,end_time=1e-5)
   props=case/'constant/chmtProperties';props.write_text(props.read_text().replace('sommerfeldThreshold 100;',f'sommerfeldThreshold {threshold};'))
-  m.entry(props,'couplingInterval',1e-6);m.entry(props,'gasMaxDt',1e-6)
+  m.entry(case/'constant/scheme','couplingInterval',1e-6);m.entry(case/'constant/scheme','maxDeltaT',1e-6)
   m.run([ROOT/'bin/CHMT','-case',case],case/'run.log')
   output=case/'chmtOutput';last=max(int(p.name.split('-')[1]) for p in output.glob('checkpoint-*'))
   q=inventory(output,last)['parcels'][0]

@@ -15,9 +15,6 @@ import subprocess
 import time
 
 
-import sys as _scheme_sys
-_scheme_sys.path.insert(0, str(Path(__file__).resolve().parents[2]/"validation/solver_controls"))
-import migrate_case as scheme_controls
 
 HERE=Path(__file__).resolve().parent
 HEADER=struct.Struct('<8sQIIIIIIQQQQ')
@@ -26,7 +23,6 @@ for key in ('GAS_UGKP_CUDA_STACK_BYTES','CHT_CUDA_STACK_BYTES','CHMT_CUDA_STACK_
     ENV.setdefault(key,'65536')
 
 def run(command,log,expect_failure=False):
-    scheme_controls.before_solver(command)
     start=time.perf_counter()
     with log.open('w') as output:
         result=subprocess.run(list(map(str,command)),env=ENV,stdout=output,stderr=subprocess.STDOUT)
@@ -38,7 +34,6 @@ def run(command,log,expect_failure=False):
     return time.perf_counter()-start
 
 def entry(path,key,value):
-    if scheme_controls.edit_legacy_entry(path,key,value): return
     text,n=re.subn(r'\b'+key+r'\s+[^;]+;',key+' '+str(value)+';',path.read_text())
     assert n==1,(path,key,n)
     path.write_text(text)
@@ -47,7 +42,6 @@ def copy_input(source,target):
     target.mkdir()
     for name in ('0','constant','system'):
         shutil.copytree(source/name,target/name)
-    if (source/scheme_controls.MANIFEST).is_file(): shutil.copy2(source/scheme_controls.MANIFEST,target/scheme_controls.MANIFEST)
 
 def copy_fixture(source,target):
     """Apply reviewable input overrides; solver code never sees this inheritance."""
@@ -61,14 +55,9 @@ def copy_fixture(source,target):
             path=target/removed
             assert path.resolve().is_relative_to(target.resolve())
             path.unlink()
-        scheme_path=target/'constant/scheme'
-        manifest_path=target/scheme_controls.MANIFEST
-        previous_scheme=scheme_path.read_text() if scheme_path.is_file() else None
-        previous_manifest=json.loads(manifest_path.read_text()) if manifest_path.is_file() else None
         for directory in ('0','constant','system'):
             origin=HERE/'fixtures'/name/directory
             if origin.exists():shutil.copytree(origin,target/directory,dirs_exist_ok=True)
-        scheme_controls.merge_overlay_metadata(target,HERE/'fixtures'/name,previous_scheme,previous_manifest)
     overlay(source.name,())
 
 def prepare(source,target,meta,constant=False):
@@ -78,7 +67,7 @@ def prepare(source,target,meta,constant=False):
         control=target/'system/controlDict'
         end=float(re.search(r'endTime\s+([^;]+)',control.read_text())[1])
         # At least four accepted steps, with a common midpoint write boundary.
-        entry(control,'deltaT',end/4);entry(control,'maxDeltaT',end/4)
+        entry(control,'deltaT',end/4);entry(target/'constant/scheme','maxDeltaT',end/4)
         entry(control,'writeInterval',end/2)
     run(['blockMesh','-case',target],target/'mesh.log')
     solid=target/'system/blockMeshSolidDict'

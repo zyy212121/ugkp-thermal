@@ -11,9 +11,6 @@ from acceptance_support import BranchCollector
 
 ROOT = Path(os.environ.get("UGKP_SOURCE_ROOT", Path(__file__).resolve().parents[2])).resolve()
 
-import sys as _scheme_sys
-_scheme_sys.path.insert(0, str(Path(__file__).resolve().parents[2]/"validation/solver_controls"))
-import migrate_case as scheme_controls
 
 BITS = 32
 PROBE = None
@@ -42,7 +39,6 @@ def execute(binary, case, report, label="run"):
     (case/"constant/precisionProperties").write_text("FoamFile { version 2.0; format ascii; class dictionary; object precisionProperties; }\nprecision "+str(BITS)+";\n")
     if binary.name != "CHMT" and (case/"constant/particleProperties").is_file():
         inlet.g.set_entry(case/"constant/particleProperties", "gpuResidentRandomSeed", 12345)
-    scheme_controls.before_solver([str(binary), "-case", str(case)], candidate=True)
     input_hashes={str(p.relative_to(case)):hashlib.sha256(p.read_bytes()).hexdigest()
                   for name in ("0","constant","system") for p in sorted((case/name).rglob("*")) if p.is_file()}
     log = case / (label + ".log")

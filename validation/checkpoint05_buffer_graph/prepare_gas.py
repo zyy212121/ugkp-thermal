@@ -4,7 +4,6 @@ import argparse,ast,types,json,hashlib,shutil,sys,re,os,struct
 
 def prepare(source,output,baseline32,baseline64,candidate32,candidate64,mesh_donor):
     source=Path(source);output=Path(output);output.mkdir(parents=True,exist_ok=False)
-    sys.path.insert(0,str(source/'validation/solver_controls'));import migrate_case as m
     # Reuse only reviewed legacy helper definitions. Never import its executable CLI.
     original=source/'validation/resident_architecture/gas_graph.py';tree=ast.parse(original.read_text())
     selected=[n for n in tree.body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name in ('entry','patch','particles')]
@@ -29,12 +28,15 @@ def prepare(source,output,baseline32,baseline64,candidate32,candidate64,mesh_don
          steady=solver=='gasUGKPSteady'
          for key,value in [('deltaT',1 if steady else '1e-8'),('endTime',6 if steady else '4e-7'),('writeControl','timeStep'),('writeInterval',1)]:entry(case/'system/controlDict',key,value)
          patch(case,'T','inlet','type uniformFixedValue; uniformValue table ((0 300) (1e-6 400)); value uniform 300;')
-         m.migrate_case(case)
-         (case/'constant/precisionProperties').write_text(m.HEADER.replace('object scheme','object precisionProperties')+f'precision {bits};\n')
-         for key,value in [('adjustTimeStep','false' if steady else 'true'),('maxCo','.1'),('maxDeltaT','1e-7'),('maximumTimeStepGrowth','1.3'),('courantUpdateInterval','1')]:m.set_control(case,'gasTimeStep',key,value)
-         m.set_control(case,'gasNumerics.ddtSchemes','default','SSPRK2')
-         if steady:
-          for key,value in [('boundaryTime','1.25e-7'),('minimumIterations','100'),('relativeTolerance','0'),('absoluteTolerance','0'),('residualInterval','1')]:m.set_control(case,'steadyGas',key,value)
+         header='FoamFile { version 2.0; format ascii; class dictionary; object scheme; }\n'
+         (case/'constant/precisionProperties').write_text(header.replace('object scheme','object precisionProperties')+f'precision {bits};\n')
+         # Explicit fixed Graph-test controls, not values inferred from old inputs.
+         controls=header+"gasTimeStep { adjustTimeStep "+('false' if steady else 'true')+"; maxCo .1; maxDeltaT 1e-7; maximumTimeStepGrowth 1.3; courantUpdateInterval 1; }\n"
+         controls+="gasNumerics { fluxScheme Kurganov; gasLimiter barthJespersen; ddtSchemes { default SSPRK2; } gradSchemes { default Gauss linear; } divSchemes { default none; div(phi,U) Gauss MUSCL; div(phi,e) Gauss MUSCL; div(phi,K) Gauss MUSCL; div(phi,(p|rho)) Gauss MUSCL; div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear; } laplacianSchemes { default Gauss linear corrected; } interpolationSchemes { default linear; } snGradSchemes { default corrected; } }\n"
+         controls+="particle { tracking { maxFaceWalkHops 8; } }\n"
+         controls+="steadyParticle { samplingDeltaT 1e-7; boundaryTime 0; windowSamples 1; minimumWindows 100; stableWindows 2; meanTolerance 0; inventoryTolerance 0; }\n"
+         controls+="steadyGas { maxCo .01; maxDeltaT 1e-7; boundaryTime "+('1.25e-7' if steady else '0')+"; minimumIterations 100; relativeTolerance 0; absoluteTolerance 0; residualInterval 1; }\n"
+         (case/'constant/scheme').write_text(controls)
          binaries=locals()[variant+str(bits)]
          inputs.append(dict(id=label,case=str(case),solver=solver,precision=bits,variant=variant,csr=csr,argv=[str(Path(binaries)/solver),'-case',str(case)],liveParticleCount=512 if csr=='auto' else 1,physicalSource='existing gas_graph.py live-particle laminar frozen-mixture SSPRK2 path',scope='Gas/particle graph physical regression, not turbulent wall acceptance'))
     manifest=dict(status='FROZEN_NOT_RUN',processes=inputs,process_count=16,source=str(source),input_sha256={str(p.relative_to(output)):hashlib.sha256(p.read_bytes()).hexdigest() for p in output.rglob('*') if p.is_file()},scope='One fixed16 baseline/candidate32/64 transient+steady L1/auto; no solver launched by preparation')

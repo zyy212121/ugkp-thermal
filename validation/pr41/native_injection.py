@@ -14,6 +14,17 @@ import thermal_particle_restart_current as wire
 DT=1e-7
 def patch(path,name,body):
  text,n=re.subn(r'\b'+name+r'\s*\{[^}]*\}',name+' { '+body+' }',path.read_text());assert n==1,(path,name);path.write_text(text)
+def scheme_entry(case, section, key, value):
+ # Explicit destination only; no old-file lookup or migration.
+ p=case/'constant/scheme';text=p.read_text()
+ pattern=r'(\b'+re.escape(section)+r'\s*\{)([^{}]*)(\})'
+ def change(m):
+  body=m[2];entry=r'\b'+re.escape(key)+r'\s+[^;]+;'
+  body=re.sub(entry,key+' '+str(value)+';',body) if re.search(entry,body) else body+'\n'+key+' '+str(value)+';\n'
+  return m[1]+body+m[3]
+ text,n=re.subn(pattern,change,text)
+ if not n:text+='\n'+section+' { '+key+' '+str(value)+'; }\n'
+ p.write_text(text)
 def prepare(case,solver):
  if solver.startswith('gas'):
   g.copy_inputs(ROOT/'validation/shared_boundary/fixtures'/('steady-table' if solver.endswith('Steady') else 'gas-table'),case)
@@ -26,9 +37,11 @@ def prepare(case,solver):
   for k,v in [('gpuResidentPureGasOnly','false'),('gpuResidentParticleCapacity',20000)]:g.set_entry(case/'constant/schedulingProperties',k,v)
   p=case/'constant/fluidProperties';p.write_text(re.sub(r'boundaryLayer\s*\{[^}]*\}','',p.read_text().replace('wallTreatment boundaryLayer','wallTreatment lowRe')))
   if solver.endswith('Steady'):
-   for k,v in [('endTime',1),('samplingDeltaT',DT),('maxDeltaT',DT),('writeInterval',1)]:g.set_entry(case/'system/controlDict',k,v)
+   for k,v in [('endTime',1),('writeInterval',1)]:g.set_entry(case/'system/controlDict',k,v)
+   scheme_entry(case,'steadyParticle','samplingDeltaT',DT);scheme_entry(case,'steadyGas','maxDeltaT',DT)
   else:
-   for k,v in [('endTime',DT),('deltaT',DT),('maxDeltaT',DT),('writeInterval',1),('adjustTimeStep','false')]:g.set_entry(case/'system/controlDict',k,v)
+   for k,v in [('endTime',DT),('deltaT',DT),('writeInterval',1)]:g.set_entry(case/'system/controlDict',k,v)
+   scheme_entry(case,'gasTimeStep','maxDeltaT',DT);scheme_entry(case,'gasTimeStep','adjustTimeStep','false')
   return dict(expected_mass=.001*2800*.002*DT,y=.2,z=.01,x=0)
  meta=json.loads((ROOT/'validation/molecular_transport/fixtures.json').read_text())
  fixture='chmt-mixture' if solver=='CHMT' else 'cht-contact'
@@ -36,7 +49,7 @@ def prepare(case,solver):
  for k,v in [('endTime',DT),('deltaT',DT),('writeInterval',1 if solver=='CHMT' else DT)]:g.set_entry(case/'system/controlDict',k,v)
  if solver=='CHMT':
   p=case/'constant/chmtProperties'
-  g.set_entry(p,'couplingInterval',DT);g.set_entry(p,'gasMaxDt',DT)
+  scheme_entry(case,'thermalCoupling','couplingInterval',DT);scheme_entry(case,'gasTimeStep','maxDeltaT',DT)
   p.write_text(p.read_text()+"""
 enableParticles true;
 particle { volumeMode Coupled; capacity 20000; rhoSolid 2500;

@@ -3,10 +3,6 @@
 from pathlib import Path
 import argparse,hashlib,json,re,shutil
 
-import sys as _scheme_sys
-_scheme_sys.path.insert(0, str(Path(__file__).resolve().parents[2]/"validation/solver_controls"))
-import migrate_case as scheme_controls
-
 START='0.29500248649130967';END='0.30500348649130967';DT='7.962238329030135e-8'
 LABELS=('pr41-fp64','candidate-fp64','candidate-fp32')
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
@@ -28,9 +24,10 @@ def prepare(original,out):
   ctrl.write_text(text)
   (dest/'constant/precisionProperties').write_text('FoamFile { version 2.0; format ascii; class dictionary; object precisionProperties; }\nprecision '+('32' if label.endswith('32') else '64')+';\n')
   (dest/START/'ugkpPrecision').write_text('schema 1\ncomputePrecision 64\nrestartPrecision 64\nstoragePolicy legacy64-v1\nwireEncoding existingFieldSchemas\n')
-  if label.startswith('candidate-'):scheme_controls.migrate_case(dest,32 if label.endswith('32') else 64)
+  if label.startswith('candidate-'):
+   shutil.copy2(Path(__file__).with_name('baseline-continuation.scheme'),dest/'constant/scheme')
   manifest['cases'].append({'label':label,'directory':dest.name,'input_sha256':{str(f.relative_to(dest)):sha(f) for f in sorted(dest.rglob('*')) if f.is_file()},
-   'changes':['startTime','endTime','initial deltaT','selected precision','copied checkpoint metadata64 only','candidate numerical controls moved to constant/scheme; PR41 retains old inputs'],
+   'changes':['startTime','endTime','initial deltaT','selected precision','copied checkpoint metadata64 only','candidate uses reviewed explicit baseline-continuation.scheme; PR41 retains old inputs'],
    'original_checkpoint_sha256':{name:sha(dest/name) for name in initial if name.startswith(START+'/')}})
  (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
  print(str(out)+' prepared; no numerical execution')

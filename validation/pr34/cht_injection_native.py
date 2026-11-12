@@ -30,7 +30,8 @@ def main():
    (case/'constant/inletVolumeFraction.table').write_text('((0 .002)(1 .002))\n')
    path=case/'0/p';path.write_text(path.read_text().replace('left{type zeroGradient;}','left{type fixedValue;value uniform 178167.05610328368;}'))
   control=case/'system/controlDict'
-  for key,value in [('endTime',2e-6),('deltaT',1e-6),('maxDeltaT',1e-6),('writeInterval',2e-6)]:matrix.entry(control,key,value)
+  for key,value in [('endTime',2e-6),('deltaT',1e-6),('writeInterval',2e-6)]:matrix.entry(control,key,value)
+  matrix.entry(case/'constant/scheme','maxDeltaT',1e-6)
   matrix.run([ROOT/'bin/CHT','-case',case],case/'run.log')
   final=matrix.times(case)[-1];chunks=[d for _,d in wire.iter_chunks(final/'gpuResidentStrictParticles.dat')]
   count=sum(len(d['pm']) for d in chunks);mass=sum(float(d['pm'].sum()) for d in chunks)

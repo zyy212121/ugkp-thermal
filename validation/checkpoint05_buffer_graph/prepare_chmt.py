@@ -27,7 +27,7 @@ def main():
     a.add_argument('--nsys',type=Path,default=Path('/usr/local/bin/nsys'));args=a.parse_args()
     assert not args.output.exists(),'new output directory required; never overwrite a prepared batch'
     runner=load('cp5_molecular_inputs',ROOT/'validation/molecular_transport/native_matrix.py')
-    scheme=runner.scheme_controls;args.output.mkdir(parents=True)
+    args.output.mkdir(parents=True)
     nodes=[]
     for kind,fixture,windows,end,interval,donor in [
         ('static','chmt-mixture',3,.0015,.0005,args.static_mesh_donor),
@@ -36,10 +36,10 @@ def main():
         bits=int(variant[-2:]);name=kind+'-'+variant;case=args.output/name
         runner.copy_fixture(ROOT/'validation/molecular_transport/fixtures'/fixture,case)
         runner.entry(case/'system/controlDict','endTime',format(end,'.17g'))
-        scheme.set_control(case,'thermalCoupling','couplingInterval',format(interval,'.17g'))
+        runner.entry(case/'constant/scheme','couplingInterval',format(interval,'.17g'))
         if kind=='static':
             runner.entry(case/'system/controlDict','deltaT','1e-5')
-            scheme.set_control(case,'gasTimeStep','maxDeltaT','1e-5')
+            runner.entry(case/'constant/scheme','maxDeltaT','1e-5')
         (case/'constant/precisionProperties').write_text('FoamFile {version 2.0;format ascii;class dictionary;object precisionProperties;}\nprecision '+str(bits)+';\n')
         meshes=copy_mesh(case,donor.resolve())
         # Reproduce the existing fixture's thin-3D patch preparation only.
