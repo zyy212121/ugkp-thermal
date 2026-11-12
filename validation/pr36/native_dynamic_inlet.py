@@ -58,8 +58,9 @@ def main():
         (case/'constant/inletVolumeFraction.table').write_text(
             f'((0 .002)(0.000002 {fraction}))\n')
         for key, value in [('endTime', 2e-6), ('deltaT', 1e-6),
-                           ('maxDeltaT', 1e-6), ('writeInterval', 2e-6)]:
+                           ('writeInterval', 2e-6)]:
             matrix.entry(case/'system/controlDict', key, value)
+        matrix.entry(case/'constant/scheme', 'maxDeltaT', 1e-6)
         matrix.run([args.solver.resolve(), '-case', case], case/'run.log')
         final = matrix.times(case)[-1]
         # A zero-particle result is only a useful counterexample if gas flow
