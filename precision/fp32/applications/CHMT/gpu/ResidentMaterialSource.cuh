@@ -20,6 +20,20 @@ __global__ void applyResidentMaterialSources(const ResidentMaterialState* state,
         radiation,receivers,binding.candidateMesh.volumes,physics,step->dt,step->finalStep,
         binding.candidate,donor,status,reactionMaxStep,reactionCfl,reactionBudget);
 }
+// The existing host-driven material owner borrows a slice without packing
+// or uploading its extensive packets. Arithmetic stays in the same cell operator.
+__global__ void applyMaterialSliceSourcesKernel(int count,const SolidQ* current,const SolidQ* rates,
+    const SolidQ* initial,const SolidQ* gasChange,SolidQ* candidateGasChange,ResidentMaterialSlice packets,const int* offsets,
+    const int* indices,const int* radiationOffsets,const int* radiationFaces,
+    const EnergyReal* radiation,const unsigned* receivers,const Real* volumes,const PhysicsConfig* physics,
+    Real dt,bool finalStep,SolidQ* next,SolidQ* donor,materialSourceDetail::MaterialStepResult* status,
+    Real reactionMaxStep,PhysicalReal reactionCfl,int reactionBudget){
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=count)return;
+    materialSourceDetail::applyMaterialSourceCell(c,current,rates,initial,gasChange,candidateGasChange,packets,offsets,
+        indices,radiationOffsets,radiationFaces,radiation,receivers,volumes,physics,dt,finalStep,
+        next,donor,status,reactionMaxStep,reactionCfl,reactionBudget);
+}
+
 // This flag belongs to the whole material transaction, including endpoint
 // surface evaluation, not just its local source solve. Failed candidates keep
 // all accepted inventory, accumulated gas transfer and geometry bindings.

@@ -104,6 +104,11 @@ public:
         return result(ugkp::thermal::refreshParticleTrackingGeometry(owner_,
             {gas.hostView().nFaces,boundaryKind_.data(),restitution_.data(),tangential_.data()},stream),error);
     }
+    bool retainAcceptedGeometry(SharedGasDeviceStorage& gas,cudaStream_t stream,std::string& error){
+        if(!owner_)return true;
+        return refreshGeometry(gas,stream,error)
+            &&result(ugkp::thermal::refreshAcceptedParticleGeometryMoments(owner_,stream),error);
+    }
     bool load(const ModelConfig& model,const HostState& state,SharedGasDeviceStorage& gas,
         cudaStream_t stream,std::string& error){
         if(!owner_)return true;

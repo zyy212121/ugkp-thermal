@@ -141,6 +141,15 @@ public:
     IntervalCursor cursor()const;
 };
 
+// Optional compact description emitted by the original host cursor itself.
+// Device consumers borrow packet payloads but never reselect time boundaries.
+struct IntervalSliceRecordPart {Real fraction=0;bool last=false;};
+struct IntervalSliceMetadata {
+    std::size_t beginRecord=0,endRecord=0;
+    std::vector<IntervalSliceRecordPart> parts;
+    Real externalFraction=0;bool externalLast=false;
+};
+
 // The history must outlive this cursor and must not be changed while it is in
 // use. Each interval consumer uses a fresh cursor; failed slice calls are atomic.
 class IntervalCursor {
@@ -154,10 +163,11 @@ public:
     Real time()const{return windowAbsolute(history_->interval().begin,time_);}
     WindowTime localTime()const{return time_;}
     bool complete()const{return history_&&history_->complete()&&time_==history_->localEnd();}
-    bool takeThroughLocal(WindowTime target,std::vector<ExchangePacket>& packets,std::vector<EnergyReal>& radiation,std::string& error){
+    bool takeThroughLocal(WindowTime target,std::vector<ExchangePacket>& packets,std::vector<EnergyReal>& radiation,std::string& error,IntervalSliceMetadata* metadata=nullptr){
         if(!history_)return intervalFailure(error,"invalid material slice endpoint");
         IntervalCursor candidate=*this;std::vector<ExchangePacket> next;std::vector<EnergyReal> rad;
         const auto& records=history_->records();
+        IntervalSliceMetadata selected;selected.beginRecord=candidate.record_;
         while(candidate.time_<target){
             if(candidate.record_>=records.size())return intervalFailure(error,"material slice exceeds gas history");
             const auto& r=records[candidate.record_];
@@ -167,6 +177,7 @@ public:
             const WindowTime stop=std::min(target,r.localEnd);
             const Real fraction=windowDuration(stop,candidate.time_)/r.actualDt;
             const bool last=stop==r.localEnd;
+            if(metadata)selected.parts.push_back({fraction,last});
             for(std::size_t i=0;i<r.packets.size();++i){
                 auto part=last?subtractIntervalPacket(r.packets[i],candidate.used_[i]):scaledIntervalPacket(r.packets[i],fraction);
                 addIntervalPacket(candidate.used_[i],part);next.push_back(part);
@@ -184,11 +195,13 @@ public:
             if(rad.size()!=extra.size())return intervalFailure(error,"external radiation face layout mismatch");
             if(candidate.externalRadiationUsed_.empty())candidate.externalRadiationUsed_.assign(extra.size(),0);
             const Real fraction=windowDuration(target,time_)/windowDuration(intervalDuration(history_->interval()),WindowTime{});
+            if(metadata){selected.externalFraction=fraction;selected.externalLast=target==history_->localEnd();}
             for(std::size_t f=0;f<extra.size();++f){
                 const EnergyReal part=target==history_->localEnd()?extra[f]-candidate.externalRadiationUsed_[f]:extra[f]*EnergyReal(fraction);
                 candidate.externalRadiationUsed_[f]+=part;rad[f]+=part;
             }
         }
+        if(metadata){selected.endRecord=candidate.record_;*metadata=std::move(selected);}
         *this=std::move(candidate);packets=std::move(next);radiation=std::move(rad);error.clear();return true;
     }
     bool takeThrough(Real target,std::vector<ExchangePacket>& packets,std::vector<EnergyReal>& radiation,std::string& error){return takeThroughLocal(windowOffset(history_->interval().begin,target),packets,radiation,error);}

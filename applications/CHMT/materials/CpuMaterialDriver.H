@@ -6,6 +6,7 @@
 #include "../../../common/gasTransport/GasMechanismIO.H"
 namespace Foam {class fvMesh;}
 namespace chmt {
+struct ResidentMaterialDriveHistory;
 enum class MaterialFailureOrigin { None,ConductionNumerical,ReactionNumerical,FilmNumerical,SurfaceNumerical,GeometryNumerical,TransportNumerical,OwnerNumerical,LocalSourceNumerical };
 struct CpuMaterialControls {
     Real maxSubstep=0,transportCfl=.4,reactionCfl=.1,reactionMaxSubstep=0;
@@ -29,7 +30,7 @@ class CpuMaterialDriver {
     struct Implementation;std::unique_ptr<Implementation> data_;
     bool predictWallImpl(const HostState&,const CouplingInterval&,WallProgram&,std::string&,CpuMaterialReport*,const PhysicsConfig&)const;
     bool advanceCandidateImpl(const HostState&,const HostState&,const IntervalHistory&,
-        const CpuMaterialControls&,HostState&,WallProgram&,CpuMaterialReport&,std::string&,const WallProgram*,const PhysicsConfig&);
+        const CpuMaterialControls&,HostState&,WallProgram&,CpuMaterialReport&,std::string&,const WallProgram*,const PhysicsConfig&,const ResidentMaterialDriveHistory*);
 public:
     CpuMaterialDriver(const ModelConfig&,Foam::fvMesh* actualSolidMesh);
     CpuMaterialDriver(const ModelConfig&,Foam::fvMesh* actualSolidMesh,const ugkwp::GasMechanismConfiguration* mechanism);
@@ -39,7 +40,8 @@ public:
     bool predictWall(const HostState&,const CouplingInterval&,WallProgram&,std::string&,CpuMaterialReport* diagnostics=nullptr)const;
     bool advanceCandidate(const HostState&,const HostState& geometryEndpoint,
         const IntervalHistory&,const CpuMaterialControls&,HostState& candidate,
-        WallProgram& corrected,CpuMaterialReport&,std::string&,const WallProgram* executedProgram=nullptr);
+        WallProgram& corrected,CpuMaterialReport&,std::string&,const WallProgram* executedProgram=nullptr,
+        const ResidentMaterialDriveHistory* residentHistory=nullptr);
 };
 }
 #endif

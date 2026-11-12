@@ -31,7 +31,8 @@ ResidentMaterialDriveHistory residentGasWindowDriveHistory(const Backend&);
 std::vector<GasIntervalRecord> releaseGasWindowRecords(Backend&); // after material consumers finish
 bool gasWindowStageGeometry(Backend&,std::array<HostStageGeometry,2>&,std::array<HostStageGeometry,2>&,std::string&);
 bool downloadGasWindow(Backend&,HostState&,std::string&);
-bool commitGasWindow(Backend&,HostState&,std::string&);
+// Internal driver may retain an unchanged published device endpoint; old callers import normally.
+bool commitGasWindow(Backend&,HostState&,std::string&,bool preservePublishedEndpoint=false);
 bool downloadState(const Backend&,HostState&,std::string&);
 struct ParticleRadiationState {ugkp::gpu::RadiationParticleDeviceView resident{};std::vector<Real> mass,temperature,diameter,occupiedArea;ugkp::gpu::ParticleRadiationResponseView response{};};
 bool downloadRadiationState(Backend&,ParticleRadiationState&,std::string&);

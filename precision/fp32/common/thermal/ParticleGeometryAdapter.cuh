@@ -116,4 +116,11 @@ int mapAttachedParticles(void* owner,const ParticleSurfaceGeometry& previous,
     s->preBaseDirectoryReady=0;s->splitPreDirectoryActive=0;s->particleGeometryDirty=true;
     return 0;
 }
+int refreshAcceptedParticleGeometryMoments(void* owner,cudaStream_t gasStream){
+    auto* s=asState(owner);
+    if(orderParticlePhaseAfterGas(owner,gasStream))return 1;
+    const int code=s->particleGeometryDirty?refreshParticleGeometryMoments(s):0;
+    if(orderGasAfterParticlePhase(owner,gasStream))return 1;
+    return code;
+}
 }}

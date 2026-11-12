@@ -42,6 +42,8 @@ struct Backend {
     ugkp::diagnostics::DeviceContext hostDiagnostics{};
     ugkp::diagnostics::HostSink diagnosticSink;
     ModelConfig model;GasExecutionOptions options;HostState accepted,trial;
+    bool residentAcceptedEndpoint=false,gasEndpointPublished=false;
+    Buffer<Real> acceptedOldPhaseVolume,acceptedNewPhaseVolume;
     std::uint64_t endpointGasVersion=0,endpointSolidVersion=0;
     SharedGasDeviceStorage storage;ParticleCouplingStorage particles;WallProgram program;IntervalHistory history;
     CoupledCourantStorage courantReductionStorage;
@@ -440,6 +442,20 @@ int accountCoupledFaces(Backend* b,Real ledgerDt){
     }
     ++b->gasStageIndex;return 0;
 }
+// Preserve accepted cell integrals across a corrected material endpoint.
+// Use each field's selected precision for the original multiply/divide sequence.
+__global__ void rebaseAcceptedGasInventory(SharedGasDeviceView* state,const Real* oldVolume,const Real* newVolume){
+    auto& s=*state;const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=s.nCells)return;
+    using Field=typename std::remove_reference<decltype(s.rho[c])>::type;
+    using Energy=typename std::remove_reference<decltype(s.rhoE[c])>::type;
+    const Field oldV=Field(oldVolume[c]),newV=Field(newVolume[c]);
+    s.rho[c]=(s.rho[c]*oldV)/newV;
+    s.rhoUx[c]=(s.rhoUx[c]*oldV)/newV;s.rhoUy[c]=(s.rhoUy[c]*oldV)/newV;s.rhoUz[c]=(s.rhoUz[c]*oldV)/newV;
+    s.rhoE[c]=(s.rhoE[c]*Energy(oldVolume[c]))/Energy(newVolume[c]);
+    if(s.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)
+        for(int j=0;j<Ns;++j){const int i=j*s.nCells+c;s.gasSpecies.rho[i]=(s.gasSpecies.rho[i]*oldV)/newV;}
+    if(s.sstConfigured){s.rhoK[c]=(s.rhoK[c]*Energy(oldVolume[c]))/Energy(newVolume[c]);s.rhoOmega[c]=(s.rhoOmega[c]*oldV)/newV;}
+}
 bool loadGasWindowState(Backend& b,const HostState& snapshot,std::string& error){
     b.storage.beginOperation();
     b.wallDiagnosticsReady=false;b.historyFrameCount=0;b.historyPublishedFrames=0;
@@ -447,6 +463,22 @@ bool loadGasWindowState(Backend& b,const HostState& snapshot,std::string& error)
     // changes are checked before replay by validateCoupledGraphBindings.
     b.microGeometryPrepared=false;b.preparedWallReady=false;ugkwp::invalidateGasBoundaryLayerPreparation(b);
     if(b.gasBoundaryLayer.enabled&&b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static)b.storage.invalidateWallGeometry();
+    const bool reuse=b.residentAcceptedEndpoint;
+    b.residentAcceptedEndpoint=false;b.gasEndpointPublished=false;
+    if(reuse){
+        // Preserve inventories, wave pressure and particle source/phase history.
+        // Status reset is still required even when no host import is needed.
+        const bool moving=b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static;
+        if((moving&&!b.storage.uploadGeometry(snapshot.gasMesh,false))
+            ||!b.storage.clearGeometry()||!b.storage.clearTrialStatus()){
+            error=b.storage.error();return false;
+        }
+        if(moving){
+            bindSharedGasStorage(b);
+            if(!b.particles.retainAcceptedGeometry(b.storage,b.gasCaptureStream,error))return false;
+        }
+        b.trial=snapshot;error.clear();return true;
+    }
     if(!b.storage.uploadGeometry(snapshot.gasMesh,false)||!b.storage.clearGeometry()
         ||!b.storage.uploadState(snapshot,error)){
         b.poisoned=b.storage.runtimeFailure();if(error.empty())error=b.storage.error();
@@ -776,9 +808,11 @@ bool downloadGasWindow(Backend& b,HostState& out,std::string& error){
             static_cast<ugkwp::gaswall::WallExchangeOutput<Real,Ns>&>(b.trial.gasWallDiagnostics[i])=b.wallDiagnosticStaging[i];
         b.trial.gasWallDiagnosticTime=b.wallDiagnosticTime;
     }
-    out=b.trial;return gasWindowStageGeometry(b,out.gasStages,out.solidStages,error);
+    out=b.trial;
+    const bool published=gasWindowStageGeometry(b,out.gasStages,out.solidStages,error);
+    b.gasEndpointPublished=published;return published;
 }
-static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& error){
+static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& error,bool preservePublishedEndpoint){
     if(b.poisoned){error="gas backend is unusable after a failed device operation";return false;}
     // The public commit API can be called without a preceding full gas export.
     // Its host material endpoint comparison still requires the actual predicted
@@ -807,12 +841,34 @@ static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& err
         if(!b.storage.observeDiagnostics()){error=b.storage.error();return false;}
         if(!b.particles.download(candidate,error))return false;
     }
+    // Only the endpoint-preserving driver opts in; public/default imports remain unchanged.
+    b.residentAcceptedEndpoint=preservePublishedEndpoint&&b.gasEndpointPublished
+        &&candidate.gasMesh.topologyHash==b.trial.gasMesh.topologyHash
+        &&candidate.gas.size()==b.trial.gas.size()
+        &&candidate.gasMesh.owner.size()==b.trial.gasMesh.owner.size();
+    if(b.residentAcceptedEndpoint&&b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static){
+        std::vector<Real> oldVolume(candidate.gas.size()),newVolume(candidate.gas.size());
+        for(std::size_t c=0;c<oldVolume.size();++c){
+            oldVolume[c]=gasPhaseVolume(b.trial,c);newVolume[c]=gasPhaseVolume(candidate,c);
+        }
+        if(!b.acceptedOldPhaseVolume.resize(oldVolume.size(),b.surfaceTransferFault)
+            ||!b.acceptedNewPhaseVolume.resize(newVolume.size(),b.surfaceTransferFault)
+            ||!b.storage.write(b.acceptedOldPhaseVolume.data(),oldVolume)
+            ||!b.storage.write(b.acceptedNewPhaseVolume.data(),newVolume)){
+            error=b.surfaceTransferFault.message.empty()?b.storage.error():b.surfaceTransferFault.message;return false;
+        }
+        if(!oldVolume.empty())rebaseAcceptedGasInventory<<<(oldVolume.size()+127)/128,128,0,b.gasCaptureStream>>>(
+            b.storage.deviceView(),b.acceptedOldPhaseVolume.data(),b.acceptedNewPhaseVolume.data());
+        if(!b.surfaceTransferFault.check(cudaGetLastError(),"rebase accepted gas inventories")){
+            error=b.surfaceTransferFault.message;return false;
+        }
+    }
     HostState newAccepted=candidate,newTrial=candidate;
     newAccepted.ledger.clear();newTrial.ledger.clear(); // publication diagnostics are frontend-owned
     b.accepted=std::move(newAccepted);b.trial=std::move(newTrial);error.clear();return true;
 }
-bool commitGasWindow(Backend& b,HostState& candidate,std::string& error){
-    const bool success=commitGasWindowImpl(b,candidate,error);
+bool commitGasWindow(Backend& b,HostState& candidate,std::string& error,bool preservePublishedEndpoint){
+    const bool success=commitGasWindowImpl(b,candidate,error,preservePublishedEndpoint);
     const bool healthy=dispatchHostDiagnostics(b);
     if(!healthy&&error.empty())error="fatal host gas-window commit diagnostic";
     return success&&healthy;

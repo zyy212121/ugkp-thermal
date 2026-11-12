@@ -17,6 +17,8 @@ int refreshParticleTrackingGeometry(void* owner,const ParticleTrackingBoundaryVi
 // Relabel free parcels after corrected internal faces move across their fixed
 // physical positions. No transport time, forces or thermal evolution is applied.
 int relocateMobileParticles(void* owner,cudaStream_t stream);
+// Reuse the existing dirty-geometry relocation/moment recovery, retaining epsGPrev.
+int refreshAcceptedParticleGeometryMoments(void* owner,cudaStream_t gasStream);
 // Validated topology and both point arrays must live until stream completes.
 // No field readback or per-particle host work. Only attached active particles
 // are mapped; lab-frame velocities and all contact/thermal histories remain

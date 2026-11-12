@@ -2,12 +2,14 @@
 #define CHMT_GPU_MATERIALBACKEND_H
 #include "../../../common/gpu/ScaledThermalSum.H"
 #include "materials/MaterialTransport.H"
+#include "coupling/IntervalContracts.H"
 #include "gpu/MaterialThermalBackend.H"
 #include "ablation/CpuSurfaceInterface.H"
 #include "../../../common/DiagnosticsHost.H"
 namespace ugkp { namespace gpu { class ImplicitDiffusion;class SparseConjugateGradient; }}
 namespace chmt {
 struct CpuMaterialControls;
+struct ResidentMaterialDriveHistory;
 struct MaterialBackend;
 MaterialBackend* createMaterialBackend(std::string&);
 void destroyMaterialBackend(MaterialBackend*) noexcept;
@@ -16,18 +18,23 @@ void setMaterialDiagnosticsSink(MaterialBackend&,const ugkp::diagnostics::HostSi
 // state differing from the last full publication is explicitly re-imported;
 // unchanged window handoffs retain the device inventory and workspaces.
 bool beginMaterialWindow(MaterialBackend&,const HostState&,const PhysicsConfig&,std::string&);
+// Borrowed gas history remains owned by the producer until this material window finishes.
+bool beginResidentMaterialHistory(MaterialBackend&,const ResidentMaterialDriveHistory*,
+    const IntervalHistory&,std::string&);
 bool prepareResidentMaterialConduction(MaterialBackend&,const HostMesh&,
     const std::vector<Real>& nativeVolumes,std::vector<MaterialThermalInput>&,
-    std::string&,bool& numericalFailure);
+    std::string&,bool& numericalFailure,bool publishInput=true);
+bool publishResidentMaterialConductionInput(MaterialBackend&,std::vector<MaterialThermalInput>&,std::string&);
 bool evaluateResidentMaterialConduction(MaterialBackend&,const std::vector<Real>& temperature,
     Real dt,std::vector<MaterialThermalCoefficients>&,std::string&,
-    const ConductionReal* deviceTemperature=nullptr,void* temperatureStream=nullptr,bool download=true);
+    const ConductionReal* deviceTemperature=nullptr,void* temperatureStream=nullptr,bool download=true,bool startupDiagnostics=false);
 struct MaterialConductionDeviceFields {
     const ConductionReal* capacity=nullptr;
     const ConductionReal* source=nullptr;
     const ConductionReal* conductivity=nullptr;
     void* readyStream=nullptr;
     const ConductionReal* initialTemperature=nullptr;
+    std::size_t cells=0;
 };
 MaterialConductionDeviceFields residentMaterialConductionFields(MaterialBackend&);
 struct MaterialConductionAudit {
@@ -77,7 +84,10 @@ bool advanceResidentMaterialSources(MaterialBackend&,const HostMesh& endpointMes
     const std::vector<EnergyReal>& radiation,const std::vector<unsigned>& radiationReceiver,
     Real dt,const CpuMaterialControls&,bool finalStep,
     std::vector<SolidQ>& hostMirror,std::vector<SolidQ>& cumulativeDonor,
-    std::string&,bool& numericalFailure,const std::vector<int>* observedCells=nullptr);
+    std::string&,bool& numericalFailure,const std::vector<int>* observedCells=nullptr,
+    const IntervalSliceMetadata* selectedSlice=nullptr);
+bool commitResidentMaterialStep(MaterialBackend&,Real time,std::string&);
+// Legacy direct callers use the original upload path without borrowed history.
 void commitResidentMaterialStep(MaterialBackend&,Real time);
 }
 #endif

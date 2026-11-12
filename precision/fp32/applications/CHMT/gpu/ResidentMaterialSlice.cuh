@@ -29,9 +29,9 @@ __global__ void prepare(ResidentMaterialSlice slice,MaterialSliceAccumulators ca
             }
             EnergyReal used=slice.used.radiation[f],sum=0;
             for(std::size_t r=p.begin.record;r<p.past;++r){
-                const bool last=ugkp::sliceRecordStop(h,p,r)==h.interval[r].end;
+                const bool last=slice.recordLast(r);
                 const EnergyReal value=h.surface[r*h.faces+f].radiationEnergy;
-                const EnergyReal part=last?value-used:EnergyReal(ugkp::sliceRecordFraction(h,p,r))*value;
+                const EnergyReal part=last?value-used:EnergyReal(slice.recordFraction(r))*value;
                 used+=part;sum+=part;if(last)used=0;
             }
             candidate.radiation[f]=used;
@@ -39,9 +39,10 @@ __global__ void prepare(ResidentMaterialSlice slice,MaterialSliceAccumulators ca
         }
         if(f<externalFaces){
             EnergyReal used=slice.used.externalRadiation[f];
-            const Real fraction=(p.target-p.begin.time).value()/total.value();
-            const auto end=h.frames?h.interval[h.frames-1].end:ugkp::CompensatedTime{};
-            const EnergyReal part=p.target==end?external[f]-used:external[f]*EnergyReal(fraction);
+            const Real fraction=slice.hostSelected?slice.externalFraction:(p.target-p.begin.time).value()/total.value();
+            const bool finalPiece=slice.hostSelected?slice.externalLast:
+                p.target==(h.frames?h.interval[h.frames-1].end:ugkp::CompensatedTime{});
+            const EnergyReal part=finalPiece?external[f]-used:external[f]*EnergyReal(fraction);
             used+=part;candidate.externalRadiation[f]=used;
             if(!p.hasRecords()||!h.faces)radiation[f]=0;
             radiation[f]+=part;
@@ -72,6 +73,16 @@ inline cudaError_t prepareResidentMaterialSlice(ResidentMaterialSlice slice,
     auto error=cudaGetLastError();if(error!=cudaSuccess)return error;
     slice.plan=plan;const auto count=slice.history.faces>externalFaces?slice.history.faces:externalFaces;
     if(count)material_slice_detail::prepare<<<material_slice_detail::blocks(count),128,0,stream>>>(slice,candidate,external,externalFaces,total,radiation);
+    return cudaGetLastError();
+}
+// The original host IntervalCursor already selected these record indices and
+// fractions. Reuse the same preparation arithmetic without a second clock decision.
+inline cudaError_t prepareHostSelectedMaterialSlice(ResidentMaterialSlice slice,
+    MaterialSliceAccumulators candidate,const EnergyReal* external,std::size_t externalFaces,
+    EnergyReal* radiation,cudaStream_t stream){
+    const auto count=slice.history.faces>externalFaces?slice.history.faces:externalFaces;
+    if(count)material_slice_detail::prepare<<<material_slice_detail::blocks(count),128,0,stream>>>(
+        slice,candidate,external,externalFaces,ugkp::CompensatedTime{},radiation);
     return cudaGetLastError();
 }
 inline cudaError_t commitResidentMaterialSlice(const ugkp::IntervalSlicePlan* plan,
