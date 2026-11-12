@@ -1,0 +1,159 @@
+#ifndef CHMT_CORE_CONFIGURATION_H
+#define CHMT_CORE_CONFIGURATION_H
+#include "Types.H"
+#include "NumericalControls.H"
+#include "../../../common/gasNumerics/GasScalarSolverControls.H"
+#include "../../../common/thermal/ParticleNumericalControls.H"
+#include "../../../common/thermal/ParticleInletConfiguration.H"
+#include "../../../common/thermal/ParticlePhaseConfiguration.H"
+#include "../../../common/Diagnostics.H"
+#include "../../../common/gasTransport/GasModel.H"
+#include "../../../common/chemistry/ChemistryTypes.H"
+#include "../../../common/gasWall/WallModelTypes.H"
+#include <array>
+#include <string>
+
+namespace chmt {
+struct SstConfig {
+    PhysicalReal a1=0.31,betaStar=0.09,beta1=0.075,beta2=0.0828,gamma1=5.0/9.0,gamma2=0.44;
+    PhysicalReal sigmaK1=0.85,sigmaK2=1.0,sigmaOmega1=0.5,sigmaOmega2=0.856;
+    PhysicalReal turbulentPrandtl=0.9,turbulentSchmidt=0.7,productionLimit=10.0;
+    PhysicalReal minimumK=0,minimumOmega=0;
+};
+enum class EvaporationLaw { Disabled, HertzKnudsen };
+struct MaterialPolicyConfig {
+    PhysicalReal minimumPorosity=0,maximumPorosity=1;
+    int phaseCondensed=-1;
+    bool enableMelting=false,enableSurfaceReactions=false,enablePoreOutflow=false;
+    PhysicalReal phaseFilmY[Ns]{};
+    int nSurfaceReactions=0;
+    Reaction surfaceReactions[Nr]{};
+    PhysicalReal surfaceGasOrder[Nr][Ns]{};
+    EvaporationLaw evaporation=EvaporationLaw::Disabled;
+    PhysicalReal evaporationAccommodation[Ns]{};
+    PhysicalReal saturationPressureScale[Ns]{},saturationTemperature[Ns]{};
+    PhysicalReal gasContactResistance=0,solidContactResistance=0; // m^2 K/W.
+};
+enum class ParticleContactMode { ElasticRebound, Deposit };
+struct ParticlePolicyConfig {
+    int condensedIndex=-1,maxFaceCrossings=32;
+    PhysicalReal heatTransferCoefficient=0,contactHeatTransferCoefficient=0; // W/(m^2 K).
+    Real contactDuration=0;PhysicalReal emissivity=0; // s, dimensionless.
+    ParticleContactMode contact=ParticleContactMode::ElasticRebound;
+};
+enum class MeshMotionPolicy { Static, CoupledRecession, PrescribedSinusoidal };
+struct MeshMotionConfig {
+    MeshMotionPolicy policy=MeshMotionPolicy::Static;
+    Vec3 amplitude{},spatialWaveNumber{},spatialOrigin{};
+    Real angularFrequency=0,timeOrigin=0;
+};
+inline ugkwp::gaswall::WallModelConfig<PhysicalReal> defaultWallModel() {
+    ugkwp::gaswall::WallModelConfig<PhysicalReal> value;value.family=ugkwp::gaswall::WallFamily::LowRe;return value;
+}
+struct PhysicsConfig {
+    ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
+    ugkwp::gaswall::WallModelConfig<PhysicalReal> wallModel=defaultWallModel();
+    int wallWorkspaceSlots=0; // zero resolves a bounded pool from the actual device
+    bool enableGas=true;
+    ugkwp::GasMode gasMode=ugkwp::GasMode::SingleLegacy;
+    ugkwp::MolecularViscosityModel gasViscosityModel=ugkwp::MolecularViscosityModel::Constant;
+    int gasViscositySpecies=0;
+    std::uint64_t gasTransportFingerprint=0;
+    ugkwp::SutherlandSpecies<PhysicalReal> gasSutherland[Ns]{};
+    PhysicalReal gasMassRatioQuarter[Ns*Ns]{},gasWilkeDenominator[Ns*Ns]{};
+    // Immutable coefficients are reconstructed from the input dictionary on restart;
+    // gasTransportFingerprint already identifies all of them in the checkpoint.
+    ugkwp::MolecularViscosityView<PhysicalReal> gasTransportCoefficients{};
+    ugkwp::PowerLawDiffusivity<PhysicalReal> gasPowerLaw[Ns]{};
+    bool gasPowerLawEnabled=false;
+    int singleGasSpecies=-1; // Active physical material species in legacy five-field transport.
+    std::uint64_t gasThermoFingerprint=0,gasMechanismFingerprint=0;
+    ugkwp::ChemistryControls<PhysicalReal> gasChemistryControls{};
+    MeshMotionConfig meshMotion{};
+    ParticlePolicyConfig particle{};
+    MaterialPolicyConfig material{};
+    SpeciesThermo species[Ns]{};CondensedThermo condensed[Nc]{};Reaction reactions[Nr]{};int nReactions=0,nElements=0;
+    CondensedThermo liquid{}; // e0 is h_ref's T=0 intercept for THIS table.
+    PhysicalReal liquidViscosity=0,liquidReferencePressure=0,meltTemperature=0;
+    PhysicalReal permeability=0,poreViscosity=0,gasViscosity=0,gasConductivity=0,gasDiffusivity[Ns]{};
+    // Effective pore diffusivity [m2/s], including porosity/tortuosity once.
+    // Independent of gas-side molecular transport; zero preserves pure Darcy.
+    PhysicalReal poreEffectiveDiffusivity[Ns]{};
+    PhysicalReal emissivity=0,ambientTemperature=0;PhysicalVec3 gravity{};
+    bool enableFilm=false,enableReactions=false,enableParticles=false,enableSst=false,enableRadiation=false;
+    FilmThermalMode filmThermalMode=FilmThermalMode::ThicknessAveraged;
+    ReconstructionMode reconstruction=ReconstructionMode::LimitedLinear;
+    SstConfig sst{};Tolerances tolerances{};
+    NumericalControls<PhysicalReal> numerics{};
+    ugkp::gasNumerics::ScalarSolverControls<PhysicalReal> gasScalarSolvers{};
+    Real minDt=0,maxDt=0;PhysicalReal cfl=0;int spatialOrder=2;
+};
+CHMT_HD inline void reportPhysicsWarning(const PhysicsConfig& p,ugkp::diagnostics::Code code,
+    unsigned site,Real observed,Real reference=0,Real corrected=0,int component=-1) {
+    using namespace ugkp::diagnostics;
+    recordWarning(p.diagnostics,makeRecord(code,site,38,0,EntityKind::None,-1,component,
+        observed,reference,corrected,code==Code::FiniteYClip?Quantity::MassFraction:
+        code==Code::ConservationResidual?Quantity::Conservation:Quantity::Accuracy));
+}
+CHMT_HD inline bool clipPhysicsMassFraction(const PhysicsConfig& p,PhysicalReal& value,unsigned site,int component) {
+    if(!finite(value))return false;
+    const PhysicalReal bounded=maxValue(PhysicalReal(0),minValue(PhysicalReal(1),value));
+    if(bounded!=value)reportPhysicsWarning(p,ugkp::diagnostics::Code::FiniteYClip,site,value,0,bounded,component);
+    value=bounded;return true;
+}
+CHMT_HD inline ugkwp::MolecularViscosityView<PhysicalReal> molecularTransportView(const PhysicsConfig& p){
+    auto v=p.gasTransportCoefficients;v.model=p.gasViscosityModel;v.count=p.gasViscositySpecies;
+    v.species=p.gasSutherland;v.massRatioQuarter=p.gasMassRatioQuarter;v.wilkeDenominator=p.gasWilkeDenominator;
+    v.diffusion=p.gasPowerLawEnabled?p.gasPowerLaw:nullptr;v.diffusionCount=p.gasPowerLawEnabled?Ns:0;return v;
+}
+CHMT_HD inline PhysicalReal gasMolecularDiffusivity(const PhysicsConfig& p,int j,PhysicalReal T,PhysicalReal pressure){
+    return ugkwp::molecularDiffusivity(molecularTransportView(p),j,p.gasDiffusivity[j],T,pressure);
+}
+CHMT_HD inline PhysicalReal gasMolecularViscosity(const PhysicsConfig& p,PhysicalReal T,const PhysicalReal* Y){
+    return ugkwp::molecularViscosity<Ns>(molecularTransportView(p),p.gasViscosity,T,Y);
+}
+inline bool validateWallModelConfig(const PhysicsConfig& p,std::string& error) {
+    const auto& w=p.wallModel;using namespace ugkwp::gaswall;
+    if(w.family==WallFamily::LowRe){error.clear();return true;}
+    if(w.family!=WallFamily::BoundaryLayer){error="CHMT ordinary wallFunction coupling is not enabled";return false;}
+    if(p.material.gasContactResistance!=0){error="boundaryLayer requires zero gas contact resistance";return false;}
+    if(p.gasMode==ugkwp::GasMode::SingleLegacy||(p.gasViscosityModel==ugkwp::MolecularViscosityModel::Constant&&!(p.gasViscosity>0))||(!(p.gasConductivity>0)&&p.gasTransportCoefficients.prandtlSpecies<0)){
+        error="boundaryLayer requires shared mixture thermo and positive molecular transport";return false;}
+    if(p.wallWorkspaceSlots<0||w.nodes<4||w.nodes>128||w.maxIterations<=0
+        ||!finite(w.relativeTolerance)||w.relativeTolerance<=0||!finite(w.absoluteTolerance)||w.absoluteTolerance<0
+        ||!finite(w.stretch)||w.stretch<1){error="invalid boundaryLayer solver controls";return false;}
+    if(w.model==BoundaryLayerModel::ConstantTransport){
+        if(p.gasViscosityModel!=ugkwp::MolecularViscosityModel::Constant||p.gasTransportCoefficients.prandtlSpecies>=0||p.gasPowerLawEnabled){error="constantTransport wall requires constant transport; select a numerical boundary layer";return false;}
+        if(p.enableSst||p.gasMode!=ugkwp::GasMode::MixtureFrozen){error="constantTransport is a frozen laminar analytic limit";return false;}
+    }else if(w.model!=BoundaryLayerModel::ReactingSst&&w.model!=BoundaryLayerModel::EquilibriumOde){
+        error="unsupported finite-rate boundaryLayer implementation";return false;}
+    error.clear();return true;
+}
+struct ModelConfig {
+    PhysicsConfig physics{};
+    ugkp::thermal::ParticlePhaseConfiguration particlePhase{};
+    ugkp::thermal::ParticleInletConfiguration particleInlet{};
+    ugkp::thermal::ParticleContactConfiguration particleContact{};
+    ugkp::thermal::ParticleNumericalControls particleNumerics{};
+    std::array<std::string,Ns> speciesNames{};
+    std::array<std::string,Nc> condensedNames{};
+    std::array<std::string,Ne> elementNames{};
+    std::string modelName{},materialSource{},mechanismSource{},sourceFingerprint{},baseCommit{};
+    std::string gasMechanismSource{},gasMechanismSourceSha256{},gasPhase{};
+    ModelConfig() { for(int s=0;s<Ns;++s)speciesNames[s]="S"+std::to_string(s); }
+};
+template<class Names>
+inline std::uint64_t speciesOrderHash(const Names& names) {
+    std::uint64_t hash=14695981039346656037ULL;
+    for(const auto& name:names){for(unsigned char byte:name){hash^=byte;hash*=1099511628211ULL;}hash*=1099511628211ULL;}
+    return hash;
+}
+inline bool validateSpeciesSet(const ModelConfig& config,std::string& error) {
+    for(int s=0;s<Ns;++s){
+        if(config.speciesNames[s].empty()){error="empty runtime gas species name";return false;}
+        for(int j=0;j<s;++j)if(config.speciesNames[s]==config.speciesNames[j]){error="duplicate runtime gas species name";return false;}
+    }
+    error.clear();return true;
+}
+} // namespace chmt
+#endif
