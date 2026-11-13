@@ -1,0 +1,6 @@
+All curves are raw saved face values. No smoothing, filtering, moving average or temporal resampling. CSV units W/m2; plot units MW/m2.
+Original baseline is black solid; current FP32 is red solid.
+Snapshot times differ by 1.68696e-7 s. Radiation values update less frequently than thermal snapshots; inspect radiation_last_update_s.
+Contraction sample is first contracting face at x60.335mm; throat is minimum-radius face at x152.405mm; near-exit is last face at x219.951mm. These are actual face centers, not interpolated geometric points.
+The original and new solver versions/injection schemes differ. Differences are not solely FP32 error.
+No zero-time heatflux was fabricated when absent.
