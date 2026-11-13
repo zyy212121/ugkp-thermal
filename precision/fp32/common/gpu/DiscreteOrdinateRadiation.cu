@@ -209,8 +209,6 @@ __global__ void rememberPublishedResidual(int angle,const UpwindLinearReport* li
     const SourceReport* source,RadiationDirectionWarning* warnings){
     if(threadIdx.x||source->failure.code)return;
     const RadiationReal residual=linear->maximumResidual/linear->maximumMagnitude;
-    if(residual>linear->target)
-        warnings[angle]={residual,linear->target,linear->iterations,source->iterations};
     warnings[angle].publishedResidual=residual;
     warnings[angle].publishedTarget=linear->target;
 }
