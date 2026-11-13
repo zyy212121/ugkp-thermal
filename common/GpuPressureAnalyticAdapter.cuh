@@ -3,15 +3,23 @@
 struct AnalyticPressureOperation
 {
     static constexpr bool closeInactiveCells=false;
-    struct Shared {PressureReal delta[4];};
+    struct Shared {PressureParameters parameters;};
     struct Accumulator {};
     template<PressureDirectory Directory>
     __device__ static __forceinline__ void prepare
     (DeviceState& s,int c,PressureTime dt,Shared& w,PressureParameters& q)
     {
-        if(threadIdx.x==0)pressureDeltaFromLimitedFaces(s,c,dt,w.delta);
+        if(threadIdx.x==0)
+        {
+            PressureReal delta[4];
+            pressureDeltaFromLimitedFaces(s,c,dt,delta);
+            // Initialize inactive fields as well: every lane copies the same
+            // complete object before taking the block-uniform inactive return.
+            w.parameters=PressureParameters{};
+            makePressureParameters(s,c,delta,w.parameters);
+        }
         __syncthreads();
-        makePressureParameters(s,c,w.delta,q);
+        q=w.parameters;
     }
     template<bool CheckCell,bool Compact>
     __device__ static __forceinline__ void visit

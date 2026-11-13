@@ -1,0 +1,17 @@
+{
+  "compile_only": "bash validation/checkpoint02/radiation/build_only.sh NEW_OUTPUT_DIRECTORY (requires parent's unique nvcc token)",
+  "pending_execution": [
+    "ordered_radiation: isolated, chain, wide-to-chain/cycle and reverse-cycle dependencies; cold zero recovery; high/low refinement and independent CPU published-field residual",
+    "radiation_acceptance: isolated/chain/cycle, sequential versus parallel angular policies, concurrent workspace limits 1/2/8",
+    "zero and high scattering; near-isothermal +/-1e-6 K and exact equilibrium; nonclosed angular weights",
+    "warm hot-to-zero, warm rebase, metric refresh, resident FP32 boundary temperature, strict requested tolerance and visible published warnings",
+    "compare FP32 overlay against retained FP64 root at application-level batch; no pass claim from source/compilation alone",
+    "production and test-counter objects both compile; counter absent from production symbols"
+  ],
+  "not_run": "No mathematical/operator/consistency/numerical/microbenchmark execution permitted before parent's explicit checkpoint-2 batch.",
+  "deferred_validation": [
+    "sanitizers and production application's full build/restart/coupling cases belong to unified checkpoint-2 batch",
+    "scattering/reflection diffuse equilibrium and phase closure behavior must be assessed against the FP64 baseline",
+    "GPU allocation peak and performance are unmeasured, not implied by FP32 byte counts"
+  ]
+}

@@ -85,7 +85,7 @@ struct NormalHeightPointMotion::Implementation {
     explicit Implementation(const NormalHeightPointMotionDefinition& d){
         if(d.reference.size()!=d.points.size())throw std::invalid_argument("normal-height reference point shape mismatch");
         count=d.points.size();height.reset(new ResidentNormalHeightMotion(d.topology,count,d.owner,d.wallFaces));
-        harmonic.reset(new HarmonicPointMotion(d.points,d.offsets,d.neighbours,d.fixed,d.geometricTolerance));
+        harmonic.reset(new HarmonicPointMotion(d.points,d.offsets,d.neighbours,d.fixed,d.geometricTolerance,d.harmonicMaximumIterations));
         checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);
         PinnedTransferQueue::Operation pending(transfer);boundary.reserve(count);
         const bool sameReference=d.points.empty()||std::memcmp(d.points.data(),d.reference.data(),d.points.size()*sizeof(Point))==0;

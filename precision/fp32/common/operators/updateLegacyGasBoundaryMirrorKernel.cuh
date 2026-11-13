@@ -1,0 +1,213 @@
+#pragma once
+#include "GpuOperatorContract.cuh"
+#include "evaluateResidentBoundary.cuh"
+#include "gasTransport/GasResidentInterval.H"
+// One operator implementation; scalar/time adapters are compile-time only.
+template<class GasState>
+__global__ void updateLegacyGasBoundaryMirrorKernel
+(
+    GasState* sp,
+    const GPU_OPERATOR_TIME requestedTime
+)
+{
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
+    GasState& s = *sp;
+    const GPU_OPERATOR_TIME simulationTime=ugkwp::gasResidentStageTime(s,requestedTime);
+    const int f = s.nInternalFaces + blockIdx.x*blockDim.x + threadIdx.x;
+    if (f >= s.nFaces)
+    {
+        return;
+    }
+
+    const bool scheduled = scheduledInletFaceDevice(s, f);
+    if (scheduled)
+    {
+        const GPU_OPERATOR_REAL temperature = clampMin
+        (
+            finiteOr(s.scheduledInletTemperature, s.TgasMin),
+            s.TgasMin
+        );
+        const GPU_OPERATOR_REAL pressure = clampMin
+        (
+            finiteOr(scheduledPressureDevice(s, simulationTime), OfSmall),
+            s.rhoMin*s.Rgas*temperature
+        );
+        const GPU_OPERATOR_REAL density = pressure/clampMin(s.Rgas*temperature, OfSmall);
+        s.gasBoundaryP[f] = pressure;
+        s.gasBoundaryRho[f] = density;
+        s.gasBoundaryT[f] = temperature;
+        s.riemannBoundaryP[f] = pressure;
+        s.riemannBoundaryRho[f] = density;
+        s.riemannBoundaryT[f] = temperature;
+        // A pressure/temperature schedule does not prescribe velocity. Keep
+        // the owner-following velocity mirror current for particle injection.
+    }
+    else if(evaluateResidentBoundary(s,f,simulationTime))return;
+
+    const int kind = s.gasBoundaryKind[f];
+    if (kind == 3 || kind == 4)
+    {
+        return;
+    }
+
+    const int own = s.faceOwner[f];
+    const int mirrorCell = kind == 5 ? coupledFaceNeighbour(s, f) : own;
+    if (mirrorCell < 0 || mirrorCell >= s.nCells)
+    {
+        return;
+    }
+
+    if (!scheduled && s.gasBoundaryRhoFix[f] == 0)
+    {
+        s.gasBoundaryRho[f] = s.rho[mirrorCell];
+    }
+    if (s.gasBoundaryUFix[f] == 0)
+    {
+        s.gasBoundaryUx[f] = s.Ux[mirrorCell];
+        s.gasBoundaryUy[f] = s.Uy[mirrorCell];
+        s.gasBoundaryUz[f] = s.Uz[mirrorCell];
+    }
+    if (!scheduled && s.gasBoundaryTFix[f] == 0)
+    {
+        s.gasBoundaryT[f] = s.Tgas[mirrorCell];
+    }
+    if (!scheduled && s.gasBoundaryPFix[f] == 0 && s.gasBoundaryPWave[f] == 0)
+    {
+        s.gasBoundaryP[f] = s.p[mirrorCell];
+    }
+}
+
+template<class GasState>
+__global__ void updateRiemannBoundaryMirrorKernel(GasState* sp, const GPU_OPERATOR_TIME requestedTime=GPU_OPERATOR_TIME(0))
+{
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
+    GasState& s = *sp;
+    const GPU_OPERATOR_TIME simulationTime=ugkwp::gasResidentStageTime(s,requestedTime);
+    const int f = s.nInternalFaces + blockIdx.x*blockDim.x + threadIdx.x;
+    if (f >= s.nFaces)
+    {
+        return;
+    }
+
+    if(evaluateResidentBoundary(s,f,simulationTime))return;
+
+    const int kind = s.riemannBoundaryKind[f];
+    if (kind == 3 || kind == 4)
+    {
+        return;
+    }
+
+    const int own = s.faceOwner[f];
+    const int mirrorCell = kind == 5 ? coupledFaceNeighbour(s, f) : own;
+    if (mirrorCell < 0 || mirrorCell >= s.nCells)
+    {
+        return;
+    }
+
+    if (s.riemannBoundaryRhoFix[f] == 0)
+    {
+        s.riemannBoundaryRho[f] = s.rho[mirrorCell];
+    }
+    if (s.riemannBoundaryUFix[f] == 0)
+    {
+        s.riemannBoundaryUx[f] = s.Ux[mirrorCell];
+        s.riemannBoundaryUy[f] = s.Uy[mirrorCell];
+        s.riemannBoundaryUz[f] = s.Uz[mirrorCell];
+    }
+    if (s.riemannBoundaryTFix[f] == 0)
+    {
+        s.riemannBoundaryT[f] = s.Tgas[mirrorCell];
+    }
+    if
+    (
+        s.riemannBoundaryPFix[f] == 0
+     && s.riemannBoundaryPWave[f] == 0
+    )
+    {
+        s.riemannBoundaryP[f] = s.p[mirrorCell];
+    }
+}
+
+#include "reconstructGasMixtureFace.cuh"
+
+template<class GasState>
+__device__ GasPrimDevice reconstructGasCellToFace
+(
+    const GasState& s,
+    const int c,
+    const int f,
+    const bool nativeRefinement=false, bool* evaluated=nullptr,
+    GPU_OPERATOR_REAL* reconstructedMassFractions=nullptr,
+    GPU_OPERATOR_REAL* reconstructedGasConstant=nullptr
+)
+{
+    if(evaluated)*evaluated=false;
+    if(!gasReconstructionStorageAvailable(s,c,f))
+    {
+        if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
+        return GasPrimDevice{};
+    }
+    if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
+        if (ugkwp::mixtureGasActive(s))
+        {
+            GasPrimDevice face=gasCellPrimitive(s,c);
+            GPU_OPERATOR_REAL y[ugkwp::GasStateTraits<GasState>::speciesCount];
+            bool complete=false;
+            if(!reconstructGasMixtureFace(s,c,f,face,
+                reconstructedMassFractions?reconstructedMassFractions:y,
+                nativeRefinement,&complete,reconstructedGasConstant))
+                ugkwp::gasRecordFaceFailure(s,f,!nativeRefinement&&!complete
+                    ?ugkwp::GasTransportCode::InvalidStorage:ugkwp::GasTransportCode::InvalidThermodynamics);
+            if(evaluated)*evaluated=complete;
+            return face;
+        }
+    if(evaluated)*evaluated=true;
+    if (s.gasReconstruction != 1)
+    {
+        return makeGasPrimDevice
+        (
+            s.rho[c],
+            s.Ux[c],
+            s.Uy[c],
+            s.Uz[c],
+            s.p[c],
+            s.Rgas,
+            s.rhoMin,
+            s.TgasMin
+        );
+    }
+
+    GPU_OPERATOR_GEOMETRY mappedCx = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_GEOMETRY mappedCy = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_GEOMETRY mappedCz = GPU_OPERATOR_R(0.0);
+    periodicMappedCellCentre(s, f, c, mappedCx, mappedCy, mappedCz);
+    const GPU_OPERATOR_REAL dx = GPU_OPERATOR_R(s.faceCx[f] - mappedCx);
+    const GPU_OPERATOR_REAL dy = GPU_OPERATOR_R(s.faceCy[f] - mappedCy);
+    const GPU_OPERATOR_REAL dz = GPU_OPERATOR_R(s.faceCz[f] - mappedCz);
+    GPU_OPERATOR_REAL rhoIncrement = s.gasGradientLimiterRho[c]
+      *(s.gradRhoX[c]*dx + s.gradRhoY[c]*dy + s.gradRhoZ[c]*dz);
+    GPU_OPERATOR_REAL pressureIncrement = s.gasGradientLimiterP[c]
+      *(s.gradPx[c]*dx + s.gradPy[c]*dy + s.gradPz[c]*dz);
+    GPU_OPERATOR_REAL uxIncrement = s.gasGradientLimiterUx[c]
+      *(s.gradUxX[c]*dx + s.gradUxY[c]*dy + s.gradUxZ[c]*dz);
+    GPU_OPERATOR_REAL uyIncrement = s.gasGradientLimiterUy[c]
+      *(s.gradUyX[c]*dx + s.gradUyY[c]*dy + s.gradUyZ[c]*dz);
+    GPU_OPERATOR_REAL uzIncrement = s.gasGradientLimiterUz[c]
+      *(s.gradUzX[c]*dx + s.gradUzY[c]*dy + s.gradUzZ[c]*dz);
+
+                                                                             
+                                                                       
+                                                                           
+                                                                        
+    const GPU_OPERATOR_REAL rho = s.rho[c] + rhoIncrement;
+    const GPU_OPERATOR_REAL ux = s.Ux[c] + uxIncrement;
+    const GPU_OPERATOR_REAL uy = s.Uy[c] + uyIncrement;
+    const GPU_OPERATOR_REAL uz = s.Uz[c] + uzIncrement;
+    const GPU_OPERATOR_REAL p = s.p[c] + pressureIncrement;
+    return makeGasPrimDevice
+    (
+        rho, ux, uy, uz, p, s.Rgas, s.rhoMin, s.TgasMin
+    );
+}
+
+#include "gasTransport/GasMolecularConductivity.cuh"

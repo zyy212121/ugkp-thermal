@@ -788,7 +788,7 @@ CHMT_HD inline bool bisectFeasibleSurfaceImpl(const SurfacePhysicsInput& in, con
     if (left.thermalResidual==0) { out=left; return true; }
     if (right.thermalResidual==0) { out=right; return true; }
     typename SurfaceBisectionProbeType<Evaluation>::type probes;
-    for (int iteration=0; iteration<100; ++iteration) {
+    for (int iteration=0; iteration<p.numerics.surface.thermalMaximumIterations; ++iteration) {
         const Real T=0.5*(lo+hi);
         SurfacePhysicsResult candidate;
         if(Track){trace->attempted=T;trace->hasAttempt=true;}
@@ -804,7 +804,7 @@ CHMT_HD inline bool bisectFeasibleSurfaceImpl(const SurfacePhysicsInput& in, con
             && (hi-lo<=temperatureTolerance || candidate.thermalResidual==0)) {
             out=candidate; return true;
         }
-        if (T==lo || T==hi || iteration==99) {
+        if (T==lo || T==hi || iteration+1==p.numerics.surface.thermalMaximumIterations) {
             if(team.leader())reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3804,
                 candidate.thermalResidual,fluxTolerance);
             out=candidate;return true;
@@ -854,7 +854,7 @@ CHMT_HD inline bool findFeasibleSurfaceRootImpl(const SurfacePhysicsInput& in, c
     SurfacePhysicsResult last=seed;bool hasValid=seedValid;
     // Invalid samples split feasible components; never bridge an observed hole.
     // Refine bracket discovery without changing the physical time interval.
-    for (int subdivisions=32; subdivisions<=512; subdivisions*=4) {
+    for (int subdivisions=p.numerics.surface.initialSubdivisions; subdivisions>0 && subdivisions<=p.numerics.surface.maximumSubdivisions;) {
         SurfacePhysicsResult previous;
         Real previousT=lo;
         bool previousValid=false;
@@ -882,6 +882,10 @@ CHMT_HD inline bool findFeasibleSurfaceRootImpl(const SurfacePhysicsInput& in, c
                 if (valid) { previous=current; previousT=T; }
             }
         }
+        const long long nextSubdivisions=static_cast<long long>(subdivisions)*p.numerics.surface.subdivisionGrowth;
+        // Exhaust the finite search budget without integer wrap or a nonadvancing schedule.
+        if(nextSubdivisions<=subdivisions || nextSubdivisions>p.numerics.surface.maximumSubdivisions)break;
+        subdivisions=static_cast<int>(nextSubdivisions);
     }
     if(!hasValid){
         // Retain a real failure record when no mathematical state is evaluable.

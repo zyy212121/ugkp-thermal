@@ -11,7 +11,8 @@
 #include <vector>
 namespace Foam { namespace gpuThermalRestart {
 static constexpr std::uint32_t maximumChunkParticles = 262144u;
-static constexpr const char* currentChtMarker = "UGKP_CHT_PARTICLES_SCHEMA9_FLOAT_COLD_PROFILES_BIN";
+static constexpr const char* schema9ChtMarker = "UGKP_CHT_PARTICLES_SCHEMA9_FLOAT_COLD_PROFILES_BIN";
+static constexpr const char* currentChtMarker = schema9ChtMarker;
 static constexpr const char* currentFshMarker = "UGKP_FSH_PARTICLES_SCHEMA8_FP64_FIELDS_BIN";
 template<class DiskTime> inline const char* marker();
 template<> inline const char* marker<float>() { return "UGKP_THERMAL_PARTICLES_SCHEMA7_T32_BIN"; }

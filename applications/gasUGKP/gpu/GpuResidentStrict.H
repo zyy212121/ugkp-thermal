@@ -3,12 +3,14 @@
 #include "thermal/ParticleTrackingGeometry.H"
 #include "gasBoundary/FoamInput.H"
 #include "gasBoundary/Api.H"
+#include "gasNumerics/GasScalarSolverControlsApi.H"
 #include "gasTransport/MolecularTransportApi.H"
 #include "gasTransport/FoamMolecularTransportInput.H"
 #ifndef GpuResidentStrict_H
 #define GpuResidentStrict_H
 
 #include "fvCFD.H"
+#include "../../../common/FoamSolverScheme.H"
 #include "../../../common/DiagnosticsFoam.H"
 #include "SharedGasModelInput.H"
 #include "BoundaryLayerInput.H"
@@ -399,6 +401,15 @@ protected:
     scalar legacyRestartParcelMass_;
 
 public:
+    template<class Real>
+    void configureGasScalarSolvers(const ugkp::gasNumerics::ScalarSolverControls<Real>& controls)
+    {
+        requireInitialised("configureGasScalarSolvers");
+        const auto hostControls=ugkp::gasNumerics::castScalarSolverControls<double>(controls);
+        check(ugkwpGpuResidentStrictConfigureGasScalarSolvers(handle_,&hostControls),
+            "configure gas scalar solver controls");
+    }
+
     void configureMolecularTransport(const ugkwp::MolecularTransportConfiguration& config){
         if(ugkwpGpuResidentStrictConfigureMolecularTransport(handle_,&config))
             FatalErrorInFunction << "configure molecular transport: " << ugkwpGpuResidentStrictLastError() << exit(FatalError);
@@ -552,13 +563,8 @@ protected:
                 scalar(0.63)
             );
         const label packingProjectionIterations =
-            particleWallProps == nullptr
-          ? label(20)
-          : particleWallProps->lookupOrDefault<label>
-            (
-                "gpuResidentPackingProjectionIterations",
-                label(20)
-            );
+            ugkp::solverControls::startupScheme(runTime).value(
+                "particle.packing","iterations",label(20),"effectiveDefault",mesh.name());
                                                                       
                                                                          
 

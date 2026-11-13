@@ -1,8 +1,16 @@
 #pragma once
 #include <cuda_runtime.h>
 #include <cstring>
+#include <type_traits>
+#include <utility>
 #include "ParticleResidentInterval.H"
 namespace ugkp { namespace gpu {
+// Conservative equality for plain binding/configuration records. Padding may
+// cause an extra capture, never reuse a graph after a changed field.
+template<class T> inline bool sameParticleGraphBindingValue(const T& a,const T& b){
+    static_assert(std::is_trivially_copyable<T>::value,"plain graph binding metadata required");
+    return std::memcmp(&a,&b,sizeof(T))==0;
+}
 struct ParticlePhaseGraph {
     cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;
     cudaGraphNode_t intervalNode=nullptr;cudaKernelNodeParams intervalParameters{};
@@ -32,6 +40,9 @@ struct ParticlePhaseGraphs {
     bool submitted=false,positionSequenceEnabled=false;
     // Last submitted sample. Configuration restores the last completed count.
     unsigned long long positionSequence=0;
+#if defined(UGKP_DEVELOPMENT_PROBES) && UGKP_DEVELOPMENT_PROBES
+    unsigned long long captureCount=0,intervalUpdateCount=0,launchCount=0;
+#endif
 };
 inline cudaError_t releaseParticlePhaseGraph(ParticlePhaseGraph& entry){
     cudaError_t error=cudaSuccess;
@@ -126,6 +137,9 @@ int launchParticlePhaseGraph(State* state,double dt,double end,Submit&& submit,A
         if(destroyed!=cudaSuccess)return failed("destroy particle phase recording stream",destroyed);
         error=cudaGraphInstantiateWithFlags(&entry.executable,entry.graph,0);
         if(error!=cudaSuccess)return failed("instantiate particle phase graph",error);
+    #if defined(UGKP_DEVELOPMENT_PROBES) && UGKP_DEVELOPMENT_PROBES
+        ++owner.captureCount;
+#endif
         entry.tasksReady=mirror.tasksReady;entry.preparedKind=mirror.preparedKind;
         entry.baseReady=mirror.baseReady;entry.splitActive=mirror.splitActive;entry.injectionActive=mirror.injectionActive;
         entry.parameters=parameters;entry.advances=advance;entry.sequenceAdvances=advanceSequence;entry.epoch=state->particleGraphEpoch;
@@ -135,10 +149,16 @@ int launchParticlePhaseGraph(State* state,double dt,double end,Submit&& submit,A
         auto kernel=entry.intervalParameters;kernel.kernelParams=arguments;
         const auto error=cudaGraphExecKernelNodeSetParams(entry.executable,entry.intervalNode,&kernel);
         if(error!=cudaSuccess)return failed("update particle phase interval",error);
+    #if defined(UGKP_DEVELOPMENT_PROBES) && UGKP_DEVELOPMENT_PROBES
+        ++owner.intervalUpdateCount;
+#endif
         entry.parameters=parameters;entry.advances=advance;entry.sequenceAdvances=advanceSequence;
     }
     const auto error=cudaGraphLaunch(entry.executable,nullptr);
     if(error!=cudaSuccess)return failed("launch particle phase graph",error);
+#if defined(UGKP_DEVELOPMENT_PROBES) && UGKP_DEVELOPMENT_PROBES
+    ++owner.launchCount;
+#endif
     adapt();
     restoreParticleDirectoryMirror(*state,entry);
     owner.previous=requested;owner.submitted=true;

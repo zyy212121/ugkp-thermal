@@ -1,6 +1,7 @@
 #ifndef CHMT_MESH_SWEEP_CONSTRAINTS_H
 #define CHMT_MESH_SWEEP_CONSTRAINTS_H
 #include "mesh/Motion.H"
+#include "core/NumericalControls.H"
 #include "mesh/GeometryDiagnostics.H"
 namespace chmt {
 // Fixed-topology Newton solve. Invalid geometry and resource failures return
@@ -11,6 +12,8 @@ struct SweepConstraintControls {
     std::vector<Real> faceVolumeTolerance{};
     Real rankTolerance=1e-11;
     int maximumIterations=24;
+    int harmonicMaximumIterations=20000;
+    Real harmonicRelativeTolerance=1e-12;
     int maximumLineSearch=24; // Bounded mathematical damping at fixed target/interval.
     // Compatibility-only fields. Allocation is limited by actual representable
     // sizes and allocator availability, never by a configured policy cap.
@@ -18,6 +21,17 @@ struct SweepConstraintControls {
     std::size_t maximumModeEntries=0;
     std::size_t maximumWorkspaceBytes=0;
 };
+inline SweepConstraintControls materialSweepControls(const MeshNumericalControls& input) {
+    SweepConstraintControls controls;
+    controls.absoluteVolumeTolerance=input.absoluteVolumeTolerance;
+    controls.relativeVolumeTolerance=input.relativeVolumeTolerance;
+    controls.rankTolerance=input.rankTolerance;
+    controls.maximumIterations=input.maximumIterations;
+    controls.maximumLineSearch=input.maximumLineSearch;
+    controls.harmonicMaximumIterations=input.harmonicMaximumIterations;
+    controls.harmonicRelativeTolerance=input.harmonicRelativeTolerance;
+    return controls;
+}
 // Bound both cell-inventory arithmetic and endpoint coordinate quantization.
 // A thin cell far from the coordinate origin cannot resolve eight epsilon of
 // its volume in world-coordinate vertices. Its actual face-area-weighted ULP
@@ -135,6 +149,14 @@ bool constrainFaceSweeps(const HostMesh&, const std::vector<int>& faces,
 // be reconstructed from a macro-end porosity, a front, or a mean mass rate.
 // Legacy moveCoupledMeshes instead uses old face area * front increment and is
 // retained only for the explicit compatibility path.
+// Resident material owners may omit the host solid snapshot. The full inventory
+// row count selects the same material geometry accuracy as a populated snapshot.
+bool moveCoupledMeshesConstrained(const HostState&, const std::vector<FilmAux>&,
+    const std::vector<Real>& solidTargetSweeps, std::size_t materialCellCount, Real interval,
+    HostMesh& gas, HostMesh& solid, SurfaceMesh&, SweepConstraintReport&,
+    std::string& error, const SweepConstraintControls& controls=SweepConstraintControls{},
+    const Tolerances& tolerances=Tolerances{},bool* numericalFailure=nullptr);
+// Compatibility entry forwards the number of material cells in the host snapshot.
 bool moveCoupledMeshesConstrained(const HostState&, const std::vector<FilmAux>&,
     const std::vector<Real>& solidTargetSweeps, Real interval,
     HostMesh& gas, HostMesh& solid, SurfaceMesh&, SweepConstraintReport&,

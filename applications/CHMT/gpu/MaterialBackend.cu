@@ -1,3 +1,5 @@
+#include "gpu/ResidentMaterialSlice.cuh"
+#include "gpu/ResidentMaterialSource.cuh"
 #include "../../../common/gpu/StableRowIndex.cuh"
 #include "ablation/SurfaceDonorAllocation.H"
 #include "gpu/MaterialBackend.H"
@@ -44,6 +46,15 @@ __global__ void conductionCoefficientsKernel(int count,const MaterialThermalInpu
     const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if(c<count){const auto value=materialThermalCoefficients(input[c],temperature[c],dt,*physics);
         output[c]=value;capacity[c]=value.capacity;source[c]=value.source;conductivity[c]=value.conductivity;}
+}
+// Initial publication diagnostics only. The repeated constitutive kernel above
+// remains unchanged, including its launch arguments and per-cell work.
+__global__ void inspectConductionStartupKernel(int count,const MaterialThermalCoefficients* coefficients,
+    const PhysicsConfig* physics,MaterialStepResult* status){
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=count)return;
+    const auto value=coefficients[c];
+    status[c]=value.error?MaterialStepResult{1,value.error,c,true}:MaterialStepResult{};
+    if(!value.error&&value.rawPorosity!=value.porosity){auto phi=value.rawPorosity;clipPhysicsMassFraction(*physics,phi,3824,c);}
 }
 __global__ void finishConductionKernel(int count,const SolidQ* current,const Real* volumes,
     const MaterialThermalInput* input,const Real* temperature,const PhysicsConfig* physics,
@@ -111,7 +122,7 @@ __global__ void prepareConductionLinearControls(MaterialConductionIteration* rep
     ScaledThermalSum scale;scale.add(1);if(scale.lessEqual(initial))scale=initial;
     auto tolerance=scale.multiplied(controls.energyRelativeTolerance);tolerance.add(controls.energyAbsoluteTolerance);
     tolerance.merge(audit->inventory.multiplied(64*std::numeric_limits<Real>::epsilon()));
-    const Real relative=initial.populated?fmin(1.,tolerance.ratioTo(initial)*.5):1.;
+    const Real relative=initial.populated?fmin(1.,tolerance.ratioTo(initial)*controls.linearEnergyBudgetFraction):1.;
     report->linear.tolerance=std::numeric_limits<Real>::min();report->linear.relativeTolerance=relative;
     cudaGraphSetConditional(permitted,1);
 }
@@ -174,6 +185,10 @@ struct RadiationSolidRow {
     const unsigned* receivers;const int* cells;
     __device__ int operator()(int i)const{return receivers[i]==ConsumeSolid?cells[i]:-1;}
 };
+__global__ void gatherMaterialSliceReceivers(ResidentMaterialDriveHistory history,std::size_t frame,unsigned* receivers){
+    const auto f=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x;
+    if(f<history.faces)receivers[f]=history.surface[frame*history.faces+f].radiationReceiver;
+}
 struct MaterialBackend {
     CudaFault fault;
     DeviceStream stream;
@@ -224,6 +239,24 @@ struct MaterialBackend {
     Buffer<MaterialTransportDeviceResult> transportResult;
     Buffer<MaterialStepResult> sourceStatus,stepResult;
     Buffer<ExchangePacket> packets;
+    ResidentMaterialDriveHistory borrowedHistory{};
+    ugkp::IntervalSlicePlan pendingSlicePlan{};
+    Buffer<IntervalSliceRecordPart> sliceParts;
+    Real sliceExternalFraction=0;bool sliceExternalLast=false;
+    bool sliceReady=false,slicePending=false;
+    Buffer<ugkp::IntervalSliceCursor> sliceCursor;
+    Buffer<ugkp::IntervalSlicePlan> slicePlan;
+    Buffer<ExchangePacket> sliceUsedPackets,sliceCandidatePackets;
+    Buffer<Real> sliceUsedRadiation,sliceCandidateRadiation,sliceExternal;
+    Buffer<Real> sliceUsedExternal,sliceCandidateExternal;
+    MaterialSliceAccumulators currentSlice()const{return {sliceUsedPackets.data(),sliceUsedRadiation.data(),sliceUsedExternal.data()};}
+    MaterialSliceAccumulators candidateSlice()const{return {sliceCandidatePackets.data(),sliceCandidateRadiation.data(),sliceCandidateExternal.data()};}
+    ResidentMaterialSlice sourceSlice()const{
+        ResidentMaterialSlice slice{borrowedHistory,slicePlan.data(),currentSlice(),true};
+        slice.selectedParts=sliceParts.data();slice.externalFraction=sliceExternalFraction;
+        slice.externalLast=sliceExternalLast;slice.hostSelected=true;return slice;
+    }
+
     Buffer<int> packetOffsets,packetIndices,radiationOffsets,radiationFaces,radiationCells;
     MaterialRowStorage packetRows,radiationRows;Buffer<unsigned char> rowScratch;
     std::vector<int> radiationCellMap;
@@ -385,7 +418,7 @@ bool beginMaterialWindow(MaterialBackend& b,const HostState& state,const Physics
 }
 bool prepareResidentMaterialConduction(MaterialBackend& b,const HostMesh& mesh,
     const std::vector<Real>& nativeVolumes,std::vector<MaterialThermalInput>& input,
-    std::string& error,bool& numerical){
+    std::string& error,bool& numerical,bool publishInput){
     numerical=true;
     if(!b.configureMesh(mesh,error))return false;
     if(!b.upload(b.conductionVolumes,nativeVolumes)||!b.allocate(b.conductionInput,b.current.size())
@@ -403,12 +436,17 @@ bool prepareResidentMaterialConduction(MaterialBackend& b,const HostMesh& mesh,
         ?materialCaloricError(MaterialCaloricCode(result.code)):"CPU conduction old EOS recovery failed";return false;}
     if(!b.allocate(b.conductionTemperature,b.current.size()))return b.failure(error);
     if(b.cells)conductionAnchorTemperature<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,b.conductionInput.data(),b.conductionTemperature.data());
+    if(publishInput){if(!b.read(b.conductionInput,input)||!b.finish(error))return b.failure(error);}
+    else input.clear();
+    error.clear();return true;
+}
+bool publishResidentMaterialConductionInput(MaterialBackend& b,std::vector<MaterialThermalInput>& input,std::string& error){
     if(!b.read(b.conductionInput,input)||!b.finish(error))return b.failure(error);
     error.clear();return true;
 }
 bool evaluateResidentMaterialConduction(MaterialBackend& b,const std::vector<Real>& temperature,
     Real dt,std::vector<MaterialThermalCoefficients>& coefficients,std::string& error,
-    const Real* deviceTemperature,void* temperatureStream,bool download){
+    const Real* deviceTemperature,void* temperatureStream,bool download,bool startupDiagnostics){
     if(deviceTemperature){if(!b.waitConduction(temperatureStream))return b.failure(error);}
     else if(!b.upload(b.conductionTemperature,temperature))return b.failure(error);
     b.operation(b.time);
@@ -416,12 +454,21 @@ bool evaluateResidentMaterialConduction(MaterialBackend& b,const std::vector<Rea
         b.conductionInput.data(),deviceTemperature?deviceTemperature:b.conductionTemperature.data(),dt,b.devicePhysics.data(),b.conductionCoefficients.data(),
         b.conductionCapacity.data(),b.conductionSource.data(),b.conductionConductivity.data());
     if(!b.fault.check(cudaGetLastError(),"evaluate resident material conduction"))return b.failure(error);
+    if(startupDiagnostics){
+        if(b.cells)inspectConductionStartupKernel<<<(b.cells+127)/128,128,0,b.stream.get()>>>(
+            b.cells,b.conductionCoefficients.data(),b.devicePhysics.data(),b.sourceStatus.data());
+        selectConductionFailure<<<1,256,0,b.stream.get()>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
+        MaterialStepResult result;
+        if(!b.fault.check(cudaGetLastError(),"inspect resident startup coefficients")
+            ||!b.transfers.download(&result,b.stepResult.data(),1)||!b.finish(error))return b.failure(error);
+        if(result.phase){error=result.code==1?"nonpositive implicit caloric secant":"material mass/geometry incompatible during implicit solve";return false;}
+    }
     if(download){if(!b.read(b.conductionCoefficients,coefficients)||!b.finish(error))return b.failure(error);}
     else coefficients.clear();
     error.clear();return true;
 }
 MaterialConductionDeviceFields residentMaterialConductionFields(MaterialBackend& b){
-    return {b.conductionCapacity.data(),b.conductionSource.data(),b.conductionConductivity.data(),b.stream.get(),b.conductionTemperature.data()};
+    return {b.conductionCapacity.data(),b.conductionSource.data(),b.conductionConductivity.data(),b.stream.get(),b.conductionTemperature.data(),b.current.size()};
 }
 namespace {
 const MaterialConductionAudit* enqueueConductionAudit(MaterialBackend& b,const Real* temperature,const Real* previous,
@@ -451,6 +498,7 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
     signature.add(normalizationSmall);signature.add(singularSmall);
     signature.add(controls.nonlinearMaxIterations);signature.add(controls.nonlinearRelativeTolerance);
     signature.add(controls.energyAbsoluteTolerance);signature.add(controls.energyRelativeTolerance);
+    signature.add(controls.linearMaxIterations);signature.add(controls.linearEnergyBudgetFraction);
     for(const void* pointer:{static_cast<const void*>(report.data()),static_cast<const void*>(b.diagnostics.device()),
         static_cast<const void*>(b.conductionInput.data()),static_cast<const void*>(b.devicePhysics.data()),
         static_cast<const void*>(b.conductionCoefficients.data()),static_cast<const void*>(b.conductionCapacity.data()),
@@ -463,7 +511,7 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
         if(!graph.executable){
         executionGraphDetail::checked(cudaGraphCreate(&graph.graph,0));cudaGraphConditionalHandle handle,permitted;
         executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&handle,graph.graph,0,cudaGraphCondAssignDefault));
-        ConjugateGradientControls linear;linear.maximumIterations=2000;linear.normalizationSmall=normalizationSmall;linear.singularSmall=singularSmall;
+        ConjugateGradientControls linear;linear.maximumIterations=controls.linearMaxIterations;linear.normalizationSmall=normalizationSmall;linear.singularSmall=singularSmall;
         const auto initialized=appendCaptured(graph.graph,{},b.stream.get(),[&]{
             beginConductionLoop<<<1,1,0,b.stream.get()>>>(report.data(),linear,b.diagnostics.device(),handle);});
         cudaGraph_t body=nullptr;executionGraphDetail::addWhile(graph.graph,handle,{initialized},body);
@@ -556,11 +604,32 @@ bool evaluateResidentMaterialTransport(MaterialBackend& b,const HostMesh& mesh,
         return false;}
     numerical=result.numerical;dtLimit=result.dtLimit;error.clear();return true;
 }
+bool beginResidentMaterialHistory(MaterialBackend& b,const ResidentMaterialDriveHistory* supplied,
+    const IntervalHistory& host,std::string& error){
+    b.sliceReady=false;b.slicePending=false;b.borrowedHistory={};
+    // Optional borrowed view is an optimization only. External material callers
+    // and histories without the producer layout keep the original upload path.
+    if(!supplied||!supplied->surface||!supplied->interval||!supplied->faces
+        ||supplied->frames!=host.records().size())return true;
+    for(const auto& record:host.records())if(record.radiationEnergy.size()!=supplied->faces
+        ||record.radiationReceiver.size()!=supplied->faces)return true;
+    b.borrowedHistory=*supplied;b.pendingSlicePlan={};
+    const ugkp::IntervalSliceCursor initialCursor{};
+    if(!b.waitConduction(supplied->producerStream)
+        ||!b.uploadRaw(b.sliceCursor,&initialCursor,1)||!b.allocate(b.slicePlan,1)
+        ||!b.allocate(b.sliceUsedPackets,3*supplied->faces)||!b.allocate(b.sliceCandidatePackets,3*supplied->faces)
+        ||!b.allocate(b.sliceUsedRadiation,supplied->faces)||!b.allocate(b.sliceCandidateRadiation,supplied->faces)
+        ||!b.upload(b.sliceExternal,host.externalRadiationEnergy())
+        ||!b.allocate(b.sliceUsedExternal,b.sliceExternal.size())||!b.allocate(b.sliceCandidateExternal,b.sliceExternal.size())
+        ||!b.sliceUsedPackets.zero(b.stream.get())||!b.sliceUsedRadiation.zero(b.stream.get())
+        ||!b.sliceUsedExternal.zero(b.stream.get()))return b.failure(error);
+    b.sliceReady=true;return true;
+}
 bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointMesh,
     const SurfaceMesh& surface,const std::vector<ExchangePacket>& packets,
     const std::vector<Real>& radiation,const std::vector<unsigned>& receivers,
     Real dt,const CpuMaterialControls& controls,bool finalStep,std::vector<SolidQ>& shadow,
-    std::vector<SolidQ>& cumulative,std::string& error,bool& numerical,const std::vector<int>* observedCells){
+    std::vector<SolidQ>& cumulative,std::string& error,bool& numerical,const std::vector<int>* observedCells,const IntervalSliceMetadata* selectedSlice){
     numerical=true;
     const int count=int(b.current.size());
     if(controls.retainDonorHistory&&!b.allocate(b.donor,count))return b.failure(error);
@@ -578,19 +647,49 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
         if(!b.upload(b.radiationCells,surface.solidCell))return b.failure(error);
         b.radiationCellMap=surface.solidCell;
     }
-    if(!b.upload(b.packets,packets)||!b.upload(b.radiation,radiation)
-        ||!b.upload(b.radiationReceiver,receivers)||!b.upload(b.nextVolumes,endpointMesh.volumes)
-        ||!b.buildRows(int(packets.size()),count,PacketSolidRow{b.packets.data()},b.packetRows,b.packetOffsets,b.packetIndices)
-        ||!b.buildRows(int(radiation.size()),count,RadiationSolidRow{b.radiationReceiver.data(),b.radiationCells.data()},
-            b.radiationRows,b.radiationOffsets,b.radiationFaces))return b.failure(error);
+    b.slicePending=b.sliceReady&&selectedSlice;
+    if(b.slicePending){
+        // These decisions were emitted by the same host cursor that produced
+        // the geometry/ledger packets. No device time comparison is repeated.
+        b.pendingSlicePlan={};b.pendingSlicePlan.begin.record=selectedSlice->beginRecord;
+        b.pendingSlicePlan.past=selectedSlice->beginRecord+selectedSlice->parts.size();
+        b.pendingSlicePlan.end.record=selectedSlice->endRecord;
+        b.sliceExternalFraction=selectedSlice->externalFraction;b.sliceExternalLast=selectedSlice->externalLast;
+    }
+    if(!b.upload(b.nextVolumes,endpointMesh.volumes))return b.failure(error);
+    if(b.slicePending){
+        if(!b.allocate(b.radiation,radiation.size())||!b.allocate(b.radiationReceiver,receivers.size())
+            ||!b.uploadRaw(b.slicePlan,&b.pendingSlicePlan,1)||!b.upload(b.sliceParts,selectedSlice->parts))return b.failure(error);
+        if(!b.fault.check(prepareHostSelectedMaterialSlice(b.sourceSlice(),b.candidateSlice(),
+            b.sliceExternal.data(),b.sliceExternal.size(),b.radiation.data(),b.stream.get()),
+            "prepare borrowed material source slice"))return b.failure(error);
+        gatherMaterialSliceReceivers<<<material_slice_detail::blocks(b.borrowedHistory.faces),128,0,b.stream.get()>>>(
+            b.borrowedHistory,b.pendingSlicePlan.begin.record,b.radiationReceiver.data());
+        if(!b.fault.check(cudaGetLastError(),"borrow material radiation receiver map"))return b.failure(error);
+        const auto slots=(b.pendingSlicePlan.past-b.pendingSlicePlan.begin.record)*b.borrowedHistory.faces*3;
+        if(!b.buildRows(int(slots),count,ResidentMaterialSliceRow{b.sourceSlice()},b.packetRows,b.packetOffsets,b.packetIndices))return b.failure(error);
+    }else{
+        if(!b.upload(b.packets,packets)||!b.upload(b.radiation,radiation)||!b.upload(b.radiationReceiver,receivers)
+            ||!b.buildRows(int(packets.size()),count,PacketSolidRow{b.packets.data()},b.packetRows,b.packetOffsets,b.packetIndices))return b.failure(error);
+    }
+    if(!b.buildRows(int(radiation.size()),count,RadiationSolidRow{b.radiationReceiver.data(),b.radiationCells.data()},
+        b.radiationRows,b.radiationOffsets,b.radiationFaces))return b.failure(error);
     if(!b.fault.check(cudaMemsetAsync(b.stepResult.data(),0,sizeof(MaterialStepResult),b.stream.get()),
         "clear material source result"))return b.failure(error);
     if(count){
+        if(b.slicePending){
+        applyMaterialSliceSourcesKernel<<<(count+127)/128,128,0,b.stream.get()>>>(count,b.current.data(),b.rates.data(),
+            b.initial.data(),b.gasChange.data(),b.candidateGasChange.data(),b.sourceSlice(),b.packetOffsets.data(),b.packetIndices.data(),
+            b.radiationOffsets.data(),b.radiationFaces.data(),radiation.empty()?nullptr:b.radiation.data(),
+            b.radiationReceiver.data(),b.nextVolumes.data(),b.devicePhysics.data(),dt,finalStep,
+            b.next.data(),controls.retainDonorHistory?b.donor.data():nullptr,b.sourceStatus.data(),controls.reactionMaxSubstep,controls.reactionCfl,controls.maxSubsteps);
+        }else{
         applyMaterialSourcesKernel<<<(count+127)/128,128,0,b.stream.get()>>>(count,b.current.data(),b.rates.data(),
             b.initial.data(),b.gasChange.data(),b.candidateGasChange.data(),b.packets.data(),b.packetOffsets.data(),b.packetIndices.data(),
             b.radiationOffsets.data(),b.radiationFaces.data(),radiation.empty()?nullptr:b.radiation.data(),
             b.radiationReceiver.data(),b.nextVolumes.data(),b.devicePhysics.data(),dt,finalStep,
             b.next.data(),controls.retainDonorHistory?b.donor.data():nullptr,b.sourceStatus.data(),controls.reactionMaxSubstep,controls.reactionCfl,controls.maxSubsteps);
+        }
     }
     selectSourceFailure<<<1,256,0,b.stream.get()>>>(b.sourceStatus.data(),count,b.stepResult.data());
     if(!b.fault.check(cudaGetLastError(),"launch resident material local sources"))return b.failure(error);
@@ -619,10 +718,25 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
     shadow=std::move(candidateShadow);cumulative=std::move(candidateDonor);
     error.clear();return true;
 }
-void commitResidentMaterialStep(MaterialBackend& b,Real time){
+bool commitResidentMaterialStep(MaterialBackend& b,Real time,std::string& error){
+    if(b.slicePending){
+        // Advance accepted history only with the whole material transaction;
+        // a failed endpoint surface solve never consumes this candidate slice.
+        if(!b.fault.check(commitResidentMaterialSlice(b.slicePlan.data(),b.candidateSlice(),b.currentSlice(),
+            b.borrowedHistory.faces,b.sliceExternal.size(),b.sliceCursor.data(),nullptr,b.stream.get()),
+            "commit borrowed material source slice"))return b.failure(error);
+        b.slicePending=false;
+    }
     b.current.swap(b.next);b.volumes.swap(b.nextVolumes);b.gasChange.swap(b.candidateGasChange);b.time=time;
     // A local-source commit changes current before the conduction publication.
-    b.publishedCurrentValid=false;
+    b.publishedCurrentValid=false;return true;
+}
+
+void commitResidentMaterialStep(MaterialBackend& b,Real time){
+    // Preserve the old external entry point. Its default source path does not
+    // bind resident history, so no new cursor commit kernel is launched.
+    // The production driver uses the error-reporting overload above.
+    std::string error;(void)commitResidentMaterialStep(b,time,error);
 }
 
 bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,

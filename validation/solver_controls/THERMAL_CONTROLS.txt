@@ -1,0 +1,161 @@
+THERMAL NUMERICAL CONTROLS: IMPLEMENTATION HANDOFF
+
+Scope and authorization
+Implemented CHT solid nonlinear/interface/linear, shared DO radiation, particle material radiation, and active coldwall1D controls in root FP64 and FP32 overlay paths. No README changes, commits, pushes, compilation, mathematical/operator/solver tests, or background-D intervention. Static source inspection only. Numerical conclusions are pending the parent's single unified D acceptance.
+
+Current user instruction (supersedes initial compatibility proposal)
+Numerical controls are read only from constant/scheme via common/FoamSolverScheme.H. Old numerical entries in solidRegionProperties, fvSolution, radiationProperties, and particleProperties are no longer fallbacks. Missing scheme fields use the typed defaults below. Model/material/boundary configuration remains in its original files. The user requested matching case migration; another owner is migrating candidate copies, not the original case-current.
+
+Precedence and lifetime
+Precedence, high to low: regions.<region>.<module>.<key>, <module>.<key>, then the selected backend typed effective default. The parent loader owns one read-only case snapshot. Each thermal owner resolves controls at construction and stores typed values; kernels do not read dictionaries. CHT linear normal/final dictionaries are built once, independently, from defaults plus scheme. There is no fvSolution numerical read in the candidate solver. Runtime changes to constant/scheme are not observed until restart.
+
+SOLID NONLINEAR
+Module: solid.nonlinear; region is the solid mesh name. Both primary and auxiliary regions can override separately.
+Keys and defaults:
+ nonlinearMaxIterations: label, 50.
+ nonlinearRelativeTolerance: dimensionless scalar, FP64 1e-10; FP32 effective default 1e-5.
+ energyRelativeTolerance: dimensionless scalar, FP64 1e-8; FP32 effective default 1e-4.
+ energyAbsoluteTolerance: energy J, scalar, 1e-10.
+ nonlinearAitken: bool, false.
+ nonlinearInitialRelaxation: dimensionless scalar, 1.
+ nonlinearMinimumRelaxation: dimensionless scalar, 0.05.
+ nonlinearMaximumRelaxation: dimensionless scalar, 1.
+The production caller supplies GpuSolidThermalControls{} rather than reading old solidRegionProperties numerical values. FP32's approved engineering defaults are applied before explicit scheme values; no later constructor clamp undoes an explicit scheme value. Direct callers can still construct the existing typed control API. Configured/effective FP32 logging is retained and describes the override order.
+The CPU candidate loop and SolidThermalIterationGraph consume the same controls. The nonlinear tolerance controls cell temperature, surface temperature, and surface-flux changes. Energy acceptance remains abs + rel*max(abs(deltaH),abs(interface)+abs(external),1). Aitken uses the existing initial/min/max relaxation. Existing budget-exhaustion warning/retain-candidate semantics are unchanged. Aitken on/off and host/distributed versus resident graph are distinct coverage branches.
+
+SOLID INTERFACE
+Module: solid.interface; region is the primary solid region. Active only for the three-region/solid-solid contact path.
+ solidInterfaceMaxIterations: label, 1.
+ solidInterfaceTemperatureRelativeTolerance: dimensionless scalar, 0.
+ solidInterfaceEnergyRelativeTolerance: dimensionless scalar, 0.
+These are the existing typed owner defaults, previously replaced by required old dictionary entries. They are now explicitly overridden only by scheme. CPU and GPU contact loops consume identical settings. CPU/GPU max-iteration warning behavior is unchanged. The existing two-region fixtures do not activate this module.
+
+SOLID LINEAR / IMPLICIT DIFFUSION
+Modules: solid.linear.normal and solid.linear.final; region is the solid mesh name.
+ maxIter: label, 1000.
+ minIter: label, 0.
+ tolerance: dimensionless scalar, 1e-6.
+ relTol: dimensionless scalar, 0.
+Both caches are constructed at startup from these defaults and scheme, not from fvSolution. The finalIteration/steady selection still chooses the appropriate cache. Resident-local configuration, ordinary/distributed solve, and warnings share selectedLinearControls(). The shared FoamSparseSolve/FoamImplicitDiffusion bridges populate ConjugateGradientControls; existing PCG stopping semantics and minIter behavior remain unchanged. ImplicitDiffusion itself owns assembly/storage, not another iteration limit. Arithmetic normalizationSmall/singularSmall remain the existing precision-safe constants, not new public knobs.
+Coverage must distinguish normal/final and resident-local/communication paths. Creating a final module in the file without executing a final solve is not consumer coverage.
+
+DO RADIATION
+Module: radiation.do; region is the fluid/gas mesh name. Active only when the existing radiation model is enabled.
+ maxSourceIterations: label, 300.
+ sourceRelativeTolerance: FP64 1e-10; FP32 max(1e-10,32*float epsilon).
+ phaseBalanceTolerance: FP64 1e-12; FP32 max(1e-12,max(32,8*nTheta*nPhi)*float epsilon).
+ maxPhaseBalanceIterations: label, 200.
+ radiationActiveEpsilonMin: dimensionless scalar/RadiationReal, 0.
+ angleParallelThreads: label, 1.
+ sourceRelaxation: dimensionless scalar/RadiationReal, 1.
+ linearSolverTolerance: FP64 1e-12; FP32 max(1e-12,32*float epsilon).
+ linearSolverRelTol: dimensionless scalar/RadiationReal, 0.
+ linearSolverMaxIterations: label, 1000.
+Existing default tolerance calculation remains min(1e-12,typed sourceRelativeTolerance*0.01) before resolution; with typed source default 1e-10 it equals 1e-12. Explicit scheme source tolerance does not implicitly rewrite a separately defaulted linear tolerance.
+Production MieDo owner applies precision defaults once, then scheme overrides. RadiationControls.controlsAlreadyResolved is true on the owner-to-GPU path; DiscreteOrdinateRadiation and OrderedUpwindGraph do not reclamp those explicit values. Direct GPU API callers leave the flag false and retain their previous precision-floor behavior. The independent MieOpticalProperties direct API keeps its original default floor and is not a hidden production scheme consumer.
+Actual consumers: active threshold in optics/import; phase iterations/tolerance in balancePhase; source iterations/tolerance in the conditional source graph; sourceRelaxation in relaxedDirection; linear settings in OrderedUpwindGraph, including published-residual measurement; angleParallelThreads in concurrency/frozen-angular-source selection.
+nTheta/nPhi and Mie tables, radiation enable/schedule, boundary types/emissivity remain model inputs. conservationRelativeTolerance and maxPhaseScalingCorrection were dead fields: old reads are removed, no new consumer or rejection behavior is introduced. They are not migrated to scheme.
+Coverage needs source/phase/directional-linear budget exits and converged exits, relaxation=1 versus !=1, and sequential versus parallel angular policies. Radiation-disabled fixtures do not cover these controls.
+
+PARTICLE MATERIAL RADIATION
+Module: radiation.material; region is the fluid/gas mesh name.
+Typed struct: ugkp::gpu::ParticleRadiationSolveControls in common/gpu/ParticleRadiationControls.H.
+ boundedMaximumIterations: int, 100.
+ boundedTemperatureRelativeTolerance: FP64 1e-10; FP32 max(1e-10,8*float epsilon).
+ boundedEnergyRelativeTolerance: FP64 1e-9; FP32 max(1e-9,32*float epsilon).
+ caloricMaximumIterations: int, 256.
+ caloricEnergyRelativeTolerance: 64*epsilon(RadiationReal), FP64 about 1.4210854715202004e-14, FP32 about 7.62939453125e-6.
+ boundaryEnergyRelativeTolerance: RadiationReal, 1e-10.
+All scalar tolerances here are dimensionless. Material coupler construction resolves this struct once and passes it to the long-lived ParticleRadiationMaterial owner. materialRoots uses the bounded controls when response.enabled is false; caloric controls when response.enabled is true. The same boundary tolerance feeds raw conservativeMaterialBoundary and actual settleMaterialBoundary. Existing roundoff allowance, endpoint choice, representable-interval stop, conservation policy, and physical bounds are unchanged. The material constructor's default second argument preserves direct API defaults. No old file keys exist for these formerly hardcoded values.
+Observation gap: production MaterialResult exports temperature/energy but currently not material-root iterations/residual. Direct solveCaloricParticleRadiation returns iterations/residual. Existing bounded root functions also return iterations/residual, but the material kernel does not export them. A manifest must not infer both branches from a single enabled radiation run or from SCHEME_VALUE parsing alone. No synchronization/readback was added solely for diagnostics in this patch.
+
+COLDWALL1D
+Module: coldWall1D; region is fluid/gas mesh name.
+ solidificationIterations: label/int, 4.
+CHT configureParticleStuckModel resolves the default plus scheme and sends it through the existing nonlinearIterations parameter. The active 8-node kernel consumes that member; full-solid first-iteration early exit remains. No new convergence gate/tolerance/relaxation was added. CHMT owner is integrating the same section/key through its shared reader.
+The main thermal backend uses GPU_PAIRED_PARTICLE_HEAT and analytic ParticleCaloric::temperature; the old 40-bisection fallback is not a new control. PCR stride count, node/ring counts, structural mass allocation loops and 2D legacy are unchanged. Coldwall1D must actually be active and cross the nonlinear regime to observe a changed iteration budget; a fully solid one-step analytic exit is not budget-trend coverage.
+
+OTHER PARTICLE FRONTEND INTEGRATION
+CHT includes the other owner's common/FoamParticleSolverControls.H and calls readParticleNumericalControls(time,mesh.name()) once per owner construction. initialBase uses its packingIterations in create and then setParticleNumericalControls; pure-gas construction also installs the typed controls. The old gpuResidentPackingProjectionIterations lookup is removed. particle.finiteContact and particle.packing implementation/default documentation belong to the CHMT/particle owner.
+Mixture finite-bath uses gasSpecies.thermoControls and is handled by the gas-control owner. Ordinary paired bath is an analytic exponential expression and has no missing iteration budget. No duplicate bath solver parameters were introduced.
+
+CASE MIGRATION MAP
+Old constant/solidRegionProperties/solidThermalCoupling nonlinear* and energy* numerical keys -> solid.nonlinear, identical key names above.
+Old same dictionary solidInterface* numerical keys -> solid.interface, identical key names above.
+Old system/<solidRegion>/fvSolution solvers/TsolidCandidate (including matched regex) maxIter/minIter/tolerance/relTol -> regions.<solidRegion>.solid.linear.normal, identical keys.
+Old same TsolidCandidateFinal -> regions.<solidRegion>.solid.linear.final. Existing no-final execution must not be claimed as final coverage.
+Old constant/radiationProperties/model/do numerical keys listed above -> radiation.do, identical keys. nTheta/nPhi remain model keys; dead conservationRelativeTolerance/maxPhaseScalingCorrection are removed, not moved.
+Old constant/particleProperties/gpuResidentStuckModel/solidificationIterations -> coldWall1D.solidificationIterations.
+Old constant/particleProperties/gpuResidentPackingProjectionIterations -> particle.packing.iterations (other owner's control type).
+For fair FP32 candidate comparison, migrate original effective values, not raw requests: solid relative >=1e-5 and energy relative >=1e-4 under the prior finite/nonnegative clamp; DO source/linear >=32eps and phase >=max(32,8*Nangles)eps under the prior precision semantics. RelTol was not floored. If old DO linear tolerance was absent, derive min(1e-12,old sourceRelativeTolerance*0.01) before the FP32 floor. New scheme values thereafter are explicit and are not clamped back to defaults.
+
+EXISTING CASES / VALIDATION STATUS
+Existing complete two-region cases found: validation/molecular_transport/fixtures/cht-contact and validation/shared_boundary/fixtures/cht. Both contain radiation enabled false; neither is three-region interface evidence. Related nonexecuted source fixtures: validation/gpu_coupled_pipeline/solid_sparse_foam.cpp, solid_conduction.cpp, radiation_transport.cpp, particle_radiation_cuda.cpp; validation/chmt_motion/cht_radiation_particles.cpp, radiation_response.cpp; validation/tests/cold_wall_pcr.cu; validation/checkpoint03/radiation/radiation_acceptance.cpp. Their mere existence does not establish schema or consumer coverage. No compile or runtime verification was executed by this worker.
+
+CURRENT SOURCE ANCHORS (line numbers from this handoff snapshot)
+applications/CHT/thermal/GpuSolidThermalCoupler.C:269 : dictionary startupSolidLinearControls
+applications/CHT/thermal/GpuSolidThermalCoupler.C:286 : const dictionary& GpuSolidThermalCandidateSolver::selectedLinearControls
+applications/CHT/thermal/GpuSolidThermalCoupler.C:308,309,310,311,312,313,314,315 : scheme.read("solid.nonlinear"
+applications/CHT/thermal/GpuSolidThermalCoupler.C:1238,1239,1240 : interfaceScheme.read("solid.interface"
+precision/fp32/applications/CHT/thermal/GpuSolidThermalCoupler.C:304 : constexpr GpuReal relativeBudget
+common/thermal/radiation/RadiationControls.H:4 : inline MieDoControls
+common/thermal/radiation/MieDoRadiationSolver.C:299,300,301,302,303,304,305,306,307,308 : scheme.read("radiation.do"
+common/thermal/radiation/MieDoRadiationSolver.C:632 : result.controlsAlreadyResolved=true
+common/gpu/DiscreteOrdinateRadiation.cu:307 : if(!controls.controlsAlreadyResolved)
+common/gpu/OrderedUpwindGraph.cuh:105 : if(!controls.controlsAlreadyResolved)
+common/thermal/radiation/GpuParticleRadiationCoupler.C:22,320 : startupMaterialControls
+common/gpu/ParticleRadiationMaterial.cu:65 : __global__ void materialRoots
+common/gpu/ParticleRadiationMaterial.cu:87 : __global__ void conservativeMaterialBoundary
+common/gpu/ParticleRadiationMaterial.cu:100 : __global__ void settleMaterialBoundary
+common/gpu/ParticleRadiationResponse.H:53 : UGKP_RAD_RESPONSE_HD CaloricRadiationResult solveCaloricParticleRadiation
+applications/CHT/gpu/GpuResidentStrict.H:3412 : label nonlinearIterations = 4
+applications/CHT/gpu/GpuResidentStrict.H:1441,1779 : readParticleNumericalControls(mesh.time(),mesh.name())
+common/wall/GpuColdWall1DAdvance.inl:143 : iteration == 0 || iteration < s.coldWallSolidificationParameters.nonlinearIterations
+
+FINAL STATIC AUDIT 2026-11-12
+Rechecked both precision paths: explicit scheme values reach solid nonlinear/linear, DO GPU controls and root-material controls without a later precision floor. DO controlsAlreadyResolved is passed into both ordered sweep paths. Fixed the standalone transaction temporary workspace to resolve radiation.material through the same cached startup scheme as the long-lived production coupler, rather than silently using typed defaults. No kernel, stop condition, gate, or numerical test was added. Production-only runtime verification remains pending the frozen combined checkpoint.
+
+SOLID DISCRETIZATION STARTUP SNAPSHOT
+Added common/FoamThermalDiscretization.H. Module solidDiscretization supports
+region and precision overrides through the common loader. Native OpenFOAM
+subdictionaries laplacianSchemes, gradSchemes, interpolationSchemes and
+ddtSchemes retain their expression keys/regex and token streams. Defaults:
+Gauss linear corrected; Gauss linear; linear; Euler respectively. The ddt
+selection here only determines normal/final linear-control selection, not a
+replacement transient integration algorithm. The CHT owner resolves the cache
+at construction; subsequent operators reuse the cached dictionary.
+
+Direct consumers replaced in BOTH precision paths:
+FoamImplicitDiffusion.H: resident/nonresident laplacian factory, corrected
+gradient selection, and harmonic boundary interpolation factory.
+FoamThermalFieldOperators.H: corrected face-gradient factory.
+GpuSolidThermalCoupler.C: selectedLinearControls steady flag and startup cache.
+Native non-Gauss factory selection still runs its original registered algorithm.
+fluxRequired remains a framework output-registration read, not a numerical
+scheme selection. No new failure/rejection path or algorithm restriction.
+
+NATIVE INDIRECT READ ADAPTERS (2026-11-12 FOLLOW-UP):
+Repository-local FoamThermalNativeSchemes.H now closes the known reachable
+native scalar backdoors without altering the installed OpenFOAM libraries.
+limited <number> is expanded by its registered constructor to the native
+limited corrected <number> syntax. Native limitedSnGrad still owns coefficient
+validation, limiter formula, boundary handling and deltaCoeffs; only corrected
+selection now goes through the already registered unified gradient operator.
+Explicit nested forms continue through native parsing unchanged.
+Scalar linearUpwind is reachable through the mesh-only factory (it reads the
+flux field name from its input), so both mesh and mesh+flux registration now
+select a local upwind-derived adapter. Its correction body is the native
+OpenFOAM 10 scalar template formula with the gradient factory stream replaced
+by solidDiscretization.gradSchemes. Original flux sign selection, coupled-face
+displacement, component loop, boundary zeros and gradient field name remain.
+The native source license and provenance are retained in the adapter header.
+linearUpwindV is registered only for vector (native linearUpwindV.C), while
+all thermal interpolation factories here are surfaceInterpolationScheme<scalar>.
+It is not reachable in this thermal path; no new support or refusal was added.
+Arbitrary third-party plugins may still own additional configuration reads;
+this work claims closure of the identified native reachable paths, not every
+future external plugin. No numerical test has run for these adaptations.
+Native-adapter syntax-only compilation passed in thermal-native-syntax-r1.
+
+New-header syntax-only compilation passed; no executable or numerical test ran.
+Evidence: thermal-discretization-syntax-r1 under repair2 records.

@@ -1,0 +1,68 @@
+GAS / WALL / STEADY CONTROL INVENTORY (STATIC AUDIT; NOT A NUMERICAL PASS)
+All sections use constant/scheme startup snapshot, merged by Scheme::module.
+Precedence: precision-region > region > precision-module > module > typed default.
+Both FP64 source and FP32 materialized source retain physical thermo bounds in
+chemistryControls.thermo.minTemperature/maxTemperature. Numerical keys at that
+old location are ignored. Physical species/model/transport properties stay put.
+
+Gas model transport:
+FoamGasModelInput constructs a dictionary, deletes any user model-file
+solverControlOverrides block, injects scheme gasChemistry/gasThermo, serializes
+at max_digits10, parses the same text on host, then passes modelText_ to
+ugkwpGpuResidentStrictConfigureGasModelV1. Thus host and CUDA reparse identical
+startup numerical payload, rather than independently rereading the model file.
+GasModelIO applies only live keys; unused old maximumSteps, rejectedSteps,
+initialStep etc are not advertised as effective controls.
+
+ gasChemistry (mixtureChemistry only): relativeTolerance=1e-6,
+ absoluteMassFractionTolerance=1e-12, newtonTolerance=.03,
+ maximumNewtonIterations=16, maximumLineSearchIterations=24,
+ lineSearchReduction=.5. Values flow ChemistryControls -> LocalStiffIntegrator.
+ gasThermo (mixtureFrozen/mixtureChemistry): maximumIterations=100,
+ absoluteEnergyTolerance/relativeEnergyTolerance=1e-10,
+ absoluteTemperatureTolerance=1e-9, relativeTemperatureTolerance=1e-10.
+ FP32 typed relative energy/temperature defaults use 32/8 epsilon respectively;
+ explicit flags preserve user-specified values through castChemistryControls.
+ Consumer is thermo inversion using the gas state's controls.
+
+wallLayer (active boundary-layer wall model): maxIterations=60,
+ relativeTolerance FP64=1e-8 / FP32=1e-4,
+ absoluteTolerance FP64=1e-10 / FP32=8 epsilon.
+ Inner controls: maximumLineSearchIterations=40,lineSearchReduction=.5,
+ seedMaximumIterations=200,seedRelativeTolerance=1e-5,seedRelaxation=.5,
+ profileBracketIterations=16,profileBracketGrowth=2,
+ profileBisectionIterations=70,jacobianRefreshReduction=.5.
+ FoamBoundaryLayerInput -> config -> resident WallModelTypes/WallIterationControls
+ -> WallCoherentSolver, WallLayerTransport, ConservativeProfile.
+
+wallFunctions: laminarMaximumIterations=10,laminarRelativeTolerance=1e-8,
+ spaldingMaximumIterations=64,spaldingTolerance=32 epsilon,
+ thermalMaximumIterations=80,thermalRelativeTolerance=8 epsilon.
+ gasBoundary: inletMachMaximumIterations=48.
+ App readGasScalarSolverControls -> resident scalar solver API -> gas state
+ ScalarSolverControls -> OpenFoamWallFunctions / RiemannBoundaryState.
+
+ gasTimeStep: maxCo=.5,maxDeltaT=GREAT,courantUpdateInterval and
+ maximumTimeStepGrowth from GpuSchedulingConfiguration defaults.
+ App startup values used for CFL scheduling; old controlDict numeric reads removed.
+ steadyGas: maxCo=.5,maxDeltaT=GREAT,boundaryTime=restart clock,
+ relativeTolerance FP64=1e-8 / FP32=1e-4,absoluteTolerance=0,
+ minimumIterations=1,residualInterval=10,referenceTime=1.
+ steadyParticle: samplingDeltaT=existing default,boundaryTime=restart clock,
+ windowSamples=200,minimumWindows=4,stableWindows=2,
+ meanTolerance=1e-3,inventoryTolerance=1e-2.
+ Consumers: steadyGasLoop and steadyParticleLoop, including FP32 copies.
+ Existing count normalizations remain and report requested/effective values.
+
+Probe updates prepared only, not executed: test_gas_model_io uses injected
+solverControlOverrides, tests signed active integer controls and verifies old
+numerical chemistryControls entries no longer change results.
+Production override/default/conflict evidence and final acceptance argv remain
+to be frozen by coordinator. This inventory is not runtime consumption proof.
+
+Additional owner-confirmed scope: gasNumerics is now sourced solely from scheme.
+The module preserves old fvSchemes-shaped syntax for fluxScheme, gasLimiter,
+ddtSchemes, gradSchemes, interpolationSchemes, snGradSchemes, laplacianSchemes,
+and divSchemes. Defaults are Kurganov/Euler/upwind/none plus existing required
+Gauss linear geometry definitions. Existing selector parsing and validation
+are preserved; OpenFOAM's own scheme database remains separate.

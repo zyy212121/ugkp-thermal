@@ -1,9 +1,12 @@
 #ifndef CHMT_CONFIGURATION_COUPLINGINPUT_H
 #define CHMT_CONFIGURATION_COUPLINGINPUT_H
 #include "configuration/MultirateIO.H"
+#include "configuration/SolverControls.H"
+#include "../../../common/FoamGasSolverControls.H"
 #include "io/MeshIO.H"
 #include "gpu/StateValidation.H"
 #include "../../../common/gasTransport/GasNumericsIO.H"
+#include "../../../common/FoamGasNumericsControls.H"
 #include "../../../common/gasTransport/GasMechanismIO.H"
 #include "OStringStream.H"
 #include "../../../common/gasTransport/FoamMolecularTransportIO.H"
@@ -26,9 +29,13 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     CoupledCaseInput candidate;
     Foam::IOdictionary gasProperties(Foam::IOobject("gasModelProperties",time.constant(),time,
         Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
+    const Foam::word gasRegion(text(d,"gasRegion",Foam::polyMesh::defaultRegion));
+    const Foam::word solidRegion(text(d,"solidRegion"));
+    ugkp::solverControls::applyGasSolverControlOverrides(gasProperties,time,gasRegion);
     Foam::OStringStream expanded;expanded.precision(std::numeric_limits<double>::max_digits10);
     gasProperties.Foam::dictionary::write(expanded,false);
     candidate.gasModel=ugkwp::parseGasModelProperties(expanded.str());
+    ugkp::solverControls::reportGasSolverControls(candidate.gasModel,time,gasRegion);
     if(candidate.gasModel.mode!=ugkwp::GasMode::MixtureFrozen)
         throw std::runtime_error("CHMT requires frozen multicomponent gas; volumetric chemistry and single-component modes are not application capabilities. Surface reactions and pyrolysis remain available.");
 
@@ -41,6 +48,7 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
             candidate.gasModel.mode=ugkwp::GasMode::SingleLegacy;
     }
     candidate.model=readModel(d,candidate.gasModel);
+    readModelSolverControls(candidate.model,time,gasRegion,solidRegion);
     {
         auto names=candidate.gasModel.speciesNames;
         if(candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy)
@@ -74,7 +82,7 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     }
     candidate.gasMesh.reset(new Foam::fvMesh(Foam::IOobject(text(d,"gasRegion",Foam::polyMesh::defaultRegion),time.timeName(),time,Foam::IOobject::MUST_READ)));
     candidate.solidMesh.reset(new Foam::fvMesh(Foam::IOobject(text(d,"solidRegion"),time.timeName(),time,Foam::IOobject::MUST_READ)));
-    candidate.gasNumerics=Foam::readGasNumericsConfiguration(candidate.gasMesh->schemes().dict());
+    candidate.gasNumerics=Foam::readGasNumericsConfiguration(ugkp::solverControls::readGasNumericsDictionary(time,gasRegion));
     auto& state=candidate.state;state.time=time.value();state.radiationTime=state.time;
     state.gasMesh=importMesh(*candidate.gasMesh,d);
     state.solidMesh=importMesh(*candidate.solidMesh,d.found("solidBoundaries")?d.subDict("solidBoundaries"):d);
@@ -113,16 +121,18 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     if(text(d,"couplingSchedule","multirate")=="solidThermalCoupling"){
         Foam::IOdictionary solidProperties(Foam::IOobject("solidRegionProperties",time.constant(),time,
             Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
-        candidate.thermalSchedule=ugkp::thermal::readCouplingSchedule(solidProperties.subDict("solidThermalCoupling"));
+        candidate.thermalSchedule=ugkp::thermal::readCouplingSchedule(solidProperties.subDict("solidThermalCoupling"),time);
         Foam::IOdictionary radiationProperties(Foam::IOobject("radiationProperties",time.constant(),time,
             Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
-        ugkp::thermal::readRadiationSchedule(candidate.thermalSchedule,radiationProperties);
+        ugkp::thermal::readRadiationSchedule(candidate.thermalSchedule,radiationProperties,time);
         require(finite(candidate.thermalSchedule.interval)&&candidate.thermalSchedule.interval>0
             &&(!candidate.thermalSchedule.radiationEnabled||candidate.thermalSchedule.radiationFrequency>0),"invalid solid thermal coupling schedule");
     }else require(text(d,"couplingSchedule","multirate")=="multirate","unknown couplingSchedule");
     if(candidate.thermalSchedule.radiationEnabled)candidate.model.physics.enableRadiation=false; // DO owns radiation; no parallel ambient-grey source
-    candidate.coupling=readCouplingControls(d,dt,candidate.thermalSchedule.interval);
-    candidate.material=readCpuMaterialControls(d,candidate.coupling);
+    candidate.coupling=readCouplingControls(time,dt,candidate.thermalSchedule.interval);
+    candidate.material=readMaterialSolverControls(time,solidRegion);
+    candidate.coupling.gasMaxDt=candidate.model.physics.maxDt;
+    candidate.coupling.materialMaxSubstep=candidate.material.maxSubstep;
     out=std::move(candidate);
 }
 }}

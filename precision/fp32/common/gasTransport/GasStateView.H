@@ -1,0 +1,313 @@
+#include "GasBoundaryThermodynamics.H"
+#pragma once
+#include <type_traits>
+#include "../gasBoundary/Evaluate.H"
+#include "../Diagnostics.H"
+#include <limits>
+#include <utility>
+#include "GasModel.H"
+#include "MolecularViscosity.H"
+#include "MolecularConductivity.H"
+#include "GasEnergy.H"
+#include "PositiveInventory.H"
+#include "GasGeometryPolicy.H"
+#include "GasBoundaryLayerState.H"
+#include "../chemistry/ChemistryTypes.H"
+#include "../gasNumerics/GasScalarSolverControls.H"
+
+namespace ugkwp
+{
+
+// A non-owning snapshot of the existing density-storage gas operator contract.
+// Conserved fields are rho, rho*u and rho*E, not integrated cell inventories.
+// Allocation, lifetime, device upload and scalar refresh belong to the caller.
+// In particular, a copied view does not track later pointer/scalar assignments.
+// The SST fields are optional at runtime when sstConfigured is zero; they do
+// not introduce particle, scheduler, host container or CUDA runtime ownership.
+// Wall exposure and accepted wall energy remain separate caller capabilities.
+template<class Real, class Time, class SstCoefficients, class Energy = Real, class Geometry = Real, class Wall = Real>
+struct GasStateView
+{
+    using RealType = Real;
+    using GeometryType = Geometry;
+    using WallType = Wall;
+    using EnergyType = Energy;
+    static_assert(std::is_floating_point<Energy>::value, "gas energy must be floating point");
+    using TimeType = Time;
+    using SstCoefficientsType = SstCoefficients;
+    static constexpr int speciesCount = 0;
+    ugkp::diagnostics::DeviceContext* diagnostics = nullptr;
+    ugkp::boundary::View gasBoundaryProgram;
+    MolecularViscosityView<Wall> gasViscosity;
+    GasGeometryState<Geometry> gasGeometry;
+    GasBoundaryLayerState<Wall> gasBoundaryLayer;
+    bool gasThermalConductivityConfigured = false;
+    Real gasThermalConductivity = Real(-1); // finite negative and not configured: legacy mu*cp/Pr; otherwise W/(m K)
+
+#define UGKWP_GAS_STATE_FIELD(Type, Name) Type Name{};
+#include "GasStateFields.inc"
+#undef UGKWP_GAS_STATE_FIELD
+};
+
+// Optional species capability. Storage uses exactly Ns species, never padded
+// capacity. Cell arrays use [species*nCells+cell], face arrays use
+// [species*nFaces+face]; scalar primitive/status fields are per-cell/per-face.
+// rho and initial have units kg/m^3; flux is signed kg/s. grad* are gradients
+// of mass fraction [1/m]. All arrays belong to the caller's trial allocation.
+template<class Real, int Ns, class TableReal = Real>
+struct GasSpeciesState
+{
+    static constexpr int speciesCount = Ns;
+    using RealType = Real;
+    GasMode mode = GasMode::SingleLegacy;
+    SpeciesThermoView<TableReal, Ns> thermo;
+    ThermoInversionControls<TableReal> thermoControls;
+    GasMechanismView<TableReal, Ns> mechanism;
+    ChemistryControls<TableReal> chemistryControls;
+    ChemistryStatus* chemistryStatus = nullptr;        // per-cell attempted status
+    Real densityClosureTolerance = Real(64)*std::numeric_limits<Real>::epsilon();
+    Real* rho = nullptr;
+    Real* initial = nullptr;
+    Real* flux = nullptr;
+    Real* gradX = nullptr;
+    Real* gradY = nullptr;
+    Real* gradZ = nullptr;
+    Real* limiter = nullptr;             // one jointly admissible scale per cell
+    Real* boundaryMassFraction = nullptr;
+    int* compositionBoundaryFixed = nullptr; // per face, 0 extrapolated, 1 fixed
+    Real* positivityScale = nullptr;     // species-specific donor scale per cell
+    const Real* diffusivity = nullptr;   // Ns molecular D values, m^2/s; null=off
+    Real turbulentSchmidt = Real(0.7);
+    Real* soundSpeed = nullptr;
+    Real* heatCapacity = nullptr;        // mixture cp, J/(kg K)
+    Real* gasConstant = nullptr;         // mixture R, J/(kg K)
+    int* cellStatus = nullptr;
+    int* faceStatus = nullptr;
+};
+
+// Legacy DeviceState types require no added field, allocation or runtime work.
+template<class State, class = void>
+struct GasStateTraits { static constexpr int speciesCount = 0; };
+
+template<class State>
+struct GasStateTraits<State, std::void_t<decltype(std::declval<State>().gasSpecies)>>
+{
+    using SpeciesState = decltype(std::declval<State>().gasSpecies);
+    static constexpr int speciesCount = SpeciesState::speciesCount;
+};
+
+template<class State>
+UGKWP_GAS_HD inline bool mixtureGasActive(const State& state)
+{
+    if constexpr (GasStateTraits<State>::speciesCount > 0)
+        return state.gasSpecies.mode != GasMode::SingleLegacy;
+    return false;
+}
+
+template<class State,class=void> struct GasViscosityCapability : std::false_type {};
+template<class State> struct GasViscosityCapability<State,
+    std::void_t<decltype(std::declval<State>().gasViscosity)>> : std::true_type {};
+template<class State> UGKWP_GAS_HD inline bool gasVariableViscosity(const State& s) {
+    if constexpr(GasViscosityCapability<State>::value)
+        return s.gasViscosity.model!=MolecularViscosityModel::Constant;
+    return false;
+}
+template<class State> UGKWP_GAS_HD inline bool gasVariablePrandtl(const State& s){
+    if constexpr(GasViscosityCapability<State>::value)return s.gasViscosity.prandtlSpecies>=0;
+    return false;
+}
+template<class State> UGKWP_GAS_HD inline auto gasCellMolecularPrandtl(const State& s,int c){
+    using R=std::remove_cv_t<std::remove_reference_t<decltype(s.gasMu)>>;
+    constexpr int N=GasStateTraits<State>::speciesCount;
+    if constexpr(GasViscosityCapability<State>::value&&N>0)if(mixtureGasActive(s)&&s.gasViscosity.prandtlSpecies>=0){
+        R mass[N];for(int j=0;j<N;++j)mass[j]=s.gasSpecies.rho[j*s.nCells+c];
+        return molecularPrandtl<N>(s.gasViscosity,s.gasPrClamped,mass);
+    }
+    return s.gasPrClamped;
+}
+template<class State> UGKWP_GAS_HD inline auto gasCellPrandtlOneThird(const State& s,int c){
+    using R=std::remove_cv_t<std::remove_reference_t<decltype(s.gasPrOneThird)>>;
+    if(gasVariablePrandtl(s))return R(::cbrt(gasCellMolecularPrandtl(s,c)));
+    return s.gasPrOneThird;
+}
+template<class State> UGKWP_GAS_HD inline bool gasVariableDiffusivity(const State& s){
+    if constexpr(GasViscosityCapability<State>::value)return s.gasViscosity.diffusion!=nullptr;
+    return false;
+}
+template<class State,class R> UGKWP_GAS_HD inline R gasLocalMolecularDiffusivity(const State& s,int j,R T,R p){
+    const R constant=s.gasSpecies.diffusivity?R(s.gasSpecies.diffusivity[j]):R(0);
+    if constexpr(GasViscosityCapability<State>::value)return molecularDiffusivity(s.gasViscosity,j,constant,T,p);
+    return constant;
+}
+template<class State,class R> UGKWP_GAS_HD inline R checkedMolecularViscosity(
+    const State& s,R mu,int entity,bool face) {
+    if(!gasFinite(mu)||!(mu>0)) {
+        using namespace ugkp::diagnostics;
+        if(s.diagnostics)recordFatal(s.diagnostics,makeRecord(
+            gasFinite(mu)?Code::InvalidPhysicalState:Code::NonFinite,
+            face?2701:2700,26,0,face?EntityKind::Face:EntityKind::Cell,entity,-1,
+            mu,0,0,Quantity::Unspecified));
+    }
+    return mu;
+}
+template<class State> UGKWP_GAS_HD inline auto gasCellMolecularViscosityAt(const State& s,int c,typename std::remove_cv<typename std::remove_reference<decltype(s.gasMu)>::type>::type temperature) {
+    using R=typename std::remove_cv<typename std::remove_reference<decltype(s.gasMu)>::type>::type;
+    if constexpr(GasViscosityCapability<State>::value){
+        if(gasVariableViscosity(s)){
+            R mu;
+            constexpr int N=GasStateTraits<State>::speciesCount;
+            if constexpr(N>0){if(mixtureGasActive(s)){
+                R mass[N];for(int j=0;j<N;++j)mass[j]=s.gasSpecies.rho[j*s.nCells+c];
+                mu=molecularViscosity<N>(s.gasViscosity,s.gasMu,temperature,mass);
+            }else mu=molecularViscosity<1>(s.gasViscosity,s.gasMu,temperature,static_cast<const R*>(nullptr));}
+            else mu=molecularViscosity<1>(s.gasViscosity,s.gasMu,temperature,static_cast<const R*>(nullptr));
+            return checkedMolecularViscosity(s,mu,c,false);
+        }
+    }
+    return s.gasMu;
+}
+template<class State> UGKWP_GAS_HD inline auto gasCellMolecularViscosity(const State& s,int c){
+    if(!gasVariableViscosity(s))return s.gasMu;
+    return gasCellMolecularViscosityAt(s,c,s.Tgas[c]);
+}
+template<class State> UGKWP_GAS_HD inline auto gasTransportFaceWeight(const State& s,int f,int own,int nei){
+    using R=std::remove_cv_t<std::remove_reference_t<decltype(s.gasMu)>>;
+    if(nei<0)return R(1);
+    const R w=s.faceWeight[f]<0?R(0):(s.faceWeight[f]>1?R(1):s.faceWeight[f]);
+    return own==s.faceOwner[f]?w:R(1)-w;
+}
+template<class State> UGKWP_GAS_HD inline auto gasTransportFaceTemperature(const State& s,int f,int own,int nei){
+    const auto w=gasTransportFaceWeight(s,f,own,nei);
+    return nei>=0?w*s.Tgas[own]+(1-w)*s.Tgas[nei]
+        :(s.riemannBoundaryTFix&&s.riemannBoundaryTFix[f]?s.riemannBoundaryT[f]:s.Tgas[own]);
+}
+template<class State,class R> UGKWP_GAS_HD inline void gasTransportFaceComposition(const State& s,int f,int own,int nei,R* Y){
+    const R w=gasTransportFaceWeight(s,f,own,nei);
+    for(int j=0;j<GasStateTraits<State>::speciesCount;++j){
+        const R a=s.gasSpecies.rho[j*s.nCells+own]/s.rho[own];
+        Y[j]=nei>=0?w*a+(1-w)*s.gasSpecies.rho[j*s.nCells+nei]/s.rho[nei]
+            :(s.gasSpecies.compositionBoundaryFixed&&s.gasSpecies.compositionBoundaryFixed[f]
+                ?s.gasSpecies.boundaryMassFraction[j*s.nFaces+f]:a);
+    }
+}
+template<class State> UGKWP_GAS_HD inline auto gasFaceMolecularPrandtl(const State& s,int f,int own,int nei){
+    using R=std::remove_cv_t<std::remove_reference_t<decltype(s.gasMu)>>;
+    constexpr int N=GasStateTraits<State>::speciesCount;
+    if constexpr(GasViscosityCapability<State>::value&&N>0)if(mixtureGasActive(s)&&s.gasViscosity.prandtlSpecies>=0){
+        R Y[N];gasTransportFaceComposition(s,f,own,nei,Y);return molecularPrandtl<N>(s.gasViscosity,s.gasPrClamped,Y);
+    }
+    return s.gasPrClamped;
+}
+// Diffusive coefficients share local T,Y. Const retains its original Cp interpolation.
+template<class State> UGKWP_GAS_HD inline auto gasFaceMolecularHeatCapacity(const State& s,int f,int own,int nei){
+    using R=std::remove_cv_t<std::remove_reference_t<decltype(s.gasMu)>>;
+    constexpr int N=GasStateTraits<State>::speciesCount;
+    if constexpr(N>0)if(mixtureGasActive(s)){
+        if(gasVariableViscosity(s)||gasVariablePrandtl(s)){
+            R Y[N];gasTransportFaceComposition(s,f,own,nei,Y);
+            const R T=gasTransportFaceTemperature(s,f,own,nei);
+            R cp=0;for(int j=0;j<N;++j)cp+=Y[j]*speciesCp(j,T,s.gasSpecies.thermo);
+            return cp;
+        }
+        const R w=nei>=0?(s.faceWeight[f]<0?R(0):(s.faceWeight[f]>1?R(1):s.faceWeight[f])):R(1);
+        return w*R(s.gasSpecies.heatCapacity[own])+(R(1)-w)*R(s.gasSpecies.heatCapacity[nei>=0?nei:own]);
+    }
+    return s.gasCp;
+}
+template<class State> UGKWP_GAS_HD inline auto gasFaceMolecularViscosity(const State& s,int f,int own,int nei) {
+    using R=std::remove_cv_t<std::remove_reference_t<decltype(s.gasMu)>>;
+    if constexpr(GasViscosityCapability<State>::value){
+        if(gasVariableViscosity(s)){
+            const R T=gasTransportFaceTemperature(s,f,own,nei);
+            R mu;
+            constexpr int N=GasStateTraits<State>::speciesCount;
+            if constexpr(N>0){if(mixtureGasActive(s)){
+                R Y[N];gasTransportFaceComposition(s,f,own,nei,Y);
+                mu=molecularViscosity<N>(s.gasViscosity,s.gasMu,T,Y);
+            }else mu=molecularViscosity<1>(s.gasViscosity,s.gasMu,T,static_cast<const R*>(nullptr));}
+            else mu=molecularViscosity<1>(s.gasViscosity,s.gasMu,T,static_cast<const R*>(nullptr));
+            return checkedMolecularViscosity(s,mu,f,true);
+        }
+    }
+    return s.gasMu;
+}
+
+template<class State,class=void> struct GasDirectConductivity : std::false_type {};
+template<class State> struct GasDirectConductivity<State,
+    std::void_t<decltype(std::declval<State>().gasThermalConductivity)>> : std::true_type {};
+
+template<class State,class=void> struct GasConfiguredConductivity : std::false_type {};
+template<class State> struct GasConfiguredConductivity<State,
+    std::void_t<decltype(std::declval<State>().gasThermalConductivityConfigured)>> : std::true_type {};
+
+template<class State>
+UGKWP_GAS_HD inline bool gasHasDirectConductivity(const State& state)
+{
+    if(gasVariablePrandtl(state))return false;
+    if constexpr (GasConfiguredConductivity<State>::value)
+        if(state.gasThermalConductivityConfigured)return true;
+    if constexpr (GasDirectConductivity<State>::value)
+        // Only a finite negative value is the legacy absent sentinel.
+        // Preserve configured NaN/Inf for the consuming physical diagnostic.
+        return !gasFinite(state.gasThermalConductivity) || state.gasThermalConductivity >= 0;
+    return false;
+}
+
+template<class State,class=void> struct GasGeometryCapability : std::false_type {};
+template<class State> struct GasGeometryCapability<State,
+    std::void_t<decltype(std::declval<State>().gasGeometry)>> : std::true_type {};
+template<class State>
+UGKWP_GAS_HD inline bool gasMovingGeometry(const State& state)
+{
+    if constexpr (GasGeometryCapability<State>::value) return state.gasGeometry.enabled;
+    return false;
+}
+
+// Bind legacy storage (or any conforming gas-only storage) without copying
+// field data. Pointer assignment also rejects accidental precision changes.
+// This is a host-side binding operation; upload the returned POD as needed.
+template<class State, class = void>
+struct GasWallScalar { using type = std::remove_pointer_t<decltype(std::declval<State>().rho)>; };
+template<class State>
+struct GasWallScalar<State, std::void_t<decltype(std::declval<State>().gasBoundaryLayer)>>
+{ using type = std::remove_pointer_t<decltype(std::declval<State>().gasBoundaryLayer.speciesFlux)>; };
+
+template<class State>
+inline auto makeGasStateView(const State& state)
+    -> GasStateView
+    <
+        typename std::remove_pointer<decltype(state.rho)>::type,
+        typename std::remove_pointer<decltype(state.pressureScheduleTimes)>::type,
+        decltype(state.sstCoefficients),
+        typename std::remove_pointer<decltype(state.rhoE)>::type,
+        typename std::remove_pointer<decltype(state.Cx)>::type,
+        typename GasWallScalar<State>::type
+    >
+{
+    using Real = typename std::remove_pointer<decltype(state.rho)>::type;
+    using Time = typename std::remove_pointer<decltype(state.pressureScheduleTimes)>::type;
+    using SstCoefficients = decltype(state.sstCoefficients);
+    using Energy = typename std::remove_pointer<decltype(state.rhoE)>::type;
+    using Geometry = typename std::remove_pointer<decltype(state.Cx)>::type;
+    using Wall = typename GasWallScalar<State>::type;
+    static_assert(std::is_same<decltype(state.rhoE), decltype(state.rhoENext)>::value,
+        "live and RK gas energy must have identical storage types");
+    GasStateView<Real, Time, SstCoefficients, Energy, Geometry, Wall> view{};
+    view.diagnostics = state.diagnostics;
+    if constexpr(ugkp::boundary::Capability<State>::value)view.gasBoundaryProgram=state.gasBoundaryProgram;
+    if constexpr(GasViscosityCapability<State>::value) view.gasViscosity=state.gasViscosity;
+#define UGKWP_GAS_STATE_FIELD(Type, Name) view.Name = state.Name;
+#include "GasStateFields.inc"
+#undef UGKWP_GAS_STATE_FIELD
+    if constexpr (GasDirectConductivity<State>::value)
+        view.gasThermalConductivity=state.gasThermalConductivity;
+    if constexpr (GasConfiguredConductivity<State>::value)
+        view.gasThermalConductivityConfigured=state.gasThermalConductivityConfigured;
+    if constexpr (GasGeometryCapability<State>::value) view.gasGeometry=state.gasGeometry;
+    if constexpr (GasBoundaryLayerCapability<State>::value) view.gasBoundaryLayer=state.gasBoundaryLayer;
+    return view;
+}
+
+} // namespace ugkwp
+
+#include "GasConservativeWallAccess.H"

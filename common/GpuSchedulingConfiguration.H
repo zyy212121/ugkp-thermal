@@ -77,7 +77,8 @@ inline GpuCsrLevel readGpuCsrLevel
 
 inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
 (
-    const dictionary& properties
+    const dictionary& properties,
+    const label trackingMaxFaceWalkHops = 32
 )
 {
     GpuSchedulingConfiguration value;
@@ -87,12 +88,8 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
         properties.lookupOrDefault<bool>("gpuResidentDynamicInlet", false);
     value.particleCapacity =
         properties.lookupOrDefault<label>("gpuResidentParticleCapacity", 1000000);
-    value.maxFaceWalkHops =
-        properties.lookupOrDefault<label>("gpuResidentMaxFaceWalkHops", 32);
-    value.courantUpdateInterval =
-        properties.lookupOrDefault<label>("gpuResidentCourantUpdateInterval", 1000);
-    value.maxDeltaTGrowth =
-        properties.lookupOrDefault<scalar>("gpuResidentMaxDeltaTGrowth", 1.05);
+    value.maxFaceWalkHops = trackingMaxFaceWalkHops;
+    // Gas adaptive-step numerics now come only from constant/scheme/gasTimeStep.
     value.csrLevel = readGpuCsrLevel(properties);
     if (value.csrLevel == GpuCsrLevel::automatic)
     {

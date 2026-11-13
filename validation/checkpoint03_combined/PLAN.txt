@@ -1,0 +1,149 @@
+COMBINED CHECKPOINT 03 (ORIGINAL 03 + 04)
+PREPARATION ONLY. NOT FROZEN. NOT RUN.
+
+Only the parent may freeze the final inputs and separately authorize the single
+checkpoint run. No numerical, operator, mathematical, consistency, benchmark or
+solver executable has been launched during this preparation.
+
+References
+Accepted fallback: CP2 8bde9d6d0bf4638ad498b803a5c26f921dab2ae7.
+Old CP3 cbbacfc6a059f8b3089b784fdfc4e6d3d210d2dc is source history only.
+Its previous 116 passes do not validate the combined candidate.
+
+Fixed 115 top-level nodes
+16 original-operator correctness processes; 22 candidate-only native branches;
+8 same-precision comparisons; 48 fixed performance processes; 14 extended
+processes; 2 steady-default convergence processes; 3 independent continuations; 2 sequence-specific comparison reports.
+cases.json lists the internal cases, thresholds and dependencies. CHMT details
+are in chmt_cases.json (design revision3). All numerical nodes remain NOT_RUN.
+
+Precision scope
+All physical scalar and vector state is selected precision, including energy,
+mass, composition, source remainders and material PhysicalVec3. No extra rounding
+compensation. Only individually approved global coordinates, current tracking,
+micro-retreat, time and external/file API interfaces retain FP64. Current central APIs have provisional host syntax coverage. Final production
+source and binary freeze, including pending owner updates, remains separate.
+Fixture allocations and thermo tables must follow those actual final types.
+CP2 keeps its historical adapters under legacy/. Host double observations never
+write a correction back into solver state.
+
+Independent physics
+Finiteness alone is insufficient. Each physical group retains a resolvable
+nonzero hot/cold response or a known-solution check, actual stopping status, and
+a dimensional budget. Broad epsilon/gross limits cannot hide an inactive
+exchange. Report old and selected bounds plus actual errors. FP32 versus CP2
+state differences are observations, not a strict equality veto. FP64 retains
+the original pair bounds. Production stopping floors are taken from the final actual source, never assumed.
+Radiation uses the approved near-equilibrium formula and gross closure scale.
+Tiny unresolvable temperature differences need not retain their sign; +/-1 K
+cases provide an independent resolvable response. Large gross and small net
+passing a bound is explicitly not an automatic physical-accuracy claim.
+
+Original-checkpoint continuation
+Source: /home/lss/MSS7_CHT_cdbd9973_queue/case-current
+Start: 0.29500248649130967, sequence 59, 52994 particles.
+Initial dt: 7.962238329030135e-8. End upper bound: 0.30500348649130967. Nominal interval ends near 0.305; report actual terminal and exchange times and their deviation.
+Thermal exchanges: common outputs within the interval (61 may be unwritten). Radiation: 60, carrying the interval that began
+at 0.29000244439008815. Never start from the previous continuation's 0.305 output.
+All three independent copies keep physics, tolerances, period 0.005, seed/RNG,
+OMP 4 and default autotune. Only copied start/end/dt, selected precision and
+metadata64 are changed. Original checkpoint field bytes remain unchanged.
+The already verified PR41 binary may be reused:
+ /home/lss/cht-cp2-pr41-latest-restart-20261111/binaries/pr41-fp64/CHT
+ SHA256 ee69494230568b8b7409c34ee18d53f130a4bb251c1007db671ca12e09022e92
+Its old continuation output and timing are never reused as new results.
+
+Report volume/area-weighted gas, solid and wall temperature, pressure, observable
+inventories, wall exchange power/energy, particle statistics and actual warnings
+at common saved exchanges within the interval. Report latest saved times separately from terminal log times; do not force extra writes; all three copies use the same declared stopping upper bound. The original single-gas case has no species fields.
+It also lacks accumulated open-boundary mass/enthalpy and fixed-value solid
+boundary fluxes. Inventory change is NOT full-domain conservation closure.
+List those missing terms. Closed native, coupling, sparse and CHMT fixtures
+provide independent closure checks. Do not add a production probe or alter
+large-case physics. A 5% comparison hint means manual inspection only, never
+an acceptance or rejection threshold.
+
+Performance
+Pressure has the same minimum 3-second process warmup, then 33 untimed launches
+per configuration, then 5 samples x 100 launches x 27 configurations. Pair order
+is fixed AB/BA/AB. Record all sample times, clocks, load, temperature and power.
+Never change hardware clocks or rerun after seeing results. CPU face/coupling/
+bath timings are arithmetic measurements, not GPU or full-solver acceleration.
+Run each continuation once, serially with exclusive GPU access and no compiler.
+Use GNU time, retain autotune selections, and state the single-run limitation.
+No post-result repeat is authorized by this plan.
+
+Preparation, freeze and execution
+prepare.py only generates source and compiles. Official fixture binaries must
+use complete final materialized trees. Temporary/historical syntax checks are
+not final candidate provenance. Keep each failed compile revision separately.
+The parent manually reviews full build/source lineage; no additional automatic
+lineage admission/refusal gate is introduced. prepare_continuation.py only copies
+inputs. The existing freeze workflow copies and hashes sources, fixtures,
+launchers/backends, commands and prepared cases.
+Only after explicit parent freeze AND separate start authorization:
+ bash <frozen-source>/validation/checkpoint03_combined/run_once.sh <batch-dir>
+That entry point has NOT been executed.
+
+Continue independent physical tests after failure; skip failed dependencies;
+stop only affected branches after an invalid GPU/runtime/storage environment.
+No in-batch repair, retry or threshold change. Any failure or skip prevents
+checkpoint acceptance. Preserve evidence, return to accepted CP2, and use only
+separately authorized small diagnostics afterward. PASS_EXECUTION_REVIEW_REQUIRED
+means evidence is ready for physical review, not automatic acceptance or a claim
+of strict convergence.
+
+Unmeasured estimate
+Final build: 25-60 minutes plus latest-scope integration. Fixed operator/native
+batch: 15-35 minutes. Three continuations: roughly 30-60 minutes. New FP32 runtime
+is unknown. Compilation is not a numerical node. The two added steady-default nodes cost an estimated extra 5-15 minutes total
+(unmeasured), at most 40000 steps on32 cells. Final compilation and freeze remain pending.
+
+Fixed steady-default convergence nodes (one32, one64)
+Use the repository reservoir.cfg/of_cases.py, nonzero10% initial perturbation,
+32 cells, length2m, U20m/s, Co.15, maximum pseudoDt.001. Budget20000 iterations,
+check every1000. In these independent copies only remove relativeTolerance0
+to inherit defaults32=1e-6/64=1e-8; keep absolute0; minimumIterations becomes1000.
+The existing explicit-zero short injection case is unchanged and is not a
+convergence test. The new nodes require actual converged message and
+criteriaReached=1, nonzero initial residual, raw residual decay <=0.1, finite
+fields and positive rho/T, and rho/Ux perturbation RMS <=0.1 of initial.
+Printed final maxRelative must meet selected default with only1.00001 decimal
+printing allowance. The actual production branch is mandatory. Report open
+reservoir inventories and advective cell-flux proxies, not full-domain closure.
+Historical reservoir64 CSV supports the20000-step budget only, not a new pass.
+FP32 attainability is unmeasured. Budget exhaustion fails; no retry or tuning.
+
+Type preparation evidence
+Host syntax snapshot r05 records individual copied bytes, source manifests,
+compiler argv/logs and non-system dependency hashes. It includes the3 ignored
+FP32 CHMT core headers explicitly. It is not the final candidate build.
+CHMT ParticleQ physical scalar/vector, mass/composition/residual, energy and
+wire fields now follow actual selected types; global positions/contact times
+and historical profile wire widths remain separately asserted. Old compile
+snapshots are retained. CUDA fixtures await the single nvcc token and final
+materialized sources. No numerical executable was launched.
+
+Pre-run acceptance amendment v7
+Only candidate32 face refinement uses fixed-grid improvement instead of the
+extra exact-order requirements. First-order16->32 and MUSCL16->32->64 errors
+must decrease; MUSCL32 must improve over first32. Equal exact-zero pairs are
+accepted. Existing success/finite/EOS/species closure checks remain unchanged.
+All old ratios and old predicate outcomes remain separate diagnostics.
+Historical CP2 and candidate64 keep their original strict conditions.
+This relaxation follows the user's32 finite/trend/convergence/approximate-
+conservation standard and was fixed before any numerical execution.
+
+Bath requested relative energy/temperature controls are explicitly1e-8. The
+precision-aware implementation adds4*epsilon*(|oldEnergy|+|referenceHeat|) to
+the absolute energy allowance; accepted temperature correction also includes
+this roundoff divided by actual evaluator capacity. The factory relative
+default is not a clamp on these explicit fixture requests. Record actual
+Success and dimensional effective bounds; never call that proof of the bare
+1e-8 relative target. The existing printed residual_allowed is the independent
+fixture's4x scale, not the solver control. No bath numerical predicate changed.
+
+Scope update 2026-11-11: the abandoned 2D cold-wall model is archived under
+legacy/common/wall (and the FP32 mirror). It is excluded from combined
+checkpoint acceptance and active maintenance. Compatibility includes remain;
+1D cold-wall coverage and historical 2D evidence are preserved.

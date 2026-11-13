@@ -1,0 +1,1860 @@
+{
+  "status": "PREVIEW_NOT_FROZEN_NOT_RUN",
+  "node_count": 115,
+  "correctness": 16,
+  "native": 22,
+  "comparisons": 8,
+  "extended": 14,
+  "steady_default": 2,
+  "performance": 48,
+  "continuation": 3,
+  "continuation_comparisons": 2,
+  "nodes": [
+    {
+      "id": "baseline-fp64-pressure",
+      "kind": "correctness",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "pressure",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-pressure.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "baseline-fp64-face",
+      "kind": "correctness",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "face",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-face.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "baseline-fp64-coupling",
+      "kind": "correctness",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "coupling",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-coupling.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "baseline-fp64-bath",
+      "kind": "correctness",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "bath",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-bath.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "candidate-fp64-pressure",
+      "kind": "correctness",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "pressure",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-pressure.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "candidate-fp64-face",
+      "kind": "correctness",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "face",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-face.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "candidate-fp64-coupling",
+      "kind": "correctness",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "coupling",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-coupling.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "candidate-fp64-bath",
+      "kind": "correctness",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "bath",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-bath.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "candidate-fp64-native-gasUGKP-continuous",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 64,
+      "branch": "gasUGKP-continuous",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "64",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-probe.executable}",
+        "--branch",
+        "gasUGKP-continuous",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp64-gasUGKP-continuous"
+      ]
+    },
+    {
+      "id": "candidate-fp64-native-gasUGKPSteady-continuous",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 64,
+      "branch": "gasUGKPSteady-continuous",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "64",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-probe.executable}",
+        "--branch",
+        "gasUGKPSteady-continuous",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp64-gasUGKPSteady-continuous"
+      ]
+    },
+    {
+      "id": "candidate-fp64-native-CHT-continuous",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 64,
+      "branch": "CHT-continuous",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "64",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-probe.executable}",
+        "--branch",
+        "CHT-continuous",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp64-CHT-continuous"
+      ]
+    },
+    {
+      "id": "candidate-fp64-native-CHMT-continuous",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 64,
+      "branch": "CHMT-continuous",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "64",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-probe.executable}",
+        "--branch",
+        "CHMT-continuous",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp64-CHMT-continuous"
+      ]
+    },
+    {
+      "id": "candidate-fp64-native-hot-constant",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 64,
+      "branch": "hot-constant",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "64",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-probe.executable}",
+        "--branch",
+        "hot-constant",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp64-hot-constant"
+      ]
+    },
+    {
+      "id": "candidate-fp64-native-hot-nonlinear",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 64,
+      "branch": "hot-nonlinear",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "64",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-probe.executable}",
+        "--branch",
+        "hot-nonlinear",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp64-hot-nonlinear"
+      ]
+    },
+    {
+      "id": "candidate-fp64-native-closed-drag-heat",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 64,
+      "branch": "closed-drag-heat",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "64",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-probe.executable}",
+        "--branch",
+        "closed-drag-heat",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp64-closed-drag-heat"
+      ]
+    },
+    {
+      "id": "candidate-fp64-native-gas-wave",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 64,
+      "branch": "gas-wave",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "64",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-probe.executable}",
+        "--branch",
+        "gas-wave",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp64-gas-wave"
+      ]
+    },
+    {
+      "id": "candidate-fp64-native-gas-ode",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 64,
+      "branch": "gas-ode",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "64",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-probe.executable}",
+        "--branch",
+        "gas-ode",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp64-gas-ode"
+      ]
+    },
+    {
+      "id": "candidate-fp64-native-cht-contact",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 64,
+      "branch": "cht-contact",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "64",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-probe.executable}",
+        "--branch",
+        "cht-contact",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp64-cht-contact"
+      ]
+    },
+    {
+      "id": "candidate-fp64-native-chmt-diffusion",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 64,
+      "branch": "chmt-diffusion",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "64",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-probe.executable}",
+        "--branch",
+        "chmt-diffusion",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp64-chmt-diffusion"
+      ]
+    },
+    {
+      "id": "candidate-fp64-steady-default",
+      "kind": "steady_default",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "steady_default",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/steady_default.py",
+        "--precision",
+        "64",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/steady-default-fp64"
+      ]
+    },
+    {
+      "id": "compare-fp64-pressure",
+      "kind": "comparison",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "pressure",
+      "gpu": false,
+      "dependencies": [
+        "baseline-fp64-pressure",
+        "candidate-fp64-pressure"
+      ]
+    },
+    {
+      "id": "compare-fp64-face",
+      "kind": "comparison",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "face",
+      "gpu": false,
+      "dependencies": [
+        "baseline-fp64-face",
+        "candidate-fp64-face"
+      ]
+    },
+    {
+      "id": "compare-fp64-coupling",
+      "kind": "comparison",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "coupling",
+      "gpu": false,
+      "dependencies": [
+        "baseline-fp64-coupling",
+        "candidate-fp64-coupling"
+      ]
+    },
+    {
+      "id": "compare-fp64-bath",
+      "kind": "comparison",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "bath",
+      "gpu": false,
+      "dependencies": [
+        "baseline-fp64-bath",
+        "candidate-fp64-bath"
+      ]
+    },
+    {
+      "id": "candidate-fp64-ordered",
+      "kind": "extended",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "ordered",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-ordered.executable}"
+      ]
+    },
+    {
+      "id": "candidate-fp64-radiation",
+      "kind": "extended",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "radiation",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-radiation.executable}",
+        "/FROZEN_COMBINED_BATCH/results/radiation-fp64"
+      ]
+    },
+    {
+      "id": "candidate-fp64-sparse",
+      "kind": "extended",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "sparse",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-sparse.executable}"
+      ]
+    },
+    {
+      "id": "candidate-fp64-coldwall",
+      "kind": "extended",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "coldwall",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-coldwall.executable}"
+      ]
+    },
+    {
+      "id": "candidate-fp64-cht_codec",
+      "kind": "extended",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "cht_codec",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-cht_codec.executable}",
+        "/FROZEN_COMBINED_BATCH/results/cht-codec-fp64-scratch"
+      ]
+    },
+    {
+      "id": "candidate-fp64-chmt_codec",
+      "kind": "extended",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "chmt_codec",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-chmt_codec.executable}"
+      ]
+    },
+    {
+      "id": "candidate-fp64-chmt_closure",
+      "kind": "extended",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "chmt_closure",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-chmt_closure.executable}"
+      ]
+    },
+    {
+      "id": "baseline-fp32-pressure",
+      "kind": "correctness",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "pressure",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-pressure.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "baseline-fp32-face",
+      "kind": "correctness",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "face",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-face.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "baseline-fp32-coupling",
+      "kind": "correctness",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "coupling",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-coupling.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "baseline-fp32-bath",
+      "kind": "correctness",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "bath",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-bath.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "candidate-fp32-pressure",
+      "kind": "correctness",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "pressure",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-pressure.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "candidate-fp32-face",
+      "kind": "correctness",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "face",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-face.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "candidate-fp32-coupling",
+      "kind": "correctness",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "coupling",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-coupling.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "candidate-fp32-bath",
+      "kind": "correctness",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "bath",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-bath.executable}",
+        "correctness"
+      ]
+    },
+    {
+      "id": "candidate-fp32-native-gasUGKP-continuous",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 32,
+      "branch": "gasUGKP-continuous",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "32",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-probe.executable}",
+        "--branch",
+        "gasUGKP-continuous",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp32-gasUGKP-continuous"
+      ]
+    },
+    {
+      "id": "candidate-fp32-native-gasUGKPSteady-continuous",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 32,
+      "branch": "gasUGKPSteady-continuous",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "32",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-probe.executable}",
+        "--branch",
+        "gasUGKPSteady-continuous",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp32-gasUGKPSteady-continuous"
+      ]
+    },
+    {
+      "id": "candidate-fp32-native-CHT-continuous",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 32,
+      "branch": "CHT-continuous",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "32",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-probe.executable}",
+        "--branch",
+        "CHT-continuous",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp32-CHT-continuous"
+      ]
+    },
+    {
+      "id": "candidate-fp32-native-CHMT-continuous",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 32,
+      "branch": "CHMT-continuous",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "32",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-probe.executable}",
+        "--branch",
+        "CHMT-continuous",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp32-CHMT-continuous"
+      ]
+    },
+    {
+      "id": "candidate-fp32-native-hot-constant",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 32,
+      "branch": "hot-constant",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "32",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-probe.executable}",
+        "--branch",
+        "hot-constant",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp32-hot-constant"
+      ]
+    },
+    {
+      "id": "candidate-fp32-native-hot-nonlinear",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 32,
+      "branch": "hot-nonlinear",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "32",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-probe.executable}",
+        "--branch",
+        "hot-nonlinear",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp32-hot-nonlinear"
+      ]
+    },
+    {
+      "id": "candidate-fp32-native-closed-drag-heat",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 32,
+      "branch": "closed-drag-heat",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "32",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-probe.executable}",
+        "--branch",
+        "closed-drag-heat",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp32-closed-drag-heat"
+      ]
+    },
+    {
+      "id": "candidate-fp32-native-gas-wave",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 32,
+      "branch": "gas-wave",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "32",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-probe.executable}",
+        "--branch",
+        "gas-wave",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp32-gas-wave"
+      ]
+    },
+    {
+      "id": "candidate-fp32-native-gas-ode",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 32,
+      "branch": "gas-ode",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "32",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-probe.executable}",
+        "--branch",
+        "gas-ode",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp32-gas-ode"
+      ]
+    },
+    {
+      "id": "candidate-fp32-native-cht-contact",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 32,
+      "branch": "cht-contact",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "32",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-probe.executable}",
+        "--branch",
+        "cht-contact",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp32-cht-contact"
+      ]
+    },
+    {
+      "id": "candidate-fp32-native-chmt-diffusion",
+      "kind": "native",
+      "variant": "candidate",
+      "precision": 32,
+      "branch": "chmt-diffusion",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/native.py",
+        "--precision",
+        "32",
+        "--probe",
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-probe.executable}",
+        "--branch",
+        "chmt-diffusion",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/native-candidate-fp32-chmt-diffusion"
+      ]
+    },
+    {
+      "id": "candidate-fp32-steady-default",
+      "kind": "steady_default",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "steady_default",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/steady_default.py",
+        "--precision",
+        "32",
+        "--output",
+        "/FROZEN_COMBINED_BATCH/results/steady-default-fp32"
+      ]
+    },
+    {
+      "id": "compare-fp32-pressure",
+      "kind": "comparison",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "pressure",
+      "gpu": false,
+      "dependencies": [
+        "baseline-fp32-pressure",
+        "candidate-fp32-pressure"
+      ]
+    },
+    {
+      "id": "compare-fp32-face",
+      "kind": "comparison",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "face",
+      "gpu": false,
+      "dependencies": [
+        "baseline-fp32-face",
+        "candidate-fp32-face"
+      ]
+    },
+    {
+      "id": "compare-fp32-coupling",
+      "kind": "comparison",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "coupling",
+      "gpu": false,
+      "dependencies": [
+        "baseline-fp32-coupling",
+        "candidate-fp32-coupling"
+      ]
+    },
+    {
+      "id": "compare-fp32-bath",
+      "kind": "comparison",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "bath",
+      "gpu": false,
+      "dependencies": [
+        "baseline-fp32-bath",
+        "candidate-fp32-bath"
+      ]
+    },
+    {
+      "id": "candidate-fp32-ordered",
+      "kind": "extended",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "ordered",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-ordered.executable}"
+      ]
+    },
+    {
+      "id": "candidate-fp32-radiation",
+      "kind": "extended",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "radiation",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-radiation.executable}",
+        "/FROZEN_COMBINED_BATCH/results/radiation-fp32"
+      ]
+    },
+    {
+      "id": "candidate-fp32-sparse",
+      "kind": "extended",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "sparse",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-sparse.executable}"
+      ]
+    },
+    {
+      "id": "candidate-fp32-coldwall",
+      "kind": "extended",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "coldwall",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-coldwall.executable}"
+      ]
+    },
+    {
+      "id": "candidate-fp32-cht_codec",
+      "kind": "extended",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "cht_codec",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-cht_codec.executable}",
+        "/FROZEN_COMBINED_BATCH/results/cht-codec-fp32-scratch"
+      ]
+    },
+    {
+      "id": "candidate-fp32-chmt_codec",
+      "kind": "extended",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "chmt_codec",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-chmt_codec.executable}"
+      ]
+    },
+    {
+      "id": "candidate-fp32-chmt_closure",
+      "kind": "extended",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "chmt_closure",
+      "gpu": false,
+      "dependencies": [],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-chmt_closure.executable}"
+      ]
+    },
+    {
+      "id": "perf-0-baseline-fp64-pressure",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "pressure",
+      "repeat": 0,
+      "gpu": true,
+      "dependencies": [
+        "compare-fp64-pressure"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-pressure.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-0-candidate-fp64-pressure",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "pressure",
+      "repeat": 0,
+      "gpu": true,
+      "dependencies": [
+        "compare-fp64-pressure"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-pressure.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-0-baseline-fp64-face",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "face",
+      "repeat": 0,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-face"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-face.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-0-candidate-fp64-face",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "face",
+      "repeat": 0,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-face"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-face.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-0-baseline-fp64-coupling",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "coupling",
+      "repeat": 0,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-coupling"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-coupling.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-0-candidate-fp64-coupling",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "coupling",
+      "repeat": 0,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-coupling"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-coupling.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-0-baseline-fp64-bath",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "bath",
+      "repeat": 0,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-bath"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-bath.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-0-candidate-fp64-bath",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "bath",
+      "repeat": 0,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-bath"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-bath.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-0-baseline-fp32-pressure",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "pressure",
+      "repeat": 0,
+      "gpu": true,
+      "dependencies": [
+        "compare-fp32-pressure"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-pressure.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-0-candidate-fp32-pressure",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "pressure",
+      "repeat": 0,
+      "gpu": true,
+      "dependencies": [
+        "compare-fp32-pressure"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-pressure.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-0-baseline-fp32-face",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "face",
+      "repeat": 0,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-face"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-face.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-0-candidate-fp32-face",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "face",
+      "repeat": 0,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-face"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-face.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-0-baseline-fp32-coupling",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "coupling",
+      "repeat": 0,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-coupling"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-coupling.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-0-candidate-fp32-coupling",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "coupling",
+      "repeat": 0,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-coupling"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-coupling.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-0-baseline-fp32-bath",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "bath",
+      "repeat": 0,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-bath"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-bath.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-0-candidate-fp32-bath",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "bath",
+      "repeat": 0,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-bath"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-bath.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-candidate-fp64-pressure",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "pressure",
+      "repeat": 1,
+      "gpu": true,
+      "dependencies": [
+        "compare-fp64-pressure"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-pressure.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-baseline-fp64-pressure",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "pressure",
+      "repeat": 1,
+      "gpu": true,
+      "dependencies": [
+        "compare-fp64-pressure"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-pressure.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-candidate-fp64-face",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "face",
+      "repeat": 1,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-face"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-face.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-baseline-fp64-face",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "face",
+      "repeat": 1,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-face"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-face.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-candidate-fp64-coupling",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "coupling",
+      "repeat": 1,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-coupling"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-coupling.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-baseline-fp64-coupling",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "coupling",
+      "repeat": 1,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-coupling"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-coupling.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-candidate-fp64-bath",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "bath",
+      "repeat": 1,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-bath"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-bath.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-baseline-fp64-bath",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "bath",
+      "repeat": 1,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-bath"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-bath.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-candidate-fp32-pressure",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "pressure",
+      "repeat": 1,
+      "gpu": true,
+      "dependencies": [
+        "compare-fp32-pressure"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-pressure.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-baseline-fp32-pressure",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "pressure",
+      "repeat": 1,
+      "gpu": true,
+      "dependencies": [
+        "compare-fp32-pressure"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-pressure.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-candidate-fp32-face",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "face",
+      "repeat": 1,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-face"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-face.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-baseline-fp32-face",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "face",
+      "repeat": 1,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-face"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-face.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-candidate-fp32-coupling",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "coupling",
+      "repeat": 1,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-coupling"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-coupling.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-baseline-fp32-coupling",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "coupling",
+      "repeat": 1,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-coupling"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-coupling.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-candidate-fp32-bath",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "bath",
+      "repeat": 1,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-bath"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-bath.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-1-baseline-fp32-bath",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "bath",
+      "repeat": 1,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-bath"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-bath.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-baseline-fp64-pressure",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "pressure",
+      "repeat": 2,
+      "gpu": true,
+      "dependencies": [
+        "compare-fp64-pressure"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-pressure.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-candidate-fp64-pressure",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "pressure",
+      "repeat": 2,
+      "gpu": true,
+      "dependencies": [
+        "compare-fp64-pressure"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-pressure.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-baseline-fp64-face",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "face",
+      "repeat": 2,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-face"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-face.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-candidate-fp64-face",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "face",
+      "repeat": 2,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-face"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-face.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-baseline-fp64-coupling",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "coupling",
+      "repeat": 2,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-coupling"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-coupling.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-candidate-fp64-coupling",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "coupling",
+      "repeat": 2,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-coupling"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-coupling.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-baseline-fp64-bath",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 64,
+      "family": "bath",
+      "repeat": 2,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-bath"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp64-bath.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-candidate-fp64-bath",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "bath",
+      "repeat": 2,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp64-bath"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp64-bath.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-baseline-fp32-pressure",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "pressure",
+      "repeat": 2,
+      "gpu": true,
+      "dependencies": [
+        "compare-fp32-pressure"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-pressure.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-candidate-fp32-pressure",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "pressure",
+      "repeat": 2,
+      "gpu": true,
+      "dependencies": [
+        "compare-fp32-pressure"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-pressure.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-baseline-fp32-face",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "face",
+      "repeat": 2,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-face"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-face.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-candidate-fp32-face",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "face",
+      "repeat": 2,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-face"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-face.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-baseline-fp32-coupling",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "coupling",
+      "repeat": 2,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-coupling"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-coupling.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-candidate-fp32-coupling",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "coupling",
+      "repeat": 2,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-coupling"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-coupling.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-baseline-fp32-bath",
+      "kind": "performance",
+      "variant": "baseline",
+      "precision": 32,
+      "family": "bath",
+      "repeat": 2,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-bath"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.baseline-fp32-bath.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "perf-2-candidate-fp32-bath",
+      "kind": "performance",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "bath",
+      "repeat": 2,
+      "gpu": false,
+      "dependencies": [
+        "compare-fp32-bath"
+      ],
+      "argv": [
+        "/FROZEN_COMBINED_BATCH/fixtures/{compiled_programs.candidate-fp32-bath.performance_executable}",
+        "perf"
+      ]
+    },
+    {
+      "id": "continuation-pr41-fp64",
+      "kind": "continuation",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "continuation",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/run_continuation.py",
+        "--root",
+        "/FROZEN_COMBINED_BATCH/continuation",
+        "--label",
+        "pr41-fp64",
+        "--binary",
+        "/FROZEN_COMBINED_BATCH/continuation/binaries/pr41-fp64/CHT",
+        "--env",
+        "/FROZEN_COMBINED_BATCH/source/candidate/env.sh"
+      ]
+    },
+    {
+      "id": "continuation-candidate-fp64",
+      "kind": "continuation",
+      "variant": "candidate",
+      "precision": 64,
+      "family": "continuation",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/run_continuation.py",
+        "--root",
+        "/FROZEN_COMBINED_BATCH/continuation",
+        "--label",
+        "candidate-fp64",
+        "--binary",
+        "/FROZEN_COMBINED_BATCH/source/candidate/bin/.precision/64/CHT",
+        "--env",
+        "/FROZEN_COMBINED_BATCH/source/candidate/env.sh"
+      ]
+    },
+    {
+      "id": "continuation-candidate-fp32",
+      "kind": "continuation",
+      "variant": "candidate",
+      "precision": 32,
+      "family": "continuation",
+      "gpu": true,
+      "dependencies": [],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/run_continuation.py",
+        "--root",
+        "/FROZEN_COMBINED_BATCH/continuation",
+        "--label",
+        "candidate-fp32",
+        "--binary",
+        "/FROZEN_COMBINED_BATCH/source/candidate/bin/.precision/32/CHT",
+        "--env",
+        "/FROZEN_COMBINED_BATCH/source/candidate/env.sh"
+      ]
+    },
+    {
+      "id": "continuation-compare-seq60",
+      "kind": "continuation_comparison",
+      "variant": "candidate",
+      "precision": null,
+      "family": "continuation",
+      "gpu": false,
+      "dependencies": [
+        "continuation-pr41-fp64",
+        "continuation-candidate-fp64",
+        "continuation-candidate-fp32"
+      ],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/analyze_continuation.py",
+        "/FROZEN_COMBINED_BATCH/continuation",
+        "60"
+      ]
+    },
+    {
+      "id": "continuation-compare-seq61",
+      "kind": "continuation_comparison",
+      "variant": "candidate",
+      "precision": null,
+      "family": "continuation",
+      "gpu": false,
+      "dependencies": [
+        "continuation-pr41-fp64",
+        "continuation-candidate-fp64",
+        "continuation-candidate-fp32"
+      ],
+      "argv": [
+        "python3",
+        "/FROZEN_COMBINED_BATCH/source/candidate/validation/checkpoint03_combined/analyze_continuation.py",
+        "/FROZEN_COMBINED_BATCH/continuation",
+        "61"
+      ]
+    }
+  ],
+  "new_runs_only": true,
+  "order": "Independent physical cases, then fixed AB/BA/AB performance, then one PR41/new64/new32 continuation each.",
+  "seed_policy": "Original native fixture seeds retained; all continuation starts from identical original checkpoint RNG.",
+  "manual_review": "Pass-execution requires physical review. No open-domain global closure claim or universal5% criterion.",
+  "note": "Path and compiled-program placeholders are resolved by the ordinary final freeze. This code-only preview never launches a node."
+}

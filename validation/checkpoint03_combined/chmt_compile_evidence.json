@@ -1,0 +1,1676 @@
+{
+  "status": "PROVISIONAL_SYNTAX_ONLY_NOT_FROZEN_NOT_RUN",
+  "design_revision": 3,
+  "numerical_execution": false,
+  "nvcc_invocations": 0,
+  "final_candidate_build": false,
+  "source_snapshot": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05",
+  "source_manifest_sha256": {
+    "32": "d87e44c57a1c589c12175966adc1ab555e9110bb89449676d508d585f787b4eb",
+    "64": "82141aa701ce9e1ca6caa8905f4eb22e135e60a2dc281ce4b892b016adf36de6"
+  },
+  "checks": [
+    {
+      "kind": "syntax_only",
+      "bits": 64,
+      "family": "chmt_codec",
+      "claim": "Provisional complete central-source copy; not final candidate compilation; no execution",
+      "argv": [
+        "g++",
+        "-std=c++17",
+        "-fsyntax-only",
+        "-MMD",
+        "-MF",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/checks-r01/chmt_codec.d",
+        "-DUGKWP_GAS_SPECIES=2",
+        "-DCP3_CELL_PREPARES_HEAT",
+        "-DCP3_FP64",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gpu",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasNumerics",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/wall",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/validation/tests/gas_transport",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined",
+        "-I/usr/local/cuda/include",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_codec.cpp"
+      ],
+      "exit": 0,
+      "seconds": 0.402724027633667,
+      "log": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/checks-r01/chmt_codec.log",
+      "source_sha256": "14dcaa9b204b97e0629bff968dd16a1c09c3d926aa9929ce933a8c90211c8080",
+      "non_system_dependencies": [
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/SharedSnapshotVector.H",
+          "sha256": "e2da104006ac47f6a62b703e3025c755c3cb694e69fc88209be27859d2b0bb53"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/GasModel.H",
+          "sha256": "8af04bdb382e1759417baf398548caa0f9681fc6bf4e7dca9fc4d7bc2d90ae56"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "c8f07c11d56f913775df71d62140f2a2d05d834380f3de13d086cb279466b171"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasBoundary/Definition.H",
+          "sha256": "8725b35fb9a6c64442b1c580ab54e026ffd7865c894fa8784600573aa397c985"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/GasBuildConfig.H",
+          "sha256": "3cfdf912955b59226d6febe65227d785e38ec067015bde2906a008cbb98670bb"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/GasModel.H",
+          "sha256": "8af04bdb382e1759417baf398548caa0f9681fc6bf4e7dca9fc4d7bc2d90ae56"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/GpuPrecisionTypes.H",
+          "sha256": "4c4ed3559280f49deab7ac865a81e7fb3b0285378d745e123c6f3718db2556fe"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "c8f07c11d56f913775df71d62140f2a2d05d834380f3de13d086cb279466b171"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/chemistry/GasRates.H",
+          "sha256": "6edae6841e49bda9026c2bff5292a6befe944ea1d051cae6bc381df9c07bad3a"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/chemistry/MechanismValidation.H",
+          "sha256": "b32350de3dcd41e6085d26d54c10732e7956d70d906edd59ceef39df4dddfa4b"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/chemistry/RateArithmetic.H",
+          "sha256": "97dbf771b5a90cb5c476504cb853b8ddf06b0aedc93482a8950ee47651b8cf43"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasNumerics/GpuSstAlgebra.cuh",
+          "sha256": "9c079ca23cec59e123c0d0636a393d8b6d6ee1ad0f494f67dac5d229a979a104"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/MolecularViscosity.H",
+          "sha256": "c34c6ed04572a8c36606a4fea78b450c1faed3ca15ba03a7445587769ae162b2"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/WallModelTypes.H",
+          "sha256": "52080f1b428f1ad7b6573a10294aa03841f495e059358fcd2dce2e5eaa692fc5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/WallResolutionDefaults.H",
+          "sha256": "32f3835d77ee7ae0fdd5c65f9a0754c25efdd8a5ab6cc6fa9a2b0225722f14cd"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/thermal/ParticleInletConfiguration.H",
+          "sha256": "bc648e53c2493fef8004189fb64a2630c00105155d9c4c7a0bc5f05f592e4b22"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/thermal/ParticlePhaseConfiguration.H",
+          "sha256": "6ede4f0c931e08cd230f5ea7adb0ed971ea82280a86a11fe266bf82387ddfd72"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/thermal/ParticleState.H",
+          "sha256": "5aa9646672cea51699e7536fffd49d457ca67448c43a90428492339f15cac600"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/core/Configuration.H",
+          "sha256": "30bd2ec247acd7cff44b490059745fb6cdf57fe8d551424222776f8952944890"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/core/HostState.H",
+          "sha256": "f232797a0186ccf6305b25ca11cfde4c4cfa8e44cce7e1a0f1814b7c27fe2294"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/core/Types.H",
+          "sha256": "dcf4cbac6c3b17ecf17c29dfca6f7c43915e234780f389e00bc29ad4d947c372"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/restart/Checkpoint.H",
+          "sha256": "b549e331a6670c7339a9d28752e48b1ecfa3b25111cf095cf1d91c44f5532132"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_codec.cpp",
+          "sha256": "14dcaa9b204b97e0629bff968dd16a1c09c3d926aa9929ce933a8c90211c8080"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_seed.H",
+          "sha256": "1bd9a49d4489b04459022b62fee40e8ca9d55cbad56eaa008409c29cd6aba4d8"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_support.H",
+          "sha256": "6753a8f27b63833c7a62489fcddaa567bf6385e46ff919700280229f23c48f3e"
+        }
+      ]
+    },
+    {
+      "kind": "syntax_only",
+      "bits": 64,
+      "family": "chmt_closure",
+      "claim": "Provisional complete central-source copy; not final candidate compilation; no execution",
+      "argv": [
+        "g++",
+        "-std=c++17",
+        "-fsyntax-only",
+        "-MMD",
+        "-MF",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/checks-r01/chmt_closure.d",
+        "-DUGKWP_GAS_SPECIES=2",
+        "-DCP3_CELL_PREPARES_HEAT",
+        "-DCP3_FP64",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gpu",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasNumerics",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/wall",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/validation/tests/gas_transport",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined",
+        "-I/usr/local/cuda/include",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_closure.cpp"
+      ],
+      "exit": 0,
+      "seconds": 0.5602016448974609,
+      "log": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/checks-r01/chmt_closure.log",
+      "source_sha256": "2c2f862e7686f8ca4bdb6ef19362b6f21f7445b17d1560989554b23dbaf9dbbf",
+      "non_system_dependencies": [
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/GasModel.H",
+          "sha256": "8af04bdb382e1759417baf398548caa0f9681fc6bf4e7dca9fc4d7bc2d90ae56"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/SpeciesDiffusion.H",
+          "sha256": "9ad19fb5df8fdf19b97336bac659ace31991295b240ab5cda4c7ffd43c3eb05c"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/EquilibriumOdeMath.H",
+          "sha256": "a3a4b36c09b105f9a0c75c72379d9aee7aa82dd91e14b49200c6a04cef45a75b"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/WallExecution.H",
+          "sha256": "e6ec435dcd744d45aed1e0af46d28dfec6a65e51bc448e395eb1c6be08ca492c"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/WallLayerMath.H",
+          "sha256": "16fd467a95056c7a9d24ca7d1ad6b1e3eac9e5248967664c71257931773cc0ce"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/WallLayerTransport.H",
+          "sha256": "9a77261fcd967e801225f2e6407a1c01200028588a5d53bdf03bbf3caf5563a9"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/WallPrecision.H",
+          "sha256": "fbe0c56e409b9c6868bd121c00904b81b30e04e5309eb365eca6f50bf4397ca0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/WallThermoMath.H",
+          "sha256": "fef187f10665e5f6bd5666d1b8019e559cb59ca9f76a53d32963fc8d246780c8"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/legacy/common/gasWall/ConstantTransportWall.H",
+          "sha256": "cff6a73f4b0cfd2ebbabd57ee5de94af4eff14d1531453f14c19163089e1dffa"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/legacy/common/gasWall/ReactingWallLayer.H",
+          "sha256": "c29d4dd4a134b042a51733c1cb65176c178b34008f9b6d4aa912d59357089816"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/ConstantTransportWall.H",
+          "sha256": "2a5fd5dfcdb9ac7a43062a2123d492a168bb709ed22c567cdacc167ced7c20b5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/EquilibriumOdeWallLayer.H",
+          "sha256": "62fc338f86b01a923f57ce292e8b66bf298a58dc1a1967d6980660234c68736f"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/ReactingWallLayer.H",
+          "sha256": "75de0e7881d776b50e0487dd140e848ad6652c49c1864e5ac0830e6cf877acec"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/WallModel.H",
+          "sha256": "ad241688c3a8167ab6e5e2eec5628353986000d582dffbe733d7373a85da59e1"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/ablation/DrySurfaceInterfaceMath.H",
+          "sha256": "b97ec8c46ecb82e60ec2437749bfc88ab4575d2c70ae458b355273ac56ba5df8"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/ablation/InterfaceComposition.H",
+          "sha256": "4e6cdc33230d9c2faf47cc0de9bb253aca57a2626be26d8c74a34b98d2480f2b"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/ablation/InterfaceCompositionArithmetic.H",
+          "sha256": "5843e919cebfc892446c0908d1bea45a88b1c19d6157ca75cef33aa22804f4cb"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/ablation/InterfaceMath.H",
+          "sha256": "ebdd6f3a6cb0b2b359a2f6404d55a0e02b8e99dd2dbc1c9ccf8c76a5340afd7c"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/SharedSnapshotVector.H",
+          "sha256": "e2da104006ac47f6a62b703e3025c755c3cb694e69fc88209be27859d2b0bb53"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/GasModel.H",
+          "sha256": "8af04bdb382e1759417baf398548caa0f9681fc6bf4e7dca9fc4d7bc2d90ae56"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "c8f07c11d56f913775df71d62140f2a2d05d834380f3de13d086cb279466b171"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasBoundary/Definition.H",
+          "sha256": "8725b35fb9a6c64442b1c580ab54e026ffd7865c894fa8784600573aa397c985"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/GasBuildConfig.H",
+          "sha256": "3cfdf912955b59226d6febe65227d785e38ec067015bde2906a008cbb98670bb"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/GasModel.H",
+          "sha256": "8af04bdb382e1759417baf398548caa0f9681fc6bf4e7dca9fc4d7bc2d90ae56"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/GpuPrecisionTypes.H",
+          "sha256": "4c4ed3559280f49deab7ac865a81e7fb3b0285378d745e123c6f3718db2556fe"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "c8f07c11d56f913775df71d62140f2a2d05d834380f3de13d086cb279466b171"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/chemistry/GasRates.H",
+          "sha256": "6edae6841e49bda9026c2bff5292a6befe944ea1d051cae6bc381df9c07bad3a"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/chemistry/MechanismValidation.H",
+          "sha256": "b32350de3dcd41e6085d26d54c10732e7956d70d906edd59ceef39df4dddfa4b"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/chemistry/RateArithmetic.H",
+          "sha256": "97dbf771b5a90cb5c476504cb853b8ddf06b0aedc93482a8950ee47651b8cf43"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasNumerics/GpuSstAlgebra.cuh",
+          "sha256": "9c079ca23cec59e123c0d0636a393d8b6d6ee1ad0f494f67dac5d229a979a104"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/MolecularViscosity.H",
+          "sha256": "c34c6ed04572a8c36606a4fea78b450c1faed3ca15ba03a7445587769ae162b2"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/WallModelTypes.H",
+          "sha256": "52080f1b428f1ad7b6573a10294aa03841f495e059358fcd2dce2e5eaa692fc5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/WallResolutionDefaults.H",
+          "sha256": "32f3835d77ee7ae0fdd5c65f9a0754c25efdd8a5ab6cc6fa9a2b0225722f14cd"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/thermal/ParticleInletConfiguration.H",
+          "sha256": "bc648e53c2493fef8004189fb64a2630c00105155d9c4c7a0bc5f05f592e4b22"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/thermal/ParticlePhaseConfiguration.H",
+          "sha256": "6ede4f0c931e08cd230f5ea7adb0ed971ea82280a86a11fe266bf82387ddfd72"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/thermal/ParticleState.H",
+          "sha256": "5aa9646672cea51699e7536fffd49d457ca67448c43a90428492339f15cac600"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/core/AuditArithmetic.H",
+          "sha256": "837760d33bdf7757892880bc6d340db71b394819d236f26b38a95992cb59261d"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/core/Configuration.H",
+          "sha256": "30bd2ec247acd7cff44b490059745fb6cdf57fe8d551424222776f8952944890"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/core/HostState.H",
+          "sha256": "f232797a0186ccf6305b25ca11cfde4c4cfa8e44cce7e1a0f1814b7c27fe2294"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/core/Types.H",
+          "sha256": "dcf4cbac6c3b17ecf17c29dfca6f7c43915e234780f389e00bc29ad4d947c372"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/coupling/ExchangeLedger.C",
+          "sha256": "fc9608bbf13c3bb9c68dc9b48611fe5e0c406ef41a18de5cd96b3a3fb624bafc"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/coupling/ExchangeLedger.H",
+          "sha256": "49786adeda6942e4d838b9eb2057e22c471b26c99acf35a7bc4f95ce329a0a12"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/coupling/IntervalContracts.H",
+          "sha256": "b22f99a1135a86fe87db4b191749e653a22142b7375c6cae25f447282f587aec"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/coupling/WindowTime.H",
+          "sha256": "b1c12a683c056c1de1cb31a6babb3128b6ad87de98899db978a66a1cad9dca2f"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/film/FilmMath.H",
+          "sha256": "eb7326af5d65737043ec9c8a5e5cc27b3c5dfe2d8b40ff6a162c981de9131bcd"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasNumerics/OpenFoamViscousFlux.cuh",
+          "sha256": "c095582739093cd5289cff5642513e34372dad4ca0be71350eacee8b549bc82c"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/gpu/CommonGasTraction.H",
+          "sha256": "7d8e5aa3c1fe3e5a2a7c0cb3d3726604161da089f33339ba560b95311139c3ee"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/MolecularConductivity.H",
+          "sha256": "7173192e8ae2a4a21e4cec4b2e50fbf8bf03e59e98a140893e7bb82181365ba9"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/materials/DryMaterialAdapter.H",
+          "sha256": "3f3dbd2fa5866e780b33a51c1217dab60556ad3200d828cdc6be4471bb76ecbd"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/materials/GasThermoAdapter.H",
+          "sha256": "a1fe2a88dd77589e6add3a0a3ea1f1a6a16d2d798279264b496f34295132c16d"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/materials/Reaction.H",
+          "sha256": "c661ad6b8a44dd6db07757d330b7a68d739dcdeca9124724b77900c4b60fc5cb"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/materials/ReactionStepControl.H",
+          "sha256": "0ad2316207de1425738a1a49229219b43329b1f0527992c9a131e56d6e61ffaf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/materials/Thermodynamics.H",
+          "sha256": "192041038ead7e0155173356fd689328cd331934a48cab915de55a9d04415dd5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/materials/dry/BulkResponse.H",
+          "sha256": "abe3f3098c34d7b649e8c435de7b804977fba1408e45dee6d7e10a03f04319c4"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/materials/dry/DrySurfaceResponse.H",
+          "sha256": "36179ac28f70a78218eb2697954be7cac1dbd502a76d7e91bfe11b33b1cf9b6f"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/materials/dry/PoreTransport.H",
+          "sha256": "8c88fd30b78380e0a81d1a8429453c3a3d65f8954cbf06080308f47735e23a7a"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/materials/dry/Portability.H",
+          "sha256": "517f888dfce599f8e073ee8e16d4bf783cca53ea7c7486168d19971cfa6ea2b6"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/materials/dry/Types.H",
+          "sha256": "c66cb394ecd7aa98b3ddde07c4f60134c865f0bb63dabc874d75832c3abc18c0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/GpuPrecisionTypes.H",
+          "sha256": "4c4ed3559280f49deab7ac865a81e7fb3b0285378d745e123c6f3718db2556fe"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/GasModel.H",
+          "sha256": "8af04bdb382e1759417baf398548caa0f9681fc6bf4e7dca9fc4d7bc2d90ae56"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gpu/OrderedBisectionProbe.H",
+          "sha256": "abd7130eb77b5a24197189e8d0cdc93f030e58e6aa7a5e286a8519c1d337c4c9"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_closure.cpp",
+          "sha256": "2c2f862e7686f8ca4bdb6ef19362b6f21f7445b17d1560989554b23dbaf9dbbf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_support.H",
+          "sha256": "6753a8f27b63833c7a62489fcddaa567bf6385e46ff919700280229f23c48f3e"
+        }
+      ]
+    },
+    {
+      "kind": "syntax_only",
+      "bits": 64,
+      "family": "chmt_checkpoint_impl",
+      "claim": "Provisional complete central-source copy; not final candidate compilation; no execution",
+      "argv": [
+        "g++",
+        "-std=c++17",
+        "-fsyntax-only",
+        "-MMD",
+        "-MF",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/checks-r01/chmt_checkpoint_impl.d",
+        "-DUGKWP_GAS_SPECIES=2",
+        "-DCP3_CELL_PREPARES_HEAT",
+        "-DCP3_FP64",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gpu",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasNumerics",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/wall",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/validation/tests/gas_transport",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined",
+        "-I/usr/local/cuda/include",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/restart/Checkpoint.C"
+      ],
+      "exit": 0,
+      "seconds": 0.49265456199645996,
+      "log": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/checks-r01/chmt_checkpoint_impl.log",
+      "source_sha256": "a9d352a2cdf0b6eaea7505bb61f5bec7c2e01ba342ac79ca513c3b6b685c3aff",
+      "non_system_dependencies": [
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/SharedSnapshotVector.H",
+          "sha256": "e2da104006ac47f6a62b703e3025c755c3cb694e69fc88209be27859d2b0bb53"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/GasModel.H",
+          "sha256": "8af04bdb382e1759417baf398548caa0f9681fc6bf4e7dca9fc4d7bc2d90ae56"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "c8f07c11d56f913775df71d62140f2a2d05d834380f3de13d086cb279466b171"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/GasBuildConfig.H",
+          "sha256": "3cfdf912955b59226d6febe65227d785e38ec067015bde2906a008cbb98670bb"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/GasModel.H",
+          "sha256": "8af04bdb382e1759417baf398548caa0f9681fc6bf4e7dca9fc4d7bc2d90ae56"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/GpuPrecisionTypes.H",
+          "sha256": "4c4ed3559280f49deab7ac865a81e7fb3b0285378d745e123c6f3718db2556fe"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "c8f07c11d56f913775df71d62140f2a2d05d834380f3de13d086cb279466b171"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/chemistry/GasRates.H",
+          "sha256": "6edae6841e49bda9026c2bff5292a6befe944ea1d051cae6bc381df9c07bad3a"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/chemistry/MechanismValidation.H",
+          "sha256": "b32350de3dcd41e6085d26d54c10732e7956d70d906edd59ceef39df4dddfa4b"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/chemistry/RateArithmetic.H",
+          "sha256": "97dbf771b5a90cb5c476504cb853b8ddf06b0aedc93482a8950ee47651b8cf43"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasNumerics/GpuSstAlgebra.cuh",
+          "sha256": "9c079ca23cec59e123c0d0636a393d8b6d6ee1ad0f494f67dac5d229a979a104"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasTransport/MolecularViscosity.H",
+          "sha256": "c34c6ed04572a8c36606a4fea78b450c1faed3ca15ba03a7445587769ae162b2"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/WallModelTypes.H",
+          "sha256": "52080f1b428f1ad7b6573a10294aa03841f495e059358fcd2dce2e5eaa692fc5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasWall/WallResolutionDefaults.H",
+          "sha256": "32f3835d77ee7ae0fdd5c65f9a0754c25efdd8a5ab6cc6fa9a2b0225722f14cd"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/thermal/ParticleInletConfiguration.H",
+          "sha256": "bc648e53c2493fef8004189fb64a2630c00105155d9c4c7a0bc5f05f592e4b22"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/thermal/ParticlePhaseConfiguration.H",
+          "sha256": "6ede4f0c931e08cd230f5ea7adb0ed971ea82280a86a11fe266bf82387ddfd72"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/thermal/ParticleState.H",
+          "sha256": "5aa9646672cea51699e7536fffd49d457ca67448c43a90428492339f15cac600"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/core/Configuration.H",
+          "sha256": "30bd2ec247acd7cff44b490059745fb6cdf57fe8d551424222776f8952944890"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/core/HostState.H",
+          "sha256": "f232797a0186ccf6305b25ca11cfde4c4cfa8e44cce7e1a0f1814b7c27fe2294"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/core/Types.H",
+          "sha256": "dcf4cbac6c3b17ecf17c29dfca6f7c43915e234780f389e00bc29ad4d947c372"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/PrecisionBuild.H",
+          "sha256": "7488f3c07534320bce19e1b606c1729a9549434a3f003b8039b106d6e957da46"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/PrecisionRestart.H",
+          "sha256": "69053ea804c6da30f0b008884926d843eaa3ba91cfaa2424976369843e2d6c1e"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasBoundary/Definition.H",
+          "sha256": "8725b35fb9a6c64442b1c580ab54e026ffd7865c894fa8784600573aa397c985"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/common/gasBoundary/Wire.H",
+          "sha256": "e8b057c4d988c39ae8970c93bbecbb13c459a65e125414f2b8827a9d8168a6e9"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/restart/Checkpoint.C",
+          "sha256": "a9d352a2cdf0b6eaea7505bb61f5bec7c2e01ba342ac79ca513c3b6b685c3aff"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp64/source/applications/CHMT/restart/Checkpoint.H",
+          "sha256": "b549e331a6670c7339a9d28752e48b1ecfa3b25111cf095cf1d91c44f5532132"
+        }
+      ]
+    },
+    {
+      "kind": "syntax_only",
+      "bits": 32,
+      "family": "chmt_codec",
+      "claim": "Provisional complete central-source copy; not final candidate compilation; no execution",
+      "argv": [
+        "g++",
+        "-std=c++17",
+        "-fsyntax-only",
+        "-MMD",
+        "-MF",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/checks-r01/chmt_codec.d",
+        "-DUGKWP_GAS_SPECIES=2",
+        "-DCP3_CELL_PREPARES_HEAT",
+        "-DCP3_FP32",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gpu",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasNumerics",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/wall",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/validation/tests/gas_transport",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined",
+        "-I/usr/local/cuda/include",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_codec.cpp"
+      ],
+      "exit": 0,
+      "seconds": 0.4077761173248291,
+      "log": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/checks-r01/chmt_codec.log",
+      "source_sha256": "14dcaa9b204b97e0629bff968dd16a1c09c3d926aa9929ce933a8c90211c8080",
+      "non_system_dependencies": [
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/SharedSnapshotVector.H",
+          "sha256": "e2da104006ac47f6a62b703e3025c755c3cb694e69fc88209be27859d2b0bb53"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/GasModel.H",
+          "sha256": "4d678daa4666152f4dd6aca4328aa1089cad9db623129347611997dea2300bd5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "23948894f08d74a62da75937d863f746ceabbe2a89f08b4e2f6a71f24ace68dc"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "81202ea89981560c339d588c3ea6907c26e1de588204664cb4d418fa6778db44"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasBoundary/Definition.H",
+          "sha256": "fcc597ef2294600fc7ca1c65cf15eb3be21f98aa099b503c1c4987daf38bce43"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/GasBuildConfig.H",
+          "sha256": "3cfdf912955b59226d6febe65227d785e38ec067015bde2906a008cbb98670bb"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/GasModel.H",
+          "sha256": "4d678daa4666152f4dd6aca4328aa1089cad9db623129347611997dea2300bd5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "23948894f08d74a62da75937d863f746ceabbe2a89f08b4e2f6a71f24ace68dc"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "81202ea89981560c339d588c3ea6907c26e1de588204664cb4d418fa6778db44"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/chemistry/GasRates.H",
+          "sha256": "6edae6841e49bda9026c2bff5292a6befe944ea1d051cae6bc381df9c07bad3a"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/chemistry/MechanismValidation.H",
+          "sha256": "b32350de3dcd41e6085d26d54c10732e7956d70d906edd59ceef39df4dddfa4b"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/chemistry/RateArithmetic.H",
+          "sha256": "97dbf771b5a90cb5c476504cb853b8ddf06b0aedc93482a8950ee47651b8cf43"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasNumerics/GpuSstAlgebra.cuh",
+          "sha256": "631cd3e4209405007f94fdb39a79901404868a666ca4e774517bafd3ab149bbe"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "23948894f08d74a62da75937d863f746ceabbe2a89f08b4e2f6a71f24ace68dc"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/MolecularViscosity.H",
+          "sha256": "4ce491b2b92b516448b47cbadefbaaf02fd67bea1daf260fe706d555d9617c9e"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/WallModelTypes.H",
+          "sha256": "64f867ac284bc4fe9482b770bdcccbfbd45557295156a3e96d990e2013783870"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/WallResolutionDefaults.H",
+          "sha256": "32f3835d77ee7ae0fdd5c65f9a0754c25efdd8a5ab6cc6fa9a2b0225722f14cd"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/thermal/ParticleInletConfiguration.H",
+          "sha256": "0d83a64eec77c7b3ca544a14276f5385959b1e684fa14b7801aea71644c1e850"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/thermal/ParticlePhaseConfiguration.H",
+          "sha256": "b33f8d47428ea36f977cceba95b68a602aa0d1ef190dd738fc968f1f040ed7b1"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/thermal/ParticleState.H",
+          "sha256": "7b52dc6d48c789e33dd69a88ee90032e78aa4e4088f360097534e0768ab14dfd"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/core/Configuration.H",
+          "sha256": "345ece836fc31e530bbbf056375bc52ce08c1ab97f95c1a1951d48530d32b1ca"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/core/HostState.H",
+          "sha256": "731e11f7c5fbea6304660ab4f6cedddf644b10e0aee5852cc4efcd69686ff7c4"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/core/Types.H",
+          "sha256": "2899e272537ec2bf22956fb2553b3aa9eba3b5752b82e9cd47a88c167a8f64da"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/restart/Checkpoint.H",
+          "sha256": "b549e331a6670c7339a9d28752e48b1ecfa3b25111cf095cf1d91c44f5532132"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_codec.cpp",
+          "sha256": "14dcaa9b204b97e0629bff968dd16a1c09c3d926aa9929ce933a8c90211c8080"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_seed.H",
+          "sha256": "1bd9a49d4489b04459022b62fee40e8ca9d55cbad56eaa008409c29cd6aba4d8"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_support.H",
+          "sha256": "6753a8f27b63833c7a62489fcddaa567bf6385e46ff919700280229f23c48f3e"
+        }
+      ]
+    },
+    {
+      "kind": "syntax_only",
+      "bits": 32,
+      "family": "chmt_closure",
+      "claim": "Provisional complete central-source copy; not final candidate compilation; no execution",
+      "argv": [
+        "g++",
+        "-std=c++17",
+        "-fsyntax-only",
+        "-MMD",
+        "-MF",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/checks-r01/chmt_closure.d",
+        "-DUGKWP_GAS_SPECIES=2",
+        "-DCP3_CELL_PREPARES_HEAT",
+        "-DCP3_FP32",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gpu",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasNumerics",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/wall",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/validation/tests/gas_transport",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined",
+        "-I/usr/local/cuda/include",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_closure.cpp"
+      ],
+      "exit": 0,
+      "seconds": 0.5634419918060303,
+      "log": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/checks-r01/chmt_closure.log",
+      "source_sha256": "2c2f862e7686f8ca4bdb6ef19362b6f21f7445b17d1560989554b23dbaf9dbbf",
+      "non_system_dependencies": [
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasNumerics/OpenFoamViscousFlux.cuh",
+          "sha256": "09f703511e6e13bdfc4eae955f300714ac0e3f70ff54cfcfd88ad3e87a9e5bb3"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/GasWallCast.H",
+          "sha256": "4bf589833c3ae4cca8655b7464a21cbd207cc02cc1aa073bd680004a5d5b9d3c"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/GasModel.H",
+          "sha256": "4d678daa4666152f4dd6aca4328aa1089cad9db623129347611997dea2300bd5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "23948894f08d74a62da75937d863f746ceabbe2a89f08b4e2f6a71f24ace68dc"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/SpeciesDiffusion.H",
+          "sha256": "9ad19fb5df8fdf19b97336bac659ace31991295b240ab5cda4c7ffd43c3eb05c"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/EquilibriumOdeMath.H",
+          "sha256": "a3a4b36c09b105f9a0c75c72379d9aee7aa82dd91e14b49200c6a04cef45a75b"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/WallExecution.H",
+          "sha256": "e6ec435dcd744d45aed1e0af46d28dfec6a65e51bc448e395eb1c6be08ca492c"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/WallLayerMath.H",
+          "sha256": "3d8ae08fd3537d9f1a6debfcc94d51f9e3c178098ac23bcc38fdfd634eb46014"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/WallLayerTransport.H",
+          "sha256": "ee1aa9af92b8799e2c41ffafcfd0fd1a89f77b0e701e0d4d051c0df8b7b578c8"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/WallPrecision.H",
+          "sha256": "fbe0c56e409b9c6868bd121c00904b81b30e04e5309eb365eca6f50bf4397ca0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/WallThermoMath.H",
+          "sha256": "ab5de9d909d6c07cb635c6845ee24116f69948fa3773a585aa054f6fc273a012"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/legacy/common/gasWall/ConstantTransportWall.H",
+          "sha256": "20bad5bd38e4a67d14222c18b710eadf212d6b49ced0b1daaa522ce42cf774c2"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/legacy/common/gasWall/ReactingWallLayer.H",
+          "sha256": "c29d4dd4a134b042a51733c1cb65176c178b34008f9b6d4aa912d59357089816"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/ConstantTransportWall.H",
+          "sha256": "2a5fd5dfcdb9ac7a43062a2123d492a168bb709ed22c567cdacc167ced7c20b5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/EquilibriumOdeWallLayer.H",
+          "sha256": "c505fae1352109c12e08de1edfc4d6fc1ad9844d1ba07da5a17490d531d50eea"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/ReactingWallLayer.H",
+          "sha256": "75de0e7881d776b50e0487dd140e848ad6652c49c1864e5ac0830e6cf877acec"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/WallModel.H",
+          "sha256": "ad241688c3a8167ab6e5e2eec5628353986000d582dffbe733d7373a85da59e1"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/ablation/DrySurfaceInterfaceMath.H",
+          "sha256": "ce6316e435e582d6228cc74c0a531f2f5fd22bb1c57ecd65ad701367e65eb19c"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/ablation/InterfaceComposition.H",
+          "sha256": "46317b25554e505016d7f0dc1681d5a03b00b5611d584ddaee7c6ed25102e884"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/ablation/InterfaceCompositionArithmetic.H",
+          "sha256": "f7f898e30552588a514fc61cc18851ea5158c52c24a5077551dc24166290d44e"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/ablation/InterfaceMath.H",
+          "sha256": "c5fd0598c5718c830bb0166781c5612ac85e74dc073121bd669c66ca00309e8b"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/SharedSnapshotVector.H",
+          "sha256": "e2da104006ac47f6a62b703e3025c755c3cb694e69fc88209be27859d2b0bb53"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/GasModel.H",
+          "sha256": "4d678daa4666152f4dd6aca4328aa1089cad9db623129347611997dea2300bd5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "23948894f08d74a62da75937d863f746ceabbe2a89f08b4e2f6a71f24ace68dc"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "81202ea89981560c339d588c3ea6907c26e1de588204664cb4d418fa6778db44"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasBoundary/Definition.H",
+          "sha256": "fcc597ef2294600fc7ca1c65cf15eb3be21f98aa099b503c1c4987daf38bce43"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/GasBuildConfig.H",
+          "sha256": "3cfdf912955b59226d6febe65227d785e38ec067015bde2906a008cbb98670bb"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/GasModel.H",
+          "sha256": "4d678daa4666152f4dd6aca4328aa1089cad9db623129347611997dea2300bd5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "23948894f08d74a62da75937d863f746ceabbe2a89f08b4e2f6a71f24ace68dc"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "81202ea89981560c339d588c3ea6907c26e1de588204664cb4d418fa6778db44"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/chemistry/GasRates.H",
+          "sha256": "6edae6841e49bda9026c2bff5292a6befe944ea1d051cae6bc381df9c07bad3a"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/chemistry/MechanismValidation.H",
+          "sha256": "b32350de3dcd41e6085d26d54c10732e7956d70d906edd59ceef39df4dddfa4b"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/chemistry/RateArithmetic.H",
+          "sha256": "97dbf771b5a90cb5c476504cb853b8ddf06b0aedc93482a8950ee47651b8cf43"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasNumerics/GpuSstAlgebra.cuh",
+          "sha256": "631cd3e4209405007f94fdb39a79901404868a666ca4e774517bafd3ab149bbe"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "23948894f08d74a62da75937d863f746ceabbe2a89f08b4e2f6a71f24ace68dc"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/MolecularViscosity.H",
+          "sha256": "4ce491b2b92b516448b47cbadefbaaf02fd67bea1daf260fe706d555d9617c9e"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/WallModelTypes.H",
+          "sha256": "64f867ac284bc4fe9482b770bdcccbfbd45557295156a3e96d990e2013783870"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/WallResolutionDefaults.H",
+          "sha256": "32f3835d77ee7ae0fdd5c65f9a0754c25efdd8a5ab6cc6fa9a2b0225722f14cd"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/thermal/ParticleInletConfiguration.H",
+          "sha256": "0d83a64eec77c7b3ca544a14276f5385959b1e684fa14b7801aea71644c1e850"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/thermal/ParticlePhaseConfiguration.H",
+          "sha256": "b33f8d47428ea36f977cceba95b68a602aa0d1ef190dd738fc968f1f040ed7b1"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/thermal/ParticleState.H",
+          "sha256": "7b52dc6d48c789e33dd69a88ee90032e78aa4e4088f360097534e0768ab14dfd"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/core/AuditArithmetic.H",
+          "sha256": "837760d33bdf7757892880bc6d340db71b394819d236f26b38a95992cb59261d"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/core/Configuration.H",
+          "sha256": "345ece836fc31e530bbbf056375bc52ce08c1ab97f95c1a1951d48530d32b1ca"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/core/HostState.H",
+          "sha256": "731e11f7c5fbea6304660ab4f6cedddf644b10e0aee5852cc4efcd69686ff7c4"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/core/Types.H",
+          "sha256": "2899e272537ec2bf22956fb2553b3aa9eba3b5752b82e9cd47a88c167a8f64da"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/coupling/ExchangeLedger.C",
+          "sha256": "97dd2db3601113453328adfc62d0596913fa85a74763cc7c69915eead2304a72"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/coupling/ExchangeLedger.H",
+          "sha256": "772131bc76059aa515a2e3b6cc3611c6b3be09f1052c5d40b36f23215cf7f866"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/coupling/IntervalContracts.H",
+          "sha256": "eab2002af26cc9971c8b98c802d9dd7756b67bed3e89228649d1946f1a08917b"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/coupling/WindowTime.H",
+          "sha256": "b1c12a683c056c1de1cb31a6babb3128b6ad87de98899db978a66a1cad9dca2f"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/film/FilmMath.H",
+          "sha256": "cf8ac3737c9dc65237f077ef642b80018cba9973127473d33fb56751eced4157"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "23948894f08d74a62da75937d863f746ceabbe2a89f08b4e2f6a71f24ace68dc"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/MolecularConductivity.H",
+          "sha256": "7173192e8ae2a4a21e4cec4b2e50fbf8bf03e59e98a140893e7bb82181365ba9"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/materials/DryMaterialAdapter.H",
+          "sha256": "279d65d1af6571a44cdd5f0d1aa74ab6d472032130fa94faa4e056ae1c912c21"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/materials/GasThermoAdapter.H",
+          "sha256": "a4147a18770652e6aa2ba4bf3df0f6f9fb4fb92740b21c5622438cb37964ba5e"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/materials/Reaction.H",
+          "sha256": "db9ddea8638b97b0761f8d37b78f943a0957de119ff4fc7e7c20806f1e70e891"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/materials/ReactionStepControl.H",
+          "sha256": "3c81500562d6af05af972a1771153e83ea04a7bf9b915babea7c2ab10fd87e96"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/materials/Thermodynamics.H",
+          "sha256": "92d83c3649dbbb033f765472e88a472a2180b53be61cc71a346ee440219d26d4"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/materials/dry/BulkResponse.H",
+          "sha256": "4a1b23258aac631a9235a66f57b3f6c618f7b1b167e07db0ee7aa75cfa9f9f8c"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/materials/dry/DrySurfaceResponse.H",
+          "sha256": "16c00a4b208449ad311f132a3469393ccadc2bffbd9b21f858f2764788c5d899"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/materials/dry/PoreTransport.H",
+          "sha256": "9311982e740bbc8d8b5da5a5a6716caf314508af504d94bd9ec23568ed7663e2"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/materials/dry/Portability.H",
+          "sha256": "517f888dfce599f8e073ee8e16d4bf783cca53ea7c7486168d19971cfa6ea2b6"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/materials/dry/Types.H",
+          "sha256": "e0ff68c1633a461a6e9de4e1e0807aed06c438d4e70889a067622c6ae83b7238"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/GasModel.H",
+          "sha256": "4d678daa4666152f4dd6aca4328aa1089cad9db623129347611997dea2300bd5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gpu/OrderedBisectionProbe.H",
+          "sha256": "abd7130eb77b5a24197189e8d0cdc93f030e58e6aa7a5e286a8519c1d337c4c9"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_closure.cpp",
+          "sha256": "2c2f862e7686f8ca4bdb6ef19362b6f21f7445b17d1560989554b23dbaf9dbbf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_support.H",
+          "sha256": "6753a8f27b63833c7a62489fcddaa567bf6385e46ff919700280229f23c48f3e"
+        }
+      ]
+    },
+    {
+      "kind": "syntax_only",
+      "bits": 32,
+      "family": "chmt_checkpoint_impl",
+      "claim": "Provisional complete central-source copy; not final candidate compilation; no execution",
+      "argv": [
+        "g++",
+        "-std=c++17",
+        "-fsyntax-only",
+        "-MMD",
+        "-MF",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/checks-r01/chmt_checkpoint_impl.d",
+        "-DUGKWP_GAS_SPECIES=2",
+        "-DCP3_CELL_PREPARES_HEAT",
+        "-DCP3_FP32",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gpu",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasNumerics",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/wall",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/validation/tests/gas_transport",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined",
+        "-I/usr/local/cuda/include",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/restart/Checkpoint.C"
+      ],
+      "exit": 0,
+      "seconds": 0.522263765335083,
+      "log": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/checks-r01/chmt_checkpoint_impl.log",
+      "source_sha256": "64a95f1a8435d58ecdb2ce529144c01f43a73c79dc500b821c8a126be9be91d4",
+      "non_system_dependencies": [
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/SharedSnapshotVector.H",
+          "sha256": "e2da104006ac47f6a62b703e3025c755c3cb694e69fc88209be27859d2b0bb53"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/GasModel.H",
+          "sha256": "4d678daa4666152f4dd6aca4328aa1089cad9db623129347611997dea2300bd5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "23948894f08d74a62da75937d863f746ceabbe2a89f08b4e2f6a71f24ace68dc"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "81202ea89981560c339d588c3ea6907c26e1de588204664cb4d418fa6778db44"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/GasBuildConfig.H",
+          "sha256": "3cfdf912955b59226d6febe65227d785e38ec067015bde2906a008cbb98670bb"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/GasModel.H",
+          "sha256": "4d678daa4666152f4dd6aca4328aa1089cad9db623129347611997dea2300bd5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "23948894f08d74a62da75937d863f746ceabbe2a89f08b4e2f6a71f24ace68dc"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "81202ea89981560c339d588c3ea6907c26e1de588204664cb4d418fa6778db44"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/chemistry/GasRates.H",
+          "sha256": "6edae6841e49bda9026c2bff5292a6befe944ea1d051cae6bc381df9c07bad3a"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/chemistry/MechanismValidation.H",
+          "sha256": "b32350de3dcd41e6085d26d54c10732e7956d70d906edd59ceef39df4dddfa4b"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/chemistry/RateArithmetic.H",
+          "sha256": "97dbf771b5a90cb5c476504cb853b8ddf06b0aedc93482a8950ee47651b8cf43"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasNumerics/GpuSstAlgebra.cuh",
+          "sha256": "631cd3e4209405007f94fdb39a79901404868a666ca4e774517bafd3ab149bbe"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "23948894f08d74a62da75937d863f746ceabbe2a89f08b4e2f6a71f24ace68dc"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasTransport/MolecularViscosity.H",
+          "sha256": "4ce491b2b92b516448b47cbadefbaaf02fd67bea1daf260fe706d555d9617c9e"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/WallModelTypes.H",
+          "sha256": "64f867ac284bc4fe9482b770bdcccbfbd45557295156a3e96d990e2013783870"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasWall/WallResolutionDefaults.H",
+          "sha256": "32f3835d77ee7ae0fdd5c65f9a0754c25efdd8a5ab6cc6fa9a2b0225722f14cd"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/thermal/ParticleInletConfiguration.H",
+          "sha256": "0d83a64eec77c7b3ca544a14276f5385959b1e684fa14b7801aea71644c1e850"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/thermal/ParticlePhaseConfiguration.H",
+          "sha256": "b33f8d47428ea36f977cceba95b68a602aa0d1ef190dd738fc968f1f040ed7b1"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/thermal/ParticleState.H",
+          "sha256": "7b52dc6d48c789e33dd69a88ee90032e78aa4e4088f360097534e0768ab14dfd"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/core/Configuration.H",
+          "sha256": "345ece836fc31e530bbbf056375bc52ce08c1ab97f95c1a1951d48530d32b1ca"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/core/HostState.H",
+          "sha256": "731e11f7c5fbea6304660ab4f6cedddf644b10e0aee5852cc4efcd69686ff7c4"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/core/Types.H",
+          "sha256": "2899e272537ec2bf22956fb2553b3aa9eba3b5752b82e9cd47a88c167a8f64da"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuParticleCaloric.H",
+          "sha256": "741d66d52c44c03ff4a5083a0857c42d41112718b740f4cfb69eeb3433181809"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuParticleRestartConversion.H",
+          "sha256": "4a03cdce2a0d42dc859a6f4e375ccb84c6cee69e7ce9755f1e7dd3e7cb006ffe"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/PrecisionBuild.H",
+          "sha256": "763139375f508296d13029d9899132b1b480472338b2dca7e649b97e95dc6b0f"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/PrecisionRestart.H",
+          "sha256": "69053ea804c6da30f0b008884926d843eaa3ba91cfaa2424976369843e2d6c1e"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/GpuPrecisionTypes.H",
+          "sha256": "3665ed7d0a6de967ec521c7506f565ba94b104c607f471557b98b179893cca64"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasBoundary/Definition.H",
+          "sha256": "fcc597ef2294600fc7ca1c65cf15eb3be21f98aa099b503c1c4987daf38bce43"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/common/gasBoundary/Wire.H",
+          "sha256": "09e041aef9544144c8b080e3b2c36611c12897095fe468098eb5e3a4abcea841"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/restart/Checkpoint.C",
+          "sha256": "64a95f1a8435d58ecdb2ce529144c01f43a73c79dc500b821c8a126be9be91d4"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/fp32/source/applications/CHMT/restart/Checkpoint.H",
+          "sha256": "b549e331a6670c7339a9d28752e48b1ecfa3b25111cf095cf1d91c44f5532132"
+        }
+      ]
+    },
+    {
+      "name": "chmt_legacy_cp2",
+      "argv": [
+        "g++",
+        "-std=c++17",
+        "-O0",
+        "-g0",
+        "-DUGKWP_GAS_SPECIES=2",
+        "-Dchmt=chmt_cp2",
+        "-Dugkp=ugkp_cp2",
+        "-Dugkwp=ugkwp_cp2",
+        "-DCHMT_LEGACY_CHECKPOINT=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/applications/CHMT/restart/Checkpoint.C\"",
+        "-DCHMT_LEGACY_EXPORT=chmt_write_cp2",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/applications/CHMT",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common",
+        "-fsyntax-only",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_legacy_writer.cpp",
+        "-MMD",
+        "-MF",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/historical-seed-syntax-r02/chmt_legacy_cp2.d"
+      ],
+      "exit": 0,
+      "log": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/historical-seed-syntax-r02/chmt_legacy_cp2.log",
+      "dependencies": [
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/SharedSnapshotVector.H",
+          "sha256": "e2da104006ac47f6a62b703e3025c755c3cb694e69fc88209be27859d2b0bb53"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/gasTransport/GasModel.H",
+          "sha256": "8af04bdb382e1759417baf398548caa0f9681fc6bf4e7dca9fc4d7bc2d90ae56"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "c8f07c11d56f913775df71d62140f2a2d05d834380f3de13d086cb279466b171"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/gasTransport/GasBuildConfig.H",
+          "sha256": "3cfdf912955b59226d6febe65227d785e38ec067015bde2906a008cbb98670bb"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/gasTransport/GasModel.H",
+          "sha256": "8af04bdb382e1759417baf398548caa0f9681fc6bf4e7dca9fc4d7bc2d90ae56"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/GpuPrecisionTypes.H",
+          "sha256": "4c4ed3559280f49deab7ac865a81e7fb3b0285378d745e123c6f3718db2556fe"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "c8f07c11d56f913775df71d62140f2a2d05d834380f3de13d086cb279466b171"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/chemistry/GasRates.H",
+          "sha256": "6edae6841e49bda9026c2bff5292a6befe944ea1d051cae6bc381df9c07bad3a"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/chemistry/MechanismValidation.H",
+          "sha256": "b32350de3dcd41e6085d26d54c10732e7956d70d906edd59ceef39df4dddfa4b"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/chemistry/RateArithmetic.H",
+          "sha256": "97dbf771b5a90cb5c476504cb853b8ddf06b0aedc93482a8950ee47651b8cf43"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/gasNumerics/GpuSstAlgebra.cuh",
+          "sha256": "9c079ca23cec59e123c0d0636a393d8b6d6ee1ad0f494f67dac5d229a979a104"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/gasTransport/MolecularViscosity.H",
+          "sha256": "c34c6ed04572a8c36606a4fea78b450c1faed3ca15ba03a7445587769ae162b2"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/gasWall/WallModelTypes.H",
+          "sha256": "52080f1b428f1ad7b6573a10294aa03841f495e059358fcd2dce2e5eaa692fc5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/gasWall/WallResolutionDefaults.H",
+          "sha256": "32f3835d77ee7ae0fdd5c65f9a0754c25efdd8a5ab6cc6fa9a2b0225722f14cd"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/thermal/ParticleInletConfiguration.H",
+          "sha256": "bc648e53c2493fef8004189fb64a2630c00105155d9c4c7a0bc5f05f592e4b22"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/thermal/ParticlePhaseConfiguration.H",
+          "sha256": "6ede4f0c931e08cd230f5ea7adb0ed971ea82280a86a11fe266bf82387ddfd72"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/thermal/ParticleState.H",
+          "sha256": "5aa9646672cea51699e7536fffd49d457ca67448c43a90428492339f15cac600"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/applications/CHMT/core/Configuration.H",
+          "sha256": "30bd2ec247acd7cff44b490059745fb6cdf57fe8d551424222776f8952944890"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/applications/CHMT/core/HostState.H",
+          "sha256": "f232797a0186ccf6305b25ca11cfde4c4cfa8e44cce7e1a0f1814b7c27fe2294"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/applications/CHMT/core/Types.H",
+          "sha256": "dcf4cbac6c3b17ecf17c29dfca6f7c43915e234780f389e00bc29ad4d947c372"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/PrecisionBuild.H",
+          "sha256": "52d3a83ccf21098f84c329e25bcc624aadc972813458592ffc8830c0d8814d78"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/PrecisionRestart.H",
+          "sha256": "69053ea804c6da30f0b008884926d843eaa3ba91cfaa2424976369843e2d6c1e"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/gasBoundary/Definition.H",
+          "sha256": "8725b35fb9a6c64442b1c580ab54e026ffd7865c894fa8784600573aa397c985"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/common/gasBoundary/Wire.H",
+          "sha256": "e8b057c4d988c39ae8970c93bbecbb13c459a65e125414f2b8827a9d8168a6e9"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/applications/CHMT/restart/Checkpoint.C",
+          "sha256": "a9d352a2cdf0b6eaea7505bb61f5bec7c2e01ba342ac79ca513c3b6b685c3aff"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint2-repair3-20261111/.build/precision/fp64/source/applications/CHMT/restart/Checkpoint.H",
+          "sha256": "b549e331a6670c7339a9d28752e48b1ecfa3b25111cf095cf1d91c44f5532132"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_legacy_writer.cpp",
+          "sha256": "c7434b3bae7e352f84c39b8938a42ff6610357e62d7a20b5872b8ea56cfd8e9c"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_seed.H",
+          "sha256": "1bd9a49d4489b04459022b62fee40e8ca9d55cbad56eaa008409c29cd6aba4d8"
+        }
+      ],
+      "executed": false
+    },
+    {
+      "name": "chmt_legacy_cp3",
+      "argv": [
+        "g++",
+        "-std=c++17",
+        "-O0",
+        "-g0",
+        "-DUGKWP_GAS_SPECIES=2",
+        "-Dchmt=chmt_cp3",
+        "-Dugkp=ugkp_cp3",
+        "-Dugkwp=ugkwp_cp3",
+        "-DCHMT_LEGACY_CHECKPOINT=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/applications/CHMT/restart/Checkpoint.C\"",
+        "-DCHMT_LEGACY_EXPORT=chmt_write_cp3",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/applications/CHMT",
+        "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common",
+        "-fsyntax-only",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_legacy_writer.cpp",
+        "-MMD",
+        "-MF",
+        "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/historical-seed-syntax-r02/chmt_legacy_cp3.d"
+      ],
+      "exit": 0,
+      "log": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/host-types-r05/historical-seed-syntax-r02/chmt_legacy_cp3.log",
+      "dependencies": [
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/SharedSnapshotVector.H",
+          "sha256": "e2da104006ac47f6a62b703e3025c755c3cb694e69fc88209be27859d2b0bb53"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/gasTransport/GasModel.H",
+          "sha256": "8af04bdb382e1759417baf398548caa0f9681fc6bf4e7dca9fc4d7bc2d90ae56"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "c8f07c11d56f913775df71d62140f2a2d05d834380f3de13d086cb279466b171"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/gasTransport/GasBuildConfig.H",
+          "sha256": "3cfdf912955b59226d6febe65227d785e38ec067015bde2906a008cbb98670bb"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/gasTransport/GasModel.H",
+          "sha256": "8af04bdb382e1759417baf398548caa0f9681fc6bf4e7dca9fc4d7bc2d90ae56"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/Diagnostics.H",
+          "sha256": "b7c351383404491d41a164fdd98dff6f12c52b1e041eb30bebda3e601cdbb3cf"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/GpuPrecisionTypes.H",
+          "sha256": "4c4ed3559280f49deab7ac865a81e7fb3b0285378d745e123c6f3718db2556fe"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/chemistry/ChemistryTypes.H",
+          "sha256": "c8f07c11d56f913775df71d62140f2a2d05d834380f3de13d086cb279466b171"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/chemistry/GasRates.H",
+          "sha256": "6edae6841e49bda9026c2bff5292a6befe944ea1d051cae6bc381df9c07bad3a"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/chemistry/MechanismValidation.H",
+          "sha256": "b32350de3dcd41e6085d26d54c10732e7956d70d906edd59ceef39df4dddfa4b"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/chemistry/RateArithmetic.H",
+          "sha256": "97dbf771b5a90cb5c476504cb853b8ddf06b0aedc93482a8950ee47651b8cf43"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/gasNumerics/GpuSstAlgebra.cuh",
+          "sha256": "9c079ca23cec59e123c0d0636a393d8b6d6ee1ad0f494f67dac5d229a979a104"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/gasTransport/MixtureThermo.H",
+          "sha256": "3b0ee6af516931a4fa08330be9f79bf1a432e9815d2f4a82c9f4670551999df0"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/gasTransport/MolecularViscosity.H",
+          "sha256": "c34c6ed04572a8c36606a4fea78b450c1faed3ca15ba03a7445587769ae162b2"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/gasWall/WallModelTypes.H",
+          "sha256": "52080f1b428f1ad7b6573a10294aa03841f495e059358fcd2dce2e5eaa692fc5"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/gasWall/WallResolutionDefaults.H",
+          "sha256": "32f3835d77ee7ae0fdd5c65f9a0754c25efdd8a5ab6cc6fa9a2b0225722f14cd"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/thermal/ParticleInletConfiguration.H",
+          "sha256": "bc648e53c2493fef8004189fb64a2630c00105155d9c4c7a0bc5f05f592e4b22"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/thermal/ParticlePhaseConfiguration.H",
+          "sha256": "6ede4f0c931e08cd230f5ea7adb0ed971ea82280a86a11fe266bf82387ddfd72"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/thermal/ParticleState.H",
+          "sha256": "5aa9646672cea51699e7536fffd49d457ca67448c43a90428492339f15cac600"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/applications/CHMT/core/Configuration.H",
+          "sha256": "30bd2ec247acd7cff44b490059745fb6cdf57fe8d551424222776f8952944890"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/applications/CHMT/core/HostState.H",
+          "sha256": "f232797a0186ccf6305b25ca11cfde4c4cfa8e44cce7e1a0f1814b7c27fe2294"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/applications/CHMT/core/Types.H",
+          "sha256": "dcf4cbac6c3b17ecf17c29dfca6f7c43915e234780f389e00bc29ad4d947c372"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/PrecisionBuild.H",
+          "sha256": "52d3a83ccf21098f84c329e25bcc624aadc972813458592ffc8830c0d8814d78"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/PrecisionRestart.H",
+          "sha256": "69053ea804c6da30f0b008884926d843eaa3ba91cfaa2424976369843e2d6c1e"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/gasBoundary/Definition.H",
+          "sha256": "8725b35fb9a6c64442b1c580ab54e026ffd7865c894fa8784600573aa397c985"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/common/gasBoundary/Wire.H",
+          "sha256": "e8b057c4d988c39ae8970c93bbecbb13c459a65e125414f2b8827a9d8168a6e9"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/applications/CHMT/restart/Checkpoint.C",
+          "sha256": "a9d352a2cdf0b6eaea7505bb61f5bec7c2e01ba342ac79ca513c3b6b685c3aff"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-checkpoint3-20261111/.build/precision/fp64/source/applications/CHMT/restart/Checkpoint.H",
+          "sha256": "b549e331a6670c7339a9d28752e48b1ecfa3b25111cf095cf1d91c44f5532132"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_legacy_writer.cpp",
+          "sha256": "c7434b3bae7e352f84c39b8938a42ff6610357e62d7a20b5872b8ea56cfd8e9c"
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/validation/checkpoint03_combined/chmt_seed.H",
+          "sha256": "1bd9a49d4489b04459022b62fee40e8ca9d55cbad56eaa008409c29cd6aba4d8"
+        }
+      ],
+      "executed": false
+    }
+  ],
+  "known_limits": [
+    "No revised CHMT fixture executable was linked or run in this revision.",
+    "Previous historical/owner link evidence is superseded for the changed fixture seed.",
+    "All source copies and individual dependencies are provisional; final production source and complete build lineage require parent review."
+  ],
+  "superseded_files_preserved_at": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp3-combined-acceptance-20261111/.build/acceptance-preparation/chmt-before-revision3"
+}

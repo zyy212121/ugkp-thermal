@@ -14,6 +14,8 @@ import struct
 import subprocess
 import time
 
+
+
 HERE=Path(__file__).resolve().parent
 HEADER=struct.Struct('<8sQIIIIIIQQQQ')
 ENV=dict(os.environ,OMP_NUM_THREADS='4')
@@ -65,7 +67,7 @@ def prepare(source,target,meta,constant=False):
         control=target/'system/controlDict'
         end=float(re.search(r'endTime\s+([^;]+)',control.read_text())[1])
         # At least four accepted steps, with a common midpoint write boundary.
-        entry(control,'deltaT',end/4);entry(control,'maxDeltaT',end/4)
+        entry(control,'deltaT',end/4);entry(target/'constant/scheme','maxDeltaT',end/4)
         entry(control,'writeInterval',end/2)
     run(['blockMesh','-case',target],target/'mesh.log')
     solid=target/'system/blockMeshSolidDict'

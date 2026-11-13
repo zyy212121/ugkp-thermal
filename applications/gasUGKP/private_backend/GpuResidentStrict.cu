@@ -1,4 +1,5 @@
 #include "BoundaryInjectionApi.H"
+#include "gasNumerics/GasScalarSolverControlsApi.H"
 #include "GpuParticlePhaseGraph.cuh"
 #include "ParticleResidentInterval.H"
 #include "GpuParticleExecutionContext.H"
@@ -216,6 +217,7 @@ struct DeviceState
     double turbulentPrandtl = 0.9;
     double waleCw = 0.325;
     double smagorinskyCs = 0.17;
+    ugkp::gasNumerics::ScalarSolverControls<GpuReal> gasScalarSolvers;
     int sstConfigured = 0;
     ugkwp::SstCoefficients sstCoefficients =
         ugkwp::defaultSstCoefficients();
@@ -528,6 +530,10 @@ struct DeviceState
     double* pux = nullptr;
     double* puy = nullptr;
     double* puz = nullptr;
+    // Source-epoch scratch, not particle payload: each coupling pass writes
+    // before reading, so restart, sorting and migration need no cache copies.
+    GpuReal* couplingDragBeta = nullptr;
+    double* couplingResponseFraction = nullptr;
     double* puxOld = nullptr;
     double* puyOld = nullptr;
     double* puzOld = nullptr;
@@ -1276,6 +1282,7 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->pux);
     release(s->puy);
     release(s->puz);
+    release(s->couplingDragBeta);release(s->couplingResponseFraction);
     release(s->puxOld);
     release(s->puyOld);
     release(s->puzOld);
@@ -1592,6 +1599,8 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->pux, np, "cudaMalloc strict particle ux");
     rc |= allocate(s->puy, np, "cudaMalloc strict particle uy");
     rc |= allocate(s->puz, np, "cudaMalloc strict particle uz");
+    rc |= allocate(s->couplingDragBeta,np,"allocate particle coupling drag beta");
+    rc |= allocate(s->couplingResponseFraction,np,"allocate particle coupling response fraction");
     rc |= allocate(s->puxOld, np, "cudaMalloc strict particle old ux");
     rc |= allocate(s->puyOld, np, "cudaMalloc strict particle old uy");
     rc |= allocate(s->puzOld, np, "cudaMalloc strict particle old uz");
@@ -4598,6 +4607,28 @@ extern "C" int ugkwpGpuResidentStrictUploadFields
 
     s->gasInitialFieldsUploaded = true;
     scrubHostCalculationScalars(s);
+    return 0;
+}
+
+extern "C" int ugkwpGpuResidentStrictConfigureGasScalarSolvers(
+    void* handle, const ugkp::gasNumerics::ScalarSolverControls<double>* controls)
+{
+    DeviceState* s=static_cast<DeviceState*>(handle);
+    if(!s || !controls) {
+        setLastErrorText("null gas scalar solver configuration");
+        return 1;
+    }
+    s->gasScalarSolvers=ugkp::gasNumerics::castScalarSolverControls<GpuReal>(*controls);
+    // Publish only the startup controls: gasUGKP scrubs unrelated host physical
+    // scalars after field upload, so a whole-state upload would overwrite them.
+    const cudaError_t error=cudaMemcpy(
+        reinterpret_cast<unsigned char*>(s->deviceState)+offsetof(DeviceState,gasScalarSolvers),
+        &s->gasScalarSolvers,sizeof(s->gasScalarSolvers),cudaMemcpyHostToDevice);
+    if(error!=cudaSuccess) {
+        setLastError("configure gas scalar solver controls",error);
+        return 1;
+    }
+    invalidateSharedGasConfiguration(s);
     return 0;
 }
 

@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -27,9 +28,12 @@ def main():
     host = command_version([args.cxx, '--version'])
     cuda = 'COMPILE_ONLY_NO_CUDA' if args.compile_only else command_version([args.nvcc, '--version'])
     arch = 'COMPILE_ONLY' if args.compile_only else (args.arch if args.arch is not None else 'UNKNOWN')
+    precision_header = Path(__file__).resolve().parents[2] / 'common' / 'PrecisionBuild.H'
+    precision_match = re.search(r'compiledBits\s*=\s*(32|64)', precision_header.read_text())
+    precision_bits = precision_match.group(1) if precision_match else 'UNKNOWN'
     data = {'artifact_kind': 'COMPILE_ONLY' if args.compile_only else 'CHMT_BUILD_MANIFEST',
             'species_identity': 'runtime name/order hash', 'Ns': args.species_count,
-            'precision': 'FP64', 'cuda_arch': arch, 'cuda_compiler': cuda,
+            'precision': 'FP' + precision_bits, 'cuda_arch': arch, 'cuda_compiler': cuda,
             'host_compiler': host, 'openfoam_version': os.environ.get('WM_PROJECT_VERSION', 'UNKNOWN'),
             'openfoam_directory': os.environ.get('WM_PROJECT_DIR', 'UNKNOWN'),
             'source_fingerprint': 'UNKNOWN', 'upstream_base': 'UNKNOWN', 'solver_commit': 'UNKNOWN'}

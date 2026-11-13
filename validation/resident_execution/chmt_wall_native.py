@@ -26,8 +26,8 @@ def prepare(work):
             case = work/(model+"-"+kind)
             matrix.prepare(matrix.HERE/"fixtures/chmt-moving-short", case, meta)
             props = case/"constant/chmtProperties"
-            interval = float(re.search(r"couplingInterval\s+([^;]+)", props.read_text())[1])
-            matrix.entry(props, "gasMaxDt", interval/4)
+            interval = float(re.search(r"couplingInterval\s+([^;]+)", (case/"constant/scheme").read_text())[1])
+            matrix.entry(case/"constant/scheme", "maxDeltaT", interval/4)
             if model == "constantTransport":
                 props.write_text(props.read_text().replace("model reactingSst;", "model constantTransport;").replace("enableSst true;", "enableSst false;"))
                 # The analytic constant-transport wall model requires constant viscosity.

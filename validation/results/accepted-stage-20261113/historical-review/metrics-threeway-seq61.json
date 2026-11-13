@@ -1,0 +1,3350 @@
+{
+  "mesh": {
+    "fluid": {
+      "patches": {
+        "inlet": [
+          8992,
+          28
+        ],
+        "outlet": [
+          9020,
+          28
+        ],
+        "fluid_to_graphite": [
+          9048,
+          164
+        ],
+        "wedgeBack": [
+          9212,
+          4592
+        ],
+        "wedgeFront": [
+          13804,
+          4592
+        ],
+        "defaultFaces": [
+          18396,
+          0
+        ]
+      },
+      "nCells": 4592,
+      "minVolume": 3.769927585741405e-11,
+      "totalVolume": 1.9131016358955542e-05
+    },
+    "graphite": {
+      "patches": {
+        "graphite_to_fluid": [
+          13570,
+          164
+        ],
+        "outerWall": [
+          13734,
+          164
+        ],
+        "graphiteInlet": [
+          13898,
+          42
+        ],
+        "graphiteOutlet": [
+          13940,
+          42
+        ],
+        "wedgeBack": [
+          13982,
+          6888
+        ],
+        "wedgeFront": [
+          20870,
+          6888
+        ]
+      },
+      "nCells": 6888,
+      "minVolume": 2.676717558037033e-10,
+      "totalVolume": 7.634484564683973e-05
+    }
+  },
+  "runs": {
+    "pr41-fp64": {
+      "exchanges": [
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp6-records-20261112/single-scheme-original-continuation/case-pr41-fp64/0.30000251790101112",
+          "time": 0.3000025179010111,
+          "state": {
+            "FoamFile": "{\n    format      ascii",
+            "class": "dictionary",
+            "location": 0.3000025179010111,
+            "object": "thermalExchangeState",
+            "formatVersion": 4.0,
+            "initialState": "false",
+            "exchangeSequence": 60.0,
+            "completedTimeIndex": 3728487.0,
+            "completedSimulationTimeS": 0.3000025179010111,
+            "completedRadiationSimulationTimeS": 0.3000025179010111,
+            "previousExchangeSimulationTimeS": 0.29500248649130967,
+            "gasWallLedgerConsumed": "true",
+            "particleWallLedgerConsumed": "true",
+            "particleRadiationApplied": "true",
+            "solidStateUpdated": "true",
+            "wallTemperatureUploaded": "true",
+            "particleMomentsRebuilt": "true"
+          },
+          "fields": {
+            "fluid/rho": {
+              "min": 0.1397041292232193,
+              "max": 9.831713524945469,
+              "weightedMean": 4.0204206694286855,
+              "weightedRms": 4.170870729837346,
+              "finite": true
+            },
+            "fluid/p": {
+              "min": 127530.91157084412,
+              "max": 4001989.4705743855,
+              "weightedMean": 3775376.9593004514,
+              "weightedRms": 3874229.058669401,
+              "finite": true
+            },
+            "fluid/T": {
+              "min": 1241.451913020846,
+              "max": 3500.294542685022,
+              "weightedMean": 3272.8798789766174,
+              "weightedRms": 3299.6756364943426,
+              "finite": true
+            },
+            "fluid/U": {
+              "min": 0.020157760162825323,
+              "max": 2194.893974288968,
+              "weightedMean": 144.18216186748631,
+              "weightedRms": 468.4281171412712,
+              "finite": true
+            },
+            "fluid/epsilonS": {
+              "min": 0.0,
+              "max": 0.07346608713737712,
+              "weightedMean": 0.0009879245119745995,
+              "weightedRms": 0.0027865176125068543,
+              "finite": true
+            },
+            "fluid/Tp": {
+              "min": 300.0,
+              "max": 3370.1067756826715,
+              "weightedMean": 2927.5345374745166,
+              "weightedRms": 3000.362150982148,
+              "finite": true
+            },
+            "fluid/theta": {
+              "min": 0.0,
+              "max": 28500.59759459378,
+              "weightedMean": 49.374927253634254,
+              "weightedRms": 754.8882797460484,
+              "finite": true
+            },
+            "fluid/rhoE": {
+              "min": 726304.2945806964,
+              "max": 20019057.425290857,
+              "weightedMean": 18930817.170492798,
+              "weightedRms": 19384141.619672086,
+              "finite": true
+            },
+            "fluid/rhoEs": {
+              "min": 0.0,
+              "max": 4541109.428375747,
+              "weightedMean": 6276.845982242342,
+              "weightedRms": 67700.58030773766,
+              "finite": true
+            },
+            "fluid/rhoHp": {
+              "min": 0.0,
+              "max": 512132736.85758454,
+              "weightedMean": 11511805.009247424,
+              "weightedRms": 23369482.836503927,
+              "finite": true
+            },
+            "fluid/k": {
+              "min": 0.10970535380377616,
+              "max": 29814.416694891417,
+              "weightedMean": 68.62432998642778,
+              "weightedRms": 1017.9140449083438,
+              "finite": true
+            },
+            "fluid/omega": {
+              "min": 248.55832792450195,
+              "max": 5471076.76774331,
+              "weightedMean": 21715.316718001173,
+              "weightedRms": 228298.7382133164,
+              "finite": true
+            },
+            "fluid/particleRadiationAbsorptionCoefficient": {
+              "min": 0.0,
+              "max": 237.6692279240446,
+              "weightedMean": 10.266715098177528,
+              "weightedRms": 14.167942503766952,
+              "finite": true
+            },
+            "fluid/particleRadiationScatteringCoefficient": {
+              "min": 0.0,
+              "max": 351.07026957433254,
+              "weightedMean": 14.66246220993773,
+              "weightedRms": 21.74759500186014,
+              "finite": true
+            },
+            "fluid/particleRadiationExtinctionCoefficient": {
+              "min": 0.0,
+              "max": 551.9108678567837,
+              "weightedMean": 24.929177308115253,
+              "weightedRms": 35.462930996494265,
+              "finite": true
+            },
+            "fluid/particleRadiationAsymmetryFactor": {
+              "min": 0.0,
+              "max": 0.998808395261318,
+              "weightedMean": 0.9347418755567541,
+              "weightedRms": 0.9600071541233454,
+              "finite": true
+            },
+            "graphite/T": {
+              "min": 299.9999999999995,
+              "max": 1518.2312673045797,
+              "weightedMean": 315.8178003845311,
+              "weightedRms": 321.39350601587336,
+              "finite": true
+            },
+            "fluid/T@fluid_to_graphite": {
+              "min": 470.8047354149658,
+              "max": 1587.7096020875672,
+              "weightedMean": 686.8068354458206,
+              "weightedRms": 729.9527294357404,
+              "finite": true
+            },
+            "fluid/gasConvectiveWallHeatFlux@fluid_to_graphite": {
+              "min": 1173049.1018418302,
+              "max": 19882699.039838884,
+              "weightedMean": 4832852.385673541,
+              "weightedRms": 6349751.8806409305,
+              "finite": true,
+              "integralW": 3937.8481403535743
+            },
+            "fluid/particleRadiationWallHeatFlux@fluid_to_graphite": {
+              "min": 142484.86638711972,
+              "max": 2486640.151307322,
+              "weightedMean": 1553767.516306901,
+              "weightedRms": 1653716.7066042165,
+              "finite": true,
+              "integralW": 1266.0226376391183
+            },
+            "fluid/particleReflectedWallHeatFlux@fluid_to_graphite": {
+              "min": 0.0,
+              "max": 11399814.627778482,
+              "weightedMean": 958311.6477133489,
+              "weightedRms": 1953249.8477519455,
+              "finite": true,
+              "integralW": 780.840265474248
+            },
+            "fluid/particleStuckWallHeatFlux@fluid_to_graphite": {
+              "min": 0.0,
+              "max": 0.0,
+              "weightedMean": 0.0,
+              "weightedRms": 0.0,
+              "finite": true,
+              "integralW": 0.0
+            }
+          },
+          "particleHeader": "UGKP_CHT_PARTICLES_SCHEMA9_FLOAT_COLD_PROFILES_BIN 52920 262144",
+          "particleStatistics": {
+            "count": 52920,
+            "massKg": 5.292000000000002e-05,
+            "massWeightedTemperatureK": 2759.8091880227685,
+            "temperatureQuantilesK": [
+              1236.676669738392,
+              1713.9570964745603,
+              3095.5056792904843,
+              3223.3578655278634,
+              3483.7476581632372
+            ],
+            "kineticJ": 0.12006159678385525,
+            "momentumKgMS": [
+              0.0014546803676818967,
+              -0.00016078271378069852,
+              -3.385084210924171e-07
+            ],
+            "stuckCount": 10473
+          },
+          "inventoryObservations": {
+            "gasMassKg": 7.681867961607481e-05,
+            "gasEnergyJ": 361.7963297003639,
+            "particleMechanicalJ": 0.12008244316892261,
+            "particleThermalJ": 220.23252995301883,
+            "scope": "Published epsilonS/rhoE/rhoEs/rhoHp volume integral; external flow and solid fixed-value boundary time-integrals not saved. This is not full-domain energy closure."
+          }
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp6-records-20261112/single-scheme-original-continuation/case-pr41-fp64/0.30500252032217334",
+          "time": 0.30500252032217334,
+          "state": {
+            "FoamFile": "{\n    format      ascii",
+            "class": "dictionary",
+            "location": 0.30500252032217334,
+            "object": "thermalExchangeState",
+            "formatVersion": 4.0,
+            "initialState": "false",
+            "exchangeSequence": 61.0,
+            "completedTimeIndex": 3791169.0,
+            "completedSimulationTimeS": 0.30500252032217334,
+            "completedRadiationSimulationTimeS": 0.3000025179010111,
+            "previousExchangeSimulationTimeS": 0.3000025179010111,
+            "gasWallLedgerConsumed": "true",
+            "particleWallLedgerConsumed": "true",
+            "particleRadiationApplied": "true",
+            "solidStateUpdated": "true",
+            "wallTemperatureUploaded": "true",
+            "particleMomentsRebuilt": "true"
+          },
+          "fields": {
+            "fluid/rho": {
+              "min": 0.14268504981116534,
+              "max": 9.775037006171011,
+              "weightedMean": 4.029931267289994,
+              "weightedRms": 4.179928233008122,
+              "finite": true
+            },
+            "fluid/p": {
+              "min": 129536.46586936901,
+              "max": 4003087.547934595,
+              "weightedMean": 3776025.3208627026,
+              "weightedRms": 3874829.2756296922,
+              "finite": true
+            },
+            "fluid/T": {
+              "min": 1240.3060568431174,
+              "max": 3500.4476838351816,
+              "weightedMean": 3265.5167186954905,
+              "weightedRms": 3292.3792256913002,
+              "finite": true
+            },
+            "fluid/U": {
+              "min": 0.01780329315459119,
+              "max": 2188.5360820977744,
+              "weightedMean": 143.53307373213136,
+              "weightedRms": 466.76582099362423,
+              "finite": true
+            },
+            "fluid/epsilonS": {
+              "min": 0.0,
+              "max": 0.07466065765993611,
+              "weightedMean": 0.0009912661311666617,
+              "weightedRms": 0.0028174678238732176,
+              "finite": true
+            },
+            "fluid/Tp": {
+              "min": 300.0,
+              "max": 3500.027423171212,
+              "weightedMean": 3176.63018870407,
+              "weightedRms": 3260.541859784224,
+              "finite": true
+            },
+            "fluid/theta": {
+              "min": 0.0,
+              "max": 42425.60493408582,
+              "weightedMean": 53.26502243575746,
+              "weightedRms": 909.8782321327675,
+              "finite": true
+            },
+            "fluid/rhoE": {
+              "min": 736545.1239793233,
+              "max": 20024640.378432915,
+              "weightedMean": 18934255.019362945,
+              "weightedRms": 19387165.5819611,
+              "finite": true
+            },
+            "fluid/rhoEs": {
+              "min": 0.0,
+              "max": 3888192.177198306,
+              "weightedMean": 6469.190414799438,
+              "weightedRms": 64554.510261032374,
+              "finite": true
+            },
+            "fluid/rhoHp": {
+              "min": 0.0,
+              "max": 519018604.69291294,
+              "weightedMean": 12272498.108581964,
+              "weightedRms": 24052516.571947668,
+              "finite": true
+            },
+            "fluid/k": {
+              "min": 0.1081115549998138,
+              "max": 29164.073205830136,
+              "weightedMean": 67.08114757609081,
+              "weightedRms": 994.0725142300278,
+              "finite": true
+            },
+            "fluid/omega": {
+              "min": 248.59367362562983,
+              "max": 5472674.321240137,
+              "weightedMean": 21579.43537419024,
+              "weightedRms": 226827.61253416666,
+              "finite": true
+            },
+            "fluid/particleRadiationAbsorptionCoefficient": {
+              "min": 0.0,
+              "max": 237.6692279240446,
+              "weightedMean": 10.266715098177528,
+              "weightedRms": 14.167942503766952,
+              "finite": true
+            },
+            "fluid/particleRadiationScatteringCoefficient": {
+              "min": 0.0,
+              "max": 351.07026957433254,
+              "weightedMean": 14.66246220993773,
+              "weightedRms": 21.74759500186014,
+              "finite": true
+            },
+            "fluid/particleRadiationExtinctionCoefficient": {
+              "min": 0.0,
+              "max": 551.9108678567837,
+              "weightedMean": 24.929177308115253,
+              "weightedRms": 35.462930996494265,
+              "finite": true
+            },
+            "fluid/particleRadiationAsymmetryFactor": {
+              "min": 0.0,
+              "max": 0.998808395261318,
+              "weightedMean": 0.9347418755567541,
+              "weightedRms": 0.9600071541233454,
+              "finite": true
+            },
+            "graphite/T": {
+              "min": 299.9999999999995,
+              "max": 1506.510705475549,
+              "weightedMean": 315.97072669257096,
+              "weightedRms": 321.59434958024485,
+              "finite": true
+            },
+            "fluid/T@fluid_to_graphite": {
+              "min": 460.5074722753597,
+              "max": 1555.2394901749656,
+              "weightedMean": 675.7375668114978,
+              "weightedRms": 718.8490391977554,
+              "finite": true
+            },
+            "fluid/gasConvectiveWallHeatFlux@fluid_to_graphite": {
+              "min": 1150431.2761123525,
+              "max": 18655459.62608249,
+              "weightedMean": 4702443.521360203,
+              "weightedRms": 6162570.192679614,
+              "finite": true,
+              "integralW": 3831.589917912474
+            },
+            "fluid/particleRadiationWallHeatFlux@fluid_to_graphite": {
+              "min": 142484.86638711972,
+              "max": 2486640.151307322,
+              "weightedMean": 1553767.516306901,
+              "weightedRms": 1653716.7066042165,
+              "finite": true,
+              "integralW": 1266.0226376391183
+            },
+            "fluid/particleReflectedWallHeatFlux@fluid_to_graphite": {
+              "min": 0.0,
+              "max": 7955091.695589709,
+              "weightedMean": 864278.7958385017,
+              "weightedRms": 1648884.0999674273,
+              "finite": true,
+              "integralW": 704.2215191650942
+            },
+            "fluid/particleStuckWallHeatFlux@fluid_to_graphite": {
+              "min": 0.0,
+              "max": 0.0,
+              "weightedMean": 0.0,
+              "weightedRms": 0.0,
+              "finite": true,
+              "integralW": 0.0
+            }
+          },
+          "particleHeader": "UGKP_CHT_PARTICLES_SCHEMA9_FLOAT_COLD_PROFILES_BIN 53099 262144",
+          "particleStatistics": {
+            "count": 53099,
+            "massKg": 5.309900000000002e-05,
+            "massWeightedTemperatureK": 2929.280809672609,
+            "temperatureQuantilesK": [
+              1235.8125522230318,
+              1708.161928179044,
+              3265.4537738473914,
+              3500.000678725307,
+              3500.160982775215
+            ],
+            "kineticJ": 0.12373477944732919,
+            "momentumKgMS": [
+              0.0014505380821237222,
+              -0.00015660145033701003,
+              -2.995393743846713e-08
+            ],
+            "stuckCount": 10589
+          },
+          "inventoryObservations": {
+            "gasMassKg": 7.700003444734094e-05,
+            "gasEnergyJ": 361.8605697615475,
+            "particleMechanicalJ": 0.12376218765472644,
+            "particleThermalJ": 234.7853620805325,
+            "scope": "Published epsilonS/rhoE/rhoEs/rhoHp volume integral; external flow and solid fixed-value boundary time-integrals not saved. This is not full-domain energy closure."
+          }
+        }
+      ],
+      "terminalLoggedTime": 0.30490956712112594,
+      "terminalLoggedTimeOffsetFromNominalEnd": -9.043287887405826e-05,
+      "terminalLoggedTimeScope": "Last available progress time, not guaranteed terminal step; logs are sampled and final fields may be unwritten.",
+      "progress": [
+        {
+          "step": 3670000.0,
+          "time": 0.29536628762186856,
+          "dt": 7.940134593615033e-08,
+          "elapsed": 31.0
+        },
+        {
+          "step": 3675000.0,
+          "time": 0.2957633591224509,
+          "dt": 7.946534465603358e-08,
+          "elapsed": 62.0
+        },
+        {
+          "step": 3680000.0,
+          "time": 0.2961605455494829,
+          "dt": 7.94255202289204e-08,
+          "elapsed": 93.0
+        },
+        {
+          "step": 3685000.0,
+          "time": 0.29655719302476946,
+          "dt": 7.927141110935028e-08,
+          "elapsed": 124.0
+        },
+        {
+          "step": 3690000.0,
+          "time": 0.29695386702604987,
+          "dt": 7.926472707150013e-08,
+          "elapsed": 155.0
+        },
+        {
+          "step": 3695000.0,
+          "time": 0.29735017205752445,
+          "dt": 7.923916254320414e-08,
+          "elapsed": 186.0
+        },
+        {
+          "step": 3700000.0,
+          "time": 0.29774662377037364,
+          "dt": 7.922032386421768e-08,
+          "elapsed": 218.0
+        },
+        {
+          "step": 3705000.0,
+          "time": 0.29814283552479814,
+          "dt": 7.914764136917297e-08,
+          "elapsed": 249.0
+        },
+        {
+          "step": 3710000.0,
+          "time": 0.29853864168020383,
+          "dt": 7.914248905083406e-08,
+          "elapsed": 281.0
+        },
+        {
+          "step": 3715000.0,
+          "time": 0.2989346616715727,
+          "dt": 7.889932191431637e-08,
+          "elapsed": 312.0
+        },
+        {
+          "step": 3720000.0,
+          "time": 0.2993308104423269,
+          "dt": 7.919688573051546e-08,
+          "elapsed": 344.0
+        },
+        {
+          "step": 3725000.0,
+          "time": 0.2997265233253654,
+          "dt": 7.908398250938171e-08,
+          "elapsed": 375.0
+        },
+        {
+          "step": 3730000.0,
+          "time": 0.3001223361247227,
+          "dt": 7.947613833259965e-08,
+          "elapsed": 407.0
+        },
+        {
+          "step": 3735000.0,
+          "time": 0.30052142476262134,
+          "dt": 7.997420862139806e-08,
+          "elapsed": 438.0
+        },
+        {
+          "step": 3740000.0,
+          "time": 0.3009211591240435,
+          "dt": 7.997064575087118e-08,
+          "elapsed": 470.0
+        },
+        {
+          "step": 3745000.0,
+          "time": 0.30132132245448284,
+          "dt": 8.016503006889603e-08,
+          "elapsed": 501.0
+        },
+        {
+          "step": 3750000.0,
+          "time": 0.3017215550685335,
+          "dt": 8.007408199112905e-08,
+          "elapsed": 533.0
+        },
+        {
+          "step": 3755000.0,
+          "time": 0.3021210894186175,
+          "dt": 7.964389221716558e-08,
+          "elapsed": 564.0
+        },
+        {
+          "step": 3760000.0,
+          "time": 0.30252030815650555,
+          "dt": 7.998929193835054e-08,
+          "elapsed": 596.0
+        },
+        {
+          "step": 3765000.0,
+          "time": 0.3029196315532614,
+          "dt": 7.972526393240231e-08,
+          "elapsed": 627.0
+        },
+        {
+          "step": 3770000.0,
+          "time": 0.30331801602835196,
+          "dt": 7.97048773353604e-08,
+          "elapsed": 659.0
+        },
+        {
+          "step": 3775000.0,
+          "time": 0.30371652195146837,
+          "dt": 7.973774312023188e-08,
+          "elapsed": 690.0
+        },
+        {
+          "step": 3780000.0,
+          "time": 0.3041144980672934,
+          "dt": 7.941242018804078e-08,
+          "elapsed": 722.0
+        },
+        {
+          "step": 3785000.0,
+          "time": 0.30451229489982046,
+          "dt": 7.947226407599486e-08,
+          "elapsed": 753.0
+        },
+        {
+          "step": 3790000.0,
+          "time": 0.30490956712112594,
+          "dt": 7.945975573697331e-08,
+          "elapsed": 785.0
+        }
+      ],
+      "warningsCount": 0,
+      "fatalCount": 0,
+      "warningLines": [],
+      "precisionLines": [
+        "GPU precision physical=64 time=64 wallEnergyAccumulation=64"
+      ],
+      "gnuTimeWallSeconds": 792.99,
+      "maxHostRssKiB": 951388,
+      "cumulativeWallEnergyJ": {
+        "gasConvectiveWallHeatFlux": 38.84732325486546,
+        "particleReflectedWallHeatFlux": 7.42533515419087,
+        "particleStuckWallHeatFlux": 0.0,
+        "particleRadiationWallHeatFlux": 12.660319442883775
+      },
+      "actualStopping": {
+        "status": "Manual review of all warnings required",
+        "budgetExhausted": false,
+        "warningFile": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp6-records-20261112/single-scheme-original-continuation/pr41-fp64-execution.json",
+        "strictConvergenceClaim": false
+      },
+      "requestedSequenceAvailable": true,
+      "latestSavedSequence": 61,
+      "latestSavedTime": 0.30500252032217334,
+      "terminalStateLimitation": "Latest saved exchange is not necessarily the solver terminal state; no forced extra write or extra continuation."
+    },
+    "candidate-fp32": {
+      "exchanges": [
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp6-records-20261112/single-scheme-original-continuation/case-candidate-fp32/0.3000025295547642",
+          "time": 0.3000025295547642,
+          "state": {
+            "FoamFile": "{\n    format      ascii",
+            "class": "dictionary",
+            "location": 0.3000025295547642,
+            "object": "thermalExchangeState",
+            "formatVersion": 4.0,
+            "initialState": "false",
+            "exchangeSequence": 60.0,
+            "completedTimeIndex": 3728487.0,
+            "completedSimulationTimeS": 0.3000025295547642,
+            "completedRadiationSimulationTimeS": 0.3000025295547642,
+            "previousExchangeSimulationTimeS": 0.29500248649130967,
+            "gasWallLedgerConsumed": "true",
+            "particleWallLedgerConsumed": "true",
+            "particleRadiationApplied": "true",
+            "solidStateUpdated": "true",
+            "wallTemperatureUploaded": "true",
+            "particleMomentsRebuilt": "true"
+          },
+          "fields": {
+            "fluid/rho": {
+              "min": 0.14338122308254242,
+              "max": 9.834531784057617,
+              "weightedMean": 4.02060863242766,
+              "weightedRms": 4.170984977710464,
+              "finite": true
+            },
+            "fluid/p": {
+              "min": 128860.09375,
+              "max": 4001127.75,
+              "weightedMean": 3775349.095416088,
+              "weightedRms": 3874136.648060534,
+              "finite": true
+            },
+            "fluid/T": {
+              "min": 1238.1060791015625,
+              "max": 3500.046875,
+              "weightedMean": 3272.9214154090523,
+              "weightedRms": 3299.627543270963,
+              "finite": true
+            },
+            "fluid/U": {
+              "min": 0.023923462520580138,
+              "max": 2192.905770823192,
+              "weightedMean": 143.91178914254,
+              "weightedRms": 467.46050028765745,
+              "finite": true
+            },
+            "fluid/epsilonS": {
+              "min": 0.0,
+              "max": 0.07366517931222916,
+              "weightedMean": 0.0009874390798181591,
+              "weightedRms": 0.002785456413405771,
+              "finite": true
+            },
+            "fluid/Tp": {
+              "min": 300.0,
+              "max": 3367.596923828125,
+              "weightedMean": 2929.689888489365,
+              "weightedRms": 3001.534781595314,
+              "finite": true
+            },
+            "fluid/theta": {
+              "min": 0.0,
+              "max": 56611.05859375,
+              "weightedMean": 55.452941301624605,
+              "weightedRms": 1004.1598871673986,
+              "finite": true
+            },
+            "fluid/rhoE": {
+              "min": 754460.75,
+              "max": 20012140.0,
+              "weightedMean": 18930515.254603125,
+              "weightedRms": 19383670.186868224,
+              "finite": true
+            },
+            "fluid/rhoEs": {
+              "min": 0.0,
+              "max": 3781362.0,
+              "weightedMean": 6468.19458433571,
+              "weightedRms": 64130.629674968266,
+              "finite": true
+            },
+            "fluid/rhoHp": {
+              "min": 0.0,
+              "max": 513708032.0,
+              "weightedMean": 11505691.403563011,
+              "weightedRms": 23332142.653561372,
+              "finite": true
+            },
+            "fluid/k": {
+              "min": 0.10885775834321976,
+              "max": 29662.771484375,
+              "weightedMean": 68.51991594917645,
+              "weightedRms": 1013.9241702925948,
+              "finite": true
+            },
+            "fluid/omega": {
+              "min": 248.55563354492188,
+              "max": 5454930.5,
+              "weightedMean": 21725.093250263097,
+              "weightedRms": 227989.70340032387,
+              "finite": true
+            },
+            "fluid/particleRadiationAbsorptionCoefficient": {
+              "min": 0.0,
+              "max": 212.2141876220703,
+              "weightedMean": 10.289527827326811,
+              "weightedRms": 14.113164839730162,
+              "finite": true
+            },
+            "fluid/particleRadiationScatteringCoefficient": {
+              "min": 0.0,
+              "max": 397.1761474609375,
+              "weightedMean": 14.703605402274079,
+              "weightedRms": 21.716164384671,
+              "finite": true
+            },
+            "fluid/particleRadiationExtinctionCoefficient": {
+              "min": 0.0,
+              "max": 590.4104614257812,
+              "weightedMean": 24.993133229315927,
+              "weightedRms": 35.368745951297285,
+              "finite": true
+            },
+            "fluid/particleRadiationAsymmetryFactor": {
+              "min": 0.0,
+              "max": 0.9987972378730774,
+              "weightedMean": 0.9353985063689256,
+              "weightedRms": 0.9602869116561441,
+              "finite": true
+            },
+            "graphite/T": {
+              "min": 299.9999084472656,
+              "max": 1518.2108154296875,
+              "weightedMean": 315.8178068290355,
+              "weightedRms": 321.3934426239655,
+              "finite": true
+            },
+            "fluid/T@fluid_to_graphite": {
+              "min": 470.7929382324219,
+              "max": 1587.2586669921875,
+              "weightedMean": 686.8036302617071,
+              "weightedRms": 729.9345220313228,
+              "finite": true
+            },
+            "fluid/gasConvectiveWallHeatFlux@fluid_to_graphite": {
+              "min": 1175125.25,
+              "max": 19862838.0,
+              "weightedMean": 4833496.124161384,
+              "weightedRms": 6349748.436217424,
+              "finite": true,
+              "integralW": 3938.3726638036887
+            },
+            "fluid/particleRadiationWallHeatFlux@fluid_to_graphite": {
+              "min": 147040.82489283275,
+              "max": 2499481.2068868075,
+              "weightedMean": 1554464.0040039748,
+              "weightedRms": 1653856.147319416,
+              "finite": true,
+              "integralW": 1266.5901415816827
+            },
+            "fluid/particleReflectedWallHeatFlux@fluid_to_graphite": {
+              "min": 0.0,
+              "max": 11413707.0,
+              "weightedMean": 956055.0872741453,
+              "weightedRms": 1946713.757597096,
+              "finite": true,
+              "integralW": 779.0016013438362
+            },
+            "fluid/particleStuckWallHeatFlux@fluid_to_graphite": {
+              "min": 0.0,
+              "max": 0.0,
+              "weightedMean": 0.0,
+              "weightedRms": 0.0,
+              "finite": true,
+              "integralW": 0.0
+            }
+          },
+          "particleHeader": "UGKP_CHT_PARTICLES_SCHEMA10_FP32_SINGLE_STATE_BIN 52894 262144",
+          "particleStatistics": {
+            "count": 52894,
+            "massKg": 5.289399850405552e-05,
+            "massWeightedTemperatureK": 2759.699264908888,
+            "temperatureQuantilesK": [
+              1235.6483154296875,
+              1714.4409912109375,
+              3094.8826904296875,
+              3220.791259765625,
+              3490.615234375
+            ],
+            "kineticJ": 0.12372403411669225,
+            "momentumKgMS": [
+              0.0014534232545462815,
+              -0.00015915821397765613,
+              4.103159815941007e-07
+            ],
+            "stuckCount": 10490
+          },
+          "inventoryObservations": {
+            "gasMassKg": 7.682226973786902e-05,
+            "gasEnergyJ": 361.79057547667435,
+            "particleMechanicalJ": 0.1237431364058341,
+            "particleThermalJ": 220.11557046265813,
+            "scope": "Published epsilonS/rhoE/rhoEs/rhoHp volume integral; external flow and solid fixed-value boundary time-integrals not saved. This is not full-domain energy closure."
+          }
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp6-records-20261112/single-scheme-original-continuation/case-candidate-fp32/0.30500260321589845",
+          "time": 0.30500260321589845,
+          "state": {
+            "FoamFile": "{\n    format      ascii",
+            "class": "dictionary",
+            "location": 0.30500260321589845,
+            "object": "thermalExchangeState",
+            "formatVersion": 4.0,
+            "initialState": "false",
+            "exchangeSequence": 61.0,
+            "completedTimeIndex": 3791186.0,
+            "completedSimulationTimeS": 0.30500260321589845,
+            "completedRadiationSimulationTimeS": 0.3000025295547642,
+            "previousExchangeSimulationTimeS": 0.3000025295547642,
+            "gasWallLedgerConsumed": "true",
+            "particleWallLedgerConsumed": "true",
+            "particleRadiationApplied": "true",
+            "solidStateUpdated": "true",
+            "wallTemperatureUploaded": "true",
+            "particleMomentsRebuilt": "true"
+          },
+          "fields": {
+            "fluid/rho": {
+              "min": 0.14444728195667267,
+              "max": 9.774563789367676,
+              "weightedMean": 4.029310673222862,
+              "weightedRms": 4.179265302995161,
+              "finite": true
+            },
+            "fluid/p": {
+              "min": 130519.75,
+              "max": 4001076.5,
+              "weightedMean": 3775356.8152522757,
+              "weightedRms": 3874173.347188385,
+              "finite": true
+            },
+            "fluid/T": {
+              "min": 1238.8187255859375,
+              "max": 3500.09423828125,
+              "weightedMean": 3265.3090413623518,
+              "weightedRms": 3292.1653176012474,
+              "finite": true
+            },
+            "fluid/U": {
+              "min": 0.022476259731691726,
+              "max": 2189.9891461587986,
+              "weightedMean": 143.72832958202136,
+              "weightedRms": 467.3217109009485,
+              "finite": true
+            },
+            "fluid/epsilonS": {
+              "min": 0.0,
+              "max": 0.07476020604372025,
+              "weightedMean": 0.0009917887855331062,
+              "weightedRms": 0.0028203192745020157,
+              "finite": true
+            },
+            "fluid/Tp": {
+              "min": 300.0,
+              "max": 3500.00048828125,
+              "weightedMean": 3173.8945351560355,
+              "weightedRms": 3259.4330903512696,
+              "finite": true
+            },
+            "fluid/theta": {
+              "min": 0.0,
+              "max": 56233.89453125,
+              "weightedMean": 50.36826168155284,
+              "weightedRms": 956.6772577497755,
+              "finite": true
+            },
+            "fluid/rhoE": {
+              "min": 750149.625,
+              "max": 20013280.0,
+              "weightedMean": 18930983.59680349,
+              "weightedRms": 19383910.704623874,
+              "finite": true
+            },
+            "fluid/rhoEs": {
+              "min": 0.0,
+              "max": 4177528.0,
+              "weightedMean": 6244.227149634995,
+              "weightedRms": 63939.9004962515,
+              "finite": true
+            },
+            "fluid/rhoHp": {
+              "min": 0.0,
+              "max": 519382752.0,
+              "weightedMean": 12282024.202757044,
+              "weightedRms": 24091748.20075033,
+              "finite": true
+            },
+            "fluid/k": {
+              "min": 0.10837551951408386,
+              "max": 29000.1328125,
+              "weightedMean": 67.20723001399111,
+              "weightedRms": 994.6512716501406,
+              "finite": true
+            },
+            "fluid/omega": {
+              "min": 248.56085205078125,
+              "max": 5510807.0,
+              "weightedMean": 21577.129605141545,
+              "weightedRms": 226884.59661829713,
+              "finite": true
+            },
+            "fluid/particleRadiationAbsorptionCoefficient": {
+              "min": 0.0,
+              "max": 212.2141876220703,
+              "weightedMean": 10.289527827326811,
+              "weightedRms": 14.113164839730162,
+              "finite": true
+            },
+            "fluid/particleRadiationScatteringCoefficient": {
+              "min": 0.0,
+              "max": 397.1761474609375,
+              "weightedMean": 14.703605402274079,
+              "weightedRms": 21.716164384671,
+              "finite": true
+            },
+            "fluid/particleRadiationExtinctionCoefficient": {
+              "min": 0.0,
+              "max": 590.4104614257812,
+              "weightedMean": 24.993133229315927,
+              "weightedRms": 35.368745951297285,
+              "finite": true
+            },
+            "fluid/particleRadiationAsymmetryFactor": {
+              "min": 0.0,
+              "max": 0.9987972378730774,
+              "weightedMean": 0.9353985063689256,
+              "weightedRms": 0.9602869116561441,
+              "finite": true
+            },
+            "graphite/T": {
+              "min": 299.9999084472656,
+              "max": 1507.2965087890625,
+              "weightedMean": 315.97086132561844,
+              "weightedRms": 321.5947032384637,
+              "finite": true
+            },
+            "fluid/T@fluid_to_graphite": {
+              "min": 460.4949951171875,
+              "max": 1556.819580078125,
+              "weightedMean": 675.7782782518735,
+              "weightedRms": 718.912474604386,
+              "finite": true
+            },
+            "fluid/gasConvectiveWallHeatFlux@fluid_to_graphite": {
+              "min": 1158149.0,
+              "max": 18711120.0,
+              "weightedMean": 4708205.096967415,
+              "weightedRms": 6172584.577874367,
+              "finite": true,
+              "integralW": 3836.2844974236596
+            },
+            "fluid/particleRadiationWallHeatFlux@fluid_to_graphite": {
+              "min": 147040.82489283275,
+              "max": 2499481.2068868075,
+              "weightedMean": 1554464.0040039748,
+              "weightedRms": 1653856.147319416,
+              "finite": true,
+              "integralW": 1266.5901415816827
+            },
+            "fluid/particleReflectedWallHeatFlux@fluid_to_graphite": {
+              "min": 0.0,
+              "max": 7242781.5,
+              "weightedMean": 865519.1518229767,
+              "weightedRms": 1649021.0276957552,
+              "finite": true,
+              "integralW": 705.2321714915174
+            },
+            "fluid/particleStuckWallHeatFlux@fluid_to_graphite": {
+              "min": 0.0,
+              "max": 0.0,
+              "weightedMean": 0.0,
+              "weightedRms": 0.0,
+              "finite": true,
+              "integralW": 0.0
+            }
+          },
+          "particleHeader": "UGKP_CHT_PARTICLES_SCHEMA10_FP32_SINGLE_STATE_BIN 53127 262144",
+          "particleStatistics": {
+            "count": 53127,
+            "massKg": 5.312699849746583e-05,
+            "massWeightedTemperatureK": 2929.9995450976144,
+            "temperatureQuantilesK": [
+              1234.8291015625,
+              1707.4294921875,
+              3267.192138671875,
+              3499.999755859375,
+              3499.999755859375
+            ],
+            "kineticJ": 0.11943278165482901,
+            "momentumKgMS": [
+              0.0014456124200068169,
+              -0.00015709196783227406,
+              5.22974501380188e-07
+            ],
+            "stuckCount": 10589
+          },
+          "inventoryObservations": {
+            "gasMassKg": 7.698815872344032e-05,
+            "gasEnergyJ": 361.79789384736426,
+            "particleMechanicalJ": 0.11945841174870142,
+            "particleThermalJ": 234.9676059440329,
+            "scope": "Published epsilonS/rhoE/rhoEs/rhoHp volume integral; external flow and solid fixed-value boundary time-integrals not saved. This is not full-domain energy closure."
+          }
+        }
+      ],
+      "terminalLoggedTime": 0.30490835589338916,
+      "terminalLoggedTimeOffsetFromNominalEnd": -9.164410661083311e-05,
+      "terminalLoggedTimeScope": "Last available progress time, not guaranteed terminal step; logs are sampled and final fields may be unwritten.",
+      "progress": [
+        {
+          "step": 3670000.0,
+          "time": 0.29536628377047514,
+          "dt": 7.939177936047003e-08,
+          "elapsed": 9.0
+        },
+        {
+          "step": 3675000.0,
+          "time": 0.29576338623212184,
+          "dt": 7.949107216697636e-08,
+          "elapsed": 16.0
+        },
+        {
+          "step": 3680000.0,
+          "time": 0.2961605360837076,
+          "dt": 7.93886040017811e-08,
+          "elapsed": 23.0
+        },
+        {
+          "step": 3685000.0,
+          "time": 0.2965571672675469,
+          "dt": 7.926817911923083e-08,
+          "elapsed": 30.0
+        },
+        {
+          "step": 3690000.0,
+          "time": 0.2969539051423715,
+          "dt": 7.92769607698001e-08,
+          "elapsed": 37.0
+        },
+        {
+          "step": 3695000.0,
+          "time": 0.29735018580512884,
+          "dt": 7.925184820477686e-08,
+          "elapsed": 43.0
+        },
+        {
+          "step": 3700000.0,
+          "time": 0.29774667900085383,
+          "dt": 7.922926143159457e-08,
+          "elapsed": 50.0
+        },
+        {
+          "step": 3705000.0,
+          "time": 0.29814297949798085,
+          "dt": 7.919668898633882e-08,
+          "elapsed": 57.0
+        },
+        {
+          "step": 3710000.0,
+          "time": 0.2985390205416669,
+          "dt": 7.920983383960641e-08,
+          "elapsed": 64.0
+        },
+        {
+          "step": 3715000.0,
+          "time": 0.2989348630858264,
+          "dt": 7.906715888137804e-08,
+          "elapsed": 71.0
+        },
+        {
+          "step": 3720000.0,
+          "time": 0.29933089219084463,
+          "dt": 7.908117557397417e-08,
+          "elapsed": 78.0
+        },
+        {
+          "step": 3725000.0,
+          "time": 0.29972657520070056,
+          "dt": 7.907865818437985e-08,
+          "elapsed": 85.0
+        },
+        {
+          "step": 3730000.0,
+          "time": 0.30012248942773967,
+          "dt": 7.950508823436098e-08,
+          "elapsed": 92.0
+        },
+        {
+          "step": 3735000.0,
+          "time": 0.30052128078773066,
+          "dt": 7.98468393681488e-08,
+          "elapsed": 99.0
+        },
+        {
+          "step": 3740000.0,
+          "time": 0.3009210794401649,
+          "dt": 8.007162919960384e-08,
+          "elapsed": 106.0
+        },
+        {
+          "step": 3745000.0,
+          "time": 0.3013212717391114,
+          "dt": 7.998169688586597e-08,
+          "elapsed": 113.0
+        },
+        {
+          "step": 3750000.0,
+          "time": 0.30172156529094973,
+          "dt": 8.010429004387267e-08,
+          "elapsed": 120.0
+        },
+        {
+          "step": 3755000.0,
+          "time": 0.3021209489034229,
+          "dt": 7.999009791990128e-08,
+          "elapsed": 127.0
+        },
+        {
+          "step": 3760000.0,
+          "time": 0.30252041615295244,
+          "dt": 7.992912512950971e-08,
+          "elapsed": 134.0
+        },
+        {
+          "step": 3765000.0,
+          "time": 0.30291911133592064,
+          "dt": 7.946307713384128e-08,
+          "elapsed": 141.0
+        },
+        {
+          "step": 3770000.0,
+          "time": 0.30331782185111944,
+          "dt": 7.981418165831403e-08,
+          "elapsed": 148.0
+        },
+        {
+          "step": 3775000.0,
+          "time": 0.30371562279283104,
+          "dt": 7.942637741817464e-08,
+          "elapsed": 155.0
+        },
+        {
+          "step": 3780000.0,
+          "time": 0.30411328527576886,
+          "dt": 7.942592703132577e-08,
+          "elapsed": 162.0
+        },
+        {
+          "step": 3785000.0,
+          "time": 0.3045110975493319,
+          "dt": 7.942194152891886e-08,
+          "elapsed": 169.0
+        },
+        {
+          "step": 3790000.0,
+          "time": 0.30490835589338916,
+          "dt": 7.948382333884757e-08,
+          "elapsed": 176.0
+        }
+      ],
+      "warningsCount": 2,
+      "fatalCount": 0,
+      "warningLines": [
+        "Warning: restart precision 64 is higher than selected precision 32 at /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp6-records-20261112/single-scheme-original-continuation/case-candidate-fp32/0.29500248649130967; continuing at precision 32.",
+        "--> FOAM Warning : ",
+        "    historical representative sample: accuracy residual [code=102, detailCode=0, site=34003, operator=0, stage=20, instance=1, operation=63128, step=3728487, time=0.3000025295547642, quantity=linear system(12), entityKind=0, entity=0, component=1] observed=5.2745422181033064e-06 reference=3.814697265625e-06 corrected=0 at common/gpu/DiscreteOrdinateRadiation.cu:50 in publishSourceDiagnostics: DO linear iteration budget exhausted; computed intensity retained new occurrences=12",
+        "--> FOAM Warning : ",
+        "    historical representative sample: accuracy residual [code=102, detailCode=0, site=34003, operator=0, stage=20, instance=1, operation=63128, step=3728487, time=0.3000025295547642, quantity=linear system(12), entityKind=0, entity=0, component=1] observed=5.2745422181033064e-06 reference=3.814697265625e-06 corrected=0 at common/gpu/DiscreteOrdinateRadiation.cu:50 in publishSourceDiagnostics: DO linear iteration budget exhausted; computed intensity retained new occurrences=5"
+      ],
+      "precisionLines": [
+        "SCHEME_STARTUP file=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp6-records-20261112/single-scheme-original-continuation/case-candidate-fp32/constant/scheme\" present=1 precision=32 readOnce=1 precedence=region,module,backendDefault",
+        "Warning: restart precision 64 is higher than selected precision 32 at /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp6-records-20261112/single-scheme-original-continuation/case-candidate-fp32/0.29500248649130967; continuing at precision 32.",
+        "GPU precision=32 (fixed at startup), time=64 wallEnergyAccumulation=32"
+      ],
+      "gnuTimeWallSeconds": 177.79,
+      "maxHostRssKiB": 902080,
+      "cumulativeWallEnergyJ": {
+        "gasConvectiveWallHeatFlux": 38.87373799113627,
+        "particleReflectedWallHeatFlux": 7.4212543588784685,
+        "particleStuckWallHeatFlux": 0.0,
+        "particleRadiationWallHeatFlux": 12.666009284555914
+      },
+      "actualStopping": {
+        "status": "Representative warning misclassified published residual; aggregate inner-budget status unresolved",
+        "budgetExhausted": null,
+        "warningFile": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp6-records-20261112/single-scheme-original-continuation/candidate-fp32-execution.json",
+        "strictConvergenceClaim": false,
+        "representativeInnerBudgetExhausted": false,
+        "representativeInnerIterations": 1,
+        "linearIterationBudget": 200,
+        "representativeClassification": "Post-relaxation published-state residual copied into inner linear warning slot by rememberPublishedResidual",
+        "aggregateOccurrencesClassification": "Unknown: only representative records expanded; do not classify every aggregated occurrence as normal or exhausted.",
+        "outerSourceConvergence": {
+          "status": "converged",
+          "iterations": 28,
+          "maximumIterations": 10000,
+          "relativeChange": 4.17165211e-06,
+          "relativeTolerance": 9.99999975e-06,
+          "evidence": "FP32_DO_STOP in candidate-fp32.log"
+        }
+      },
+      "requestedSequenceAvailable": true,
+      "latestSavedSequence": 61,
+      "latestSavedTime": 0.30500260321589845,
+      "terminalStateLimitation": "Latest saved exchange is not necessarily the solver terminal state; no forced extra write or extra continuation."
+    },
+    "candidate-fp64": {
+      "exchanges": [
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp6-records-20261112/single-scheme-original-continuation/case-candidate-fp64/0.30000250972492282",
+          "time": 0.3000025097249228,
+          "state": {
+            "FoamFile": "{\n    format      ascii",
+            "class": "dictionary",
+            "location": 0.3000025097249228,
+            "object": "thermalExchangeState",
+            "formatVersion": 4.0,
+            "initialState": "false",
+            "exchangeSequence": 60.0,
+            "completedTimeIndex": 3728480.0,
+            "completedSimulationTimeS": 0.3000025097249228,
+            "completedRadiationSimulationTimeS": 0.3000025097249228,
+            "previousExchangeSimulationTimeS": 0.29500248649130967,
+            "gasWallLedgerConsumed": "true",
+            "particleWallLedgerConsumed": "true",
+            "particleRadiationApplied": "true",
+            "solidStateUpdated": "true",
+            "wallTemperatureUploaded": "true",
+            "particleMomentsRebuilt": "true"
+          },
+          "fields": {
+            "fluid/rho": {
+              "min": 0.14313267950328737,
+              "max": 9.83492925996954,
+              "weightedMean": 4.020614344116494,
+              "weightedRms": 4.171032493679026,
+              "finite": true
+            },
+            "fluid/p": {
+              "min": 129429.30201491724,
+              "max": 4001251.5784783717,
+              "weightedMean": 3775531.870610752,
+              "weightedRms": 3874346.574211416,
+              "finite": true
+            },
+            "fluid/T": {
+              "min": 1239.3787291162091,
+              "max": 3500.183787991352,
+              "weightedMean": 3272.971534938358,
+              "weightedRms": 3299.74861961599,
+              "finite": true
+            },
+            "fluid/U": {
+              "min": 0.02840703580918226,
+              "max": 2198.973516860434,
+              "weightedMean": 144.07689776771338,
+              "weightedRms": 467.87366015444405,
+              "finite": true
+            },
+            "fluid/epsilonS": {
+              "min": 0.0,
+              "max": 0.07346608713737712,
+              "weightedMean": 0.0009874578053835324,
+              "weightedRms": 0.002786112938233566,
+              "finite": true
+            },
+            "fluid/Tp": {
+              "min": 300.0,
+              "max": 3370.484604783423,
+              "weightedMean": 2929.785852154831,
+              "weightedRms": 3001.4934544112602,
+              "finite": true
+            },
+            "fluid/theta": {
+              "min": 0.0,
+              "max": 27071.662113739578,
+              "weightedMean": 38.92132852732972,
+              "weightedRms": 620.8204748630764,
+              "finite": true
+            },
+            "fluid/rhoE": {
+              "min": 749681.7018973042,
+              "max": 20015378.991590854,
+              "weightedMean": 18931560.510720618,
+              "weightedRms": 19384738.29052161,
+              "finite": true
+            },
+            "fluid/rhoEs": {
+              "min": 0.0,
+              "max": 4722108.44639347,
+              "weightedMean": 6229.675057801875,
+              "weightedRms": 65503.18826251824,
+              "finite": true
+            },
+            "fluid/rhoHp": {
+              "min": 0.0,
+              "max": 512164818.9013951,
+              "weightedMean": 11505654.209565926,
+              "weightedRms": 23360625.673409488,
+              "finite": true
+            },
+            "fluid/k": {
+              "min": 0.1096196226310012,
+              "max": 29633.462854245558,
+              "weightedMean": 68.04883183492716,
+              "weightedRms": 1008.814992380326,
+              "finite": true
+            },
+            "fluid/omega": {
+              "min": 248.5586691590969,
+              "max": 5473475.356558231,
+              "weightedMean": 21667.40340539794,
+              "weightedRms": 227793.7803125673,
+              "finite": true
+            },
+            "fluid/particleRadiationAbsorptionCoefficient": {
+              "min": 0.0,
+              "max": 240.68598072654703,
+              "weightedMean": 10.281894934684521,
+              "weightedRms": 14.155009437967136,
+              "finite": true
+            },
+            "fluid/particleRadiationScatteringCoefficient": {
+              "min": 0.0,
+              "max": 318.08812205749746,
+              "weightedMean": 14.694639212062349,
+              "weightedRms": 21.75105161870498,
+              "finite": true
+            },
+            "fluid/particleRadiationExtinctionCoefficient": {
+              "min": 0.0,
+              "max": 558.7741027840445,
+              "weightedMean": 24.976534146746864,
+              "weightedRms": 35.44952712782643,
+              "finite": true
+            },
+            "fluid/particleRadiationAsymmetryFactor": {
+              "min": 0.0,
+              "max": 0.9986844515464828,
+              "weightedMean": 0.9355284279012203,
+              "weightedRms": 0.9603706219880813,
+              "finite": true
+            },
+            "graphite/T": {
+              "min": 299.9999999999995,
+              "max": 1518.2562180915336,
+              "weightedMean": 315.8178035868553,
+              "weightedRms": 321.3934082212047,
+              "finite": true
+            },
+            "fluid/T@fluid_to_graphite": {
+              "min": 470.82483743266243,
+              "max": 1587.898001080971,
+              "weightedMean": 686.79975332335,
+              "weightedRms": 729.9296777562412,
+              "finite": true
+            },
+            "fluid/gasConvectiveWallHeatFlux@fluid_to_graphite": {
+              "min": 1173047.0307654704,
+              "max": 19866168.12334559,
+              "weightedMean": 4831901.595405157,
+              "weightedRms": 6347587.491969589,
+              "finite": true,
+              "integralW": 3937.0734285702556
+            },
+            "fluid/particleRadiationWallHeatFlux@fluid_to_graphite": {
+              "min": 144334.56478787225,
+              "max": 2472861.746864263,
+              "weightedMean": 1554174.389741047,
+              "weightedRms": 1653730.4210397333,
+              "finite": true,
+              "integralW": 1266.3541614822138
+            },
+            "fluid/particleReflectedWallHeatFlux@fluid_to_graphite": {
+              "min": 0.0,
+              "max": 11564629.085239505,
+              "weightedMean": 957591.8204185665,
+              "weightedRms": 1952262.4949645062,
+              "finite": true,
+              "integralW": 780.2537442342165
+            },
+            "fluid/particleStuckWallHeatFlux@fluid_to_graphite": {
+              "min": 0.0,
+              "max": 0.0,
+              "weightedMean": 0.0,
+              "weightedRms": 0.0,
+              "finite": true,
+              "integralW": 0.0
+            }
+          },
+          "particleHeader": "UGKP_CHT_PARTICLES_SCHEMA9_FLOAT_COLD_PROFILES_BIN 52895 262144",
+          "particleStatistics": {
+            "count": 52895,
+            "massKg": 5.289500000000002e-05,
+            "massWeightedTemperatureK": 2759.6401034061655,
+            "temperatureQuantilesK": [
+              1236.5804204736305,
+              1713.8559794239081,
+              3093.1730380415943,
+              3221.3911180210903,
+              3493.9428060816917
+            ],
+            "kineticJ": 0.11916171577591367,
+            "momentumKgMS": [
+              0.0014450185777035297,
+              -0.00016002887215437513,
+              -3.023104498969297e-07
+            ],
+            "stuckCount": 10475
+          },
+          "inventoryObservations": {
+            "gasMassKg": 7.682236675950745e-05,
+            "gasEnergyJ": 361.8105280842125,
+            "particleMechanicalJ": 0.11918001544178497,
+            "particleThermalJ": 220.1148589036914,
+            "scope": "Published epsilonS/rhoE/rhoEs/rhoHp volume integral; external flow and solid fixed-value boundary time-integrals not saved. This is not full-domain energy closure."
+          }
+        },
+        {
+          "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp6-records-20261112/single-scheme-original-continuation/case-candidate-fp64/0.30500258358875898",
+          "time": 0.305002583588759,
+          "state": {
+            "FoamFile": "{\n    format      ascii",
+            "class": "dictionary",
+            "location": 0.305002583588759,
+            "object": "thermalExchangeState",
+            "formatVersion": 4.0,
+            "initialState": "false",
+            "exchangeSequence": 61.0,
+            "completedTimeIndex": 3791178.0,
+            "completedSimulationTimeS": 0.305002583588759,
+            "completedRadiationSimulationTimeS": 0.3000025097249228,
+            "previousExchangeSimulationTimeS": 0.3000025097249228,
+            "gasWallLedgerConsumed": "true",
+            "particleWallLedgerConsumed": "true",
+            "particleRadiationApplied": "true",
+            "solidStateUpdated": "true",
+            "wallTemperatureUploaded": "true",
+            "particleMomentsRebuilt": "true"
+          },
+          "fields": {
+            "fluid/rho": {
+              "min": 0.142528584975511,
+              "max": 9.775262602496394,
+              "weightedMean": 4.029247361124205,
+              "weightedRms": 4.17924014670441,
+              "finite": true
+            },
+            "fluid/p": {
+              "min": 127260.15944471506,
+              "max": 4000789.5492388206,
+              "weightedMean": 3775226.0709090075,
+              "weightedRms": 3874066.0735766715,
+              "finite": true
+            },
+            "fluid/T": {
+              "min": 1238.669564531531,
+              "max": 3500.114916835559,
+              "weightedMean": 3265.172649070219,
+              "weightedRms": 3292.073280741346,
+              "finite": true
+            },
+            "fluid/U": {
+              "min": 0.011691436715082524,
+              "max": 2190.41503019102,
+              "weightedMean": 143.71124114921506,
+              "weightedRms": 467.527874054353,
+              "finite": true
+            },
+            "fluid/epsilonS": {
+              "min": 0.0,
+              "max": 0.07466065765993611,
+              "weightedMean": 0.0009907247515210345,
+              "weightedRms": 0.002819401660714677,
+              "finite": true
+            },
+            "fluid/Tp": {
+              "min": 300.0,
+              "max": 3500.017298319289,
+              "weightedMean": 3179.5526925704357,
+              "weightedRms": 3262.325669350274,
+              "finite": true
+            },
+            "fluid/theta": {
+              "min": 0.0,
+              "max": 70158.63743372698,
+              "weightedMean": 50.932777450042416,
+              "weightedRms": 955.319166488894,
+              "finite": true
+            },
+            "fluid/rhoE": {
+              "min": 746604.0348407429,
+              "max": 20012867.456602797,
+              "weightedMean": 18930263.16046832,
+              "weightedRms": 19383336.15152067,
+              "finite": true
+            },
+            "fluid/rhoEs": {
+              "min": 0.0,
+              "max": 4298338.317186981,
+              "weightedMean": 6300.723298676476,
+              "weightedRms": 66372.89694888628,
+              "finite": true
+            },
+            "fluid/rhoHp": {
+              "min": 0.0,
+              "max": 519054089.3546399,
+              "weightedMean": 12265506.956764994,
+              "weightedRms": 24107153.64917025,
+              "finite": true
+            },
+            "fluid/k": {
+              "min": 0.1081170504682972,
+              "max": 29129.70291124084,
+              "weightedMean": 67.11752208977131,
+              "weightedRms": 994.0483040663227,
+              "finite": true
+            },
+            "fluid/omega": {
+              "min": 248.58946472069746,
+              "max": 5494537.312003746,
+              "weightedMean": 21574.391803331586,
+              "weightedRms": 226909.99386390203,
+              "finite": true
+            },
+            "fluid/particleRadiationAbsorptionCoefficient": {
+              "min": 0.0,
+              "max": 240.68598072654703,
+              "weightedMean": 10.281894934684521,
+              "weightedRms": 14.155009437967136,
+              "finite": true
+            },
+            "fluid/particleRadiationScatteringCoefficient": {
+              "min": 0.0,
+              "max": 318.08812205749746,
+              "weightedMean": 14.694639212062349,
+              "weightedRms": 21.75105161870498,
+              "finite": true
+            },
+            "fluid/particleRadiationExtinctionCoefficient": {
+              "min": 0.0,
+              "max": 558.7741027840445,
+              "weightedMean": 24.976534146746864,
+              "weightedRms": 35.44952712782643,
+              "finite": true
+            },
+            "fluid/particleRadiationAsymmetryFactor": {
+              "min": 0.0,
+              "max": 0.9986844515464828,
+              "weightedMean": 0.9355284279012203,
+              "weightedRms": 0.9603706219880813,
+              "finite": true
+            },
+            "graphite/T": {
+              "min": 299.99999999999955,
+              "max": 1506.083439176289,
+              "weightedMean": 315.9707538915955,
+              "weightedRms": 321.59438087014564,
+              "finite": true
+            },
+            "fluid/T@fluid_to_graphite": {
+              "min": 460.5160862893298,
+              "max": 1554.4711415408624,
+              "weightedMean": 675.7460941440529,
+              "weightedRms": 718.8648172004891,
+              "finite": true
+            },
+            "fluid/gasConvectiveWallHeatFlux@fluid_to_graphite": {
+              "min": 1150379.8624712701,
+              "max": 18734122.775380608,
+              "weightedMean": 4707976.484238495,
+              "weightedRms": 6173115.562717421,
+              "finite": true,
+              "integralW": 3836.0982218791996
+            },
+            "fluid/particleRadiationWallHeatFlux@fluid_to_graphite": {
+              "min": 144334.56478787225,
+              "max": 2472861.746864263,
+              "weightedMean": 1554174.389741047,
+              "weightedRms": 1653730.4210397333,
+              "finite": true,
+              "integralW": 1266.3541614822138
+            },
+            "fluid/particleReflectedWallHeatFlux@fluid_to_graphite": {
+              "min": 0.0,
+              "max": 7610906.893549425,
+              "weightedMean": 860394.1272176069,
+              "weightedRms": 1635354.0342912974,
+              "finite": true,
+              "integralW": 701.0562590073398
+            },
+            "fluid/particleStuckWallHeatFlux@fluid_to_graphite": {
+              "min": 0.0,
+              "max": 0.0,
+              "weightedMean": 0.0,
+              "weightedRms": 0.0,
+              "finite": true,
+              "integralW": 0.0
+            }
+          },
+          "particleHeader": "UGKP_CHT_PARTICLES_SCHEMA9_FLOAT_COLD_PROFILES_BIN 53070 262144",
+          "particleStatistics": {
+            "count": 53070,
+            "massKg": 5.307000000000002e-05,
+            "massWeightedTemperatureK": 2929.2114619503614,
+            "temperatureQuantilesK": [
+              1235.780858004631,
+              1708.3465349156925,
+              3266.104440199868,
+              3500.0005835368024,
+              3500.065608814615
+            ],
+            "kineticJ": 0.12051283182064976,
+            "momentumKgMS": [
+              0.0014420328986590276,
+              -0.00015840665692476037,
+              -1.2342491826710065e-07
+            ],
+            "stuckCount": 10587
+          },
+          "inventoryObservations": {
+            "gasMassKg": 7.698697962996837e-05,
+            "gasEnergyJ": 361.7844112741442,
+            "particleMechanicalJ": 0.12053924050023199,
+            "particleThermalJ": 234.6516142407541,
+            "scope": "Published epsilonS/rhoE/rhoEs/rhoHp volume integral; external flow and solid fixed-value boundary time-integrals not saved. This is not full-domain energy closure."
+          }
+        }
+      ],
+      "terminalLoggedTime": 0.3049090133166876,
+      "terminalLoggedTimeOffsetFromNominalEnd": -9.098668331236626e-05,
+      "terminalLoggedTimeScope": "Last available progress time, not guaranteed terminal step; logs are sampled and final fields may be unwritten.",
+      "progress": [
+        {
+          "step": 3670000.0,
+          "time": 0.2953662788279301,
+          "dt": 7.938581742044266e-08,
+          "elapsed": 27.0
+        },
+        {
+          "step": 3675000.0,
+          "time": 0.29576335893662353,
+          "dt": 7.948585776066738e-08,
+          "elapsed": 52.0
+        },
+        {
+          "step": 3680000.0,
+          "time": 0.29616051117868825,
+          "dt": 7.940273056627705e-08,
+          "elapsed": 77.0
+        },
+        {
+          "step": 3685000.0,
+          "time": 0.2965572092262896,
+          "dt": 7.92661314235952e-08,
+          "elapsed": 102.0
+        },
+        {
+          "step": 3690000.0,
+          "time": 0.29695391106744173,
+          "dt": 7.927141663297325e-08,
+          "elapsed": 127.0
+        },
+        {
+          "step": 3695000.0,
+          "time": 0.29735020729721784,
+          "dt": 7.924023836430975e-08,
+          "elapsed": 153.0
+        },
+        {
+          "step": 3700000.0,
+          "time": 0.2977466614857369,
+          "dt": 7.918725499480495e-08,
+          "elapsed": 179.0
+        },
+        {
+          "step": 3705000.0,
+          "time": 0.29814303593467306,
+          "dt": 7.920012450847093e-08,
+          "elapsed": 204.0
+        },
+        {
+          "step": 3710000.0,
+          "time": 0.29853879521334337,
+          "dt": 7.919061917023972e-08,
+          "elapsed": 229.0
+        },
+        {
+          "step": 3715000.0,
+          "time": 0.2989348928809874,
+          "dt": 7.901846746406221e-08,
+          "elapsed": 255.0
+        },
+        {
+          "step": 3720000.0,
+          "time": 0.29933106444513635,
+          "dt": 7.914854559081974e-08,
+          "elapsed": 280.0
+        },
+        {
+          "step": 3725000.0,
+          "time": 0.29972690413131353,
+          "dt": 7.911518971000397e-08,
+          "elapsed": 306.0
+        },
+        {
+          "step": 3730000.0,
+          "time": 0.3001229443808855,
+          "dt": 7.948234239163914e-08,
+          "elapsed": 332.0
+        },
+        {
+          "step": 3735000.0,
+          "time": 0.3005219669415844,
+          "dt": 8.00383298133916e-08,
+          "elapsed": 357.0
+        },
+        {
+          "step": 3740000.0,
+          "time": 0.3009217514160749,
+          "dt": 8.00908739263774e-08,
+          "elapsed": 383.0
+        },
+        {
+          "step": 3745000.0,
+          "time": 0.30132216349244034,
+          "dt": 8.007947784405436e-08,
+          "elapsed": 408.0
+        },
+        {
+          "step": 3750000.0,
+          "time": 0.30172210222648843,
+          "dt": 7.995297594836514e-08,
+          "elapsed": 433.0
+        },
+        {
+          "step": 3755000.0,
+          "time": 0.3021215605809968,
+          "dt": 7.993006265589022e-08,
+          "elapsed": 459.0
+        },
+        {
+          "step": 3760000.0,
+          "time": 0.30252068056963344,
+          "dt": 7.996909535672444e-08,
+          "elapsed": 485.0
+        },
+        {
+          "step": 3765000.0,
+          "time": 0.30291961712726323,
+          "dt": 7.957234153542952e-08,
+          "elapsed": 510.0
+        },
+        {
+          "step": 3770000.0,
+          "time": 0.30331814173709226,
+          "dt": 7.964852205182782e-08,
+          "elapsed": 536.0
+        },
+        {
+          "step": 3775000.0,
+          "time": 0.30371619449040965,
+          "dt": 7.963587834027467e-08,
+          "elapsed": 561.0
+        },
+        {
+          "step": 3780000.0,
+          "time": 0.30411424232736595,
+          "dt": 7.95738817164943e-08,
+          "elapsed": 587.0
+        },
+        {
+          "step": 3785000.0,
+          "time": 0.30451193580865876,
+          "dt": 7.94099354462947e-08,
+          "elapsed": 612.0
+        },
+        {
+          "step": 3790000.0,
+          "time": 0.3049090133166876,
+          "dt": 7.930486581909941e-08,
+          "elapsed": 638.0
+        }
+      ],
+      "warningsCount": 1,
+      "fatalCount": 0,
+      "warningLines": [
+        "--> FOAM Warning : ",
+        "    historical representative sample: accuracy residual [code=102, detailCode=0, site=34003, operator=0, stage=28, instance=1, operation=63121, step=3728480, time=0.30000250972492282, quantity=linear system(12), entityKind=0, entity=0, component=1] observed=1.335955648762981e-07 reference=1e-08 corrected=0 at common/gpu/DiscreteOrdinateRadiation.cu:50 in publishSourceDiagnostics: DO linear iteration budget exhausted; computed intensity retained new occurrences=8"
+      ],
+      "precisionLines": [
+        "SCHEME_STARTUP file=\"/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp6-records-20261112/single-scheme-original-continuation/case-candidate-fp64/constant/scheme\" present=1 precision=64 readOnce=1 precedence=region,module,backendDefault",
+        "GPU precision=64 (fixed at startup), time=64 wallEnergyAccumulation=64"
+      ],
+      "gnuTimeWallSeconds": 644.4,
+      "maxHostRssKiB": 953204,
+      "cumulativeWallEnergyJ": {
+        "gasConvectiveWallHeatFlux": 38.866233073618815,
+        "particleReflectedWallHeatFlux": 7.406619927026089,
+        "particleStuckWallHeatFlux": 0.0,
+        "particleRadiationWallHeatFlux": 12.663624351861904
+      },
+      "actualStopping": {
+        "status": "Representative warning misclassified published residual; aggregate inner-budget status unresolved",
+        "budgetExhausted": null,
+        "warningFile": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-opt-cp6-records-20261112/single-scheme-original-continuation/candidate-fp64-execution.json",
+        "strictConvergenceClaim": false,
+        "representativeInnerBudgetExhausted": false,
+        "representativeInnerIterations": 1,
+        "linearIterationBudget": 200,
+        "representativeClassification": "Post-relaxation published-state residual copied into inner linear warning slot by rememberPublishedResidual",
+        "aggregateOccurrencesClassification": "Unknown: only representative records expanded; do not classify every aggregated occurrence as normal or exhausted.",
+        "outerSourceConvergence": {
+          "status": "not independently established by the expanded stop log",
+          "evidence": "Do not infer failure or success from the misclassified linear warning."
+        }
+      },
+      "requestedSequenceAvailable": true,
+      "latestSavedSequence": 61,
+      "latestSavedTime": 0.305002583588759,
+      "terminalStateLimitation": "Latest saved exchange is not necessarily the solver terminal state; no forced extra write or extra continuation."
+    }
+  },
+  "comparisons": {
+    "candidate-fp32_vs_pr41-fp64": {
+      "60": {
+        "fluid/rho": {
+          "absoluteMax": 0.12332916529845939,
+          "weightedRmse": 0.0023177439335393076,
+          "relativeL2": 0.0005556978587129922,
+          "relativeL1": 0.00021567458583101535,
+          "weightedMeanDifference": 0.0001879629989756129
+        },
+        "fluid/p": {
+          "absoluteMax": 32445.66346312198,
+          "weightedRmse": 1025.8567480173767,
+          "relativeL2": 0.0002647899059354291,
+          "relativeL1": 8.920601486829606e-05,
+          "weightedMeanDifference": -27.86388436333278
+        },
+        "fluid/T": {
+          "absoluteMax": 134.80022724689252,
+          "weightedRmse": 4.011319823281957,
+          "relativeL2": 0.0012156709522950814,
+          "relativeL1": 0.00032917028770920444,
+          "weightedMeanDifference": 0.041536432434858626
+        },
+        "fluid/U": {
+          "absoluteMax": 160.29421308221228,
+          "weightedRmse": 3.734090056314516,
+          "relativeL2": 0.007971532706240961,
+          "relativeL1": 0.004065435136819153,
+          "weightedMeanDifference": null
+        },
+        "fluid/epsilonS": {
+          "absoluteMax": 0.013839641621196823,
+          "weightedRmse": 0.00034154875386443166,
+          "relativeL2": 0.12257189846259818,
+          "relativeL1": 0.11394559529875685,
+          "weightedMeanDifference": -4.854321564403645e-07
+        },
+        "fluid/Tp": {
+          "absoluteMax": 3070.1067756826715,
+          "weightedRmse": 297.99264793621586,
+          "relativeL2": 0.09931889316716984,
+          "relativeL1": 0.0180755810530777,
+          "weightedMeanDifference": 2.155351014849304
+        },
+        "fluid/theta": {
+          "absoluteMax": 56611.05859375,
+          "weightedRmse": 1016.8895014038419,
+          "relativeL2": 1.347072843343035,
+          "relativeL1": 1.1360484008200138,
+          "weightedMeanDifference": 6.078014047990344
+        },
+        "fluid/rhoE": {
+          "absoluteMax": 150611.1983359903,
+          "weightedRmse": 5743.2560532747975,
+          "relativeL2": 0.0002962863234266834,
+          "relativeL1": 9.721334950429671e-05,
+          "weightedMeanDifference": -301.91588966859956
+        },
+        "fluid/rhoEs": {
+          "absoluteMax": 2267660.398763524,
+          "weightedRmse": 39309.24729786972,
+          "relativeL2": 0.5806338308946071,
+          "relativeL1": 0.5666153369582615,
+          "weightedMeanDifference": 191.34860209336847
+        },
+        "fluid/rhoHp": {
+          "absoluteMax": 185027661.80757838,
+          "weightedRmse": 4506957.523811498,
+          "relativeL2": 0.19285653667831607,
+          "relativeL1": 0.13077427306967954,
+          "weightedMeanDifference": -6113.6056844087525
+        },
+        "fluid/k": {
+          "absoluteMax": 195.09959761812206,
+          "weightedRmse": 5.504568410833253,
+          "relativeL2": 0.005407694724684639,
+          "relativeL1": 0.0050818461946454145,
+          "weightedMeanDifference": -0.10441403725132886
+        },
+        "fluid/omega": {
+          "absoluteMax": 33821.07848479459,
+          "weightedRmse": 769.6318164687509,
+          "relativeL2": 0.0033711610606871906,
+          "relativeL1": 0.003948662297408254,
+          "weightedMeanDifference": 9.77653226192173
+        },
+        "fluid/particleRadiationAbsorptionCoefficient": {
+          "absoluteMax": 171.78241149310688,
+          "weightedRmse": 5.573848736709363,
+          "relativeL2": 0.3934127157297113,
+          "relativeL1": 0.21832503542837886,
+          "weightedMeanDifference": 0.02281272914927821
+        },
+        "fluid/particleRadiationScatteringCoefficient": {
+          "absoluteMax": 317.80370997350246,
+          "weightedRmse": 7.9919319345719995,
+          "relativeL2": 0.3674857810203116,
+          "relativeL1": 0.20969694673136174,
+          "weightedMeanDifference": 0.041143192336348285
+        },
+        "fluid/particleRadiationExtinctionCoefficient": {
+          "absoluteMax": 449.69559252924057,
+          "weightedRmse": 13.480992710481354,
+          "relativeL2": 0.38014321804968787,
+          "relativeL1": 0.21308678397270855,
+          "weightedMeanDifference": 0.06395592120067452
+        },
+        "fluid/particleRadiationAsymmetryFactor": {
+          "absoluteMax": 0.9987167824810006,
+          "weightedRmse": 0.10361375350445663,
+          "relativeL2": 0.10793018891517964,
+          "relativeL1": 0.015320893146462535,
+          "weightedMeanDifference": 0.000656630812171674
+        },
+        "graphite/T": {
+          "absoluteMax": 1.5429466340622184,
+          "weightedRmse": 0.01475176315986413,
+          "relativeL2": 4.5899381548597786e-05,
+          "relativeL1": 1.567384947442231e-06,
+          "weightedMeanDifference": 6.444504270933354e-06
+        },
+        "fluid/T@fluid_to_graphite": {
+          "absoluteMax": 2.5554143288418345,
+          "weightedRmse": 0.4426926943672069,
+          "relativeL2": 0.000606467619772327,
+          "relativeL1": 0.00023267181300094846,
+          "weightedMeanDifference": -0.0032051841136758216
+        },
+        "fluid/gasConvectiveWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 60814.25264365412,
+          "weightedRmse": 6618.819707149967,
+          "relativeL2": 0.0010423745418036518,
+          "relativeL1": 0.000801736476838173,
+          "weightedMeanDifference": 643.7384878424708,
+          "testIntegralW": 3938.3726638036887,
+          "referenceIntegralW": 3937.8481403535743,
+          "relativeIntegralDifference": 0.00013320052765349486
+        },
+        "fluid/particleRadiationWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 107306.48985737935,
+          "weightedRmse": 15942.487544281874,
+          "relativeL2": 0.009640398189493157,
+          "relativeL1": 0.004541648834527257,
+          "weightedMeanDifference": 696.4876970737992,
+          "testIntegralW": 1266.5901415816827,
+          "referenceIntegralW": 1266.0226376391183,
+          "relativeIntegralDifference": 0.0004482573420824878
+        },
+        "fluid/particleReflectedWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 567148.5508274902,
+          "weightedRmse": 77854.2416661096,
+          "relativeL2": 0.039858823875355436,
+          "relativeL1": 0.024850836027497235,
+          "weightedMeanDifference": -2256.560439203582,
+          "testIntegralW": 779.0016013438362,
+          "referenceIntegralW": 780.840265474248,
+          "relativeIntegralDifference": -0.0023547250464793
+        },
+        "fluid/particleStuckWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 0.0,
+          "weightedRmse": 0.0,
+          "relativeL2": null,
+          "relativeL1": null,
+          "weightedMeanDifference": 0.0,
+          "testIntegralW": 0.0,
+          "referenceIntegralW": 0.0,
+          "relativeIntegralDifference": null
+        }
+      },
+      "61": {
+        "fluid/rho": {
+          "absoluteMax": 0.14962673472731947,
+          "weightedRmse": 0.003454732232250158,
+          "relativeL2": 0.0008265051550332311,
+          "relativeL1": 0.000329936775230186,
+          "weightedMeanDifference": -0.0006205940671307262
+        },
+        "fluid/p": {
+          "absoluteMax": 35460.82813111576,
+          "weightedRmse": 1274.0100046316861,
+          "relativeL2": 0.00032879126124199336,
+          "relativeL1": 0.0002087157519187823,
+          "weightedMeanDifference": -668.5056104273323
+        },
+        "fluid/T": {
+          "absoluteMax": 128.34797315036167,
+          "weightedRmse": 4.613055946792903,
+          "relativeL2": 0.0014011314100137722,
+          "relativeL1": 0.0004062895733988861,
+          "weightedMeanDifference": -0.20767733313901005
+        },
+        "fluid/U": {
+          "absoluteMax": 122.32950426634783,
+          "weightedRmse": 3.710350568559327,
+          "relativeL2": 0.007949062252803658,
+          "relativeL1": 0.004711279467433623,
+          "weightedMeanDifference": null
+        },
+        "fluid/epsilonS": {
+          "absoluteMax": 0.01907394391889577,
+          "weightedRmse": 0.0004199787262419697,
+          "relativeL2": 0.1490624747098685,
+          "relativeL1": 0.16832709593498613,
+          "weightedMeanDifference": 5.22654366444199e-07
+        },
+        "fluid/Tp": {
+          "absoluteMax": 3200.0,
+          "weightedRmse": 332.1202917876302,
+          "relativeL2": 0.10186045941750592,
+          "relativeL1": 0.013709611776228226,
+          "weightedMeanDifference": -2.7356535480340045
+        },
+        "fluid/theta": {
+          "absoluteMax": 54067.6640625,
+          "weightedRmse": 1033.5036617130427,
+          "relativeL2": 1.1358703013374607,
+          "relativeL1": 1.0758378810397686,
+          "weightedMeanDifference": -2.896760754204623
+        },
+        "fluid/rhoE": {
+          "absoluteMax": 217465.16856854782,
+          "weightedRmse": 7177.019720288198,
+          "relativeL2": 0.00037019437885061945,
+          "relativeL1": 0.00021889289518012384,
+          "weightedMeanDifference": -3271.422559459422
+        },
+        "fluid/rhoEs": {
+          "absoluteMax": 2336736.596273937,
+          "weightedRmse": 40951.65765398922,
+          "relativeL2": 0.6343732992225833,
+          "relativeL1": 0.6242048546132498,
+          "weightedMeanDifference": -224.96326516444384
+        },
+        "fluid/rhoHp": {
+          "absoluteMax": 266897233.19870487,
+          "weightedRmse": 5908628.000546655,
+          "relativeL2": 0.24565529277871317,
+          "relativeL1": 0.19318031763457838,
+          "weightedMeanDifference": 9526.09417508015
+        },
+        "fluid/k": {
+          "absoluteMax": 214.68589596308448,
+          "weightedRmse": 6.3831057600354955,
+          "relativeL2": 0.006421167136865881,
+          "relativeL1": 0.006090746535323019,
+          "weightedMeanDifference": 0.12608243790028376
+        },
+        "fluid/omega": {
+          "absoluteMax": 43657.27955560549,
+          "weightedRmse": 959.9308764106545,
+          "relativeL2": 0.004231984217821195,
+          "relativeL1": 0.004546177110000422,
+          "weightedMeanDifference": -2.3057690487040308
+        },
+        "fluid/particleRadiationAbsorptionCoefficient": {
+          "absoluteMax": 171.78241149310688,
+          "weightedRmse": 5.573848736709363,
+          "relativeL2": 0.3934127157297113,
+          "relativeL1": 0.21832503542837886,
+          "weightedMeanDifference": 0.02281272914927821
+        },
+        "fluid/particleRadiationScatteringCoefficient": {
+          "absoluteMax": 317.80370997350246,
+          "weightedRmse": 7.9919319345719995,
+          "relativeL2": 0.3674857810203116,
+          "relativeL1": 0.20969694673136174,
+          "weightedMeanDifference": 0.041143192336348285
+        },
+        "fluid/particleRadiationExtinctionCoefficient": {
+          "absoluteMax": 449.69559252924057,
+          "weightedRmse": 13.480992710481354,
+          "relativeL2": 0.38014321804968787,
+          "relativeL1": 0.21308678397270855,
+          "weightedMeanDifference": 0.06395592120067452
+        },
+        "fluid/particleRadiationAsymmetryFactor": {
+          "absoluteMax": 0.9987167824810006,
+          "weightedRmse": 0.10361375350445663,
+          "relativeL2": 0.10793018891517964,
+          "relativeL1": 0.015320893146462535,
+          "weightedMeanDifference": 0.000656630812171674
+        },
+        "graphite/T": {
+          "absoluteMax": 3.8145348823093173,
+          "weightedRmse": 0.024614003097814512,
+          "relativeL2": 7.653742402483592e-05,
+          "relativeL1": 2.753438079877829e-06,
+          "weightedMeanDifference": 0.0001346330474536777
+        },
+        "fluid/T@fluid_to_graphite": {
+          "absoluteMax": 6.96470153578025,
+          "weightedRmse": 0.728325915826896,
+          "relativeL2": 0.0010131834030684896,
+          "relativeL1": 0.00036788639006986453,
+          "weightedMeanDifference": 0.04071144037575443
+        },
+        "fluid/gasConvectiveWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 202124.55742132664,
+          "weightedRmse": 23731.706533464465,
+          "relativeL2": 0.003850942998045662,
+          "relativeL1": 0.0022640713457142696,
+          "weightedMeanDifference": 5761.575607212355,
+          "testIntegralW": 3836.2844974236596,
+          "referenceIntegralW": 3831.589917912474,
+          "relativeIntegralDifference": 0.0012252301555650991
+        },
+        "fluid/particleRadiationWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 107306.48985737935,
+          "weightedRmse": 15942.487544281874,
+          "relativeL2": 0.009640398189493157,
+          "relativeL1": 0.004541648834527257,
+          "weightedMeanDifference": 696.4876970737992,
+          "testIntegralW": 1266.5901415816827,
+          "referenceIntegralW": 1266.0226376391183,
+          "relativeIntegralDifference": 0.0004482573420824878
+        },
+        "fluid/particleReflectedWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 1196200.2076396123,
+          "weightedRmse": 132982.84692496588,
+          "relativeL2": 0.08065020878519776,
+          "relativeL1": 0.05126095970132724,
+          "weightedMeanDifference": 1240.355984474868,
+          "testIntegralW": 705.2321714915174,
+          "referenceIntegralW": 704.2215191650942,
+          "relativeIntegralDifference": 0.0014351341146482872
+        },
+        "fluid/particleStuckWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 0.0,
+          "weightedRmse": 0.0,
+          "relativeL2": null,
+          "relativeL1": null,
+          "weightedMeanDifference": 0.0,
+          "testIntegralW": 0.0,
+          "referenceIntegralW": 0.0,
+          "relativeIntegralDifference": null
+        }
+      }
+    },
+    "candidate-fp64_vs_pr41-fp64": {
+      "60": {
+        "fluid/rho": {
+          "absoluteMax": 0.09048335346154168,
+          "weightedRmse": 0.0019317317823531355,
+          "relativeL2": 0.00046314832261139596,
+          "relativeL1": 0.00012045807079008936,
+          "weightedMeanDifference": 0.00019367468781047417
+        },
+        "fluid/p": {
+          "absoluteMax": 54924.10376484832,
+          "weightedRmse": 1217.7691028301228,
+          "relativeL2": 0.0003143255301606674,
+          "relativeL1": 0.00010012640748776362,
+          "weightedMeanDifference": 154.9113103006518
+        },
+        "fluid/T": {
+          "absoluteMax": 120.08848481950827,
+          "weightedRmse": 3.3581884557674186,
+          "relativeL2": 0.0010177329003572125,
+          "relativeL1": 0.00018310582243997878,
+          "weightedMeanDifference": 0.09165596174238458
+        },
+        "fluid/U": {
+          "absoluteMax": 90.36828009300714,
+          "weightedRmse": 3.009141544034732,
+          "relativeL2": 0.006423913155339516,
+          "relativeL1": 0.0038143927906462,
+          "weightedMeanDifference": null
+        },
+        "fluid/epsilonS": {
+          "absoluteMax": 0.017793824224162515,
+          "weightedRmse": 0.0003188748168184134,
+          "relativeL2": 0.11443488294751591,
+          "relativeL1": 0.10428949357520952,
+          "weightedMeanDifference": -4.667065910673793e-07
+        },
+        "fluid/Tp": {
+          "absoluteMax": 3047.2977250855156,
+          "weightedRmse": 287.03570428944954,
+          "relativeL2": 0.09566701946146415,
+          "relativeL1": 0.01671550565420032,
+          "weightedMeanDifference": 2.2513146803148008
+        },
+        "fluid/theta": {
+          "absoluteMax": 28500.59759459378,
+          "weightedRmse": 782.0599726069108,
+          "relativeL2": 1.0359943233851814,
+          "relativeL1": 1.01111405677316,
+          "weightedMeanDifference": -10.45359872630453
+        },
+        "fluid/rhoE": {
+          "absoluteMax": 251421.9887134116,
+          "weightedRmse": 6589.600320959287,
+          "relativeL2": 0.00033994800751310035,
+          "relativeL1": 0.00010815825571971983,
+          "weightedMeanDifference": 743.3402278235933
+        },
+        "fluid/rhoEs": {
+          "absoluteMax": 2457515.616176418,
+          "weightedRmse": 36973.37038463158,
+          "relativeL2": 0.5461307748998098,
+          "relativeL1": 0.5238043775816635,
+          "weightedMeanDifference": -47.17092444046577
+        },
+        "fluid/rhoHp": {
+          "absoluteMax": 236629104.73497537,
+          "weightedRmse": 4228408.064472904,
+          "relativeL2": 0.18093716895899756,
+          "relativeL1": 0.12085982842605153,
+          "weightedMeanDifference": -6150.79968149575
+        },
+        "fluid/k": {
+          "absoluteMax": 364.33702904926395,
+          "weightedRmse": 11.856832363456782,
+          "relativeL2": 0.011648166584168123,
+          "relativeL1": 0.010596352674753711,
+          "weightedMeanDifference": -0.5754981515006321
+        },
+        "fluid/omega": {
+          "absoluteMax": 35636.58960180171,
+          "weightedRmse": 1130.018047490168,
+          "relativeL2": 0.004949734091102635,
+          "relativeL1": 0.005516009854614171,
+          "weightedMeanDifference": -47.913312603233685
+        },
+        "fluid/particleRadiationAbsorptionCoefficient": {
+          "absoluteMax": 171.78241149310688,
+          "weightedRmse": 5.19859448739223,
+          "relativeL2": 0.36692656580234106,
+          "relativeL1": 0.19863129032552432,
+          "weightedMeanDifference": 0.015179836506990133
+        },
+        "fluid/particleRadiationScatteringCoefficient": {
+          "absoluteMax": 326.4580382680329,
+          "weightedRmse": 7.411642464788262,
+          "relativeL2": 0.3408028549434694,
+          "relativeL1": 0.18821708589179623,
+          "weightedMeanDifference": 0.032177002124619714
+        },
+        "fluid/particleRadiationExtinctionCoefficient": {
+          "absoluteMax": 456.5279101169439,
+          "weightedRmse": 12.541323435164042,
+          "relativeL2": 0.3536459926677755,
+          "relativeL1": 0.19231629418236926,
+          "weightedMeanDifference": 0.04735683863160983
+        },
+        "fluid/particleRadiationAsymmetryFactor": {
+          "absoluteMax": 0.9986313335081429,
+          "weightedRmse": 0.09974651540390966,
+          "relativeL2": 0.10390184591384186,
+          "relativeL1": 0.014199264034718707,
+          "weightedMeanDifference": 0.0007865523444659815
+        },
+        "graphite/T": {
+          "absoluteMax": 1.8815637996601708,
+          "weightedRmse": 0.013403194939453893,
+          "relativeL2": 4.170337822193557e-05,
+          "relativeL1": 1.4292064754917068e-06,
+          "weightedMeanDifference": 3.2023242211115486e-06
+        },
+        "fluid/T@fluid_to_graphite": {
+          "absoluteMax": 3.26045401321835,
+          "weightedRmse": 0.40404743560565615,
+          "relativeL2": 0.000553525480914344,
+          "relativeL1": 0.00021568837920291466,
+          "weightedMeanDifference": -0.007082122470782823
+        },
+        "fluid/gasConvectiveWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 46468.453151585534,
+          "weightedRmse": 5866.888646085375,
+          "relativeL2": 0.0009239555743858739,
+          "relativeL1": 0.00044304535437025925,
+          "weightedMeanDifference": -950.7902683838983,
+          "testIntegralW": 3937.0734285702556,
+          "referenceIntegralW": 3937.8481403535743,
+          "relativeIntegralDifference": -0.00019673480431603115
+        },
+        "fluid/particleRadiationWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 124289.24455620022,
+          "weightedRmse": 14479.406571439571,
+          "relativeL2": 0.008755675330372607,
+          "relativeL1": 0.004807438917901012,
+          "weightedMeanDifference": 406.87343414624905,
+          "testIntegralW": 1266.3541614822138,
+          "referenceIntegralW": 1266.0226376391183,
+          "relativeIntegralDifference": 0.00026186249221715096
+        },
+        "fluid/particleReflectedWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 593624.7824112722,
+          "weightedRmse": 79333.05490473729,
+          "relativeL2": 0.04061592785789494,
+          "relativeL1": 0.022633791828914812,
+          "weightedMeanDifference": -719.8272947822842,
+          "testIntegralW": 780.2537442342165,
+          "referenceIntegralW": 780.840265474248,
+          "relativeIntegralDifference": -0.0007511411308627747
+        },
+        "fluid/particleStuckWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 0.0,
+          "weightedRmse": 0.0,
+          "relativeL2": null,
+          "relativeL1": null,
+          "weightedMeanDifference": 0.0,
+          "testIntegralW": 0.0,
+          "referenceIntegralW": 0.0,
+          "relativeIntegralDifference": null
+        }
+      },
+      "61": {
+        "fluid/rho": {
+          "absoluteMax": 0.16547985055733427,
+          "weightedRmse": 0.0031174452261638974,
+          "relativeL2": 0.0007458130983077668,
+          "relativeL1": 0.0002696884337966663,
+          "weightedMeanDifference": -0.0006839061657846116
+        },
+        "fluid/p": {
+          "absoluteMax": 35856.54024885525,
+          "weightedRmse": 1328.5457794068718,
+          "relativeL2": 0.0003428656296582182,
+          "relativeL1": 0.00022864390104608247,
+          "weightedMeanDifference": -799.2499536938806
+        },
+        "fluid/T": {
+          "absoluteMax": 84.38225472659542,
+          "weightedRmse": 3.947132088400471,
+          "relativeL2": 0.0011988692121490628,
+          "relativeL1": 0.00025904326762976403,
+          "weightedMeanDifference": -0.344069625269056
+        },
+        "fluid/U": {
+          "absoluteMax": 139.26113104183196,
+          "weightedRmse": 3.5133585659464406,
+          "relativeL2": 0.007527026204419606,
+          "relativeL1": 0.003859725924349666,
+          "weightedMeanDifference": null
+        },
+        "fluid/epsilonS": {
+          "absoluteMax": 0.011779053224555629,
+          "weightedRmse": 0.0004013774865569706,
+          "relativeL2": 0.1424603621578154,
+          "relativeL1": 0.16973954311757058,
+          "weightedMeanDifference": -5.413796456277242e-07
+        },
+        "fluid/Tp": {
+          "absoluteMax": 3200.0002624466206,
+          "weightedRmse": 305.9791091246595,
+          "relativeL2": 0.09384302434470465,
+          "relativeL1": 0.011864983027596804,
+          "weightedMeanDifference": 2.922503866366443
+        },
+        "fluid/theta": {
+          "absoluteMax": 69815.66306357166,
+          "weightedRmse": 1055.9776672370315,
+          "relativeL2": 1.1605703158342462,
+          "relativeL1": 1.1145103501470137,
+          "weightedMeanDifference": -2.332244985715043
+        },
+        "fluid/rhoE": {
+          "absoluteMax": 221579.7884806879,
+          "weightedRmse": 7435.725286944891,
+          "relativeL2": 0.00038353854541086214,
+          "relativeL1": 0.0002394275302387164,
+          "weightedMeanDifference": -3991.858894633849
+        },
+        "fluid/rhoEs": {
+          "absoluteMax": 2204739.8470244124,
+          "weightedRmse": 41124.93682109179,
+          "relativeL2": 0.6370575294398354,
+          "relativeL1": 0.5956130800551571,
+          "weightedMeanDifference": -168.46711612296275
+        },
+        "fluid/rhoHp": {
+          "absoluteMax": 166089764.6390892,
+          "weightedRmse": 5668663.470741343,
+          "relativeL2": 0.23567860160431928,
+          "relativeL1": 0.19695825023817573,
+          "weightedMeanDifference": -6991.151816968653
+        },
+        "fluid/k": {
+          "absoluteMax": 172.70424807228846,
+          "weightedRmse": 3.503177985438502,
+          "relativeL2": 0.0035240668414938878,
+          "relativeL1": 0.0037933625191855108,
+          "weightedMeanDifference": 0.036374513680473876
+        },
+        "fluid/omega": {
+          "absoluteMax": 44251.94261800824,
+          "weightedRmse": 851.2430794447283,
+          "relativeL2": 0.003752819464678301,
+          "relativeL1": 0.004377867333099471,
+          "weightedMeanDifference": -5.043570858659303
+        },
+        "fluid/particleRadiationAbsorptionCoefficient": {
+          "absoluteMax": 171.78241149310688,
+          "weightedRmse": 5.19859448739223,
+          "relativeL2": 0.36692656580234106,
+          "relativeL1": 0.19863129032552432,
+          "weightedMeanDifference": 0.015179836506990133
+        },
+        "fluid/particleRadiationScatteringCoefficient": {
+          "absoluteMax": 326.4580382680329,
+          "weightedRmse": 7.411642464788262,
+          "relativeL2": 0.3408028549434694,
+          "relativeL1": 0.18821708589179623,
+          "weightedMeanDifference": 0.032177002124619714
+        },
+        "fluid/particleRadiationExtinctionCoefficient": {
+          "absoluteMax": 456.5279101169439,
+          "weightedRmse": 12.541323435164042,
+          "relativeL2": 0.3536459926677755,
+          "relativeL1": 0.19231629418236926,
+          "weightedMeanDifference": 0.04735683863160983
+        },
+        "fluid/particleRadiationAsymmetryFactor": {
+          "absoluteMax": 0.9986313335081429,
+          "weightedRmse": 0.09974651540390966,
+          "relativeL2": 0.10390184591384186,
+          "relativeL1": 0.014199264034718707,
+          "weightedMeanDifference": 0.0007865523444659815
+        },
+        "graphite/T": {
+          "absoluteMax": 3.8208285600112504,
+          "weightedRmse": 0.023257352295972072,
+          "relativeL2": 7.231890835870812e-05,
+          "relativeL1": 2.4250016606056452e-06,
+          "weightedMeanDifference": 2.719902464118007e-05
+        },
+        "fluid/T@fluid_to_graphite": {
+          "absoluteMax": 5.641245412065928,
+          "weightedRmse": 0.6454452332204609,
+          "relativeL2": 0.0008978870361164924,
+          "relativeL1": 0.00031013617186041,
+          "weightedMeanDifference": 0.008527332554978269
+        },
+        "fluid/gasConvectiveWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 158417.8857559655,
+          "weightedRmse": 22086.635736463668,
+          "relativeL2": 0.003583997430601263,
+          "relativeL1": 0.0016445102248589237,
+          "weightedMeanDifference": 5532.962878293285,
+          "testIntegralW": 3836.0982218791996,
+          "referenceIntegralW": 3831.589917912474,
+          "relativeIntegralDifference": 0.0011766144246412068
+        },
+        "fluid/particleRadiationWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 124289.24455620022,
+          "weightedRmse": 14479.406571439571,
+          "relativeL2": 0.008755675330372607,
+          "relativeL1": 0.004807438917901012,
+          "weightedMeanDifference": 406.87343414624905,
+          "testIntegralW": 1266.3541614822138,
+          "referenceIntegralW": 1266.0226376391183,
+          "relativeIntegralDifference": 0.00026186249221715096
+        },
+        "fluid/particleReflectedWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 1026167.1240832796,
+          "weightedRmse": 116031.58171361289,
+          "relativeL2": 0.07036976202020812,
+          "relativeL1": 0.04292808682669435,
+          "weightedMeanDifference": -3884.668620894715,
+          "testIntegralW": 701.0562590073398,
+          "referenceIntegralW": 704.2215191650942,
+          "relativeIntegralDifference": -0.004494693887666189
+        },
+        "fluid/particleStuckWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 0.0,
+          "weightedRmse": 0.0,
+          "relativeL2": null,
+          "relativeL1": null,
+          "weightedMeanDifference": 0.0,
+          "testIntegralW": 0.0,
+          "referenceIntegralW": 0.0,
+          "relativeIntegralDifference": null
+        }
+      }
+    },
+    "candidate-fp32_vs_candidate-fp64": {
+      "60": {
+        "fluid/rho": {
+          "absoluteMax": 0.12304941319102092,
+          "weightedRmse": 0.002425985237444013,
+          "relativeL2": 0.0005816270290678537,
+          "relativeL1": 0.0002189918941161896,
+          "weightedMeanDifference": -5.71168883486137e-06
+        },
+        "fluid/p": {
+          "absoluteMax": 33192.09443353396,
+          "weightedRmse": 1178.0127631902485,
+          "relativeL2": 0.00030405456523466056,
+          "relativeL1": 0.00011855055414047783,
+          "weightedMeanDifference": -182.77519466398454
+        },
+        "fluid/T": {
+          "absoluteMax": 126.465086030159,
+          "weightedRmse": 3.634065393050479,
+          "relativeL2": 0.0011013158309839358,
+          "relativeL1": 0.00031123738633176976,
+          "weightedMeanDifference": -0.050119529307526035
+        },
+        "fluid/U": {
+          "absoluteMax": 184.9193462162851,
+          "weightedRmse": 3.260268373427551,
+          "relativeL2": 0.006968266545185176,
+          "relativeL1": 0.004224123098165085,
+          "weightedMeanDifference": null
+        },
+        "fluid/epsilonS": {
+          "absoluteMax": 0.013965073972940445,
+          "weightedRmse": 0.00033898559695467204,
+          "relativeL2": 0.12166972569661645,
+          "relativeL1": 0.1128084097680522,
+          "weightedMeanDifference": -1.87255653729857e-08
+        },
+        "fluid/Tp": {
+          "absoluteMax": 3045.21630859375,
+          "weightedRmse": 285.1490888991321,
+          "relativeL2": 0.09500240238073876,
+          "relativeL1": 0.016815239049195102,
+          "weightedMeanDifference": -0.09596366546550163
+        },
+        "fluid/theta": {
+          "absoluteMax": 55436.197579423155,
+          "weightedRmse": 1042.6624597184075,
+          "relativeL2": 1.679491095953898,
+          "relativeL1": 1.5409178400323735,
+          "weightedMeanDifference": 16.53161277429487
+        },
+        "fluid/rhoE": {
+          "absoluteMax": 158630.58905455936,
+          "weightedRmse": 6636.41910666842,
+          "relativeL2": 0.0003423527832673074,
+          "relativeL1": 0.0001288498145557138,
+          "weightedMeanDifference": -1045.2561174921918
+        },
+        "fluid/rhoEs": {
+          "absoluteMax": 3150987.4463934703,
+          "weightedRmse": 39511.53450331304,
+          "relativeL2": 0.6032001731726705,
+          "relativeL1": 0.5822433810153783,
+          "weightedMeanDifference": 238.51952653383412
+        },
+        "fluid/rhoHp": {
+          "absoluteMax": 186580064.0,
+          "weightedRmse": 4479448.748904905,
+          "relativeL2": 0.19175208795900067,
+          "relativeL1": 0.1296011630812205,
+          "weightedMeanDifference": 37.193997087007105
+        },
+        "fluid/k": {
+          "absoluteMax": 263.44176139450065,
+          "weightedRmse": 9.410719594816147,
+          "relativeL2": 0.009328489035052207,
+          "relativeL1": 0.009466580169486856,
+          "weightedMeanDifference": 0.47108411424930324
+        },
+        "fluid/omega": {
+          "absoluteMax": 39810.978915099986,
+          "weightedRmse": 1152.2737247600073,
+          "relativeL2": 0.005058407315506659,
+          "relativeL1": 0.006191102978154479,
+          "weightedMeanDifference": 57.689844865155415
+        },
+        "fluid/particleRadiationAbsorptionCoefficient": {
+          "absoluteMax": 185.95870131401435,
+          "weightedRmse": 5.349084702174415,
+          "relativeL2": 0.37789340414192063,
+          "relativeL1": 0.207411654665141,
+          "weightedMeanDifference": 0.007632892642288032
+        },
+        "fluid/particleRadiationScatteringCoefficient": {
+          "absoluteMax": 254.82015247451022,
+          "weightedRmse": 7.654520236573077,
+          "relativeL2": 0.35191494971169646,
+          "relativeL1": 0.19917221802534063,
+          "weightedMeanDifference": 0.008966190211728647
+        },
+        "fluid/particleRadiationExtinctionCoefficient": {
+          "absoluteMax": 440.77885378852454,
+          "weightedRmse": 12.900028093889253,
+          "relativeL2": 0.36389845335237936,
+          "relativeL1": 0.20230455253162727,
+          "weightedMeanDifference": 0.01659908256906458
+        },
+        "fluid/particleRadiationAsymmetryFactor": {
+          "absoluteMax": 0.9984664393961818,
+          "weightedRmse": 0.0991985611883856,
+          "relativeL2": 0.10329195720609695,
+          "relativeL1": 0.014183296474400446,
+          "weightedMeanDifference": -0.00012992153229430785
+        },
+        "graphite/T": {
+          "absoluteMax": 1.7578190580272803,
+          "weightedRmse": 0.012034888520340984,
+          "relativeL2": 3.744597186031196e-05,
+          "relativeL1": 1.444681036704154e-06,
+          "weightedMeanDifference": 3.24218004982182e-06
+        },
+        "fluid/T@fluid_to_graphite": {
+          "absoluteMax": 2.9186916785415633,
+          "weightedRmse": 0.35844623603902526,
+          "relativeL2": 0.0004910695467827351,
+          "relativeL1": 0.0002072586961003484,
+          "weightedMeanDifference": 0.0038769383571070027
+        },
+        "fluid/gasConvectiveWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 41752.327249821275,
+          "weightedRmse": 5803.146204995374,
+          "relativeL2": 0.000914228628173618,
+          "relativeL1": 0.0007095062151145757,
+          "weightedMeanDifference": 1594.528756226369,
+          "testIntegralW": 3938.3726638036887,
+          "referenceIntegralW": 3937.0734285702556,
+          "relativeIntegralDifference": 0.0003300002545050203
+        },
+        "fluid/particleRadiationWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 155022.3682073024,
+          "weightedRmse": 17209.746969242704,
+          "relativeL2": 0.010406621750613135,
+          "relativeL1": 0.004937208795288513,
+          "weightedMeanDifference": 289.6142629275499,
+          "testIntegralW": 1266.5901415816827,
+          "referenceIntegralW": 1266.3541614822138,
+          "relativeIntegralDifference": 0.00018634605282352967
+        },
+        "fluid/particleReflectedWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 655690.576393419,
+          "weightedRmse": 72424.28022543418,
+          "relativeL2": 0.0370976138773546,
+          "relativeL1": 0.02270694672902835,
+          "weightedMeanDifference": -1536.7331444212987,
+          "testIntegralW": 779.0016013438362,
+          "referenceIntegralW": 780.2537442342165,
+          "relativeIntegralDifference": -0.0016047893388953397
+        },
+        "fluid/particleStuckWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 0.0,
+          "weightedRmse": 0.0,
+          "relativeL2": null,
+          "relativeL1": null,
+          "weightedMeanDifference": 0.0,
+          "testIntegralW": 0.0,
+          "referenceIntegralW": 0.0,
+          "relativeIntegralDifference": null
+        }
+      },
+      "61": {
+        "fluid/rho": {
+          "absoluteMax": 0.12643092563418,
+          "weightedRmse": 0.0030088276986652072,
+          "relativeL2": 0.0007199461129406156,
+          "relativeL1": 0.0003263259601763883,
+          "weightedMeanDifference": 6.33120986538852e-05
+        },
+        "fluid/p": {
+          "absoluteMax": 33027.58703208342,
+          "weightedRmse": 1154.442683036636,
+          "relativeL2": 0.0002979925125465954,
+          "relativeL1": 0.00011550164136375834,
+          "weightedMeanDifference": 130.7443432665483
+        },
+        "fluid/T": {
+          "absoluteMax": 161.5742897526202,
+          "weightedRmse": 3.782765341459623,
+          "relativeL2": 0.001149052593570389,
+          "relativeL1": 0.00034364554037946145,
+          "weightedMeanDifference": 0.13639229213004578
+        },
+        "fluid/U": {
+          "absoluteMax": 153.0295525906408,
+          "weightedRmse": 3.473015039083465,
+          "relativeL2": 0.007428466262269757,
+          "relativeL1": 0.004236137731818603,
+          "weightedMeanDifference": null
+        },
+        "fluid/epsilonS": {
+          "absoluteMax": 0.014947676234511738,
+          "weightedRmse": 0.00040437971450923277,
+          "relativeL2": 0.14342749390547227,
+          "relativeL1": 0.1562276326913465,
+          "weightedMeanDifference": 1.0640340120719224e-06
+        },
+        "fluid/Tp": {
+          "absoluteMax": 3200.00048828125,
+          "weightedRmse": 319.294941360023,
+          "relativeL2": 0.0978734110943663,
+          "relativeL1": 0.012819016734646867,
+          "weightedMeanDifference": -5.658157414400445
+        },
+        "fluid/theta": {
+          "absoluteMax": 69187.68729944964,
+          "weightedRmse": 1088.8672189793833,
+          "relativeL2": 1.1397941726442289,
+          "relativeL1": 1.0998721592915865,
+          "weightedMeanDifference": -0.5645157684895816
+        },
+        "fluid/rhoE": {
+          "absoluteMax": 216913.34532084642,
+          "weightedRmse": 6867.41829470253,
+          "relativeL2": 0.0003542949593929301,
+          "relativeL1": 0.0001252456659563201,
+          "weightedMeanDifference": 720.4363351744288
+        },
+        "fluid/rhoEs": {
+          "absoluteMax": 2559037.6918261144,
+          "weightedRmse": 41023.75605625804,
+          "relativeL2": 0.618079938379824,
+          "relativeL1": 0.6101119193578052,
+          "weightedMeanDifference": -56.49614904148108
+        },
+        "fluid/rhoHp": {
+          "absoluteMax": 208690935.21707,
+          "weightedRmse": 5674499.802131436,
+          "relativeL2": 0.23538655308345569,
+          "relativeL1": 0.17892966505116087,
+          "weightedMeanDifference": 16517.24599204882
+        },
+        "fluid/k": {
+          "absoluteMax": 217.66619506519783,
+          "weightedRmse": 5.75257074408888,
+          "relativeL2": 0.00578701328754047,
+          "relativeL1": 0.005556240350882236,
+          "weightedMeanDifference": 0.08970792421980989
+        },
+        "fluid/omega": {
+          "absoluteMax": 20924.44642351684,
+          "weightedRmse": 724.7369105752432,
+          "relativeL2": 0.0031939400210372927,
+          "relativeL1": 0.00444149117890618,
+          "weightedMeanDifference": 2.7378018099552746
+        },
+        "fluid/particleRadiationAbsorptionCoefficient": {
+          "absoluteMax": 185.95870131401435,
+          "weightedRmse": 5.349084702174415,
+          "relativeL2": 0.37789340414192063,
+          "relativeL1": 0.207411654665141,
+          "weightedMeanDifference": 0.007632892642288032
+        },
+        "fluid/particleRadiationScatteringCoefficient": {
+          "absoluteMax": 254.82015247451022,
+          "weightedRmse": 7.654520236573077,
+          "relativeL2": 0.35191494971169646,
+          "relativeL1": 0.19917221802534063,
+          "weightedMeanDifference": 0.008966190211728647
+        },
+        "fluid/particleRadiationExtinctionCoefficient": {
+          "absoluteMax": 440.77885378852454,
+          "weightedRmse": 12.900028093889253,
+          "relativeL2": 0.36389845335237936,
+          "relativeL1": 0.20230455253162727,
+          "weightedMeanDifference": 0.01659908256906458
+        },
+        "fluid/particleRadiationAsymmetryFactor": {
+          "absoluteMax": 0.9984664393961818,
+          "weightedRmse": 0.0991985611883856,
+          "relativeL2": 0.10329195720609695,
+          "relativeL1": 0.014183296474400446,
+          "weightedMeanDifference": -0.00012992153229430785
+        },
+        "graphite/T": {
+          "absoluteMax": 2.2139065026428852,
+          "weightedRmse": 0.018812528609514358,
+          "relativeL2": 5.8497690658066985e-05,
+          "relativeL1": 2.5278135273730314e-06,
+          "weightedMeanDifference": 0.00010743402281249776
+        },
+        "fluid/T@fluid_to_graphite": {
+          "absoluteMax": 3.9499110672741153,
+          "weightedRmse": 0.525033279461639,
+          "relativeL2": 0.0007303644119158622,
+          "relativeL1": 0.0003124933762940463,
+          "weightedMeanDifference": 0.032184107820776166
+        },
+        "fluid/gasConvectiveWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 99579.23853951413,
+          "weightedRmse": 13320.08488192801,
+          "relativeL2": 0.0021577572534644852,
+          "relativeL1": 0.0016190409980465514,
+          "weightedMeanDifference": 228.6127289190709,
+          "testIntegralW": 3836.2844974236596,
+          "referenceIntegralW": 3836.0982218791996,
+          "relativeIntegralDifference": 4.855859617918757e-05
+        },
+        "fluid/particleRadiationWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 155022.3682073024,
+          "weightedRmse": 17209.746969242704,
+          "relativeL2": 0.010406621750613135,
+          "relativeL1": 0.004937208795288513,
+          "weightedMeanDifference": 289.6142629275499,
+          "testIntegralW": 1266.5901415816827,
+          "referenceIntegralW": 1266.3541614822138,
+          "relativeIntegralDifference": 0.00018634605282352967
+        },
+        "fluid/particleReflectedWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 734397.907155036,
+          "weightedRmse": 99584.148726959,
+          "relativeL2": 0.06089455043911341,
+          "relativeL1": 0.04324906252170355,
+          "weightedMeanDifference": 5125.024605369584,
+          "testIntegralW": 705.2321714915174,
+          "referenceIntegralW": 701.0562590073398,
+          "relativeIntegralDifference": 0.005956601100873839
+        },
+        "fluid/particleStuckWallHeatFlux@fluid_to_graphite": {
+          "absoluteMax": 0.0,
+          "weightedRmse": 0.0,
+          "relativeL2": null,
+          "relativeL1": null,
+          "weightedMeanDifference": 0.0,
+          "testIntegralW": 0.0,
+          "referenceIntegralW": 0.0,
+          "relativeIntegralDifference": null
+        }
+      }
+    }
+  },
+  "limitations": [
+    "One serial run per variant: timings are indicative, not a repeated-run confidence interval.",
+    "PR41 FP64 is a version-comparison reference, not an exact solution or independent accuracy truth.",
+    "Same particle random seed, but FP32 changes the floating-point trajectory and may alter particle sampling/locations.",
+    "Same coupling cadence, initial conditions and tolerances. Adaptive timestep schedules may differ; compare matching exchange sequence and report actual times.",
+    "Restart from0.29500248649130967, sequence59; endTime0.30500348649130967. Compare common outputs within the requested interval; sequence61 may not be written. Radiation occurs at60 and includes the carried radiation interval beginning0.29000244439008815."
+  ],
+  "requestedSequence": 61,
+  "commonSequences": [
+    60,
+    61
+  ],
+  "endTime": 0.30500348649130965,
+  "nominalRequestedEndTime": 0.305,
+  "endTimePolicy": "Common stopping upper bound allows sequence61 near 0.305002; actual output times and deviations from nominal 0.305 must be reported.",
+  "missingSequencePolicy": "Unwritten sequence61 is unavailable evidence, not a failed calculation. Compare common saved exchanges and report final log times separately.",
+  "manualPhysicalReviewRequired": true,
+  "budgetScope": {
+    "closedTests": "Independent closed gas/coupling/sparse/CHMT fixtures provide dimensional closure.",
+    "openCase": "Full gas mass/energy and fixed-value solid boundary integrated fluxes are unavailable with original probes=0; do not equate inventory change with conservation error.",
+    "species": "Original case has a single gas; no multi-species density fields are present."
+  },
+  "reviewHints": [
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/epsilonS",
+      "relativeL2": 0.12257189846259818,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/Tp",
+      "relativeL2": 0.09931889316716984,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/theta",
+      "relativeL2": 1.347072843343035,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/rhoEs",
+      "relativeL2": 0.5806338308946071,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/rhoHp",
+      "relativeL2": 0.19285653667831607,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/particleRadiationAbsorptionCoefficient",
+      "relativeL2": 0.3934127157297113,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/particleRadiationScatteringCoefficient",
+      "relativeL2": 0.3674857810203116,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/particleRadiationExtinctionCoefficient",
+      "relativeL2": 0.38014321804968787,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/particleRadiationAsymmetryFactor",
+      "relativeL2": 0.10793018891517964,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/epsilonS",
+      "relativeL2": 0.1490624747098685,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/Tp",
+      "relativeL2": 0.10186045941750592,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/theta",
+      "relativeL2": 1.1358703013374607,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/rhoEs",
+      "relativeL2": 0.6343732992225833,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/rhoHp",
+      "relativeL2": 0.24565529277871317,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/particleRadiationAbsorptionCoefficient",
+      "relativeL2": 0.3934127157297113,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/particleRadiationScatteringCoefficient",
+      "relativeL2": 0.3674857810203116,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/particleRadiationExtinctionCoefficient",
+      "relativeL2": 0.38014321804968787,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/particleRadiationAsymmetryFactor",
+      "relativeL2": 0.10793018891517964,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/particleReflectedWallHeatFlux@fluid_to_graphite",
+      "relativeL2": 0.08065020878519776,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/epsilonS",
+      "relativeL2": 0.11443488294751591,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/Tp",
+      "relativeL2": 0.09566701946146415,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/theta",
+      "relativeL2": 1.0359943233851814,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/rhoEs",
+      "relativeL2": 0.5461307748998098,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/rhoHp",
+      "relativeL2": 0.18093716895899756,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/particleRadiationAbsorptionCoefficient",
+      "relativeL2": 0.36692656580234106,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/particleRadiationScatteringCoefficient",
+      "relativeL2": 0.3408028549434694,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/particleRadiationExtinctionCoefficient",
+      "relativeL2": 0.3536459926677755,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 60,
+      "field": "fluid/particleRadiationAsymmetryFactor",
+      "relativeL2": 0.10390184591384186,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/epsilonS",
+      "relativeL2": 0.1424603621578154,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/Tp",
+      "relativeL2": 0.09384302434470465,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/theta",
+      "relativeL2": 1.1605703158342462,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/rhoEs",
+      "relativeL2": 0.6370575294398354,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/rhoHp",
+      "relativeL2": 0.23567860160431928,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/particleRadiationAbsorptionCoefficient",
+      "relativeL2": 0.36692656580234106,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/particleRadiationScatteringCoefficient",
+      "relativeL2": 0.3408028549434694,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/particleRadiationExtinctionCoefficient",
+      "relativeL2": 0.3536459926677755,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/particleRadiationAsymmetryFactor",
+      "relativeL2": 0.10390184591384186,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp64_vs_pr41-fp64",
+      "sequence": 61,
+      "field": "fluid/particleReflectedWallHeatFlux@fluid_to_graphite",
+      "relativeL2": 0.07036976202020812,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 60,
+      "field": "fluid/epsilonS",
+      "relativeL2": 0.12166972569661645,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 60,
+      "field": "fluid/Tp",
+      "relativeL2": 0.09500240238073876,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 60,
+      "field": "fluid/theta",
+      "relativeL2": 1.679491095953898,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 60,
+      "field": "fluid/rhoEs",
+      "relativeL2": 0.6032001731726705,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 60,
+      "field": "fluid/rhoHp",
+      "relativeL2": 0.19175208795900067,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 60,
+      "field": "fluid/particleRadiationAbsorptionCoefficient",
+      "relativeL2": 0.37789340414192063,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 60,
+      "field": "fluid/particleRadiationScatteringCoefficient",
+      "relativeL2": 0.35191494971169646,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 60,
+      "field": "fluid/particleRadiationExtinctionCoefficient",
+      "relativeL2": 0.36389845335237936,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 60,
+      "field": "fluid/particleRadiationAsymmetryFactor",
+      "relativeL2": 0.10329195720609695,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 61,
+      "field": "fluid/epsilonS",
+      "relativeL2": 0.14342749390547227,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 61,
+      "field": "fluid/Tp",
+      "relativeL2": 0.0978734110943663,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 61,
+      "field": "fluid/theta",
+      "relativeL2": 1.1397941726442289,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 61,
+      "field": "fluid/rhoEs",
+      "relativeL2": 0.618079938379824,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 61,
+      "field": "fluid/rhoHp",
+      "relativeL2": 0.23538655308345569,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 61,
+      "field": "fluid/particleRadiationAbsorptionCoefficient",
+      "relativeL2": 0.37789340414192063,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 61,
+      "field": "fluid/particleRadiationScatteringCoefficient",
+      "relativeL2": 0.35191494971169646,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 61,
+      "field": "fluid/particleRadiationExtinctionCoefficient",
+      "relativeL2": 0.36389845335237936,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 61,
+      "field": "fluid/particleRadiationAsymmetryFactor",
+      "relativeL2": 0.10329195720609695,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    },
+    {
+      "pair": "candidate-fp32_vs_candidate-fp64",
+      "sequence": 61,
+      "field": "fluid/particleReflectedWallHeatFlux@fluid_to_graphite",
+      "relativeL2": 0.06089455043911341,
+      "meaning": "5% review hint only, never an acceptance or rejection threshold."
+    }
+  ]
+}

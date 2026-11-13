@@ -209,15 +209,18 @@ void prescribedTrajectoryGclAndComposition() {
     require(maximumGclResidual(mesh,mid,first)<1e-13,"independent first-substep GCL");
     require(maximumGclResidual(mid,finish,second)<1e-13,"independent second-substep GCL");
 }
-void rejectInvalidTrajectory() {
-    const HostState base=coupledPair(); HostMesh gas=base.gasMesh,solid=base.solidMesh;
-    SurfaceMesh surface=base.surface; gas.geometryVersion=77; solid.geometryVersion=88;
-    SweepConstraintReport report; std::string error;
-    require(!moveCoupledMeshesConstrained(base,base.filmAux,{-3,-3},1,gas,solid,surface,report,error),
-        "impossible volume loss must not pass a GCL-only check");
-    require(report.status==SweepConstraintStatus::InvalidTrajectory || report.status==SweepConstraintStatus::Nonconverged,
-        "invalid trajectory diagnosis: "+error);
-    require(gas.geometryVersion==77 && solid.geometryVersion==88,"coupled rejection is transactional");
+void retainFiniteUnattainableTarget() {
+    const HostState base=coupledPair(); HostMesh gas,solid;
+    SurfaceMesh surface; SweepConstraintReport report; std::string error;
+    ugkp::diagnostics::DeviceContext diagnostics{};
+    Tolerances tolerances;tolerances.diagnostics=&diagnostics;
+    require(moveCoupledMeshesConstrained(base,base.filmAux,{-3,-3},1,gas,solid,surface,report,error,
+        SweepConstraintControls{},tolerances),"finite unattainable target retains valid geometry: "+error);
+    for(Real v:gas.volumes)require(chmt::finite(v)&&v>0,"retained gas volume is physical");
+    for(Real v:solid.volumes)require(chmt::finite(v)&&v>0,"retained solid volume is physical");
+    const auto snapshot=ugkp::diagnostics::takeSnapshot(diagnostics);
+    require(report.maximumSweepResidual>1&&!snapshot.hasFatal&&!snapshot.warnings.empty(),
+        "unattainable finite target has an explicit residual warning");
 }
 
 void rebuildActualTrajectorySurface() {
@@ -469,7 +472,7 @@ int main() {
     stationaryNeedsNoDenseSolve();
     nonlinearThreeDimensionalRecession();
     prescribedTrajectoryGclAndComposition();
-    rejectInvalidTrajectory();
+    retainFiniteUnattainableTarget();
     rebuildActualTrajectorySurface();
     rejectInteriorBoundaryDof();
     retainMovingOffsetRejection();

@@ -1,0 +1,47 @@
+{
+  "oldTime": "0.29500248649130967",
+  "newTime": "0.29500231779516362",
+  "noSmoothing": true,
+  "noTemporalInterpolation": true,
+  "patch": "fluid_to_graphite",
+  "features": {
+    "contraction_start": {
+      "patchFaceIndex": 32,
+      "globalFaceIndex": 9080,
+      "x_mm": 60.334736168034794,
+      "radius_mm": 64.90565394544889
+    },
+    "throat": {
+      "patchFaceIndex": 124,
+      "globalFaceIndex": 9172,
+      "x_mm": 152.4052025313651,
+      "radius_mm": 11.804050266794565
+    },
+    "near_exit": {
+      "patchFaceIndex": 163,
+      "globalFaceIndex": 9211,
+      "x_mm": 219.95097063246934,
+      "radius_mm": 26.24669474111441
+    }
+  },
+  "missingSamples": [
+    {
+      "run": "original",
+      "time": "0",
+      "reason": "wall flux output absent; not filled or interpolated"
+    },
+    {
+      "run": "fp32",
+      "time": "0",
+      "reason": "wall flux output absent; not filled or interpolated"
+    }
+  ],
+  "definitions": [
+    "Particle=contact+rebound; Total=convection+radiation+particle.",
+    "Data use saved boundary face values, no spatial or temporal smoothing. Plot lines only join available saved samples.",
+    "Feature selection: first contracted face after cylindrical section; minimum face-center radius; last wall face near exit. No interpolation to geometric throat vertex.",
+    "Original snapshots mostly0.02s; new snapshots0.005s. CSV retains native grids, no resampling.",
+    "Radiation field can be older than snapshot time; radiation_last_update_s is supplied.",
+    "Comparing old cdbd9973 and current63263fca includes algorithm/injection changes, not precision alone."
+  ]
+}

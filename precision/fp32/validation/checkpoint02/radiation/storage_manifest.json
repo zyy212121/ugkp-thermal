@@ -1,0 +1,74 @@
+{
+  "status": "source prepared; mathematical, operator, consistency and numerical execution pending checkpoint-2 batch",
+  "base_commit": "62132492f9dcd02f9202ba7229da73f0ffe3cedf",
+  "scope": "FP32 overlay only. Original FP64 operator/data remain in the parent root variant.",
+  "symbols": {
+    "N": "cells",
+    "A": "directions",
+    "F": "internal faces",
+    "B": "boundary faces",
+    "C": "concurrent direction workspaces",
+    "E": "total upwind entries across directions"
+  },
+  "fp32": [
+    {
+      "arrays": "intensities, frozen",
+      "count": "2*N*A",
+      "bytes": "8*N*A",
+      "meaning": "single deviation from one exactly FP32-representable FP64 origin; no resident all-angle low component"
+    },
+    {
+      "arrays": "Direction::flux",
+      "count": "E",
+      "bytes": "4*E",
+      "meaning": "sweep preconditioner only; native geometry flux retained for true residual"
+    },
+    {
+      "arrays": "DirectionWorkspace::diagonal, source, solved, solvedLow, previous",
+      "count": "5*N*C",
+      "bytes": "20*N*C",
+      "meaning": "low and correction increments are temporary per concurrent direction workspace"
+    }
+  ],
+  "fp64": [
+    {
+      "arrays": "Geometry volume/weights/internalFlux/transportDiagonal/boundaryFlux/cosines/area/denominator/fixed/directionCosines/reflectionWeights/outgoingMeasure",
+      "purpose": "original physical geometry, quadrature and boundary closure"
+    },
+    {
+      "arrays": "absorption/scattering/extinction/asymmetry/emission/wallBlack and MieOpticalProperties tables",
+      "purpose": "physical optical source and black-body energy"
+    },
+    {
+      "arrays": "scaling/nextScaling/rowError/columnError",
+      "count": "4*N*A",
+      "purpose": "original phase balance and its unchanged 1e-12-capable diagnostics"
+    },
+    {
+      "arrays": "DirectionWorkspace::trueDiagonal/trueSource",
+      "count": "2*N*C",
+      "bytes": "16*N*C",
+      "purpose": "original equation residual, not FP32-quantized coefficients promoted at reduction"
+    },
+    {
+      "arrays": "OrderedUpwindGraph::residual_/magnitude_",
+      "count": "A*(2*N+F)",
+      "purpose": "physical per-cell residual and normalization; original per-angle graph lifetime retained"
+    },
+    {
+      "arrays": "origin/oldOrigin/reference, incident/initial/incidentRadiation/power/wallFlux/directionChange/change/magnitude/reduction scratch",
+      "purpose": "origin, physical diagnostics, net radiation and convergence"
+    },
+    {
+      "arrays": "epsilon/mass/temperature/diameter/wallTemperature/emissivity and configured wall arrays",
+      "purpose": "physical input snapshots and preserved particle coupling interface"
+    }
+  ],
+  "integer_metadata": "Existing topology/ordering retained; fluxAddress adds E native-face indices. No narrow-level schedule metadata or kernel.",
+  "net_power": "absorption * (sum[w*((origin-emission)+delta)] + (sum[w]-4*pi)*emission)",
+  "boundary_closure": "Specular sum(weights)-1, diffuse outgoingMeasure-denominator, boundary cosine sum and phase probability row closure are retained explicitly.",
+  "published_residual": "After relaxation and single-float publication, remeasure with no temporary low component and keep existing warning path.",
+  "physical_checks": "No new production refusal/rollback/stop check. Existing intensity roundoff constant and physical warnings unchanged.",
+  "performance": "No total-memory or speedup claim. Retained FP64 physics/graph scratch may dominate; measure only in an authorized future batch.",
+  "deferred": "Narrow-level CTA fusion and other scheduling changes are not included."
+}

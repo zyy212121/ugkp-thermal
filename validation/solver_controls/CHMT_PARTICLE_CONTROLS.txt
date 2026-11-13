@@ -1,0 +1,147 @@
+CHMT / PARTICLE SOLVER CONTROLS - STATIC AUDIT, NOT NUMERICAL ACCEPTANCE
+Startup source: constant/scheme via startupScheme(time), readModelSolverControls
+and readMaterialSolverControls. No per-step dictionary reads.
+Precedence low->high: module, selected precision module, region module,
+selected precision region. Explicit values are not raised by precision floors.
+
+Inventory (section.key -> actual typed field; see defaults below):
+gasTimeStep.minDeltaT -> p.minDt
+gasTimeStep.maxDeltaT -> p.maxDt
+gasTimeStep.maxCo -> p.cfl
+chmt.tolerances.absoluteMass -> p.tolerances.absoluteMass
+chmt.tolerances.relativeMass -> p.tolerances.relativeMass
+chmt.tolerances.absoluteEnergy -> p.tolerances.absoluteEnergy
+chmt.tolerances.relativeEnergy -> p.tolerances.relativeEnergy
+chmt.tolerances.absoluteTemperature -> p.tolerances.absoluteTemperature
+chmt.tolerances.relativeTemperature -> p.tolerances.relativeTemperature
+chmt.tolerances.absoluteGeometry -> p.tolerances.absoluteGeometry
+chmt.tolerances.relativeGeometry -> p.tolerances.relativeGeometry
+chmt.material.thermo.maximumIterations -> p.numerics.thermoMaximumIterations
+chmt.material.reconstruction.maximumIterations -> p.numerics.reconstructionMaximumIterations
+chmt.material.reconstruction.spatialOrder -> p.spatialOrder
+chmt.material.reconstruction.method -> reconstruction
+chmt.surface.composition.maximumIterations -> surface.compositionMaximumIterations
+chmt.surface.composition.relaxation -> surface.compositionRelaxation
+chmt.surface.composition.absoluteChangeTolerance -> surface.compositionAbsoluteTolerance
+chmt.surface.composition.polynomialBisectionIterations -> surface.polynomialBisectionIterations
+chmt.surface.composition.isolatedRootIterations -> surface.isolatedRootIterations
+chmt.surface.composition.refinementIterations -> surface.refinementIterations
+chmt.surface.composition.structuredNewtonIterations -> surface.structuredNewtonIterations
+chmt.surface.composition.poleSearchIterations -> surface.poleSearchIterations
+chmt.surface.thermal.maximumIterations -> surface.thermalMaximumIterations
+chmt.surface.thermal.initialSubdivisions -> surface.initialSubdivisions
+chmt.surface.thermal.maximumSubdivisions -> surface.maximumSubdivisions
+chmt.surface.thermal.subdivisionGrowth -> surface.subdivisionGrowth
+chmt.meshMotion.absoluteVolumeTolerance -> motion.absoluteVolumeTolerance
+chmt.meshMotion.relativeVolumeTolerance -> motion.relativeVolumeTolerance
+chmt.meshMotion.rankTolerance -> motion.rankTolerance
+chmt.meshMotion.maximumIterations -> motion.maximumIterations
+chmt.meshMotion.maximumLineSearch -> motion.maximumLineSearch
+chmt.meshMotion.harmonicMaximumIterations -> motion.harmonicMaximumIterations
+chmt.meshMotion.harmonicRelativeTolerance -> motion.harmonicRelativeTolerance
+coldWall1D.solidificationIterations -> model.particleContact.nonlinearIterations
+chmt.material.maxSubstep -> controls.maxSubstep
+chmt.material.transportCfl -> controls.transportCfl
+chmt.material.reactionCfl -> controls.reactionCfl
+chmt.material.reactionMaxSubstep -> controls.reactionMaxSubstep
+chmt.material.driveRelativeTolerance -> controls.driveRelativeTolerance
+chmt.material.driveSourceFraction -> controls.driveSourceFraction
+chmt.material.driveTractionScale -> controls.driveTractionScale
+chmt.material.maxSubsteps -> controls.maxSubsteps
+chmt.material.conduction.nonlinearMaxIterations -> controls.nonlinearMaxIterations
+chmt.material.conduction.nonlinearRelativeTolerance -> controls.nonlinearRelativeTolerance
+chmt.material.conduction.energyAbsoluteTolerance -> controls.energyAbsoluteTolerance
+chmt.material.conduction.energyRelativeTolerance -> controls.energyRelativeTolerance
+chmt.material.conduction.linearMaxIterations -> controls.linearMaxIterations
+chmt.material.conduction.linearEnergyBudgetFraction -> controls.linearEnergyBudgetFraction
+
+DEFAULTS AND UNITS
+gasTimeStep minDeltaT/maxDeltaT [s], maxCo dimensionless: 0/0/0 in the
+CHMT physics constructor; existing validity rules require positive case values.
+Do not claim an empty CHMT scheme is runnable. Migrate legacy minDt/maxDt/cfl
+and minimum of old maxDt/multirate.gasMaxDt caps.
+chmt.tolerances: absoluteMass1e-14, relativeMass1e-10; absoluteEnergy1e-10,
+relativeEnergy1e-10; absoluteTemperature1e-10, relativeTemperature1e-12;
+absoluteGeometry1e-14, relativeGeometry1e-10. Absolute units retain the existing
+consumer's physical dimension; relative quantities dimensionless.
+material thermo maximumIterations100, reconstruction maximumIterations32,
+spatialOrder2, method LimitedLinear.
+surface composition max60, relaxation.5, absoluteChangeTolerance1e-12,
+polynomialBisection80, isolatedRoot80, refinement8, structuredNewton8, poleSearch160.
+surface thermal maximumIterations100, subdivisions32..512 growth4.
+meshMotion absoluteVolumeTolerance1e-14 [m3], relativeVolumeTolerance1e-10,
+rankTolerance1e-11, maximumIterations24, maximumLineSearch24,
+harmonicMaximumIterations20000, harmonicRelativeTolerance1e-12.
+material maxSubstep0 [s] (uncapped), transportCfl.4, reactionCfl.1,
+reactionMaxSubstep0 [s], driveRelativeTolerance.05, driveSourceFraction.05,
+driveTractionScale1, maxSubsteps100000. conduction nonlinearMaxIterations50,
+nonlinearRelativeTolerance1e-10, energyAbsoluteTolerance1e-10,
+energyRelativeTolerance1e-10, linearMaxIterations2000,
+linearEnergyBudgetFraction.5. FP32 physical controls use PhysicalReal;
+mesh geometry controls stay double. No extra compensation introduced here.
+particle.finiteContact.maximumIterations96; particle.packing.iterations20;
+coldWall1D.solidificationIterations4 (CHMT contact).
+These are defaults, not forced floors. Integer counts are integer; method is enum.
+
+CONSUMPTION
+CouplingInput reads controls before validateRuntimeState and constructs model.
+material controls are passed to CpuMaterialDriver.advanceCandidate:
+nonlinear loop, energy stopping, sparse solver maxIter/tolerance,
+material substep and reaction schedules consume their corresponding fields.
+PhysicsConfig.numerics -> material thermo inversion, least-squares reconstruction,
+InterfaceComposition and InterfaceMath iterations and Geometry/SweepControls.
+GPU material backends copy the PhysicsConfig including numerical settings.
+ParticleCouplingStorage passes packing to phase configuration and calls
+setParticleNumericalControls after owner creation; thermal resident stores
+packingProjectionIterations and particleFiniteContactMaximumIterations.
+GpuParticleThermalConsumerDevice passes the latter to the finite-contact solver.
+Contact nonlinearIterations enters the pre-existing shared coldWall configuration.
+Both base and precision/fp32 paths audited.
+CHMT_SOLVER_CONTROLS reports actual input structures at backend/driver creation;
+this plus source wiring is producer evidence, not proof an inactive branch ran.
+No new evaluations, synchronizations, rejection gates or timestep logging.
+
+LEGACY / RESTART
+Old chmtProperties minDt/maxDt/cfl/spatialOrder/materialReconstruction,
+tolerances, cpuMaterial, multirate gasMaxDt/materialMaxSubstep,
+particle packingIterations/contact nonlinearIterations no longer read as controls.
+Physical calorics/material laws, particle min/max temperature, model switches,
+mesh identity, coupling schedule, restart/output paths remain at original locations.
+maxCouplingIterations/maxRetries were parsed historical fields without active
+consumers; do not advertise them as adjustable working algorithms.
+Checkpoint decode retains historical layout. Only comparison copies normalize
+packingIterations/contact nonlinearIterations, so changing numerical budgets does
+not change physical identity. All other physical comparison fields remain intact.
+Expected startup ModelConfig is retained; saved HostState is restored.
+
+PLANNED ACCEPTANCE (NOT RUN HERE)
+Shared-boundary chmt fixture is shortest gas/material default example:
+minDeltaT1e-12, maxDeltaT1e-5, maxCo.4; coupling .0005; end .001.
+It has no particles/reactions/radiation, so cannot cover those branches.
+Suggested non-exhausting override: conduction linearMaxIterations2100,
+nonlinearMaxIterations55, particle packingIterations22/contact iterations5
+ONLY on a predeclared active particle fixture; finiteContact104 only where contact
+solver is active. Require startup values plus actual completion/finite fields and
+existing convergence/conservation criteria. No forced failure budget tests.
+Restart: process A writes outputDirectory/checkpoint-N; process B sets
+restartDirectory to it, distinct outputDirectory and later endTime, with controls B.
+Use a particle-enabled case to verify the changed numerical identity controls.
+Final acceptance owner must enumerate exact cases/processes and freeze before run.
+
+Gas discretization: gasNumerics module (legacy fvSchemes-shaped keys) now passes
+through shared readGasNumericsDictionary(time,gasRegion); CHMT no longer reads
+gas numerical schemes from mesh.schemes(). Physical model choices stay separate.
+
+TRACKING BUDGET ADDENDUM
+particle.tracking.maxFaceWalkHops: int count, default32 in every application.
+Old CHMT particle.maxFaceCrossings and schedulingProperties
+gpuResidentMaxFaceWalkHops reads removed. Host-only shared helper fills existing
+phase/scheduling fields; unchanged create APIs copy this to resident
+maxFaceWalkHops, consumed by GpuParticleTransport hop loop.
+No device layout, GPU kernel, or algorithm change. gasUGKPSteady includes gasUGKP
+frontend. FP32 CHT independent frontend include synchronized.
+CHMT restart comparison copies ignore this numerical budget; saved layout and
+physical checks unchanged. Capacity/randomSeed retain original interfaces.
+CHMT physics.particle.maxFaceCrossings is historical unused field (no active
+consumer outside archive), not an additional effective knob.
+No numerical test was run for this addendum.

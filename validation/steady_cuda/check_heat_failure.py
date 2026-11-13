@@ -8,6 +8,8 @@ inside production code). Output retains inputs, logs, exits and binary hashes.
 from pathlib import Path
 import argparse,hashlib,json,math,os,re,shutil,struct,subprocess
 
+
+
 ROOT=Path(__file__).resolve().parents[2]
 
 def prepare(d,mass,diameter,end_time,window):
@@ -26,6 +28,17 @@ def prepare(d,mass,diameter,end_time,window):
   out.write(b'UGKP_PARTICLES_SCHEMA1_BIN 1 1\n');out.write(struct.pack('<I',1))
   for x in [.35,.5,.5,0,0,0,10000,0,diameter,mass]:out.write(struct.pack('<d',x))
   out.write(struct.pack('<iiQQ',0,1,12345,1))
+
+ # Explicit controls of the existing one-cell heat-exchange fixture.
+ (d/'constant/scheme').write_text(f'''FoamFile {{version 2.0; format ascii; class dictionary; object scheme;}}
+gasTimeStep {{adjustTimeStep false; courantUpdateInterval 1; maximumTimeStepGrowth 1;}}
+steadyGas {{maxCo .15; maxDeltaT .001; boundaryTime 0; relativeTolerance 0; absoluteTolerance 0; minimumIterations 20001; residualInterval 1000;}}
+steadyParticle {{samplingDeltaT 2e-5; boundaryTime 0; windowSamples {window}; minimumWindows 20001; stableWindows 2; meanTolerance 0; inventoryTolerance 0;}}
+particle {{tracking {{maxFaceWalkHops 1000;}}}}
+gasNumerics {{fluxScheme Tadmor; gasLimiter none; ddtSchemes {{default Euler;}} gradSchemes {{default Gauss linear;}}
+divSchemes {{default none; div(phi,U) Gauss upwind; div(phi,e) Gauss upwind; div(phi,K) Gauss upwind; div(phi,(p|rho)) Gauss upwind; div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear;}}
+laplacianSchemes {{default Gauss linear corrected;}} interpolationSchemes {{default linear;}} snGradSchemes {{default corrected;}}}}
+''')
 
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def field(path):

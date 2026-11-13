@@ -111,6 +111,7 @@ try
     w.useMacroSstInventory=true;
     model.config.model=static_cast<ugkwp::gaswall::BoundaryLayerModel>(a.model);
     model.config.localStressCorrection=a.equilibriumStressClosure==1;
+    model.config.numerics=ugkwp::gaswall::castWallIterationControls<decltype(model.config.relativeTolerance)>(a.numerics);
     model.config.nodes=a.nodes;model.config.maxIterations=a.maxIterations;
     model.config.relativeTolerance=a.relativeTolerance;model.config.absoluteTolerance=a.absoluteTolerance;
     model.config.stretch=a.stretch;model.config.turbulentPrandtl=a.turbulentPrandtl;

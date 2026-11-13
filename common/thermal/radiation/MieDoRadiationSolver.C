@@ -1,3 +1,4 @@
+#include "FoamSolverScheme.H"
 #include "../../../common/gpu/SpecularReflection.H"
 #include "MieDoRadiationSolver.H"
 
@@ -252,7 +253,7 @@ public:
     std::shared_ptr<int> geometryFamily=std::make_shared<int>(0);
     const MieTable mieTable;
     const labelList coupledPatchIds;
-    const MieDoControls controls;
+    MieDoControls controls;
     boolList isCoupledPatch;
     List<PatchRadiationControls> patchControls;
     vectorField directions;
@@ -283,39 +284,28 @@ public:
         isCoupledPatch(mesh.boundary().size(), false),
         patchControls(mesh.boundary().size()),
         diffuseDenominator(mesh.boundary().size()),
-        sourceRelaxation
-        (
-            radiationProperties.lookupOrDefault<scalar>
-            (
-                "sourceRelaxation",
-                scalar(1)
-            )
-        ),
-        linearSolverTolerance
-        (
-            radiationProperties.lookupOrDefault<scalar>
-            (
-                "linearSolverTolerance",
-                min(scalar(1e-12), controls.sourceRelativeTolerance*scalar(0.01))
-            )
-        ),
-        linearSolverRelativeTolerance
-        (
-            radiationProperties.lookupOrDefault<scalar>
-            (
-                "linearSolverRelTol",
-                scalar(0)
-            )
-        ),
-        linearSolverMaxIterations
-        (
-            radiationProperties.lookupOrDefault<label>
-            (
-                "linearSolverMaxIterations",
-                1000
-            )
-        )
+        sourceRelaxation(1),
+        linearSolverTolerance(min(scalar(1e-12),controls.sourceRelativeTolerance*scalar(0.01))),
+        linearSolverRelativeTolerance(0),
+        linearSolverMaxIterations(1000)
     {
+        // Preserve default precision budgets, then allow explicitly requested
+        // startup controls to replace the effective values exactly once.
+        controls.phaseBalanceTolerance=ugkp::gpu::radiationPhaseTolerance(
+            controls.phaseBalanceTolerance,controls.nTheta*controls.nPhi);
+        controls.sourceRelativeTolerance=ugkp::gpu::radiationConvergenceTolerance(controls.sourceRelativeTolerance);
+        linearSolverTolerance=ugkp::gpu::radiationConvergenceTolerance(linearSolverTolerance);
+        const auto& scheme=ugkp::solverControls::startupScheme(mesh.time());
+        scheme.read("radiation.do","radiationActiveEpsilonMin",controls.radiationActiveEpsilonMin,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","maxSourceIterations",controls.maxSourceIterations,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","sourceRelativeTolerance",controls.sourceRelativeTolerance,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","phaseBalanceTolerance",controls.phaseBalanceTolerance,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","maxPhaseBalanceIterations",controls.maxPhaseBalanceIterations,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","angleParallelThreads",controls.angleParallelThreads,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","sourceRelaxation",sourceRelaxation,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","linearSolverTolerance",linearSolverTolerance,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","linearSolverRelTol",linearSolverRelativeTolerance,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","linearSolverMaxIterations",linearSolverMaxIterations,"effectiveDefault",mesh.name());
         if (Pstream::parRun())
         {
             solveFailure("MieDoRadiationSolver requires a reconstructed serial fvMesh");
@@ -639,9 +629,10 @@ ugkp::gpu::RadiationControls radiationControls(const MieDoRadiationSolverData& d
     result.phaseIterations=data.controls.maxPhaseBalanceIterations;result.sourceIterations=data.controls.maxSourceIterations;result.linearIterations=data.linearSolverMaxIterations;
     result.maximumConcurrentAngles=min(max(data.controls.angleParallelThreads,label(1)),max(data.directions.size(),label(1)));
     result.parallelAngles=result.maximumConcurrentAngles>1;
+    result.controlsAlreadyResolved=true;
     return result;
 }
-void copyRadiationField(const std::vector<double>& source,scalarField& target)
+template<class Real> void copyRadiationField(const std::vector<Real>& source,scalarField& target)
 {
     target.setSize(source.size());forAll(target,i)target[i]=source[i];
 }
@@ -832,20 +823,21 @@ MieDoResult MieDoRadiationSolver::solve
     catch(const ugkp::gpu::RadiationError& error){solveFailure(error.what(),error.iteration,error.value,error.cell,error.patch,error.face);}
     catch(const std::exception& error){solveFailure(std::string("CUDA Mie DO solve failed: ")+error.what());}
     if(exportFields&&hostDiagnosticWarningsEnabled()){
+        const auto effectiveControls=radiationControls(data);
         for(label cellI=0;cellI<nCells;++cellI){const auto& phase=output.phaseMetrics[cellI];
-            if(phase.rowError>data.controls.phaseBalanceTolerance||phase.columnError>data.controls.phaseBalanceTolerance)
+            if(phase.rowError>effectiveControls.phaseTolerance||phase.columnError>effectiveControls.phaseTolerance)
                 WarningInFunction<<"DO phase balance iteration budget exhausted; time="<<mesh.time().timeName()<<"; cell="<<cellI
                     <<"; iterations="<<phase.iterations<<"; rowResidual="<<phase.rowError<<"; columnResidual="<<phase.columnError
-                    <<"; limit="<<data.controls.phaseBalanceTolerance<<"; retaining computed phase probabilities"<<endl;
+                    <<"; limit="<<effectiveControls.phaseTolerance<<"; retaining computed phase probabilities"<<endl;
         }
         for(std::size_t direction=0;direction<output.directionWarnings.size();++direction){const auto& warning=output.directionWarnings[direction];
             if(warning.linearIteration>0)WarningInFunction<<"DO linear iteration budget exhausted; time="<<mesh.time().timeName()
                 <<"; direction="<<direction<<"; sourceIteration="<<warning.sourceIteration<<"; linearIterations="<<warning.linearIteration
                 <<"; residual="<<warning.residual<<"; limit="<<warning.limit<<"; retaining computed intensity"<<endl;
         }
-        if(output.maximumRelativeChange>data.controls.sourceRelativeTolerance)
+        if(output.maximumRelativeChange>effectiveControls.sourceTolerance)
             WarningInFunction<<"DO source iteration budget exhausted; time="<<mesh.time().timeName()<<"; iterations="<<output.sourceIterations
-                <<"; residual="<<output.maximumRelativeChange<<"; limit="<<data.controls.sourceRelativeTolerance<<"; retaining computed intensities"<<endl;
+                <<"; residual="<<output.maximumRelativeChange<<"; limit="<<effectiveControls.sourceTolerance<<"; retaining computed intensities"<<endl;
     }
     scratch.intensitiesInitialized=true;return publishedRadiationResult(mesh,scratch,output);
 }

@@ -1,0 +1,542 @@
+#include "../../../common/thermal/ParticleInitialization.H"
+#ifndef CHMT_IO_MESHIO_H
+#define CHMT_IO_MESHIO_H
+#include "configuration/InputValues.H"
+#include "GpuParticleRestartConversion.H"
+#include "gasBoundary/FoamInput.H"
+#include "mesh/Geometry.H"
+#include "DiagnosticsFoam.H"
+#include "DiagnosticsCatalogue.H"
+#include "core/ThermalBoundary.H"
+#include "materials/MaterialCaloric.H"
+#include "cyclicPolyPatch.H"
+#include "emptyPolyPatch.H"
+#include "wallPolyPatch.H"
+#include <map>
+#include <set>
+namespace chmt {
+    namespace io {
+        inline Vec3 point(const Foam::vector& p) {
+            return {p.x(), p.y(), p.z()};
+        }
+        inline Real component(Vec3 p, int axis) {
+            return axis == 0?p.x:axis == 1?p.y:p.z;
+        }
+        struct Bounds {
+            Vec3 lo{1e300, 1e300, 1e300}, hi{-1e300, -1e300, -1e300};
+        };
+        inline void include(Bounds& b, Vec3 p) {
+            b.lo = {std::min(b.lo.x, p.x), std::min(b.lo.y, p.y), std::min(b.lo.z, p.z)};
+            b.hi = {std::max(b.hi.x, p.x), std::max(b.hi.y, p.y), std::max(b.hi.z, p.z)};
+        }
+        inline Bounds cellBounds(const HostMesh& m, int cell) {
+            Bounds b;
+            for (int ci = m.cellFaceOffsets.at(cell); ci<m.cellFaceOffsets.at(cell+1); ++ci) {
+                int f = m.cellFaces[ci];
+                for (int i = m.faceOffsets[f]; i<m.faceOffsets[f+1]; ++i)include(b, m.points[m.facePoints[i]]);
+            }
+            return b;
+        }
+        inline Bounds faceBounds(const HostMesh& m, int face) {
+            Bounds b;
+            for (int i = m.faceOffsets.at(face); i<m.faceOffsets.at(face+1); ++i)include(b,
+                m.points[m.facePoints[i]]);
+            return b;
+        }
+        inline HostMesh importMesh(const Foam::fvMesh& mesh, const Foam::dictionary& properties) {
+            HostMesh out;
+            for (const auto& p:mesh.points())out.points.push_back(point(p));
+            out.oldPoints = out.points;
+            out.referencePoints = out.points;
+            const auto& faces = mesh.faces();
+            const auto& owners = mesh.faceOwner();
+            const auto& neighbours = mesh.faceNeighbour();
+            const int nf = faces.size();
+            out.faceOffsets.push_back(0);
+            out.neighbour.assign(nf, -1);
+            out.periodicPartner.assign(nf, -1);
+            out.boundaryKind.assign(nf, BoundaryKind::Internal);
+            out.boundaryPrimitive.resize(nf);
+            out.thermalBoundary.assign(nf,ThermalBoundaryKind::ZeroGradient);
+            out.boundarySst.resize(nf);
+            for (int f = 0; f<nf; ++f) {
+                out.owner.push_back(owners[f]);
+                if (f<neighbours.size())out.neighbour[f] = neighbours[f];
+                for (auto v:faces[f])out.facePoints.push_back(v);
+                out.faceOffsets.push_back(out.facePoints.size());
+                out.faceIds.push_back(f);
+            }
+            const Foam::dictionary* prescribed = properties.subDictPtr("boundaries");
+            for (const auto& patch:mesh.boundaryMesh()) {
+                if (Foam::isA<Foam::cyclicPolyPatch>(patch)) {
+                    const auto& cyclic = Foam::refCast<const Foam::cyclicPolyPatch>(patch);
+                    require(!cyclic.transform().transforms(),
+                        "rotational/scaled cyclic patches require a vector-transform backend; only translational cyclic is supported");
+                    for (int i = 0; i<patch.size(); ++i) {
+                        const int f = patch.start()+i;
+                        out.boundaryKind[f] = BoundaryKind::Periodic;
+                        out.periodicPartner[f] = cyclic.transformGlobalFace(f);
+                    }
+                } else {
+                    require(!patch.coupled(), "unsupported coupled patch type "+std::string(patch.type()));
+                    BoundaryKind kind = Foam::isA<Foam::emptyPolyPatch>(patch)?BoundaryKind::Empty:Foam::isA<Foam::wallPolyPatch>(patch)?BoundaryKind::NoSlip:BoundaryKind::Slip;
+                    if (prescribed && prescribed->found(patch.name()))kind = ugkp::boundary::physicalKind(text(prescribed->subDict(patch.name()), "kind"));
+                    for (int i = 0; i<patch.size(); ++i)out.boundaryKind[patch.start()+i] = kind;
+                }
+            }
+            std::string error;
+            ugkp::diagnostics::DeviceContext diagnostics{};
+            const bool rebuilt = rebuildGeometry(out, error,&diagnostics);
+            ugkp::diagnostics::dispatch(ugkp::diagnostics::takeSnapshot(diagnostics,ugkp::diagnostics::sourceCatalogue()),ugkp::diagnostics::makeFoamSink());
+            require(rebuilt, "mesh import: "+error);
+            out.oldVolumes = out.volumes;
+            return out;
+        }
+        inline int patchIndex(const Foam::fvMesh& mesh, const std::string& name) {
+            int i = mesh.boundaryMesh().findPatchID(name);
+            require(i >= 0, "mesh has no patch "+name);
+            return i;
+        }
+        inline std::vector<int> selectedPatchFaces(const Foam::fvMesh& mesh,
+            const Foam::dictionary& d,const char* plural,const char* singular) {
+            Foam::wordList names;
+            if(d.found(plural))names=Foam::wordList(d.lookup(plural));
+            else {names.setSize(1);names[0]=text(d,singular);}
+            std::vector<int> faces;std::set<int> seen;
+            for(const auto& name:names){
+                const auto& patch=mesh.boundaryMesh()[patchIndex(mesh,name)];
+                require(seen.insert(patch.index()).second,"duplicate interface patch "+std::string(name));
+                for(int i=0;i<patch.size();++i)faces.push_back(patch.start()+i);
+            }
+            require(!faces.empty(),"selected surface patches are empty");return faces;
+        }
+        struct SurfaceImport {
+            SurfaceMesh mesh;
+            std::vector<int> sourceFaces;
+            std::vector<Bounds> bounds;
+            std::vector<std::vector<Vec3>> vertices;
+        };
+        inline void requireAxisAlignedRectangle(const SurfaceImport& imported, int face, int axis) {
+            const auto& points = imported.vertices.at(face);
+            const auto& bounds = imported.bounds.at(face);
+            const Vec3 extent = bounds.hi-bounds.lo;
+            const Real scale = std::max(1.0, mag(extent)), tolerance = 1e-11*scale;
+            require(points.size() == 4 && axis >= 0 && axis<3,
+                "FilmSineTemperature requires an axis-aligned rectangle");
+            std::vector<int> tangentAxes;
+            for (int a = 0; a<3; ++a) if (component(extent, a)>tolerance) tangentAxes.push_back(a);
+            require(tangentAxes.size() == 2 && component(extent, axis)>tolerance,
+                "FilmSineTemperature requires an axis-aligned rectangle with a tangential sine axis");
+            const Real rectangleArea = component(extent, tangentAxes[0])*component(extent, tangentAxes[1]);
+            require(closeEnough(rectangleArea, imported.mesh.area.at(face), 1e-13*scale*scale, 1e-11),
+                "FilmSineTemperature requires an axis-aligned rectangle, not a bounding-box approximation");
+            std::set<int> corners;
+            std::vector<int> ordered;
+            for (Vec3 point:points) {
+                int mask = 0;
+                for (int j = 0; j<2; ++j) {
+                    const int a = tangentAxes[j];
+                    const Real coordinate = component(point, a);
+                    if (std::abs(coordinate-component(bounds.hi, a)) <= tolerance) mask|=1<<j;
+                    else require(std::abs(coordinate-component(bounds.lo, a)) <= tolerance,
+                        "FilmSineTemperature requires axis-aligned rectangle vertices");
+                }
+                require(corners.insert(mask).second, "duplicate rectangle corner");
+                ordered.push_back(mask);
+            }
+            for (int j = 0; j<4; ++j) {
+                const int changed = ordered[j]^ordered[(j+1)%4];
+                require(changed == 1 || changed == 2, "noncyclic rectangle corner order");
+            }
+        }
+        inline void initializeDryInterfaceAux(HostState& state) {
+            const auto& surface = state.surface;
+            require(surface.area.size() == surface.normal.size()
+                && surface.area.size() == surface.baseVelocity.size(), "incomplete dry interface geometry");
+            require(state.film.empty(), "dry interface must not fabricate film inventory");
+            state.filmAux.resize(surface.area.size());
+            for (std::size_t face = 0; face<surface.area.size(); ++face) {
+                auto& auxiliary = state.filmAux[face];
+                auxiliary.area = surface.area[face];
+                auxiliary.normal = toPhysical(surface.normal[face]);
+                auxiliary.baseVelocity = surface.baseVelocity[face];
+                auxiliary.meanVelocity = auxiliary.baseVelocity;
+                auxiliary.topVelocity = auxiliary.baseVelocity;
+                auxiliary.thickness = 0;
+                auxiliary.temperature = undefinedValue();
+            }
+        }
+        inline void attachCoupledSurface(const Foam::fvMesh& gasSource, const Foam::dictionary& d,
+            HostState& state) {
+            const auto& specification = d.subDict("surface");
+            const auto candidates=selectedPatchFaces(gasSource,specification,"gasPatches","gasPatch");
+            auto& surface = state.surface;
+            require(state.filmAux.size() == surface.area.size(),
+                "coupled surface requires explicit dry/film geometry auxiliaries");
+            std::vector<Real> thickness;
+            for (const auto& auxiliary:state.filmAux) thickness.push_back(auxiliary.thickness);
+
+            std::vector<int> mapping, vertices;
+            std::string error;
+            const bool strictMapping=mapConformalInterface(state.gasMesh, state.solidMesh, surface.solidFace, thickness,
+                candidates, mapping, vertices, error);
+            require(strictMapping, error);
+            surface.gasFace = mapping;
+            for (std::size_t face = 0; face<mapping.size(); ++face) {
+                const int gasFace = mapping[face];
+                const Vec3 gasArea = state.gasMesh.areaVectors[gasFace];
+                const Vec3 gasNormal = normalized(gasArea);
+                surface.gasDistance[face] = std::abs(dot( state.gasMesh.cellCentres[state.gasMesh.owner[gasFace]] -state.gasMesh.faceCentres[gasFace], gasNormal));
+                require(!fixedTemperature(state.gasMesh.thermalBoundary.empty()?nullptr:state.gasMesh.thermalBoundary.data(),gasFace)
+                    && !fixedTemperature(state.solidMesh.thermalBoundary.empty()?nullptr:state.solidMesh.thermalBoundary.data(),surface.solidFace[face]),
+                    "coupled Interface owns thermal exchange; use zeroGradient temperature input on its patches");
+                state.gasMesh.boundaryKind[gasFace] = BoundaryKind::Interface;
+                state.solidMesh.boundaryKind[surface.solidFace[face]] = BoundaryKind::Interface;
+            }
+        }
+        inline SurfaceImport importSurface(const Foam::fvMesh& source, const HostMesh& geometry,
+            const Foam::dictionary& d) {
+            SurfaceImport result;
+            auto& s = result.mesh;
+            const auto selected=selectedPatchFaces(source,d,"patches","patch");
+            std::set<int> ablating;
+            if(d.found("ablatingPatches")){
+                const auto active=selectedPatchFaces(source,d,"ablatingPatches","patch");
+                for(int f:active){require(std::find(selected.begin(),selected.end(),f)!=selected.end(),
+                    "ablating patch must belong to the coupled surface");ablating.insert(f);}
+            }else ablating.insert(selected.begin(),selected.end());
+            const PhysicalVec3 base = readPhysicalVector(d, "baseVelocity"), traction = readPhysicalVector(d, "prescribedTopTraction"),
+                gradient = readPhysicalVector(d, "prescribedPressureGradient");
+            std::map<std::pair<int, int>, std::vector<std::pair<int, std::pair<int, int>>>> edges;
+            for (int f:selected) {
+                const int i=result.sourceFaces.size();
+                s.ablating.push_back(ablating.count(f)?1:0);
+                result.sourceFaces.push_back(f);
+                result.bounds.push_back(faceBounds(geometry, f));
+                const Real area = mag(geometry.areaVectors[f]);
+                const Vec3 normal = geometry.areaVectors[f]/area;
+                require(mag(traction) == 0 && mag(gradient) == 0,
+                    "prescribed and gas-computed driving cannot be mixed");
+                s.gasFace.push_back(-1);
+                s.solidFace.push_back(f);
+                s.solidCell.push_back(geometry.owner[f]);
+                s.persistentId.push_back(geometry.faceIds[f]);
+                s.area.push_back(area);
+                s.oldArea.push_back(area);
+                s.centre.push_back(geometry.faceCentres[f]);
+                s.normal.push_back(normal);
+                s.baseVelocity.push_back(base);
+                s.meshVelocity.push_back({});
+                s.gasDistance.push_back(0);
+                s.solidDistance.push_back(std::abs(dot(geometry.faceCentres[f]-geometry.cellCentres[geometry.owner[f]], normal)));
+                s.prescribedTopTraction.push_back(traction);
+                s.prescribedPressureGradient.push_back(gradient);
+                const auto& face = source.faces()[f];
+                result.vertices.emplace_back();
+                for (int vertex:face) result.vertices.back().push_back(geometry.points[vertex]);
+                for (int k = 0; k<face.size(); ++k) {
+                    int a = face[k], b = face[(k+1)%face.size()];
+                    edges[std::minmax(a, b)].push_back({i, {a, b}});
+                }
+            }
+            // Seam matches come from OpenFOAM cyclic point addressing, not coordinate/n labels.
+            std::vector<std::map<int, int>> cyclicMaps;
+            for (const auto& p:source.boundaryMesh())if (Foam::isA<Foam::cyclicPolyPatch>(p)) {
+                const auto& c = Foam::refCast<const Foam::cyclicPolyPatch>(p);
+                std::map<int, int> map;
+                const auto& own = c.meshPoints();
+                const auto& other = c.nbrPatch().meshPoints();
+                for (const auto& pair:c.coupledPoints())map[own[pair[0]]] = other[pair[1]];
+                cyclicMaps.push_back(std::move(map));
+            }
+            std::set<std::pair<int, int>> consumed;
+            for (const auto& edge:edges) {
+                if (consumed.count(edge.first)) {
+                    continue;
+                }
+                const auto& adjacent = edge.second;
+                require(adjacent.size() <= 2, "nonmanifold film edge");
+                int own = adjacent[0].first, neighbour = -1;
+                Vec3 neighbourEdge{};
+                const int a = adjacent[0].second.first, b = adjacent[0].second.second;
+                const Vec3 centre = (geometry.points[a]+geometry.points[b])*.5;
+                if (adjacent.size() == 2) {
+                    neighbour = adjacent[1].first;
+                    neighbourEdge = centre;
+                } else for (const auto& map:cyclicMaps) {
+                    auto ia = map.find(a), ib = map.find(b);
+                    if (ia == map.end() || ib == map.end())continue;
+                    const std::pair<int, int> key = std::minmax(ia->second, ib->second);
+                    auto match = edges.find(key);
+                    if (match != edges.end() && key != edge.first && match->second.size() == 1) {
+                        require(neighbour<0 || neighbour == match->second[0].first, "ambiguous cyclic film seam");
+                        neighbour = match->second[0].first;
+                        neighbourEdge = (geometry.points[ia->second]+geometry.points[ib->second])*.5;
+                        consumed.insert(key);
+                    }
+                }
+                const Vec3 tangent = geometry.points[b]-geometry.points[a];
+                const Real length = mag(tangent);
+                const Vec3 transverse = cross(tangent, s.normal[own]);
+
+                Vec3 conormal = length>0?normalized(transverse):transverse/mag(transverse);
+                if (dot(conormal, centre-s.centre[own])<0)conormal = -conormal;
+                s.edgeOwner.push_back(own);
+                s.edgeNeighbour.push_back(neighbour);
+                s.edgeLength.push_back(length);
+                s.edgeConormal.push_back(conormal);
+                s.edgeOwnerOffset.push_back(centre-s.centre[own]);
+                s.edgeNeighbourOffset.push_back(neighbour >= 0?neighbourEdge-s.centre[neighbour]:Vec3{});
+                s.sweptEdgeArea.push_back(0);
+                consumed.insert(edge.first);
+            }
+            return result;
+        }
+        inline Foam::volScalarField scalarField(const Foam::fvMesh& mesh, const Foam::word& name,
+            const Foam::dimensionSet& dimensions) {
+            Foam::volScalarField f(Foam::IOobject(name, mesh.time().timeName(), mesh, Foam::IOobject::MUST_READ,
+                Foam::IOobject::NO_WRITE), mesh);
+            require(f.dimensions() == dimensions, "field dimensions mismatch for "+std::string(name));
+            return f;
+        }
+        inline void importGasFields(const Foam::fvMesh& mesh, const ModelConfig& model, HostState& state) {
+            auto rho = scalarField(mesh, "rho", Foam::dimDensity);
+            auto T = scalarField(mesh, "T", Foam::dimTemperature);
+            Foam::volVectorField U(Foam::IOobject("U", mesh.time().timeName(), mesh, Foam::IOobject::MUST_READ,
+                Foam::IOobject::NO_WRITE), mesh);
+            require(U.dimensions() == Foam::dimVelocity, "U dimensions mismatch");
+            Foam::PtrList<Foam::volScalarField> Y(Ns);
+            const bool single=model.physics.gasMode==ugkwp::GasMode::SingleLegacy;
+            for (int s = 0; !single&&s<Ns; ++s)Y.set(s, new Foam::volScalarField(scalarField(mesh,
+                "Y_"+model.speciesNames[s], Foam::dimless)));
+            state.gasMesh.thermalBoundary.assign(mesh.nFaces(),ThermalBoundaryKind::ZeroGradient);
+            for(int patch=0;patch<mesh.boundaryMesh().size();++patch) {
+                for(int f=0;f<mesh.boundaryMesh()[patch].size();++f) {
+                    const int face=mesh.boundaryMesh()[patch].start()+f;
+                    state.gasMesh.thermalBoundary[face]=importedThermalBoundary(
+                        (T.boundaryField()[patch].type()=="totalTemperature"||T.boundaryField()[patch].type()=="uniformFixedValue")?Foam::word("fixedValue"):T.boundaryField()[patch].type(),state.gasMesh.boundaryKind[face],true);
+                }
+            }
+            // Evaluate zeroGradient from its owner before importing a valid EOS
+            // primitive. The operator itself is retained independently above.
+            ugkp::boundary::foam::initialiseStaticPatches(rho);ugkp::boundary::foam::initialiseStaticPatches(T);ugkp::boundary::foam::initialiseStaticPatches(U);
+            for(int species=0;!single&&species<Ns;++species)Y[species].correctBoundaryConditions();
+            state.gas.resize(mesh.nCells());
+            auto primitive = [&](int cell, int patch, int face) {
+                GasPrimitive w;
+                if (patch<0) {
+                    w.rho = rho[cell];
+                    w.temperature = T[cell];
+                    w.velocity = toPhysical(point(U[cell]));
+                    for (int s = 0; s<Ns; ++s)w.Y[s] = single?(s==model.physics.singleGasSpecies?1:0):Y[s][cell];
+                } else {
+                    w.rho = rho.boundaryField()[patch][face];
+                    w.temperature = T.boundaryField()[patch][face];
+                    w.velocity = toPhysical(point(U.boundaryField()[patch][face]));
+                    for (int s = 0; s<Ns; ++s)w.Y[s] = single?(s==model.physics.singleGasSpecies?1:0):Y[s].boundaryField()[patch][face];
+                }
+                GasPrimitive recovered;
+                auto q = conservativeGas(w, 1, model.physics);
+                require(recoverGas(q, 1, model.physics, recovered),
+                    "imported gas caloric expression unavailable");
+                return recovered;
+            };
+            for (int c = 0; c<mesh.nCells(); ++c){
+                const auto w=primitive(c,-1,-1);
+                auto q=conservativeGas(w,state.gasMesh.volumes[c],model.physics);
+                require(finite(q.mass)&&finite(q.energy),
+                    "imported gas caloric expression unavailable");
+                state.gas[c]=q;
+            }
+            for (int patch = 0; patch<mesh.boundaryMesh().size(); ++patch)for (int f = 0; f<mesh.boundaryMesh()[patch].size(); ++f) {
+                const int face=mesh.boundaryMesh()[patch].start()+f;
+                // Empty poly patches have geometric faces but zero field values.
+                // Their unused per-face storage gets a valid owner EOS state.
+                state.gasMesh.boundaryPrimitive[face]=state.gasMesh.boundaryKind[face]==BoundaryKind::Empty
+                    ?primitive(state.gasMesh.owner[face],-1,-1):primitive(-1,patch,f);
+            }
+            Foam::volScalarField p(Foam::IOobject("p",mesh.time().timeName(),mesh,
+                Foam::IOobject::READ_IF_PRESENT,Foam::IOobject::NO_WRITE),mesh,
+                Foam::dimensionedScalar("p",Foam::dimPressure,0));
+            if(!p.headerOk()) {
+                forAll(p,cell)p[cell]=primitive(cell,-1,-1).pressure;
+                forAll(p.boundaryField(),patch)forAll(p.boundaryField()[patch],face)
+                    p.boundaryFieldRef()[patch][face]=state.gasMesh.boundaryPrimitive[mesh.boundaryMesh()[patch].start()+face].pressure;
+            }
+            auto boundary=ugkp::boundary::foam::read(mesh,rho,U,p,T,true);
+            if(!single)ugkp::boundary::foam::readComposition(mesh,Y,boundary);
+            // A wave outlet carries pressure history independently of owner
+            // density/temperature, including its explicitly supplied initial value.
+            for(std::size_t f=0;f<boundary.faces.size();++f)if(boundary.faces[f].wave)
+                state.gasMesh.boundaryPrimitive[f].pressure=boundary.faces[f].value[ugkp::boundary::Pressure];
+            state.gasMesh.gasBoundary=std::make_shared<const ugkp::boundary::Definition>(std::move(boundary));
+            if (model.physics.enableSst) {
+                auto k = scalarField(mesh, "k", Foam::sqr(Foam::dimVelocity));
+                auto omega = scalarField(mesh, "omega", Foam::dimless/Foam::dimTime);
+                k.correctBoundaryConditions();omega.correctBoundaryConditions();
+                state.sst.resize(mesh.nCells());
+                for (int c = 0; c<mesh.nCells(); ++c)state.sst[c] = {state.gas[c].mass*PhysicalReal(k[c]),
+                    state.gas[c].mass*PhysicalReal(omega[c])};
+                for (int p = 0; p<mesh.boundaryMesh().size(); ++p)for (int f = 0; f<mesh.boundaryMesh()[p].size(); ++f) {
+                    const int face=mesh.boundaryMesh()[p].start()+f;
+                    auto& w = state.gasMesh.boundarySst[face];
+                    if(state.gasMesh.boundaryKind[face]==BoundaryKind::Empty) {
+                        const int owner=state.gasMesh.owner[face];w.k=k[owner];w.omega=omega[owner];
+                    } else {
+                        w.k = k.boundaryField()[p][f];
+                        w.omega = omega.boundaryField()[p][f];
+                    }
+                }
+            }
+        }
+        inline void importParticles(const Foam::dictionary& d, const ModelConfig& model, HostState& state) {
+            if (!model.physics.enableParticles) {
+                require(!d.found("particles"), "particle input supplied while particles are disabled");
+                return;
+            }
+            require(model.physics.enableGas && !state.gas.empty(), "thermal particles require imported gas");
+            const auto& policy = d.subDict("particle");
+            require(text(policy,"volumeMode","Coupled")=="Coupled",
+                "CHMT uses the shared coupled gas/particle phase-volume convention");
+            std::vector<PhysicalReal> fractions(state.gas.size(),1);
+            std::vector<ParticleQ> particles;
+            if (d.found("particles")) {
+                const auto& dictionary = d.subDict("particles");
+                for (const auto& key:dictionary.toc()) {
+                    const auto& value = dictionary.subDict(key);
+                    ParticleQ p;
+                    p.id = std::stoull(text(value, "id"));
+                    p.cell = value.lookup<Foam::label>("cell");
+                    p.face = value.lookupOrDefault<Foam::label>("face", -1);
+                    p.state = value.lookupOrDefault<Foam::label>("state", 0);
+                    p.position = readVector(value, "position");
+                    p.velocity = readPhysicalVector(value, "velocity");
+                    p.mass = readPhysical(value, "mass");
+                    p.energy=value.found("temperature")
+                        ?p.mass*ugkwp::ParticleCaloric{}.enthalpy(readPhysical(value,"temperature"))
+                        :readPhysical(value,"thermalEnergy");
+                    p.diameter = readPhysical(value, "diameter");
+                    p.contactAge = readNumber(value, "contactAge", 0);
+                    p.contactDuration = readNumber(value, "contactDuration", 0);
+                    p.contactArea = readPhysical(value, "contactArea", 0);
+                    p.contactRelativeVelocity = readPhysicalVector(value, "contactRelativeVelocity");
+                    p.contactMechanicalEnergy = readPhysical(value, "contactMechanicalEnergy", 0);
+                    p.rng = std::stoull(text(value, "rng", "1"));
+                    if(value.found("thermalHistory")){
+                        const auto& d=value.subDict("thermalHistory");auto& h=p.thermal;
+                        h.status=d.lookupOrDefault<Foam::label>("status",1);
+                        const double originalTemperature=readNumber(d,"temperature");
+                        const double legacyCarry=readNumber(d,"specificEnthalpyResidual",0);
+                        h.temperature=PhysicalReal(originalTemperature);h.theta=readPhysical(d,"theta",0);
+                        array(d,"savedVelocity",h.savedVelocity);
+                        h.contactMaximumArea=readPhysical(d,"contactMaximumArea");
+                        h.contactPeakFraction=readPhysical(d,"contactPeakFraction");
+                        h.coldFrozenArea=readPhysical(d,"coldFrozenArea",0);h.coldContactAge=readNumber(d,"coldContactAge",0);
+                        h.cold2DFrozenArea=readPhysical(d,"cold2DFrozenArea",0);
+                        if(p.state&&model.particleContact.model==3){
+                            const auto nodes=scalars(d,"coldNodeSpecificEnthalpy");
+                            require(nodes.size()==8,"coldWall1D history requires 8 node enthalpies");
+                            for(int j=0;j<8;++j)h.coldNodeSpecificEnthalpy[j]=float(nodes[j]);
+                            array(d,"coldRingSolidMass",h.coldRingSolidMass);
+                        }
+                        if(p.state&&model.particleContact.model==4){
+                            const auto nodes=scalars(d,"cold2DNodeSpecificEnthalpy");
+                            require(nodes.size()==64,"coldWall2D history requires 64 node enthalpies");
+                            for(int j=0;j<64;++j)h.cold2DNodeSpecificEnthalpy[j]=float(nodes[j]);
+                            array(d,"cold2DRingContactAge",h.cold2DRingContactAge);
+                        }
+                        ugkwp::legacyRestart::ParticleCaloric legacyLaw;
+                        legacyLaw.phaseChange=true;
+                        legacyLaw.meltingTemperature=model.particleContact.meltingTemperature;
+                        legacyLaw.mushyRange=model.particleContact.mushyRange;
+                        legacyLaw.latentHeat=model.particleContact.latentHeat;
+                        legacyLaw.solidCp=model.particleContact.solidSpecificHeat;
+                        if(policy.found("contactCoeffs")){
+                            const auto& lawInput=policy.subDict("contactCoeffs");
+                            legacyLaw.meltingTemperature=readNumber(lawInput,"meltingTemperature",legacyLaw.meltingTemperature);
+                            legacyLaw.mushyRange=readNumber(lawInput,"mushyRange",legacyLaw.mushyRange);
+                            legacyLaw.latentHeat=readNumber(lawInput,"latentHeat",legacyLaw.latentHeat);
+                            legacyLaw.solidCp=readNumber(lawInput,"solidSpecificHeat",legacyLaw.solidCp);
+                        }
+                        ugkwp::legacyRestart::importParticleThermalHistory(p,originalTemperature,legacyCarry,model.particleContact.model,legacyLaw);
+                        p.energy=ugkp::thermal::particleSnapshotThermalEnergy(p,model.particleContact.model);
+                        h.initialized=true;
+                    }
+                    require(ugkp::thermal::initializeMobileParticleHistory(p,model.particlePhase),
+                        "particle needs valid free-particle thermal energy or complete attached thermalHistory");
+                    require(p.cell>=0&&std::size_t(p.cell)<fractions.size(),"particle cell is outside the gas mesh");
+                    ugkp::thermal::normalizeParticleContactMechanicalEnergy(p);
+                    particles.push_back(p);
+                }
+            }
+            if(policy.found("voidFractionValues")){
+                fractions=scalars<PhysicalReal>(policy,"voidFractionValues");
+                require(fractions.size()==state.gas.size(),"particle void-fraction count must match imported gas cells");
+            }else{
+                std::vector<PhysicalReal> mass(fractions.size(),0);
+                for(const auto& p:particles)if(p.thermal.status)mass[p.cell]+=p.mass;
+                for(std::size_t c=0;c<mass.size();++c)
+                    fractions[c]=1-mass[c]/(model.particlePhase.rhoSolid*PhysicalReal(state.gasMesh.volumes[c]));
+            }
+            for(std::size_t c=0;c<fractions.size();++c){
+                require(finite(fractions[c])&&fractions[c]>0&&fractions[c]<=1,"invalid gas phase volume fraction");
+                state.gas[c]=state.gas[c]*fractions[c];
+                if(!state.sst.empty()){state.sst[c].rhoK*=fractions[c];state.sst[c].rhoOmega*=fractions[c];}
+            }
+            state.gasVoidFraction.swap(fractions);
+            state.particles.swap(particles);
+        }
+        inline void importSolidFields(const Foam::fvMesh& mesh, const ModelConfig& model, HostState& state) {
+            const int n = mesh.nCells();
+            state.solid.resize(n);
+            auto energy = scalarField(mesh, "solidEnergyDensity", Foam::dimEnergy/Foam::dimVolume);
+            auto porosity = scalarField(mesh, "porosity", Foam::dimless);
+            // Energy density initializes cell inventory; it is not a thermal
+            // boundary prescription and must not masquerade as a temperature.
+            for(int patch=0;patch<mesh.boundaryMesh().size();++patch) {
+                const std::string type=energy.boundaryField()[patch].type();
+                require(type=="zeroGradient" || type=="calculated" || type=="cyclic" || type=="empty" || type=="wedge",
+                    "solidEnergyDensity boundary operator "+type+" is unsupported; prescribe fixed temperature with solidTemperature [K]");
+            }
+            for (int c = 0; c<n; ++c) {
+                state.solid[c].energy = PhysicalReal(energy[c])*PhysicalReal(state.solidMesh.volumes[c]);
+                state.solid[c].porosity = porosity[c];
+            }
+            for (int j = 0; j<Nc; ++j) {
+                auto rho = scalarField(mesh, "rho_"+model.condensedNames[j], Foam::dimDensity);
+                for (int c = 0; c<n; ++c)state.solid[c].condensed[j] = PhysicalReal(rho[c])*PhysicalReal(state.solidMesh.volumes[c]);
+            }
+            for (int j = 0; j<Ns; ++j) {
+                auto rho = scalarField(mesh, "rhoPore_"+model.speciesNames[j], Foam::dimDensity);
+                for (int c = 0; c<n; ++c)state.solid[c].pore[j] = PhysicalReal(rho[c])*PhysicalReal(state.solidMesh.volumes[c]);
+            }
+            for (int r = 0; r<model.physics.nReactions; ++r) {
+                auto extent = scalarField(mesh, "reactionExtentDensity_"+std::to_string(r),
+                    Foam::dimMoles/Foam::dimVolume);
+                for (int c = 0; c<n; ++c)state.solid[c].progress[r] = PhysicalReal(extent[c])*PhysicalReal(state.solidMesh.volumes[c]);
+            }
+            for (const auto& q:state.solid) {
+                PhysicalReal T;
+                require(recoverSolid(q, model.physics, T),
+                    "imported solid caloric expression unavailable");
+            }
+            state.solidMesh.thermalBoundary.assign(mesh.nFaces(),ThermalBoundaryKind::ZeroGradient);
+            Foam::IOobject thermalHeader("solidTemperature",mesh.time().timeName(),mesh,
+                Foam::IOobject::READ_IF_PRESENT,Foam::IOobject::NO_WRITE);
+            if(Foam::isFile(thermalHeader.objectPath(false)) || Foam::isFile(thermalHeader.objectPath(false)+".gz")) {
+                auto thermal=scalarField(mesh,"solidTemperature",Foam::dimTemperature);
+                for(int patch=0;patch<mesh.boundaryMesh().size();++patch)for(int f=0;f<mesh.boundaryMesh()[patch].size();++f) {
+                    const int face=mesh.boundaryMesh()[patch].start()+f,owner=state.solidMesh.owner[face];
+                    const auto policy=importedThermalBoundary(thermal.boundaryField()[patch].type(),state.solidMesh.boundaryKind[face],false);
+                    state.solidMesh.thermalBoundary[face]=policy;
+                    PhysicalReal T=0;require(recoverSolid(state.solid[owner],model.physics,T),"solid thermal owner caloric expression unavailable");
+                    if(policy==ThermalBoundaryKind::FixedValue) {
+                        T=thermal.boundaryField()[patch][f];
+                    }
+                    state.solidMesh.boundaryPrimitive[face].temperature=T;
+                }
+            }
+        }
+    }
+}
+#endif

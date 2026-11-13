@@ -19,7 +19,7 @@ namespace chmt {
         m.zz += w*dx.z*dx.z;
         b += dx*(w*difference);
     }
-    CHMT_HD inline Vec3 solveLeastSquares(const Symmetric3& m, Vec3 rhs) {
+    CHMT_HD inline Vec3 solveLeastSquares(const Symmetric3& m, Vec3 rhs,int maximumIterations=32) {
         // Symmetric Jacobi eigensolve gives the Moore-Penrose solution in the
         // resolved subspace. Cofactor inversion is unstable on oblique 1-D/2-D
         // stencils even when an epsilon is added to the diagonal.
@@ -30,7 +30,7 @@ namespace chmt {
             return {undefinedValue(),undefinedValue(),undefinedValue()};
         if (!(scale>0))return {};
         const Real roundoff = 8*std::numeric_limits<Real>::epsilon()*scale;
-        for (int iteration = 0; iteration<32; ++iteration) {
+        for (int iteration = 0; iteration<maximumIterations; ++iteration) {
             int p = 0, q = 1;
             if (absValue(a[0][2])>absValue(a[p][q])) {
                 p = 0;

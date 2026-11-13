@@ -1,0 +1,6 @@
+FoamFile { version 2.0; format ascii; class dictionary; object scheme; }
+fixture { inner { priority 33; moduleOnly 55; regionWins 34; } }
+regions {
+ solidA { fixture { inner { priority 44; regionWins 45; } } }
+ solidB { fixture { inner { priority 46; } } }
+}

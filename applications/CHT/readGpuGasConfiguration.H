@@ -44,9 +44,10 @@ const dictionary& momentumTransportProperties =
     fluidPropertiesFile.subDict("turbulence");
 const dictionary& ugkwpProps = particlePropertiesFile;
 const GpuSchedulingConfiguration gpuScheduling =
-    readGpuSchedulingConfiguration(schedulingPropertiesFile);
+    readGpuSchedulingConfiguration(schedulingPropertiesFile,
+        ugkp::solverControls::readParticleTrackingMaxFaceWalkHops(runTime,mesh.name()));
 
-const dictionary& fvSchemesDict = mesh.schemes().dict();
+const dictionary fvSchemesDict = ugkp::solverControls::readGasNumericsDictionary(runTime,mesh.name());
 const dictionary& fvSolutionDict = mesh.solution().dict();
 const dictionary* gpuSolutionControls =
     fvSolutionDict.found("UGKP")
@@ -142,7 +143,7 @@ dimensionedScalar TgasMinG("TMin", dimTemperature, gasTMinValue);
 if (!fvSchemesDict.found("fluxScheme"))
 {
     FatalErrorInFunction
-        << "system/fvSchemes must define top-level fluxScheme."
+        << "constant/scheme gasNumerics must define fluxScheme."
         << exit(FatalError);
 }
 const bool strictOpenFoamGasBoundaries = true;
@@ -648,6 +649,7 @@ else
 
 BoundaryLayerInput boundaryLayerInput(momentumTransportProperties,sharedGasModel.model(),gasTurbulenceModel,
     gpuScheduling.pureGasOnly,turbulentPrandtl);
+boundaryLayerInput.configureSolverControls(runTime,mesh.name());
 if(boundaryLayerInput.active()){sstWallTreatment=2;sstWallTreatmentName="boundaryLayer";}
 sharedGasModel.validateNumerics(gasFluxScheme,gasReconstruction,gasLimiter,gasTimeIntegrator,
     gasTurbulenceModel,!gpuScheduling.pureGasOnly,sstWallTreatment);

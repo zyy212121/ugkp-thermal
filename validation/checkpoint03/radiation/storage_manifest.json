@@ -1,0 +1,85 @@
+{
+  "status": "Implementation and compile-only checks; mathematical/operator/numerical validation deferred to the unified checkpoint.",
+  "base_commit": "cbbacfc6a059f8b3089b784fdfc4e6d3d210d2dc",
+  "precision": "RadiationReal=GpuReal; float in FP32, double in FP64.",
+  "single_scalar_arrays": [
+    "Mie host table/interpolation and GPU table/query/result",
+    "all optical coefficients and phase scaling/errors",
+    "geometry transport metrics/quadrature",
+    "physical intensities and frozen physical snapshot",
+    "direction diagonal/source/solved/previous",
+    "ordered residual/magnitude and maximum scratch",
+    "incident moment/net power/boundary flux",
+    "material temperatures/energies/boundary settlement"
+  ],
+  "removed_fp32": [
+    "solvedLow",
+    "high/low recovery",
+    "double origin/oldOrigin",
+    "trueDiagonal/trueSource/trueFlux",
+    "particle enthalpy carry in radiation response"
+  ],
+  "storage_formulas": {
+    "angular": "2*N*A*sizeof(RadiationReal)",
+    "direction_workspaces": "4*N*C*sizeof(RadiationReal)",
+    "upwind_entries": "E*sizeof(RadiationReal)",
+    "per_angle_residual_magnitude": "A*(2*N+F)*sizeof(RadiationReal)"
+  },
+  "retained_independent_state": "frozen values are an angular iteration snapshot; source, residual and material exchange channels have separate physical/algorithmic meanings, not low-part carries.",
+  "schedule": {
+    "threads": 128,
+    "narrow_width_maximum": 128,
+    "maximum_levels_per_cta": 32,
+    "dependencies": "Consecutive narrow levels synchronize within one CTA; wide levels retain original graph nodes. Same schedule for both precisions."
+  },
+  "fp64_interface_boundaries": [
+    "OpenFOAM scalar input/output and host vectors",
+    "host time interval until material kernel entry",
+    "diagnostic record interface"
+  ],
+  "residual": "Residual is evaluated with the actual scalar equation and actual single stored field. A changed relaxed field is remeasured; unit relaxation reuses its identical solved-field residual.",
+  "history": "Checkpoint-02 compensation fixtures remain unchanged in their original path.",
+  "thresholds": {
+    "epsilon": "numeric_limits<RadiationReal>::epsilon(); float epsilon in FP32 and original double epsilon in FP64.",
+    "linear_tolerance": {
+      "original": "requested linearTolerance (default 1e-12)",
+      "fp32": "max(requested,32*epsilon)",
+      "normalization": "max_cell(abs(diagonal*I-source +/- ordered incoming flux*I)) / max(small,abs(diagonal*I),abs(source),abs(outgoing internal face flux*I))",
+      "fp64": "requested unchanged"
+    },
+    "source_tolerance": {
+      "original": "requested sourceTolerance (default 1e-10)",
+      "fp32": "max(requested,32*epsilon)",
+      "normalization": "max_angle(max_cell(abs(I_after-I_before))/max(small,max_cell(abs(I_after))))",
+      "fp64": "requested unchanged"
+    },
+    "phase_tolerance": {
+      "original": "requested phaseTolerance (default 1e-12)",
+      "fp32": "max(requested,max(32,8*Ndir)*epsilon)",
+      "normalization": "row: abs(sum_j P_ij-1); column: abs(sum_j w_j*P_ji-w_i)/abs(w_i). Ordered sums retain direction order.",
+      "fp64": "requested unchanged"
+    },
+    "negative_intensity_roundoff": "Existing factor 256*epsilon*max(1,abs(reference)); epsilon follows scalar type.",
+    "material_relative_tolerance": "FP32 temperature max(requested 1e-10,8*epsilon), energy max(requested 1e-9,32*epsilon); FP64 unchanged.",
+    "material_roundoff": "Existing 4096*epsilon multiplier in conservative boundary scale and implicit material absolute energy allowance; scale expressions unchanged.",
+    "caloric_response": "Existing 64*epsilon*max(abs(exchange),abs(source)); retain max 256 iterations and representable interval termination.",
+    "normalizer_minimum": "numeric_limits<RadiationReal>::min() replaces unrepresentable double minimum only in FP32.",
+    "interpretation": "Preset arithmetic resolution choices only; not validated physical accuracy and never a residual replacement."
+  },
+  "acceptance": {
+    "status": "Frozen before all numerical runs. Both old and new diagnostics are printed. Passing the new bound alone is not a physical accuracy claim.",
+    "coefficient": "c32=8*(Ndir+8)*FLT_EPSILON; c64=0.",
+    "near_equilibrium_old_bound": "B_old=1e-8+2e-5*abs(P_analytic), units W/m^3.",
+    "near_equilibrium_gross": "P_gross=abs(kappa_a)*(sum_a abs(w_a*I_a)+4*pi*abs(B(T_particle))), units W/m^3. Diagnostic arithmetic is host double and never feeds the solver.",
+    "near_equilibrium_new_bound": "B_selected=B_old+c_selected*P_gross. Print actual absolute error, old bound, selected bound, old acceptance, P_actual, P_analytic, input deltaT and RadiationReal-quantized deltaT.",
+    "temperature_cases": "deltaT in {0,+1e-6,-1e-6,+1,-1} K and existing nextafter(float(1000),+infinity) resident input. For abs(P_analytic)>B_selected, computed power must have the same sign.",
+    "local_closure_gross_net": "abs(P_cell*V_cell)+sum_boundary abs(A_face*q_face)+sum_internal abs(sum_angle w_a*F_face,a*I_upwind).",
+    "local_closure_gross_radiative": "V*P_gross plus sum_boundary,angle abs(A*w*cosine*I_boundary) plus sum_internal,angle abs(w*F*I_upwind). Incoming boundary intensity is reconstructed by the fixture from the specified boundary model and input snapshot.",
+    "local_closure_bound": "2e-5*max(1 W,gross_net)+c_selected*gross_radiative. Print absolute cell closure W and old net-normalized closure.",
+    "global_closure": "sum_cells(P*V)+sum_boundary(A*q); internal faces cancel in this net. Bound is 2e-5*max(1 W,sum_cells abs(P*V)+sum_boundary abs(A*q))+c_selected*sum_cells(gross_radiative). Internal faces contribute twice to the conservative global gross observation.",
+    "global_output": "global signed closure W, old/new bound W, old acceptance, total gross radiative W, sum of absolute external net boundary powers W, sum of external angular magnitude W, abs(global closure)/external net magnitude, and a declared one-second observation window giving closure J/gross radiative J and their ratio.",
+    "total_energy_scope": "The stationary fixture has no material inventory or elapsed simulation step. Its declared one-second conversion is diagnostic, not stored material energy. Actual total energy/inventory comparison belongs to the integrated baseline/new64/new32 0.295-to-0.305 checkpoint.",
+    "near_zero_caveat": "Large gross radiative exchange with small net power can yield very large relative net-power error even within the selected absolute bound. All raw fields, old bounds and actual errors remain visible; do not hide this loss of resolution.",
+    "ordered_fixture": "All scalar equation coefficients/state/residual are RadiationReal. Compare reported residual to independently ordered CPU same-scalar residual within 8*epsilon relative to the larger residual; solution error <= max(128*epsilon,8*measured_target)*max(1,max|known solution|). These are preset fixture bounds, pending execution."
+  }
+}

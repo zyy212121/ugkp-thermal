@@ -22,8 +22,8 @@ def main():
         case=out/kind;matrix.prepare(matrix.HERE/"fixtures/chmt-moving-short",case,meta)
         props=case/"constant/chmtProperties"
         props.write_text(props.read_text().replace("model reactingSst;","model equilibriumOde;"))
-        interval=float(re.search(r"couplingInterval\s+([^;]+)",props.read_text())[1])
-        matrix.entry(props,"gasMaxDt",interval/7)
+        interval=float(re.search(r"couplingInterval\s+([^;]+)",(case/"constant/scheme").read_text())[1])
+        matrix.entry(case/"constant/scheme","maxDeltaT",interval/7)
         matrix.run([binary.resolve(),"-case",case],case/"run.log")
         exchanges=[p for p in (case/"chmtOutput").glob("exchange-*.csv") if evidence.rows(p)]
         micro=[len({row["step"] for row in evidence.rows(p)}) for p in exchanges]

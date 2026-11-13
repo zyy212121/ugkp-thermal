@@ -23,7 +23,7 @@ __device__ __forceinline__ auto particleFiniteContactThermalCandidateDevice
     (
         candidate, double(wallTemperature), double(physicalMass), double(parcelMass),
         double(conductanceIntegral), Storage(s.TpMin), Storage(s.TpMax),
-        particleCaloricDevice(s, i)
+        particleCaloricDevice(s, i),s.particleFiniteContactMaximumIterations
     );
     return {publication.valid, double(candidate.temperature),
         candidate.specificEnthalpyResidual, publication.wallEnergy};

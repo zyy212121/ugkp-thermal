@@ -12,19 +12,21 @@ namespace Foam
 {
 namespace gpuThermal
 {
+using MieReal = ugkp::gpu::RadiationReal;
+using MieField = std::vector<MieReal>;
 namespace
 {
 
 struct Node
 {
-    scalar Qabs, Qsca, Qext;
-    scalarField phi;
+    MieReal Qabs, Qsca, Qext;
+    MieField phi;
 };
 
 struct Bracket
 {
     std::size_t lo;
-    scalar w;
+    MieReal w;
 };
 
 [[noreturn]] void fail(const fileName& file, const std::string& message)
@@ -54,28 +56,28 @@ std::string readFile(const fileName& file)
     return clean;
 }
 
-scalar number(const fileName& file, const std::string& label, const std::string& word)
+MieReal number(const fileName& file, const std::string& label, const std::string& word)
 {
     std::istringstream in(word);
-    scalar value;
+    MieReal value;
     char extra;
     if ((in >> value) && !(in >> extra)) return value;
 
 
 
     char* end = nullptr;
-    value = std::strtod(word.c_str(), &end);
+    value = sizeof(MieReal)==sizeof(float) ? MieReal(std::strtof(word.c_str(), &end)) : MieReal(std::strtod(word.c_str(), &end));
     if (end == word.c_str() || *end != '\0')
-        fail(file, label + " is not a scalar: " + word);
+        fail(file, label + " is not a MieReal: " + word);
     return value;
 }
 
-void requireBracketNodes(const fileName& file, const std::string& label, const scalarField& x)
+void requireBracketNodes(const fileName& file, const std::string& label, const MieField& x)
 {
     if (x.size() < 2) fail(file, label + " requires at least two values");
 }
 
-Bracket linearBracket(const scalarField& axis, scalar value)
+Bracket linearBracket(const MieField& axis, MieReal value)
 {
     if (value <= axis[0]) return {0, 0};
     const std::size_t last = axis.size()-1;
@@ -103,18 +105,18 @@ Bracket linearBracket(const scalarField& axis, scalar value)
     return {hi-1, (value-axis[hi-1])/(axis[hi]-axis[hi-1])};
 }
 
-Bracket logBracket(const scalarField& axis, scalar value)
+Bracket logBracket(const MieField& axis, MieReal value)
 {
     if (!(value > 0) || !std::isfinite(value)) value = axis[0];
     Bracket b = linearBracket(axis, value);
-    const scalar a = std::log(axis[b.lo]);
-    const scalar z = std::log(axis[b.lo+1]);
-    const scalar v = std::log(std::max(axis[b.lo], std::min(axis[b.lo+1], value)));
+    const MieReal a = std::log(axis[b.lo]);
+    const MieReal z = std::log(axis[b.lo+1]);
+    const MieReal v = std::log(std::max(axis[b.lo], std::min(axis[b.lo+1], value)));
     b.w = (v-a)/(z-a);
     return b;
 }
 
-scalar blend(const scalar a, const scalar b, const scalar w)
+MieReal blend(const MieReal a, const MieReal b, const MieReal w)
 {
     return a + w*(b-a);
 }
@@ -125,7 +127,7 @@ class MieTableData
 {
 public:
     fileName file;
-    scalarField T, D, mu, band;
+    MieField T, D, mu, band;
     std::vector<Node> nodes;
     std::size_t node(const std::size_t d, const std::size_t t) const
     { return d*static_cast<std::size_t>(T.size()) + t; }
@@ -145,17 +147,17 @@ MieTable::MieTable(const fileName& tableFile)
     const std::string payload = content.substr(payloadBegin, payloadEnd-payloadBegin);
 
     std::istringstream in(payload);
-    auto field = [&](const std::string& expectedName) -> scalarField
+    auto field = [&](const std::string& expectedName) -> MieField
     {
         std::string line, name;
         if (!std::getline(in, line)) fail(tableFile, "missing " + expectedName);
         std::istringstream words(line);
         words >> name;
         if (name != expectedName) fail(tableFile, "expected " + expectedName);
-        std::vector<scalar> values;
+        std::vector<MieReal> values;
         std::string word;
         while (words >> word) values.push_back(number(tableFile, expectedName, word));
-        scalarField result(values.size());
+        MieField result(values.size());
         forAll(result, i) result[i] = values[i];
         return result;
     };
@@ -194,7 +196,7 @@ MieTable::MieTable(const fileName& tableFile)
         std::istringstream phiWords(line);
         phiWords >> tag;
         if (tag != "PHI") fail(tableFile, "malformed PHI");
-        n.phi.setSize(data->mu.size());
+        n.phi.resize(data->mu.size());
         forAll(n.phi, i)
         {
             const std::streampos position = phiWords.tellg();
@@ -222,7 +224,7 @@ MieOpticalSample MieTable::query(const scalar diameter, const scalar temperature
     const Node& b = data_->nodes[data_->node(d.lo,t.lo+1)];
     const Node& c = data_->nodes[data_->node(d.lo+1,t.lo)];
     const Node& e = data_->nodes[data_->node(d.lo+1,t.lo+1)];
-    const auto bi = [&](scalar av, scalar bv, scalar cv, scalar ev)
+    const auto bi = [&](MieReal av, MieReal bv, MieReal cv, MieReal ev)
     { return blend(blend(av,bv,t.w), blend(cv,ev,t.w), d.w); };
     return {bi(a.Qabs,b.Qabs,c.Qabs,e.Qabs), bi(a.Qsca,b.Qsca,c.Qsca,e.Qsca),
         bi(a.Qext,b.Qext,c.Qext,e.Qext), planckBandFraction(temperature)};
@@ -238,9 +240,9 @@ scalar MieTable::phase(const scalar diameter, const scalar temperature, const sc
     const Node& c = data_->nodes[data_->node(d.lo+1,t.lo)];
     const Node& e = data_->nodes[data_->node(d.lo+1,t.lo+1)];
     const auto at = [&](const Node& n){ return blend(n.phi[m.lo],n.phi[m.lo+1],m.w); };
-    const auto bi = [&](scalar av, scalar bv, scalar cv, scalar ev)
+    const auto bi = [&](MieReal av, MieReal bv, MieReal cv, MieReal ev)
     { return blend(blend(av,bv,t.w), blend(cv,ev,t.w), d.w); };
-    const scalar q = bi(a.Qsca,b.Qsca,c.Qsca,e.Qsca);
+    const MieReal q = bi(a.Qsca,b.Qsca,c.Qsca,e.Qsca);
     if (q == 0) return 1;
     return bi(a.Qsca*at(a),b.Qsca*at(b),c.Qsca*at(c),e.Qsca*at(e))/q;
 }
@@ -270,7 +272,11 @@ scalar MieTable::minDiameterM() const { return data_->D[0]; }
 scalar MieTable::maxDiameterM() const { return data_->D[data_->D.size()-1]; }
 scalar MieTable::minTemperatureK() const { return data_->T[0]; }
 scalar MieTable::maxTemperatureK() const { return data_->T[data_->T.size()-1]; }
-const scalarField& MieTable::muValues() const { return data_->mu; }
+scalarField MieTable::muValues() const {
+    scalarField result(data_->mu.size());
+    forAll(result,i)result[i]=data_->mu[i];
+    return result;
+}
 
 }                        
 }                  

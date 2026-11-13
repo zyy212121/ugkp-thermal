@@ -1,0 +1,398 @@
+#ifndef createFields_H
+#define createFields_H
+
+#include "readGpuGasConfiguration.H"
+
+autoPtr<GpuDragModel> gpuDragModel = GpuDragModel::New(ugkwpProps);
+
+const word particleGasHeatTransferModel
+(
+    ugkwpProps.lookupOrDefault<word>
+    (
+        "particleGasHeatTransferModel",
+        "RanzMarshall"
+    )
+);
+label particleGasHeatTransferModelId = -1;
+if (particleGasHeatTransferModel == "none")
+{
+    particleGasHeatTransferModelId = 0;
+}
+else if (particleGasHeatTransferModel == "RanzMarshall")
+{
+    particleGasHeatTransferModelId = 1;
+}
+else
+{
+    FatalErrorInFunction
+        << "Unknown particleGasHeatTransferModel '"
+        << particleGasHeatTransferModel
+        << "'. Supported models are none and RanzMarshall."
+        << exit(FatalError);
+}
+
+uniformDimensionedVectorField g
+(
+    IOobject
+    (
+        "g",
+        runTime.constant(),
+        mesh,
+        IOobject::READ_IF_PRESENT,
+        IOobject::NO_WRITE
+    ),
+    dimensionedVector("g", dimAcceleration, vector::zero)
+);
+
+if (g.dimensions() != dimAcceleration)
+{
+    FatalErrorInFunction
+        << "constant/g must have acceleration dimensions "
+        << dimAcceleration << "; current dimensions are "
+        << g.dimensions() << exit(FatalError);
+}
+
+Info<< "GPU particle forces: dragModel=" << gpuDragModel->modelName()
+    << " particleGasHeatTransferModel=" << particleGasHeatTransferModel
+    << " gravity=" << g.value() << " m/s^2" << nl;
+
+Switch solveParticleTemperature
+(
+    ugkwpProps.lookupOrDefault<Switch>
+    (
+        "particleTemperatureTransport",
+        Switch(false)
+    )
+);
+
+if (!ugkwpProps.found("particleRho"))
+{
+    FatalErrorInFunction
+        << "CHT requires particleRho in constant/particleProperties."
+        << exit(FatalError);
+}
+if (!ugkwpProps.found("particleCp"))
+{
+    FatalErrorInFunction
+        << "CHT requires particleCp in constant/particleProperties."
+        << exit(FatalError);
+}
+
+dimensionedScalar particleThermalRho
+(
+    "particleRho",
+    dimensionSet(1, -3, 0, 0, 0, 0, 0),
+    readScalar(ugkwpProps.lookup("particleRho"))
+);
+
+dimensionedScalar particleCp
+(
+    "particleCp",
+    dimensionSet(0, 2, -2, -1, 0, 0, 0),
+    readScalar(ugkwpProps.lookup("particleCp"))
+);
+
+dimensionedScalar TpMin
+(
+    "TpMin",
+    dimTemperature,
+    ugkwpProps.lookupOrDefault<scalar>
+    (
+        "particleTMin",
+        scalar(300.0)
+    )
+);
+
+dimensionedScalar TpMax
+(
+    "TpMax",
+    dimTemperature,
+    ugkwpProps.lookupOrDefault<scalar>
+    (
+        "particleTMax",
+        scalar(5000.0)
+    )
+);
+
+dimensionedScalar rhoS
+(
+    "rhoS",
+    dimensionSet(1, -3, 0, 0, 0, 0, 0),
+    ugkwpProps.lookupOrDefault<scalar>("rhoS", 2500.0)
+);
+
+dimensionedScalar dS
+(
+    "dS",
+    dimensionSet(0, 1, 0, 0, 0, 0, 0),
+    ugkwpProps.lookupOrDefault<scalar>("dS", 1.0e-3)
+);
+
+dimensionedScalar parcelMass
+(
+    "parcelMass",
+    dimensionSet(1, 0, 0, 0, 0, 0, 0),
+    ugkwpProps.lookupOrDefault<scalar>("parcelMass", 1.0e-9)
+);
+
+
+
+
+dimensionedScalar injectionParcelMass
+(
+    "injectionParcelMass",
+    dimensionSet(1, 0, 0, 0, 0, 0, 0),
+    ugkwpProps.lookupOrDefault<scalar>
+    (
+        "injectionParcelMass",
+        parcelMass.value()
+    )
+);
+
+dimensionedScalar legacyRestartParcelMass
+(
+    "legacyRestartParcelMass",
+    dimensionSet(1, 0, 0, 0, 0, 0, 0),
+    ugkwpProps.lookupOrDefault<scalar>
+    (
+        "legacyRestartParcelMass",
+        parcelMass.value()
+    )
+);
+
+volVectorField U
+(
+    IOobject("U", runTime.timeName(), mesh, IOobject::MUST_READ, IOobject::AUTO_WRITE),
+    mesh
+);
+
+volScalarField p
+(
+    IOobject("p", runTime.timeName(), mesh, IOobject::MUST_READ, IOobject::AUTO_WRITE),
+    mesh
+);
+
+volScalarField Tgas
+(
+    IOobject
+    (
+        "T",
+        runTime.timeName(),
+        mesh,
+        IOobject::MUST_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh
+);
+
+volScalarField rho
+(
+    IOobject
+    (
+        "rho",
+        runTime.timeName(),
+        mesh,
+        IOobject::READ_IF_PRESENT,
+        IOobject::AUTO_WRITE
+    ),
+    p/(max(Tgas, TgasMinG)*Rgas)
+);
+
+volScalarField epsS
+(
+    IOobject("epsilonS", runTime.timeName(), mesh, IOobject::MUST_READ, IOobject::AUTO_WRITE),
+    mesh
+);
+
+volVectorField Us
+(
+    IOobject("Us", runTime.timeName(), mesh, IOobject::MUST_READ, IOobject::AUTO_WRITE),
+    mesh
+);
+
+volScalarField theta
+(
+    IOobject("theta", runTime.timeName(), mesh, IOobject::MUST_READ, IOobject::AUTO_WRITE),
+    mesh
+);
+
+volScalarField nut
+(
+    IOobject
+    (
+        "nut",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar
+    (
+        "zeroNut",
+        dimensionSet(0, 2, -1, 0, 0, 0, 0),
+        scalar(0)
+    ),
+    zeroGradientFvPatchScalarField::typeName
+);
+
+IOobject kFieldHeader
+(
+    "k",
+    runTime.timeName(),
+    mesh,
+    IOobject::READ_IF_PRESENT,
+    IOobject::NO_WRITE,
+    false
+);
+IOobject omegaFieldHeader
+(
+    "omega",
+    runTime.timeName(),
+    mesh,
+    IOobject::READ_IF_PRESENT,
+    IOobject::NO_WRITE,
+    false
+);
+if
+(
+    gasTurbulenceModel == 3
+ && (!kFieldHeader.headerOk() || !omegaFieldHeader.headerOk())
+)
+{
+    FatalErrorInFunction
+        << "kOmegaSST requires readable volScalarField files k and omega "
+        << "at time " << runTime.timeName() << exit(FatalError);
+}
+
+volScalarField k
+(
+    IOobject("k", runTime.timeName(), mesh,
+        IOobject::READ_IF_PRESENT,
+        IOobject::AUTO_WRITE),
+    mesh,
+    dimensionedScalar("k0", dimensionSet(0, 2, -2, 0, 0, 0, 0), sstKMin),
+    zeroGradientFvPatchScalarField::typeName
+);
+
+volScalarField omega
+(
+    IOobject("omega", runTime.timeName(), mesh,
+        IOobject::READ_IF_PRESENT,
+        IOobject::AUTO_WRITE),
+    mesh,
+    dimensionedScalar("omega0", dimless/dimTime, sstOmegaMin),
+    zeroGradientFvPatchScalarField::typeName
+);
+
+// OpenFOAM fields are double API buffers; evaluate physical startup values
+// once in float before publishing them to those buffers.
+const auto startupValue=[](const auto& field,label i,label patch) {
+    return patch<0?field[i]:field.boundaryField()[patch][i];
+};
+const auto startupSpeedSquared=[](const vector& v) {
+    const float x=float(v.x()),y=float(v.y()),z=float(v.z());return x*x+y*y+z*z;
+};
+const auto startupScalar=[&](const word& name,const dimensionSet& dimensions,auto evaluate) {
+    auto result=volScalarField::New(name,mesh,dimensions);auto& field=result.ref();
+    forAll(field,i)field[i]=scalar(evaluate(i,label(-1)));
+    forAll(field.boundaryField(),patch)
+        forAll(field.boundaryField()[patch],i)field.boundaryFieldRef()[patch][i]=scalar(evaluate(i,patch));
+    return result;
+};
+const auto startupVector=[&](const word& name,const dimensionSet& dimensions,auto evaluate) {
+    auto result=volVectorField::New(name,mesh,dimensions);auto& field=result.ref();
+    forAll(field,i)field[i]=evaluate(i,label(-1));
+    forAll(field.boundaryField(),patch)
+        forAll(field.boundaryField()[patch],i)field.boundaryFieldRef()[patch][i]=evaluate(i,patch);
+    return result;
+};
+
+volVectorField rhoU
+(
+    IOobject("rhoU", runTime.timeName(), mesh, IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE),
+    startupVector("fp32InitialRhoU",rho.dimensions()*U.dimensions(),[&](label i,label patch) {
+        const float mass=float(startupValue(rho,i,patch));const auto u=startupValue(U,i,patch);
+        return vector(mass*float(u.x()),mass*float(u.y()),mass*float(u.z()));
+    })
+);
+
+volScalarField rhoE
+(
+    IOobject("rhoE", runTime.timeName(), mesh, IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE),
+    startupScalar("fp32InitialRhoE",p.dimensions(),[&](label i,label patch) {
+        return float(startupValue(p,i,patch))/(float(gammaG.value())-1.0f)
+            +float(startupValue(rho,i,patch))*0.5f*startupSpeedSquared(startupValue(U,i,patch));
+    })
+);
+
+sharedGasModel.initialiseFields(runTime,mesh,rho,rhoU,rhoE,U,p,Tgas);
+
+volVectorField rhoUs
+(
+    IOobject("rhoUs", runTime.timeName(), mesh, IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE),
+    startupVector("fp32InitialRhoUs",epsS.dimensions()*rhoS.dimensions()*Us.dimensions(),[&](label i,label patch) {
+        const float mass=float(startupValue(epsS,i,patch))*float(rhoS.value());const auto u=startupValue(Us,i,patch);
+        return vector(mass*float(u.x()),mass*float(u.y()),mass*float(u.z()));
+    })
+);
+
+volScalarField rhoEs
+(
+    IOobject("rhoEs", runTime.timeName(), mesh, IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE),
+    startupScalar("fp32InitialRhoEs",epsS.dimensions()*rhoS.dimensions()*theta.dimensions(),[&](label i,label patch) {
+        return float(startupValue(epsS,i,patch))*float(rhoS.value())
+            *(0.5f*startupSpeedSquared(startupValue(Us,i,patch))+1.5f*float(startupValue(theta,i,patch)));
+    })
+);
+
+volScalarField rhoDs
+(
+    IOobject("rhoDs", runTime.timeName(), mesh, IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE),
+    startupScalar("fp32InitialRhoDs",epsS.dimensions()*rhoS.dimensions()*dS.dimensions(),[&](label i,label patch) {
+        return float(startupValue(epsS,i,patch))*float(rhoS.value())*float(dS.value());
+    })
+);
+
+volScalarField dMeanCell
+(
+    IOobject("dMeanCell", runTime.timeName(), mesh, IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE),
+    startupScalar("fp32InitialDMean",dS.dimensions(),[&](label i,label patch) {
+        return float(startupValue(rhoDs,i,patch))
+            /(float(startupValue(epsS,i,patch))*float(rhoS.value())+float(SMALL));
+    })
+);
+
+autoPtr<volScalarField> TpPtr;
+if (solveParticleTemperature)
+{
+    TpPtr.reset
+    (
+        new volScalarField
+        (
+            IOobject("Tp", runTime.timeName(), mesh, IOobject::MUST_READ, IOobject::AUTO_WRITE),
+            mesh
+        )
+    );
+}
+else
+{
+    TpPtr.reset
+    (
+        new volScalarField
+        (
+            IOobject("Tp", runTime.timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+            Tgas
+        )
+    );
+}
+
+volScalarField& Tp = TpPtr();
+
+volScalarField rhoHp
+(
+    IOobject("rhoHp", runTime.timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+    epsS*particleThermalRho*particleCp*Tp
+);
+
+#endif

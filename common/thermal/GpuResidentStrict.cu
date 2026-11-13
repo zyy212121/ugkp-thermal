@@ -1,4 +1,5 @@
 #include "BoundaryInjectionApi.H"
+#include "gasNumerics/GasScalarSolverControlsApi.H"
 #include "GpuParticlePhaseGraph.cuh"
 #include "ParticleResidentInterval.H"
 #include "GpuParticleDirectoryGraph.H"
@@ -8,6 +9,7 @@
 #include "ParticleRadiationApi.H"
 #include "GpuFrozenParticleRelease.cuh"
 #include "ParticleGasBinding.H"
+#include "ParticleNumericalControls.H"
 #include "gasTransport/MixturePorosity.H"
 #define GPU_GAS_POROSITY_SPECIES(s,c,scale) scaleMixturePorositySpecies(s,c,scale)
 #define GPU_MIXTURE_PARTICLE_COUPLING 1
@@ -238,6 +240,7 @@ struct DeviceState
     GpuReal turbulentPrandtl = GPU_R(0.9);
     GpuReal waleCw = GPU_R(0.325);
     GpuReal smagorinskyCs = GPU_R(0.17);
+    ugkp::gasNumerics::ScalarSolverControls<GpuReal> gasScalarSolvers;
     int sstConfigured = 0;
     ugkwp::SstCoefficients sstCoefficients =
         ugkwp::defaultSstCoefficients();
@@ -266,6 +269,7 @@ struct DeviceState
     int jammingPressureEnabled = 0;
     GpuReal packingFraction = GPU_R(0.63);
     int packingProjectionIterations = 20;
+    int particleFiniteContactMaximumIterations = 96;
     int csrCellLocalPathEnabled = 1;
     int csrWarpAggregatedBinning = 0;
     int fixedCellBlockThreads = 128;
@@ -566,6 +570,10 @@ struct DeviceState
     GpuReal* pux = nullptr;
     GpuReal* puy = nullptr;
     GpuReal* puz = nullptr;
+    // Source-epoch scratch, not particle payload: each coupling pass writes
+    // before reading, so restart, sorting and migration need no cache copies.
+    GpuReal* couplingDragBeta = nullptr;
+    double* couplingResponseFraction = nullptr;
     GpuReal* puxOld = nullptr;
     GpuReal* puyOld = nullptr;
     GpuReal* puzOld = nullptr;
@@ -964,7 +972,7 @@ int copyToHost(D* dst, const S* src, const size_t n, const char* name)
     return 0;
 }
 
-int syncDeviceState(DeviceState* s, const char* name)
+int syncDeviceState(DeviceState* s, const char* name, bool invalidateParticleGraph=true)
 {
     if (s == nullptr || s->deviceState == nullptr)
     {
@@ -972,7 +980,7 @@ int syncDeviceState(DeviceState* s, const char* name)
         return 1;
     }
 
-    ++s->particleGraphEpoch;
+    if(invalidateParticleGraph)++s->particleGraphEpoch;
     static_assert(offsetof(DeviceState, wallEnergy) == 0, "wall-energy state must be first");
     s->wallEnergy.deviceState = reinterpret_cast<GpuWallEnergyState*>(s->deviceState);
     s->wallEnergy.errorBuffer = lastError;
@@ -1369,6 +1377,7 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->pux);
     release(s->puy);
     release(s->puz);
+    release(s->couplingDragBeta);release(s->couplingResponseFraction);
     release(s->puxOld);
     release(s->compactPuxOld);
     release(s->puyOld);
@@ -1722,6 +1731,8 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->pux, np, "cudaMalloc strict particle ux");
     rc |= allocate(s->puy, np, "cudaMalloc strict particle uy");
     rc |= allocate(s->puz, np, "cudaMalloc strict particle uz");
+    rc |= allocate(s->couplingDragBeta,np,"allocate particle coupling drag beta");
+    rc |= allocate(s->couplingResponseFraction,np,"allocate particle coupling response fraction");
     rc |= allocate(s->puxOld, np, "cudaMalloc strict particle old ux");
     rc |= allocate(s->compactPuxOld, np, "cudaMalloc strict compact particle old ux");
     rc |= allocate(s->puyOld, np, "cudaMalloc strict particle old uy");
@@ -4224,6 +4235,28 @@ extern "C" int ugkwpGpuResidentStrictUploadFields
     return 0;
 }
 
+extern "C" int ugkwpGpuResidentStrictConfigureGasScalarSolvers(
+    void* handle, const ugkp::gasNumerics::ScalarSolverControls<double>* controls)
+{
+    DeviceState* s=static_cast<DeviceState*>(handle);
+    if(!s || !controls) {
+        setLastErrorText("null gas scalar solver configuration");
+        return 1;
+    }
+    s->gasScalarSolvers=ugkp::gasNumerics::castScalarSolverControls<GpuReal>(*controls);
+    // Publish only the startup controls: gasUGKP scrubs unrelated host physical
+    // scalars after field upload, so a whole-state upload would overwrite them.
+    const cudaError_t error=cudaMemcpy(
+        reinterpret_cast<unsigned char*>(s->deviceState)+offsetof(DeviceState,gasScalarSolvers),
+        &s->gasScalarSolvers,sizeof(s->gasScalarSolvers),cudaMemcpyHostToDevice);
+    if(error!=cudaSuccess) {
+        setLastError("configure gas scalar solver controls",error);
+        return 1;
+    }
+    invalidateSharedGasConfiguration(s);
+    return 0;
+}
+
 extern "C" int ugkwpGpuResidentStrictConfigureSst
 (
     void* handle,
@@ -4767,10 +4800,8 @@ int submitResidentThermalParticles(DeviceState* s,double dt,double simulationTim
             err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::SchillerNaumannDeviceDrag,false>
                 (s->deviceState,s->nCells,dt,dragActive,true,split,stream);
         if(err!=cudaSuccess){setLastError("thermal mixture paired drag",err);return 1;}
-        if(particleGrid>0)
-            prepareMixtureThermalParticleHeatKernel<<<particleGrid,s->particleBlockThreads,0,stream>>>(s->deviceState,dt);
-        err=cudaGetLastError();
-        if(err!=cudaSuccess){setLastError("prepare mixture particle caloric response",err);return 1;}
+        // Each heat cell prepares its existing particle-response scratch from
+        // the just-recovered gas state before starting the finite-bath solve.
         err=launchMixtureThermalParticleHeatCells(s->deviceState,s->nCells,dt,true,split,stream);
         if(err!=cudaSuccess){setLastError("thermal mixture caloric exchange",err);return 1;}
         if(particleGrid>0)
@@ -5108,8 +5139,9 @@ int bindParticleSurface(void* handle,int nFaces,const ParticleSurfaceState& surf
     if(nFaces!=s->nFaces || (any && !complete)) {
         setLastErrorText("particle material surface needs matching faces and four resident arrays");return 1;
     }
+    const bool changed=!ugkp::gpu::sameParticleGraphBindingValue(s->particleSurface,surface);
     s->particleSurface=surface;
-    return syncDeviceState(s,"bind non-owning particle surface");
+    return syncDeviceState(s,"bind non-owning particle surface",changed);
 }
 int bindParticleGas(void* handle,const ParticleGasBinding& gas) {
     auto* s=asState(handle);
@@ -5141,6 +5173,28 @@ int bindParticleGas(void* handle,const ParticleGasBinding& gas) {
         const auto err=cudaEventCreateWithFlags(&s->particleGasDone,cudaEventDisableTiming);
         if(err!=cudaSuccess){setLastError("particle gas done event",err);return 1;}
     }
+    // Compare every rebound input, not the entire owner (which also contains
+    // evolving interval, directory and graph-cache metadata). Real address or
+    // model changes still invalidate; repeated publication alone does not.
+    bool changed=!s->borrowedGasFields||!s->borrowedGasSpecies;
+#define UGKP_PARTICLE_GAS_FIELD(Type,Name) \
+    changed=changed||(s->Name!=gas.Name)||!(s->borrowedGasFields&(std::uint64_t(1)<<particleGasField_##Name));
+#include "ParticleGasFields.inc"
+#undef UGKP_PARTICLE_GAS_FIELD
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasSpecies,gas.species);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasViscosity,gas.viscosity);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->diagnostics,gas.diagnostics);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gammaGas,gas.gammaGas);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->Rgas,gas.Rgas);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasCp,gas.gasCp);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasMu,gas.gasMu);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasPrClamped,gas.gasPrClamped);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasPrOneThird,gas.gasPrOneThird);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->rhoMin,gas.rhoMin);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->TgasMin,gas.TgasMin);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasScalarSolvers,gas.gasScalarSolvers);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->gasThermalConductivity,gas.gasThermalConductivity);
+    changed=changed||!ugkp::gpu::sameParticleGraphBindingValue(s->sstConfigured,gas.sstConfigured);
 #define UGKP_PARTICLE_GAS_FIELD(Type,Name) \
     if(!(s->borrowedGasFields&(std::uint64_t(1)<<particleGasField_##Name))) { \
         if(releaseSharedGasPointer(s->Name))return 1; \
@@ -5157,8 +5211,18 @@ int bindParticleGas(void* handle,const ParticleGasBinding& gas) {
     s->gammaGas=gas.gammaGas;s->Rgas=gas.Rgas;s->gasCp=gas.gasCp;s->gasMu=gas.gasMu;
     s->gasPrClamped=gas.gasPrClamped;s->gasPrOneThird=gas.gasPrOneThird;
     s->rhoMin=gas.rhoMin;s->TgasMin=gas.TgasMin;
+    s->gasScalarSolvers=gas.gasScalarSolvers;
     s->gasThermalConductivity=gas.gasThermalConductivity;s->sstConfigured=gas.sstConfigured;
-    return syncDeviceState(s,"bind non-owning particle gas view");
+    return syncDeviceState(s,"bind non-owning particle gas view",changed);
+}
+int setParticleNumericalControls(void* handle,const ParticleNumericalControls& controls) {
+    auto* s=asState(handle);
+    if(validateState(s,"set particle numerical controls"))return 1;
+    const bool changed=s->particleFiniteContactMaximumIterations!=controls.finiteContactMaximumIterations
+        ||s->packingProjectionIterations!=controls.packingIterations;
+    s->particleFiniteContactMaximumIterations=controls.finiteContactMaximumIterations;
+    s->packingProjectionIterations=controls.packingIterations;
+    return syncDeviceState(s,"set particle numerical controls",changed);
 }
 int createBoundParticlePhase(const ParticlePhaseConfiguration& p,
     const ParticleContactConfiguration& wall,const ParticleGasBinding& gas,

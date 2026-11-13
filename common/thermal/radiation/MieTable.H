@@ -48,7 +48,7 @@ public:
     scalar maxDiameterM() const;
     scalar minTemperatureK() const;
     scalar maxTemperatureK() const;
-    const scalarField& muValues() const;
+    scalarField muValues() const;
 };
 
 }                        

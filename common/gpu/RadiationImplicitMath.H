@@ -1,5 +1,6 @@
 #ifndef UGKP_RADIATION_IMPLICIT_MATH_H
 #define UGKP_RADIATION_IMPLICIT_MATH_H
+#include "RadiationPrecision.H"
 #include <cmath>
 #include <limits>
 #ifdef __CUDACC__
@@ -8,25 +9,25 @@
 #define UGKP_RADIATION_HD
 #endif
 namespace ugkp { namespace gpu { namespace radiationMath {
-constexpr double radiationDoubleMinimum=std::numeric_limits<double>::min();
-constexpr double radiationDoubleEpsilon=std::numeric_limits<double>::epsilon();
+constexpr RadiationReal radiationDoubleMinimum=std::numeric_limits<RadiationReal>::min();
+constexpr RadiationReal radiationDoubleEpsilon=std::numeric_limits<RadiationReal>::epsilon();
 // Preserve std::min/max operand order, including unordered IEEE comparisons.
 template<class T> UGKP_RADIATION_HD inline T radiationMaximum(T a,T b){return a<b?b:a;}
 template<class T> UGKP_RADIATION_HD inline T radiationMinimum(T a,T b){return b<a?b:a;}
 struct ImplicitTemperatureRootResult
 {
-    double temperatureK;
-    double residualJ;
+    RadiationReal temperatureK;
+    RadiationReal residualJ;
     int iterations;
 };
 
 struct ConservativeBoundaryEnergyScaleResult
 {
-    double scale;
-    double residualJ;
+    RadiationReal scale;
+    RadiationReal residualJ;
 };
 
-UGKP_RADIATION_HD inline bool finiteParticleRadiationScalar(const double value)
+UGKP_RADIATION_HD inline bool finiteParticleRadiationScalar(const RadiationReal value)
 {
     return std::isfinite(value);
 }
@@ -34,88 +35,88 @@ UGKP_RADIATION_HD inline bool finiteParticleRadiationScalar(const double value)
 
 UGKP_RADIATION_HD inline ConservativeBoundaryEnergyScaleResult conservativeBoundaryEnergyScale
 (
-    const double acceptedParticleEnergyJ,
-    const double rawBoundaryEnergyJ,
-    const double grossRawEnergyJ,
-    const double relativeTolerance,
-    const double radiativeEnergyMagnitudeJ = 0
+    const RadiationReal acceptedParticleEnergyJ,
+    const RadiationReal rawBoundaryEnergyJ,
+    const RadiationReal grossRawEnergyJ,
+    const RadiationReal relativeTolerance,
+    const RadiationReal radiativeEnergyMagnitudeJ = 0
 )
 {
 
 
     if (finiteParticleRadiationScalar(grossRawEnergyJ)
         && finiteParticleRadiationScalar(relativeTolerance)
-        && grossRawEnergyJ >= double(0) && relativeTolerance > double(0))
+        && grossRawEnergyJ >= RadiationReal(0) && relativeTolerance > RadiationReal(0))
     {
-        const double roundoffToleranceJ =
-            double(4096)*radiationDoubleEpsilon
-           *radiationMaximum(radiationMaximum(grossRawEnergyJ, radiativeEnergyMagnitudeJ), double(1));
-        const double zeroToleranceJ =
+        const RadiationReal roundoffToleranceJ =
+            RadiationReal(4096)*radiationDoubleEpsilon
+           *radiationMaximum(radiationMaximum(grossRawEnergyJ, radiativeEnergyMagnitudeJ), RadiationReal(1));
+        const RadiationReal zeroToleranceJ =
             relativeTolerance*grossRawEnergyJ + roundoffToleranceJ;
         if (std::abs(rawBoundaryEnergyJ) <= zeroToleranceJ)
         {
-            const double residualJ = acceptedParticleEnergyJ + rawBoundaryEnergyJ;
+            const RadiationReal residualJ = acceptedParticleEnergyJ + rawBoundaryEnergyJ;
             if (std::abs(residualJ) <= zeroToleranceJ)
             {
-                return ConservativeBoundaryEnergyScaleResult{double(1), residualJ};
+                return ConservativeBoundaryEnergyScaleResult{RadiationReal(1), residualJ};
             }
         }
     }
-    if (rawBoundaryEnergyJ == double(0) && acceptedParticleEnergyJ == double(0))
+    if (rawBoundaryEnergyJ == RadiationReal(0) && acceptedParticleEnergyJ == RadiationReal(0))
     {
-        return ConservativeBoundaryEnergyScaleResult{double(1), double(0)};
+        return ConservativeBoundaryEnergyScaleResult{RadiationReal(1), RadiationReal(0)};
     }
-    const double scale = -acceptedParticleEnergyJ/rawBoundaryEnergyJ;
-    const double residualJ = acceptedParticleEnergyJ + scale*rawBoundaryEnergyJ;
+    const RadiationReal scale = -acceptedParticleEnergyJ/rawBoundaryEnergyJ;
+    const RadiationReal residualJ = acceptedParticleEnergyJ + scale*rawBoundaryEnergyJ;
 
     return ConservativeBoundaryEnergyScaleResult{scale, residualJ};
 }
 
-UGKP_RADIATION_HD inline bool oppositeSigns(const double first, const double second)
+UGKP_RADIATION_HD inline bool oppositeSigns(const RadiationReal first, const RadiationReal second)
 {
     return
-        (first < double(0) && second > double(0))
-     || (first > double(0) && second < double(0));
+        (first < RadiationReal(0) && second > RadiationReal(0))
+     || (first > RadiationReal(0) && second < RadiationReal(0));
 }
 
 template<class PowerAtTemperature>
 UGKP_RADIATION_HD ImplicitTemperatureRootResult solveImplicitMaterialTemperature
 (
-    const double oldTemperatureK,
-    const double equilibriumTemperatureK,
-    const double minimumTemperatureK,
-    const double maximumTemperatureK,
-    const double capacityJPerK,
-    const double elapsedTimeS,
+    const RadiationReal oldTemperatureK,
+    const RadiationReal equilibriumTemperatureK,
+    const RadiationReal minimumTemperatureK,
+    const RadiationReal maximumTemperatureK,
+    const RadiationReal capacityJPerK,
+    const RadiationReal elapsedTimeS,
     const int maxIterations,
-    const double temperatureRelativeTolerance,
-    const double energyRelativeTolerance,
+    const RadiationReal temperatureRelativeTolerance,
+    const RadiationReal energyRelativeTolerance,
     const PowerAtTemperature& powerAtTemperatureW
 )
 {
-    const auto residualAt = [&](const double temperatureK)
+    const auto residualAt = [&](const RadiationReal temperatureK)
     {
-        const double capacityEnergyJ =
+        const RadiationReal capacityEnergyJ =
             capacityJPerK*(temperatureK - oldTemperatureK);
-        const double radiationEnergyJ =
+        const RadiationReal radiationEnergyJ =
             elapsedTimeS*powerAtTemperatureW(temperatureK);
-        const double residualJ = capacityEnergyJ - radiationEnergyJ;
+        const RadiationReal residualJ = capacityEnergyJ - radiationEnergyJ;
 
         return residualJ;
     };
 
-    double lowerTemperatureK = radiationMinimum(oldTemperatureK, equilibriumTemperatureK);
-    double upperTemperatureK = radiationMaximum(oldTemperatureK, equilibriumTemperatureK);
-    double lowerResidualJ = residualAt(lowerTemperatureK);
-    double upperResidualJ = residualAt(upperTemperatureK);
+    RadiationReal lowerTemperatureK = radiationMinimum(oldTemperatureK, equilibriumTemperatureK);
+    RadiationReal upperTemperatureK = radiationMaximum(oldTemperatureK, equilibriumTemperatureK);
+    RadiationReal lowerResidualJ = residualAt(lowerTemperatureK);
+    RadiationReal upperResidualJ = residualAt(upperTemperatureK);
 
-    if (lowerResidualJ == double(0))
+    if (lowerResidualJ == RadiationReal(0))
     {
-        return ImplicitTemperatureRootResult{lowerTemperatureK, double(0), 0};
+        return ImplicitTemperatureRootResult{lowerTemperatureK, RadiationReal(0), 0};
     }
-    if (upperResidualJ == double(0))
+    if (upperResidualJ == RadiationReal(0))
     {
-        return ImplicitTemperatureRootResult{upperTemperatureK, double(0), 0};
+        return ImplicitTemperatureRootResult{upperTemperatureK, RadiationReal(0), 0};
     }
     if (!oppositeSigns(lowerResidualJ, upperResidualJ))
     {
@@ -127,31 +128,31 @@ UGKP_RADIATION_HD ImplicitTemperatureRootResult solveImplicitMaterialTemperature
 
     for (int iteration = 1; iteration <= radiationMaximum(maxIterations, int(1)); ++iteration)
     {
-        const double temperatureK =
-            double(0.5)*(lowerTemperatureK + upperTemperatureK);
-        const double powerW = powerAtTemperatureW(temperatureK);
+        const RadiationReal temperatureK =
+            RadiationReal(0.5)*(lowerTemperatureK + upperTemperatureK);
+        const RadiationReal powerW = powerAtTemperatureW(temperatureK);
 
-        const double capacityEnergyJ =
+        const RadiationReal capacityEnergyJ =
             capacityJPerK*(temperatureK - oldTemperatureK);
-        const double radiationEnergyJ = elapsedTimeS*powerW;
-        const double residualJ = capacityEnergyJ - radiationEnergyJ;
+        const RadiationReal radiationEnergyJ = elapsedTimeS*powerW;
+        const RadiationReal residualJ = capacityEnergyJ - radiationEnergyJ;
 
         last = ImplicitTemperatureRootResult{temperatureK, residualJ, iteration};
-        const double energyScaleJ = radiationMaximum
+        const RadiationReal energyScaleJ = radiationMaximum
         (
             radiationMaximum(std::abs(capacityEnergyJ), std::abs(radiationEnergyJ)),
             radiationDoubleMinimum
         );
-        const double relativeResidual = std::abs(residualJ)/energyScaleJ;
-        const double relativeInterval =
+        const RadiationReal relativeResidual = std::abs(residualJ)/energyScaleJ;
+        const RadiationReal relativeInterval =
             std::abs(upperTemperatureK - lowerTemperatureK)
            /radiationMaximum
             (
                 radiationMaximum(std::abs(temperatureK), std::abs(oldTemperatureK)),
-                double(1)
+                RadiationReal(1)
             );
-        const double absoluteRoundoffToleranceJ =
-            double(4096)*radiationDoubleEpsilon
+        const RadiationReal absoluteRoundoffToleranceJ =
+            RadiationReal(4096)*radiationDoubleEpsilon
            *radiationMaximum
             (
                 std::abs(capacityJPerK)
@@ -162,14 +163,14 @@ UGKP_RADIATION_HD ImplicitTemperatureRootResult solveImplicitMaterialTemperature
                         std::abs(oldTemperatureK),
                         std::abs(temperatureK)
                     ),
-                    double(1)
+                    RadiationReal(1)
                 ),
-                radiationMaximum(std::abs(radiationEnergyJ), double(1))
+                radiationMaximum(std::abs(radiationEnergyJ), RadiationReal(1))
             );
 
         if
         (
-            residualJ == double(0)
+            residualJ == RadiationReal(0)
          ||
             (
                 relativeInterval <= temperatureRelativeTolerance
@@ -209,37 +210,37 @@ UGKP_RADIATION_HD ImplicitTemperatureRootResult solveImplicitMaterialTemperature
 }
 
 template<class RadiativeBalanceAtTemperature>
-UGKP_RADIATION_HD double solveRadiativeEquilibriumTemperature
+UGKP_RADIATION_HD RadiationReal solveRadiativeEquilibriumTemperature
 (
-    const double oldTemperatureK,
-    const double minimumTemperatureK,
-    const double maximumTemperatureK,
+    const RadiationReal oldTemperatureK,
+    const RadiationReal minimumTemperatureK,
+    const RadiationReal maximumTemperatureK,
     const int maxIterations,
-    const double temperatureRelativeTolerance,
+    const RadiationReal temperatureRelativeTolerance,
     const RadiativeBalanceAtTemperature& radiativeBalanceAtTemperature
 )
 {
-    const double oldBalance = radiativeBalanceAtTemperature(oldTemperatureK);
+    const RadiationReal oldBalance = radiativeBalanceAtTemperature(oldTemperatureK);
 
-    if (oldBalance == double(0))
+    if (oldBalance == RadiationReal(0))
     {
         return oldTemperatureK;
     }
 
-    double lowerTemperatureK = oldBalance > double(0)
+    RadiationReal lowerTemperatureK = oldBalance > RadiationReal(0)
       ? oldTemperatureK
       : minimumTemperatureK;
-    double upperTemperatureK = oldBalance > double(0)
+    RadiationReal upperTemperatureK = oldBalance > RadiationReal(0)
       ? maximumTemperatureK
       : oldTemperatureK;
-    double lowerBalance = radiativeBalanceAtTemperature(lowerTemperatureK);
-    double upperBalance = radiativeBalanceAtTemperature(upperTemperatureK);
+    RadiationReal lowerBalance = radiativeBalanceAtTemperature(lowerTemperatureK);
+    RadiationReal upperBalance = radiativeBalanceAtTemperature(upperTemperatureK);
 
-    if (lowerBalance == double(0))
+    if (lowerBalance == RadiationReal(0))
     {
         return lowerTemperatureK;
     }
-    if (upperBalance == double(0))
+    if (upperBalance == RadiationReal(0))
     {
         return upperTemperatureK;
     }
@@ -249,16 +250,16 @@ UGKP_RADIATION_HD double solveRadiativeEquilibriumTemperature
           ? lowerTemperatureK : upperTemperatureK;
     }
 
-    double lastTemperatureK = oldTemperatureK;
+    RadiationReal lastTemperatureK = oldTemperatureK;
     for (int iteration = 1; iteration <= radiationMaximum(maxIterations, int(1)); ++iteration)
     {
-        const double middleTemperatureK =
-            double(0.5)*(lowerTemperatureK + upperTemperatureK);
-        const double middleBalance =
+        const RadiationReal middleTemperatureK =
+            RadiationReal(0.5)*(lowerTemperatureK + upperTemperatureK);
+        const RadiationReal middleBalance =
             radiativeBalanceAtTemperature(middleTemperatureK);
 
         lastTemperatureK = middleTemperatureK;
-        if (middleBalance == double(0))
+        if (middleBalance == RadiationReal(0))
         {
             return middleTemperatureK;
         }
@@ -278,12 +279,12 @@ UGKP_RADIATION_HD double solveRadiativeEquilibriumTemperature
             return lastTemperatureK;
         }
 
-        const double relativeInterval =
+        const RadiationReal relativeInterval =
             std::abs(upperTemperatureK - lowerTemperatureK)
-           /radiationMaximum(std::abs(middleTemperatureK), double(1));
+           /radiationMaximum(std::abs(middleTemperatureK), RadiationReal(1));
         if (relativeInterval <= temperatureRelativeTolerance)
         {
-            return double(0.5)*(lowerTemperatureK + upperTemperatureK);
+            return RadiationReal(0.5)*(lowerTemperatureK + upperTemperatureK);
         }
     }
 
@@ -293,21 +294,21 @@ UGKP_RADIATION_HD double solveRadiativeEquilibriumTemperature
 template<class RadiativeBalanceAtTemperature, class PowerAtTemperature>
 UGKP_RADIATION_HD ImplicitTemperatureRootResult solveBoundedImplicitMaterialTemperature
 (
-    const double oldTemperatureK,
-    const double minimumTemperatureK,
-    const double maximumTemperatureK,
-    const double capacityJPerK,
-    const double elapsedTimeS,
+    const RadiationReal oldTemperatureK,
+    const RadiationReal minimumTemperatureK,
+    const RadiationReal maximumTemperatureK,
+    const RadiationReal capacityJPerK,
+    const RadiationReal elapsedTimeS,
     const int maxIterations,
-    const double temperatureRelativeTolerance,
-    const double energyRelativeTolerance,
+    const RadiationReal temperatureRelativeTolerance,
+    const RadiationReal energyRelativeTolerance,
     const RadiativeBalanceAtTemperature& radiativeBalanceAtTemperature,
     const PowerAtTemperature& powerAtTemperatureW
 )
 {
-    const double oldBalance = radiativeBalanceAtTemperature(oldTemperatureK);
+    const RadiationReal oldBalance = radiativeBalanceAtTemperature(oldTemperatureK);
 
-    if (oldBalance == double(0))
+    if (oldBalance == RadiationReal(0))
     {
         return solveImplicitMaterialTemperature
         (
@@ -324,26 +325,26 @@ UGKP_RADIATION_HD ImplicitTemperatureRootResult solveBoundedImplicitMaterialTemp
         );
     }
 
-    double nearTemperatureK = oldTemperatureK;
-    double nearBalance = oldBalance;
-    double farTemperatureK = oldBalance > double(0)
+    RadiationReal nearTemperatureK = oldTemperatureK;
+    RadiationReal nearBalance = oldBalance;
+    RadiationReal farTemperatureK = oldBalance > RadiationReal(0)
       ? maximumTemperatureK
       : minimumTemperatureK;
-    double farBalance = radiativeBalanceAtTemperature(farTemperatureK);
+    RadiationReal farBalance = radiativeBalanceAtTemperature(farTemperatureK);
 
-    if (farBalance != double(0) && oppositeSigns(nearBalance, farBalance))
+    if (farBalance != RadiationReal(0) && oppositeSigns(nearBalance, farBalance))
     {
         for (int iteration = 1; iteration <= radiationMaximum(maxIterations, int(1)); ++iteration)
         {
-            const double middleTemperatureK =
-                double(0.5)*(nearTemperatureK + farTemperatureK);
-            const double middleBalance =
+            const RadiationReal middleTemperatureK =
+                RadiationReal(0.5)*(nearTemperatureK + farTemperatureK);
+            const RadiationReal middleBalance =
                 radiativeBalanceAtTemperature(middleTemperatureK);
 
-            if (middleBalance == double(0))
+            if (middleBalance == RadiationReal(0))
             {
                 farTemperatureK = middleTemperatureK;
-                farBalance = double(0);
+                farBalance = RadiationReal(0);
                 break;
             }
             if (oppositeSigns(nearBalance, middleBalance))
@@ -361,9 +362,9 @@ UGKP_RADIATION_HD ImplicitTemperatureRootResult solveBoundedImplicitMaterialTemp
                 break;
             }
 
-            const double relativeInterval =
+            const RadiationReal relativeInterval =
                 std::abs(farTemperatureK - nearTemperatureK)
-               /radiationMaximum(std::abs(middleTemperatureK), double(1));
+               /radiationMaximum(std::abs(middleTemperatureK), RadiationReal(1));
             if (relativeInterval <= temperatureRelativeTolerance)
             {
                 break;

@@ -1,11 +1,14 @@
 import os,shutil,re,subprocess,json,sys
 from pathlib import Path
+
+
 R=Path(__file__).resolve().parents[2];out=Path(sys.argv[1]);out.mkdir(parents=True,exist_ok=False)
 mode=sys.argv[2] if len(sys.argv)>2 else 'gas'
 def patch(c,field,name,body):
  p=c/'0'/field;s,n=re.subn(r'\b'+name+r'\s*\{[^}]*\}',name+' { '+body+' }',p.read_text());assert n==1,(p,name);p.write_text(s)
 def entry(c,key,value):
- p=c/'system/controlDict';s,n=re.subn(r'\b'+key+r'\s+[^;]+;',key+' '+str(value)+';',p.read_text());assert n==1,(key,n);p.write_text(s)
+ p=c/'system/controlDict'
+ s,n=re.subn(r'\b'+key+r'\s+[^;]+;',key+' '+str(value)+';',p.read_text());assert n==1,(key,n);p.write_text(s)
 def clone(src,name):
  c=out/name;c.mkdir()
  for part in ['0','constant','system']:shutil.copytree(src/part,c/part)

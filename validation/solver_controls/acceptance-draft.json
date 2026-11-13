@@ -1,0 +1,877 @@
+{
+  "status": "DRAFT_NOT_FROZEN_NOT_EXECUTABLE",
+  "original_nodes": 115,
+  "proposed_additional_top_level_nodes": 20,
+  "processes": [
+    {
+      "id": "loader-32-absent",
+      "top_level_node": "loader-32",
+      "precision": 32,
+      "scenario": "absent",
+      "executable": "@BATCH@/fixtures/loader-fp32",
+      "argv": [
+        "@BATCH@/fixtures/loader-fp32",
+        "-case",
+        "@BATCH@/scheme-inputs/loader-32-absent",
+        "-scenario",
+        "absent"
+      ],
+      "depends_on": [],
+      "inputs": "no constant/scheme",
+      "expected": [
+        "exit 0",
+        "LOADER_SUMMARY failures=0",
+        "exactly one SCHEME_STARTUP",
+        "priority and cross-region sentinels follow selected compiledBits; unselected precision does not leak"
+      ],
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "loader-32-empty",
+      "top_level_node": "loader-32",
+      "precision": 32,
+      "scenario": "empty",
+      "executable": "@BATCH@/fixtures/loader-fp32",
+      "argv": [
+        "@BATCH@/fixtures/loader-fp32",
+        "-case",
+        "@BATCH@/scheme-inputs/loader-32-empty",
+        "-scenario",
+        "empty"
+      ],
+      "depends_on": [],
+      "inputs": "fixtures/empty.scheme",
+      "expected": [
+        "exit 0",
+        "LOADER_SUMMARY failures=0",
+        "exactly one SCHEME_STARTUP",
+        "priority and cross-region sentinels follow selected compiledBits; unselected precision does not leak"
+      ],
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "loader-32-precedence",
+      "top_level_node": "loader-32",
+      "precision": 32,
+      "scenario": "precedence",
+      "executable": "@BATCH@/fixtures/loader-fp32",
+      "argv": [
+        "@BATCH@/fixtures/loader-fp32",
+        "-case",
+        "@BATCH@/scheme-inputs/loader-32-precedence",
+        "-scenario",
+        "precedence"
+      ],
+      "depends_on": [],
+      "inputs": "fixtures/precedence.scheme",
+      "expected": [
+        "exit 0",
+        "LOADER_SUMMARY failures=0",
+        "exactly one SCHEME_STARTUP",
+        "priority and cross-region sentinels follow selected compiledBits; unselected precision does not leak"
+      ],
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "loader-32-snapshot",
+      "top_level_node": "loader-32",
+      "precision": 32,
+      "scenario": "snapshot",
+      "executable": "@BATCH@/fixtures/loader-fp32",
+      "argv": [
+        "@BATCH@/fixtures/loader-fp32",
+        "-case",
+        "@BATCH@/scheme-inputs/loader-32-snapshot",
+        "-scenario",
+        "snapshot"
+      ],
+      "depends_on": [],
+      "inputs": "fixtures/precedence.scheme",
+      "expected": [
+        "exit 0",
+        "LOADER_SUMMARY failures=0",
+        "exactly one SCHEME_STARTUP",
+        "priority and cross-region sentinels follow selected compiledBits; unselected precision does not leak"
+      ],
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "loader-32-reload",
+      "top_level_node": "loader-32",
+      "precision": 32,
+      "scenario": "reload",
+      "executable": "@BATCH@/fixtures/loader-fp32",
+      "argv": [
+        "@BATCH@/fixtures/loader-fp32",
+        "-case",
+        "@BATCH@/scheme-inputs/loader-32-snapshot",
+        "-scenario",
+        "reload"
+      ],
+      "depends_on": [
+        "loader-32-snapshot"
+      ],
+      "inputs": "replacement written by snapshot process",
+      "expected": [
+        "exit 0",
+        "LOADER_SUMMARY failures=0",
+        "exactly one SCHEME_STARTUP",
+        "priority and cross-region sentinels follow selected compiledBits; unselected precision does not leak"
+      ],
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "empty-gasUGKP-32",
+      "top_level_node": "empty-gasUGKP-32",
+      "precision": 32,
+      "app": "gasUGKP",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/32/gasUGKP",
+        "-case",
+        "@BATCH@/scheme-inputs/empty-gasUGKP-32"
+      ],
+      "existing_input_reference": "validation/molecular_transport/fixtures/gas-sst",
+      "input_delta": "Use header-only scheme; optional obsolete conflicting controls must not influence typed defaults",
+      "expected": [
+        "effective controls match declared typed precision defaults",
+        "active production consumers receive defaults",
+        "finite/trend/actual convergence/rough conservation"
+      ],
+      "state": "PENDING_COMMAND"
+    },
+    {
+      "id": "empty-gasUGKPSteady-32",
+      "top_level_node": "empty-gasUGKPSteady-32",
+      "precision": 32,
+      "app": "gasUGKPSteady",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/32/gasUGKPSteady",
+        "-case",
+        "@BATCH@/scheme-inputs/empty-gasUGKPSteady-32"
+      ],
+      "existing_input_reference": "validation/shared_boundary/fixtures/steady-table",
+      "input_delta": "Use header-only scheme; optional obsolete conflicting controls must not influence typed defaults",
+      "expected": [
+        "effective controls match declared typed precision defaults",
+        "active production consumers receive defaults",
+        "finite/trend/actual convergence/rough conservation"
+      ],
+      "state": "PENDING_COMMAND"
+    },
+    {
+      "id": "empty-CHT-32",
+      "top_level_node": "empty-CHT-32",
+      "precision": 32,
+      "app": "CHT",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/32/CHT",
+        "-case",
+        "@BATCH@/scheme-inputs/empty-CHT-32"
+      ],
+      "existing_input_reference": "validation/molecular_transport/fixtures/cht-contact",
+      "input_delta": "Use header-only scheme; optional obsolete conflicting controls must not influence typed defaults",
+      "expected": [
+        "effective controls match declared typed precision defaults",
+        "active production consumers receive defaults",
+        "finite/trend/actual convergence/rough conservation"
+      ],
+      "state": "PENDING_COMMAND"
+    },
+    {
+      "id": "minimal-default-CHMT-32",
+      "top_level_node": "minimal-default-CHMT-32",
+      "precision": 32,
+      "app": "CHMT",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/32/CHMT",
+        "-case",
+        "@BATCH@/scheme-inputs/minimal-default-CHMT-32"
+      ],
+      "existing_input_reference": "validation/shared_boundary/fixtures/chmt",
+      "input_delta": "Migrated independent copy; minimal scheme gasTimeStep { minDeltaT 1e-12; maxDeltaT 1e-5; maxCo .4; }; other controls use defaults.",
+      "expected": [
+        "required time-control values match migrated case values",
+        "all omitted controls use typed defaults",
+        "finite/trend/actual convergence/rough conservation",
+        "do not assert a header-only CHMT scheme succeeds"
+      ],
+      "state": "PENDING_COMMAND",
+      "required_evidence": [
+        "CHMT_SOLVER_CONTROLS actual typed structure values and activation flags"
+      ]
+    },
+    {
+      "id": "restart-CHMT-32-initial",
+      "top_level_node": "restart-CHMT-32",
+      "precision": 32,
+      "app": "CHMT",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/32/CHMT",
+        "-case",
+        "@BATCH@/scheme-inputs/restart-CHMT-32-initial"
+      ],
+      "depends_on": [],
+      "inputs": "Independent shared_boundary chmt; initial endTime=.0005, restart endTime=.001. restartDirectory points to initial outputDirectory/checkpoint-1. Restart has distinct outputDirectory; preserve actual model and HostState. Confirm checkpoint filename from code before freeze.",
+      "expected": [
+        "restart preserves state and consumes new process controls",
+        "finite/continuity/actual convergence/closure"
+      ],
+      "state": "PENDING_CASE",
+      "existing_input_reference": "validation/shared_boundary/fixtures/chmt",
+      "scheme_change_proposal": {
+        "chmt.material.conduction.nonlinearMaxIterations": {
+          "initial": 50,
+          "restart": 61
+        }
+      },
+      "pending_detail": "Active-consumer assertion pending CHMT owner startup summary. Existing fixture has particles/reactions/radiation/film OFF.",
+      "required_evidence": [
+        "CHMT_SOLVER_CONTROLS actual typed structure values and activation flags"
+      ]
+    },
+    {
+      "id": "restart-CHMT-32-restart",
+      "top_level_node": "restart-CHMT-32",
+      "precision": 32,
+      "app": "CHMT",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/32/CHMT",
+        "-case",
+        "@BATCH@/scheme-inputs/restart-CHMT-32-restart"
+      ],
+      "depends_on": [
+        "restart-CHMT-32-initial"
+      ],
+      "inputs": "Independent shared_boundary chmt; initial endTime=.0005, restart endTime=.001. restartDirectory points to initial outputDirectory/checkpoint-1. Restart has distinct outputDirectory; preserve actual model and HostState. Confirm checkpoint filename from code before freeze.",
+      "expected": [
+        "restart preserves state and consumes new process controls",
+        "finite/continuity/actual convergence/closure"
+      ],
+      "state": "PENDING_CASE",
+      "existing_input_reference": "validation/shared_boundary/fixtures/chmt",
+      "scheme_change_proposal": {
+        "chmt.material.conduction.nonlinearMaxIterations": {
+          "initial": 50,
+          "restart": 61
+        }
+      },
+      "pending_detail": "Active-consumer assertion pending CHMT owner startup summary. Existing fixture has particles/reactions/radiation/film OFF.",
+      "required_evidence": [
+        "CHMT_SOLVER_CONTROLS actual typed structure values and activation flags"
+      ]
+    },
+    {
+      "id": "loader-64-absent",
+      "top_level_node": "loader-64",
+      "precision": 64,
+      "scenario": "absent",
+      "executable": "@BATCH@/fixtures/loader-fp64",
+      "argv": [
+        "@BATCH@/fixtures/loader-fp64",
+        "-case",
+        "@BATCH@/scheme-inputs/loader-64-absent",
+        "-scenario",
+        "absent"
+      ],
+      "depends_on": [],
+      "inputs": "no constant/scheme",
+      "expected": [
+        "exit 0",
+        "LOADER_SUMMARY failures=0",
+        "exactly one SCHEME_STARTUP",
+        "priority and cross-region sentinels follow selected compiledBits; unselected precision does not leak"
+      ],
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "loader-64-empty",
+      "top_level_node": "loader-64",
+      "precision": 64,
+      "scenario": "empty",
+      "executable": "@BATCH@/fixtures/loader-fp64",
+      "argv": [
+        "@BATCH@/fixtures/loader-fp64",
+        "-case",
+        "@BATCH@/scheme-inputs/loader-64-empty",
+        "-scenario",
+        "empty"
+      ],
+      "depends_on": [],
+      "inputs": "fixtures/empty.scheme",
+      "expected": [
+        "exit 0",
+        "LOADER_SUMMARY failures=0",
+        "exactly one SCHEME_STARTUP",
+        "priority and cross-region sentinels follow selected compiledBits; unselected precision does not leak"
+      ],
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "loader-64-precedence",
+      "top_level_node": "loader-64",
+      "precision": 64,
+      "scenario": "precedence",
+      "executable": "@BATCH@/fixtures/loader-fp64",
+      "argv": [
+        "@BATCH@/fixtures/loader-fp64",
+        "-case",
+        "@BATCH@/scheme-inputs/loader-64-precedence",
+        "-scenario",
+        "precedence"
+      ],
+      "depends_on": [],
+      "inputs": "fixtures/precedence.scheme",
+      "expected": [
+        "exit 0",
+        "LOADER_SUMMARY failures=0",
+        "exactly one SCHEME_STARTUP",
+        "priority and cross-region sentinels follow selected compiledBits; unselected precision does not leak"
+      ],
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "loader-64-snapshot",
+      "top_level_node": "loader-64",
+      "precision": 64,
+      "scenario": "snapshot",
+      "executable": "@BATCH@/fixtures/loader-fp64",
+      "argv": [
+        "@BATCH@/fixtures/loader-fp64",
+        "-case",
+        "@BATCH@/scheme-inputs/loader-64-snapshot",
+        "-scenario",
+        "snapshot"
+      ],
+      "depends_on": [],
+      "inputs": "fixtures/precedence.scheme",
+      "expected": [
+        "exit 0",
+        "LOADER_SUMMARY failures=0",
+        "exactly one SCHEME_STARTUP",
+        "priority and cross-region sentinels follow selected compiledBits; unselected precision does not leak"
+      ],
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "loader-64-reload",
+      "top_level_node": "loader-64",
+      "precision": 64,
+      "scenario": "reload",
+      "executable": "@BATCH@/fixtures/loader-fp64",
+      "argv": [
+        "@BATCH@/fixtures/loader-fp64",
+        "-case",
+        "@BATCH@/scheme-inputs/loader-64-snapshot",
+        "-scenario",
+        "reload"
+      ],
+      "depends_on": [
+        "loader-64-snapshot"
+      ],
+      "inputs": "replacement written by snapshot process",
+      "expected": [
+        "exit 0",
+        "LOADER_SUMMARY failures=0",
+        "exactly one SCHEME_STARTUP",
+        "priority and cross-region sentinels follow selected compiledBits; unselected precision does not leak"
+      ],
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "empty-gasUGKP-64",
+      "top_level_node": "empty-gasUGKP-64",
+      "precision": 64,
+      "app": "gasUGKP",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/64/gasUGKP",
+        "-case",
+        "@BATCH@/scheme-inputs/empty-gasUGKP-64"
+      ],
+      "existing_input_reference": "validation/molecular_transport/fixtures/gas-sst",
+      "input_delta": "Use header-only scheme; optional obsolete conflicting controls must not influence typed defaults",
+      "expected": [
+        "effective controls match declared typed precision defaults",
+        "active production consumers receive defaults",
+        "finite/trend/actual convergence/rough conservation"
+      ],
+      "state": "PENDING_COMMAND"
+    },
+    {
+      "id": "empty-gasUGKPSteady-64",
+      "top_level_node": "empty-gasUGKPSteady-64",
+      "precision": 64,
+      "app": "gasUGKPSteady",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/64/gasUGKPSteady",
+        "-case",
+        "@BATCH@/scheme-inputs/empty-gasUGKPSteady-64"
+      ],
+      "existing_input_reference": "validation/shared_boundary/fixtures/steady-table",
+      "input_delta": "Use header-only scheme; optional obsolete conflicting controls must not influence typed defaults",
+      "expected": [
+        "effective controls match declared typed precision defaults",
+        "active production consumers receive defaults",
+        "finite/trend/actual convergence/rough conservation"
+      ],
+      "state": "PENDING_COMMAND"
+    },
+    {
+      "id": "empty-CHT-64",
+      "top_level_node": "empty-CHT-64",
+      "precision": 64,
+      "app": "CHT",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/64/CHT",
+        "-case",
+        "@BATCH@/scheme-inputs/empty-CHT-64"
+      ],
+      "existing_input_reference": "validation/molecular_transport/fixtures/cht-contact",
+      "input_delta": "Use header-only scheme; optional obsolete conflicting controls must not influence typed defaults",
+      "expected": [
+        "effective controls match declared typed precision defaults",
+        "active production consumers receive defaults",
+        "finite/trend/actual convergence/rough conservation"
+      ],
+      "state": "PENDING_COMMAND"
+    },
+    {
+      "id": "minimal-default-CHMT-64",
+      "top_level_node": "minimal-default-CHMT-64",
+      "precision": 64,
+      "app": "CHMT",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/64/CHMT",
+        "-case",
+        "@BATCH@/scheme-inputs/minimal-default-CHMT-64"
+      ],
+      "existing_input_reference": "validation/shared_boundary/fixtures/chmt",
+      "input_delta": "Migrated independent copy; minimal scheme gasTimeStep { minDeltaT 1e-12; maxDeltaT 1e-5; maxCo .4; }; other controls use defaults.",
+      "expected": [
+        "required time-control values match migrated case values",
+        "all omitted controls use typed defaults",
+        "finite/trend/actual convergence/rough conservation",
+        "do not assert a header-only CHMT scheme succeeds"
+      ],
+      "state": "PENDING_COMMAND",
+      "required_evidence": [
+        "CHMT_SOLVER_CONTROLS actual typed structure values and activation flags"
+      ]
+    },
+    {
+      "id": "restart-CHMT-64-initial",
+      "top_level_node": "restart-CHMT-64",
+      "precision": 64,
+      "app": "CHMT",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/64/CHMT",
+        "-case",
+        "@BATCH@/scheme-inputs/restart-CHMT-64-initial"
+      ],
+      "depends_on": [],
+      "inputs": "Independent shared_boundary chmt; initial endTime=.0005, restart endTime=.001. restartDirectory points to initial outputDirectory/checkpoint-1. Restart has distinct outputDirectory; preserve actual model and HostState. Confirm checkpoint filename from code before freeze.",
+      "expected": [
+        "restart preserves state and consumes new process controls",
+        "finite/continuity/actual convergence/closure"
+      ],
+      "state": "PENDING_CASE",
+      "existing_input_reference": "validation/shared_boundary/fixtures/chmt",
+      "scheme_change_proposal": {
+        "chmt.material.conduction.nonlinearMaxIterations": {
+          "initial": 50,
+          "restart": 61
+        }
+      },
+      "pending_detail": "Active-consumer assertion pending CHMT owner startup summary. Existing fixture has particles/reactions/radiation/film OFF.",
+      "required_evidence": [
+        "CHMT_SOLVER_CONTROLS actual typed structure values and activation flags"
+      ]
+    },
+    {
+      "id": "restart-CHMT-64-restart",
+      "top_level_node": "restart-CHMT-64",
+      "precision": 64,
+      "app": "CHMT",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/64/CHMT",
+        "-case",
+        "@BATCH@/scheme-inputs/restart-CHMT-64-restart"
+      ],
+      "depends_on": [
+        "restart-CHMT-64-initial"
+      ],
+      "inputs": "Independent shared_boundary chmt; initial endTime=.0005, restart endTime=.001. restartDirectory points to initial outputDirectory/checkpoint-1. Restart has distinct outputDirectory; preserve actual model and HostState. Confirm checkpoint filename from code before freeze.",
+      "expected": [
+        "restart preserves state and consumes new process controls",
+        "finite/continuity/actual convergence/closure"
+      ],
+      "state": "PENDING_CASE",
+      "existing_input_reference": "validation/shared_boundary/fixtures/chmt",
+      "scheme_change_proposal": {
+        "chmt.material.conduction.nonlinearMaxIterations": {
+          "initial": 50,
+          "restart": 61
+        }
+      },
+      "pending_detail": "Active-consumer assertion pending CHMT owner startup summary. Existing fixture has particles/reactions/radiation/film OFF.",
+      "required_evidence": [
+        "CHMT_SOLVER_CONTROLS actual typed structure values and activation flags"
+      ]
+    },
+    {
+      "id": "override-gasUGKP-32",
+      "top_level_node": "override-gasUGKP-32",
+      "precision": 32,
+      "app": "gasUGKP",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/32/gasUGKP",
+        "-case",
+        "@BATCH@/scheme-inputs/override-gasUGKP-32"
+      ],
+      "depends_on": [],
+      "existing_input_reference": "validation/molecular_transport/fixtures/gas-sst",
+      "input_delta": "Independent migrated copy; retain matched precision effective baseline settings; apply explicit integer-budget overrides, add distinct valid old-location conflicting keys only in disposable case.",
+      "override_proposal": {
+        "wallLayer.maxIterations": 67
+      },
+      "expected": [
+        "one SCHEME_STARTUP",
+        "override reaches actual active consumer",
+        "old conflicting values do not replace scheme",
+        "finite state, real convergence and existing independent bounds"
+      ],
+      "state": "PROPOSED_NOT_FROZEN_OWNER_CONFIRMATION_PENDING"
+    },
+    {
+      "id": "override-gasUGKPSteady-32",
+      "top_level_node": "override-gasUGKPSteady-32",
+      "precision": 32,
+      "app": "gasUGKPSteady",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/32/gasUGKPSteady",
+        "-case",
+        "@BATCH@/scheme-inputs/override-gasUGKPSteady-32"
+      ],
+      "depends_on": [],
+      "existing_input_reference": "validation/shared_boundary/fixtures/steady-table",
+      "input_delta": "Independent migrated copy; retain matched precision effective baseline settings; apply explicit integer-budget overrides, add distinct valid old-location conflicting keys only in disposable case.",
+      "override_proposal": {
+        "steadyGas.minimumIterations": 2,
+        "steadyGas.residualInterval": 1
+      },
+      "expected": [
+        "one SCHEME_STARTUP",
+        "override reaches actual active consumer",
+        "old conflicting values do not replace scheme",
+        "finite state, real convergence and existing independent bounds"
+      ],
+      "state": "PROPOSED_NOT_FROZEN_OWNER_CONFIRMATION_PENDING"
+    },
+    {
+      "id": "override-CHT-32",
+      "top_level_node": "override-CHT-32",
+      "precision": 32,
+      "app": "CHT",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/32/CHT",
+        "-case",
+        "@BATCH@/scheme-inputs/override-CHT-32"
+      ],
+      "depends_on": [],
+      "existing_input_reference": "validation/molecular_transport/fixtures/cht-contact",
+      "input_delta": "Independent migrated copy; retain matched precision effective baseline settings; apply explicit integer-budget overrides, add distinct valid old-location conflicting keys only in disposable case.",
+      "override_proposal": {
+        "solid.nonlinear.nonlinearMaxIterations": 57,
+        "solid.linear.normal.maxIter": 1007
+      },
+      "expected": [
+        "one SCHEME_STARTUP",
+        "override reaches actual active consumer",
+        "old conflicting values do not replace scheme",
+        "finite state, real convergence and existing independent bounds"
+      ],
+      "state": "PROPOSED_NOT_FROZEN_OWNER_CONFIRMATION_PENDING"
+    },
+    {
+      "id": "override-CHMT-32",
+      "top_level_node": "override-CHMT-32",
+      "precision": 32,
+      "app": "CHMT",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/32/CHMT",
+        "-case",
+        "@BATCH@/scheme-inputs/override-CHMT-32"
+      ],
+      "depends_on": [],
+      "existing_input_reference": "validation/shared_boundary/fixtures/chmt",
+      "input_delta": "Independent migrated copy; retain matched precision effective baseline settings; apply explicit integer-budget overrides, add distinct valid old-location conflicting keys only in disposable case.",
+      "override_proposal": {
+        "chmt.material.conduction.nonlinearMaxIterations": 57
+      },
+      "expected": [
+        "one SCHEME_STARTUP",
+        "override reaches actual active consumer",
+        "old conflicting values do not replace scheme",
+        "finite state, real convergence and existing independent bounds"
+      ],
+      "state": "PROPOSED_NOT_FROZEN_OWNER_CONFIRMATION_PENDING",
+      "required_evidence": [
+        "CHMT_SOLVER_CONTROLS actual typed structure values and activation flags"
+      ]
+    },
+    {
+      "id": "override-gasUGKP-64",
+      "top_level_node": "override-gasUGKP-64",
+      "precision": 64,
+      "app": "gasUGKP",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/64/gasUGKP",
+        "-case",
+        "@BATCH@/scheme-inputs/override-gasUGKP-64"
+      ],
+      "depends_on": [],
+      "existing_input_reference": "validation/molecular_transport/fixtures/gas-sst",
+      "input_delta": "Independent migrated copy; retain matched precision effective baseline settings; apply explicit integer-budget overrides, add distinct valid old-location conflicting keys only in disposable case.",
+      "override_proposal": {
+        "wallLayer.maxIterations": 67
+      },
+      "expected": [
+        "one SCHEME_STARTUP",
+        "override reaches actual active consumer",
+        "old conflicting values do not replace scheme",
+        "finite state, real convergence and existing independent bounds"
+      ],
+      "state": "PROPOSED_NOT_FROZEN_OWNER_CONFIRMATION_PENDING"
+    },
+    {
+      "id": "override-gasUGKPSteady-64",
+      "top_level_node": "override-gasUGKPSteady-64",
+      "precision": 64,
+      "app": "gasUGKPSteady",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/64/gasUGKPSteady",
+        "-case",
+        "@BATCH@/scheme-inputs/override-gasUGKPSteady-64"
+      ],
+      "depends_on": [],
+      "existing_input_reference": "validation/shared_boundary/fixtures/steady-table",
+      "input_delta": "Independent migrated copy; retain matched precision effective baseline settings; apply explicit integer-budget overrides, add distinct valid old-location conflicting keys only in disposable case.",
+      "override_proposal": {
+        "steadyGas.minimumIterations": 2,
+        "steadyGas.residualInterval": 1
+      },
+      "expected": [
+        "one SCHEME_STARTUP",
+        "override reaches actual active consumer",
+        "old conflicting values do not replace scheme",
+        "finite state, real convergence and existing independent bounds"
+      ],
+      "state": "PROPOSED_NOT_FROZEN_OWNER_CONFIRMATION_PENDING"
+    },
+    {
+      "id": "override-CHT-64",
+      "top_level_node": "override-CHT-64",
+      "precision": 64,
+      "app": "CHT",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/64/CHT",
+        "-case",
+        "@BATCH@/scheme-inputs/override-CHT-64"
+      ],
+      "depends_on": [],
+      "existing_input_reference": "validation/molecular_transport/fixtures/cht-contact",
+      "input_delta": "Independent migrated copy; retain matched precision effective baseline settings; apply explicit integer-budget overrides, add distinct valid old-location conflicting keys only in disposable case.",
+      "override_proposal": {
+        "solid.nonlinear.nonlinearMaxIterations": 57,
+        "solid.linear.normal.maxIter": 1007
+      },
+      "expected": [
+        "one SCHEME_STARTUP",
+        "override reaches actual active consumer",
+        "old conflicting values do not replace scheme",
+        "finite state, real convergence and existing independent bounds"
+      ],
+      "state": "PROPOSED_NOT_FROZEN_OWNER_CONFIRMATION_PENDING"
+    },
+    {
+      "id": "override-CHMT-64",
+      "top_level_node": "override-CHMT-64",
+      "precision": 64,
+      "app": "CHMT",
+      "argv": [
+        "@BATCH@/source/candidate/bin/.precision/64/CHMT",
+        "-case",
+        "@BATCH@/scheme-inputs/override-CHMT-64"
+      ],
+      "depends_on": [],
+      "existing_input_reference": "validation/shared_boundary/fixtures/chmt",
+      "input_delta": "Independent migrated copy; retain matched precision effective baseline settings; apply explicit integer-budget overrides, add distinct valid old-location conflicting keys only in disposable case.",
+      "override_proposal": {
+        "chmt.material.conduction.nonlinearMaxIterations": 57
+      },
+      "expected": [
+        "one SCHEME_STARTUP",
+        "override reaches actual active consumer",
+        "old conflicting values do not replace scheme",
+        "finite state, real convergence and existing independent bounds"
+      ],
+      "state": "PROPOSED_NOT_FROZEN_OWNER_CONFIRMATION_PENDING",
+      "required_evidence": [
+        "CHMT_SOLVER_CONTROLS actual typed structure values and activation flags"
+      ]
+    }
+  ],
+  "pending": [
+    "All @BATCH@ tokens must bind to new absolute evidence directory; compile all four applications32/64 and loader32/64, hash binaries and inputs.",
+    "Choose suitable steady default input without numerical pilot: existing steady-table has endTime=2 and old minimumIterations=100; two steps are not assumed to converge under new defaults.",
+    "Module owner contracts must approve exact key, active branch and actual consumer evidence; SCHEME_VALUE is parsing evidence only.",
+    "Expand old115 nested helper subprocess inventory; existing run_batch.py handles old115 only, integrate extension before starting.",
+    "Candidate independent copies migrated; PR41/CP2 keep original numerical contract. Original case-current remains read-only.",
+    "Original0.29500248649130967 -> .30500348649130967 PR41/new64/new32 continuation already inside old115; do not duplicate.",
+    "Hash immutable source, prepared inputs, argv, output paths and expected outcomes; no adaptive retries/tuning/extra tests."
+  ],
+  "precedence": [
+    "precisionRegionScheme",
+    "globalRegionScheme",
+    "precisionModuleScheme",
+    "globalModuleScheme",
+    "typedDefault"
+  ],
+  "legacy_controls": "Ignored; production conflict scenarios must prove no fallback",
+  "candidate_case_migration": "Required; baseline PR41/CP2 cases retain original configs; original live cases read-only",
+  "coverage_gaps": [
+    "CHT cht-contact does not activate radiation, three-region interface, final/distributed linear paths; original operator nodes do not prove scheme-to-production transfer.",
+    "CHMT shortest fixture disables film, reactions, particles and radiation; cannot claim those paths.",
+    "gas chemistry and both steady branches need confirmed active inputs; gas-sst alone not chemistry evidence.",
+    "Material nonlinear root iterations not exported; parsing does not establish actual convergence.",
+    "Plan is bounded30 additional processes/20 groups, not exhaustive runtime coverage. Resolve by static transfer evidence or replace declared case before freeze; extra process requires revised fixed plan."
+  ],
+  "precision_fixture": "One shared precedence.scheme contains distinct fp32/fp64 sentinels; both loader groups use the same bytes",
+  "known_default_limitation": "CHMT typed minDt/maxDt/cfl defaults are zero and existing validate requires positive values; two CHMT default nodes use a minimal required scheme, not empty scheme",
+  "original_node_ids": [
+    "baseline-fp64-pressure",
+    "baseline-fp64-face",
+    "baseline-fp64-coupling",
+    "baseline-fp64-bath",
+    "candidate-fp64-pressure",
+    "candidate-fp64-face",
+    "candidate-fp64-coupling",
+    "candidate-fp64-bath",
+    "candidate-fp64-native-gasUGKP-continuous",
+    "candidate-fp64-native-gasUGKPSteady-continuous",
+    "candidate-fp64-native-CHT-continuous",
+    "candidate-fp64-native-CHMT-continuous",
+    "candidate-fp64-native-hot-constant",
+    "candidate-fp64-native-hot-nonlinear",
+    "candidate-fp64-native-closed-drag-heat",
+    "candidate-fp64-native-gas-wave",
+    "candidate-fp64-native-gas-ode",
+    "candidate-fp64-native-cht-contact",
+    "candidate-fp64-native-chmt-diffusion",
+    "candidate-fp64-steady-default",
+    "compare-fp64-pressure",
+    "compare-fp64-face",
+    "compare-fp64-coupling",
+    "compare-fp64-bath",
+    "candidate-fp64-ordered",
+    "candidate-fp64-radiation",
+    "candidate-fp64-sparse",
+    "candidate-fp64-coldwall",
+    "candidate-fp64-cht_codec",
+    "candidate-fp64-chmt_codec",
+    "candidate-fp64-chmt_closure",
+    "baseline-fp32-pressure",
+    "baseline-fp32-face",
+    "baseline-fp32-coupling",
+    "baseline-fp32-bath",
+    "candidate-fp32-pressure",
+    "candidate-fp32-face",
+    "candidate-fp32-coupling",
+    "candidate-fp32-bath",
+    "candidate-fp32-native-gasUGKP-continuous",
+    "candidate-fp32-native-gasUGKPSteady-continuous",
+    "candidate-fp32-native-CHT-continuous",
+    "candidate-fp32-native-CHMT-continuous",
+    "candidate-fp32-native-hot-constant",
+    "candidate-fp32-native-hot-nonlinear",
+    "candidate-fp32-native-closed-drag-heat",
+    "candidate-fp32-native-gas-wave",
+    "candidate-fp32-native-gas-ode",
+    "candidate-fp32-native-cht-contact",
+    "candidate-fp32-native-chmt-diffusion",
+    "candidate-fp32-steady-default",
+    "compare-fp32-pressure",
+    "compare-fp32-face",
+    "compare-fp32-coupling",
+    "compare-fp32-bath",
+    "candidate-fp32-ordered",
+    "candidate-fp32-radiation",
+    "candidate-fp32-sparse",
+    "candidate-fp32-coldwall",
+    "candidate-fp32-cht_codec",
+    "candidate-fp32-chmt_codec",
+    "candidate-fp32-chmt_closure",
+    "perf-0-baseline-fp64-pressure",
+    "perf-0-candidate-fp64-pressure",
+    "perf-0-baseline-fp64-face",
+    "perf-0-candidate-fp64-face",
+    "perf-0-baseline-fp64-coupling",
+    "perf-0-candidate-fp64-coupling",
+    "perf-0-baseline-fp64-bath",
+    "perf-0-candidate-fp64-bath",
+    "perf-0-baseline-fp32-pressure",
+    "perf-0-candidate-fp32-pressure",
+    "perf-0-baseline-fp32-face",
+    "perf-0-candidate-fp32-face",
+    "perf-0-baseline-fp32-coupling",
+    "perf-0-candidate-fp32-coupling",
+    "perf-0-baseline-fp32-bath",
+    "perf-0-candidate-fp32-bath",
+    "perf-1-candidate-fp64-pressure",
+    "perf-1-baseline-fp64-pressure",
+    "perf-1-candidate-fp64-face",
+    "perf-1-baseline-fp64-face",
+    "perf-1-candidate-fp64-coupling",
+    "perf-1-baseline-fp64-coupling",
+    "perf-1-candidate-fp64-bath",
+    "perf-1-baseline-fp64-bath",
+    "perf-1-candidate-fp32-pressure",
+    "perf-1-baseline-fp32-pressure",
+    "perf-1-candidate-fp32-face",
+    "perf-1-baseline-fp32-face",
+    "perf-1-candidate-fp32-coupling",
+    "perf-1-baseline-fp32-coupling",
+    "perf-1-candidate-fp32-bath",
+    "perf-1-baseline-fp32-bath",
+    "perf-2-baseline-fp64-pressure",
+    "perf-2-candidate-fp64-pressure",
+    "perf-2-baseline-fp64-face",
+    "perf-2-candidate-fp64-face",
+    "perf-2-baseline-fp64-coupling",
+    "perf-2-candidate-fp64-coupling",
+    "perf-2-baseline-fp64-bath",
+    "perf-2-candidate-fp64-bath",
+    "perf-2-baseline-fp32-pressure",
+    "perf-2-candidate-fp32-pressure",
+    "perf-2-baseline-fp32-face",
+    "perf-2-candidate-fp32-face",
+    "perf-2-baseline-fp32-coupling",
+    "perf-2-candidate-fp32-coupling",
+    "perf-2-baseline-fp32-bath",
+    "perf-2-candidate-fp32-bath",
+    "continuation-pr41-fp64",
+    "continuation-candidate-fp64",
+    "continuation-candidate-fp32",
+    "continuation-compare-seq60",
+    "continuation-compare-seq61"
+  ],
+  "count_semantics": "115 existing TOP-LEVEL nodes, not solver process count. Nested native helper child commands must be inventoried before freeze.",
+  "fixed_additional_process_count": 30,
+  "fixed_groups": {
+    "loader": 10,
+    "defaults": 8,
+    "override": 8,
+    "restart": 4
+  },
+  "proposed_total_top_level_nodes": 135,
+  "evidence_policy": "Distinguish direct runtime transfer, static reviewed transfer plus existing numerical node, and uncovered. Never silently upgrade static evidence to full production runtime coverage."
+}

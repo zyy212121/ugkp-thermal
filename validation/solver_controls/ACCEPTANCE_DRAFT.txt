@@ -1,0 +1,112 @@
+UNIFIED D SOLVER-CONTROL ACCEPTANCE DRAFT
+NOT FROZEN. NO FIXTURE MAY RUN FROM THIS DRAFT.
+Original 115 nodes are retained. Proposed additions: loader2, defaults8 (six empty plus two CHMT minimal-required),
+explicit module coverage8, CHMT restart2. Top-level nodes are not process counts.
+The draft manifest currently enumerates 22 known process slots: 10 loader,
+8 default-path, 4 restart. Override branch processes remain explicitly PENDING.
+Final total must be counted after every override scenario is expanded.
+
+Loader source is synthetic dictionary behavior only; it does not run a solver.
+Use newly created disposable cases under the final records directory.
+Never point snapshot mode at production cases or original continuation input.
+Supply a normal minimal system/controlDict and an existing constant directory.
+Create each case fresh; reload shares only its own snapshot case. For absent
+mode do not create constant/scheme. Empty means a valid header-only dictionary.
+Do not infer that a zero-byte file is an accepted OpenFOAM dictionary.
+Build recipe, compiler argv, precision materialization and runtime environment
+remain PENDING parent integration. No fixture compilation has been attempted.
+
+LOADER CHECKS
+Exact integer sentinels test nested dictionaries, partial region inheritance,
+precision-region/global-region/precision-module/global-module/typed-default order, and unknown-region fallback.
+snapshot modifies only its generated case file after first read and verifies
+immutable cached values. reload is a separately enumerated fresh process.
+Require one startup record per process and per case; distinguish source labels
+module and region once the loader owner finalizes log spellings.
+This checks the cache identity/value contract, not an OS syscall count.
+Mandatory input inventory must distinguish absent from empty before execution.
+
+PRODUCTION COVERAGE
+Candidate original115 inputs must be migrated to constant/scheme; PR41/CP2
+baselines retain their original configs. Original live cases stay read-only.
+Default-path8 tests the typed/precision-default path, not equivalence with old explicit
+configurations. Declare each default and ensure inputs remain physically
+suitable for that default. Do not reuse superseded D or B/C results.
+Physical outputs use existing engineering criteria, not bitwise equality.
+Every override process must list active modules and consumed typed fields.
+SCHEME_VALUE alone is not consumption evidence. Require existing actual
+CPU/GPU control evidence plus existing stopping/trend/conservation evidence.
+No inactive module receives a pass. Mutual exclusions get fixed subcases.
+No fixture silently retries, tunes or adds a process.
+No deliberate failure or budget exhaustion is required for control coverage.
+
+MODULE OWNER CONTRACT (PENDING)
+GAS_CONTROLS.txt: gas/wall/steady owner
+THERMAL_CONTROLS.txt: solid/radiation/coldwall owner
+CHMT_PARTICLE_CONTROLS.txt: CHMT/particle owner
+Each key needs type/units, obsolete location and precision-specific typed default, merge order,
+consumer field and transfer location, activation condition, shortest existing
+case, exact proposed override, expected observed value and stop metrics.
+Only precision-region > global-region > precision-module > global-module
+> typed defaults are supported. The same fixture bytes test both precisions.
+No fallback to obsolete numerical control keys is allowed.
+For each former key, declare conflicting obsolete values in an explicit
+production fixture and verify scheme/default reaches the actual consumer.
+The loader alone cannot prove applications never read an old dictionary.
+Both with-scheme override and missing-scheme-key/default cases require this
+conflict evidence; enumerate any additional process before final freeze.
+Explicit scheme settings must survive any later default normalization.
+Keep diagnostics sparse, observational, and without new residual evaluations,
+synchronization, stopping gates or algorithm changes.
+
+RESTART
+Two processes per precision: initial with A, restart with B. Typed controls must
+come from the new startup snapshot, not serialized checkpoint parameters.
+Worker reports CHMT readCheckpoint restores HostState without overriding
+expected ModelConfig. Verify actual startup/consumer evidence in D.
+Particle packing numerical overrides must not accidentally change persistent
+physical identity and reject an otherwise compatible old checkpoint.
+
+FREEZE CHECKLIST
+Resolve every PENDING slot and every null argv.
+Enumerate each process, input hashes, binary hash, dependency, expected outcome,
+active module assertions and unchanged original numerical acceptance bounds.
+Read fresh worker contracts; reconcile exact section/key spellings.
+Include scheme fixture inputs and source in final frozen lineage.
+Record superseded D as compile-only, never execute it.
+Parent separately authorizes final freeze/start; this draft is not permission.
+After D, report engineering stopping semantics, open-case budget limitations
+and actual coverage. B/C evidence remains failed/diagnostic as recorded.
+
+LATEST SCOPE: owner removed legacy numerical-control compatibility. Candidate
+case migrations are required inputs, not optional cleanup. Record per-key old
+location/value, new scheme location/value, precision/default choices, and
+input hashes. Retain physical/model keys in their existing files. No claim
+that absent/empty scheme preserves an old explicit numerical configuration.
+Known coverage gap: shortest cht-contact/shared-boundary CHT fixtures use v1
+solid and radiation disabled, so do not cover interface or radiation. Material
+root consumers lack final iteration logs; producer-owner evidence is PENDING.
+
+PRECISION AND CHMT UPDATE
+The shared precedence fixture uses distinct fp32/fp64 module and region
+sentinels, global-region overrides of precision-module values, solidB isolation,
+solidC precision-only regions, unknown-region fallback and partial inheritance.
+Snapshot retains these values after replacing the dictionary; fresh reload
+sees the replacement with no precision overrides. No extra processes added.
+Two CHMT default-path slots are minimal-required-scheme, NOT empty-scheme
+success tests. minDt/maxDt/cfl typed defaults are0 and existing validation
+requires positive values. Preserve these three required migrated controls;
+maxDeltaT uses the minimum of the two original caps. Exact section/key/value
+and hashes remain PENDING caseworker delivery. Other omitted controls test
+typed defaults. Do not execute a known-invalid empty CHMT case as a pilot.
+
+CURRENT PLAN REVISION (supersedes the earlier 22-slot count)
+acceptance-draft.json now enumerates30 additional process slots in20 groups.
+Total proposed groups115+20=135; original115 contains nested subprocesses,
+so neither135 nor145 is a claim about total OS process count.
+FINAL_FREEZE_HANDOFF.txt is the integration checklist. No tests were run.
+CHMT startup summary CHMT_SOLVER_CONTROLS is now available from actual typed
+structures; use activation flags and never call disabled branches covered.
+Thermal scheme transfer may be supported by reviewed static call-chain evidence
+plus existing fixed numerical nodes; explicitly distinguish this from direct
+full-production runtime coverage of each dictionary field.

@@ -1,0 +1,419 @@
+{
+  "status": "PREPARATION_ONLY_NOT_FROZEN_NOT_RUN",
+  "node_count": 115,
+  "groups": {
+    "core": 16,
+    "candidate_native": 22,
+    "comparisons": 8,
+    "performance": 48,
+    "extended": 14,
+    "continuation": 3,
+    "continuation_comparison": 2,
+    "steady_default": 2
+  },
+  "latest_scope": "All physical scalar/vector state32, including mass/species/remainder and material PhysicalVec3. Current central type APIs adapted with provisional host syntax checks. Final production source/binaries and full fixture builds still pending; no freeze or numerical execution.",
+  "pressure": {
+    "processes": 4,
+    "cases": 72,
+    "blocks": [
+      32,
+      64,
+      128
+    ],
+    "populations": [
+      0,
+      1,
+      31,
+      1025
+    ],
+    "routes": [
+      "full",
+      "split",
+      "compact"
+    ],
+    "operators": [
+      "analytic",
+      "constrained"
+    ],
+    "budget": "momentum5e-4(32)/1e-9(64); energy4x; actual parameter-call counts correctness-only"
+  },
+  "face": {
+    "processes": 4,
+    "schemes": [
+      1,
+      2
+    ],
+    "limiters": [
+      0,
+      1,
+      2
+    ],
+    "native_refinement": [
+      false,
+      true
+    ],
+    "faces": [
+      "internal",
+      "fixed independent composition",
+      "extrapolated"
+    ],
+    "refinement": [
+      "firstorder16/32 ratio1.8..2.2",
+      "MUSCL16/32/64 ratios>3.5",
+      "MUSCL32 error<.02 firstorder32"
+    ],
+    "closure": "(5e-4 in32;1e-9 in64)*(1+abs(massflux))",
+    "storage": "candidate actual State pointer types; metadata/tableReal follow resident scalar; CP2 legacy adapters separate",
+    "refinement_policy": {
+      "candidate32": "Fixed first16->32 and MUSCL16->32->64 errors improve; MUSCL32 improves on first32. Equal exact-zero pairs are admissible. Finite/error/EOS/species checks remain.",
+      "baseline_and_candidate64": "Original ratios1.8..2.2, >3.5 each MUSCL level, andmuscl32<.02 first32 remain hard checks.",
+      "candidate32_diagnostics": "All four old ratios and three original predicate results printed separately after the unchanged measurement JSON; no cross-version key mismatch.",
+      "reason": "User explicitly accepted32 finite/trend/actual convergence/approximate conservation and authorized similar test-fixture corrections. This relaxation is fixed before any numerical execution, never from later results."
+    }
+  },
+  "coupling": {
+    "processes": 4,
+    "directories": [
+      "scan",
+      "CSR",
+      "split"
+    ],
+    "cases_per_directory": [
+      "SchillerNaumann constantheat step1/2",
+      "Gidaspow constantheat step1/2",
+      "nonlinear post-drag temperature-sensitive heat step1/2",
+      "hot crossing step1/2",
+      "cold crossing step1/2"
+    ],
+    "other": [
+      "zero dt",
+      "inactive",
+      "poisoned scratch",
+      "post-drag versus stale pre-drag properties"
+    ],
+    "trial_T": [
+      2327,
+      2327.001,
+      4000,
+      3999.999,
+      100,
+      5000,
+      2600
+    ],
+    "mass_bound": [
+      2e-05,
+      1e-14
+    ],
+    "momentum_bound": [
+      0.0002,
+      1e-12
+    ],
+    "energy_bound_J": {
+      "baseline32": 2,
+      "candidate32": "2+256epsilon*(abs(Ebefore)+abs(Eafter))",
+      "64": 5e-08
+    },
+    "report": "old/new allowed and actual error; independent nonzero hot/cold trends; mutable cache/fresh same-scalar response"
+  },
+  "bath": {
+    "processes": 4,
+    "pairs": [
+      [
+        300,
+        1600
+      ],
+      [
+        1600,
+        300
+      ],
+      [
+        2200,
+        2600
+      ],
+      [
+        2400,
+        2100
+      ],
+      [
+        4100,
+        3900
+      ],
+      [
+        5000,
+        5000
+      ]
+    ],
+    "request": "relativeenergy1e-8, relativeT1e-8; no assumed pending production floor",
+    "residual": "4*(absolute+4epsilon(actual scalar)*(abs(oldE)+abs(referenceHeat))+relative*abs(referenceHeat))",
+    "other": "actual success/finite, temperature within input interval plus0.01K, no mutation by trial calls; candidate actual thermal scalar type required",
+    "effective_tolerance_note": "The explicit1e-8 relative requests override the default factory controls. The actual heat wrapper adds4*epsilon(actual thermal scalar)*(abs(oldEnergy)+abs(referenceHeat)) to the requested absolute energy tolerance. Actual energy acceptance is that sum + requested relativeEnergy*abs(referenceHeat); actual temperature acceptance is requested absoluteTemperature + requested relativeTemperature*abs(finalT) + energyRoundoff/abs(actual evaluator capacity). Success does not claim the bare1e-8 relative criterion alone. Existing printed residual_allowed is the independent fixture bound,4x the declared energy scale, not a replacement solver stopping control."
+  },
+  "native": {
+    "processes": 22,
+    "precisions": [
+      64,
+      32
+    ],
+    "branches": [
+      "gasUGKP-continuous",
+      "gasUGKPSteady-continuous",
+      "CHT-continuous",
+      "CHMT-continuous",
+      "hot-constant",
+      "hot-nonlinear",
+      "closed-drag-heat",
+      "gas-wave",
+      "gas-ode",
+      "cht-contact",
+      "chmt-diffusion"
+    ],
+    "seeds": "gas/CHT12345;CHMT existingdefault1",
+    "bounds": "existing injection32epsilon32, closed budget256epsilon32*abs(initial)+mass1e-10/momentum1e-8/energy1e-5; reassess fixture types against final v3 before freeze, never post-run",
+    "interpretation": "finite/trend/budget/completion, not steady-state convergence",
+    "steady_explicit_input": {
+      "relativeTolerance": 0,
+      "absoluteTolerance": 0,
+      "minimumIterations": 100,
+      "minimumWindows": 100,
+      "endTime": 1,
+      "meaning": "Original explicit-zero short case unchanged; completion/injection/finite fields only, never convergence."
+    }
+  },
+  "ordered": {
+    "processes": 2,
+    "cases": 14,
+    "patterns": [
+      "1025 isolated wide",
+      "1025 forwardchain",
+      "300wide fanout+cycle",
+      "1025 negativefluxcycle",
+      "width128 depth31 plusroot",
+      "width129 depth33 plusroot",
+      "width127 depth32 plusroot"
+    ],
+    "state": [
+      "positive known solution",
+      "zero"
+    ],
+    "bounds": "max(128epsilon,8actualtarget)*max(1,maxabs(exact)); actual stored-scalar residual vs independently ordered scalar residual <=8epsilon relative; no no-op pass"
+  },
+  "radiation": {
+    "processes": 2,
+    "cases": 29,
+    "cases_fixed": [
+      "isolated/chain/cycle x sequential1 orparallel1/2/8 (12)",
+      "cycle scatter0/30 (2)",
+      "deltaT0,+/-1e-6,+/-1K xweight1/1.0000001 (10)",
+      "warmhot-tozero",
+      "warmrebase",
+      "metricrefresh",
+      "resident nextafter1000f upward",
+      "strict-request observation"
+    ],
+    "near_equilibrium": "Bold=1e-8+2e-5abs(Panalytic); B32=Bold+8*(Ndir+8)*FLT_EPSILON*Pgross; B64=Bold; sign only ifabs(Panalytic)>Bselected; +/-1K ensures resolvable direction",
+    "gross": "absorption/emission absolute angular sums plus boundary and internal upwind angular magnitudes",
+    "closure": "original2e-5 net-normalized and dimensional gross-aware bounds both reported, actual/old/new bounds and quantized/unquantized deltaT; not automatically accurate when gross>>net",
+    "source": "final validation/checkpoint03/radiation/storage_manifest.json"
+  },
+  "sparse": {
+    "processes": 2,
+    "cases": 36,
+    "rows": [
+      7,
+      513
+    ],
+    "scale": [
+      1e-06,
+      1,
+      1000000.0
+    ],
+    "heterogeneous": [
+      false,
+      true
+    ],
+    "path": [
+      "CSR cyclic",
+      "CSR real external endpoint contribution/globalSum callback",
+      "resident scalar LDU cyclic affinejump+/-0.125"
+    ],
+    "target": "max(1e-10,32epsilon)",
+    "true_residual": "actual b-Ax-affine L1 <=4target*norm+128epsilon*sumabs(rhs)",
+    "closure": "abs(signedresidual-diagonalinventorydefect)<=256epsilon*sumabs(rhs)+1e-12abs(scale)",
+    "response": "max knownsolution error<=max(2e-7,256epsilon*301), exact300+sin(.17i) differs from initial299+.01(i%11)",
+    "retained": "real residual/search directions, no double fallback"
+  },
+  "coldwall": {
+    "processes": 2,
+    "cases": [
+      "allsolid1500/wall486/dt7.5e-8",
+      "postgas1500->gas1200/G3e-4/wall486/dt1e-6",
+      "solid2316/wall4000/dt1e-4 crossing",
+      "liquid3500/wall486/dt7.5e-8",
+      "bottom400/rest2200/wall500/dt1e-4 final sign flip",
+      "bottom2200/rest400/wall2100/dt1e-4 final sign flip"
+    ],
+    "counter": "test-only originalPCR calls: solid1, crossphase/liquid>1",
+    "ring": "independent allocation using final-bottom cooling conductance/heating wet area; error<=1e-18kg+256epsilon*mass",
+    "energy": "1e-18J+(512epsilon32 or2e-10 in64)*(abs(Ebefore)+abs(Eafter)+abs(Qwall)+abs(Qgas))",
+    "response": "actual nonzero energy and meanT hot/cold direction, independently of gross bound",
+    "zeroheat_T": [
+      300.125,
+      2317,
+      2327,
+      4000,
+      4999.875
+    ],
+    "zeroheat_repeats": 1000,
+    "zeroheat_requirement": "exact unchanged temperature and0accepted heat"
+  },
+  "cht_codec": {
+    "processes": 2,
+    "cases": [
+      "schema8 old production wire+carry",
+      "schema9 old production writer+carry",
+      "mobile old totalH then one float rounding",
+      "1D8 old H+carry pernode single rounding (2D64 legacy excluded)",
+      "zero carry T preserves",
+      "schema10 bytes independent of poisoned carry/current reader clearscarry",
+      "FP64 retains schema9",
+      "all current serialized fields roundtrip",
+      "stored32->compute64 existingstop",
+      "stored64->compute32 existingwarn+continue",
+      "unknownschema99 existingcontinue"
+    ],
+    "scope": "hostwire double is explicitAPI; actual resident32 checked separately"
+  },
+  "chmt_codec": {
+    "processes": 2,
+    "cases_file": "chmt_cases.json",
+    "state": "pending worker v3 PhysicalVec3/mass/species update; earliertemporary compile superseded"
+  },
+  "chmt_closure": {
+    "processes": 2,
+    "cases_file": "chmt_cases.json",
+    "state": "pending worker final physical types; finite plus explicit nonzero response and dimensionalbudget"
+  },
+  "comparison": {
+    "processes": 8,
+    "64": "abs1e-10+rel1e-9 except independently boundeddiagnostics",
+    "32": "all differences observed; independentphysical tests mandatory, no strict CP2 equality veto"
+  },
+  "performance": {
+    "processes": 48,
+    "repetitions": 3,
+    "order": [
+      "AB",
+      "BA",
+      "AB"
+    ],
+    "families": [
+      "pressure",
+      "face",
+      "coupling",
+      "bath"
+    ],
+    "pressure_warmup": "identicalminimum3seconds1025parcels128threadsroute0, then33untimed launches/config; logactualwarmup, never alterclocks",
+    "pressure_work": "27configs x5samples x100launches",
+    "host_work": "existingface10000/config;coupling1152fullsteps;bath128x6roots;1warmup+5samples",
+    "limits": "CPU arithmetic is not GPU/fullsolver acceleration; telemetryalltimes retained; no result-dependent reruns"
+  },
+  "continuation": {
+    "processes": 3,
+    "labels": [
+      "pr41-fp64",
+      "candidate-fp64",
+      "candidate-fp32"
+    ],
+    "original": "/home/lss/MSS7_CHT_cdbd9973_queue/case-current",
+    "start": "0.29500248649130967",
+    "end": "0.30500348649130967",
+    "initial_sequence": 59,
+    "sequences": [
+      60,
+      61
+    ],
+    "radiation_sequence": 60,
+    "previous_radiation_time": 0.29000244439008815,
+    "initial_dt": 7.962238329030135e-08,
+    "particles": 52994,
+    "omp": 4,
+    "repetitions": 1,
+    "copy_changes": [
+      "start/end/initialdt",
+      "selectedprecision",
+      "copiedmetadata64 only"
+    ],
+    "preserved": "physics,tolerances,period0.005,seed,savedRNG,autotune;original bytes unchanged",
+    "timing": "GNUtime,serialexclusiveGPU,no compilers; single-run limitation"
+  },
+  "continuation_reports": {
+    "processes": 2,
+    "sequence": [
+      60,
+      61
+    ],
+    "metrics": [
+      "volume/area weightedgas/solid/wallT",
+      "pressure",
+      "rho/rhoE/rhoEs/rhoHp dimensionalinventories",
+      "convective/reflected/radiativewallpower andenergytrue carriedwindow",
+      "particlecount/mass/temperaturequantiles/momentum/kinetic/stuck",
+      "warnings/actual stopping/residual/target whereavailable"
+    ],
+    "species": "unavailable originalsingle-gas; no fabricatedfield",
+    "closure": "Open-boundary accumulatedmass/enthalpy and fixed-valuesolidboundaryfluxes unavailable. Snapshotinventorychange is not globalclosure. Independentclosednative/coupling/sparse/CHMT supplyclosure.",
+    "five_percent": "manualinspectionhint only, never pass/reject"
+  },
+  "dependency_policy": "Independent nodes continue after physical failure. Comparison/perf depend on prerequisites. Invalid GPU stops affected branches. No in-batch repair/retry/thresholdchange. Any fail/skip blocks acceptance; parent preserves and returns to CP2 before separately authorized small diagnostics.",
+  "pending_before_freeze": [
+    "final production v3types",
+    "final CHMT fixtures",
+    "compile/link all against final complete materialized trees",
+    "manual build/source lineage evidence review, no extra automated refusal gate",
+    "fixed node commands/sources/binaries/thresholdhashes",
+    "explicit parent freeze then separate start authorization"
+  ],
+  "steady_default": {
+    "processes": 2,
+    "precision": [
+      64,
+      32
+    ],
+    "leaf": [
+      "nonzero_reservoir_default_convergence"
+    ],
+    "source_cfg": "validation/steady_cpu/cases/reservoir.cfg",
+    "generator": "validation/steady_cpu/of_cases.py",
+    "cells": 32,
+    "length_m": 2,
+    "velocity_m_s": 20,
+    "initial_perturbation": 0.1,
+    "maxCo": 0.15,
+    "maxDeltaT": 0.001,
+    "max_iterations": 20000,
+    "residual_interval": 1000,
+    "minimum_iterations": 1000,
+    "input_changes": [
+      "Remove relativeTolerance 0 only in new copy so production default is selected.",
+      "Keep absoluteTolerance 0.",
+      "Change minimumIterations 20001 to1000 only in new copy.",
+      "PrecisionProperties selects32/64; old forced-budget case remains unchanged."
+    ],
+    "default_relative": {
+      "32": 1e-06,
+      "64": 1e-08
+    },
+    "criteria": [
+      "True production converged marker AND criteriaReached=1.",
+      "Initial raw residual nonzero; final max raw residual <=0.1 initial max.",
+      "Final printed maxRelative <=1.00001 selected default (decimal-log allowance only, production branch still mandatory).",
+      "Finite all observed fields, rho>0 andT>0.",
+      "rho andUx RMS deviation from reservoir each <=0.1 initial RMS."
+    ],
+    "observations": "Mass/energy inventories and cell advective flux proxy; no integrated open-boundary flux, no full-domain closure claim.",
+    "dependencies": [],
+    "budget_exit": "FAIL, not convergence; no repeat, repair or threshold change",
+    "expected_extra_time": "5-15 minutes total, unmeasured; maximum40000 32-cell pseudo iterations",
+    "historical_basis": "Existing archived spatial-residuals.csv reservoir row17000 maxRelative4.7375362322524514e-9 supports FP64 budget only. Not candidate evidence; FP32 default attainability remains unmeasured."
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "scope": "input parser code only, no solver/operator execution",
+  "checks": [
+    "tracking/wall/adjustment migration; capacities/seeds/workspaces/enabled flags untouched",
+    "solid interval precedence over CHMT fallback; radiationProperties frequency overrides solid frequency",
+    "standalone CHMT coupling interval migrated when solid authority absent"
+  ],
+  "sha256": "bc0b035b6f07ba263d09212e803b78021b19c1fc22554b46a71e0e9ee0ad4a53"
+}

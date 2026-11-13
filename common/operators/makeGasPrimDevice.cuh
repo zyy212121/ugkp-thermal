@@ -203,7 +203,7 @@ __device__ GasPrimDevice riemannBoundaryState
                     s.Sfx[f]/area,s.Sfy[f]/area,s.Sfz[f]/area,
                     clampMin(finiteOr(s.riemannBoundaryP[f],ownerState.p),s.rhoMin*R*clampMin(finiteOr(s.riemannBoundaryT[f],ownerState.T),s.TgasMin)),
                     clampMin(finiteOr(s.riemannBoundaryT[f],ownerState.T),s.TgasMin),
-                    (cv+R)/cv,R,s.rhoMin,s.TgasMin
+                    (cv+R)/cv,R,s.rhoMin,s.TgasMin,s.gasScalarSolvers.inletMachMaximumIterations
                 );
                 return GasPrimDevice{boundary.rho,boundary.ux,boundary.uy,boundary.uz,boundary.p,boundary.T};
             }
@@ -266,7 +266,8 @@ __device__ GasPrimDevice riemannBoundaryState
                 s.gammaGas,
                 s.Rgas,
                 s.rhoMin,
-                s.TgasMin
+                s.TgasMin,
+                s.gasScalarSolvers.inletMachMaximumIterations
             );
         return makeGasPrimDevice
         (

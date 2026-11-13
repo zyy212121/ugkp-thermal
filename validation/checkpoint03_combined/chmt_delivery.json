@@ -1,0 +1,27 @@
+{
+  "status": "PREPARATION_ONLY_NOT_FROZEN_NOT_RUN",
+  "design_revision": 3,
+  "node_count": 4,
+  "leaf_nodes_unchanged": true,
+  "selected_field_counts": {
+    "energy": 49,
+    "physical": 78,
+    "independent": 17
+  },
+  "numeric_executions": 0,
+  "nvcc_invocations": 0,
+  "fixture_and_evidence_sha256": {
+    "chmt_build_recipe.json": "fb7a775d4437e70ab25d55fc66cfcf8117f741714bc52487c93859f505c72f62",
+    "chmt_cases.json": "d18b30e2f366a599e18227f5e80de54f02124c57cb021f60ba07e8dd0ad29de5",
+    "chmt_closure.cpp": "2c2f862e7686f8ca4bdb6ef19362b6f21f7445b17d1560989554b23dbaf9dbbf",
+    "chmt_codec.cpp": "14dcaa9b204b97e0629bff968dd16a1c09c3d926aa9929ce933a8c90211c8080",
+    "chmt_compile_evidence.json": "00ad6f067bbf0b09d8f41489ebce75e62948c1abba9cbe0fdcf7005d45be9f9e",
+    "chmt_compile_evidence_v1.json": "0af165540c0492a8007e82a9a7258a3cf2006d95ab8403a595ab9a8b4d381201",
+    "chmt_compile_evidence_v2.json": "965177425021305713e1bd485721562cd4ff15f5debb095d6dc4867a86274a55",
+    "chmt_legacy_writer.cpp": "c7434b3bae7e352f84c39b8938a42ff6610357e62d7a20b5872b8ea56cfd8e9c",
+    "chmt_seed.H": "1bd9a49d4489b04459022b62fee40e8ca9d55cbad56eaa008409c29cd6aba4d8",
+    "chmt_support.H": "6753a8f27b63833c7a62489fcddaa567bf6385e46ff919700280229f23c48f3e"
+  },
+  "latest_code_evidence": "chmt_compile_evidence.json",
+  "compile_result": "Current source CHMT codec/closure/Checkpoint.C and both historical seed writer source closures pass syntax-only. Full final compilation and all numerical execution remain pending."
+}

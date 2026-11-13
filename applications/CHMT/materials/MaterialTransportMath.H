@@ -72,7 +72,7 @@ CHMT_HD inline bool reconstruct(const MaterialMeshView& m,const SolidQ* q,const 
         Symmetric3 matrix;Vec3 rhs{};Real lo=value,hi=value;
         for(int e=m.cellFaceOffsets[cell];e<m.cellFaceOffsets[cell+1];++e){const int f=m.cellFaces[e],other=otherCell(m,cell,f);if(other<0)continue;
             const Real v=component(q[other],k)/m.volumes[other];addLeastSquares(matrix,rhs,displacement(m,cell,f,other),v-value);lo=minValue(lo,v);hi=maxValue(hi,v);}
-        const Real change=dot(solveLeastSquares(matrix,rhs),offset);if(!finite(change))return false;setComponent(increment,k,change);
+        const Real change=dot(solveLeastSquares(matrix,rhs,p.numerics.reconstructionMaximumIterations),offset);if(!finite(change))return false;setComponent(increment,k,change);
         if(p.reconstruction==ReconstructionMode::LimitedLinear)bound=minValue(bound,materialReconstructionLimiter(value,lo,hi,change));
     }
     SolidQ candidate=addSolid(density,increment,bound);candidate.porosity=q[cell].porosity;MaterialPrimitive state;
@@ -94,10 +94,10 @@ CHMT_HD inline MaterialTransportError pressureCell(const MaterialMeshView& m,
             const Vec3 dx=displacement(m,c,f,other);addLeastSquares(matrix,rhs,dx,w.primitive[other].pressure-w.primitive[c].pressure);
             const Real distance=mag(dx);if(!(distance>0)){return MaterialTransportError::CoincidentCentres;}
         }
-        const Vec3 grad=solveLeastSquares(matrix,rhs);if(!finite(grad)){return MaterialTransportError::PressureGradient;}w.pressureGradient[c]=grad;const auto& a=w.primitive[c];
+        const Vec3 grad=solveLeastSquares(matrix,rhs,p.numerics.reconstructionMaximumIterations);if(!finite(grad)){return MaterialTransportError::PressureGradient;}w.pressureGradient[c]=grad;const auto& a=w.primitive[c];
         for(int e=m.cellFaceOffsets[c];e<m.cellFaceOffsets[c+1];++e){const int f=m.cellFaces[e],other=otherCell(m,c,f);
             if(other<0||m.boundaryKind[f]==BoundaryKind::Empty||m.boundaryKind[f]==BoundaryKind::Interface)continue;
-            w.gradientSensitivity[c]+=darcyGradientSensitivity(matrix,displacement(m,c,f,other));}
+            w.gradientSensitivity[c]+=darcyGradientSensitivity(matrix,displacement(m,c,f,other),p.numerics.reconstructionMaximumIterations);}
         if(!finite(w.gradientSensitivity[c])){return MaterialTransportError::GradientSensitivity;}
         if(p.permeability>0&&a.porosity>0){if(!(p.poreViscosity>0)){return MaterialTransportError::DarcyViscosity;}
             w.poreVelocity[c]=(p.gravity*a.poreDensity-grad)*(p.permeability/(p.poreViscosity*a.porosity));}

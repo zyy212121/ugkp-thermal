@@ -11,6 +11,8 @@ import math
 from pathlib import Path
 import re
 
+
+
 HERE = Path(__file__).resolve().parent
 
 def inputs(path):
@@ -54,6 +56,17 @@ ddtSchemes {{ default Euler; }} gradSchemes {{ default Gauss linear; }}
 divSchemes {{ default none; div(phi,U) Gauss {divu}; div(phi,e) Gauss {dive}; div(phi,K) Gauss {dive}; div(phi,(p|rho)) Gauss {dive}; div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear; }}
 laplacianSchemes {{ default Gauss linear corrected; }} interpolationSchemes {{ default linear; }} snGradSchemes {{ default corrected; }}
 wallDist {{ method meshWave; }}''')
+    # Direct unified controls for this reference-case generator; no legacy import.
+    write('constant','scheme',f'''gasTimeStep {{ adjustTimeStep false; courantUpdateInterval 1; maximumTimeStepGrowth 1; }}
+steadyGas {{ maxCo {a['courant']}; maxDeltaT {a['maxDt']}; boundaryTime 0;
+relativeTolerance 0; absoluteTolerance 0; minimumIterations {int(a['iterations'])+1}; residualInterval {int(a['outputEvery'])}; }}
+steadyParticle {{ samplingDeltaT {a['dt']}; boundaryTime 0; windowSamples {int(a.get('windowSamples',a['outputEvery']))};
+minimumWindows {int(a['iterations'])+1}; stableWindows 2; meanTolerance 0; inventoryTolerance 0; }}
+particle {{ tracking {{ maxFaceWalkHops 1000; }} }}
+gasNumerics {{ fluxScheme {schemes[int(a['scheme'])]}; gasLimiter {['none','barthJespersen','venkatakrishnan'][int(a['limiter'])]};
+ddtSchemes {{ default Euler; }} gradSchemes {{ default Gauss linear; }}
+divSchemes {{ default none; div(phi,U) Gauss {divu}; div(phi,e) Gauss {dive}; div(phi,K) Gauss {dive}; div(phi,(p|rho)) Gauss {dive}; div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear; }}
+laplacianSchemes {{ default Gauss linear corrected; }} interpolationSchemes {{ default linear; }} snGradSchemes {{ default corrected; }} }}''')
     write('system','fvSolution','solvers {}\nrelaxationFactors {}\nUGKP { robustFallback true; rhoMin 1e-12; TMin 1e-9; }')
     turb='simulationType RAS; RAS { model kOmegaSST; turbulence on; printCoeffs on; kOmegaSSTCoeffs { wallTreatment lowRe; } }' if a['sst'] else 'simulationType laminar;'
     write('constant','fluidProperties',f'''schemaVersion 1;

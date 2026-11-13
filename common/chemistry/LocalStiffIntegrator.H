@@ -85,7 +85,7 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD UGKWP_CHEMISTRY_
          return reported;
         }
       }
-      alpha*=R(.5);
+      alpha*=context.controls.lineSearchReduction;
    }
    if(!accepted){status.code=ChemistryCode::NewtonFailure;return status;}
  }

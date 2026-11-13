@@ -241,33 +241,45 @@ inline void readNumericControls
         else if (whole != integers.end()) *whole->second = integer(scalar(dict, entry.first), entry.first, std::numeric_limits<int>::min());
     }
 }
-inline ChemistryControls<double> chemistryControls(const Dictionary& dict)
+// The original chemistry model owns only these physical inversion bounds.
+// Numerical controls are not read from chemistryControls.
+inline void readThermoModelBounds(const Dictionary& dict,ChemistryControls<double>& c)
 {
-    ChemistryControls<double> c;
-    readNumericControls(dict,
-        {{"relativeTolerance", &c.relativeTolerance},
-         {"absoluteMassFractionTolerance", &c.absoluteMassFractionTolerance},
-         {"absoluteTemperatureTolerance", &c.absoluteTemperatureTolerance},
-         {"initialStep", &c.initialStep}, {"minimumStep", &c.minimumStep},
-         {"maximumStep", &c.maximumStep}, {"newtonTolerance", &c.newtonTolerance},
-         {"absoluteMassTolerance", &c.absoluteMassTolerance},
-         {"relativeConservationTolerance", &c.relativeConservationTolerance},
-         {"absoluteElementTolerance", &c.absoluteElementTolerance}},
-        {{"maximumSteps", &c.maximumSteps}, {"maximumRejectedSteps", &c.maximumRejectedSteps},
-         {"maximumNewtonIterations", &c.maximumNewtonIterations},
-         {"maximumLineSearchIterations", &c.maximumLineSearchIterations}});
     if (dict.count("thermo"))
     {
         const Dictionary thermo = subdict(dict, "thermo");
         readNumericControls(thermo,
-            {{"minTemperature", &c.thermo.minTemperature}, {"maxTemperature", &c.thermo.maxTemperature},
-             {"absoluteEnergyTolerance", &c.thermo.absoluteEnergyTolerance},
-             {"relativeEnergyTolerance", &c.thermo.relativeEnergyTolerance},
-             {"absoluteTemperatureTolerance", &c.thermo.absoluteTemperatureTolerance},
-             {"relativeTemperatureTolerance", &c.thermo.relativeTemperatureTolerance}},
-            {{"maximumIterations", &c.thermo.maximumIterations}});
+            {{"minTemperature", &c.thermo.minTemperature},
+             {"maxTemperature", &c.thermo.maxTemperature}}, {});
     }
-    return c;
+}
+// This block is injected only from the immutable constant/scheme snapshot.
+// Model files no longer select numerical controls; absent scheme keys retain typed defaults.
+inline void applySolverControlOverrides(const Dictionary& dict,ChemistryControls<double>& c)
+{
+    if(dict.count("chemistry"))
+    {
+        const auto d=subdict(dict,"chemistry");
+        readNumericControls(d,
+            {{"relativeTolerance",&c.relativeTolerance},
+             {"absoluteMassFractionTolerance",&c.absoluteMassFractionTolerance},
+             {"newtonTolerance",&c.newtonTolerance},
+             {"lineSearchReduction",&c.lineSearchReduction}},
+            {{"maximumNewtonIterations",&c.maximumNewtonIterations},
+             {"maximumLineSearchIterations",&c.maximumLineSearchIterations}});
+    }
+    if(dict.count("thermo"))
+    {
+        const auto d=subdict(dict,"thermo");
+        readNumericControls(d,
+            {{"absoluteEnergyTolerance",&c.thermo.absoluteEnergyTolerance},
+             {"relativeEnergyTolerance",&c.thermo.relativeEnergyTolerance},
+             {"absoluteTemperatureTolerance",&c.thermo.absoluteTemperatureTolerance},
+             {"relativeTemperatureTolerance",&c.thermo.relativeTemperatureTolerance}},
+            {{"maximumIterations",&c.thermo.maximumIterations}});
+        c.thermo.explicitRelativeEnergyTolerance=d.count("relativeEnergyTolerance");
+        c.thermo.explicitRelativeTemperatureTolerance=d.count("relativeTemperatureTolerance");
+    }
 }
 inline void hashByte(std::uint64_t& hash, unsigned char value)
 { hash = (hash ^ value)*UINT64_C(1099511628211); }
@@ -333,9 +345,13 @@ inline GasModelConfiguration parseGasModelProperties(const std::string& text, bo
     {
         model.mechanism = word(dict, "mechanism");
         if (dict.count("phase")) model.phase = word(dict, "phase");
+        // Keep the original physical bounds in their model interface.
         if (dict.count("chemistryControls"))
-            model.chemistryControls = chemistryControls(subdict(dict, "chemistryControls"));
+            readThermoModelBounds(subdict(dict,"chemistryControls"),model.chemistryControls);
+        // Iteration controls are supplied only through the startup scheme payload.
     }
+    if(dict.count("solverControlOverrides"))
+        applySolverControlOverrides(subdict(dict,"solverControlOverrides"),model.chemistryControls);
     model.speciesNames = list(dict, "species");
     if (model.speciesNames.empty()) throw error("species list must not be empty");
     for (const std::string& name : model.speciesNames)

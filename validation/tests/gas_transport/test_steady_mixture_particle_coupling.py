@@ -14,6 +14,7 @@ struct PairedState:State {
  int particleCapacity=4,cellParticleOffset[3]={0,2,3},sortedParticleIndex[3]={0,1,2};
  int pStatus[4]={1,1,1,0},pCellId[4]={0,0,1,0};
  double pm[4]={.2,.4,.3,.1},pd[4]={.001,.0002,.0005,.001};
+ double couplingDragBeta[4]{},couplingResponseFraction[4]{};
  double pux[4]={-10,30,2,999},puy[4]={3,-4,1,999},puz[4]={1,2,-2,999};
  double puxOld[4]={},puyOld[4]={},puzOld[4]={},pTheta[4]={2,4,3,999},pT[4]={300,1200,900,999};
  double epsGPrev[2]={.8,.6},rhoSolid=2500,particleThermalRho=2500,particleCp=800,particleThermalCapacity=2e6;

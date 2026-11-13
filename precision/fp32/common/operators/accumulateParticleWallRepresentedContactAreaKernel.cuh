@@ -1,0 +1,110 @@
+#pragma once
+#include "GpuOperatorContract.cuh"
+__global__ void accumulateParticleWallRepresentedContactAreaKernel
+(
+    DeviceState* sp
+)
+{
+    DeviceState& s = *sp;
+    const int nWallBound = Foam::gpuWall::wallBoundDirectoryCount(s);
+    for
+    (
+        int entry = blockIdx.x*blockDim.x + threadIdx.x;
+        entry < nWallBound;
+        entry += blockDim.x*gridDim.x
+    )
+    {
+        const int i = Foam::gpuWall::wallBoundDirectoryParticle(s, entry);
+        if (i < 0 || i >= s.particleCapacity)
+        {
+            asm("trap;");
+        }
+        if
+        (
+            s.pStatus[i] == 0
+         || s.pStuck[i] == Foam::gpuThermal::particleWallMobile
+        )
+        {
+            continue;
+        }
+        const unsigned char wallState = s.pStuck[i];
+        const int faceI = s.pStuckFaceId[i];
+        if
+        (
+            faceI < 0
+         || faceI >= s.nFaces
+        )
+        {
+            asm("trap;");
+        }
+
+        GPU_OPERATOR_GEOMETRY physicalContactArea = GPU_OPERATOR_G(0.0);
+        if (wallState == Foam::gpuThermal::particleWallDeposited)
+        {
+            physicalContactArea =
+                static_cast<GPU_OPERATOR_GEOMETRY>(s.pDepositionArea[i]);
+
+        }
+        else if
+        (
+            wallState == Foam::gpuThermal::particleWallTransientRebound
+         || wallState == Foam::gpuThermal::particleWallTransientDeposit
+        )
+        {
+            const GPU_OPERATOR_TIME duration =
+                static_cast<GPU_OPERATOR_TIME>(s.pContactDuration[i]);
+            const GPU_OPERATOR_GEOMETRY maximumArea =
+                static_cast<GPU_OPERATOR_GEOMETRY>(s.pContactMaximumArea[i]);
+            const GPU_OPERATOR_GEOMETRY peakTimeFraction =
+                static_cast<GPU_OPERATOR_GEOMETRY>(s.pContactPeakFraction[i]);
+            const GPU_OPERATOR_GEOMETRY damageArea =
+                static_cast<GPU_OPERATOR_GEOMETRY>(s.pDepositionArea[i]);
+            const GPU_OPERATOR_TIME age =
+                clampRange(finiteOr(particleContactAgeStorage(s, i, 0), GPU_OPERATOR_TIME(0)), GPU_OPERATOR_TIME(0), duration);
+
+            const GPU_OPERATOR_GEOMETRY kinematicArea =
+                maximumArea*Foam::gpuThermal::normalizedKinematicArea
+                (
+                    age/duration, peakTimeFraction
+                );
+            const unsigned char interactionType =
+                s.particleStuckCandidateMask[faceI];
+            const GPU_OPERATOR_GEOMETRY frozenArea =
+                interactionType
+             == Foam::gpuThermal::particleWallSolidifyingDeposition
+              ? static_cast<GPU_OPERATOR_GEOMETRY>(s.pColdFrozenArea[i])
+              : interactionType == Foam::gpuThermal::particleWallColdWall2D
+              ? static_cast<GPU_OPERATOR_GEOMETRY>(s.pCold2DFrozenArea[i])
+              : GPU_OPERATOR_G(0.0);
+            physicalContactArea = clampMin
+            (
+                fmax(kinematicArea, frozenArea) - damageArea,
+                GPU_OPERATOR_G(0.0)
+            );
+
+            if (!(physicalContactArea > GPU_OPERATOR_G(0.0)))
+            {
+                continue;
+            }
+        }
+        else
+        {
+            asm("trap;");
+        }
+
+        const GPU_OPERATOR_GEOMETRY representedArea =
+            Foam::gpuThermal::representedDepositionContactArea
+            (
+                s.rhoSolid,
+                s.pd[i],
+                physicalContactArea,
+                s.pm[i]
+            );
+
+        atomicAdd
+        (
+            &s.particleWallRepresentedContactArea[faceI],
+            representedArea
+        );
+    }
+}

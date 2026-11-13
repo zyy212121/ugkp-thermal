@@ -4,6 +4,8 @@ Source OpenFOAM's bashrc first; all output directories are created fresh.
 """
 from pathlib import Path
 import argparse,hashlib,importlib.util,json,math,os,re,shutil,struct,subprocess,time
+
+
 ROOT=Path(__file__).resolve().parents[2]
 def module(name,path):
  spec=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
@@ -19,7 +21,25 @@ def set_entry(path,name,value):
 def control(case,steps,steady=False,write=20,dt=2e-5):
  p=case/'system/controlDict'
  for k,v in dict(application='gasUGKPSteady' if steady else 'gasUGKP',endTime=steps if steady else format(steps*dt,'.12g'),deltaT=1 if steady else dt,writeInterval=write,timePrecision=12).items():set_entry(p,k,v)
- set_entry(p,'windowSamples',20);set_entry(p,'samplingDeltaT',dt)
+ # Preserve explicit case numerics; only create the fixed default for cases
+ # without scheme. Schedule edits below do not replace gasNumerics.
+ scheme=case/'constant/scheme'
+ if not scheme.exists():scheme.write_text(f'''FoamFile {{version 2.0; format ascii; class dictionary; object scheme;}}
+gasTimeStep {{adjustTimeStep false; courantUpdateInterval 1; maximumTimeStepGrowth 1;}}
+steadyGas {{maxCo .15; maxDeltaT .001; boundaryTime 0; relativeTolerance 0; absoluteTolerance 0; minimumIterations 20001; residualInterval 1000;}}
+steadyParticle {{samplingDeltaT {dt}; boundaryTime 0; windowSamples 20; minimumWindows 20001; stableWindows 2; meanTolerance 0; inventoryTolerance 0;}}
+particle {{tracking {{maxFaceWalkHops 1000;}}}}
+gasNumerics {{fluxScheme Tadmor; gasLimiter none; ddtSchemes {{default Euler;}} gradSchemes {{default Gauss linear;}}
+divSchemes {{default none; div(phi,U) Gauss upwind; div(phi,e) Gauss upwind; div(phi,K) Gauss upwind; div(phi,(p|rho)) Gauss upwind; div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear;}}
+laplacianSchemes {{default Gauss linear corrected;}} interpolationSchemes {{default linear;}} snGradSchemes {{default corrected;}}}}
+''')
+ text=scheme.read_text()
+ def schedule(match):
+  body=re.sub(r'\bsamplingDeltaT\s+[^;]+;',f'samplingDeltaT {dt};',match[2])
+  body=re.sub(r'\bwindowSamples\s+[^;]+;','windowSamples 20;',body)
+  return match[1]+body+match[3]
+ scheme.write_text(re.sub(r'(\bsteadyParticle\s*\{)([^{}]*)(\})',schedule,text))
+
 def run(binary,case,mesh=False):
  if mesh:
   with (case/'mesh.log').open('w') as log:p=subprocess.run(['blockMesh','-case',str(case)],env=ENV,stdout=log,stderr=subprocess.STDOUT)

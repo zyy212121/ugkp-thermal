@@ -1,3 +1,5 @@
+#include "FoamSolverScheme.H"
+#include "FoamThermalDiscretization.H"
 #include "../../../common/thermal/radiation/RadiationControls.H"
 #include "../../../common/thermal/ThermalCouplingSchedule.H"
 #include "GpuSolidThermalCoupler.H"
@@ -264,6 +266,30 @@ const volScalarField& GpuSolidThermalCandidate::temperature() const
     return temperature_();
 }
 
+namespace {
+dictionary startupSolidLinearControls(const fvMesh& mesh,const char* module)
+{
+    dictionary result;
+    const auto& scheme=ugkp::solverControls::startupScheme(mesh.time());
+    label maximum=1000;
+    label minimum=0;
+    scalar tolerance=1e-6;
+    scalar relative=0;
+    scheme.read(module,"maxIter",maximum,"effectiveDefault",mesh.name());
+    scheme.read(module,"minIter",minimum,"effectiveDefault",mesh.name());
+    scheme.read(module,"tolerance",tolerance,"effectiveDefault",mesh.name());
+    scheme.read(module,"relTol",relative,"effectiveDefault",mesh.name());
+    result.set("maxIter",maximum);result.set("minIter",minimum);
+    result.set("tolerance",tolerance);result.set("relTol",relative);
+    return result;
+}
+}
+const dictionary& GpuSolidThermalCandidateSolver::selectedLinearControls() const
+{
+    return !ugkp::solverControls::thermalDiscretization(mesh_).steady()&&mesh_.data::lookupOrDefault<bool>("finalIteration",false)
+        ?finalLinearControls_:normalLinearControls_;
+}
+
 GpuSolidThermalCandidateSolver::GpuSolidThermalCandidateSolver
 (
     fvMesh& mesh,
@@ -279,6 +305,18 @@ GpuSolidThermalCandidateSolver::GpuSolidThermalCandidateSolver
     ownerConductivityPatchIds_(ownerConductivityPatchIds),
     controls_(controls)
 {
+    const auto& scheme=ugkp::solverControls::startupScheme(mesh_.time());
+    scheme.read("solid.nonlinear","nonlinearMaxIterations",controls_.nonlinearMaxIterations,"effectiveDefault",mesh_.name());
+    scheme.read("solid.nonlinear","nonlinearRelativeTolerance",controls_.nonlinearRelativeTolerance,"effectiveDefault",mesh_.name());
+    scheme.read("solid.nonlinear","energyRelativeTolerance",controls_.energyRelativeTolerance,"effectiveDefault",mesh_.name());
+    scheme.read("solid.nonlinear","energyAbsoluteTolerance",controls_.energyAbsoluteTolerance,"effectiveDefault",mesh_.name());
+    scheme.read("solid.nonlinear","nonlinearAitken",controls_.nonlinearAitken,"effectiveDefault",mesh_.name());
+    scheme.read("solid.nonlinear","nonlinearInitialRelaxation",controls_.nonlinearInitialRelaxation,"effectiveDefault",mesh_.name());
+    scheme.read("solid.nonlinear","nonlinearMinimumRelaxation",controls_.nonlinearMinimumRelaxation,"effectiveDefault",mesh_.name());
+    scheme.read("solid.nonlinear","nonlinearMaximumRelaxation",controls_.nonlinearMaximumRelaxation,"effectiveDefault",mesh_.name());
+    (void)ugkp::solverControls::thermalDiscretization(mesh_);
+    normalLinearControls_=startupSolidLinearControls(mesh_,"solid.linear.normal");
+    finalLinearControls_=startupSolidLinearControls(mesh_,"solid.linear.final");
 }
 
 GpuSolidThermalCandidate GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
@@ -572,8 +610,7 @@ GpuSolidThermalCandidateSolver::solveCandidate
         );
         residentConvergence=residentDiffusion_->residentIteration();
         if(iteration==1&&residentConvergence){
-            const dictionary& linearControls=mesh_.solution().solverDict(candidate->select
-                (!mesh_.schemes().steady()&&mesh_.data::lookupOrDefault<bool>("finalIteration",false)));
+            const dictionary& linearControls=selectedLinearControls();
             if(equation.configureResidentLocalSolve(linearControls)){
                 const int coefficientPlan=deviceProperties_->prepareResidentEvaluation(propertyQueries,propertySources,
                     mesh_.nCells(),ugkp::gpu::ThermalCapacity|ugkp::gpu::ThermalConductivity,true,0);
@@ -628,14 +665,7 @@ GpuSolidThermalCandidateSolver::solveCandidate
         {
             ScalarSolverLogSilencer silenceSolverLog;
             if (!sparse_) sparse_.reset(new ugkp::gpu::SparseConjugateGradient);
-            const dictionary& linearControls = mesh_.solution().solverDict
-            (
-                candidate->select
-                (
-                    !mesh_.schemes().steady()
-                 && mesh_.data::lookupOrDefault<bool>("finalIteration", false)
-                )
-            );
+            const dictionary& linearControls = selectedLinearControls();
             linearPerformance = equation.solve(linearControls,!residentConvergence&&!controls_.nonlinearAitken);
         }
         if
@@ -661,14 +691,7 @@ GpuSolidThermalCandidateSolver::solveCandidate
         }
         if (!linearPerformance.converged() && hostDiagnosticWarningsEnabled())
         {
-            const dictionary& linearControls = mesh_.solution().solverDict
-            (
-                candidate->select
-                (
-                    !mesh_.schemes().steady()
-                 && mesh_.data::lookupOrDefault<bool>("finalIteration", false)
-                )
-            );
+            const dictionary& linearControls = selectedLinearControls();
             const scalar absoluteLimit = linearControls.lookupOrDefault<scalar>("tolerance", 1e-6);
             const scalar relativeLimit = linearControls.lookupOrDefault<scalar>("relTol", 0)
                 *linearPerformance.initialResidual();
@@ -1081,36 +1104,6 @@ SolidPatchPair readSolidSolidPatchPair
 }
 
 
-GpuSolidThermalControls readSolidControls(const dictionary& coupling)
-{
-    GpuSolidThermalControls result;
-    result.nonlinearMaxIterations =
-        exactLookup<label>(coupling, "nonlinearMaxIterations");
-    result.nonlinearRelativeTolerance =
-        exactLookup<scalar>(coupling, "nonlinearRelativeTolerance");
-    result.energyRelativeTolerance =
-        exactLookup<scalar>(coupling, "energyRelativeTolerance");
-    result.energyAbsoluteTolerance =
-        exactLookup<scalar>(coupling, "energyAbsoluteTolerance");
-    result.nonlinearAitken =
-        coupling.lookupOrDefault<bool>("nonlinearAitken", false);
-    result.nonlinearInitialRelaxation =
-        coupling.lookupOrDefault<scalar>
-        (
-            "nonlinearInitialRelaxation", scalar(1)
-        );
-    result.nonlinearMinimumRelaxation =
-        coupling.lookupOrDefault<scalar>
-        (
-            "nonlinearMinimumRelaxation", scalar(0.05)
-        );
-    result.nonlinearMaximumRelaxation =
-        coupling.lookupOrDefault<scalar>
-        (
-            "nonlinearMaximumRelaxation", scalar(1)
-        );
-    return result;
-}
 
 }
 
@@ -1229,7 +1222,7 @@ public:
         threeRegion = formatVersion == 2
           || (formatVersion != 1
            && coupling.found("solidSolidInterfaces", false, false));
-        const auto schedule=ugkp::thermal::readCouplingSchedule(coupling);
+        const auto schedule=ugkp::thermal::readCouplingSchedule(coupling,runTime);
         radiationEnabled=schedule.radiationEnabled;
         solidContactCouplingInterval=schedule.interval;
         radiationCouplingFrequency=schedule.radiationFrequency;
@@ -1242,17 +1235,12 @@ public:
         }
         if (threeRegion)
         {
-            solidInterfaceMaxIterations =
-                exactLookup<label>(coupling, "solidInterfaceMaxIterations");
-            solidInterfaceTemperatureTolerance = exactLookup<scalar>
-            (
-                coupling, "solidInterfaceTemperatureRelativeTolerance"
-            );
-            solidInterfaceEnergyTolerance = exactLookup<scalar>
-            (
-                coupling, "solidInterfaceEnergyRelativeTolerance"
-            );
             solidRegion = exactLookup<word>(coupling, "primarySolidRegion");
+            const auto& interfaceScheme=ugkp::solverControls::startupScheme(runTime);
+            interfaceScheme.read("solid.interface","solidInterfaceMaxIterations",solidInterfaceMaxIterations,"effectiveDefault",solidRegion);
+            interfaceScheme.read("solid.interface","solidInterfaceTemperatureRelativeTolerance",solidInterfaceTemperatureTolerance,"effectiveDefault",solidRegion);
+            interfaceScheme.read("solid.interface","solidInterfaceEnergyRelativeTolerance",solidInterfaceEnergyTolerance,"effectiveDefault",solidRegion);
+
             PtrList<dictionary> solidInterfaces
             (
                 coupling.lookup("solidSolidInterfaces", false, false)
@@ -1528,7 +1516,7 @@ public:
             new GpuSolidThermalCandidateSolver
             (
                 solidMesh(), properties(), primaryCoupledPatchIds,
-                readSolidControls(coupling), primaryOwnerConductivityPatchIds
+                GpuSolidThermalControls{}, primaryOwnerConductivityPatchIds
             )
         );
         if (threeRegion)
@@ -1539,7 +1527,7 @@ public:
                 (
                     auxiliarySolidMesh(), auxiliaryProperties(),
                     solidInterfaceMapper->fluidPatchIds(),
-                    readSolidControls(coupling),
+                    GpuSolidThermalControls{},
                     solidInterfaceMapper->fluidPatchIds()
                 )
             );

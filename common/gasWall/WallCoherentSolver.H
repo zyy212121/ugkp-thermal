@@ -83,7 +83,7 @@ UGKWP_GAS_HD bool closeFirstFace(Profile&p,const double*speciesFlux,double wallE
  for(int j=0;j<3;++j){double v[3]={x[0],x[1],x[2]},rr[3],h=std::sqrt(std::numeric_limits<double>::epsilon())*std::max(1.,std::abs(x[j]));v[j]+=h;bool evaluated=evaluate(v,rr);if(!evaluated){h=-h;v[j]=x[j]+h;evaluated=evaluate(v,rr);}derivativeValid=derivativeValid&&evaluated;for(int i=0;i<3;++i)jac[i][j]=(rr[i]-r[i])/(v[j]-x[j]);}
  bool invertible=derivativeValid;for(int k=0;k<3&&invertible;++k){int pivot=k;for(int i=k+1;i<3;++i)if(std::abs(jac[i][k])>std::abs(jac[pivot][k]))pivot=i;if(jac[pivot][k]==0||!std::isfinite(jac[pivot][k])){invertible=false;break;}if(pivot!=k){for(int j=k;j<3;++j)swapValue(jac[pivot][j],jac[k][j]);swapValue(step[pivot],step[k]);}for(int i=k+1;i<3;++i){double t=jac[i][k]/jac[k][k];for(int j=k+1;j<3;++j)jac[i][j]-=t*jac[k][j];step[i]-=t*step[k];}}
  if(invertible)for(int i=2;i>=0;--i){for(int j=i+1;j<3;++j)step[i]-=jac[i][j]*step[j];step[i]/=jac[i][i];}
- bool accepted=false;for(int direction=0;direction<2&&!accepted;++direction){if(direction==0&&!invertible)continue;if(direction==1)for(int i=0;i<3;++i)step[i]=r[i];double alpha=1;for(int line=0;line<40;++line){double v[3],rr[3];for(int i=0;i<3;++i)v[i]=x[i]+alpha*step[i];bool evaluated=evaluate(v,rr);double next=magnitude(rr);if(evaluated&&std::isfinite(next)&&next<closure){for(int i=0;i<3;++i){x[i]=v[i];r[i]=rr[i];}closure=next;accepted=true;break;}alpha*=.5;}}
+ bool accepted=false;for(int direction=0;direction<2&&!accepted;++direction){if(direction==0&&!invertible)continue;if(direction==1)for(int i=0;i<3;++i)step[i]=r[i];double alpha=1;for(int line=0;line<p.cfg.numerics.maximumLineSearchIterations;++line){double v[3],rr[3];for(int i=0;i<3;++i)v[i]=x[i]+alpha*step[i];bool evaluated=evaluate(v,rr);double next=magnitude(rr);if(evaluated&&std::isfinite(next)&&next<closure){for(int i=0;i<3;++i){x[i]=v[i];r[i]=rr[i];}closure=next;accepted=true;break;}alpha*=p.cfg.numerics.lineSearchReduction;}}
  if(!accepted)break;
  }
  // No new input rejection: expose remaining local residual to the caller's
@@ -203,9 +203,9 @@ template<class Stats> UGKWP_GAS_HD bool solve(const Input&in,const Config&origin
  }else scale=cachedScale;
  for(const auto&t:cache.boundary){int j=t.column;double step=rhs[j]/t.diagonal;for(int i=t.lo;i<t.hi;++i)if(i!=j)rhs[i]-=t.values[i-t.lo]*step;rhs[j]=step;}
  lu.solve(rhs);
- double previousNorm=norm;double alpha=1,next=norm;bool accepted=false;for(int line=0;line<40;++line){copyActive(cfg,probe,w);bool feasible=true;for(int i=0;i<n;++i)probe.state[i/6][i%6]=base[i]+alpha*rhs[i]*scale[i];for(int i=0;i<cfg.nodes;++i)feasible=detail::feasibleLayerComposition<double,2>(probe.state[i])&&feasible;
- bool valid=false;if(feasible){valid=refresh(in,cfg,probe,ctx,next,trialOut);++evaluations;}if(valid&&std::isfinite(next)&&next<norm){copyActive(cfg,w,probe);out=trialOut;norm=next;accepted=true;break;}alpha*=.5;}
- ++its;if(!accepted){if(fresh)break;lu.valid=false;}else if(alpha<1||norm>previousNorm/2)lu.valid=false;
+ double previousNorm=norm;double alpha=1,next=norm;bool accepted=false;for(int line=0;line<cfg.numerics.maximumLineSearchIterations;++line){copyActive(cfg,probe,w);bool feasible=true;for(int i=0;i<n;++i)probe.state[i/6][i%6]=base[i]+alpha*rhs[i]*scale[i];for(int i=0;i<cfg.nodes;++i)feasible=detail::feasibleLayerComposition<double,2>(probe.state[i])&&feasible;
+ bool valid=false;if(feasible){valid=refresh(in,cfg,probe,ctx,next,trialOut);++evaluations;}if(valid&&std::isfinite(next)&&next<norm){copyActive(cfg,w,probe);out=trialOut;norm=next;accepted=true;break;}alpha*=cfg.numerics.lineSearchReduction;}
+ ++its;if(!accepted){if(fresh)break;lu.valid=false;}else if(alpha<1||norm>previousNorm*cfg.numerics.jacobianRefreshReduction)lu.valid=false;
  }
 
  cache.haveState=true;stats.iterations=seedIts+its;stats.residualEvaluations=evaluations;stats.factorizations=jacobianBuilds;stats.physicalResidual=norm;if(ok)ok=publish(in,cfg,w,ctx,seedIts+its,norm,out);stats.seconds=0;return ok;
@@ -448,15 +448,15 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
     for(const auto&t:cache.boundary){int j=t.column;double step=rhs[j]/t.diagonal;for(int i=t.lo;i<t.hi;++i)if(i!=j)rhs[i]-=t.values[i-t.lo]*step;rhs[j]=step;}lu.solve(rhs);
    }
    team.sync();double previousNorm=norm;double alpha=1,next=norm;bool accepted=false;
-   for(int line=0;line<40;++line){
+   for(int line=0;line<cfg.numerics.maximumLineSearchIterations;++line){
     copyActive(cfg,probe,w);bool feasible=true;
     for(int i=team.rank();i<n;i+=team.size())probe.state[i/6][i%6]=base[i]+alpha*rhs[i]*scale[i];
     team.sync();
     for(int i=team.rank();i<cfg.nodes;i+=team.size())feasible=detail::feasibleLayerComposition<double,2>(probe.state[i])&&feasible;
     feasible=team.all(feasible);bool valid=false;if(feasible){valid=refresh(in,cfg,probe,ctx,next,trialOut);++evaluations;}
-    if(valid&&std::isfinite(next)&&next<norm){copyActive(cfg,w,probe);if(team.leader())out=trialOut;norm=next;accepted=true;team.sync();break;}alpha*=.5;
+    if(valid&&std::isfinite(next)&&next<norm){copyActive(cfg,w,probe);if(team.leader())out=trialOut;norm=next;accepted=true;team.sync();break;}alpha*=cfg.numerics.lineSearchReduction;
    }
-   ++its;if(!accepted){if(fresh)break;if(team.leader())lu.valid=false;}else if(alpha<1||norm>previousNorm/2){if(team.leader())lu.valid=false;}team.sync();
+   ++its;if(!accepted){if(fresh)break;if(team.leader())lu.valid=false;}else if(alpha<1||norm>previousNorm*cfg.numerics.jacobianRefreshReduction){if(team.leader())lu.valid=false;}team.sync();
   }
   if(team.leader()){
    cache.haveState=true;stats.iterations=seedIts+its;stats.residualEvaluations=evaluations;stats.factorizations=jacobianBuilds;stats.physicalResidual=norm;

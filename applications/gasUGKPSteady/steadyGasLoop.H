@@ -8,14 +8,16 @@ if(sharedGasModel.model().mode==ugkwp::GasMode::MixtureChemistry)
 SteadyRestartState gasSteadyRestart;
 const bool gasSteadyRestartLoaded=readSteadyRestartState
     ((runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),gasSteadyRestart);
-const dictionary steadyControls = runTime.controlDict().subOrEmptyDict("steadyGas");
-const scalar steadyCourant = steadyControls.lookupOrDefault<scalar>("maxCo", 0.5);
-const scalar steadyMaxDt = steadyControls.lookupOrDefault<scalar>("maxDeltaT", GREAT);
-const scalar steadyBoundaryTime = steadyControls.lookupOrDefault<scalar>("boundaryTime", gasSteadyRestart.boundaryTime);
-const scalar steadyRelativeTolerance = steadyControls.lookupOrDefault<scalar>("relativeTolerance", 1e-8);
-const scalar steadyAbsoluteTolerance = steadyControls.lookupOrDefault<scalar>("absoluteTolerance", 0);
-const label steadyCheckInterval = max(label(1), steadyControls.lookupOrDefault<label>("residualInterval", 10));
-const label steadyMinimumIterations = steadyControls.lookupOrDefault<label>("minimumIterations", 1);
+const auto steadyControls=ugkp::solverControls::readGasSteadyControls(
+    runTime,gasSteadyRestart.boundaryTime,mesh.name());
+using SteadyReal=ugkp::solverControls::SteadySolverReal;
+const SteadyReal steadyCourant=steadyControls.maxCo;
+const scalar steadyMaxDt=steadyControls.maxDeltaT;
+const scalar steadyBoundaryTime=steadyControls.boundaryTime;
+const SteadyReal steadyRelativeTolerance=steadyControls.relativeTolerance;
+const SteadyReal steadyAbsoluteTolerance=steadyControls.absoluteTolerance;
+const label steadyCheckInterval=steadyControls.residualInterval;
+const label steadyMinimumIterations=steadyControls.minimumIterations;
 resident.configureSteady(steadyBoundaryTime);
 Info<< "Steady local pseudo-time: Co=" << steadyCourant
     << ", fixed boundary time=" << steadyBoundaryTime
@@ -26,7 +28,7 @@ resident.steadyResidual(initialSteadyResidual);
 Info<< "Initial steady spatial Linf residual " << initialSteadyResidual << nl;
 // Initial host mirrors supply fixed dimensional reference scales only; no
 // active solution update or transport operator is evaluated on the host.
-const scalar referenceTime=steadyControls.lookupOrDefault<scalar>("referenceTime",1);
+const scalar referenceTime=steadyControls.referenceTime;
 const scalar densityScale=gMax(mag(rho.primitiveField()))/referenceTime;
 const scalar pressureScale=gMax(mag(p.primitiveField()))/referenceTime;
 const scalar energyScale=pressureScale
@@ -81,17 +83,23 @@ while (runTime.run())
         ugkwp::logging::writeProgressLog(runTime);
     if(runTime.writeTime() || converged || !runTime.run())
     {
+        ugkp::precision::ScopedRestartWritePrecision writePrecision;
+        ugkp::precision::beginPrecisionWrite(runTime.timePath().c_str());
         resident.downloadToHostMirror(runTime,rho,rhoU,rhoE,U,p,Tgas);
         resident.downloadSharedGasSpecies(sharedGasModel,rho);
         resident.writeBoundaryLayerDiagnostics(boundaryLayerInput,runTime);
         if(gasTurbulenceModel==3)resident.downloadSstToHostMirror(runTime,k,omega,nut);
         else resident.downloadNutToHostMirror(runTime,nut);
-        if(converged || !runTime.run())runTime.writeNow();
-        else runTime.write();
+        const bool fieldsWritten = (converged || !runTime.run())
+            ? runTime.writeNow() : runTime.write();
         const SteadyRestartState checkpoint{steadyBoundaryTime,0,
             gasSteadyRestart.sampleCount+std::uint64_t(steadyIteration)};
-        if(!writeSteadyRestartState((runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),checkpoint))
+        const bool clockWritten = writeSteadyRestartState(
+            (runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),checkpoint);
+        if(!clockWritten)
             WarningInFunction<<"Could not write steady clock metadata; retain explicit boundaryTime on restart."<<nl;
+        if(fieldsWritten && clockWritten)
+            ugkp::precision::writeRestartPrecision(runTime.timePath().c_str());
     }
     if(converged)
     {

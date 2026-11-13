@@ -3,16 +3,18 @@
 SteadyRestartState samplingRestart;
 const bool samplingRestartLoaded=readSteadyRestartState
     ((runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),samplingRestart);
-const dictionary samplingControls=runTime.controlDict().subOrEmptyDict("steadyGas");
 const scalar originalControlDeltaT=runTime.controlDict().lookupOrDefault<scalar>("deltaT",runTime.deltaTValue());
-const scalar samplingDeltaT=samplingControls.lookupOrDefault<scalar>("samplingDeltaT",
-    samplingRestart.samplingDeltaT>0?samplingRestart.samplingDeltaT:originalControlDeltaT);
-const scalar samplingBoundaryTime=samplingControls.lookupOrDefault<scalar>("boundaryTime",samplingRestart.boundaryTime);
-const label windowSamples=max(label(1),samplingControls.lookupOrDefault<label>("windowSamples",200));
-const label minimumWindows=max(label(2),samplingControls.lookupOrDefault<label>("minimumWindows",4));
-const label requiredStableWindows=max(label(1),samplingControls.lookupOrDefault<label>("stableWindows",2));
-const scalar meanTolerance=samplingControls.lookupOrDefault<scalar>("meanTolerance",1e-3);
-const scalar inventoryTolerance=samplingControls.lookupOrDefault<scalar>("inventoryTolerance",1e-2);
+const auto samplingControls=ugkp::solverControls::readParticleSteadyControls(
+    runTime,samplingRestart.samplingDeltaT>0?samplingRestart.samplingDeltaT:originalControlDeltaT,
+    samplingRestart.boundaryTime,mesh.name());
+const scalar samplingDeltaT=samplingControls.samplingDeltaT;
+const scalar samplingBoundaryTime=samplingControls.boundaryTime;
+const label windowSamples=samplingControls.windowSamples;
+const label minimumWindows=samplingControls.minimumWindows;
+const label requiredStableWindows=samplingControls.stableWindows;
+using SteadyReal=ugkp::solverControls::SteadySolverReal;
+const SteadyReal meanTolerance=samplingControls.meanTolerance;
+const SteadyReal inventoryTolerance=samplingControls.inventoryTolerance;
 const char* baseSamplingNames[14]={"rho","rhoUx","rhoUy","rhoUz","rhoE","rhoK","rhoOmega",
     "rhoSolid","rhoUsx","rhoUsy","rhoUsz","rhoEs","rhoHp","rhoDs"};
 wordList samplingNames(GpuSteadySamplingReport::fields);
@@ -85,16 +87,23 @@ while(runTime.run())
         ugkwp::logging::writeProgressLog(runTime);
     if(runTime.writeTime() || converged || !runTime.run())
     {
+        ugkp::precision::ScopedRestartWritePrecision writePrecision;
+        ugkp::precision::beginPrecisionWrite(runTime.timePath().c_str());
         resident.downloadToHostMirror(runTime,rho,rhoU,rhoE,U,p,Tgas,epsS,rhoUs,rhoEs,rhoDs,rhoHp,Us,theta,Tp,dMeanCell);
         resident.downloadSharedGasSpecies(sharedGasModel,rho);
         if(gasTurbulenceModel==3)resident.downloadSstToHostMirror(runTime,k,omega,nut);
         else resident.downloadNutToHostMirror(runTime,nut);
-        if(converged || !runTime.run())runTime.writeNow();else runTime.write();
-        rhoHp.write(); // Export the actual downloaded material-heat moment.
+        const bool fieldsWritten = (converged || !runTime.run())
+            ? runTime.writeNow() : runTime.write();
+        const bool heatWritten = rhoHp.write(); // Export the actual downloaded material-heat moment.
         (void)resident.writeParticleRestartMirror(runTime);
         const SteadyRestartState checkpoint{samplingBoundaryTime,samplingTime,std::uint64_t(totalSamples),samplingDeltaT};
-        if(!writeSteadyRestartState((runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),checkpoint))
+        const bool clockWritten = writeSteadyRestartState(
+            (runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),checkpoint);
+        if(!clockWritten)
             WarningInFunction<<"Could not write steady clock metadata; retain explicit boundaryTime on restart."<<nl;
+        if(fieldsWritten && heatWritten && clockWritten)
+            ugkp::precision::writeRestartPrecision(runTime.timePath().c_str());
         if(haveSamplingMean && (windowComplete || converged || !runTime.run()))
         {
             scalarField means;resident.downloadSamplingMean(means);

@@ -12,7 +12,7 @@ def main():
  def prepare(name,end,controls=''):
   case=out/name;m.prepare(ROOT/'validation/molecular_transport/fixtures/chmt-mixture',case,meta)
   m.entry(case/'system/controlDict','endTime',end)
-  p=case/'constant/chmtProperties';m.entry(p,'couplingInterval',.000001);p.write_text(p.read_text()+'\n'+controls+'\n')
+  p=case/'constant/chmtProperties';m.entry(case/'constant/scheme','couplingInterval',.000001);p.write_text(p.read_text()+'\n'+controls+'\n')
   m.run([ROOT/'bin/CHMT','-case',case],case/'run.log');return case/'chmtOutput'
  baseline=prepare('every-step',.000004)
  sparse=prepare('sparse',.000004,'outputControls {diagnosticInterval 3;fieldInterval 2;checkpointInterval 4;writeInitial false;writeFinal true;}')

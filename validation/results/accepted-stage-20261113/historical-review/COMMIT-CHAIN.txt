@@ -1,0 +1,171 @@
+commit 63263fcabbe049125be1bc78cbfa04ed6b659410
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Fri Nov 13 11:17:35 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Fri Nov 13 11:17:35 2026 +0800
+
+    fix(radiation): separate published residual from inner failure diagnostics
+commit ed675527dc42d1aa27b09d2e86fa567fecc469bc
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Fri Nov 13 01:57:31 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Fri Nov 13 01:57:31 2026 +0800
+
+    perf(chmt): retain accepted device state and material history across windows
+
+commit 2bbf8088d2a2887127a1a9baab1046bcb6d533cb
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Thu Nov 12 23:49:27 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Thu Nov 12 23:49:27 2026 +0800
+
+    fix: preserve explicit regression schemes and target active controls
+
+commit 02d65472f76d43799e5c7d165a62bee43403971b
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Thu Nov 12 22:47:47 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Thu Nov 12 22:47:47 2026 +0800
+
+    integrate: checkpoints 3-5 with single scheme controls, exclude CP6
+
+commit f3bc80cb8d3831681e4c399c3969726f07627a14
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Thu Nov 12 22:24:02 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Thu Nov 12 22:24:02 2026 +0800
+
+    Remove case migration utility and use explicit validation controls
+
+commit 8be9da68d430e8d95df0fa56f22591fcc31361d5
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Thu Nov 12 21:03:02 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Thu Nov 12 21:03:02 2026 +0800
+
+    perf: reuse buffer capacity and dependency-stable CUDA graphs
+
+commit 3e93bcbe8c25e65765dbd1b9e154a73099ed6a26
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Thu Nov 12 19:21:44 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Thu Nov 12 19:21:44 2026 +0800
+
+    fix: include validated FP32 CHMT core headers in checkpoint package
+
+commit 79c5f004f0af88bd6dffdbf22cc310e98a3937fa
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Thu Nov 12 18:48:40 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Thu Nov 12 18:48:40 2026 +0800
+
+    CP3-4: complete dual precision operators and unified solver controls
+
+commit 8bde9d6d0bf4638ad498b803a5c26f921dab2ae7
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Wed Nov 11 16:52:30 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Wed Nov 11 16:52:30 2026 +0800
+
+    CP2: add selectable FP32 and preserve FP64 operators
+
+commit a3793e59dbfd6a9120ca80e4bb653c771c90ee59
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Wed Nov 11 01:35:46 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Wed Nov 11 01:35:46 2026 +0800
+
+    fix: preserve resident material geometry accuracy ownership
+
+commit 8539aae69638aaec7efe99c0192de4030ff0f9ed
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Tue Nov 10 21:26:13 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Tue Nov 10 21:26:13 2026 +0800
+
+    Keep inlet sampling continuous and on tracking planes
+
+commit 87208046d4dc4f389d5a0997e854985997e551b1
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Tue Nov 10 18:54:12 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Tue Nov 10 18:54:12 2026 +0800
+
+    Sample initial inlet faces in shared particle operator
+
+commit 77f2ac2d320173a5c27b562e40d511acd5fc0bda
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Sun Nov 8 17:11:53 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Sun Nov 8 17:11:53 2026 +0800
+
+    perf: retain CHMT windows and aggregate shared particle responses
+
+commit c6df566a5e1556c74da1f25c3d613fd853b24a38
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Sun Nov 8 03:40:58 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Sun Nov 8 03:42:42 2026 +0800
+
+    fix: address PR40 launch and shared throughput review
+
+    Use reduction threads for cooperative packing occupancy and launch. Reuse valid gas primitives within Euler/RK stages, retain direct steady entry recovery, replace steady audit atomics with shared device vector reductions, and remove the fixed mixture coupling grid cap. Keep FP64 mathematics and audit cadence. Add execution-epoch and native reduction regressions.
+
+commit cdbd997303b9b9495452a0d4ea1a801db8255030
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Sun Nov 8 01:26:38 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Sun Nov 8 01:49:09 2026 +0800
+
+    perf: parallelize shared FP64 implicit and surface solves
+
+commit 540606cdc343e418f798c19c7eaec62d0893bc9f
+Merge: 5e221da9 41032e3a
+Author:     zyy212121 <131937805+zyy212121@users.noreply.github.com>
+AuthorDate: Sat Nov 7 21:54:50 2026 +0800
+Commit:     GitHub <noreply@github.com>
+CommitDate: Sat Nov 7 21:54:50 2026 +0800
+
+    Merge pull request #39 from zyy212121/perf/5090-shared-operators-20261106
+
+    perf: improve shared FP64 scheduling and resident thermal solves
+
+commit 41032e3a8cd096d9790f250f9667a06350af3dc9
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Sat Nov 7 18:28:40 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Sat Nov 7 18:28:40 2026 +0800
+
+    Keep solid trajectory certification and gas geometry inputs resident
+
+commit abd39bd87e41244ecedf236130a82ecde151a331
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Sat Nov 7 17:50:53 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Sat Nov 7 17:50:53 2026 +0800
+
+    Keep sweep constraint layout and Newton backtracking on device
+
+commit f62acf2dd6f66da6f5f919b07e1b498df1c928d4
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Sat Nov 7 16:57:22 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Sat Nov 7 16:57:22 2026 +0800
+
+    Certify interface mesh motion without host coordinate round trips
+
+commit 1479e7b4c1a84f8f7e0acb0ecde09bbf7d6ca7d2
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Sat Nov 7 16:31:54 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Sat Nov 7 16:31:54 2026 +0800
+
+    Compose interface displacement and gas mesh motion on device
+
+commit 14335cc26c4bbc78b9c7680501b639a0ad93988b
+Author:     zyy212121 <13096960268@163.com>
+AuthorDate: Sat Nov 7 16:07:32 2026 +0800
+Commit:     zyy212121 <13096960268@163.com>
+CommitDate: Sat Nov 7 16:07:32 2026 +0800
+
+    Keep swept-volume residuals and Newton right-hand sides on device

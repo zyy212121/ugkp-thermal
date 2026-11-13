@@ -1,0 +1,169 @@
+{
+  "oldTime": "0.29500248649130967",
+  "newTime": "0.29500231779516362",
+  "timeDifferenceSeconds": -1.686961460523051e-07,
+  "wallFaces": 164,
+  "areaSum": 0.0008148082801011865,
+  "wallFlux": {
+    "convection": {
+      "relativeL2Percent": 5.272083688558863,
+      "weightedMeanOld": 4704800.553949665,
+      "weightedMeanNew": 4726813.419265662,
+      "integralRelativeChangePercent": 0.46788094550611614,
+      "rmse": 324963.4186675261,
+      "maxAbsoluteDifference": 2049290.419107953,
+      "newMin": 1143792.5,
+      "newMax": 18659754.0,
+      "nonfinite": 0
+    },
+    "radiation": {
+      "relativeL2Percent": 5.566268490121262,
+      "weightedMeanOld": 1550138.6866645012,
+      "weightedMeanNew": 1569402.8802327067,
+      "integralRelativeChangePercent": 1.24274000345459,
+      "rmse": 91853.64526016824,
+      "maxAbsoluteDifference": 447852.391563363,
+      "newMin": 146809.69788576002,
+      "newMax": 2553590.7809532895,
+      "nonfinite": 0
+    },
+    "contact": {
+      "relativeL2Percent": null,
+      "weightedMeanOld": 0.0,
+      "weightedMeanNew": 0.0,
+      "integralRelativeChangePercent": null,
+      "rmse": 0.0,
+      "maxAbsoluteDifference": 0.0,
+      "newMin": 0.0,
+      "newMax": 0.0,
+      "nonfinite": 0,
+      "relativeL2Status": "Undefined: both reference and new contact flux are identically zero; absolute difference zero."
+    },
+    "reflection": {
+      "relativeL2Percent": 52.34202569634593,
+      "weightedMeanOld": 914551.5697453596,
+      "weightedMeanNew": 889373.9691271666,
+      "integralRelativeChangePercent": -2.752999552032187,
+      "rmse": 1047364.4444197448,
+      "maxAbsoluteDifference": 5694409.03445328,
+      "newMin": 0.0,
+      "newMax": 7094762.0,
+      "nonfinite": 0
+    },
+    "particle": {
+      "relativeL2Percent": 52.34202569634593,
+      "weightedMeanOld": 914551.5697453596,
+      "weightedMeanNew": 889373.9691271666,
+      "integralRelativeChangePercent": -2.752999552032187,
+      "rmse": 1047364.4444197448,
+      "maxAbsoluteDifference": 5694409.03445328,
+      "newMin": 0.0,
+      "newMax": 7094762.0,
+      "nonfinite": 0
+    },
+    "total": {
+      "relativeL2Percent": 8.984277054140628,
+      "weightedMeanOld": 7169490.810359525,
+      "weightedMeanNew": 7185590.268625536,
+      "integralRelativeChangePercent": 0.22455511405006234,
+      "rmse": 773193.7424818771,
+      "maxAbsoluteDifference": 4376284.011362823,
+      "newMin": 2833938.9134522984,
+      "newMax": 22033616.201049503,
+      "nonfinite": 0
+    }
+  },
+  "volumeFields": {
+    "fluid/T": {
+      "relativeL2Percent": 0.1950656188332838,
+      "weightedMeanOld": 3265.99512106268,
+      "weightedMeanNew": 3266.1933097549063,
+      "integralRelativeChangePercent": 0.006068248263702003,
+      "rmse": 6.4235813005818185,
+      "maxAbsoluteDifference": 118.82933071810066,
+      "newMin": 1233.6593017578125,
+      "newMax": 3500.08935546875,
+      "nonfinite": 0
+    },
+    "fluid/p": {
+      "relativeL2Percent": 0.039082251952370126,
+      "weightedMeanOld": 3775310.3636776353,
+      "weightedMeanNew": 3775608.6262446744,
+      "integralRelativeChangePercent": 0.007900345622147142,
+      "rmse": 1514.110738552811,
+      "maxAbsoluteDifference": 31562.357050402556,
+      "newMin": 126785.4921875,
+      "newMax": 4001895.0,
+      "nonfinite": 0
+    },
+    "fluid/rho": {
+      "relativeL2Percent": 0.2701728216707297,
+      "weightedMeanOld": 4.028236173852454,
+      "weightedMeanNew": 4.026928606080763,
+      "integralRelativeChangePercent": -0.03246005733671398,
+      "rmse": 0.011289082806720408,
+      "maxAbsoluteDifference": 0.32669406903690845,
+      "newMin": 0.14160659909248352,
+      "newMax": 9.772871971130371,
+      "nonfinite": 0
+    },
+    "fluid/epsilonS": {
+      "relativeL2Percent": 28.89273908819636,
+      "weightedMeanOld": 0.000989305963484192,
+      "weightedMeanNew": 0.0009906126875398986,
+      "integralRelativeChangePercent": 0.1320849265989077,
+      "rmse": 0.0007995599506564292,
+      "maxAbsoluteDifference": 0.017861969704308173,
+      "newMin": 0.0,
+      "newMax": 0.08580998331308365,
+      "nonfinite": 0
+    },
+    "fluid/Tp": {
+      "relativeL2Percent": 19.52300451291446,
+      "weightedMeanOld": 3081.8602231055643,
+      "weightedMeanNew": 3174.9694780371215,
+      "integralRelativeChangePercent": 3.021203045923082,
+      "rmse": 625.687285891143,
+      "maxAbsoluteDifference": 3200.00048828125,
+      "newMin": 300.0,
+      "newMax": 3500.00048828125,
+      "nonfinite": 0
+    },
+    "graphite/T": {
+      "relativeL2Percent": 0.35495075883524696,
+      "weightedMeanOld": 315.59079175141164,
+      "weightedMeanNew": 315.67948495430693,
+      "integralRelativeChangePercent": 0.02810386272777965,
+      "rmse": 1.139544601943605,
+      "maxAbsoluteDifference": 73.83586848531127,
+      "newMin": 299.9996337890625,
+      "newMax": 1483.3160400390625,
+      "nonfinite": 0
+    }
+  },
+  "definitions": "relativeL2=sqrt(sum(weight*(new-old)^2)/sum(weight*old^2)); integral change=(sum(weight*new)/sum(weight*old)-1); wall weighted by face area, volume fields by polyhedral cell volume. No smoothing.",
+  "limitations": [
+    "Original cdbd9973 baseline vs current63263fca, not a precision-only comparison.",
+    "Original on different GPU; timing not controlled speedup.",
+    "Original fixed face-center injection vs current randomized injection; local particle sampling differs.",
+    "Latest radiation field corresponds to approximately0.290s while thermal snapshot is approximately0.295s.",
+    "Solid inner aggregate warnings persist; outer convergence not proof of all inner solves."
+  ],
+  "timing": {
+    "newGNUTimeSeconds": 5162,
+    "newWallClock": "1:26:02",
+    "oldLastProgressElapsedSeconds": 7568,
+    "oldLastProgressTime": 0.29972549902940715,
+    "oldCompleteTimeRecorded": false,
+    "warning": "Different hardware and software; these are observed durations, not a controlled algorithm speedup. Supervisor monotonic elapsed inconsistent with GNU time, use GNU time."
+  },
+  "runtime": {
+    "exit": 0,
+    "radiationOuterConvergedCount": 29,
+    "solidOuterConvergedCount": 59,
+    "warningSite": 34013,
+    "warningLogRecords": 59,
+    "highestObservedGpuTemperatureC": 87,
+    "noContinuationPerformed": true
+  }
+}

@@ -1,0 +1,860 @@
+#include "FoamSolverScheme.H"
+#include "../../../common/gpu/SpecularReflection.H"
+#include "MieDoRadiationSolver.H"
+
+#include "MieDoRadiationMath.H"
+#include "gpu/DiscreteOrdinateRadiation.H"
+#include "ThermalHostDiagnostics.H"
+#include "Pstream.H"
+#include "surfaceFields.H"
+#include "wallPolyPatch.H"
+
+#include <cmath>
+#include <exception>
+#include <limits>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
+namespace Foam
+{
+namespace gpuThermal
+{
+using RadiationField=Field<RadiationReal>;
+using RadiationVector=Vector<RadiationReal>;
+using RadiationVectorField=Field<RadiationVector>;
+inline RadiationVector physicalRadiationVector(const vector& v) {
+    return {RadiationReal(v.x()),RadiationReal(v.y()),RadiationReal(v.z())};
+}
+inline RadiationReal radiationMagnitude(const RadiationVector& v) {
+    return std::sqrt(v.x()*v.x()+v.y()*v.y()+v.z()*v.z());
+}
+namespace
+{
+struct PatchRadiationControls
+{
+    word type;
+    bool hasSpecifiedTemperature;
+    RadiationReal specifiedTemperatureK;
+    RadiationReal absorptivity;
+    RadiationReal fixedIntensity;
+};
+
+[[noreturn]] void solveFailure
+(
+    const std::string& reason,
+    const label iteration = 0,
+    const RadiationReal residual = std::numeric_limits<RadiationReal>::quiet_NaN(),
+    const label cell = -1,
+    const label patch = -1,
+    const label face = -1
+)
+{
+    std::ostringstream message;
+    message.precision(17);
+    message
+        << reason
+        << "; iteration=" << iteration
+        << "; residual=" << residual
+        << "; cell=" << cell
+        << "; patch=" << patch
+        << "; face=" << face;
+    throw MieDoSolveError(message.str());
+}
+
+inline bool isSpecularType(const word& type)
+{
+    return
+        type == "symmetry"
+     || type == "symmetryPlane"
+     || type == "specular"
+     || type == "specularReflection";
+}
+
+inline bool isDiffuseType(const word& type)
+{
+    return type == "diffuseGrey" || type == "greyDiffuse";
+}
+
+inline bool isSupportedRadiationType(const word& type)
+{
+    return
+        isDiffuseType(type)
+     || type == "blackBody"
+     || type == "black"
+     || type == "zeroIncoming"
+     || type == "zero"
+     || type == "fixedValue"
+     || type == "fixedI"
+     || isSpecularType(type);
+}
+
+inline bool isSupportedSerialPatch(const word& patchType)
+{
+    return
+        patchType == "wall"
+     || patchType == "patch"
+     || patchType == "symmetry"
+     || patchType == "symmetryPlane"
+     || patchType == "wedge";
+}
+
+bool readScalarIfPresent
+(
+    const dictionary& dict,
+    const word& name,
+    RadiationReal& value
+)
+{
+    if (!dict.found(name))
+    {
+        return false;
+    }
+    value = RadiationReal(readScalar(dict.lookup(name)));
+    return true;
+}
+
+bool readWordIfPresent
+(
+    const dictionary& dict,
+    const word& name,
+    word& value
+)
+{
+    if (!dict.found(name))
+    {
+        return false;
+    }
+    value = word(dict.lookup(name));
+    return true;
+}
+
+void applyPatchDictionary
+(
+    const dictionary& dict,
+    PatchRadiationControls& controls
+)
+{
+    readWordIfPresent(dict, "type", controls.type);
+
+    RadiationReal temperature = controls.specifiedTemperatureK;
+    if
+    (
+        readScalarIfPresent(dict, "T", temperature)
+     || readScalarIfPresent(dict, "temperature", temperature)
+    )
+    {
+        controls.hasSpecifiedTemperature = true;
+        controls.specifiedTemperatureK = temperature;
+    }
+
+    if (!readScalarIfPresent(dict, "absorptivity", controls.absorptivity))
+    {
+        readScalarIfPresent(dict, "emissivity", controls.absorptivity);
+    }
+    if (!readScalarIfPresent(dict, "I", controls.fixedIntensity))
+    {
+        readScalarIfPresent(dict, "IFixed", controls.fixedIntensity);
+    }
+}
+
+void validatePatchControls
+(
+    const PatchRadiationControls& controls,
+    const label patchI,
+    const word& patchName
+)
+{
+    if (!isSupportedRadiationType(controls.type))
+    {
+        solveFailure
+        (
+            "unsupported radiation boundary type '"
+          + std::string(controls.type.c_str()) + "' on patch '"
+          + std::string(patchName.c_str()) + "'",
+            0,
+            std::numeric_limits<RadiationReal>::quiet_NaN(),
+            -1,
+            patchI,
+            -1
+        );
+    }
+
+}
+
+void buildAngularQuadrature
+(
+    const label nTheta,
+    const label nPhi,
+    RadiationVectorField& directions,
+    RadiationField& weights
+)
+{
+    const label nDirections = nTheta*nPhi;
+    directions.setSize(nDirections);
+    weights.setSize(nDirections);
+
+    const RadiationReal pi = RadiationReal(12.56637061435917295385)/RadiationReal(4);
+    const RadiationReal deltaTheta = pi/RadiationReal(nTheta);
+    const RadiationReal deltaPhi = RadiationReal(2)*pi/RadiationReal(nPhi);
+    RadiationReal weightSum = 0;
+    label directionI = 0;
+
+    for (label thetaI = 0; thetaI < nTheta; ++thetaI)
+    {
+        const RadiationReal theta = (RadiationReal(thetaI) + RadiationReal(0.5))*deltaTheta;
+        const RadiationReal sinTheta = std::sin(theta);
+        const RadiationReal cosTheta = std::cos(theta);
+
+        for (label phiI = 0; phiI < nPhi; ++phiI)
+        {
+            const RadiationReal phi = (RadiationReal(phiI) + RadiationReal(0.5))*deltaPhi;
+            directions[directionI] = RadiationVector
+            (
+                sinTheta*std::cos(phi),
+                sinTheta*std::sin(phi),
+                cosTheta
+            );
+            weights[directionI] = sinTheta*deltaTheta*deltaPhi;
+            weightSum += weights[directionI];
+            ++directionI;
+        }
+    }
+
+    forAll(weights, i)
+    {
+        weights[i] *= RadiationReal(12.56637061435917295385)/weightSum;
+    }
+}
+
+label nearestDirection
+(
+    const RadiationVector& target,
+    const RadiationVectorField& directions
+)
+{
+    label best = 0;
+    RadiationReal bestDot = -std::numeric_limits<RadiationReal>::max();
+    forAll(directions, directionI)
+    {
+        const RadiationReal alignment = target & directions[directionI];
+        if (alignment > bestDot)
+        {
+            bestDot = alignment;
+            best = directionI;
+        }
+    }
+    return best;
+}
+
+}
+
+class MieDoRadiationSolverData
+{
+public:
+    const fvMesh& mesh;
+    const dictionary radiationDictionary;
+    std::shared_ptr<int> geometryFamily=std::make_shared<int>(0);
+    const MieTable mieTable;
+    const labelList coupledPatchIds;
+    MieDoControls controls;
+    boolList isCoupledPatch;
+    List<PatchRadiationControls> patchControls;
+    RadiationVectorField directions;
+    RadiationField weights;
+    List<RadiationField> directionInternalFlux;
+    List<RadiationField> directionTransportDiagonal;
+    List<List<RadiationField>> directionBoundaryFlux;
+    List<RadiationField> diffuseDenominator;
+    RadiationReal sourceRelaxation;
+    RadiationReal linearSolverTolerance;
+    RadiationReal linearSolverRelativeTolerance;
+    label linearSolverMaxIterations;
+
+    MieDoRadiationSolverData
+    (
+        const fvMesh& meshValue,
+        const dictionary& radiationProperties,
+        const MieTable& tableValue,
+        const labelList& coupledPatchIdsValue,
+        const MieDoControls& controlsValue
+    )
+    :
+        mesh(meshValue),
+        radiationDictionary(radiationProperties),
+        mieTable(tableValue),
+        coupledPatchIds(coupledPatchIdsValue),
+        controls(controlsValue),
+        isCoupledPatch(mesh.boundary().size(), false),
+        patchControls(mesh.boundary().size()),
+        diffuseDenominator(mesh.boundary().size()),
+        sourceRelaxation(1),
+        linearSolverTolerance(min(RadiationReal(1e-12),controls.sourceRelativeTolerance*RadiationReal(0.01))),
+        linearSolverRelativeTolerance(0),
+        linearSolverMaxIterations(1000)
+    {
+        // Preserve default precision budgets, then allow explicitly requested
+        // startup controls to replace the effective values exactly once.
+        controls.phaseBalanceTolerance=ugkp::gpu::radiationPhaseTolerance(
+            controls.phaseBalanceTolerance,controls.nTheta*controls.nPhi);
+        controls.sourceRelativeTolerance=ugkp::gpu::radiationConvergenceTolerance(controls.sourceRelativeTolerance);
+        linearSolverTolerance=ugkp::gpu::radiationConvergenceTolerance(linearSolverTolerance);
+        const auto& scheme=ugkp::solverControls::startupScheme(mesh.time());
+        scheme.read("radiation.do","radiationActiveEpsilonMin",controls.radiationActiveEpsilonMin,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","maxSourceIterations",controls.maxSourceIterations,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","sourceRelativeTolerance",controls.sourceRelativeTolerance,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","phaseBalanceTolerance",controls.phaseBalanceTolerance,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","maxPhaseBalanceIterations",controls.maxPhaseBalanceIterations,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","angleParallelThreads",controls.angleParallelThreads,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","sourceRelaxation",sourceRelaxation,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","linearSolverTolerance",linearSolverTolerance,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","linearSolverRelTol",linearSolverRelativeTolerance,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","linearSolverMaxIterations",linearSolverMaxIterations,"effectiveDefault",mesh.name());
+        if (Pstream::parRun())
+        {
+            solveFailure("MieDoRadiationSolver requires a reconstructed serial fvMesh");
+        }
+        if
+        (
+            controls.nTheta < 1
+         || controls.nPhi < 1
+        )
+        {
+            solveFailure("invalid Mie DO controls");
+        }
+
+        forAll(coupledPatchIds, coupledI)
+        {
+            const label patchI = coupledPatchIds[coupledI];
+            if (patchI < 0 || patchI >= mesh.boundary().size())
+            {
+                solveFailure("coupled solid patch id is out of range", 0, RadiationReal(0), -1, patchI, -1);
+            }
+            isCoupledPatch[patchI] = true;
+        }
+
+        const word defaultType = radiationProperties.lookupOrDefault<word>
+        (
+            "IBoundaryCondition",
+            word("diffuseGrey")
+        );
+        const RadiationReal defaultAbsorptivity =
+            radiationProperties.lookupOrDefault<RadiationReal>
+            (
+                "boundaryAbsorptivity",
+                RadiationReal(1)
+            );
+        const RadiationReal defaultFixedIntensity =
+            radiationProperties.lookupOrDefault<RadiationReal>("IFixed", RadiationReal(0));
+
+        PatchRadiationControls defaults
+        {
+            defaultType,
+            false,
+            RadiationReal(0),
+            defaultAbsorptivity,
+            defaultFixedIntensity
+        };
+
+        const dictionary* boundaryRadiation = nullptr;
+        if (radiationProperties.found("boundaryRadiation"))
+        {
+            boundaryRadiation = &radiationProperties.subDict("boundaryRadiation");
+            if (boundaryRadiation->found("default"))
+            {
+                applyPatchDictionary(boundaryRadiation->subDict("default"), defaults);
+            }
+        }
+
+        forAll(mesh.boundary(), patchI)
+        {
+            if (mesh.boundary()[patchI].size() == 0)
+            {
+                continue;
+            }
+            const word polyType = mesh.boundaryMesh()[patchI].type();
+            if (!isSupportedSerialPatch(polyType))
+            {
+                solveFailure
+                (
+                    "unsupported serial fvPatch type '" + std::string(polyType.c_str()) + "'",
+                    0,
+                    RadiationReal(0),
+                    -1,
+                    patchI,
+                    -1
+                );
+            }
+
+            patchControls[patchI] = defaults;
+            const word& patchName = mesh.boundary()[patchI].name();
+            if (boundaryRadiation && boundaryRadiation->found(patchName))
+            {
+                applyPatchDictionary
+                (
+                    boundaryRadiation->subDict(patchName),
+                    patchControls[patchI]
+                );
+            }
+            if (polyType == "wedge")
+            {
+                patchControls[patchI].type = "symmetry";
+            }
+            validatePatchControls(patchControls[patchI], patchI, patchName);
+
+            if (isCoupledPatch[patchI] && !isDiffuseType(patchControls[patchI].type))
+            {
+                solveFailure
+                (
+                    "coupled solid patch requires diffuseGrey radiation type",
+                    0,
+                    RadiationReal(0),
+                    -1,
+                    patchI,
+                    -1
+                );
+            }
+
+        }
+
+        buildAngularQuadrature
+        (
+            controls.nTheta,
+            controls.nPhi,
+            directions,
+            weights
+        );
+
+        const labelUList& owner = mesh.owner();
+        const labelUList& neighbour = mesh.neighbour();
+        const vectorField& internalAreas = mesh.Sf().primitiveField();
+        directionInternalFlux.setSize(directions.size());
+        directionTransportDiagonal.setSize(directions.size());
+        directionBoundaryFlux.setSize(directions.size());
+        forAll(directions, directionI)
+        {
+            RadiationField& internalFlux = directionInternalFlux[directionI];
+            RadiationField& transportDiagonal =
+                directionTransportDiagonal[directionI];
+            List<RadiationField>& boundaryFlux =
+                directionBoundaryFlux[directionI];
+            internalFlux.setSize(mesh.nInternalFaces());
+            transportDiagonal.setSize(mesh.nCells(), RadiationReal(0));
+            boundaryFlux.setSize(mesh.boundary().size());
+
+            forAll(internalFlux, faceI)
+            {
+                const RadiationReal orientedAreaFlux =
+                    directions[directionI] & physicalRadiationVector(internalAreas[faceI]);
+                internalFlux[faceI] = orientedAreaFlux;
+                transportDiagonal[owner[faceI]] += std::max(orientedAreaFlux,RadiationReal(0));
+                transportDiagonal[neighbour[faceI]] += std::max(-orientedAreaFlux,RadiationReal(0));
+            }
+
+            forAll(mesh.boundary(), patchI)
+            {
+                const labelUList& faceCells =
+                    mesh.boundary()[patchI].faceCells();
+                const vectorField& faceAreas =
+                    mesh.Sf().boundaryField()[patchI];
+                boundaryFlux[patchI].setSize(faceCells.size());
+                forAll(faceCells, faceI)
+                {
+                    const RadiationReal orientedAreaFlux =
+                        directions[directionI] & physicalRadiationVector(faceAreas[faceI]);
+                    boundaryFlux[patchI][faceI] = orientedAreaFlux;
+                    if (orientedAreaFlux > RadiationReal(0))
+                    {
+                        transportDiagonal[faceCells[faceI]] += orientedAreaFlux;
+                    }
+                }
+            }
+        }
+
+        forAll(mesh.boundary(), patchI)
+        {
+            const vectorField& faceAreas = mesh.Sf().boundaryField()[patchI];
+            diffuseDenominator[patchI].setSize(faceAreas.size(), RadiationReal(0));
+            forAll(faceAreas, faceI)
+            {
+                const RadiationVector area = physicalRadiationVector(faceAreas[faceI]);
+                const RadiationReal areaMagnitude = radiationMagnitude(area);
+
+                const RadiationVector outwardNormal = area/areaMagnitude;
+                RadiationReal denominator = 0;
+                forAll(directions, directionI)
+                {
+                    const RadiationReal cosineOut = directions[directionI] & outwardNormal;
+                    if (cosineOut < RadiationReal(0))
+                    {
+                        denominator += weights[directionI]*(-cosineOut);
+                    }
+                }
+
+                diffuseDenominator[patchI][faceI] = denominator;
+            }
+        }
+    }
+
+    RadiationReal boundaryTemperature
+    (
+        const MieDoSnapshot& snapshot,
+        const label patchI,
+        const label faceI
+    ) const
+    {
+        if (!isCoupledPatch[patchI] && patchControls[patchI].hasSpecifiedTemperature)
+        {
+            return patchControls[patchI].specifiedTemperatureK;
+        }
+        return RadiationReal(snapshot.wallTemperatureK.boundaryField()[patchI][faceI]);
+    }
+
+    RadiationReal boundaryEmissivity
+    (
+        const MieDoSnapshot& snapshot,
+        const label patchI,
+        const label faceI
+    ) const
+    {
+        if (isCoupledPatch[patchI])
+        {
+            return RadiationReal(snapshot.coupledWallEmissivity[patchI][faceI]);
+        }
+        return patchControls[patchI].absorptivity;
+    }
+
+    void validateSnapshot(const MieDoSnapshot& snapshot) const
+    {
+        const label nCells = mesh.nCells();
+        if
+        (
+            snapshot.resident.enabled ? snapshot.resident.cells != nCells :
+            (snapshot.epsilonS.size() < nCells
+         || snapshot.particleTemperatureK.size() < nCells
+         || snapshot.representativeDiameterM.size() < nCells)
+        )
+        {
+            solveFailure("Mie DO snapshot cell arrays do not match fvMesh::nCells");
+        }
+        if (snapshot.coupledWallEmissivity.size() < mesh.boundary().size()
+            || snapshot.wallTemperatureK.boundaryField().size() < mesh.boundary().size())
+        {
+            solveFailure("coupled-wall emissivity list does not match boundary patch count");
+        }
+
+        forAll(mesh.boundary(), patchI)
+        {
+            const scalarField& temperature =
+                snapshot.wallTemperatureK.boundaryField()[patchI];
+            if (temperature.size() < mesh.boundary()[patchI].size())
+            {
+                solveFailure("wall-temperature patch size mismatch", 0, RadiationReal(0), -1, patchI, -1);
+            }
+
+            if (isCoupledPatch[patchI])
+            {
+                const scalarField& emissivity = snapshot.coupledWallEmissivity[patchI];
+                if (emissivity.size() < mesh.boundary()[patchI].size())
+                {
+                    solveFailure("coupled-wall emissivity patch size mismatch", 0, RadiationReal(0), -1, patchI, -1);
+                }
+
+            }
+        }
+    }
+};
+
+namespace
+{
+ugkp::gpu::RadiationGeometry radiationGeometry(const MieDoRadiationSolverData& data)
+{
+    using ugkp::gpu::RadiationBoundary;
+    ugkp::gpu::RadiationGeometry result;
+    const fvMesh& mesh=data.mesh;
+    result.cells=mesh.nCells();result.directions=data.directions.size();
+    forAll(mesh.owner(),face)result.owner.push_back(mesh.owner()[face]);
+    forAll(mesh.neighbour(),face)result.neighbour.push_back(mesh.neighbour()[face]);
+    result.cellOffsets.push_back(0);
+    forAll(mesh.cells(),cellI){for(const label face:mesh.cells()[cellI])if(face<mesh.nInternalFaces())result.cellFaces.push_back(face);
+        result.cellOffsets.push_back(result.cellFaces.size());}
+    forAll(mesh.V(),cellI)result.volume.push_back(mesh.V()[cellI]);
+    for(const RadiationReal weight:data.weights)result.weights.push_back(weight);
+    for(const RadiationVector& a:data.directions)for(const RadiationVector& b:data.directions)result.directionCosines.push_back(max(RadiationReal(-1),min(RadiationReal(1),a&b)));
+    forAll(mesh.boundary(),patchI){const word& type=data.patchControls[patchI].type;
+        RadiationBoundary kind=RadiationBoundary::Diffuse;
+        if(isSpecularType(type))kind=RadiationBoundary::Specular;
+        else if(type=="zeroIncoming"||type=="zero")kind=RadiationBoundary::Zero;
+        else if(type=="fixedValue"||type=="fixedI")kind=RadiationBoundary::Fixed;
+        else if(type=="blackBody"||type=="black")kind=RadiationBoundary::Black;
+        forAll(mesh.boundary()[patchI],faceI){
+            result.boundaryOwner.push_back(mesh.boundary()[patchI].faceCells()[faceI]);result.boundaryPatch.push_back(patchI);result.boundaryFace.push_back(faceI);
+            result.boundaryType.push_back(kind);result.boundaryArea.push_back(radiationMagnitude(physicalRadiationVector(mesh.Sf().boundaryField()[patchI][faceI])));
+            result.diffuseDenominator.push_back(data.diffuseDenominator[patchI][faceI]);result.fixedIntensity.push_back(data.patchControls[patchI].fixedIntensity);
+        }
+    }
+    std::vector<std::array<RadiationReal,3>> angularDirections;
+    std::vector<RadiationReal> angularWeights(data.weights.begin(),data.weights.end());
+    for(const RadiationVector& v:data.directions)angularDirections.push_back({v.x(),v.y(),v.z()});
+    std::vector<std::vector<std::vector<ugkp::gpu::ReflectionEntry>>> reflection;
+    int boundaryIndex=0;
+    forAll(mesh.boundary(),patchI)forAll(mesh.boundary()[patchI],faceI){
+        const RadiationVector area=physicalRadiationVector(mesh.Sf().boundaryField()[patchI][faceI]),normal=area/radiationMagnitude(area);
+        if(result.boundaryType[boundaryIndex++]==RadiationBoundary::Specular)
+            reflection.push_back(ugkp::gpu::specularReflection(angularDirections,angularWeights,{normal.x(),normal.y(),normal.z()}));
+        else reflection.emplace_back(data.directions.size());
+    }
+    result.reflectionOffsets.push_back(0);
+    forAll(data.directions,directionI)for(const auto& face:reflection){
+        for(const auto& entry:face[directionI]){result.reflectionDonors.push_back(entry.donor);result.reflectionWeights.push_back(entry.weight);}
+        result.reflectionOffsets.push_back(result.reflectionDonors.size());
+    }
+    forAll(data.directions,directionI){
+        for(const RadiationReal flux:data.directionInternalFlux[directionI])result.internalFlux.push_back(flux);
+        for(const RadiationReal diagonal:data.directionTransportDiagonal[directionI])result.transportDiagonal.push_back(diagonal);
+        forAll(mesh.boundary(),patchI)forAll(mesh.boundary()[patchI],faceI){
+            const RadiationVector area=physicalRadiationVector(mesh.Sf().boundaryField()[patchI][faceI]);
+            result.boundaryFlux.push_back(data.directionBoundaryFlux[directionI][patchI][faceI]);
+            result.boundaryCosine.push_back(data.directions[directionI]&(area/radiationMagnitude(area)));
+            const RadiationVector normal=area/std::max(radiationMagnitude(area),std::numeric_limits<RadiationReal>::min());
+            RadiationVector reflected=data.directions[directionI]-RadiationReal(2)*(data.directions[directionI]&normal)*normal;
+            const RadiationReal magnitude=radiationMagnitude(reflected);if(magnitude>std::numeric_limits<RadiationReal>::min())reflected/=magnitude;
+            result.reflectedDirection.push_back(nearestDirection(reflected,data.directions));
+        }
+    }
+    return result;
+}
+ugkp::gpu::RadiationControls radiationControls(const MieDoRadiationSolverData& data)
+{
+    ugkp::gpu::RadiationControls result;
+    result.activeEpsilonMinimum=data.controls.radiationActiveEpsilonMin;result.phaseTolerance=data.controls.phaseBalanceTolerance;
+    result.sourceTolerance=data.controls.sourceRelativeTolerance;result.linearTolerance=data.linearSolverTolerance;
+    result.linearRelativeTolerance=data.linearSolverRelativeTolerance;result.sourceRelaxation=data.sourceRelaxation;result.small=RadiationReal(SMALL);
+    result.phaseIterations=data.controls.maxPhaseBalanceIterations;result.sourceIterations=data.controls.maxSourceIterations;result.linearIterations=data.linearSolverMaxIterations;
+    result.maximumConcurrentAngles=min(max(data.controls.angleParallelThreads,label(1)),max(data.directions.size(),label(1)));
+    result.parallelAngles=result.maximumConcurrentAngles>1;
+    result.controlsAlreadyResolved=true;
+    return result;
+}
+template<class Real> void copyRadiationField(const std::vector<Real>& source,scalarField& target)
+{
+    target.setSize(source.size());forAll(target,i)target[i]=source[i];
+}
+}
+class MieDoRadiationWorkspaceData
+{
+public:
+    std::shared_ptr<const MieDoRadiationSolverData> owner;
+    std::unique_ptr<ugkp::gpu::DiscreteOrdinateRadiation> gpu;
+    bool intensitiesInitialized=false;
+    explicit MieDoRadiationWorkspaceData(const MieDoRadiationSolver&,const std::shared_ptr<const MieDoRadiationSolverData>&){}
+    void prepare(const std::shared_ptr<const MieDoRadiationSolverData>& data)
+    {
+        if(owner==data)return;
+        if(owner&&owner->geometryFamily==data->geometryFamily){
+            gpu->updateGeometry(radiationGeometry(*data));owner=data;return;
+        }
+        std::vector<double> warm;
+        const bool matching=owner&&owner->mesh.nCells()==data->mesh.nCells()&&owner->directions.size()==data->directions.size();
+        if(matching&&intensitiesInitialized)gpu->downloadIntensities(warm);
+        std::unique_ptr<ugkp::gpu::DiscreteOrdinateRadiation> next(new ugkp::gpu::DiscreteOrdinateRadiation
+            (radiationGeometry(*data),data->mieTable.exportGpuTable(),radiationControls(*data)));
+        if(!warm.empty())next->uploadIntensities(warm);
+        intensitiesInitialized=matching&&intensitiesInitialized;gpu=std::move(next);owner=data;
+    }
+};
+
+namespace {
+MieDoResult publishedRadiationResult(const fvMesh& mesh,MieDoRadiationWorkspaceData& scratch,const ugkp::gpu::RadiationResult& output){
+    MieDoResult result;result.resident=scratch.gpu->deviceView();
+    if(output.power.empty()&&mesh.nCells()){
+        result.integratedParticlePowerW=result.integratedBoundaryPowerW=result.conservationResidualW=0;
+        result.sourceIterations=output.sourceIterations;result.angleThreadsUsed=1;return result;
+    }
+    copyRadiationField(output.absorption,result.absorptionCoefficientInvM);copyRadiationField(output.scattering,result.scatteringCoefficientInvM);
+    copyRadiationField(output.extinction,result.extinctionCoefficientInvM);copyRadiationField(output.asymmetry,result.asymmetryFactor);
+    copyRadiationField(output.incident,result.incidentRadiationG_Wm2);copyRadiationField(output.power,result.particlePowerDensityWm3);
+    result.boundaryQrOutwardWm2.setSize(mesh.boundary().size());result.integratedParticlePowerW=0;result.integratedBoundaryPowerW=0;
+    result.sourceIterations=output.sourceIterations;result.angleThreadsUsed=1;
+    forAll(result.particlePowerDensityWm3,cellI)result.integratedParticlePowerW+=output.power[cellI]*RadiationReal(mesh.V()[cellI]);
+    std::size_t index=0;
+    forAll(mesh.boundary(),patchI){auto& values=result.boundaryQrOutwardWm2[patchI];values.setSize(mesh.boundary()[patchI].size());
+        forAll(values,faceI){values[faceI]=output.boundaryFlux[index++];result.integratedBoundaryPowerW+=RadiationReal(values[faceI])*radiationMagnitude(physicalRadiationVector(mesh.Sf().boundaryField()[patchI][faceI]));}}
+    result.conservationResidualW=result.integratedParticlePowerW+result.integratedBoundaryPowerW;
+    return result;
+}
+}
+
+MieDoRadiationWorkspace::MieDoRadiationWorkspace
+(
+    std::unique_ptr<MieDoRadiationWorkspaceData> data
+) noexcept
+:
+    data_(std::move(data))
+{}
+
+MieDoRadiationWorkspace::~MieDoRadiationWorkspace() = default;
+
+MieDoRadiationWorkspace::MieDoRadiationWorkspace
+(
+    MieDoRadiationWorkspace&& other
+) noexcept = default;
+
+MieDoRadiationWorkspace& MieDoRadiationWorkspace::operator=
+(
+    MieDoRadiationWorkspace&& other
+) noexcept = default;
+
+MieDoRadiationSolver::MieDoRadiationSolver
+(
+    const fvMesh& mesh,
+    const dictionary& radiationProperties,
+    const MieTable& mieTable,
+    const labelList& coupledSolidPatchIds,
+    const MieDoControls& controls
+)
+:
+    data_
+    (
+        std::make_shared<MieDoRadiationSolverData>
+        (
+            mesh,
+            radiationProperties,
+            mieTable,
+            coupledSolidPatchIds,
+            controls
+        )
+    )
+{}
+
+void MieDoRadiationSolver::updateGeometry()
+{
+    auto next=std::make_shared<MieDoRadiationSolverData>(data_->mesh,
+        data_->radiationDictionary,data_->mieTable,data_->coupledPatchIds,data_->controls);
+    next->geometryFamily=data_->geometryFamily;data_=std::move(next);
+}
+
+const fvMesh& MieDoRadiationSolver::mesh() const noexcept
+{
+    return data_->mesh;
+}
+
+const MieTable& MieDoRadiationSolver::mieTable() const noexcept
+{
+    return data_->mieTable;
+}
+
+const labelList& MieDoRadiationSolver::coupledSolidPatchIds() const noexcept
+{
+    return data_->coupledPatchIds;
+}
+
+const MieDoControls& MieDoRadiationSolver::controls() const noexcept
+{
+    return data_->controls;
+}
+
+void MieDoRadiationSolver::validateSnapshot
+(
+    const MieDoSnapshot& snapshot
+) const
+{
+    if (!data_)
+    {
+        solveFailure("MieDoRadiationSolver has no immutable implementation state");
+    }
+    data_->validateSnapshot(snapshot);
+}
+
+MieDoRadiationWorkspace MieDoRadiationSolver::makeWorkspace() const
+{
+    if (!data_)
+    {
+        solveFailure("MieDoRadiationSolver has no immutable implementation state");
+    }
+    return MieDoRadiationWorkspace
+    (
+        std::unique_ptr<MieDoRadiationWorkspaceData>
+        (
+            new MieDoRadiationWorkspaceData(*this, data_)
+        )
+    );
+}
+
+MieDoResult MieDoRadiationSolver::solve(const MieDoSnapshot& snapshot) const
+{
+    MieDoRadiationWorkspace workspace = makeWorkspace();
+    auto result=solve(snapshot, workspace);result.resident={};return result;
+}
+
+MieDoResult MieDoRadiationSolver::solve
+(
+    const MieDoSnapshot& snapshot,
+    MieDoRadiationWorkspace& workspace,
+    bool exportFields
+) const
+{
+    if (!data_)
+    {
+        solveFailure("MieDoRadiationSolver has no immutable implementation state");
+    }
+    if (!workspace.data_)
+    {
+        solveFailure("Mie DO workspace has no storage");
+    }
+    const MieDoRadiationSolverData& data = *data_;
+    data.validateSnapshot(snapshot);
+    MieDoRadiationWorkspaceData& scratch = *workspace.data_;
+    scratch.prepare(data_);
+    const fvMesh& mesh=data.mesh;
+    const label nCells=mesh.nCells();
+    ugkp::gpu::RadiationSnapshot input;
+    input.resident=snapshot.resident;
+    if(!input.resident.enabled){
+        input.epsilon.assign(snapshot.epsilonS.begin(),snapshot.epsilonS.begin()+nCells);
+        input.temperature.assign(snapshot.particleTemperatureK.begin(),snapshot.particleTemperatureK.begin()+nCells);
+        input.diameter.assign(snapshot.representativeDiameterM.begin(),snapshot.representativeDiameterM.begin()+nCells);
+    }
+    forAll(mesh.boundary(),patchI)forAll(mesh.boundary()[patchI],faceI){
+        input.wallTemperature.push_back(data.boundaryTemperature(snapshot,patchI,faceI));
+        input.emissivity.push_back(data.boundaryEmissivity(snapshot,patchI,faceI));
+        input.residentWallTemperature.push_back(data.isCoupledPatch[patchI]||!data.patchControls[patchI].hasSpecifiedTemperature);
+        input.contactEmissivity.push_back(data.isCoupledPatch[patchI]);
+    }
+    const bool warm=scratch.intensitiesInitialized;scratch.intensitiesInitialized=false;
+    ugkp::gpu::RadiationResult output;
+    try {output=scratch.gpu->solve(input,warm,exportFields);}
+    catch(const ugkp::gpu::RadiationError& error){solveFailure(error.what(),error.iteration,error.value,error.cell,error.patch,error.face);}
+    catch(const std::exception& error){solveFailure(std::string("CUDA Mie DO solve failed: ")+error.what());}
+    if(exportFields&&hostDiagnosticWarningsEnabled()){
+        const auto effectiveControls=radiationControls(data);
+        for(label cellI=0;cellI<nCells;++cellI){const auto& phase=output.phaseMetrics[cellI];
+            if(phase.rowError>effectiveControls.phaseTolerance||phase.columnError>effectiveControls.phaseTolerance)
+                WarningInFunction<<"DO phase balance iteration budget exhausted; time="<<mesh.time().timeName()<<"; cell="<<cellI
+                    <<"; iterations="<<phase.iterations<<"; rowResidual="<<phase.rowError<<"; columnResidual="<<phase.columnError
+                    <<"; limit="<<effectiveControls.phaseTolerance<<"; retaining computed phase probabilities"<<endl;
+        }
+        for(std::size_t direction=0;direction<output.directionWarnings.size();++direction){const auto& warning=output.directionWarnings[direction];
+            if(warning.linearIteration>0)WarningInFunction<<"DO linear iteration budget exhausted; time="<<mesh.time().timeName()
+                <<"; direction="<<direction<<"; sourceIteration="<<warning.sourceIteration<<"; linearIterations="<<warning.linearIteration
+                <<"; residual="<<warning.residual<<"; limit="<<warning.limit<<"; retaining computed intensity"<<endl;
+        }
+        if(output.maximumRelativeChange>effectiveControls.sourceTolerance)
+            WarningInFunction<<"DO source iteration budget exhausted; time="<<mesh.time().timeName()<<"; iterations="<<output.sourceIterations
+                <<"; residual="<<output.maximumRelativeChange<<"; limit="<<effectiveControls.sourceTolerance<<"; retaining computed intensities"<<endl;
+    }
+    scratch.intensitiesInitialized=true;return publishedRadiationResult(mesh,scratch,output);
+}
+
+MieDoResult MieDoRadiationSolver::collect(MieDoRadiationWorkspace& workspace) const {
+    if(!workspace.data_||!workspace.data_->gpu)solveFailure("radiation output requested before solve");
+    return publishedRadiationResult(data_->mesh,*workspace.data_,workspace.data_->gpu->collect());
+}
+
+}
+}

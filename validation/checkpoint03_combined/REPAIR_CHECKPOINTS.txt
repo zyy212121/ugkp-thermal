@@ -1,0 +1,35 @@
+Failed combined batch r6 is preserved. CP2 commit8bde9d6d0bf4638ad498b803a5c26f921dab2ae7 remains the accepted baseline.
+Internal checkpoint A is one grouped thirteen-node diagnostic/repair batch:
+- Eight prior FP32 failure paths: continuous gasUGKP, gasUGKPSteady, CHT, CHMT; gas-ode; steady-default; radiation; sparse.
+- Three independent original-case continuations: PR41 FP64, candidate FP64, candidate FP32.
+- The two existing sequence60/61 comparisons.
+Original case is read-only. Start0.29500248649130967; nominal end0.305; common stop upper bound0.30500348649130967 preserves the original exchange output near0.305002.
+Fix allocation extent and GPU stack setup. Restore realistic FP32 default/tolerance expectations only where actual prior evidence supports them. Gas ODE and sparse retain current stopping criteria in A while exposing existing residual and iteration evidence before any decision.
+No solver/fixture execution until sources, builds, input copies and this batch are frozen. Compiler-only checks may run freely.
+Internal checkpoint B is one full115-node combined rerun after A has identified any remaining correction. It must meet finite-state, correct trend, actual declared stopping/convergence status and rough conservation expectations. Retain all previous failure evidence; do not relabel old runs.
+No passed checkpoint commit or review package until combined acceptance is complete. No later Buffer/Graph or CHMT device/conduction work before this checkpoint passes.
+
+Completed internal checkpoint A2 (parent-authorized grouped diagnostic):
+Four nodes executed once: r8 FP32 gas-ode, corrected combined radiation fixture,
+sparse fixture, and one original-case FP32 continuation under gdb for that own
+process only. A2 finished with radiation PASS and the other three FAIL. Original
+A and A2 frozen plans, inputs, logs and failure conclusions remain unchanged.
+The debugger captured DiscreteOrdinateRadiation::solve -> cudaEventRecord with
+an invalid producer-stream path during the first radiation exchange. Source
+review identified positional construction of the FP32 radiation view using the
+wrong member mapping. Revision r9 uses named members, gasBoundaryT for boundary
+temperature, and nullptr for the default producer stream. This diagnosis does
+not relabel any old failed run as passed.
+Revision r9 fixes the predeclared engineering budget at FP32 relative1e-4 for
+wall ODE while retaining absolute8epsilon. Sparse known-solution error uses
+FP32 relative1e-4 with solution scale301; other independent residual/conservation
+bounds remain unchanged. The actual combined radiation fixture retains its
+approved precision-aware closure bound and reports old/new bounds. No outcome
+is assumed before execution. The FP32 CHT startup overlay corrects the printed
+wall-energy precision label only and must be included in source packaging.
+Checkpoint B remains the complete115-node grouped validation, with fresh inputs
+and r9 source/binary evidence. No extra diagnostic run or retry is authorized
+by this plan update. Await parent final freeze/start authorization.
+
+Repair2 diagnostics C completed with two original-input runs once. Its evidence is preserved separately.
+Internal D follows CHECKPOINT-D-FIXED-PLAN.txt in repair2 records: full115-node acceptance, FP32 physical momentum activity scaling, explicit solid relative1e-5 / energy-relative1e-4 engineering budgets, retained FP64. No numerical D node has run.
