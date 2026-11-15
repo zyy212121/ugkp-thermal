@@ -1,0 +1,574 @@
+[
+  {
+    "kind": "static",
+    "bits": 32,
+    "checkpoint": 0,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "static",
+    "bits": 32,
+    "checkpoint": 1,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "static",
+    "bits": 32,
+    "checkpoint": 2,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "static",
+    "bits": 32,
+    "checkpoint": 3,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "static",
+    "bits": 64,
+    "checkpoint": 0,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "static",
+    "bits": 64,
+    "checkpoint": 1,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "static",
+    "bits": 64,
+    "checkpoint": 2,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "static",
+    "bits": 64,
+    "checkpoint": 3,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 32,
+    "checkpoint": 0,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 32,
+    "checkpoint": 1,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 32,
+    "checkpoint": 2,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 32,
+    "checkpoint": 3,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 32,
+    "checkpoint": 4,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 32,
+    "checkpoint": 5,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 32,
+    "checkpoint": 6,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 32,
+    "checkpoint": 7,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 32,
+    "checkpoint": 8,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 64,
+    "checkpoint": 0,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 64,
+    "checkpoint": 1,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 64,
+    "checkpoint": 2,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 64,
+    "checkpoint": 3,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 64,
+    "checkpoint": 4,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 64,
+    "checkpoint": 5,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 64,
+    "checkpoint": 6,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 64,
+    "checkpoint": 7,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving",
+    "bits": 64,
+    "checkpoint": 8,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "static-fallback",
+    "bits": 32,
+    "checkpoint": 0,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "static-fallback",
+    "bits": 32,
+    "checkpoint": 1,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "static-fallback",
+    "bits": 32,
+    "checkpoint": 2,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "static-fallback",
+    "bits": 32,
+    "checkpoint": 3,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "static-fallback",
+    "bits": 64,
+    "checkpoint": 0,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "static-fallback",
+    "bits": 64,
+    "checkpoint": 1,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "static-fallback",
+    "bits": 64,
+    "checkpoint": 2,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "static-fallback",
+    "bits": 64,
+    "checkpoint": 3,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 32,
+    "checkpoint": 0,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 32,
+    "checkpoint": 1,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 32,
+    "checkpoint": 2,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 32,
+    "checkpoint": 3,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 32,
+    "checkpoint": 4,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 32,
+    "checkpoint": 5,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 32,
+    "checkpoint": 6,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 32,
+    "checkpoint": 7,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 32,
+    "checkpoint": 8,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 64,
+    "checkpoint": 0,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 64,
+    "checkpoint": 1,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 64,
+    "checkpoint": 2,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 64,
+    "checkpoint": 3,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 64,
+    "checkpoint": 4,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 64,
+    "checkpoint": 5,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 64,
+    "checkpoint": 6,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 64,
+    "checkpoint": 7,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  },
+  {
+    "kind": "moving-live",
+    "bits": 64,
+    "checkpoint": 8,
+    "payloadEqual": true,
+    "unexpectedNonfinite": [
+      0,
+      0
+    ],
+    "diff": {}
+  }
+]

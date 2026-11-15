@@ -1,0 +1,31 @@
+{
+  "baselineCommit": "ed675527dc42d1aa27b09d2e86fa567fecc469bc",
+  "correction": "Separate published residual metadata from true inner solve warnings in both precisions.",
+  "numericalChange": false,
+  "controlChange": false,
+  "physicalOutputOrRawLogChange": false,
+  "scope": "Only two deleted lines per precision; finishDirectionReport unchanged.",
+  "representativeEvidence": {
+    "fp32": {
+      "component": 1,
+      "observed": 5.274542218103306e-06,
+      "target": 3.814697265625e-06,
+      "outerConverged": true,
+      "outerIterations": 28
+    },
+    "fp64": {
+      "component": 1,
+      "observed": 1.335955648762981e-07,
+      "target": 1e-08
+    },
+    "linearBudget": 200
+  },
+  "unresolved": "Aggregated occurrences were not all individually expanded. Do not label all of them benign or exhausted.",
+  "validation": "Both production-function host regressions pass; before-repair negative controls fail as expected. Numerical solver source and controls unchanged. No new CHT/GPU physical run.",
+  "preservedLimitations": [
+    "Particle/optical full-field discrepancies remain.",
+    "One run per version cannot estimate sampling variance.",
+    "No full-domain energy closure.",
+    "Historical compiled binary and logs are pre-fix evidence, not rebuilt binaries."
+  ]
+}

@@ -1,0 +1,17 @@
+CP6 fixed18 + supplemental FP64: all 19 exit 0; physical review remains explicit.
+Build: 8 apps + 2 launchers successful fresh r4 binaries; prior compiler ICE logs preserved; no r3 object reuse.
+CHMT: 52/52 same-precision old/new complete payloads byte equal, active-state unexpected nonfinite 0. Dry-film inactive temperature NaNs retained explicitly. CSV owner_k_source_integral NaN requires source semantic explanation, not hidden.
+Profiler: 16/16 exports exit 0, all stop events present, no dropped/lost/truncation/failure diagnostic observed. Unified Memory tracing unsupported diagnostic exists; claims limited to explicit CUDA memcpy/API events.
+CHMT live: mobile particle velocity changes and attached particle follows moving face/contact clock; FP64 temperature changes, FP32 tiny energy increments disappear. Do not claim short-window FP32 exchange conservation.
+CHT common saved exchange sequences 60 and 61, requested same .29500248649130967 to .30500348649130967 upper bound.
+pr41-fp64: GNU time 792.99 s, latest saved 0.30500252032217334, all parsed published fields finite.
+candidate-fp32: GNU time 177.79 s, latest saved 0.30500260321589845, all parsed published fields finite.
+candidate-fp64: GNU time 644.4 s, latest saved 0.305002583588759, all parsed published fields finite.
+Time ratios: PR41/new32=4.460262106980146, PR41/new64=1.230586592178771, new64/new32=3.6245008155689296. One run each, no statistical confidence interval; supplemental64 began cooler (45C) vs preceding serial trials.
+GPU prior two routes: 53/13 samples at 15-second spacing, only own CHT PID found. Not exact preflight and not proof between samples. Supplemental64 exact prelaunch empty compute list recorded.
+Total heatflux final new32 vs PR41: area-weighted relative L2 1.57077%, integral +0.108116%; new64 vs PR41 1.32215%, integral +0.028863%; new32 vs new64 1.11457%, integral +0.079231%.
+Particle local heatflux differences substantial: new32 vs PR41 L2 8.065%, new64 vs PR41 7.037%, new32 vs new64 6.089%; cannot dismiss by small integrated difference. See full absolute metrics.
+No full open-domain energy closure: boundary-integrated flow/solid fixed-value flux histories absent. cumulativeWallEnergyJ uses radiation .29000244-to-.3000025 window versus thermal exchange windows, cannot sum as exact .295-to-.305 conservation.
+Artifacts: acceptance18-single-scheme-analysis/summary.json; CHMT-pair-compact.json; profile-memory-and-integrity.json; profile-transfer-pairs.json; profile-integrity-summary.json; moving-live-particle-activity.json; CHT-total-heatflux-seq61.json; CHT-gpu-observation-summary.json; single-scheme-original-continuation/metrics-threeway-seq61.json.
+
+IMPORTANT SUPPLEMENT: see FINAL19-PARTICLE-AND-CONVERGENCE-LIMITS.txt. The expanded DO warning representatives in both new precisions were misclassified post-relaxation residuals (inner iteration 1, not the 200-iteration budget); aggregated unexpanded occurrences remain unresolved. FP32 outer source iteration converged at iteration 28; particle/optical full-field differences substantial. CP6 CHMT equality is narrower than whole-solver validation. Specific owner_k_source_integral NaN confirmed inactive optional diagnostic sentinel.

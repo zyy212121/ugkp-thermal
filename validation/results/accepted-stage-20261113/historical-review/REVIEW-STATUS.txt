@@ -1,0 +1,8 @@
+FINAL UPDATED REVIEW 63263fcabbe049125be1bc78cbfa04ed6b659410; parent ed675527. Local only, no remote push or merge.
+Complete checkpoint 3/4/5/6 source and evidence, superseding prior diagnostic interpretation.
+Only four diagnostic lines removed across FP64/FP32. Published metadata preserved, true inner failures still recorded by finishDirectionReport. No solver, relaxation, parameter or budget changes. README unchanged.
+Expanded representatives have component=1, not 200: misclassified post-relaxation residuals. FP32 outer source converged at 28. Unexpanded aggregate occurrences remain UNKNOWN, not globally cleared.
+Host regressions of extracted production functions pass float/double; pre-fix negative controls fail as expected. Exact source comparison proves only diagnostic branch deleted. No new GPU build or physical rerun: existing binary/physical evidence is from ed675527.
+Standalone source.tar.gz preserves original symlinks and explicit historical archive exclusions. Full patch since CP2 and incremental patch included.
+Particle/optical discrepancies, absent full-domain energy closure, single-run timing limitations remain. Historical records/raw logs may contain superseded diagnostic wording.
+Authoritative: revised FINAL19 reports, metrics-threeway-seq61.json and radiation-warning-separation/DIAGNOSTIC-CORRECTION.json plus verification.json.

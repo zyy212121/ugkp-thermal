@@ -1,0 +1,56 @@
+{
+  "candidate-fp32_vs_pr41-fp64": {
+    "particleTotal": {
+      "absoluteMaxWm2": 1196200.2076396123,
+      "weightedRmseWm2": 132982.84692496588,
+      "relativeL2": 0.08065020878519776,
+      "testIntegralW": 705.2321714915174,
+      "referenceIntegralW": 704.2215191650942,
+      "relativeIntegralDifference": 0.0014351341146481623
+    },
+    "totalHeatFlux": {
+      "absoluteMaxWm2": 1371000.6100598127,
+      "weightedRmseWm2": 133453.05733414923,
+      "relativeL2": 0.015707728621641017,
+      "testIntegralW": 5808.10681049686,
+      "referenceIntegralW": 5801.834074716686,
+      "relativeIntegralDifference": 0.001081164283464867
+    }
+  },
+  "candidate-fp64_vs_pr41-fp64": {
+    "particleTotal": {
+      "absoluteMaxWm2": 1026167.1240832796,
+      "weightedRmseWm2": 116031.58171361289,
+      "relativeL2": 0.07036976202020812,
+      "testIntegralW": 701.0562590073398,
+      "referenceIntegralW": 704.2215191650942,
+      "relativeIntegralDifference": -0.004494693887666081
+    },
+    "totalHeatFlux": {
+      "absoluteMaxWm2": 963829.0175536722,
+      "weightedRmseWm2": 112330.37846835014,
+      "relativeL2": 0.013221541238497848,
+      "testIntegralW": 5803.508642368753,
+      "referenceIntegralW": 5801.834074716686,
+      "relativeIntegralDifference": 0.0002886272910431081
+    }
+  },
+  "candidate-fp32_vs_candidate-fp64": {
+    "particleTotal": {
+      "absoluteMaxWm2": 734397.907155036,
+      "weightedRmseWm2": 99584.148726959,
+      "relativeL2": 0.06089455043911341,
+      "testIntegralW": 705.2321714915174,
+      "referenceIntegralW": 701.0562590073398,
+      "relativeIntegralDifference": 0.005956601100873607
+    },
+    "totalHeatFlux": {
+      "absoluteMaxWm2": 836730.0004739352,
+      "weightedRmseWm2": 94714.1795468589,
+      "relativeL2": 0.011145725378119599,
+      "testIntegralW": 5808.10681049686,
+      "referenceIntegralW": 5803.508642368753,
+      "relativeIntegralDifference": 0.0007923083106203935
+    }
+  }
+}
