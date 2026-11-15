@@ -27,8 +27,8 @@ __device__ inline bool advanceColdWall1DGasOnlyGroup
     {
         return false;
     }
-    const int nodeBase = particleI*coldWallAxialNodeCount;
-    const int ringBase = particleI*coldWallRadialRingCount;
+    const int nodeBase = Foam::gpuWall::coldWallSlot(s,particleI)*coldWallAxialNodeCount;
+    const int ringBase = Foam::gpuWall::coldWallSlot(s,particleI)*coldWallRadialRingCount;
 #ifdef GPU_PAIRED_PARTICLE_HEAT
     // Gas heat has already been paired and uniformly published. This route
     // only refreshes derived phase/history; zero heat never rewrites nodes.
@@ -38,13 +38,13 @@ __device__ inline bool advanceColdWall1DGasOnlyGroup
     const float fraction = coldWall1DGroupMinPrefix(coldWallCarryFraction(temperature,s.coldWallSolidificationParameters),lane,mask);
     const float connectedMass = coldWall1DGroupSum(float(physicalMassKg)*fraction/8.0f,mask);
     const float assignedMass = coldWall1DGroupSum(float(s.pColdRingSolidMass[ringBase+lane]),mask);
-    const GpuTime oldAge = s.pColdContactAge[particleI];
+    const GpuTime oldAge = s.pColdContactAge[Foam::gpuWall::coldWallSlot(s,particleI)];
     const GpuTime nextAge = oldAge+activeContactDeltaTSeconds;
 
     __syncwarp(mask);
     if(connectedMass<assignedMass && assignedMass>0.0f)
       s.pColdRingSolidMass[ringBase+lane]=float(s.pColdRingSolidMass[ringBase+lane])*connectedMass/assignedMass;
-    if(lane==0)s.pColdContactAge[particleI]=nextAge;
+    if(lane==0)s.pColdContactAge[Foam::gpuWall::coldWallSlot(s,particleI)]=nextAge;
     meanTemperatureK=static_cast<GpuReal>(coldWallCarryTemperature(meanH,s.coldWallSolidificationParameters));
     (void)gasTemperatureK;(void)gasConductanceWK;
     return true;
@@ -56,7 +56,7 @@ __device__ inline bool advanceColdWall1DGasOnlyGroup
     GpuReal ringSolidMass = static_cast<GpuReal>(s.pColdRingSolidMass[ringBase + lane]);
     const GpuTime oldAge = __shfl_sync
     (
-        mask, lane == 0 ? static_cast<GpuTime>(s.pColdContactAge[particleI]) : 0.0f, 0, 8
+        mask, lane == 0 ? static_cast<GpuTime>(s.pColdContactAge[Foam::gpuWall::coldWallSlot(s,particleI)]) : 0.0f, 0, 8
     );
     const GpuTime newAge = oldAge + activeContactDeltaTSeconds;
     const GpuReal meanOldEnthalpy = coldWall1DGroupSum(oldEnthalpy/GPU_R(8.0f), mask);
@@ -114,7 +114,7 @@ __device__ inline bool advanceColdWall1DGasOnlyGroup
     s.pColdRingSolidMass[ringBase + lane] = ringSolidMass;
     if (lane == 0)
     {
-        s.pColdContactAge[particleI] = newAge;
+        s.pColdContactAge[Foam::gpuWall::coldWallSlot(s,particleI)] = newAge;
     }
     meanTemperatureK = meanTemperature;
     return true;

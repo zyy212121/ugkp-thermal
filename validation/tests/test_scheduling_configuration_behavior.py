@@ -31,6 +31,7 @@ int main(int argc,char** argv) {
     Foam::Info << "FLAGS " << int(v.csrLevel) << ' '
       << v.csrCellLocalPath << ' ' << v.warpAggregatedBinning << ' '
       << v.splitPreDirectory << ' ' << int(v.heavyReductionMode) << ' ' << v.heavyReductionAutoInterval << '\n';
+    Foam::Info << "CAPACITY " << v.particleCapacity << Foam::endl;
 }
 """)
     foam=Path(os.environ.get('WM_PROJECT_DIR','/opt/openfoam10'))
@@ -135,9 +136,10 @@ def test_negative_auto_interval_retains_unsigned_modulo_input(parser,interval):
     assert q.returncode==0,q.stdout+q.stderr
     assert f'FLAGS 3 1 1 1 2 {interval}' in q.stdout
 
-def test_negative_actual_particle_capacity_remains_error(parser):
+def test_parser_preserves_capacity_for_backend_allocation_policy(parser):
     q=run(parser,'gpuResidentParticleCapacity -1;')
-    assert q.returncode!=0
+    assert q.returncode==0,q.stdout+q.stderr
+    assert 'CAPACITY -1' in q.stdout
 
 @pytest.mark.parametrize('rows,expected', [('()', 'ROWS 0'), ('((-2 -3) (0 1))','ROWS 2 -2:-3 0:1'), ('((2 3) (1 -5) (1 7))','ROWS 3 2:3 1:-5 1:7')])
 def test_table_propagates_actual_empty_signed_unsorted_columns(parser,rows,expected):

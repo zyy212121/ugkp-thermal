@@ -10,6 +10,8 @@ class CoupledRadiation final:public WindowRadiation {
 public:
     CoupledRadiation(Foam::Time&,Foam::fvMesh&,const ModelConfig&,const HostState&,int frequency);
     ~CoupledRadiation();
+    bool readWarmStart(const std::string&);
+    bool writeWarmStart(const std::string&) const;
     bool advance(Backend&,const WallProgram&,HostState&,EnergyReal&,std::string&) override;
 };
 }

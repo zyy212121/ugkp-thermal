@@ -11,8 +11,8 @@ __device__ void clearColdWallParticleState
     {
         return;
     }
-    const int nodeBase = particleI*Foam::gpuThermal::coldWallAxialNodeCount;
-    const int ringBase = particleI*Foam::gpuThermal::coldWallRadialRingCount;
+    const int nodeBase = Foam::gpuWall::coldWallSlot(s,particleI)*Foam::gpuThermal::coldWallAxialNodeCount;
+    const int ringBase = Foam::gpuWall::coldWallSlot(s,particleI)*Foam::gpuThermal::coldWallRadialRingCount;
     for (int node = 0; node < Foam::gpuThermal::coldWallAxialNodeCount; ++node)
     {
         s.pColdNodeSpecificEnthalpy[nodeBase + node] = 0.0;
@@ -21,8 +21,8 @@ __device__ void clearColdWallParticleState
     {
         s.pColdRingSolidMass[ringBase + ring] = 0.0;
     }
-    s.pColdFrozenArea[particleI] = 0.0;
-    s.pColdContactAge[particleI] = 0.0;
+    s.pColdFrozenArea[Foam::gpuWall::coldWallSlot(s,particleI)] = 0.0;
+    s.pColdContactAge[Foam::gpuWall::coldWallSlot(s,particleI)] = 0.0;
 }
 
 __device__ void initialiseColdWallParticleState
@@ -51,8 +51,8 @@ __device__ void initialiseColdWallParticleState
         temperatureK,
         s.coldWallSolidificationParameters
     );
-    const int nodeBase = particleI*Foam::gpuThermal::coldWallAxialNodeCount;
-    const int ringBase = particleI*Foam::gpuThermal::coldWallRadialRingCount;
+    const int nodeBase = Foam::gpuWall::coldWallSlot(s,particleI)*Foam::gpuThermal::coldWallAxialNodeCount;
+    const int ringBase = Foam::gpuWall::coldWallSlot(s,particleI)*Foam::gpuThermal::coldWallRadialRingCount;
     for (int node = 0; node < Foam::gpuThermal::coldWallAxialNodeCount; ++node)
     {
         s.pColdNodeSpecificEnthalpy[nodeBase + node] =
@@ -63,6 +63,6 @@ __device__ void initialiseColdWallParticleState
     {
         s.pColdRingSolidMass[ringBase + ring] = 0.0;
     }
-    s.pColdFrozenArea[particleI] = 0.0;
-    s.pColdContactAge[particleI] = 0.0;
+    s.pColdFrozenArea[Foam::gpuWall::coldWallSlot(s,particleI)] = 0.0;
+    s.pColdContactAge[Foam::gpuWall::coldWallSlot(s,particleI)] = 0.0;
 }

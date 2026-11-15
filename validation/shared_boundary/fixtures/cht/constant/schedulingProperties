@@ -2,7 +2,6 @@ FoamFile { version 2.0; format ascii; class dictionary; object schedulingPropert
 
 schemaVersion 1;
 gpuResidentPureGasOnly true;
-gpuResidentDynamicInlet false;
 gpuResidentParticleCapacity 0;
 
 
@@ -10,3 +9,11 @@ gpuResidentParticleCapacity 0;
 gpuCsrLevel L0;
 gpuParticleBlockThreads 128;
 gpuReductionBlockThreads 128;
+
+gpuCellBlockThreads 128;
+gpuFaceBlockThreads 128;
+gpuSparseBlockThreads 128;
+gpuRadiationBlockThreads 128;
+gpuThermalBlockThreads 128;
+gpuMaterialBlockThreads 128;
+gpuColdWallBlockThreads 128;

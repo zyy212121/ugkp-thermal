@@ -1,3 +1,5 @@
+#include <cstdio>
+#include "WorkPlan.H"
 #include "DiscreteOrdinateRadiation.H"
 #include "../Diagnostics.H"
 #include "MiePhaseBalance.cuh"
@@ -24,7 +26,7 @@ template<class T> struct Array {
 constexpr RadiationReal fourPi=RadiationReal(12.56637061435917295385057353311801153679);
 __device__ RadiationReal blackIntensity(RadiationReal t,RadiationReal band){const RadiationReal square=t*t;return band*RadiationReal(5.670374419e-8)*square*square/(fourPi/4);}
 struct Failure {RadiationReal value;int code,iteration,cell,patch,face;};
-struct SourceReport {RadiationReal maximumRelativeChange=0;int iterations=0;Failure failure{};};
+struct SourceReport {RadiationReal maximumRelativeChange=0,materialRelativeResidual=0,transportRelativeResidual=0,materialResidualTarget=0,transportResidualTarget=0;int iterations=0;Failure failure{};};
 // Keep convergence reports and sticky diagnostics beside the fields they
 // describe. Publishing these diagnostics does not require a host decision.
 __global__ void publishSourceDiagnostics(const SourceReport* report,
@@ -39,10 +41,18 @@ __global__ void publishSourceDiagnostics(const SourceReport* report,
                 34000,0,failure.iteration,failure.cell>=0?EntityKind::Cell:EntityKind::Face,
                 failure.cell>=0?failure.cell:failure.face,failure.patch,failure.value);
             record.metadata=failure.code;recordFatal(context,record);
-        }else if(report->maximumRelativeChange>controls.sourceTolerance){
+        }else if(!(report->maximumRelativeChange<=controls.sourceTolerance)){
             recordWarning(context,makeRecord(Code::AccuracyResidual,34001,0,report->iterations,
                 EntityKind::None,-1,-1,report->maximumRelativeChange,controls.sourceTolerance,0,Quantity::Accuracy));
         }
+    }
+    if(i==0&&!report->failure.code){
+        if(!(report->materialRelativeResidual<=report->materialResidualTarget))
+            recordWarning(context,makeRecord(Code::AccuracyResidual,34001,0,report->iterations,
+                EntityKind::None,-1,1,report->materialRelativeResidual,report->materialResidualTarget,0,Quantity::Accuracy));
+        if(!(report->transportRelativeResidual<=report->transportResidualTarget))
+            recordWarning(context,makeRecord(Code::AccuracyResidual,34001,0,report->iterations,
+                EntityKind::None,-1,2,report->transportRelativeResidual,report->transportResidualTarget,0,Quantity::Accuracy));
     }
     if(i<cells&&(phase[i].rowError>controls.phaseTolerance||phase[i].columnError>controls.phaseTolerance)){
         recordWarning(context,makeRecord(Code::AccuracyResidual,34002,0,phase[i].iterations,
@@ -80,6 +90,7 @@ struct Fields {
     MieOpticalQuery* query;
     MieOpticalTableView table;const MieBracket* phaseBrackets;
     const RadiationReal* emissivity;
+    const RadiationThermalCouplingDeviceView* thermal=nullptr;
 };
 __global__ void resetErrors(Errors errors){if(!threadIdx.x)*errors.first=ULLONG_MAX;}
 template<class Real> __global__ void importParticleState(int cells,RadiationParticleDeviceView input,
@@ -112,6 +123,7 @@ template<class Real> __global__ void importBoundaryState(int faces,RadiationPart
 __global__ void optics(Geometry g,Fields f,const RadiationReal* epsilon,const RadiationReal* temperature,const RadiationReal* diameter,
     RadiationReal cutoff,RadiationReal* initial,unsigned char* valid){
     const int cell=blockIdx.x*blockDim.x+threadIdx.x;if(cell>=g.cells)return;
+    if(f.thermal&&f.thermal->trialMeanTemperature)temperature=f.thermal->trialMeanTemperature;
     f.absorption[cell]=f.scattering[cell]=f.extinction[cell]=f.asymmetry[cell]=f.emission[cell]=0;
     f.query[cell]={diameter[cell],temperature[cell],0};initial[cell]=0;valid[cell]=0;
     if(epsilon[cell]<=cutoff)return;
@@ -158,7 +170,7 @@ __global__ void incidentFlux(Geometry g,const RadiationReal* intensities,Radiati
     }}incident[face]=result;
 }
 __global__ void prepareDirection(Geometry g,Fields f,int direction,int iteration,const RadiationReal* intensities,
-    const RadiationReal* incident,RadiationReal* diagonal,RadiationReal* source,RadiationReal* solved,Errors errors,const SourceReport* progress=nullptr){
+    const RadiationReal* incident,RadiationReal* diagonal,RadiationReal* source,RadiationReal* solved,Errors errors,const SourceReport* progress=nullptr,bool physicalSource=false){
     const int cell=blockIdx.x*blockDim.x+threadIdx.x;if(cell>=g.cells)return;
     if(progress){if(progress->failure.code)return;iteration=progress->iterations;}
     diagonal[cell]=g.transportDiagonal[std::size_t(direction)*g.cells+cell]+(f.absorption[cell]+f.scattering[cell])*g.volume[cell];
@@ -178,7 +190,17 @@ __global__ void prepareDirection(Geometry g,Fields f,int direction,int iteration
             if(errors.records[cell].code)return;
             mean+=mieDetail::phaseProbability(f.table,d,t,g.weights,f.phaseBrackets,f.scaling+std::size_t(cell)*g.directions,g.directions,direction,other)*value;}
     }
-    source[cell]=rhs+g.volume[cell]*(f.absorption[cell]*f.emission[cell]+f.scattering[cell]*mean);
+    RadiationReal emission=f.emission[cell];
+    if(!physicalSource&&f.thermal&&f.thermal->linearizedEmission&&f.thermal->thermalFeedback){
+        RadiationReal G=0;
+        for(int other=0;other<g.directions;++other)
+            G+=g.weights[other]*consume(intensities[std::size_t(other)*g.cells+cell],*f.reference,
+                Scattering,iteration,cell,-1,-1,errors,cell,g.boundary+cell);
+        if(errors.records[cell].code)return;
+        // Isotropic thermal feedback is independent of the Mie phase operator.
+        emission=f.thermal->linearizedEmission[cell]+f.thermal->thermalFeedback[cell]*G/fourPi;
+    }
+    source[cell]=rhs+g.volume[cell]*(f.absorption[cell]*emission+f.scattering[cell]*mean);
     solved[cell]=intensities[std::size_t(direction)*g.cells+cell];
 }
 __global__ void relaxedDirection(int cells,int direction,RadiationReal relaxation,const RadiationReal* old,RadiationReal* solved,RadiationReal* intensities,RadiationReal* change,RadiationReal* magnitude,const SourceReport* progress=nullptr){
@@ -211,12 +233,29 @@ __global__ void rememberPublishedResidual(int angle,const UpwindLinearReport* li
     warnings[angle].publishedResidual=residual;
     warnings[angle].publishedTarget=linear->target;
 }
-__global__ void finishSourceIteration(SourceReport* report,const RadiationReal* change,RadiationControls controls,
-    cudaGraphConditionalHandle handle){
-    if(threadIdx.x)return;report->maximumRelativeChange=*change;
-    cudaGraphSetConditional(handle,!report->failure.code&&report->iterations<(controls.sourceIterations>1?controls.sourceIterations:1)
-        &&!(report->maximumRelativeChange<=controls.sourceTolerance));
+__global__ void resetTransportResidual(SourceReport* report){
+    if(!threadIdx.x)report->transportRelativeResidual=0;
 }
+__global__ void retainTransportResidual(SourceReport* report,const UpwindLinearReport* linear){
+    if(threadIdx.x)return;
+    const RadiationReal r=linear->maximumResidual/linear->maximumMagnitude;
+    if(std::isfinite(report->transportRelativeResidual))
+        report->transportRelativeResidual=std::isfinite(r)?fmax(report->transportRelativeResidual,r):r;
+}
+__global__ void finishSourceIteration(SourceReport* report,const RadiationReal* change,RadiationControls controls,
+    cudaGraphConditionalHandle handle,const RadiationThermalCouplingDeviceView* thermal){
+    if(threadIdx.x)return;report->maximumRelativeChange=*change;
+    report->materialRelativeResidual=thermal->materialRelativeResidual?*thermal->materialRelativeResidual:0;
+    report->materialResidualTarget=thermal->materialRelativeTolerance;
+    report->transportResidualTarget=controls.linearTolerance;
+    const bool again=!report->failure.code&&report->iterations<(controls.sourceIterations>1?controls.sourceIterations:1)
+        &&(!(report->maximumRelativeChange<=controls.sourceTolerance)
+            ||!(report->materialRelativeResidual<=report->materialResidualTarget)
+            ||!(report->transportRelativeResidual<=report->transportResidualTarget));
+    cudaGraphSetConditional(handle,again);
+
+}
+
 __global__ void ratio(const RadiationReal* a,const RadiationReal* b,RadiationReal* output){if(!threadIdx.x)*output=*a/ *b;}
 __global__ void moments(Geometry g,Fields f,const RadiationReal* intensities,int iteration,RadiationReal* incident,RadiationReal* power,Errors errors,const SourceReport* progress=nullptr){
     const int cell=blockIdx.x*blockDim.x+threadIdx.x;if(cell>=g.cells)return;
@@ -264,6 +303,11 @@ struct DiscreteOrdinateRadiation::Implementation {
     Array<RadiationMaximum> partialA,partialB;Array<RadiationReal> reductionA,reductionB;
     Array<unsigned long long> firstError;Array<Failure> failures;
     Array<SourceReport> sourceReport;Array<RadiationDirectionWarning> warnings;
+    Array<RadiationThermalCouplingDeviceView> thermalCoupling;
+    RadiationThermalCouplingDeviceView hostThermalCoupling;
+    RadiationThermalIterationHook thermalIterationHook;
+    unsigned long long thermalGraphOwner=0,thermalGraphRevision=0;
+    int sourceGraphWidth=0;
     cudaGraph_t sourceGraph=nullptr;cudaGraphExec_t sourceExecutable=nullptr;
     Geometry g{};Fields f{};
     struct DirectionWorkspace {
@@ -320,9 +364,9 @@ struct DiscreteOrdinateRadiation::Implementation {
     void readFailure(unsigned long long key,const Failure* records){Failure error;transfers.download(&error,records+unsigned(key),sizeof(error));transfers.finish();fail(error);}
     void reset(Direction& d,cudaStream_t target){resetErrors<<<1,1,0,target>>>(d.errors());checked(cudaMemsetAsync(d.failures.ptr,0,d.failures.size*sizeof(Failure),target));}
     void maximum(int count,const RadiationReal* input,const unsigned char* valid,RadiationReal initialValue,RadiationReal* output){
-        int blocks=std::max(1,(count+255)/256);radiationMaximumPartials<<<blocks,256,0,stream>>>(count,input,valid,partialA.ptr);
+        int blocks=std::max(1,(count+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads);radiationMaximumPartials<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,ugkp::gpu::workPlan().radiationBlockThreads*sizeof(RadiationMaximum),stream>>>(count,input,valid,partialA.ptr);
         auto* current=partialA.ptr;auto* next=partialB.ptr;
-        while(blocks>1){const int n=(blocks+255)/256;radiationMaximumMerge<<<n,256,0,stream>>>(blocks,current,next);std::swap(current,next);blocks=n;}
+        while(blocks>1){const int n=(blocks+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads;radiationMaximumMerge<<<n,ugkp::gpu::workPlan().radiationBlockThreads,ugkp::gpu::workPlan().radiationBlockThreads*sizeof(RadiationMaximum),stream>>>(blocks,current,next);std::swap(current,next);blocks=n;}
         upwindGraphDetail::maximumResult<<<1,1,0,stream>>>(current,initialValue,output);
     }
     void initialize(){
@@ -344,7 +388,7 @@ struct DiscreteOrdinateRadiation::Implementation {
         change.resize(cells);magnitude.resize(cells);
         incident.resize(boundary);initial.resize(cells+boundary);initialValid.resize(cells+boundary);directionChange.resize(angles);
         reductionA.resize(1);reductionB.resize(1);firstError.resize(1);failures.resize(std::max({1,cells,boundary}));
-        partialA.resize(std::max(1,(std::max(cells+boundary,angles)+255)/256));partialB.resize(partialA.size);
+        partialA.resize(std::max(1,(std::max(cells+boundary,angles)+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads));partialB.resize(partialA.size);
         epsilon.resize(cells);mass.resize(cells);temperature.resize(cells);diameter.resize(cells);wallTemperature.resize(boundary);emissivity.resize(boundary);
         if(std::find(geometry.boundaryType.begin(),geometry.boundaryType.end(),RadiationBoundary::Specular)!=geometry.boundaryType.end()
             &&geometry.reflectionOffsets.size()!=std::size_t(angles)*boundary+1)
@@ -371,12 +415,13 @@ struct DiscreteOrdinateRadiation::Implementation {
             reflected.ptr,boundaryOffsets.ptr,boundaryCells.ptr,reflectionOffsets.ptr,reflectionDonors.ptr,reflectionWeights.ptr,boundaryType.ptr,volume.ptr,weights.ptr,internalFlux.ptr,transportDiagonal.ptr,
             boundaryFlux.ptr,cosines.ptr,area.ptr,denominator.ptr,fixed.ptr};
         f={absorption.ptr,scattering.ptr,extinction.ptr,asymmetry.ptr,emission.ptr,wallBlack.ptr,scaling.ptr,reference.ptr,queries.ptr,optical.deviceTable(),phaseBrackets.ptr,emissivity.ptr};
-        mieDetail::phaseBrackets<<<std::max(1,(angles*angles+127)/128),128,0,stream>>>(angles*angles,f.table,directionCosines.ptr,phaseBrackets.ptr);
+        mieDetail::phaseBrackets<<<std::max(1,(angles*angles+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads),ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(angles*angles,f.table,directionCosines.ptr,phaseBrackets.ptr);
         transfers.finish();
         concurrentAngles=controls.parallelAngles?std::max(1,std::min(angles,controls.maximumConcurrentAngles>0?controls.maximumConcurrentAngles:angles)):1;
         std::vector<std::shared_ptr<DirectionWorkspace>> workspaces;
         for(int i=0;i<concurrentAngles;++i)workspaces.push_back(std::make_shared<DirectionWorkspace>());
         sourceReport.resize(1);warnings.resize(angles);
+        thermalCoupling.resize(1);checked(cudaMemsetAsync(thermalCoupling.ptr,0,sizeof(RadiationThermalCouplingDeviceView),stream));f.thermal=thermalCoupling.ptr;
         for(int angle=0;angle<angles;++angle){
             std::unique_ptr<Direction> next(new Direction(workspaces[angle%concurrentAngles]));auto& d=*next;
             std::vector<RadiationReal> flux(geometry.internalFlux.begin()+std::size_t(angle)*g.faces,geometry.internalFlux.begin()+std::size_t(angle+1)*g.faces);
@@ -396,8 +441,9 @@ struct DiscreteOrdinateRadiation::Implementation {
     }
     void buildSourceGraph(){
         clearSourceGraph();checked(cudaGraphCreate(&sourceGraph,0));
+        sourceGraphWidth=workPlan().radiationBlockThreads;
         using upwindGraphDetail::appendCaptured;
-        const int blocks=std::max(1,(g.cells+127)/128),boundaryBlocks=std::max(1,(g.boundary+127)/128);
+        const int blocks=std::max(1,(g.cells+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads),boundaryBlocks=std::max(1,(g.boundary+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads);
         const auto initialized=appendCaptured(sourceGraph,{},stream,[&]{
             initializeSource<<<1,1,0,stream>>>(sourceReport.ptr);
             if(warnings.size)checked(cudaMemsetAsync(warnings.ptr,0,warnings.size*sizeof(RadiationDirectionWarning),stream));
@@ -410,16 +456,18 @@ struct DiscreteOrdinateRadiation::Implementation {
         auto tail=appendCaptured(body,{},stream,[&]{
             beginSourceIteration<<<1,1,0,stream>>>(sourceReport.ptr);reset();
             if(controls.parallelAngles&&intensities.size)checked(cudaMemcpyAsync(frozen.ptr,intensities.ptr,intensities.size*sizeof(RadiationReal),cudaMemcpyDeviceToDevice,stream));
-            incidentFlux<<<boundaryBlocks,128,0,stream>>>(g,angular,incident.ptr,errors());
+            incidentFlux<<<boundaryBlocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,angular,incident.ptr,errors());
             rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
         });
+        // Entry optics are initialized before launch. Each material update below
+        // refreshes them for the next sweep and the same-state transport residual.
         for(int begin=0;begin<g.directions;begin+=concurrentAngles){
             const int end=std::min(g.directions,begin+concurrentAngles);
             std::vector<cudaGraphNode_t> complete;
             for(int angle=begin;angle<end;++angle){auto& q=*directions[angle];
                 const auto prepared=appendCaptured(body,{tail},stream,[&]{reset(q,stream);
                     stopFailedDirection<<<1,1,0,stream>>>(q.errors(),sourceReport.ptr);
-                    prepareDirection<<<blocks,128,0,stream>>>(g,f,angle,0,angular,incident.ptr,q.diagonal.ptr,q.source.ptr,q.solved.ptr,q.errors(),sourceReport.ptr);
+                    prepareDirection<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,angle,0,angular,incident.ptr,q.diagonal.ptr,q.source.ptr,q.solved.ptr,q.errors(),sourceReport.ptr);
                 });
                 complete.push_back(q.graph->appendSolve(body,{prepared},stream));
             }
@@ -428,7 +476,7 @@ struct DiscreteOrdinateRadiation::Implementation {
             tail=appendCaptured(body,complete,stream,[&]{
                 for(int angle=begin;angle<end;++angle){auto& q=*directions[angle];
                     finishDirectionReport<<<1,1,0,stream>>>(angle,q.graph->report(),q.errors(),sourceReport.ptr,warnings.ptr);
-                    relaxedDirection<<<blocks,128,0,stream>>>(g.cells,angle,controls.sourceRelaxation,angular,q.solved.ptr,intensities.ptr,change.ptr,magnitude.ptr,sourceReport.ptr);
+                    relaxedDirection<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g.cells,angle,controls.sourceRelaxation,angular,q.solved.ptr,intensities.ptr,change.ptr,magnitude.ptr,sourceReport.ptr);
                     // The single stored intensity has its own measured residual;
                     // no double equation or low component is retained for this check.
                     if(controls.sourceRelaxation!=RadiationReal(1))q.graph->measurePublished(q.matrix,owner.ptr,neighbour.ptr,
@@ -440,16 +488,46 @@ struct DiscreteOrdinateRadiation::Implementation {
                 }
             });
         }
+        // Sweep uses coeff(T_k). Owner appends Q/T_(k+1) and material residual.
+        // DOM then refreshes optics/phase and measures physical transport at
+        // that same new temperature without advancing the angular solution.
+        if(thermalIterationHook){
+            tail=appendCaptured(body,{tail},stream,[&]{
+                reset();moments<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,intensities.ptr,0,incidentRadiation.ptr,power.ptr,errors(),sourceReport.ptr);
+                rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
+            });
+            const RadiationThermalIterationDeviceView thermalView{g.cells,incidentRadiation.ptr,power.ptr,volume.ptr,
+                epsilon.ptr,mass.ptr,diameter.ptr,thermalCoupling.ptr};
+            tail=thermalIterationHook(body,tail,stream,thermalView);
+            tail=appendCaptured(body,{tail},stream,[&]{
+                optics<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,epsilon.ptr,temperature.ptr,diameter.ptr,controls.activeEpsilonMinimum,initial.ptr,initialValid.ptr);
+                if(g.cells)mieDetail::balancePhase<<<g.cells,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g.cells,g.directions,f.table,queries.ptr,weights.ptr,phaseBrackets.ptr,
+                    controls.phaseTolerance,controls.phaseIterations,scaling.ptr,nextScaling.ptr,rowError.ptr,columnError.ptr,phaseMetrics.ptr,scattering.ptr);
+                reset();incidentFlux<<<boundaryBlocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,intensities.ptr,incident.ptr,errors());
+                rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
+                moments<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,intensities.ptr,0,incidentRadiation.ptr,power.ptr,errors(),sourceReport.ptr);
+                rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
+                resetTransportResidual<<<1,1,0,stream>>>(sourceReport.ptr);
+                for(int angle=0;angle<g.directions;++angle){auto& q=*directions[angle];
+                    reset(q,stream);
+                    prepareDirection<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,angle,0,intensities.ptr,incident.ptr,q.diagonal.ptr,q.source.ptr,q.solved.ptr,q.errors(),sourceReport.ptr,true);
+                    rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,q.errors());
+                    q.graph->measurePublished(q.matrix,owner.ptr,neighbour.ptr,internalFlux.ptr+std::size_t(angle)*g.faces,
+                        q.diagonal.ptr,q.source.ptr,q.solved.ptr,{controls.linearTolerance,controls.linearRelativeTolerance,controls.small,controls.linearIterations,controls.controlsAlreadyResolved},stream);
+                    retainTransportResidual<<<1,1,0,stream>>>(sourceReport.ptr,q.graph->report());
+                }
+            });
+        }
         appendCaptured(body,{tail},stream,[&]{
             maximum(g.directions,directionChange.ptr,nullptr,0,reductionA.ptr);
-            finishSourceIteration<<<1,1,0,stream>>>(sourceReport.ptr,reductionA.ptr,controls,handle);
+            finishSourceIteration<<<1,1,0,stream>>>(sourceReport.ptr,reductionA.ptr,controls,handle,thermalCoupling.ptr);
         });
         appendCaptured(sourceGraph,{loop},stream,[&]{
-            reset();incidentFlux<<<boundaryBlocks,128,0,stream>>>(g,intensities.ptr,incident.ptr,errors());
+            reset();incidentFlux<<<boundaryBlocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,intensities.ptr,incident.ptr,errors());
             rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
-            reset();moments<<<blocks,128,0,stream>>>(g,f,intensities.ptr,0,incidentRadiation.ptr,power.ptr,errors(),sourceReport.ptr);
+            reset();moments<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,intensities.ptr,0,incidentRadiation.ptr,power.ptr,errors(),sourceReport.ptr);
             rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
-            reset();boundaryResult<<<boundaryBlocks,128,0,stream>>>(g,f,intensities.ptr,incident.ptr,0,wallFlux.ptr,errors(),sourceReport.ptr);
+            reset();boundaryResult<<<boundaryBlocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,intensities.ptr,incident.ptr,0,wallFlux.ptr,errors(),sourceReport.ptr);
             rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
         });
         checked(cudaGraphInstantiateWithFlags(&sourceExecutable,sourceGraph,0));
@@ -475,7 +553,7 @@ void DiscreteOrdinateRadiation::updateGeometry(const RadiationGeometry& geometry
 
 RadiationResult DiscreteOrdinateRadiation::solve(const RadiationSnapshot& snapshot,bool warmStart,bool exportFields){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.resultReady=false;
-    const auto g=d.g;const auto f=d.f;const int blocks=std::max(1,(g.cells+127)/128),boundaryBlocks=std::max(1,(g.boundary+127)/128);
+    const auto g=d.g;const auto f=d.f;const int blocks=std::max(1,(g.cells+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads),boundaryBlocks=std::max(1,(g.boundary+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads);
     if(snapshot.wallTemperature.size()!=std::size_t(g.boundary)||snapshot.emissivity.size()!=std::size_t(g.boundary))
         throw std::invalid_argument("radiation wall input shape mismatch");
     auto wallTemperature=snapshot.wallTemperature;auto emissivity=snapshot.emissivity;
@@ -492,6 +570,12 @@ RadiationResult DiscreteOrdinateRadiation::solve(const RadiationSnapshot& snapsh
         checked(cudaMemcpyAsync(d.wallTemperature.ptr,d.configuredWallTemperature.ptr,g.boundary*sizeof(RadiationReal),cudaMemcpyDeviceToDevice,d.stream));
         checked(cudaMemcpyAsync(d.emissivity.ptr,d.configuredEmissivity.ptr,g.boundary*sizeof(RadiationReal),cudaMemcpyDeviceToDevice,d.stream));
     }
+    if(snapshot.thermalCoupling.producerStream){
+        checked(cudaEventRecord(d.inputReady,static_cast<cudaStream_t>(snapshot.thermalCoupling.producerStream)));
+        checked(cudaStreamWaitEvent(d.stream,d.inputReady,0));
+    }
+    d.hostThermalCoupling=snapshot.thermalCoupling;
+    d.transfers.upload(d.thermalCoupling.ptr,&d.hostThermalCoupling,sizeof(d.hostThermalCoupling));
     d.residentMass=snapshot.resident.enabled;
     d.diagnostics=snapshot.resident.enabled?snapshot.resident.diagnostics:nullptr;
     if(snapshot.resident.enabled){
@@ -502,23 +586,23 @@ RadiationResult DiscreteOrdinateRadiation::solve(const RadiationSnapshot& snapsh
         d.configure(d.residentWallTemperature,d.hostResidentWallTemperature,snapshot.residentWallTemperature);
         d.configure(d.contactEmissivity,d.hostContactEmissivity,snapshot.contactEmissivity);
         checked(cudaEventRecord(d.inputReady,static_cast<cudaStream_t>(input.producerStream)));checked(cudaStreamWaitEvent(d.stream,d.inputReady,0));
-        importParticleState<RadiationReal><<<blocks,128,0,d.stream>>>(g.cells,input,g.volume,d.controls.activeEpsilonMinimum,f.table,d.epsilon.ptr,d.mass.ptr,d.temperature.ptr,d.diameter.ptr);
-        importBoundaryState<RadiationReal><<<boundaryBlocks,128,0,d.stream>>>(g.boundary,input,d.residentWallTemperature.ptr,d.contactEmissivity.ptr,g.area,d.wallTemperature.ptr,d.emissivity.ptr);
+        importParticleState<RadiationReal><<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,d.stream>>>(g.cells,input,g.volume,d.controls.activeEpsilonMinimum,f.table,d.epsilon.ptr,d.mass.ptr,d.temperature.ptr,d.diameter.ptr);
+        importBoundaryState<RadiationReal><<<boundaryBlocks,ugkp::gpu::workPlan().radiationBlockThreads,0,d.stream>>>(g.boundary,input,d.residentWallTemperature.ptr,d.contactEmissivity.ptr,g.area,d.wallTemperature.ptr,d.emissivity.ptr);
         checked(cudaEventRecord(d.inputReady,d.stream));
         checked(cudaStreamWaitEvent(static_cast<cudaStream_t>(input.producerStream),d.inputReady,0));
     }else{
         d.epsilon.upload(snapshot.epsilon,d.transfers);d.temperature.upload(snapshot.temperature,d.transfers);d.diameter.upload(snapshot.diameter,d.transfers);
     }
-    optics<<<blocks,128,0,d.stream>>>(g,f,d.epsilon.ptr,d.temperature.ptr,d.diameter.ptr,d.controls.activeEpsilonMinimum,d.initial.ptr,d.initialValid.ptr);
-    wallOptics<<<boundaryBlocks,128,0,d.stream>>>(g,f,d.wallTemperature.ptr,d.initial.ptr,d.initialValid.ptr);
+    optics<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,d.stream>>>(g,f,d.epsilon.ptr,d.temperature.ptr,d.diameter.ptr,d.controls.activeEpsilonMinimum,d.initial.ptr,d.initialValid.ptr);
+    wallOptics<<<boundaryBlocks,ugkp::gpu::workPlan().radiationBlockThreads,0,d.stream>>>(g,f,d.wallTemperature.ptr,d.initial.ptr,d.initialValid.ptr);
     d.maximum(g.cells+g.boundary,d.initial.ptr,d.initialValid.ptr,0,d.reference.ptr);
-    if(g.cells)mieDetail::balancePhase<<<g.cells,128,0,d.stream>>>(g.cells,g.directions,f.table,d.queries.ptr,d.weights.ptr,d.phaseBrackets.ptr,
+    if(g.cells)mieDetail::balancePhase<<<g.cells,ugkp::gpu::workPlan().radiationBlockThreads,0,d.stream>>>(g.cells,g.directions,f.table,d.queries.ptr,d.weights.ptr,d.phaseBrackets.ptr,
         d.controls.phaseTolerance,d.controls.phaseIterations,d.scaling.ptr,d.nextScaling.ptr,d.rowError.ptr,d.columnError.ptr,d.phaseMetrics.ptr,d.scattering.ptr);
-    if(!warmStart)fillInitial<<<std::max(std::size_t(1),(d.intensities.size+127)/128),128,0,d.stream>>>(d.intensities.size,d.intensities.ptr,d.reference.ptr);
+    if(!warmStart)fillInitial<<<std::max(std::size_t(1),(d.intensities.size+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads),ugkp::gpu::workPlan().radiationBlockThreads,0,d.stream>>>(d.intensities.size,d.intensities.ptr,d.reference.ptr);
     checked(cudaGraphLaunch(d.sourceExecutable,d.stream));
     d.resultReady=true;
     if(!exportFields&&d.diagnostics){
-        publishSourceDiagnostics<<<std::max(1,(std::max(g.cells,g.directions)+127)/128),128,0,d.stream>>>(
+        publishSourceDiagnostics<<<std::max(1,(std::max(g.cells,g.directions)+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads),ugkp::gpu::workPlan().radiationBlockThreads,0,d.stream>>>(
             d.sourceReport.ptr,d.phaseMetrics.ptr,d.warnings.ptr,g.cells,g.directions,d.controls,d.diagnostics);
         checked(cudaGetLastError());
         return {};
@@ -538,11 +622,25 @@ RadiationResult DiscreteOrdinateRadiation::collect(bool exportFields){
     }
     d.transfers.finish();
     if(report.failure.code){d.resultReady=false;fail(report.failure);}
-    result.sourceIterations=report.iterations;result.maximumRelativeChange=report.maximumRelativeChange;d.resultReady=true;return result;
+    result.sourceIterations=report.iterations;result.maximumRelativeChange=report.maximumRelativeChange;result.materialRelativeResidual=report.materialRelativeResidual;result.transportRelativeResidual=report.transportRelativeResidual;result.materialResidualTarget=report.materialResidualTarget;result.transportResidualTarget=report.transportResidualTarget;d.resultReady=true;return result;
 }
 RadiationDeviceView DiscreteOrdinateRadiation::deviceView()const noexcept{
-    const auto& d=*data_;return {d.resultReady,d.g.cells,d.g.boundary,d.epsilon.ptr,d.residentMass?d.mass.ptr:nullptr,d.temperature.ptr,d.diameter.ptr,
+    const auto& d=*data_;return {d.resultReady,d.g.cells,d.g.boundary,d.epsilon.ptr,d.residentMass?d.mass.ptr:nullptr,d.hostThermalCoupling.trialMeanTemperature?d.hostThermalCoupling.trialMeanTemperature:d.temperature.ptr,d.diameter.ptr,
         d.incidentRadiation.ptr,d.power.ptr,d.volume.ptr,d.area.ptr,d.wallFlux.ptr,d.stream,d.diagnostics};
+}
+void DiscreteOrdinateRadiation::setThermalIterationHook(RadiationThermalIterationHook hook,unsigned long long owner,unsigned long long revision){
+    auto& d=*data_;
+    const bool sameStructure=bool(hook)==bool(d.thermalIterationHook);
+    const bool reusable=sameStructure&&(!hook||(owner&&owner==d.thermalGraphOwner&&revision==d.thermalGraphRevision));
+    const bool widthChanged=d.sourceGraphWidth!=workPlan().radiationBlockThreads;
+    const bool rebuild=!d.sourceExecutable||!reusable||widthChanged;
+    if(rebuild)checked(cudaStreamSynchronize(d.stream));
+    d.thermalIterationHook=std::move(hook);d.thermalGraphOwner=owner;d.thermalGraphRevision=revision;
+    if(widthChanged){
+        // Direction graphs and reduction scratch also capture the work width.
+        // Unchanged geometry retains the angular field allocations/initial guess.
+        d.clearSourceGraph();d.directions.clear();d.initialize();
+    }else if(rebuild)d.buildSourceGraph();
 }
 void DiscreteOrdinateRadiation::downloadIntensities(std::vector<double>& output)const{
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);std::vector<RadiationReal> values;d.intensities.download(values,d.transfers);d.transfers.finish();

@@ -36,10 +36,11 @@ struct SteadyGasBoundaryFlux {
 int configureSteadyAuditStorage(DeviceState* s)
 {
     int parcelBlocks=0,gasBlocks=0;
+    const int block=ugkp::gpu::workPlan().reductionBlockThreads;
     auto err=cudaOccupancyMaxActiveBlocksPerMultiprocessor(&parcelBlocks,
-        ugkwp::vectorSumPartials<6,256,SteadyParcelInventory>,256,0);
+        ugkwp::vectorSumPartials<6,SteadyParcelInventory>,block,6*(block/32)*sizeof(GpuReal));
     if(err==cudaSuccess)err=cudaOccupancyMaxActiveBlocksPerMultiprocessor(&gasBlocks,
-        ugkwp::vectorSumPartials<GpuSteadySamplingReport::gasFluxFields,256,SteadyGasBoundaryFlux>,256,0);
+        ugkwp::vectorSumPartials<GpuSteadySamplingReport::gasFluxFields,SteadyGasBoundaryFlux>,block,GpuSteadySamplingReport::gasFluxFields*(block/32)*sizeof(GpuReal));
     if(err!=cudaSuccess){setLastError("steady audit reduction occupancy",err);return 1;}
     s->steadyAuditParts=s->multiprocessorCount*(parcelBlocks>gasBlocks?parcelBlocks:gasBlocks);
     // Separate slices allow independent gas/particle streams. Neither slice
@@ -51,7 +52,7 @@ int configureSteadyAuditStorage(DeviceState* s)
 int auditSteadyParcelInventory(DeviceState* s,int offset,GpuReal sign)
 {
     if(!s->steadyBoundaryBudget||s->particleWorkGrid<=0)return 0;
-    const int needed=1+(s->particleCapacity-1)/256;
+    const int needed=1+(s->particleCapacity-1)/ugkp::gpu::workPlan().reductionBlockThreads;
     const int parts=needed<s->steadyAuditParts?needed:s->steadyAuditParts;
     const auto err=ugkwp::accumulateVectorSum<6>(SteadyParcelInventory{s->deviceState},
         parts,s->steadyAuditWorkspace,s->steadyBoundaryBudget+offset,sign,
@@ -62,7 +63,7 @@ int auditSteadyParcelInventory(DeviceState* s,int offset,GpuReal sign)
 int auditSteadyGasBoundaryFlux(DeviceState* s,double dt)
 {
     if(!s->steadyBoundaryBudget||s->nFaces==s->nInternalFaces)return 0;
-    const int needed=1+(s->nFaces-s->nInternalFaces-1)/256;
+    const int needed=1+(s->nFaces-s->nInternalFaces-1)/ugkp::gpu::workPlan().reductionBlockThreads;
     const int parts=needed<s->steadyAuditParts?needed:s->steadyAuditParts;
     const auto err=ugkwp::accumulateVectorSum<GpuSteadySamplingReport::gasFluxFields>(
         SteadyGasBoundaryFlux{s->deviceState,dt},parts,

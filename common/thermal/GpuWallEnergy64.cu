@@ -1,3 +1,4 @@
+#include "../gpu/WorkPlan.H"
 #include "GpuWallEnergy64.H"
 #include "../gpu/GpuInterfaceExchange.cuh"
 #include <algorithm>
@@ -140,7 +141,7 @@ __global__ void accumulateGasWallEnergy64Kernel
 int ugkpAccumulateGasWallEnergy64(GpuWallEnergyState* s, double dt, cudaStream_t stream, const ugkwp::GasResidentInterval* interval)
 {
     if (s->nEnabledFaces == 0) return 0;
-    accumulateGasWallEnergy64Kernel<<<(s->nEnabledFaces+255)/256, 256, 0, stream>>>
+    accumulateGasWallEnergy64Kernel<<<(s->nEnabledFaces+ugkp::gpu::workPlan().faceBlockThreads-1)/ugkp::gpu::workPlan().faceBlockThreads, ugkp::gpu::workPlan().faceBlockThreads, 0, stream>>>
     (s->gasWallEnergy, s->gasWallFlux, s->enabledFaceIds, s->nEnabledFaces, dt, interval);
     const cudaError_t error = cudaGetLastError();
     if (error == cudaSuccess) return 0;
@@ -788,7 +789,7 @@ extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchange
         if(radiationEnergy&&copyToDevice(s,s->interfaceRadiationEnergy,
                 radiationEnergy,static_cast<size_t>(count),
                 "cudaMemcpy compact interface radiation energy")!=0)return 1;
-        gatherInterfaceExchangeKernel<<<(count+255)/256,256>>>
+        gatherInterfaceExchangeKernel<<<(count+ugkp::gpu::workPlan().faceBlockThreads-1)/ugkp::gpu::workPlan().faceBlockThreads,ugkp::gpu::workPlan().faceBlockThreads>>>
             (s->deviceState,deltaT,radiationEnergy!=nullptr,nullptr,0);
         const cudaError_t error=cudaGetLastError();
         if(error!=cudaSuccess)
@@ -799,7 +800,7 @@ extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchange
     if(s->nInterfaceSolidFaces>0)
     {
         ugkp::interfaceExchange::sumMappedFaceValues<<<
-            (s->nInterfaceSolidFaces+255)/256,256>>>
+            (s->nInterfaceSolidFaces+ugkp::gpu::workPlan().faceBlockThreads-1)/ugkp::gpu::workPlan().faceBlockThreads,ugkp::gpu::workPlan().faceBlockThreads>>>
             (s->nInterfaceSolidFaces,s->interfaceRowOffsets,
              s->interfaceSourceIndices,s->interfaceCombinedEnergy,
              s->interfacePreview+3*count);
@@ -854,13 +855,13 @@ extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice
         if(error!=cudaSuccess){setLastError(s,"wait for resident interface radiation",error);return 1;}
     }
     if(count){
-        gatherInterfaceExchangeKernel<<<(count+255)/256,256>>>(s->deviceState,deltaT,radiation!=nullptr,
+        gatherInterfaceExchangeKernel<<<(count+ugkp::gpu::workPlan().faceBlockThreads-1)/ugkp::gpu::workPlan().faceBlockThreads,ugkp::gpu::workPlan().faceBlockThreads>>>(s->deviceState,deltaT,radiation!=nullptr,
             radiation?radiation->boundaryEnergy:nullptr,s->nInternalFaces);
         const cudaError_t error=cudaGetLastError();
         if(error!=cudaSuccess){setLastError(s,"gather resident interface exchange",error);return 1;}
     }
     if(s->nInterfaceSolidFaces){
-        ugkp::interfaceExchange::sumMappedFaceValues<<<(s->nInterfaceSolidFaces+255)/256,256>>>(
+        ugkp::interfaceExchange::sumMappedFaceValues<<<(s->nInterfaceSolidFaces+ugkp::gpu::workPlan().faceBlockThreads-1)/ugkp::gpu::workPlan().faceBlockThreads,ugkp::gpu::workPlan().faceBlockThreads>>>(
             s->nInterfaceSolidFaces,s->interfaceRowOffsets,s->interfaceSourceIndices,
             s->interfaceCombinedEnergy,s->interfacePreview+3*count);
         const cudaError_t error=cudaGetLastError();

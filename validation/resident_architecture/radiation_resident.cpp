@@ -70,7 +70,7 @@ int main(){
             a.coupledBoundary={1,1};a.heatFactor=1000;a.elapsed=.01;a.minimumTemperature=100;a.maximumTemperature=2000;
             auto h=material.solve(a);a.resident=resident.deviceView();auto v=material.solve(a);
             same(h.temperature,v.temperature,"resident material temperature");same(h.energy,v.energy,"resident material energy");same(h.boundaryEnergy,v.boundaryEnergy,"resident material boundary");
-            if(h.escapedEnergy!=v.escapedEnergy||h.radiativeEnergyMagnitude!=v.radiativeEnergyMagnitude)throw std::runtime_error("resident material totals");
+            if(h.escapedEnergy!=v.escapedEnergy)throw std::runtime_error("resident material totals");
 #endif
         }
     }

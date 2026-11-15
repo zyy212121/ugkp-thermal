@@ -65,7 +65,7 @@ ResidentSurfaceGeometry::ResidentSurfaceGeometry(const std::vector<SurfaceFaceMa
     if(edges<0||points<0)throw std::invalid_argument("negative resident surface shape");
     auto& d=*data_;d.faces=faces.size();d.edges=edges;d.points=points;d.empty=empty;
     d.mapping.reserve(faces.size());if(!faces.empty())checked(cudaMemcpy(d.mapping.pointer,faces.data(),faces.size()*sizeof(SurfaceFaceMap),cudaMemcpyHostToDevice));
-    d.face.reserve(faces.size());d.edge.reserve(edges);d.status.reserve(1);if(edges)d.bounds.reserve((points+127)/128);
+    d.face.reserve(faces.size());d.edge.reserve(edges);d.status.reserve(1);if(edges)d.bounds.reserve((points+workPlan().reductionBlockThreads-1)/workPlan().reductionBlockThreads);
     if(edges)checked(cudaMemset(d.edge.pointer,0,edges*sizeof(EdgeResult)));
     // Construction completes before callers may use a nonblocking stream.
     checked(cudaStreamSynchronize(nullptr));
@@ -90,14 +90,14 @@ void ResidentSurfaceGeometry::prepareImpl(PolyhedralGeometryDeviceView oldSolid,
     const SurfaceSeamStatus* seams,ugkp::diagnostics::DeviceContext* diagnostics,void* streamHandle){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(streamHandle);
     resetSurfaceGeometry<<<1,1,0,stream>>>(interval,d.edges,seams,d.status.pointer);checked(cudaGetLastError());
-    if(d.faces){surfaceFaceMetrics<<<(d.faces+127)/128,128,0,stream>>>(d.faces,d.mapping.pointer,oldSolid,solid,gas,interval,d.face.pointer,d.status.pointer);checked(cudaGetLastError());}
+    if(d.faces){surfaceFaceMetrics<<<(d.faces+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.faces,d.mapping.pointer,oldSolid,solid,gas,interval,d.face.pointer,d.status.pointer);checked(cudaGetLastError());}
     if(seams){publishSurfaceSeamFailure<<<1,1,0,stream>>>(seams,d.status.pointer);checked(cudaGetLastError());}
     if(d.edges){
-        geometryBounds<<<(d.points+127)/128,128,0,stream>>>(d.points,old,d.bounds.pointer);checked(cudaGetLastError());
-        geometryScale<<<1,128,0,stream>>>((d.points+127)/128,d.bounds.pointer,d.status.pointer);checked(cudaGetLastError());
-        surfaceEdgeMetrics<<<(d.edges+127)/128,128,0,stream>>>(d.edges,oldSolid.topology,old,endpoint,edges,d.empty,d.edge.pointer,d.status.pointer);checked(cudaGetLastError());
+        geometryBounds<<<(d.points+workPlan().reductionBlockThreads-1)/workPlan().reductionBlockThreads,workPlan().reductionBlockThreads,workPlan().reductionBlockThreads*(sizeof(GeometryBounds)),stream>>>(d.points,old,d.bounds.pointer);checked(cudaGetLastError());
+        geometryScale<<<1,workPlan().reductionBlockThreads,workPlan().reductionBlockThreads*(sizeof(GeometryBounds)),stream>>>((d.points+workPlan().reductionBlockThreads-1)/workPlan().reductionBlockThreads,d.bounds.pointer,d.status.pointer);checked(cudaGetLastError());
+        surfaceEdgeMetrics<<<(d.edges+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.edges,oldSolid.topology,old,endpoint,edges,d.empty,d.edge.pointer,d.status.pointer);checked(cudaGetLastError());
         publishSurfaceFirstWarning<<<1,1,0,stream>>>(d.edges,edges,d.edge.pointer,d.status.pointer,diagnostics);checked(cudaGetLastError());
-        publishSurfaceOtherWarnings<<<(d.edges+127)/128,128,0,stream>>>(d.edges,edges,d.edge.pointer,d.status.pointer,diagnostics);checked(cudaGetLastError());
+        publishSurfaceOtherWarnings<<<(d.edges+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.edges,edges,d.edge.pointer,d.status.pointer,diagnostics);checked(cudaGetLastError());
     }
     finishSurfaceGeometry<<<1,1,0,stream>>>(edges,d.edge.pointer,d.status.pointer);checked(cudaGetLastError());
 }

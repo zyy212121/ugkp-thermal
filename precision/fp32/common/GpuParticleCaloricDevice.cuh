@@ -28,8 +28,8 @@ __device__ __forceinline__ float particleMaterialEnthalpyBaseDevice(const Device
 {
  const int count=particleColdProfileNodeCountDevice<CompactParticles>(s,i);
  if(!count)return particleCaloricDevice<CompactParticles>(s,i).enthalpy(float((CompactParticles?s.compactPT[i]:s.pT[i])));
- const float* h=count==8?(CompactParticles?s.compactPColdNodeSpecificEnthalpy:s.pColdNodeSpecificEnthalpy):(CompactParticles?s.compactPCold2DNodeSpecificEnthalpy:s.pCold2DNodeSpecificEnthalpy);
- float mean=0.f;for(int n=0;n<count;++n)mean+=float(h[i*count+n])/float(count);
+ const float* h=count==8?s.pColdNodeSpecificEnthalpy:(CompactParticles?s.compactPCold2DNodeSpecificEnthalpy:s.pCold2DNodeSpecificEnthalpy);
+ float mean=0.f;for(int n=0;n<count;++n)mean+=float(h[(count==8?Foam::gpuWall::coldWallSlot(s,i,CompactParticles):i)*count+n])/float(count);
  return mean;
 }
 template<bool CompactParticles=false>

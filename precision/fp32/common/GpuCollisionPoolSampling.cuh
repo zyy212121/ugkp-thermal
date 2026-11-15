@@ -1,4 +1,5 @@
 #pragma once
+#include "wall/GpuColdWall1DHandles.cuh"
 // Shared Gaussian sampling and weighted moments; native contact metadata remains an extension.
 template<bool AtomicMoments = true>
 __device__ void sampleOnePoissonPoolParticle
@@ -18,6 +19,7 @@ __device__ void sampleOnePoissonPoolParticle
     if (c < 0 || c >= s.nCells)
     {
         s.pStatus[i] = 0;
+        Foam::gpuWall::releaseColdWall1DHandle(s,i);
         return;
     }
 
@@ -26,6 +28,7 @@ __device__ void sampleOnePoissonPoolParticle
     if (n <= 0 || poolMass <= GPU_OPERATOR_R(0.0))
     {
         s.pStatus[i] = 0;
+        Foam::gpuWall::releaseColdWall1DHandle(s,i);
         return;
     }
 

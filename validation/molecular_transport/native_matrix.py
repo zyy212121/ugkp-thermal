@@ -144,7 +144,7 @@ def resume(case,destination,solver,binary,checkpoint=None,mutate=False):
     copy_input(case,destination)
     if solver=='CHMT':
         checkpoint=checkpoint or case/'chmtOutput/checkpoint-1'
-        config=destination/'constant/chmtProperties'
+        config=destination/'system/controlDict'
         config.write_text(config.read_text()+f'\nrestartDirectory "{checkpoint}";\n')
     else:
         snapshots=times(case);assert len(snapshots)>=2,snapshots

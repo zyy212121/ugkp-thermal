@@ -488,7 +488,7 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     const EnergyReal thickness=in.hasFilm && in.film.mass>0 ? EnergyReal(in.film.mass)/(EnergyReal(p.liquid.rho)*EnergyReal(in.area)) : 0;
     const EnergyReal liquidConductance=thickness>0 && p.liquid.conductivity>0
         ? EnergyReal(2)*EnergyReal(p.liquid.conductivity)/thickness : 0;
-    result.radiationFlux=gasRatio*grayRadiation(topT,p);
+    result.radiationFlux=0;
     EnergyReal bottomT=in.hasSolid ? material.temperature : filmT;
     PhysicalReal phaseRate=0;
     if (result.wet && in.hasSolid) {

@@ -192,19 +192,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleWallEffusivityPatch
     const double* wallEffusivity
 );
 
-extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
-(
-    void* handle,
-    int nFaces,
-    const int* faceIds,
-    double inletTemperature,
-    int nPressureRows,
-    const double* pressureTimes,
-    const double* pressureValues,
-    int nVolumeFractionRows,
-    const double* volumeFractionTimes,
-    const double* volumeFractionValues
-);
+
 
 extern "C" int ugkwpGpuResidentStrictDownloadSourceResidualMass
 (
@@ -410,7 +398,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     const double* pContactDuration,
     const double* pContactMaximumArea,
     const double* pContactPeakFraction,
-    const float* pColdNodeSpecificEnthalpy,
+    const double* pColdNodeSpecificEnthalpy,
     const double* pColdRingSolidMass,
     const double* pColdFrozenArea,
     const double* pColdContactAge,
@@ -445,7 +433,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     double* pContactDuration,
     double* pContactMaximumArea,
     double* pContactPeakFraction,
-    float* pColdNodeSpecificEnthalpy,
+    double* pColdNodeSpecificEnthalpy,
     double* pColdRingSolidMass,
     double* pColdFrozenArea,
     double* pColdContactAge,
@@ -1235,6 +1223,14 @@ public:
         return ugkwpGpuResidentStrictDeviceDiagnostics(handle_);
     }
 
+    ugkp::gpu::RadiationAcceptedEnergyDeviceView acceptedRadiationEnergyDeviceView() const
+    {
+        ugkp::gpu::RadiationAcceptedEnergyDeviceView view;
+        check(ugkwpGpuResidentStrictBorrowAcceptedRadiationEnergy(handle_,&view),
+              "borrow actual particle radiation acceptance");
+        return view;
+    }
+
     void applyParticleRadiationDeviceEnergy(const ugkp::gpu::RadiationMaterialDeviceView& result)
     {
         requireInitialised("applyParticleRadiationDeviceEnergy");
@@ -1588,7 +1584,7 @@ protected:
                 }
                 if
                 (
-                    (restartHeader == gpuFshRestart::currentFormatName || restartHeader == gpuFshRestart::schema9FormatName || restartHeader == gpuFshRestart::singleStateFormatName)
+                    gpuFshRestart::nativeRestartSupported(restartHeader)
                  || (restartHeader == gpuFshRestart::formatName || restartHeader == gpuFshRestart::schema5FormatName)
                  || restartHeader == gpuFshRestart::schema7FormatName
                  || restartHeader == gpuFshRestart::schema8FormatName
@@ -2007,36 +2003,7 @@ public:
         nut.correctBoundaryConditions();
     }
 
-    void configureScheduledInlet
-    (
-        const labelList& faceIds,
-        const scalar inletTemperature,
-        const scalarField& pressureTimes,
-        const scalarField& pressureValues,
-        const scalarField& volumeFractionTimes,
-        const scalarField& volumeFractionValues
-    )
-    {
-        requireInitialised("configureScheduledInlet");
 
-        check
-        (
-            ugkwpGpuResidentStrictConfigureScheduledInlet
-            (
-                handle_,
-                int(faceIds.size()),
-                reinterpret_cast<const int*>(faceIds.begin()),
-                inletTemperature,
-                int(pressureTimes.size()),
-                pressureTimes.begin(),
-                pressureValues.begin(),
-                int(volumeFractionTimes.size()),
-                volumeFractionTimes.begin(),
-                volumeFractionValues.begin()
-            ),
-            "configure GPU resident scheduled inlet"
-        );
-    }
 
     void advanceOneStep(const scalar dt, const scalar simulationTime)
     {
@@ -2237,7 +2204,7 @@ public:
         List<double> pContactDuration(nParticles, 0.0);
         List<double> pContactMaximumArea(nParticles, 0.0);
         List<double> pContactPeakFraction(nParticles, 0.0);
-        List<float> pColdNodeSpecificEnthalpy
+        List<double> pColdNodeSpecificEnthalpy
         (
             nParticles*gpuFshRestart::coldWallAxialNodeCount,
             0.0
@@ -2774,7 +2741,10 @@ protected:
                 << "Invalid GPU resident particle restart mirror: "
                 << restartFile << exit(FatalError);
         }
-        if ((restartHeader == gpuFshRestart::currentFormatName || restartHeader == gpuFshRestart::schema9FormatName || restartHeader == gpuFshRestart::singleStateFormatName))
+        if(!gpuFshRestart::nativeRestartSupported(restartHeader))
+            FatalErrorInFunction << "Unsupported old or higher-required-precision CHT particle checkpoint: " << restartHeader
+                << "; use a new native raw-cold checkpoint, no legacy payload adaptation is performed" << exit(FatalError);
+        if (gpuFshRestart::nativeRestartSupported(restartHeader))
         {
             currentLayout = true;
             if (!(is >> nParticles >> maximumChunk))
@@ -2895,7 +2865,7 @@ protected:
         List<double> pContactDuration(nParticles, 0.0);
         List<double> pContactMaximumArea(nParticles, 0.0);
         List<double> pContactPeakFraction(nParticles, 0.0);
-        List<float> pColdNodeSpecificEnthalpy
+        List<double> pColdNodeSpecificEnthalpy
         (
             nParticles*gpuFshRestart::coldWallAxialNodeCount,
             0.0
@@ -2957,9 +2927,7 @@ protected:
             {
                 if (currentLayout)
                 {
-                    if(restartHeader == gpuFshRestart::singleStateFormatName)
-                        gpuFshRestart::readSingleStatePayload(is,static_cast<std::uint32_t>(maximumChunk),restartView);
-                    else gpuFshRestart::readLegacyCarryPayload(is,static_cast<std::uint32_t>(maximumChunk),restartView);
+                    gpuFshRestart::readNativePayload(is,static_cast<std::uint32_t>(maximumChunk),restartView,restartHeader);
                 }
                 else if (weightedV8)
                 {
@@ -3967,7 +3935,14 @@ protected:
         forAll(mesh.boundary(), patchI)
         {
             const fvPatchScalarField& epsPatch = epsS.boundaryField()[patchI];
-            if (!epsPatch.fixesValue())
+            if (isA<wallPolyPatch>(mesh.boundaryMesh()[patchI])
+                || isA<emptyPolyPatch>(mesh.boundaryMesh()[patchI])
+                // Match gasBoundary geometry==0: geometric constraint
+                // patches are not physical particle entry surfaces.
+                || isA<wedgePolyPatch>(mesh.boundaryMesh()[patchI])
+                || isA<symmetryPolyPatch>(mesh.boundaryMesh()[patchI])
+                || isA<symmetryPlanePolyPatch>(mesh.boundaryMesh()[patchI])
+                || mesh.boundaryMesh()[patchI].coupled())
             {
                 continue;
             }
@@ -4033,6 +4008,9 @@ protected:
                 {
                     thetaValue = scalar(0);
                 }
+                // Internal owner policy, not a physical negative theta. Preserve
+                // explicit fixed values and the old suppression of invalid ones.
+                if(thetaPatch.type()=="zeroGradient")thetaValue=scalar(-1);
 
                 sourceGeometry.append(mesh, faceI);
                 sourceCell.append(cellI);

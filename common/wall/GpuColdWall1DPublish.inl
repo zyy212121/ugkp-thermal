@@ -1,20 +1,3 @@
-#ifdef GPU_PAIRED_PARTICLE_HEAT
-    // Close against the exact value the existing wall-ledger call publishes.
-    wallEnergyJ = static_cast<GpuReal>(acceptedWallPower*deltaTSeconds);
-    const GpuReal multiplicity = s.pm[particleI]/physicalMassKg;
-    const GpuReal representedWallEnergy = multiplicity*wallEnergyJ;
-    const double meanIncrement = gasSpecificEnthalpyIncrement
-      - double(representedWallEnergy)/double(s.pm[particleI]);
-    const double candidateMean = coldWall1DGroupSum(candidateEnthalpy/8.0,mask);
-    const double meanCorrection = (meanOldEnthalpy-candidateMean)+meanIncrement;
-    candidateEnthalpy += meanCorrection;
-    const float publishedEnthalpy = ugkwp::coldWallStoredEnthalpyFloor(candidateEnthalpy);
-    const double storageChange = coldWall1DGroupSum
-      ((double(publishedEnthalpy)-storedOldEnthalpy)/8.0,mask);
-    const double nextCarry = (oldCarry-storageChange)+meanIncrement;
-    guessedTemperature = coldWallCarryTemperature(double(publishedEnthalpy)+nextCarry,
-      s.coldWallSolidificationParameters);
-#endif
     // Ring allocation follows the final published bottom temperature.
     ringCoolingPower = ringConductance*
         (__shfl_sync(mask, guessedTemperature, 0, 8) - wallTemperatureK);
@@ -102,26 +85,18 @@
     }
     profileContactAgeS += deltaTSeconds;
 
-    s.pColdNodeSpecificEnthalpy[nodeBase + lane] =
-#ifdef GPU_PAIRED_PARTICLE_HEAT
-        publishedEnthalpy;
-#else
-        candidateEnthalpy;
-#endif
+    // Publish the uncorrected physical solve with ordinary storage rounding.
+    s.pColdNodeSpecificEnthalpy[nodeBase + lane] = candidateEnthalpy;
     s.pColdRingSolidMass[ringBase + lane] =
         ringSolidMass;
     if (lane == 0)
     {
-        s.pColdContactAge[particleI] =
+        s.pColdContactAge[Foam::gpuWall::coldWallSlot(s,particleI)] =
             static_cast<GpuTime>(profileContactAgeS);
-        s.pColdFrozenArea[particleI] = frozenArea;
+        s.pColdFrozenArea[Foam::gpuWall::coldWallSlot(s,particleI)] = frozenArea;
     }
-#ifdef GPU_PAIRED_PARTICLE_HEAT
-    if (lane == 0) s.pThermalEnthalpyResidual[particleI] = nextCarry;
-    const double meanEnthalpy = coldWall1DGroupSum(double(publishedEnthalpy)/8.0,mask)+nextCarry;
-#else
-    const GpuReal meanEnthalpy = coldWall1DGroupSum(candidateEnthalpy, mask)/GPU_R(8.0);
-#endif
+    const ColdWallThermalReal meanEnthalpy = coldWall1DGroupSum
+      (static_cast<ColdWallThermalReal>(s.pColdNodeSpecificEnthalpy[nodeBase+lane])/GPU_R(8.0),mask);
     ColdWallThermalReal groupMeanTemperature = GPU_R(0.0);
     if (lane == 0)
     {

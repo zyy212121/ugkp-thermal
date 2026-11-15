@@ -50,9 +50,9 @@ InterfacePointDisplacementView ResidentInterfacePointDisplacement::view()const{r
 void ResidentInterfacePointDisplacement::evaluate(const InterfacePointDisplacementInput* input,void* rawStream){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);beginInterfaceDisplacement<<<1,1,0,stream>>>(d.changed.pointer);
     const int count=std::max(d.solidPoints,d.faces);
-    if(count)interfaceDisplacementChanged<<<(count-1)/128+1,128,0,stream>>>(d.solidPoints,d.faces,input,d.changed.pointer);
-    if(d.solidPoints)interfacePointNormals<<<(d.solidPoints-1)/128+1,128,0,stream>>>(d.solidPoints,d.offsets.pointer,d.incident.pointer,input,d.normals.pointer);
-    if(d.gasPoints)interfacePointDisplacement<<<(d.gasPoints-1)/128+1,128,0,stream>>>(d.gasPoints,d.solidVertex.pointer,d.normals.pointer,input,d.displacement.pointer);
+    if(count)interfaceDisplacementChanged<<<(count-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.solidPoints,d.faces,input,d.changed.pointer);
+    if(d.solidPoints)interfacePointNormals<<<(d.solidPoints-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.solidPoints,d.offsets.pointer,d.incident.pointer,input,d.normals.pointer);
+    if(d.gasPoints)interfacePointDisplacement<<<(d.gasPoints-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.gasPoints,d.solidVertex.pointer,d.normals.pointer,input,d.displacement.pointer);
     checked(cudaGetLastError());
 }
 }}}

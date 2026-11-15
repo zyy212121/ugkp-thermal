@@ -5,12 +5,21 @@ ROOT=Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location('native_matrix',ROOT/'validation/molecular_transport/native_matrix.py')
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 
+def set_input(path,key,value):
+    text=path.read_text()
+    if re.search(r'\b'+re.escape(key)+r'\s+[^;]+;',text):
+        m.entry(path,key,value)
+    else:
+        path.write_text(text+'\n'+key+' '+str(value)+';\n')
+
 def prepare(path,model,impact,end_time=0.001,aligned_calorics=False):
     meta=json.loads((ROOT/'validation/molecular_transport/fixtures.json').read_text())['chmt-mixture']
     m.prepare(ROOT/'validation/molecular_transport/fixtures/chmt-mixture',path,meta)
     control=path/'system/controlDict'
     control.write_text(re.sub(r'endTime [^;]+;',f'endTime {end_time:.17g};',control.read_text()))
-    d=path/'constant/chmtProperties'
+    d=path/'constant/particleProperties'
+    set_input(path/'constant/schedulingProperties','gpuResidentPureGasOnly','false')
+    set_input(path/'constant/schedulingProperties','gpuResidentParticleCapacity',64)
     # A separate conservation fixture aligns the liquid datum of the two
     # existing caloric laws. Default-model runs remain available and explicit.
     cp=lambda t:(153.5+.0031*(min(4000.,max(2327.,t))-2327.))/.101961276
@@ -20,13 +29,10 @@ def prepare(path,model,impact,end_time=0.001,aligned_calorics=False):
     calorics=f'latentHeat {latent:.17g};' if aligned_calorics else ''
     position='0.000005 0.25 0.25' if impact else '0.25 0.25 0.25'
     velocity='-1 0 0' if impact else '0 0 0'
-    d.write_text(d.read_text()+f"""
-enableParticles true;
-particle {{
- volumeMode Coupled; capacity 64; rhoSolid 2500;
- dragModel none; heatTransferModel RanzMarshall; contactModel {model};
- contactCoeffs {{ sommerfeldThreshold 100; interfaceResistance 0.00001; {calorics} }}
-}}
+    d.write_text('FoamFile {version 2.0; format ascii; class dictionary; object particleProperties;}\n'+f"""
+volumeMode Coupled; rhoS 2500;
+ dragModel none; particleGasHeatTransferModel RanzMarshall;
+ gpuResidentStuckModel {{ wallInteractionModel {model}; heatTransfer true; sommerfeldThreshold 100; interfaceThermalResistance 0.00001; {calorics} }}
 particles {{ parcel {{
  id \"42\"; rng \"1234567\"; cell 0; position ({position}); velocity ({velocity});
  mass 0.002; diameter 0.001; temperature 2500;
@@ -69,7 +75,7 @@ def main():
         assert not restart.exists(),restart
         shutil.copytree(case,restart,ignore=shutil.ignore_patterns("chmtOutput"))
         shutil.copytree(output/"checkpoint-1",restart/"initial-checkpoint")
-        properties=restart/'constant/chmtProperties'
+        properties=restart/'system/controlDict'
         properties.write_text(properties.read_text()+'\nrestartDirectory "initial-checkpoint";\n')
         m.run([args.solver,'-case',restart],restart/'restart.log')
         errors={}

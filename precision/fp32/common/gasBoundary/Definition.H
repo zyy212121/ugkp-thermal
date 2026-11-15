@@ -39,7 +39,7 @@ inline Velocity velocityOperator(const std::string& name,bool fixesValue,bool in
 }
 enum class FunctionKind : int { Constant,Table,Polynomial };
 enum class Bounds : int { Clamp,Repeat };
-enum Component : int { Density,Ux,Uy,Uz,Pressure,Temperature,Components };
+enum Component : int { Density,Ux,Uy,Uz,Pressure,Temperature,SolidFraction,Components };
 struct Term {
     GpuTime time=0;
     GpuReal coefficient=0,value=0;
@@ -59,13 +59,14 @@ struct Function {
 };
 struct Face {
     int geometry=0,rhoMode=0,uMode=0,pMode=0,tMode=0;
+    int solidMode=-1;
     int wave=0,compositionMode=-1;
     GpuReal waveGamma=0,waveFieldInf=0,waveLInf=-1e30f;
     GpuReal value[Components]{};
     // Explicit gamma and pressure branch preserve the selected total-condition law.
     GpuReal pressureGamma=1,temperatureGamma=1;
     int compressiblePressure=0;
-    int function[Components]={-1,-1,-1,-1,-1,-1};
+    int function[Components]={-1,-1,-1,-1,-1,-1,-1};
 };
 
 inline bool prescribesInflow(const Face& f) {
@@ -84,7 +85,7 @@ struct Definition {
 };
 inline bool needsCheckpoint(const Definition& d) {
     if(!d.functions.empty())return true;
-    for(const auto& f:d.faces)if(f.pMode==2||f.tMode==2||f.uMode==4)return true;
+    for(const auto& f:d.faces)if(f.pMode==2||f.tMode==2||f.uMode==4||f.solidMode>=0)return true;
     return false;
 }
 inline Kind physicalKind(const std::string& name) {

@@ -10,7 +10,7 @@
 
 ## 启动和复算
 
-将 tool/precision/precisionProperties.example 复制到算例的 constant/precisionProperties。precision 32; 是默认模式，precision 64; 显式选择原 FP64 路径。选择只在启动时发生，后端不重新读此设置，运行中改配置不会切换精度。启动器支持 OpenFOAM dictionary 的 #include 语法，并原样传递应用参数。
+在算例现有 constant/scheme 中添加 precision 条目，保留该文件的数值参数；格式见 tool/precision/scheme.example。precision 32; 是默认模式，precision 64; 显式选择原 FP64 路径。选择只在启动时发生，后端不重新读此设置，运行中改配置不会切换精度。启动器支持 OpenFOAM dictionary 的 #include 语法，并原样传递应用参数。
 
 精度元数据由应用实际读写路径处理，不由启动器猜时间目录。OpenFOAM solver 在选定 timePath 检查并写 ugkpPrecision，CHMT 在实际 restartDirectory/checkpoint 目录检查并写。文件记录 schema、computePrecision、restartPrecision、storagePolicy 和 wireEncoding。FP32 计算结果即便按 double wire 写出，restartPrecision 仍为 32。
 

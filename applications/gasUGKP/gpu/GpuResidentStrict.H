@@ -163,19 +163,7 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
     const double* sourceMassRate
 );
 
-extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
-(
-    void* handle,
-    int nFaces,
-    const int* faceIds,
-    double inletTemperature,
-    int nPressureRows,
-    const double* pressureTimes,
-    const double* pressureValues,
-    int nVolumeFractionRows,
-    const double* volumeFractionTimes,
-    const double* volumeFractionValues
-);
+
 
 extern "C" int ugkwpGpuResidentStrictDownloadSourceResidualMass
 (
@@ -1071,48 +1059,7 @@ public:
         nut.correctBoundaryConditions();
     }
 
-    void configureScheduledInlet
-    (
-        const labelList& faceIds,
-        const scalar inletTemperature,
-        const scalarField& pressureTimes,
-        const scalarField& pressureValues,
-        const scalarField& volumeFractionTimes,
-        const scalarField& volumeFractionValues
-    )
-    {
-        requireInitialised("configureScheduledInlet");
-        if
-        (
-            (!faceIds.empty() && pressureTimes.empty())
-         || pressureTimes.size() > pressureValues.size()
-         || (!faceIds.empty() && volumeFractionTimes.empty())
-         || volumeFractionTimes.size() > volumeFractionValues.size()
-        )
-        {
-            FatalErrorInFunction
-                << "Scheduled inlet is missing required interpolation samples"
-                << exit(FatalError);
-        }
 
-        check
-        (
-            ugkwpGpuResidentStrictConfigureScheduledInlet
-            (
-                handle_,
-                gpuHostValue<int>(faceIds.size()),
-                GpuHostReadView<int>(faceIds).begin(),
-                inletTemperature,
-                gpuHostValue<int>(pressureTimes.size()),
-                GpuHostReadView<double>(pressureTimes).begin(),
-                GpuHostReadView<double>(pressureValues).begin(),
-                gpuHostValue<int>(volumeFractionTimes.size()),
-                GpuHostReadView<double>(volumeFractionTimes).begin(),
-                GpuHostReadView<double>(volumeFractionValues).begin()
-            ),
-            "configure GPU resident scheduled inlet"
-        );
-    }
 
     void advanceOneStep(const scalar dt, const scalar simulationTime)
     {
@@ -2424,7 +2371,14 @@ protected:
         forAll(mesh.boundary(), patchI)
         {
             const fvPatchScalarField& epsPatch = epsS.boundaryField()[patchI];
-            if (!epsPatch.fixesValue())
+            if (isA<wallPolyPatch>(mesh.boundaryMesh()[patchI])
+                || isA<emptyPolyPatch>(mesh.boundaryMesh()[patchI])
+                // Match gasBoundary geometry==0: geometric constraint
+                // patches are not physical particle entry surfaces.
+                || isA<wedgePolyPatch>(mesh.boundaryMesh()[patchI])
+                || isA<symmetryPolyPatch>(mesh.boundaryMesh()[patchI])
+                || isA<symmetryPlanePolyPatch>(mesh.boundaryMesh()[patchI])
+                || mesh.boundaryMesh()[patchI].coupled())
             {
                 continue;
             }
@@ -2490,6 +2444,9 @@ protected:
                 {
                     thetaValue = scalar(0);
                 }
+                // Internal owner policy, not a physical negative theta. Preserve
+                // explicit fixed values and the old suppression of invalid ones.
+                if(thetaPatch.type()=="zeroGradient")thetaValue=scalar(-1);
 
                 sourceGeometry.append(mesh, faceI);
                 sourceCell.append(cellI);

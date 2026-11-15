@@ -274,6 +274,10 @@ dictionary startupSolidLinearControls(const fvMesh& mesh,const char* module)
     scheme.read(module,"minIter",minimum,"effectiveDefault",mesh.name());
     scheme.read(module,"tolerance",tolerance,"effectiveDefault",mesh.name());
     scheme.read(module,"relTol",relative,"effectiveDefault",mesh.name());
+    Foam::word preconditioner("jacobi");
+    scheme.read(module,"preconditioner",preconditioner,"effectiveDefault",mesh.name());
+    result.set("preconditioner",preconditioner);
+    result.set("preconditioner",Foam::word(ugkp::gpu::sparsePreconditionerName(ugkp::gpu::readSparsePreconditioner(result))));
     result.set("maxIter",maximum);result.set("minIter",minimum);
     result.set("tolerance",tolerance);result.set("relTol",relative);
     return result;
@@ -1459,6 +1463,8 @@ public:
                     mapper->fluidPatchIds(), TpMin, TpMax
                 )
             );
+            particleRadiationCoupler->readWarmStart
+            ((runTime.timePath()/"domWarmStart.bin").c_str());
             particleRadiationAbsorptionCoefficient.reset
             (
                 new volScalarField
@@ -2217,6 +2223,7 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
         if (radiationDue)
         {
             data_->resident.applyParticleRadiationDeviceEnergy(radiation().resident);
+
         }
         data_->resident.resetGasWallEnergy();
         data_->resident.resetParticleWallHeatLedgers();
@@ -2426,6 +2433,9 @@ label GpuSolidThermalCoupler::persistAtWriteTime
             << "ordinary OpenFOAM field write failed during thermal persistence; time="
             << runTime.timeName() << exit(FatalIOError);
     }
+    if(data_->particleRadiationCoupler.valid())
+        data_->particleRadiationCoupler->writeWarmStart
+        ((runTime.timePath()/"domWarmStart.bin").c_str());
     ThermalRestartPreflight::commitManifestAtomically
     (
         preparedPendingWallEnergy.first,

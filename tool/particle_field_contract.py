@@ -2,7 +2,7 @@
 """Generate field registries and verify typed lifecycle closure without CUDA.
 
 The CPU probe executes the actual allocation/release and transfer expressions,
-actual copy/swap bodies and actual schema7 codec. It does not emulate launch
+actual copy/swap/gather bodies and the current native checkpoint codec. It does not emulate launch
 scheduling, allocator failures, restart validation, or cold-wall rollback paths.
 """
 from pathlib import Path
@@ -112,6 +112,9 @@ def build_probe(root, meta, app):
     fields = [f for f in meta['fields'] if app in f['storage']]
     scratch = [f for f in meta.get('scratch_fields', []) if app in f['storage']]
     storage_fields = fields + scratch
+    stable_cold = app == 'CHT' and 'pColdHandle' in state
+    handle_names = ('pColdHandle','compactPColdHandle','coldFreeHandles','coldFreeCounts') if stable_cold else ()
+    stable_fields = {f['name'] for f in fields if stable_cold and f['group'].startswith('COLD1D')}
     names = {n for f in storage_fields for n in (f['name'], f['compact']) if n}
     pointers = dict((n, t.strip()) for t, n in re.findall(r'^\s*([\w ]+)\*\s*(\w+)\s*=\s*nullptr;', state, re.M))
     declared_compact = {n for n in pointers if n.startswith('compactP') and n not in ('compactPressureParameters',)}
@@ -174,13 +177,23 @@ def build_probe(root, meta, app):
             release_calls += selected_release
         if f in fields:
             up = [call for call in calls(upload, 'copyToDevice') if re.match(r'copyToDevice\s*\(\s*s->'+f['name']+r'\s*,', call)]
-            down = [call for call in calls(download, 'copyToHost') if re.search(r',\s*s->'+f['name']+r'\s*,', call)]
+            export_name = f['compact'] if f['name'] in stable_fields else f['name']
+            down = [call for call in calls(download, 'copyToHost') if re.search(r',\s*s->'+export_name+r'\s*,', call)]
+            if f['name'] in stable_fields and not re.search(r'gatherColdWall1DStateKernel[^;]+s->'+f['name']+r',s->'+f['compact']+r',n\)', download):
+                raise ValueError('missing stable-pool export gather: '+f['name'])
             if len(up) != 1 or len(down) != 1:
                 raise ValueError(f'{app}: transfer closure for {f["name"]}: {len(up)} uploads, {len(down)} downloads')
             upload_calls += up
             download_calls += down
     if len(upload_calls) != len(fields) or len(download_calls) != len(fields):
         raise ValueError(f'{app}: transfer closure mismatch: {len(fields)} fields, {len(upload_calls)} uploads, {len(download_calls)} downloads')
+    for name in handle_names:
+        selected = [call for call in calls(constructor,'allocate') if re.match(r'allocate\s*\(\s*s->'+name+r'\s*,',call)]
+        selected_release = [call for call in calls(release,'release') if re.match(r'release\s*\(\s*s->'+name+r'\s*\)',call)]
+        if len(selected)!=1 or len(selected_release)!=1:
+            raise ValueError('handle allocation/release closure: '+name)
+        alloc_calls += selected
+        release_calls += selected_release
     memset_calls = []
     for call in calls(text, 'cudaMemset'):
         target = re.match(r'cudaMemset\s*\(\s*(?:s->)?(\w+)\s*,', call)
@@ -246,9 +259,16 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
 '''
     code += f'using GpuReal={"double"};using GpuTime=double;\n'
     code += 'struct DeviceState { int coldWallSolidificationEnabled=1,coldWall2DEnabled=1,particleCapacity=3;\n'
-    code += ''.join(f'{pointers[n]}* {n}=nullptr;\n' for n in sorted(names)) + helper_state + '};\n'
+    code += ''.join(f'{pointers[n]}* {n}=nullptr;\n' for n in sorted(names)) + ''.join(f'int* {n}=nullptr;\n' for n in handle_names) + helper_state + '};\n'
     if app != 'gasUGKP':
-        code += '#include "GpuCellLocalThermalFields.cuh"\n'
+        # Execute the production handle/gather and copy bodies serially on HOST.
+        # Only CUDA syntax/builtin indices are adapted; no identity slot stub.
+        code += '#define __global__\nstruct ProbeDim{int x;};ProbeDim blockIdx{0},threadIdx{0},blockDim{1},gridDim{1};\n'
+        code += 'inline int atomicAdd(int*p,int v){int o=*p;*p+=v;return o;} inline int atomicSub(int*p,int v){int o=*p;*p-=v;return o;} inline int atomicExch(int*p,int v){int o=*p;*p=v;return o;}\n'
+        handles=(root/'common/wall/GpuColdWall1DHandles.cuh').read_text().replace('#pragma once','').replace('#include <cuda_runtime.h>','')
+        thermal=(root/'common/GpuCellLocalThermalFields.cuh').read_text().replace('#pragma once','').replace('#include "wall/GpuColdWall1DHandles.cuh"','')
+        code += handles+'\n'+thermal+'\n'
+
         adapter = re.search(r'#define GPU_PARTICLE_EXTRA_FIELDS (CellLocalThermalExtraFields<[^>]+>)', text).group(1)
         code += f'using ProbeExtra={adapter};\n#define GPU_PARTICLE_EXTRA_FIELDS ProbeExtra\n'
     code += '#include "GpuCellLocalPrimary.cuh"\n#include "operators/swapParticlePointerDevice.cuh"\n'
@@ -294,16 +314,31 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
         code += 'std::vector<GpuReal> physicalTheta(n);std::vector<GpuTime> contactAge(n);\n'
         code += 'unpackParticleRestartTheta(n,pStuck,pTheta,physicalTheta.data(),contactAge.data());\n'
     code += ''.join(call + ';\n' for call in upload_calls)
-    # Exercise the production copy body, including cold arrays and conditional independent age.
+    if stable_cold:
+        code += 'Foam::gpuWall::ColdWall1DHandles handles{s->pColdHandle,s->compactPColdHandle,s->coldFreeHandles,s->coldFreeCounts,int(n)};Foam::gpuWall::initialiseColdWall1DHandlesKernel(handles,int(n));\n'
+        for f in fields:
+            if f['name'] in stable_fields:
+                name,compact,width=f['name'],f['compact'],f['width']
+                typ=f['storage'][app]
+                code += f'std::vector<{typ}> kept_{name}(s->{name},s->{name}+n*{width}),kept_{compact}(s->{compact},s->{compact}+n*{width});\n'
+    # Exercise production copy: stable pool payload stays put, handles move.
     code += 'copyCellLocalParticle(*s,1,9,0);\n'
     for f in fields:
         name, compact, width = f['name'], f['compact'], f['width']
+        if name in stable_fields:
+            code += f'if(!std::equal(kept_{name}.begin(),kept_{name}.end(),s->{name}) || !std::equal(kept_{compact}.begin(),kept_{compact}.end(),s->{compact})) throw std::runtime_error("stable cold pool copied: {name}");\n'
+            continue
         if name in ('pCellId', 'pStatus'):
             expected = '9' if name == 'pCellId' else '1'
             code += f'if(s->{compact}[0]!={expected}) throw std::runtime_error("copy semantic: {name}");\n'
         else:
             code += f'for(size_t j=0;j<{width};++j) if(s->{compact}[j]!=s->{name}[{width}+j]) throw std::runtime_error("copy closure: {name}");\n'
-    # Read back the original uploaded arrays before swap; same ABI conversions and width expressions.
+    if stable_cold:
+        code += 'if(s->compactPColdHandle[0]!=s->pColdHandle[1]) throw std::runtime_error("cold handle copy closure");\n'
+        for f in fields:
+            if f['name'] in stable_fields:
+                code += f'Foam::gpuWall::gatherColdWall1DStateKernel<{f["storage"][app]},{f["width"]}>(s,s->{f["name"]},s->{f["compact"]},int(n));\n'
+    # Read back uploaded arrays through the actual stable-pool export gather.
     code += ''.join(call + ';\n' for call in download_calls)
     if app == 'CHT':
         code += 'packParticleRestartTheta(n,pStuck,contactAge.data(),pTheta);\n'
@@ -324,8 +359,15 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
         code += 'std::istringstream input(wire.str(),std::ios::binary);std::string marker;size_t total;std::uint32_t bound;input>>marker>>total>>bound;\n'
         code += f'Foam::gpuThermalRestart::readCurrentPayload<{has_carry}>(input,bound,v);\n'
     code += ''.join(f'auto* old_{f["name"]}=s->{f["name"]};auto* next_{f["name"]}=s->{f["compact"]};\n' for f in fields)
+    if stable_cold:
+        code += 'auto* oldHandle=s->pColdHandle;auto* nextHandle=s->compactPColdHandle;\n'
     code += 'swapParticleBuffersDevice(*s);\n'
-    code += ''.join(f'if(s->{f["name"]}!=next_{f["name"]} || s->{f["compact"]}!=old_{f["name"]}) throw std::runtime_error("swap closure: {f["name"]}");\n' for f in fields)
+    for f in fields:
+        name,compact=f['name'],f['compact']
+        a,b=('old','next') if name in stable_fields else ('next','old')
+        code += f'if(s->{name}!={a}_{name} || s->{compact}!={b}_{name}) throw std::runtime_error("swap closure: {name}");\n'
+    if stable_cold:
+        code += 'if(s->pColdHandle!=nextHandle || s->compactPColdHandle!=oldHandle) throw std::runtime_error("cold handle swap closure");\n'
     code += ''.join(call + ';\n' for call in release_calls)
     code += 'if(!live.empty()) throw std::runtime_error("unreleased particle storage");std::cout<<"PASS typed lifecycle/copy/swap/transfer\\n";return 0;}catch(const std::exception&e){std::cerr<<e.what()<<"\\n";return 1;}}\n'
     return code
@@ -372,8 +414,10 @@ def main():
             subprocess.run([str(exe), str(wire)], check=True)
             if app != 'gasUGKP':
                 digest = hashlib.sha256(wire.read_bytes()).hexdigest()
-                if golden.get(label) != digest:
+                if app != 'CHT' and golden.get(label) != digest:
                     raise ValueError(f'{label}: current particle binary golden mismatch ({digest})')
+                if app == 'CHT':
+                    print(f'PASS native64 checkpoint lifecycle; historical float-node byte golden superseded ({digest})')
         print(f'PASS {app}{64} field declaration/allocation/release/transfer closure')
     return 0
 

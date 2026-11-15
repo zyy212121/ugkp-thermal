@@ -1,3 +1,4 @@
+#include "../../../common/gpu/WorkPlan.H"
 #include "gpu/ResidentMaterialSlice.cuh"
 #include "gpu/ResidentMaterialSource.cuh"
 #include "../../../common/gpu/StableRowIndex.cuh"
@@ -14,6 +15,7 @@
 #include "../../../common/GpuDiagnosticsOwner.cuh"
 #include "../../../common/gasTransport/GasBoundaryLayerWorkspace.H"
 #include <algorithm>
+#include <cstdio>
 #include <memory>
 #include <limits>
 #include "../../../common/gpu/ImplicitDiffusion.H"
@@ -80,7 +82,7 @@ __device__ void mergeConductionAudit(MaterialConductionAudit& a,const MaterialCo
 }
 __global__ void conductionAuditParts(int cells,int boundary,const MaterialThermalInput* input,const MaterialThermalCoefficients* coefficients,
     const ConductionReal* temperature,const ConductionReal* previous,const ConductionReal* residual,const ConductionReal* flux,const int* external,ConductionReal dt,MaterialConductionAudit* parts){
-    __shared__ __align__(16) unsigned char storage[128*sizeof(MaterialConductionAudit)];
+    extern __shared__ __align__(16) unsigned char storage[];
     auto* values=reinterpret_cast<MaterialConductionAudit*>(storage);MaterialConductionAudit a;
     const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if(c<cells){const auto value=input[c];const ConductionReal T=temperature[c];a.coefficientError=coefficients[c].error;
@@ -92,18 +94,19 @@ __global__ void conductionAuditParts(int cells,int boundary,const MaterialTherma
             a.change=fabsf(T-previous[c])/fmaxf(1.0f,fmaxf(fabsf(T),fabsf(previous[c])));}}
     if(c<boundary&&flux&&external[c])a.boundaryEnergy.product(dt,flux[c]);
     values[threadIdx.x]=a;__syncthreads();
-    for(int step=64;step;step/=2){if(threadIdx.x<step)mergeConductionAudit(values[threadIdx.x],values[threadIdx.x+step]);__syncthreads();}
+    for(int active=blockDim.x;active>1;active=(active+1)/2){const int step=(active+1)/2;if(threadIdx.x<active-step)mergeConductionAudit(values[threadIdx.x],values[threadIdx.x+step]);__syncthreads();}
     if(!threadIdx.x)parts[blockIdx.x]=values[0];
 }
 __global__ void conductionAuditFinish(int count,const MaterialConductionAudit* parts,MaterialConductionAudit* output){
-    __shared__ __align__(16) unsigned char storage[128*sizeof(MaterialConductionAudit)];
+    extern __shared__ __align__(16) unsigned char storage[];
     auto* values=reinterpret_cast<MaterialConductionAudit*>(storage);MaterialConductionAudit a;
     for(int i=threadIdx.x;i<count;i+=blockDim.x)mergeConductionAudit(a,parts[i]);values[threadIdx.x]=a;__syncthreads();
-    for(int step=64;step;step/=2){if(threadIdx.x<step)mergeConductionAudit(values[threadIdx.x],values[threadIdx.x+step]);__syncthreads();}
+    for(int active=blockDim.x;active>1;active=(active+1)/2){const int step=(active+1)/2;if(threadIdx.x<active-step)mergeConductionAudit(values[threadIdx.x],values[threadIdx.x+step]);__syncthreads();}
     if(!threadIdx.x)*output=values[0];
 }
 
 struct MaterialConductionIteration {
+    int preconditionerFallbackBlocks=0;
     int iteration=0,failure=0;bool valid=true,converged=false,stalled=false;
     ConductionReal residual=0,energyTolerance=0;
     MaterialConductionAudit audit;
@@ -144,8 +147,11 @@ __global__ void finishConductionIteration(MaterialConductionIteration* report,co
         recordFatal(context,makeRecord(Code::NonFinite,4104,4,0,EntityKind::None,-1,-1,audit->change));
     }
     if(!report->valid){cudaGraphSetConditional(handle,0);return;}
-    if(!linear->converged||linear->singular)recordWarning(context,makeRecord(Code::AccuracyResidual,34020,4,report->iteration,
-        EntityKind::None,-1,-1,linear->finalResidual,linear->initialResidual*report->linear.relativeTolerance,0,Quantity::LinearSystem));
+    if(!linear->converged||linear->singular){
+        const int site=linear->budgetExhausted?34025:(linear->stagnated?34026:(linear->singular?34027:34020));
+        recordWarning(context,makeRecord(Code::AccuracyResidual,site,4,linear->iterations,
+            EntityKind::None,-1,-1,linear->finalResidual,linear->targetResidual,0,Quantity::LinearSystem));
+    }
     auto energy=audit->stableChange;energy.merge(audit->boundaryEnergy);report->residual=energy.value;
     auto scale=audit->stableChange.magnitude();const auto boundary=audit->boundaryEnergy.magnitude();if(scale.lessEqual(boundary))scale=boundary;
     ugkp::gpu::ScaledThermalSum unity;unity.add(1);if(scale.lessEqual(unity))scale=unity;
@@ -428,17 +434,17 @@ bool prepareResidentMaterialConduction(MaterialBackend& b,const HostMesh& mesh,
         ||!b.allocate(b.conductionCoefficients,b.current.size())||!b.allocate(b.conductionCapacity,b.current.size())
         ||!b.allocate(b.conductionSource,b.current.size())||!b.allocate(b.conductionConductivity,b.current.size()))return b.failure(error);
     b.operation(b.time);
-    if(b.cells)prepareConductionKernel<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,
+    if(b.cells)prepareConductionKernel<<<(b.cells+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads,0,b.stream.get()>>>(b.cells,
         b.initial.data(),b.initialVolumes.data(),b.current.data(),b.volumes.data(),b.conductionVolumes.data(),
         b.devicePhysics.data(),b.conductionInput.data(),b.sourceStatus.data());
-    selectConductionFailure<<<1,256,0,b.stream.get()>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
+    selectConductionFailure<<<1,ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads*sizeof(MaterialStepResult),b.stream.get()>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
     MaterialStepResult result;
     if(!b.fault.check(cudaGetLastError(),"prepare resident material conduction")
         ||!b.transfers.download(&result,b.stepResult.data(),1)||!b.finish(error))return b.failure(error);
     if(result.phase){numerical=result.numerical;error=result.phase==1
         ?materialCaloricError(MaterialCaloricCode(result.code)):"CPU conduction old EOS recovery failed";return false;}
     if(!b.allocate(b.conductionTemperature,b.current.size()))return b.failure(error);
-    if(b.cells)conductionAnchorTemperature<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,b.conductionInput.data(),b.conductionTemperature.data());
+    if(b.cells)conductionAnchorTemperature<<<(b.cells+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads,0,b.stream.get()>>>(b.cells,b.conductionInput.data(),b.conductionTemperature.data());
     if(publishInput){if(!b.read(b.conductionInput,input)||!b.finish(error))return b.failure(error);}
     else input.clear();
     error.clear();return true;
@@ -454,14 +460,14 @@ bool evaluateResidentMaterialConduction(MaterialBackend& b,const std::vector<Rea
     else {const std::vector<ConductionReal> encoded(temperature.begin(),temperature.end());
         if(!b.upload(b.conductionTemperature,encoded))return b.failure(error);}
     b.operation(b.time);
-    if(b.cells)conductionCoefficientsKernel<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,
+    if(b.cells)conductionCoefficientsKernel<<<(b.cells+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads,0,b.stream.get()>>>(b.cells,
         b.conductionInput.data(),deviceTemperature?deviceTemperature:b.conductionTemperature.data(),dt,b.devicePhysics.data(),b.conductionCoefficients.data(),
         b.conductionCapacity.data(),b.conductionSource.data(),b.conductionConductivity.data());
     if(!b.fault.check(cudaGetLastError(),"evaluate resident material conduction"))return b.failure(error);
     if(startupDiagnostics){
-        if(b.cells)inspectConductionStartupKernel<<<(b.cells+127)/128,128,0,b.stream.get()>>>(
+        if(b.cells)inspectConductionStartupKernel<<<(b.cells+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads,0,b.stream.get()>>>(
             b.cells,b.conductionCoefficients.data(),b.devicePhysics.data(),b.sourceStatus.data());
-        selectConductionFailure<<<1,256,0,b.stream.get()>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
+        selectConductionFailure<<<1,ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads*sizeof(MaterialStepResult),b.stream.get()>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
         MaterialStepResult result;
         if(!b.fault.check(cudaGetLastError(),"inspect resident startup coefficients")
             ||!b.transfers.download(&result,b.stepResult.data(),1)||!b.finish(error))return b.failure(error);
@@ -477,10 +483,10 @@ MaterialConductionDeviceFields residentMaterialConductionFields(MaterialBackend&
 namespace {
 const MaterialConductionAudit* enqueueConductionAudit(MaterialBackend& b,const ConductionReal* temperature,const ConductionReal* previous,
     const ConductionReal* residual,const ConductionReal* flux,int boundary,Real dt,cudaStream_t stream){
-    const int blocks=(std::max(b.cells,boundary)+127)/128;
-    if(blocks)conductionAuditParts<<<blocks,128,0,stream>>>(b.cells,boundary,b.conductionInput.data(),b.conductionCoefficients.data(),
+    const int blocks=(std::max(b.cells,boundary)+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads;
+    if(blocks)conductionAuditParts<<<blocks,ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads*sizeof(MaterialConductionAudit),stream>>>(b.cells,boundary,b.conductionInput.data(),b.conductionCoefficients.data(),
         temperature,previous,residual,flux,b.conductionExternal.data(),dt,b.conductionAuditParts.data());
-    conductionAuditFinish<<<1,128,0,stream>>>(blocks,b.conductionAuditParts.data(),b.conductionAuditResult.data());
+    conductionAuditFinish<<<1,ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads*sizeof(MaterialConductionAudit),stream>>>(blocks,b.conductionAuditParts.data(),b.conductionAuditResult.data());
     return b.conductionAuditResult.data();
 }
 }
@@ -489,7 +495,7 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
     Real normalizationSmall,Real singularSmall,std::string& error){
     if(!b.waitConduction(diffusion.deviceValues().readyStream))return b.failure(error);
     if(b.cachedConductionExternal!=external){if(!b.upload(b.conductionExternal,external))return b.failure(error);b.cachedConductionExternal=external;}
-    const int blocks=(std::max(b.cells,static_cast<int>(external.size()))+127)/128;
+    const int blocks=(std::max(b.cells,static_cast<int>(external.size()))+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads;
     auto& report=b.conductionReport;
     if(!b.allocate(b.conductionAuditParts,blocks)||!b.allocate(b.conductionAuditResult,1)||!b.allocate(report,1))return b.failure(error);
     // Reuse the complete nonlinear/sparse graph while every captured argument
@@ -498,11 +504,11 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
     auto& graph=b.conductionGraph;
     auto signature=diffusion.residentExecutionSignature();
     signature.append(sparse.residentExecutionSignature());
-    signature.add(b.cells);signature.add(external.size());signature.add(dt);
+    signature.add(ugkp::gpu::workPlan().materialBlockThreads);signature.add(b.cells);signature.add(external.size());signature.add(dt);
     signature.add(normalizationSmall);signature.add(singularSmall);
     signature.add(controls.nonlinearMaxIterations);signature.add(controls.nonlinearRelativeTolerance);
     signature.add(controls.energyAbsoluteTolerance);signature.add(controls.energyRelativeTolerance);
-    signature.add(controls.linearMaxIterations);signature.add(controls.linearEnergyBudgetFraction);
+    signature.add(int(controls.preconditioner));signature.add(controls.linearMaxIterations);signature.add(controls.linearEnergyBudgetFraction);
     for(const void* pointer:{static_cast<const void*>(report.data()),static_cast<const void*>(b.diagnostics.device()),
         static_cast<const void*>(b.conductionInput.data()),static_cast<const void*>(b.devicePhysics.data()),
         static_cast<const void*>(b.conductionCoefficients.data()),static_cast<const void*>(b.conductionCapacity.data()),
@@ -515,14 +521,14 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
         if(!graph.executable){
         executionGraphDetail::checked(cudaGraphCreate(&graph.graph,0));cudaGraphConditionalHandle handle,permitted;
         executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&handle,graph.graph,0,cudaGraphCondAssignDefault));
-        ConjugateGradientControls linear;linear.maximumIterations=controls.linearMaxIterations;linear.normalizationSmall=normalizationSmall;linear.singularSmall=std::max(ConductionReal(singularSmall),std::numeric_limits<ConductionReal>::min());
+        ConjugateGradientControls linear;linear.preconditioner=controls.preconditioner;linear.maximumIterations=controls.linearMaxIterations;linear.normalizationSmall=normalizationSmall;linear.singularSmall=std::max(ConductionReal(singularSmall),std::numeric_limits<ConductionReal>::min());
         const auto initialized=appendCaptured(graph.graph,{},b.stream.get(),[&]{
             beginConductionLoop<<<1,1,0,b.stream.get()>>>(report.data(),linear,b.diagnostics.device(),handle);});
         cudaGraph_t body=nullptr;executionGraphDetail::addWhile(graph.graph,handle,{initialized},body);
         executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&permitted,body,0,cudaGraphCondAssignDefault));
         const auto assembled=appendCaptured(body,{},b.stream.get(),[&]{
             diffusion.enqueueResidentSnapshot(b.stream.get());
-            if(b.cells)conductionCoefficientsKernel<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,b.conductionInput.data(),
+            if(b.cells)conductionCoefficientsKernel<<<(b.cells+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads,0,b.stream.get()>>>(b.cells,b.conductionInput.data(),
                 diffusion.deviceTemperature(),dt,b.devicePhysics.data(),b.conductionCoefficients.data(),b.conductionCapacity.data(),b.conductionSource.data(),b.conductionConductivity.data());
             diffusion.enqueueResidentAssembly(b.stream.get());
         });
@@ -545,6 +551,8 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
         executionGraphDetail::checked(cudaGraphLaunch(graph.executable,b.stream.get()));
         MaterialConductionIteration result;
         if(!b.transfers.download(&result,report.data(),1)||!b.finish(error))return b.failure(error);
+        if(result.preconditionerFallbackBlocks>0)
+            std::fprintf(stderr,"CHMT block8: Jacobi fallback used for up to %d blocks per linear solve\n",result.preconditionerFallbackBlocks);
         if(!result.valid){
             error=result.failure==1?(result.audit.coefficientError==1?"nonpositive implicit caloric secant":"material mass/geometry incompatible during implicit solve")
                 :result.failure==2?"nonfinite OpenFOAM implicit material sparse residual"
@@ -559,11 +567,11 @@ bool auditResidentMaterialConduction(MaterialBackend& b,const ConductionReal* te
     MaterialConductionAudit& audit,std::string& error){
     if(!b.waitConduction(stream))return b.failure(error);
     if(b.cachedConductionExternal!=external){if(!b.upload(b.conductionExternal,external))return b.failure(error);b.cachedConductionExternal=external;}
-    const int count=std::max(b.cells,static_cast<int>(external.size())),blocks=(count+127)/128;
+    const int count=std::max(b.cells,static_cast<int>(external.size())),blocks=(count+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads;
     if(!b.allocate(b.conductionAuditParts,blocks)||!b.allocate(b.conductionAuditResult,1))return b.failure(error);
-    if(blocks)conductionAuditParts<<<blocks,128,0,b.stream.get()>>>(b.cells,external.size(),b.conductionInput.data(),b.conductionCoefficients.data(),
+    if(blocks)conductionAuditParts<<<blocks,ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads*sizeof(MaterialConductionAudit),b.stream.get()>>>(b.cells,external.size(),b.conductionInput.data(),b.conductionCoefficients.data(),
         temperature,previous,residual,flux,b.conductionExternal.data(),dt,b.conductionAuditParts.data());
-    conductionAuditFinish<<<1,128,0,b.stream.get()>>>(blocks,b.conductionAuditParts.data(),b.conductionAuditResult.data());
+    conductionAuditFinish<<<1,ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads*sizeof(MaterialConductionAudit),b.stream.get()>>>(blocks,b.conductionAuditParts.data(),b.conductionAuditResult.data());
     if(!b.fault.check(cudaGetLastError(),"reduce resident material conduction")
         ||!b.transfers.download(&audit,b.conductionAuditResult.data(),1)||!b.finish(error))return b.failure(error);
     error.clear();return true;
@@ -575,10 +583,10 @@ bool finishResidentMaterialConduction(MaterialBackend& b,const std::vector<Real>
     else {const std::vector<ConductionReal> encoded(temperature.begin(),temperature.end());
         if(!b.upload(b.conductionTemperature,encoded))return b.failure(error);}
     b.operation(b.time);
-    if(b.cells)finishConductionKernel<<<(b.cells+127)/128,128,0,b.stream.get()>>>(b.cells,b.current.data(),
+    if(b.cells)finishConductionKernel<<<(b.cells+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads,0,b.stream.get()>>>(b.cells,b.current.data(),
         b.volumes.data(),b.conductionInput.data(),deviceTemperature?deviceTemperature:b.conductionTemperature.data(),b.devicePhysics.data(),
         b.next.data(),b.sourceStatus.data());
-    selectConductionFailure<<<1,256,0,b.stream.get()>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
+    selectConductionFailure<<<1,ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads*sizeof(MaterialStepResult),b.stream.get()>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
     MaterialStepResult result;
     if(!b.fault.check(cudaGetLastError(),"finish resident material conduction")
         ||!b.transfers.download(&result,b.stepResult.data(),1)||!b.finish(error))return b.failure(error);
@@ -668,7 +676,7 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
         if(!b.fault.check(prepareHostSelectedMaterialSlice(b.sourceSlice(),b.candidateSlice(),
             b.sliceExternal.data(),b.sliceExternal.size(),b.radiation.data(),b.stream.get()),
             "prepare borrowed material source slice"))return b.failure(error);
-        gatherMaterialSliceReceivers<<<material_slice_detail::blocks(b.borrowedHistory.faces),128,0,b.stream.get()>>>(
+        gatherMaterialSliceReceivers<<<material_slice_detail::blocks(b.borrowedHistory.faces),ugkp::gpu::workPlan().materialBlockThreads,0,b.stream.get()>>>(
             b.borrowedHistory,b.pendingSlicePlan.begin.record,b.radiationReceiver.data());
         if(!b.fault.check(cudaGetLastError(),"borrow material radiation receiver map"))return b.failure(error);
         const auto slots=(b.pendingSlicePlan.past-b.pendingSlicePlan.begin.record)*b.borrowedHistory.faces*3;
@@ -683,20 +691,20 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
         "clear material source result"))return b.failure(error);
     if(count){
         if(b.slicePending){
-        applyMaterialSliceSourcesKernel<<<(count+127)/128,128,0,b.stream.get()>>>(count,b.current.data(),b.rates.data(),
+        applyMaterialSliceSourcesKernel<<<(count+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads,0,b.stream.get()>>>(count,b.current.data(),b.rates.data(),
             b.initial.data(),b.gasChange.data(),b.candidateGasChange.data(),b.sourceSlice(),b.packetOffsets.data(),b.packetIndices.data(),
             b.radiationOffsets.data(),b.radiationFaces.data(),radiation.empty()?nullptr:b.radiation.data(),
             b.radiationReceiver.data(),b.nextVolumes.data(),b.devicePhysics.data(),dt,finalStep,
             b.next.data(),controls.retainDonorHistory?b.donor.data():nullptr,b.sourceStatus.data(),controls.reactionMaxSubstep,controls.reactionCfl,controls.maxSubsteps);
         }else{
-        applyMaterialSourcesKernel<<<(count+127)/128,128,0,b.stream.get()>>>(count,b.current.data(),b.rates.data(),
+        applyMaterialSourcesKernel<<<(count+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads,0,b.stream.get()>>>(count,b.current.data(),b.rates.data(),
             b.initial.data(),b.gasChange.data(),b.candidateGasChange.data(),b.packets.data(),b.packetOffsets.data(),b.packetIndices.data(),
             b.radiationOffsets.data(),b.radiationFaces.data(),radiation.empty()?nullptr:b.radiation.data(),
             b.radiationReceiver.data(),b.nextVolumes.data(),b.devicePhysics.data(),dt,finalStep,
             b.next.data(),controls.retainDonorHistory?b.donor.data():nullptr,b.sourceStatus.data(),controls.reactionMaxSubstep,controls.reactionCfl,controls.maxSubsteps);
         }
     }
-    selectSourceFailure<<<1,256,0,b.stream.get()>>>(b.sourceStatus.data(),count,b.stepResult.data());
+    selectSourceFailure<<<1,ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads*sizeof(MaterialStepResult),b.stream.get()>>>(b.sourceStatus.data(),count,b.stepResult.data());
     if(!b.fault.check(cudaGetLastError(),"launch resident material local sources"))return b.failure(error);
     MaterialStepResult result;std::vector<SolidQ> candidateShadow,candidateDonor;
     if(observedCells){
@@ -707,7 +715,7 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
         }
         if(!b.allocate(b.observation,observedCells->size()))return b.failure(error);
         const int rows=observedCells->size();
-        if(rows)gatherMaterialObservation<<<(rows+127)/128,128,0,b.stream.get()>>>(rows,b.observationCells.data(),b.next.data(),b.observation.data());
+        if(rows)gatherMaterialObservation<<<(rows+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads,0,b.stream.get()>>>(rows,b.observationCells.data(),b.next.data(),b.observation.data());
         if(!b.fault.check(cudaGetLastError(),"gather material geometry observation")
             ||!b.read(b.observation,candidateShadow))return b.failure(error);
     }else if(!b.read(b.next,candidateShadow))return b.failure(error);
@@ -886,6 +894,7 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
         ugkp::gpu::ScalarWorkLaunch launch;
         if(!b.fault.check(ugkp::gpu::scalarWorkLaunch(evaluateMaterialSurfaceKernel<MaterialSurfaceView>,view.workers,launch),
             "schedule independent material surface workers"))return b.failure(error);
+        view.scalarWorkersPerBlock=launch.workersPerBlock;
         evaluateMaterialSurfaceKernel<<<launch.blocks,launch.threads,0,b.stream.get()>>>(view,b.devicePhysics.data());
     }
     if(!b.fault.check(cudaGetLastError(),"evaluate resident material surface"))return b.failure(error);

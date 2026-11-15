@@ -84,7 +84,6 @@ int main(int argc, char *argv[])
 
     constexpr bool gpuResidentStrict = true;
     const bool gpuResidentPureGasOnly = gpuScheduling.pureGasOnly;
-    const Switch gpuResidentDynamicInlet(gpuScheduling.dynamicInlet);
     if (gpuResidentStrict)
     {
 #ifndef UGKWP_USE_CUDA
@@ -152,116 +151,7 @@ int main(int argc, char *argv[])
                 TpMaxStrict
             );
 
-        word gpuResidentInletPatch;
-        word gpuResidentPressureTable;
-        word gpuResidentVolumeFractionTable;
-        scalar gpuResidentInletTemperature = scalar(0);
-        labelList scheduledInletFaceIds;
-        autoPtr<GpuBoundaryScheduleTable> pressureSchedule;
-        autoPtr<GpuBoundaryScheduleTable> volumeFractionSchedule;
-        scalarField pressureTimes;
-        scalarField pressureValues;
-        scalarField volumeFractionTimes;
-        scalarField volumeFractionValues;
 
-        if (gpuResidentDynamicInlet)
-        {
-            gpuResidentInletPatch =
-                ugkwpProps.lookupOrDefault<word>
-                (
-                    "gpuResidentInletPatch",
-                    "inlet"
-                );
-            gpuResidentPressureTable =
-                ugkwpProps.lookupOrDefault<word>
-                (
-                    "gpuResidentPressureTable",
-                    "inletPressure.table"
-                );
-            gpuResidentVolumeFractionTable =
-                ugkwpProps.lookupOrDefault<word>
-                (
-                    "gpuResidentVolumeFractionTable",
-                    "inletVolumeFraction.table"
-                );
-            const label scheduledInletPatchId =
-                mesh.boundaryMesh().findPatchID(gpuResidentInletPatch);
-            if (scheduledInletPatchId < 0)
-            {
-                FatalErrorInFunction
-                    << "Cannot find scheduled inlet patch "
-                    << gpuResidentInletPatch << exit(FatalError);
-            }
-            const polyPatch& scheduledInletPatch =
-                mesh.boundaryMesh()[scheduledInletPatchId];
-
-            if
-            (
-                !p.boundaryField()[scheduledInletPatchId].fixesValue()
-             || !Tgas.boundaryField()[scheduledInletPatchId].fixesValue()
-             || !epsS.boundaryField()[scheduledInletPatchId].fixesValue()
-            )
-            {
-                FatalErrorInFunction
-                    << "Scheduled inlet requires fixed-value p, T, and "
-                    << "epsilonS on patch " << gpuResidentInletPatch
-                    << exit(FatalError);
-            }
-
-            const fvPatchScalarField& inletT =
-                Tgas.boundaryField()[scheduledInletPatchId];
-            if (!inletT.empty()) gpuResidentInletTemperature = inletT[0];
-            scheduledInletFaceIds.setSize(scheduledInletPatch.size());
-            forAll(scheduledInletFaceIds, faceI)
-            {
-                scheduledInletFaceIds[faceI] =
-                    scheduledInletPatch.start() + faceI;
-            }
-
-            pressureSchedule.reset
-            (
-                new GpuBoundaryScheduleTable
-                (
-                    runTime.path()/runTime.constant()/gpuResidentPressureTable
-                )
-            );
-            volumeFractionSchedule.reset
-            (
-                new GpuBoundaryScheduleTable
-                (
-                    runTime.path()
-                   /runTime.constant()
-                   /gpuResidentVolumeFractionTable
-                )
-            );
-            pressureSchedule->copyColumns(pressureTimes, pressureValues);
-            volumeFractionSchedule->copyColumns
-            (
-                volumeFractionTimes,
-                volumeFractionValues
-            );
-        }
-
-        const auto configureScheduledBoundary =
-        [&]
-        (
-            auto& resident
-        )
-        {
-            if (!gpuResidentDynamicInlet)
-            {
-                return;
-            }
-            resident.configureScheduledInlet
-            (
-                scheduledInletFaceIds,
-                gpuResidentInletTemperature,
-                pressureTimes,
-                pressureValues,
-                volumeFractionTimes,
-                volumeFractionValues
-            );
-        };
 
         using GasSolverReal=typename std::conditional<ugkp::precision::compiledBits==32,float,double>::type;
         const auto gasScalarSolvers=ugkp::gasNumerics::readGasScalarSolverControls<GasSolverReal>
@@ -348,7 +238,6 @@ int main(int argc, char *argv[])
             resident.configureMolecularTransport(molecularTransport.config());
             resident.configureBoundaryLayer(boundaryLayerInput, runTime, mesh, Tgas);
 
-            configureScheduledBoundary(resident);
 
             scalar lastMeasuredCo = scalar(0);
             label stepsSinceCourant = gpuResidentCourantUpdateInterval;
@@ -524,7 +413,6 @@ int main(int argc, char *argv[])
             , &sharedGasModel
         );
         configureResidentSst(resident);
-        configureScheduledBoundary(resident);
 
         scalar lastMeasuredCo = scalar(0);
         resident.configureMolecularTransport(molecularTransport.config());

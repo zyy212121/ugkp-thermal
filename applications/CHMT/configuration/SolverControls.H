@@ -2,6 +2,7 @@
 #define CHMT_CONFIGURATION_SOLVERCONTROLS_H
 #include "core/Configuration.H"
 #include "materials/CpuMaterialDriver.H"
+#include "../../../common/gpu/FoamSparsePreconditioner.H"
 #include "../../../common/FoamSolverScheme.H"
 #include "../../../common/FoamParticleSolverControls.H"
 #include "../../../common/FoamWallSolverControls.H"
@@ -74,6 +75,10 @@ inline CpuMaterialControls readMaterialSolverControls(const Foam::Time& time,con
     scheme.read("chmt.material.conduction","energyRelativeTolerance",controls.energyRelativeTolerance,"default",region);
     scheme.read("chmt.material.conduction","linearMaxIterations",controls.linearMaxIterations,"default",region);
     scheme.read("chmt.material.conduction","linearEnergyBudgetFraction",controls.linearEnergyBudgetFraction,"default",region);
+    Foam::word preconditioner("jacobi");
+    scheme.read("chmt.material.conduction","preconditioner",preconditioner,"default",region);
+    Foam::dictionary sparse; sparse.set("preconditioner",preconditioner);
+    controls.preconditioner=ugkp::gpu::readSparsePreconditioner(sparse);
     return controls;
 }
 }}

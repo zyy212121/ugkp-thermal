@@ -277,7 +277,7 @@ inline auto makeGasStateView(const State& state)
     -> GasStateView
     <
         typename std::remove_pointer<decltype(state.rho)>::type,
-        typename std::remove_pointer<decltype(state.pressureScheduleTimes)>::type,
+        double,
         decltype(state.sstCoefficients),
         typename std::remove_pointer<decltype(state.rhoE)>::type,
         typename std::remove_pointer<decltype(state.Cx)>::type,
@@ -285,7 +285,7 @@ inline auto makeGasStateView(const State& state)
     >
 {
     using Real = typename std::remove_pointer<decltype(state.rho)>::type;
-    using Time = typename std::remove_pointer<decltype(state.pressureScheduleTimes)>::type;
+    using Time = double;
     using SstCoefficients = decltype(state.sstCoefficients);
     using Energy = typename std::remove_pointer<decltype(state.rhoE)>::type;
     using Geometry = typename std::remove_pointer<decltype(state.Cx)>::type;

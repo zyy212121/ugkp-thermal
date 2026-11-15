@@ -1,3 +1,4 @@
+#include <cmath>
 #pragma once
 #include "gpu/SharedGasDeviceStorage.cuh"
 #include "../../../common/thermal/ParticleGasBinding.H"
@@ -58,11 +59,17 @@ public:
         if(!gas.write(boundaryKind_.data(),kinds)||!gas.write(restitution_.data(),unit)||!gas.write(tangential_.data(),unit)){
             error=gas.error();return false;}
         if(!result(ugkp::thermal::bindParticleSurface(owner_,faces,surface()),error))return false;
+        if(state.gasMesh.gasBoundary) {
+            const auto& boundary=*state.gasMesh.gasBoundary;
+            if(!result(ugkwpGpuResidentStrictConfigureBoundary(owner_,int(boundary.faces.size()),
+                boundary.faces.data(),int(boundary.functions.size()),boundary.functions.data(),
+                int(boundary.terms.size()),boundary.terms.data()),error))return false;
+        }
         const auto& inlet=model.particleInlet;
         if(!inlet.faces.empty()){
             const std::vector<double> fractionWire(inlet.volumeFraction.begin(),inlet.volumeFraction.end());
             std::vector<int> cells;std::vector<double> px,py,pz,u(inlet.faces.size(),0),
-                temperature(inlet.faces.size(),inlet.temperature),theta(inlet.faces.size(),inlet.theta),
+                temperature(inlet.faces.size(),inlet.temperature),theta(inlet.faces.size(),std::isfinite(inlet.theta)&&inlet.theta>0?inlet.theta:0),
                 diameter(inlet.faces.size(),config.diameter);
             for(int f:inlet.faces){
                 const int cell=state.gasMesh.owner.at(f);cells.push_back(cell);
@@ -73,8 +80,7 @@ public:
                 px.data(),py.data(),pz.data(),u.data(),u.data(),u.data(),temperature.data(),theta.data(),diameter.data(),u.data()),error)
                 ||!result(ugkwpGpuResidentStrictConfigureParticleInjectionVelocity(owner_,inlet.velocitySpecified,
                     inlet.velocity[0],inlet.velocity[1],inlet.velocity[2]),error)
-                ||!result(ugkwpGpuResidentStrictConfigureScheduledInlet(owner_,inlet.faces.size(),inlet.faces.data(),inlet.temperature,
-                    0,nullptr,nullptr,inlet.times.size(),inlet.times.data(),fractionWire.data()),error))return false;
+)return false;
             // Deliberately retain this initial inlet geometry across mesh motion.
             std::vector<int> offsets{0},vertices;
             for(int f:inlet.faces){

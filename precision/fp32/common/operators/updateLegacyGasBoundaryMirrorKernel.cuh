@@ -19,30 +19,7 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
         return;
     }
 
-    const bool scheduled = scheduledInletFaceDevice(s, f);
-    if (scheduled)
-    {
-        const GPU_OPERATOR_REAL temperature = clampMin
-        (
-            finiteOr(s.scheduledInletTemperature, s.TgasMin),
-            s.TgasMin
-        );
-        const GPU_OPERATOR_REAL pressure = clampMin
-        (
-            finiteOr(scheduledPressureDevice(s, simulationTime), OfSmall),
-            s.rhoMin*s.Rgas*temperature
-        );
-        const GPU_OPERATOR_REAL density = pressure/clampMin(s.Rgas*temperature, OfSmall);
-        s.gasBoundaryP[f] = pressure;
-        s.gasBoundaryRho[f] = density;
-        s.gasBoundaryT[f] = temperature;
-        s.riemannBoundaryP[f] = pressure;
-        s.riemannBoundaryRho[f] = density;
-        s.riemannBoundaryT[f] = temperature;
-        // A pressure/temperature schedule does not prescribe velocity. Keep
-        // the owner-following velocity mirror current for particle injection.
-    }
-    else if(evaluateResidentBoundary(s,f,simulationTime))return;
+    if(evaluateResidentBoundary(s,f,simulationTime))return;
 
     const int kind = s.gasBoundaryKind[f];
     if (kind == 3 || kind == 4)
@@ -57,7 +34,7 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
         return;
     }
 
-    if (!scheduled && s.gasBoundaryRhoFix[f] == 0)
+    if (s.gasBoundaryRhoFix[f] == 0)
     {
         s.gasBoundaryRho[f] = s.rho[mirrorCell];
     }
@@ -67,11 +44,11 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
         s.gasBoundaryUy[f] = s.Uy[mirrorCell];
         s.gasBoundaryUz[f] = s.Uz[mirrorCell];
     }
-    if (!scheduled && s.gasBoundaryTFix[f] == 0)
+    if (s.gasBoundaryTFix[f] == 0)
     {
         s.gasBoundaryT[f] = s.Tgas[mirrorCell];
     }
-    if (!scheduled && s.gasBoundaryPFix[f] == 0 && s.gasBoundaryPWave[f] == 0)
+    if (s.gasBoundaryPFix[f] == 0 && s.gasBoundaryPWave[f] == 0)
     {
         s.gasBoundaryP[f] = s.p[mirrorCell];
     }

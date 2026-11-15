@@ -394,7 +394,7 @@ namespace chmt {
                 return;
             }
             require(model.physics.enableGas && !state.gas.empty(), "thermal particles require imported gas");
-            const auto& policy = d.subDict("particle");
+            const auto& policy = d;
             require(text(policy,"volumeMode","Coupled")=="Coupled",
                 "CHMT uses the shared coupled gas/particle phase-volume convention");
             std::vector<Real> fractions(state.gas.size(),1);
@@ -434,7 +434,7 @@ namespace chmt {
                         if(p.state&&model.particleContact.model==3){
                             const auto nodes=scalars(d,"coldNodeSpecificEnthalpy");
                             require(nodes.size()==8,"coldWall1D history requires 8 node enthalpies");
-                            for(int j=0;j<8;++j)h.coldNodeSpecificEnthalpy[j]=float(nodes[j]);
+                            for(int j=0;j<8;++j)h.coldNodeSpecificEnthalpy[j]=double(nodes[j]);
                             array(d,"coldRingSolidMass",h.coldRingSolidMass);
                         }
                         if(p.state&&model.particleContact.model==4){

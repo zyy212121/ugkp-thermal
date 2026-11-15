@@ -1,4 +1,5 @@
 #pragma once
+#include "../gpu/WorkPlan.H"
 #include "gasTransport/GasBoundaryLayerModelState.H"
 // One sparse worker owns one bounded scratch slot and walks distinct faces.
 // Expensive profile scratch scales with workspaceCount, not wall-face count.
@@ -44,11 +45,12 @@ __global__ __launch_bounds__(ugkwp::gaswall::detail::wallWarpWidth) void evaluat
 // Nodes 0..7 occupy a tile; each tile owns a distinct scratch slot. A partial
 // final block returns entire tiles only, never individual participating lanes.
 template<bool Capture=false,class GasState>
-__global__ __launch_bounds__(32) void evaluateGasBoundaryLayerTile8Kernel(GasState* state,const unsigned char* active=nullptr)
+__global__ void evaluateGasBoundaryLayerTile8Kernel(GasState* state,const unsigned char* active=nullptr)
 {
     if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
     if constexpr(ugkwp::GasBoundaryLayerModelCapability<GasState>::value){
-        const int worker=4*blockIdx.x+threadIdx.x/8;
+        const int workersPerBlock=blockDim.x/8;
+        const int worker=workersPerBlock*blockIdx.x+threadIdx.x/8;
         const int workers=state->gasBoundaryLayerModel.workspaceCount;
         if(worker>=workers||!ugkwp::gasBoundaryLayerEnabled(*state))return;
         const ugkwp::gaswall::detail::CudaWallTile8 team{};
@@ -68,10 +70,16 @@ inline cudaError_t launchGasBoundaryLayerPool(GasState* state,const Model& model
     const int workers=analytic?wallCount:model.workspaceCount;
     if(workers<=0)return cudaErrorInvalidValue;
     if(analytic)
-        evaluateGasBoundaryLayerKernel<Capture><<<(workers+31)/32,32,0,stream>>>(state,active);
+        evaluateGasBoundaryLayerKernel<Capture><<<(workers+ugkp::gpu::workPlan().faceBlockThreads-1)/ugkp::gpu::workPlan().faceBlockThreads,ugkp::gpu::workPlan().faceBlockThreads,0,stream>>>(state,active);
     else if(model.config.model==ugkwp::gaswall::BoundaryLayerModel::EquilibriumOde
         &&model.config.nodes==8&&model.workspaceCapacity==24&&!model.conservative.enabled)
-        evaluateGasBoundaryLayerTile8Kernel<Capture><<<(workers+3)/4,32,0,stream>>>(state,active);
+    {
+        // Eight-lane ownership is fixed; the number of independent tiles per
+        // CTA follows the same face-work policy as the analytic wall branch.
+        const int block=ugkp::gpu::workPlan().faceBlockThreads;
+        const int workersPerBlock=block/8;
+        evaluateGasBoundaryLayerTile8Kernel<Capture><<<(workers+workersPerBlock-1)/workersPerBlock,block,0,stream>>>(state,active);
+    }
     else
     {
 #define UGKWP_LAUNCH_WALL_CAPACITY(N) case N: evaluateGasBoundaryLayerTeamKernel<Capture,N><<<workers,ugkwp::gaswall::detail::wallWarpWidth,0,stream>>>(state,active);break

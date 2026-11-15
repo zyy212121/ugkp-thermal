@@ -1,3 +1,4 @@
+#include "../gpu/WorkPlan.H"
 #pragma once
 #include "ParticleStateApi.H"
 namespace {
@@ -7,8 +8,8 @@ __global__ void uploadParticleSnapshotKernel(DeviceState* sp,int begin,int count
     for(int k=blockIdx.x*blockDim.x+threadIdx.x;k<count;k+=blockDim.x*gridDim.x) {
         const int i=begin+k;const ParticleSnapshot& q=in[k];
 #define UGKP_PARTICLE_FIELD(Field,Value) s.Field[i]=q.Value;
-#define UGKP_PARTICLE_OPTIONAL(Field,Value) if(s.Field)s.Field[i]=q.Value;
-#define UGKP_PARTICLE_ARRAY(Field,Value,N) if(s.Field)for(int j=0;j<N;++j)s.Field[i*N+j]=q.Value[j];
+#define UGKP_PARTICLE_OPTIONAL(Field,Value) if(s.Field)s.Field[Foam::gpuWall::coldWallFieldSlot(s,s.Field,i)]=q.Value;
+#define UGKP_PARTICLE_ARRAY(Field,Value,N) if(s.Field)for(int j=0;j<N;++j)s.Field[Foam::gpuWall::coldWallFieldSlot(s,s.Field,i)*N+j]=q.Value[j];
 #include "ParticleStateFields.inc"
 #undef UGKP_PARTICLE_FIELD
 #undef UGKP_PARTICLE_OPTIONAL
@@ -20,14 +21,14 @@ __global__ void downloadParticleSnapshotKernel(DeviceState* sp,int begin,int cou
     for(int k=blockIdx.x*blockDim.x+threadIdx.x;k<count;k+=blockDim.x*gridDim.x) {
         const int i=begin+k;ParticleSnapshot q{};
 #define UGKP_PARTICLE_FIELD(Field,Value) q.Value=s.Field[i];
-#define UGKP_PARTICLE_OPTIONAL(Field,Value) if(s.Field)q.Value=s.Field[i];
-#define UGKP_PARTICLE_ARRAY(Field,Value,N) if(s.Field)for(int j=0;j<N;++j)q.Value[j]=s.Field[i*N+j];
+#define UGKP_PARTICLE_OPTIONAL(Field,Value) if(s.Field){const int slot=Foam::gpuWall::coldWallFieldSlot(s,s.Field,i);q.Value=slot>=0?s.Field[slot]:0;}
+#define UGKP_PARTICLE_ARRAY(Field,Value,N) if(s.Field)for(int j=0;j<N;++j){const int slot=Foam::gpuWall::coldWallFieldSlot(s,s.Field,i);q.Value[j]=slot>=0?s.Field[slot*N+j]:0;}
 #include "ParticleStateFields.inc"
 #undef UGKP_PARTICLE_FIELD
 #undef UGKP_PARTICLE_OPTIONAL
 #undef UGKP_PARTICLE_ARRAY
         q.thermal.initialized=true;
-        q.energy=q.mass*particleEffectiveSpecificEnthalpyDevice(s,i);
+        q.energy=q.thermal.status?q.mass*particleEffectiveSpecificEnthalpyDevice(s,i):0;
         // Saved velocities are lab-frame delayed rebound velocities in the
         // existing contact model. These two fields are derived diagnostics.
         if(q.state && q.face>=0 && q.face<s.nFaces) {
@@ -73,13 +74,18 @@ int uploadParticleState(void* owner,int count,const ParticleState<>* particles) 
     }
     ParticleSnapshotBuffer buffer;
     if(count && allocate(buffer.device,std::min(count,particleSnapshotChunk),"particle state staging"))return 1;
+    if(s->pColdHandle) {
+        Foam::gpuWall::ColdWall1DHandles pool{s->pColdHandle,s->compactPColdHandle,
+            s->coldFreeHandles,s->coldFreeCounts,s->particleCapacity};
+        Foam::gpuWall::initialiseColdWall1DHandlesKernel<<<(s->particleCapacity+coldWallBlockThreads-1)/coldWallBlockThreads,coldWallBlockThreads>>>(pool,count);
+    }
     if(syncDeviceState(s,"particle state upload view"))return 1;
     cudaError_t err=cudaMemset(s->pStatus,0,size_t(s->particleCapacity)*sizeof(*s->pStatus));
     if(err!=cudaSuccess){setLastError("particle state status reset",err);return 1;}
     for(int begin=0;begin<count;) {
         const int n=std::min(count-begin,particleSnapshotChunk);
         if(copyToDevice(buffer.device,particles+begin,n,"particle state upload chunk"))return 1;
-        uploadParticleSnapshotKernel<<<(n+255)/256,256>>>(s->deviceState,begin,n,buffer.device);
+        uploadParticleSnapshotKernel<<<(n+ugkp::gpu::workPlan().particleBlockThreads-1)/ugkp::gpu::workPlan().particleBlockThreads,ugkp::gpu::workPlan().particleBlockThreads>>>(s->deviceState,begin,n,buffer.device);
         err=cudaGetLastError();if(err!=cudaSuccess){setLastError("particle state unpack",err);return 1;}
         begin+=n;
     }
@@ -103,7 +109,7 @@ int downloadParticleState(void* owner,std::vector<ParticleState<>>& particles) {
     if(count && allocate(buffer.device,std::min(count,particleSnapshotChunk),"particle state staging"))return 1;
     for(int begin=0;begin<count;) {
         const int n=std::min(count-begin,particleSnapshotChunk);
-        downloadParticleSnapshotKernel<<<(n+255)/256,256>>>(s->deviceState,begin,n,buffer.device);
+        downloadParticleSnapshotKernel<<<(n+ugkp::gpu::workPlan().particleBlockThreads-1)/ugkp::gpu::workPlan().particleBlockThreads,ugkp::gpu::workPlan().particleBlockThreads>>>(s->deviceState,begin,n,buffer.device);
         const auto err=cudaGetLastError();if(err!=cudaSuccess){setLastError("particle state pack",err);return 1;}
         if(copyToHost(candidate.data()+begin,buffer.device,n,"particle state download chunk"))return 1;
         begin+=n;

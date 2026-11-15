@@ -63,7 +63,7 @@ __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandida
   effectiveA=a;
   if(Tg!=Ti)cp=equilibriumIncrement/(Tg-Ti);
   const float lower=ugkwp::coldWallUniformCoolingBound
-      (s.pColdNodeSpecificEnthalpy+i*8,8);
+      (s.pColdNodeSpecificEnthalpy+Foam::gpuWall::coldWallSlot(s,i)*8,8);
   if(dh<lower){dh=lower;if(equilibriumIncrement!=0.f)effectiveA=dh/equilibriumIncrement;}
  }
  const float capacity=float(s.pm[i])*cp;
@@ -81,13 +81,7 @@ __device__ __forceinline__ void accumulatePairedParticleHeatCandidate
 (DeviceState& s,int i,GpuTime dt)
 {
  if(s.particleHeatCoefficient==nullptr||s.particleHeatBudget==nullptr)return;
-#if defined(GPU_MIXTURE_PARTICLE_COUPLING)
- // Mixture free-particle coupling runs after collisions and owns the current
- // mobile set. It does not use the earlier single-gas macro partition.
- if(ugkwp::mixtureGasActive(s))
-  s.particleContactHeatEpoch[i]=s.pStuck[i]!=Foam::gpuThermal::particleWallMobile;
- else
-#endif
+
   s.particleContactHeatEpoch[i]=pairedParticleHeatMember(s,i);
  const auto p=pairedParticleHeatCandidate(s,i,dt);
  s.particleContactHeatCandidate[i]=p.capacity>0.f?p.specificHeat:0.f;
@@ -137,7 +131,7 @@ __device__ __forceinline__ void publishPairedParticleGasHeat(DeviceState&s,int i
  if(dh==0.f)return;
  float accepted=0.f;const int count=particleColdProfileNodeCountDevice(s,i);
  if(count){
-  float* nodes=(count==8?s.pColdNodeSpecificEnthalpy:s.pCold2DNodeSpecificEnthalpy)+i*count;
+  float* nodes=(count==8?s.pColdNodeSpecificEnthalpy:s.pCold2DNodeSpecificEnthalpy)+(count==8?Foam::gpuWall::coldWallSlot(s,i):i)*count;
   const auto result=ugkwp::publishColdWallUniformSpecificHeat(nodes,count,dh);
   if(!result.valid)return;
   accepted=result.acceptedSpecificHeat;

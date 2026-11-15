@@ -48,7 +48,7 @@ build. The summary lists hashes only after every application build succeeds.
 Dual-precision startup builds (checkpoint 02)
 --------------------------------------------
 The four maintained applications now build as independent FP64 and FP32 trees.
-Public executable names select one backend using constant/precisionProperties:
+Public executable names select one backend using constant/scheme:
 precision 32; is the default, and precision 64; selects the retained FP64 path.
 tool/build_local.sh, Allwmake and ordinary individual application build scripts
 produce the corresponding dual variants. CHMT input-only/host-check modes keep

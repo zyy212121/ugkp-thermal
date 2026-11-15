@@ -42,15 +42,21 @@ struct SparseDeviceLduValues {
     void* readyStream=nullptr;
     const double* boundaryJump=nullptr;
 };
+enum class SparsePreconditioner { Jacobi, Block8 };
 struct ConjugateGradientControls {
+    SparsePreconditioner preconditioner=SparsePreconditioner::Jacobi;
     int maximumIterations=1000, minimumIterations=0;
     double tolerance=1e-6, relativeTolerance=0;
     double normalizationSmall=1e-20, singularSmall=1e-300;
 };
 struct ConjugateGradientReport {
+    int preconditionerFallbackBlocks=0;
     int iterations=0;
     double initialResidual=0, finalResidual=0;
     bool converged=false, singular=false;
+    bool stagnated=false, budgetExhausted=false;
+    int residualReplacements=0;
+    double targetResidual=0;
 };
 struct ConjugateGradientDeviceReport {
     const ConjugateGradientReport* report=nullptr;

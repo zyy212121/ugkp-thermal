@@ -9,7 +9,7 @@ struct ParticleThermalHistory {
     double temperature=0,theta=0,specificEnthalpyResidual=0;
     double savedVelocity[3]{}; // Exact lab-frame pre-step/deferred rebound velocity.
     double contactMaximumArea=0,contactPeakFraction=0;
-    float coldNodeSpecificEnthalpy[8]{};
+    double coldNodeSpecificEnthalpy[8]{};
     double coldRingSolidMass[8]{},coldFrozenArea=0,coldContactAge=0;
     float cold2DNodeSpecificEnthalpy[64]{};
     double cold2DRingContactAge[8]{},cold2DFrozenArea=0;
@@ -31,7 +31,8 @@ struct ParticleState {
     std::uint64_t rng=0;
     ParticleThermalHistory thermal{};
     // energy is the represented thermal inventory [J]. Once initialized,
-    // temperature/profile plus specificEnthalpyResidual is the restart state;
+    // coldWall1D uses its raw eight-node profile alone. Other caloric models
+    // retain temperature/profile plus specificEnthalpyResidual as restart state;
     // energy is a derived output, never a second independent thermal update.
 };
 // Contact mechanical energy is a diagnostic of the deferred lab-frame

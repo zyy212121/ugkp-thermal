@@ -132,7 +132,7 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
     const Foam::dimensionSet capacityDimensions=Foam::dimEnergy/Foam::dimVolume/Foam::dimTemperature;
     const Foam::dimensionSet conductivityDimensions=Foam::dimPower/Foam::dimLength/Foam::dimTemperature;
     const Foam::dimensionedScalar deltaT("materialDt",Foam::dimTime,dt);
-    Foam::dictionary solver;solver.add("solver",Foam::word("PCG"));solver.add("preconditioner",Foam::word("DIC"));solver.add("tolerance",Foam::scalar(1e-12));solver.add("relTol",Foam::scalar(0));solver.add("maxIter",Foam::label(controls.linearMaxIterations));
+    Foam::dictionary solver;solver.add("solver",Foam::word("PCG"));solver.add("preconditioner",Foam::word(ugkp::gpu::sparsePreconditionerName(controls.preconditioner)));solver.add("tolerance",Foam::scalar(1e-12));solver.add("relTol",Foam::scalar(0));solver.add("maxIter",Foam::label(controls.linearMaxIterations));
     ugkp::gpu::installGpuImplicitDiffusion();
     mesh.schemes().setFluxRequired(temperature.name());
     bool residentConvergence=false;std::vector<int> externalBoundary;

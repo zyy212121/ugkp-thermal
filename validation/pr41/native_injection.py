@@ -41,7 +41,7 @@ def prepare(case,solver):
    scheme_entry(case,'steadyParticle','samplingDeltaT',DT);scheme_entry(case,'steadyGas','maxDeltaT',DT)
   else:
    for k,v in [('endTime',DT),('deltaT',DT),('writeInterval',1)]:g.set_entry(case/'system/controlDict',k,v)
-   scheme_entry(case,'gasTimeStep','maxDeltaT',DT);scheme_entry(case,'gasTimeStep','adjustTimeStep','false')
+   scheme_entry(case,'gasTimeStep','maxDeltaT',DT);g.set_entry(case/'system/controlDict','adjustTimeStep','false')
   return dict(expected_mass=.001*2800*.002*DT,y=.2,z=.01,x=0)
  meta=json.loads((ROOT/'validation/molecular_transport/fixtures.json').read_text())
  fixture='chmt-mixture' if solver=='CHMT' else 'cht-contact'

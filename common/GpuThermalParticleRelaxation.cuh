@@ -1,4 +1,5 @@
 #pragma once
+#include "wall/GpuColdWall1DHandles.cuh"
 #include "GpuParticleGasHeatRelaxation.cuh"
 #include "GpuParticleThermalConsumerDevice.cuh"
 // Shared thermal relaxation; preserve native ordering of independent loads and stuck-state writes.
@@ -20,14 +21,11 @@ __device__ void relaxOneParticleToResidentGas
     if (c < 0 || c >= s.nCells)
     {
         s.pStatus[i] = 0;
+        Foam::gpuWall::releaseColdWall1DHandle(s,i);
         return;
     }
 
-#if defined(GPU_MIXTURE_PARTICLE_COUPLING)
-    // Free mixture parcels have already received the cell-owned paired source
-    // and external kick. Contact particles still advance their own lifecycle.
-    if(ugkwp::mixtureGasActive(s) && s.pStuck[i]==Foam::gpuThermal::particleWallMobile)return;
-#endif
+
 #if defined(GPU_PAIRED_PARTICLE_HEAT)
     if (particleColdProfileNodeCountDevice(s,i) != 8)
         publishPairedParticleGasHeat(s,i,dt);

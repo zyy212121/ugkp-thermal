@@ -5,6 +5,18 @@ namespace ugkp { namespace diagnostics { struct DeviceContext; } namespace gpu {
 // Borrowed buffers remain valid until the next particle advance/aggregation.
 // The DO owner waits on producerStream before reading them. Radiation and
 // the shared production state use the selected radiation precision.
+// Optional device-owned thermal source iteration state. Null pointers disable it.
+// Emission is an intensity (f*B0/4pi); feedback is dimensionless (1-f).
+// These buffers are read only by DOM and remain live for the complete graph.
+struct RadiationThermalCouplingDeviceView {
+    const RadiationReal *trialMeanTemperature=nullptr;
+    const RadiationReal *linearizedEmission=nullptr,*thermalFeedback=nullptr;
+    const RadiationReal *materialRelativeResidual=nullptr;
+    RadiationReal materialRelativeTolerance=RadiationReal(1e-10); // owner supplies boundedEnergyRelativeTolerance
+    void* producerStream=nullptr;
+    // Host graph-cache identity. Zero keeps arbitrary hooks conservatively uncached.
+    unsigned long long graphOwner=0,graphRevision=0;
+};
 struct RadiationParticleDeviceView {
     bool enabled=false;
     int cells=0,boundaryOffset=0,boundaryFaces=0;
@@ -38,6 +50,7 @@ struct RadiationMaterialDeviceView {
     const RadiationReal *temperature=nullptr,*energy=nullptr,*boundaryEnergy=nullptr;
     void* producerStream=nullptr;
     diagnostics::DeviceContext* diagnostics=nullptr;
+    const RadiationReal* publicationFraction=nullptr; // optional owner-computed nonnegative capacity fraction
 };
 }}
 #endif

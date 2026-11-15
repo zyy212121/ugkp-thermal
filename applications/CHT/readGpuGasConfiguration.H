@@ -32,16 +32,12 @@ IOdictionary schedulingPropertiesFile
     )
 );
 
-if (!fluidPropertiesFile.found("turbulence"))
-{
-    FatalErrorInFunction
-        << "fluidProperties/turbulence is required."
-        << exit(FatalError);
-}
-
 const dictionary& physicalProperties = fluidPropertiesFile;
-const dictionary& momentumTransportProperties =
-    fluidPropertiesFile.subDict("turbulence");
+IOdictionary momentumTransportProperties
+(
+    IOobject("momentumTransport",runTime.constant(),mesh,
+        IOobject::READ_IF_PRESENT,IOobject::NO_WRITE,false)
+);
 const dictionary& ugkwpProps = particlePropertiesFile;
 const GpuSchedulingConfiguration gpuScheduling =
     readGpuSchedulingConfiguration(schedulingPropertiesFile,

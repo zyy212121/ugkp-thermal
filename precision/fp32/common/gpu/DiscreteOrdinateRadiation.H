@@ -2,6 +2,8 @@
 #define UGKP_GPU_DISCRETE_ORDINATE_RADIATION_H
 #include "MieOpticalProperties.H"
 #include "RadiationResidentView.H"
+#include "ExecutionGraph.H"
+#include <functional>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -23,7 +25,7 @@ struct RadiationGeometry {
 struct RadiationControls {
     RadiationReal activeEpsilonMinimum=0,phaseTolerance=RadiationReal(1e-12),sourceTolerance=RadiationReal(1e-10);
     RadiationReal linearTolerance=RadiationReal(1e-12),linearRelativeTolerance=0,sourceRelaxation=1,small=RadiationReal(1e-15);
-    int phaseIterations=200,sourceIterations=300,linearIterations=1000;
+    int phaseIterations=200,sourceIterations=500,linearIterations=1000;
     // This retains the original distinction between frozen angular sources
     // and sequential angular Gauss-Seidel updates; it is not a case selector.
     bool parallelAngles=false;
@@ -33,6 +35,7 @@ struct RadiationControls {
 struct RadiationSnapshot {
     std::vector<double> epsilon,temperature,diameter,wallTemperature,emissivity;
     RadiationParticleDeviceView resident;
+    RadiationThermalCouplingDeviceView thermalCoupling;
     std::vector<unsigned char> residentWallTemperature,contactEmissivity;
 };
 struct RadiationDirectionWarning {
@@ -44,6 +47,8 @@ struct RadiationResult {
     std::vector<MiePhaseMetrics> phaseMetrics;
     std::vector<RadiationDirectionWarning> directionWarnings;
     RadiationReal maximumRelativeChange=0;
+    RadiationReal materialRelativeResidual=0,transportRelativeResidual=0;
+    RadiationReal materialResidualTarget=0,transportResidualTarget=0;
     int sourceIterations=0;
 };
 struct RadiationError:std::runtime_error {
@@ -51,6 +56,16 @@ struct RadiationError:std::runtime_error {
     RadiationError(const std::string& reason,RadiationReal v,int i,int c,int p,int f):
         std::runtime_error(reason),value(v),iteration(i),cell(c),patch(p),face(f){}
 };
+// Called only during graph construction, never on a source-iteration replay.
+// power is physical kappa_a*(G-4pi*Ib(Ttrial)), not a linearized energy surrogate.
+struct RadiationThermalIterationDeviceView {
+    int cells=0;
+    const RadiationReal *incident=nullptr,*power=nullptr,*volume=nullptr;
+    const RadiationReal *epsilon=nullptr,*mass=nullptr,*diameter=nullptr;
+    const RadiationThermalCouplingDeviceView* coupling=nullptr;
+};
+using RadiationThermalIterationHook=std::function<ExecutionGraphNode(
+    ExecutionGraph,ExecutionGraphNode,void*,const RadiationThermalIterationDeviceView&)>;
 class DiscreteOrdinateRadiation {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:
@@ -66,6 +81,7 @@ public:
     void downloadIntensities(std::vector<double>&)const;
     void uploadIntensities(const std::vector<double>&);
     RadiationDeviceView deviceView() const noexcept;
+    void setThermalIterationHook(RadiationThermalIterationHook, unsigned long long owner=0, unsigned long long revision=0);
 };
 }}
 #endif

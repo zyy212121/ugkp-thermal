@@ -36,10 +36,8 @@ def main():
         path = case/'constant/schedulingProperties'
         matrix.entry(path, 'gpuResidentPureGasOnly', 'false')
         matrix.entry(path, 'gpuResidentParticleCapacity', 8192)
-        matrix.entry(path, 'gpuResidentDynamicInlet', 'true')
         path = case/'constant/particleProperties'
         matrix.entry(path, 'parcelMass', 1e-9)
-        path.write_text(path.read_text()+'\ngpuResidentInletPatch left;\n')
         # Keep U at rest, with zeroGradient inlet and no particle velocity override.
         path = case/'0/U'
         path.write_text(path.read_text().replace(
@@ -53,10 +51,14 @@ def main():
                         'left{type fixedValue;value uniform 356334.11220656736;}'))
         pressure = 400000 if varying else 356334.11220656736
         fraction = .0022 if varying else .002
-        (case/'constant/inletPressure.table').write_text(
-            f'((0 356334.11220656736)(0.000002 {pressure}))\n')
-        (case/'constant/inletVolumeFraction.table').write_text(
-            f'((0 .002)(0.000002 {fraction}))\n')
+        path=case/'0/p'
+        path.write_text(path.read_text().replace(
+            'left{type fixedValue;value uniform 356334.11220656736;}',
+            f'left{{type uniformFixedValue;uniformValue table ((0 356334.11220656736)(0.000002 {pressure}));value uniform 356334.11220656736;}}'))
+        path=case/'0/epsilonS'
+        path.write_text(path.read_text().replace(
+            'left{type fixedValue;value uniform .002;}',
+            f'left{{type uniformFixedValue;uniformValue table ((0 .002)(0.000002 {fraction}));value uniform .002;}}'))
         for key, value in [('endTime', 2e-6), ('deltaT', 1e-6),
                            ('writeInterval', 2e-6)]:
             matrix.entry(case/'system/controlDict', key, value)

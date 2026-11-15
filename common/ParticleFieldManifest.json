@@ -4,10 +4,10 @@
   "disk_schema_role": "Historical schema7 ordinal map; current output layouts are owner-specific.",
   "current_disk_layouts": {
     "CHT": {
-      "marker": "UGKP_CHT_PARTICLES_SCHEMA9_FLOAT_COLD_PROFILES_BIN",
+      "marker": "UGKP_CHT_PARTICLES_SCHEMA11_NATIVE64_RAW_COLD_BIN",
       "field_order": "schema7 ordinals followed by pThermalEnthalpyResidual",
-      "scalar_types": "host.CHT; only the 8/64-node enthalpy profiles are float",
-      "bytes_per_particle": 613
+      "scalar_types": "host.CHT; native 8-node cold1D enthalpy double, legacy 64-node cold2D enthalpy float",
+      "bytes_per_particle": 645
     },
     "FSH": {
       "marker": "UGKP_FSH_PARTICLES_SCHEMA8_FP64_FIELDS_BIN",
@@ -497,11 +497,11 @@
       "width_symbol": "Foam::gpuThermal::coldWallAxialNodeCount",
       "storage": {
         "FSH": "double",
-        "CHT": "float"
+        "CHT": "double"
       },
       "host": {
         "FSH": "double",
-        "CHT": "float"
+        "CHT": "double"
       },
       "schema7": 20
     },

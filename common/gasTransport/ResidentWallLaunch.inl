@@ -43,7 +43,7 @@ template<class Base> struct ResidentWallGasHostPolicy:Base
             int block=s->fixedCellBlockThreads,grid=(s->nCells+block-1)/block;
             computeGasGradientLimiterKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
             computeSstGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
-            prepareConservativeWallMatching<<<(s->gasBoundaryLayer.count+63)/64,64,0,s->gasCaptureStream>>>(s->deviceState);
+            prepareConservativeWallMatching<<<(s->gasBoundaryLayer.count+s->fixedFaceBlockThreads-1)/s->fixedFaceBlockThreads,s->fixedFaceBlockThreads,0,s->gasCaptureStream>>>(s->deviceState);
         }
         return s->gasBoundaryLayerLaunch(s);
     }

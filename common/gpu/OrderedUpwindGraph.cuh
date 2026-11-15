@@ -1,3 +1,4 @@
+#include "WorkPlan.H"
 #ifndef UGKP_GPU_ORDERED_UPWIND_GRAPH_CUH
 #define UGKP_GPU_ORDERED_UPWIND_GRAPH_CUH
 #include "ExecutionGraph.cuh"
@@ -80,17 +81,17 @@ class OrderedUpwindGraph {
     cudaGraphExec_t executable_=nullptr,initializeExecutable_=nullptr,solveExecutable_=nullptr;
     Report* hostReport_=nullptr;
     void maximum(int count,RadiationReal* values,unsigned char* valid,RadiationReal initial,RadiationReal* output,cudaStream_t stream){
-        int blocks=std::max(1,(count+255)/256);
-        radiationMaximumPartials<<<blocks,256,0,stream>>>(count,values,valid,partialA_.ptr);
+        int blocks=std::max(1,(count+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads);
+        radiationMaximumPartials<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,ugkp::gpu::workPlan().radiationBlockThreads*sizeof(RadiationMaximum),stream>>>(count,values,valid,partialA_.ptr);
         auto* current=partialA_.ptr;auto* next=partialB_.ptr;
-        while(blocks>1){const int n=(blocks+255)/256;radiationMaximumMerge<<<n,256,0,stream>>>(blocks,current,next);std::swap(current,next);blocks=n;}
+        while(blocks>1){const int n=(blocks+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads;radiationMaximumMerge<<<n,ugkp::gpu::workPlan().radiationBlockThreads,ugkp::gpu::workPlan().radiationBlockThreads*sizeof(RadiationMaximum),stream>>>(blocks,current,next);std::swap(current,next);blocks=n;}
         upwindGraphDetail::maximumResult<<<1,1,0,stream>>>(current,initial,output);
     }
     void residual(OrderedUpwindDevice matrix,const int* owner,const int* neighbour,const RadiationReal* flux,
         const RadiationReal* diagonal,const RadiationReal* source,const RadiationReal* values,UpwindLinearControls controls,cudaStream_t stream){
-        upwindResidual<<<std::max(1,(cells_+127)/128),128,0,stream>>>(matrix,diagonal,source,values,residual_.ptr,magnitude_.ptr);
-        upwindGraphDetail::normalizationFaces<<<std::max(1,(std::max(cells_,faces_)+127)/128),128,0,stream>>>(cells_,faces_,owner,neighbour,flux,values,magnitude_.ptr,valid_.ptr);
-        upwindGraphDetail::absoluteResidual<<<std::max(1,(cells_+127)/128),128,0,stream>>>(cells_,residual_.ptr);
+        upwindResidual<<<std::max(1,(cells_+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads),ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(matrix,diagonal,source,values,residual_.ptr,magnitude_.ptr);
+        upwindGraphDetail::normalizationFaces<<<std::max(1,(std::max(cells_,faces_)+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads),ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(cells_,faces_,owner,neighbour,flux,values,magnitude_.ptr,valid_.ptr);
+        upwindGraphDetail::absoluteResidual<<<std::max(1,(cells_+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads),ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(cells_,residual_.ptr);
         maximum(cells_,residual_.ptr,nullptr,0,&report_.ptr->maximumResidual,stream);
         maximum(cells_+faces_,magnitude_.ptr,valid_.ptr,controls.small,&report_.ptr->maximumMagnitude,stream);
     }
@@ -100,7 +101,7 @@ public:
         RadiationReal* values,RadiationReal* previous,const RadiationReal* reference,UpwindLinearControls controls,
         const unsigned long long* externalFailure=nullptr,bool concurrentDirections=false,bool standalone=true):cells_(plan.cells),faces_(faces),
         residual_(cells_),magnitude_(cells_+faces_),valid_(cells_+faces_),
-        partialA_(std::max(1,(cells_+faces_+255)/256)),partialB_(std::max(1,(cells_+faces_+255)/256)),
+        partialA_(std::max(1,(cells_+faces_+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads)),partialB_(std::max(1,(cells_+faces_+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads)),
         failure_(1),levels_(plan.levelOffsets.size()),failures_(cells_),report_(1){
         if(!controls.controlsAlreadyResolved)controls.tolerance=radiationConvergenceTolerance(controls.tolerance);
         (void)concurrentDirections; // Scheduling is independent of the angular iteration policy.
@@ -120,7 +121,7 @@ public:
             // Keep the existing 128-thread wide-level path. Up to 32 adjacent
             // levels fitting one CTA share a graph node, with a barrier per level.
             // These are scheduling constants, identical for FP32 and FP64.
-            constexpr int levelThreads=128,narrowLevelBatch=32;
+            const int levelThreads=ugkp::gpu::workPlan().radiationBlockThreads; constexpr int narrowLevelBatch=32;
             snapshotUpwind<<<std::max(1,(cells_+levelThreads-1)/levelThreads),levelThreads,0,stream>>>(cells_,values,previous,&report_.ptr->active);
             for(std::size_t level=0;level+1<plan.levelOffsets.size();){
                 const int begin=plan.levelOffsets[level],end=plan.levelOffsets[level+1];

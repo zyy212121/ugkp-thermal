@@ -65,7 +65,7 @@ __device__ void finalizeOneThermalizedStuckParticle
         const GPU_OPERATOR_REAL frozenArea =
             interactionType
          == Foam::gpuThermal::particleWallSolidifyingDeposition
-          ? static_cast<GPU_OPERATOR_REAL>(s.pColdFrozenArea[i])
+          ? static_cast<GPU_OPERATOR_REAL>(s.pColdFrozenArea[Foam::gpuWall::coldWallSlot(s,i)])
           : interactionType == Foam::gpuThermal::particleWallColdWall2D
           ? static_cast<GPU_OPERATOR_REAL>(s.pCold2DFrozenArea[i])
           : GPU_OPERATOR_R(0.0);
@@ -154,7 +154,7 @@ __device__ void finalizeOneThermalizedStuckParticle
             const unsigned char model = s.particleStuckCandidateMask[faceI];
             const GPU_OPERATOR_REAL frozenArea =
                 model == Foam::gpuThermal::particleWallSolidifyingDeposition
-                ? static_cast<GPU_OPERATOR_REAL>(s.pColdFrozenArea[i])
+                ? static_cast<GPU_OPERATOR_REAL>(s.pColdFrozenArea[Foam::gpuWall::coldWallSlot(s,i)])
                 : model == Foam::gpuThermal::particleWallColdWall2D
                 ? static_cast<GPU_OPERATOR_REAL>(s.pCold2DFrozenArea[i]) : GPU_OPERATOR_R(0.0);
             if (frozenArea > GPU_OPERATOR_R(0.0)) {
@@ -190,7 +190,8 @@ __device__ void finalizeOneThermalizedStuckParticle
         s.pContactPeakFraction[i] = 0.0f;
         clearColdWallParticleState(s, i);
         clearColdWall2DParticleState(s, i);
-        if (frozenRelease) publishFrozenReleaseEnergy(s,i,frozenEnergy);
+        if (frozenRelease) publishFrozenReleaseEnergy(s,i,frozenEnergy,
+            s.particleStuckCandidateMask[faceI]==Foam::gpuThermal::particleWallSolidifyingDeposition);
     }
     else
     {

@@ -1,3 +1,4 @@
+#include "../../../common/gpu/WorkPlan.H"
 #include "GpuPrecisionTypes.H"
 #include "../../../common/GpuCollisionCentralMoment.H"
 #include "BoundaryInjectionApi.H"
@@ -11,6 +12,7 @@
 #include "gasBoundary/Resident.cuh"
 #include "gasBoundary/Evaluate.H"
 #include "gasTransport/MixturePorosity.H"
+#include "gasTransport/ParticleHeatReservoir.H"
 #define GPU_GAS_POROSITY_SPECIES(s,c,scale) scaleMixturePorositySpecies(s,c,scale)
 #include "gasTransport/GasPseudoTime.H"
 #include "gasTransport/MolecularTransportDevice.cuh"
@@ -65,7 +67,7 @@
 #include "SharedGasTrialFields.H"
 #include "CharacteristicMuscl.cuh"
 #include "OpenFoamLimitedLinear.cuh"
-#include "OpenFoamViscousFlux.cuh"
+#include "../../../common/gasNumerics/OpenFoamViscousFlux.cuh"
 #include "OpenFoamWallFunctions.cuh"
 #include "RiemannBoundaryState.cuh"
 #include "RiemannGasFlux.cuh"
@@ -390,15 +392,6 @@ struct DeviceState
     GpuReal* riemannBoundaryUz = nullptr;
     GpuReal* riemannBoundaryP = nullptr;
     GpuReal* riemannBoundaryT = nullptr;
-    int nScheduledInletFaces = 0;
-    int* scheduledInletFaceMask = nullptr;
-    GpuReal scheduledInletTemperature = 0.0;
-    int nPressureScheduleRows = 0;
-    GpuTime* pressureScheduleTimes = nullptr;
-    GpuReal* pressureScheduleValues = nullptr;
-    int nVolumeFractionScheduleRows = 0;
-    GpuTime* volumeFractionScheduleTimes = nullptr;
-    GpuReal* volumeFractionScheduleValues = nullptr;
     GpuReal* gradPx = nullptr;
     GpuReal* gradPy = nullptr;
     GpuReal* gradPz = nullptr;
@@ -1191,11 +1184,6 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->riemannBoundaryUz);
     release(s->riemannBoundaryP);
     release(s->riemannBoundaryT);
-    release(s->scheduledInletFaceMask);
-    release(s->pressureScheduleTimes);
-    release(s->pressureScheduleValues);
-    release(s->volumeFractionScheduleTimes);
-    release(s->volumeFractionScheduleValues);
     release(s->gradPx);
     release(s->gradPy);
     release(s->gradPz);
@@ -1895,11 +1883,10 @@ __device__ GpuReal particleHeatFactorDevice(const DeviceState& s)
 
 #include "operators/clampRange.cuh"
 
-#include "operators/linearScheduledValueDevice.cuh"
 
-#include "operators/scheduledSolidVolumeFractionDevice.cuh"
 
-#include "operators/publishScheduledInletConfigurationKernel.cuh"
+
+#include "operators/sqr3.cuh"
 
 struct GasPrimDevice
 {
@@ -2257,29 +2244,7 @@ __global__ void relaxParticlesToResidentGasKernel(DeviceState* sp, const double 
     }
 }
 
-#include "../../../common/gasTransport/MixtureParticleCoupling.cuh"
 int binParticlesByCell(DeviceState*,const int,const bool);
-int launchMixtureParticleCoupling(DeviceState* s,double dt)
-{
-    // Atomic moment mode still owns the standard indexing allocations. Build
-    // the existing full directory here instead of scanning the entire parcel
-    // population for every cell in the new paired source.
-    if(s->csrCellLocalPathEnabled==0 && binParticlesByCell(s,s->reductionBlockThreads,false))return 1;
-    cudaError_t err=cudaSuccess;
-    const bool dragActive=gasDragModelActive(s->hostDragModel);
-    if(s->hostDragModel==1)
-        err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag>
-            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0,ugkp::gpu::particleRecordingStream(s));
-    else
-        err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::SchillerNaumannDeviceDrag>
-            (s->deviceState,s->nCells,dt,dragActive,true,s->useSplitPreDirectory!=0,ugkp::gpu::particleRecordingStream(s));
-    if(err!=cudaSuccess){setLastError("paired mixture/particle source",err);return 1;}
-    if(s->particleWorkGrid>0)
-        mixtureParticleExternalKickKernel<<<s->particleWorkGrid,s->particleBlockThreads,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState,dt);
-    err=cudaGetLastError();
-    if(err!=cudaSuccess){setLastError("external particle force",err);return 1;}
-    return 0;
-}
 
 int launchParticleDragRelaxation
 (
@@ -3575,9 +3540,8 @@ int queryKernelBlocksPerSm
     return 0;
 }
 
-#include "../../../common/GpuToolB1Launch.cuh"
 
-#include "../../../common/GpuToolB1.cuh"
+#include "../../../common/GpuWorkPlanPublish.cuh"
 
 
 #include "GpuParticleLaunchConfiguration.cuh"
@@ -3781,7 +3745,7 @@ int configureParticleLaunchGeometry(DeviceState* s)
     std::fprintf
     (
         stderr,
-        "Launch geometry: B1cell=%d B1face=%d (ToolB1 pending) "
+        "Launch geometry: B1cell=%d B1face=%d (startup WorkPlan) "
         "B2=%d B3=%d SM=%d "
         "hardwareMaxThreadsPerBlock=%d hardwareMaxBlocksPerSM=%d "
         "particleBlocksPerSM=%d lightBlocksPerSM=%d "
@@ -3991,6 +3955,8 @@ extern "C" int ugkwpGpuResidentStrictCreate
         if(copy!=cudaSuccess){setLastError("initialize automatic CSR resident decision",copy);releaseState(s);return 1;}
     }
     s->csrHeavyReductionActive = csrHeavyReductionMode == 1 ? 1 : 0;
+    s->fixedCellBlockThreads=ugkp::gpu::workPlan().cellBlockThreads;
+    s->fixedFaceBlockThreads=ugkp::gpu::workPlan().faceBlockThreads;
     s->particleBlockThreads = particleBlockThreads;
     s->reductionBlockThreads = reductionBlockThreads;
     s->csrWarpAggregatedBinning = csrWarpAggregatedBinning;
@@ -4207,6 +4173,7 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 #endif
     s->nBoundarySources = 0;
 
+
     const size_t n = static_cast<size_t>(nBoundarySources);
     if (n == 0)
     {
@@ -4301,181 +4268,13 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 #endif
 
     s->nBoundarySources = nBoundarySources;
+    // A field table or extrapolated owner may become inflow later even if
+    // every startup rate is zero. Source existence keeps the path available.
+    if(s->nBoundarySources>0)s->particlesMayBePresent=true;
     return syncDeviceState(s, "cudaMemcpy strict deviceState after boundary source upload");
 }
 
-extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
-(
-    void* handle,
-    int nFaces,
-    const int* faceIds,
-    double inletTemperature,
-    int nPressureRows,
-    const double* pressureTimes,
-    const double* pressureValues,
-    int nVolumeFractionRows,
-    const double* volumeFractionTimes,
-    const double* volumeFractionValues
-)
-{
-    DeviceState* s = asState(handle);
-    if(s)++s->particleGraphEpoch;
-    if (validateState(s, "scheduled inlet configuration") != 0)
-    {
-        return 1;
-    }
-    if
-    (
-        nFaces <= 0
-     || faceIds == nullptr
-     || nPressureRows <= 0
-     || pressureTimes == nullptr
-     || pressureValues == nullptr
-     || nVolumeFractionRows <= 0
-     || volumeFractionTimes == nullptr
-     || volumeFractionValues == nullptr
-    )
-    {
-        setLastErrorText("invalid scheduled inlet configuration arguments");
-        return 1;
-    }
-    std::vector<int> faceMask(static_cast<size_t>(s->nFaces), 0);
-    for (int i = 0; i < nFaces; ++i)
-    {
-        if (faceIds[i] < s->nInternalFaces || faceIds[i] >= s->nFaces)
-        {
-            setLastErrorText("scheduled inlet face is not a boundary face");
-            return 1;
-        }
-        faceMask[static_cast<size_t>(faceIds[i])] = 1;
-    }
-    bool futureParticleInflow = false;
-    for (int i = 0; i < nVolumeFractionRows; ++i)
-    {
-        futureParticleInflow =
-            futureParticleInflow || volumeFractionValues[i] > 0.0;
-    }
 
-    release(s->scheduledInletFaceMask);
-    release(s->pressureScheduleTimes);
-    release(s->pressureScheduleValues);
-    release(s->volumeFractionScheduleTimes);
-    release(s->volumeFractionScheduleValues);
-    int rc = 0;
-    rc |= allocate
-    (
-        s->scheduledInletFaceMask,
-        static_cast<size_t>(s->nFaces),
-        "cudaMalloc strict scheduled inlet face mask"
-    );
-    rc |= allocate
-    (
-        s->pressureScheduleTimes,
-        static_cast<size_t>(nPressureRows),
-        "cudaMalloc strict pressure schedule times"
-    );
-    rc |= allocate
-    (
-        s->pressureScheduleValues,
-        static_cast<size_t>(nPressureRows),
-        "cudaMalloc strict pressure schedule values"
-    );
-    rc |= allocate
-    (
-        s->volumeFractionScheduleTimes,
-        static_cast<size_t>(nVolumeFractionRows),
-        "cudaMalloc strict volume-fraction schedule times"
-    );
-    rc |= allocate
-    (
-        s->volumeFractionScheduleValues,
-        static_cast<size_t>(nVolumeFractionRows),
-        "cudaMalloc strict volume-fraction schedule values"
-    );
-    if (rc != 0)
-    {
-        return 1;
-    }
-    rc |= copyToDevice
-    (
-        s->scheduledInletFaceMask,
-        faceMask.data(),
-        static_cast<size_t>(s->nFaces),
-        "cudaMemcpy strict scheduled inlet face mask"
-    );
-    rc |= copyToDevice
-    (
-        s->pressureScheduleTimes,
-        pressureTimes,
-        static_cast<size_t>(nPressureRows),
-        "cudaMemcpy strict pressure schedule times"
-    );
-    rc |= copyToDevice
-    (
-        s->pressureScheduleValues,
-        pressureValues,
-        static_cast<size_t>(nPressureRows),
-        "cudaMemcpy strict pressure schedule values"
-    );
-    rc |= copyToDevice
-    (
-        s->volumeFractionScheduleTimes,
-        volumeFractionTimes,
-        static_cast<size_t>(nVolumeFractionRows),
-        "cudaMemcpy strict volume-fraction schedule times"
-    );
-    rc |= copyToDevice
-    (
-        s->volumeFractionScheduleValues,
-        volumeFractionValues,
-        static_cast<size_t>(nVolumeFractionRows),
-        "cudaMemcpy strict volume-fraction schedule values"
-    );
-    if (rc != 0)
-    {
-        return 1;
-    }
-    s->nScheduledInletFaces = nFaces;
-    s->scheduledInletTemperature = inletTemperature;
-    s->nPressureScheduleRows = nPressureRows;
-    s->nVolumeFractionScheduleRows = nVolumeFractionRows;
-    if (futureParticleInflow && s->nBoundarySources > 0)
-    {
-        s->particlesMayBePresent = true;
-    }
-    publishScheduledInletConfigurationKernel<<<1, 1>>>
-    (
-        s->deviceState,
-        nFaces,
-        s->scheduledInletFaceMask,
-        inletTemperature,
-        nPressureRows,
-        s->pressureScheduleTimes,
-        s->pressureScheduleValues,
-        nVolumeFractionRows,
-        s->volumeFractionScheduleTimes,
-        s->volumeFractionScheduleValues,
-        futureParticleInflow && s->nBoundarySources > 0 ? 1 : 0
-    );
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("publish scheduled inlet configuration", err);
-        return 1;
-    }
-    err = cudaDeviceSynchronize();
-    // Reuse this pre-existing completion point; do not add a synchronization.
-    if(err==cudaSuccess) {
-        err=s->diagnosticOwner->observeCompletedWork();
-        if(s->diagnosticOwner->dispatchPending())return 1;
-    }
-    if (err != cudaSuccess)
-    {
-        setLastError("synchronize scheduled inlet configuration", err);
-        return 1;
-    }
-    return 0;
-}
 
 extern "C" int ugkwpGpuResidentStrictDownloadSourceResidualMass
 (
@@ -4838,6 +4637,22 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
         if(s->diagnosticOwner->dispatchPending())return 1;
     }
     }
+    // Preserve the GPU-derived cache in the host mirror after the existing
+    // initialization completion point. Later whole-state publications must not
+    // overwrite these constants with their default zeros.
+    if (err == cudaSuccess)
+    {
+        const size_t first = offsetof(DeviceState, sstJayatillekeP);
+        const size_t last = offsetof(DeviceState, sstThermalYPlus)
+            + sizeof(s->sstThermalYPlus);
+        err = cudaMemcpy
+        (
+            reinterpret_cast<unsigned char*>(s) + first,
+            reinterpret_cast<const unsigned char*>(s->deviceState) + first,
+            last - first,
+            cudaMemcpyDeviceToHost
+        );
+    }
     if (err != cudaSuccess)
     {
         setLastError("initialiseSstConservativeStateKernel", err);
@@ -4862,7 +4677,7 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         !s->gasSteadyBoundaryFrozen &&
 #endif
         s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy
-        && tuneFixedWorkBlockThreads(s,dt,scheduleTime))return 1;
+        && publishStartupWorkPlan(s,dt,scheduleTime))return 1;
     GasCourantMaxima result;
     const auto maximum=[](const GpuReal* acoustic,int count,cudaStream_t stream,double& value)
     {
@@ -4929,7 +4744,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         !s->gasSteadyBoundaryFrozen &&
 #endif
         s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy
-        && tuneFixedWorkBlockThreads(s, dt, simulationTime-dt) != 0)
+        && publishStartupWorkPlan(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -5016,12 +4831,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
 
-    if(pairedMixture)
-    {
-        computePressureGradientKernel<<<grid,block,0,stream>>>(s->deviceState);
-        snapshotParticleGasCouplingStateKernel<<<grid,block,0,stream>>>(s->deviceState);
-    }
-    if (dragActive && !pairedMixture)
+    if (dragActive)
     {
     computePressureGradientKernel<<<grid, block,0,stream>>>(s->deviceState);
     err = cudaGetLastError();
@@ -5043,7 +4853,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
     }
-    else if (s->particleGasHeatTransferModelId != 0 && !pairedMixture)
+    else if (s->particleGasHeatTransferModelId != 0)
     {
         snapshotParticleGasCouplingStateKernel<<<grid, block,0,stream>>>
         (
@@ -5060,7 +4870,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             return 1;
         }
     }
-    if (s->particleGasHeatTransferModelId != 0 && !pairedMixture)
+    if (s->particleGasHeatTransferModelId != 0)
     {
     applyEulerianParticleMaterialHeatKernel<<<grid, block,0,stream>>>(s->deviceState, dt);
     err = cudaGetLastError();
@@ -5215,11 +5025,6 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_LEAVE(ProbeCollisionPool);
 
     UGKP_DEV_PROBE_ENTER(ProbeRelax);
-    if(pairedMixture)
-    {
-        if(launchMixtureParticleCoupling(s,dt))return 1;
-    }
-    else
     if
     (
         particleGrid > 0
@@ -5484,7 +5289,7 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
         !s->gasSteadyBoundaryFrozen &&
 #endif
         s->gasSpecies.mode == ugkwp::GasMode::SingleLegacy
-        && tuneFixedWorkBlockThreads(s, dt, simulationTime-dt) != 0)
+        && publishStartupWorkPlan(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }

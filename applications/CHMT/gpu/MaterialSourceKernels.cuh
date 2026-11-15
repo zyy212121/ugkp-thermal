@@ -9,10 +9,11 @@ __device__ MaterialStepResult firstMaterialFailure(MaterialStepResult a,Material
     return a.entity<=b.entity?a:b;
 }
 __device__ void reduceMaterialFailure(MaterialStepResult value,MaterialStepResult* result,bool phasePriority){
-    __shared__ MaterialStepResult values[256];
+    extern __shared__ MaterialStepResult failureValues[];
+    auto* values=failureValues;
     const int t=threadIdx.x;values[t]=value;__syncthreads();
-    for(int stride=blockDim.x/2;stride;stride/=2){
-        if(t<stride)values[t]=firstMaterialFailure(values[t],values[t+stride],phasePriority);
+    for(int active=blockDim.x;active>1;active=(active+1)/2){const int stride=(active+1)/2;
+        if(t<active-stride)values[t]=firstMaterialFailure(values[t],values[t+stride],phasePriority);
         __syncthreads();
     }
     if(t==0)*result=values[0];

@@ -1,3 +1,4 @@
+#include "WorkPlan.H"
 #include "SolidThermalProperties.H"
 #include "../Diagnostics.H"
 #include <cuda_runtime.h>
@@ -21,15 +22,15 @@ __global__ void aitkenRelaxation(int n,const GpuReal* residual,const GpuReal* pr
     if(blockIdx.x)return;
     if(iteration){havePrevious=iteration->iteration>1;relaxation=iteration->relaxation;}
     if(!havePrevious){if(!threadIdx.x)*result=relaxation;return;}
-    __shared__ GpuReal products[256],squares[256];
+    extern __shared__ GpuReal aitkenScratch[]; auto* products=aitkenScratch; auto* squares=products+blockDim.x;
     GpuReal numerator=0,denominator=0;
     // Coalesced reads and products, followed by the unchanged ordered sum.
-    for(int first=0;first<n;first+=256){
+    for(int first=0;first<n;first+=blockDim.x){
         const int i=first+threadIdx.x;
         if(i<n){const GpuReal difference=residual[i]-previous[i];
             products[threadIdx.x]=previous[i]*difference;squares[threadIdx.x]=difference*difference;}
         __syncthreads();
-        if(!threadIdx.x)for(int j=0;j<256&&first+j<n;++j){numerator+=products[j];denominator+=squares[j];}
+        if(!threadIdx.x)for(int j=0;j<blockDim.x&&first+j<n;++j){numerator+=products[j];denominator+=squares[j];}
         __syncthreads();
     }
     if(threadIdx.x)return;
@@ -109,7 +110,7 @@ __global__ void thermalConvergenceParts(int cells,int surfaces,int boundary,cons
     const int* surfaceIndex,const GpuReal* flux,const GpuReal* temperature,GpuReal* previous,const GpuReal* gradient,
     const GpuReal* energy,const GpuReal* area,GpuReal interval,SolidThermalConvergence* partial,const double* deviceInterval=nullptr){
     if(deviceInterval)interval=static_cast<GpuReal>(*deviceInterval);
-    __shared__ __align__(16) unsigned char storage[128*sizeof(SolidThermalConvergence)];auto* values=reinterpret_cast<SolidThermalConvergence*>(storage);const int i=blockIdx.x*blockDim.x+threadIdx.x;SolidThermalConvergence v;
+    extern __shared__ __align__(16) unsigned char storage[];auto* values=reinterpret_cast<SolidThermalConvergence*>(storage);const int i=blockIdx.x*blockDim.x+threadIdx.x;SolidThermalConvergence v;
     if(i<cells){const auto value=properties[surfaces+i];v.enthalpyChange.product(volume[i],value.energy);v.temperatureChange=value.relativeChange;}
     if(i<boundary){const int source=surfaceIndex[i];
         if(source==-2)v.externalEnergy.product(-interval,flux[i]);
@@ -120,13 +121,13 @@ __global__ void thermalConvergenceParts(int cells,int surfaces,int boundary,cons
             v.surfaceFluxChange=fabsf(actual-prescribed)/fmaxf(fmaxf(fabsf(actual),fabsf(prescribed)),1.0f);}
         previous[i]=temperature[i];}
     values[threadIdx.x]=v;__syncthreads();
-    for(int offset=64;offset;offset/=2){if(threadIdx.x<offset)mergeConvergence(values[threadIdx.x],values[threadIdx.x+offset]);__syncthreads();}
+    for(int active=blockDim.x;active>1;active=(active+1)/2){const int offset=(active+1)/2;if(threadIdx.x<active-offset)mergeConvergence(values[threadIdx.x],values[threadIdx.x+offset]);__syncthreads();}
     if(!threadIdx.x)partial[blockIdx.x]=values[0];
 }
 __global__ void thermalConvergenceFinish(int count,const SolidThermalConvergence* partial,SolidThermalConvergence* result){
-    __shared__ __align__(16) unsigned char storage[128*sizeof(SolidThermalConvergence)];auto* values=reinterpret_cast<SolidThermalConvergence*>(storage);SolidThermalConvergence v;
+    extern __shared__ __align__(16) unsigned char storage[];auto* values=reinterpret_cast<SolidThermalConvergence*>(storage);SolidThermalConvergence v;
     for(int i=threadIdx.x;i<count;i+=blockDim.x)mergeConvergence(v,partial[i]);values[threadIdx.x]=v;__syncthreads();
-    for(int offset=64;offset;offset/=2){if(threadIdx.x<offset)mergeConvergence(values[threadIdx.x],values[threadIdx.x+offset]);__syncthreads();}
+    for(int active=blockDim.x;active>1;active=(active+1)/2){const int offset=(active+1)/2;if(threadIdx.x<active-offset)mergeConvergence(values[threadIdx.x],values[threadIdx.x+offset]);__syncthreads();}
     if(!threadIdx.x)*result=values[0];
 }
 
@@ -153,12 +154,12 @@ __device__ void mergeContactConvergence(SolidContactConvergence& a,const SolidCo
 }
 __global__ void contactConvergenceParts(int primary,int auxiliary,const GpuReal* primaryT,const GpuReal* auxiliaryT,
     const GpuReal* previousPrimary,const GpuReal* previousAuxiliary,const GpuReal* energy,GpuReal* previousEnergy,SolidContactConvergence* parts){
-    __shared__ GpuReal temperature[128],difference[128],scale[128];const int i=blockIdx.x*blockDim.x+threadIdx.x;GpuReal change=0,delta=0,total=0;
+    extern __shared__ GpuReal contactScratch[]; auto* temperature=contactScratch;auto* difference=temperature+blockDim.x;auto* scale=difference+blockDim.x;const int i=blockIdx.x*blockDim.x+threadIdx.x;GpuReal change=0,delta=0,total=0;
     if(i<primary)change=fabsf(primaryT[i]-previousPrimary[i])/fmaxf(1.0f,fmaxf(fabsf(primaryT[i]),fabsf(previousPrimary[i])));
     if(i<auxiliary){change=fmaxf(change,fabsf(auxiliaryT[i]-previousAuxiliary[i])/fmaxf(1.0f,fmaxf(fabsf(auxiliaryT[i]),fabsf(previousAuxiliary[i]))));
         delta=fabsf(energy[i]-previousEnergy[i]);total=fabsf(energy[i]);previousEnergy[i]=energy[i];}
     temperature[threadIdx.x]=change;difference[threadIdx.x]=delta;scale[threadIdx.x]=total;__syncthreads();
-    for(int d=64;d;d/=2){if(threadIdx.x<d){temperature[threadIdx.x]=fmaxf(temperature[threadIdx.x],temperature[threadIdx.x+d]);difference[threadIdx.x]+=difference[threadIdx.x+d];scale[threadIdx.x]+=scale[threadIdx.x+d];}__syncthreads();}
+    for(int active=blockDim.x;active>1;active=(active+1)/2){const int d=(active+1)/2;if(threadIdx.x<active-d){temperature[threadIdx.x]=fmaxf(temperature[threadIdx.x],temperature[threadIdx.x+d]);difference[threadIdx.x]+=difference[threadIdx.x+d];scale[threadIdx.x]+=scale[threadIdx.x+d];}__syncthreads();}
     if(!threadIdx.x)parts[blockIdx.x]={temperature[0],difference[0],scale[0]};
 }
 __global__ void contactConvergenceFinish(int count,const SolidContactConvergence* parts,SolidContactConvergence* output){
@@ -221,10 +222,10 @@ double SolidThermalProperties::relax(double* current,const double* previous,int 
     double relaxation,double minimum,double maximum,double small){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.current.upload(current,count,d.transfers);d.previous.upload(previous,count,d.transfers);
     d.residual.reserve(count);d.residualHistory.reserve(count);d.relaxation.reserve(1);
-    if(count)fixedPointResidual<<<(count+127)/128,128,0,d.stream>>>(count,d.current.ptr,d.previous.ptr,d.residual.ptr);
-    aitkenRelaxation<<<1,256,0,d.stream>>>(count,d.residual.ptr,d.residualHistory.ptr,havePrevious,
+    if(count)fixedPointResidual<<<(count+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(count,d.current.ptr,d.previous.ptr,d.residual.ptr);
+    aitkenRelaxation<<<1,ugkp::gpu::workPlan().thermalBlockThreads,2*ugkp::gpu::workPlan().thermalBlockThreads*sizeof(GpuReal),d.stream>>>(count,d.residual.ptr,d.residualHistory.ptr,havePrevious,
         relaxation,minimum,maximum,small,d.relaxation.ptr);
-    if(count){applyRelaxation<<<(count+127)/128,128,0,d.stream>>>(count,d.previous.ptr,d.residual.ptr,
+    if(count){applyRelaxation<<<(count+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(count,d.previous.ptr,d.residual.ptr,
         d.relaxation.ptr,d.current.ptr,d.residualHistory.ptr);
         d.transfers.downloadConverted(current,d.current.ptr,count);}
     d.transfers.downloadConverted(&relaxation,d.relaxation.ptr,1);
@@ -234,10 +235,10 @@ GpuReal SolidThermalProperties::relaxResident(GpuReal* current,const GpuReal* pr
     GpuReal relaxation,GpuReal minimum,GpuReal maximum,GpuReal small,void* ownerStream){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.waitFor(ownerStream);
     d.residual.reserve(count);d.residualHistory.reserve(count);d.relaxation.reserve(1);
-    if(count)fixedPointResidual<<<(count+127)/128,128,0,d.stream>>>(count,current,previous,d.residual.ptr);
-    aitkenRelaxation<<<1,256,0,d.stream>>>(count,d.residual.ptr,d.residualHistory.ptr,havePrevious,
+    if(count)fixedPointResidual<<<(count+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(count,current,previous,d.residual.ptr);
+    aitkenRelaxation<<<1,ugkp::gpu::workPlan().thermalBlockThreads,2*ugkp::gpu::workPlan().thermalBlockThreads*sizeof(GpuReal),d.stream>>>(count,d.residual.ptr,d.residualHistory.ptr,havePrevious,
         relaxation,minimum,maximum,small,d.relaxation.ptr);
-    if(count)applyRelaxation<<<(count+127)/128,128,0,d.stream>>>(count,previous,d.residual.ptr,d.relaxation.ptr,current,d.residualHistory.ptr);
+    if(count)applyRelaxation<<<(count+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(count,previous,d.residual.ptr,d.relaxation.ptr,current,d.residualHistory.ptr);
     d.transfers.downloadConverted(&relaxation,d.relaxation.ptr,1);d.publishTo(ownerStream);d.transfers.finish();return relaxation;
 }
 void SolidThermalProperties::evaluate(const std::vector<ThermalPropertyQuery>& queries,std::vector<ThermalPropertyResult>& results,
@@ -245,8 +246,8 @@ void SolidThermalProperties::evaluate(const std::vector<ThermalPropertyQuery>& q
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);const int n=queries.size();d.queries.upload(queries.data(),n,d.transfers);d.results.reserve(n);results.resize(n);
     if(temperature)d.waitFor(ownerStream);
     d.capacity.reserve(n);d.conductivity.reserve(n);d.fieldCount=n;
-    if(n){evaluateProperties<<<(n+127)/128,128,0,d.stream>>>(n,d.tables.ptr,d.knots.ptr,d.knotCount,d.queries.ptr,d.results.ptr,temperature,cellOffset,cellCount);
-        extractPropertyFields<<<(n+127)/128,128,0,d.stream>>>(n,d.results.ptr,d.capacity.ptr,d.conductivity.ptr);
+    if(n){evaluateProperties<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(n,d.tables.ptr,d.knots.ptr,d.knotCount,d.queries.ptr,d.results.ptr,temperature,cellOffset,cellCount);
+        extractPropertyFields<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(n,d.results.ptr,d.capacity.ptr,d.conductivity.ptr);
         d.transfers.download(results.data(),d.results.ptr,n*sizeof(ThermalPropertyResult));}
     d.transfers.finish();
 }
@@ -260,9 +261,9 @@ void SolidThermalProperties::evaluateResidentCells(const std::vector<ThermalProp
     d.waitFor(ownerStream);d.queries.upload(boundary.data(),boundary.size(),d.transfers);
     if(boundaryTemperature&&boundarySources)d.boundarySources.upload(boundarySources->data(),boundarySources->size(),d.transfers);
     d.results.reserve(n);d.capacity.reserve(n);d.conductivity.reserve(n);d.fieldCount=n;if(download)results.resize(n);else results.clear();
-    if(n){evaluateResidentProperties<<<(n+127)/128,128,0,d.stream>>>(cells,boundary.size(),fields,cellsFirst,
+    if(n){evaluateResidentProperties<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(cells,boundary.size(),fields,cellsFirst,
         d.tables.ptr,d.knots.ptr,d.knotCount,d.cellAnchors.ptr,temperature,previous,d.queries.ptr,d.results.ptr,boundaryTemperature,boundarySources?d.boundarySources.ptr:nullptr);
-        extractPropertyFields<<<(n+127)/128,128,0,d.stream>>>(n,d.results.ptr,d.capacity.ptr,d.conductivity.ptr);
+        extractPropertyFields<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(n,d.results.ptr,d.capacity.ptr,d.conductivity.ptr);
         if(download)d.transfers.download(results.data(),d.results.ptr,n*sizeof(ThermalPropertyResult));}
     if(download)d.transfers.finish();
 }
@@ -284,28 +285,28 @@ void SolidThermalProperties::enqueueResidentEvaluation(int index,const GpuReal* 
     auto& d=*data_;if(index<0||index>=static_cast<int>(d.evaluationPlans.size()))throw std::out_of_range("resident thermal evaluation plan");
     const auto& plan=*d.evaluationPlans[index];const int n=plan.cells+plan.boundary;d.fieldCount=n;
     const auto stream=static_cast<cudaStream_t>(executionStream);
-    if(n){evaluateResidentProperties<<<(n+127)/128,128,0,stream>>>(plan.cells,plan.boundary,plan.fields,plan.cellsFirst,
+    if(n){evaluateResidentProperties<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,stream>>>(plan.cells,plan.boundary,plan.fields,plan.cellsFirst,
         d.tables.ptr,d.knots.ptr,d.knotCount,d.cellAnchors.ptr,temperature,previous,plan.queries.ptr,d.results.ptr,boundaryTemperature,plan.sources.ptr,d.convergencePreviousSurface.ptr,iteration);
-        extractPropertyFields<<<(n+127)/128,128,0,stream>>>(n,d.results.ptr,d.capacity.ptr,d.conductivity.ptr);}
+        extractPropertyFields<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,stream>>>(n,d.results.ptr,d.capacity.ptr,d.conductivity.ptr);}
 }
 void SolidThermalProperties::prepareResidentIteration(int cells){
     auto& d=*data_;d.cellAnchors.reserve(cells);d.residual.reserve(cells);d.residualHistory.reserve(cells);d.relaxation.reserve(1);
-    d.convergenceParts.reserve((std::max(cells,d.convergenceBoundaryCount)+127)/128);d.convergenceResult.reserve(1);
+    d.convergenceParts.reserve((std::max(cells,d.convergenceBoundaryCount)+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads);d.convergenceResult.reserve(1);
     d.diagnosticIndices.reserve(2);d.diagnosticResult.reserve(1);
 }
 void SolidThermalProperties::enqueueResidentRelaxation(GpuReal* current,const GpuReal* previous,int count,
     SolidThermalIteration* iteration,const SolidThermalIterationControls& controls,void* executionStream){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(executionStream);
-    if(count)fixedPointResidual<<<(count+127)/128,128,0,stream>>>(count,current,previous,d.residual.ptr);
-    aitkenRelaxation<<<1,256,0,stream>>>(count,d.residual.ptr,d.residualHistory.ptr,false,
+    if(count)fixedPointResidual<<<(count+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,stream>>>(count,current,previous,d.residual.ptr);
+    aitkenRelaxation<<<1,ugkp::gpu::workPlan().thermalBlockThreads,2*ugkp::gpu::workPlan().thermalBlockThreads*sizeof(GpuReal),stream>>>(count,d.residual.ptr,d.residualHistory.ptr,false,
         controls.initialRelaxation,controls.minimumRelaxation,controls.maximumRelaxation,controls.small,d.relaxation.ptr,iteration);
-    if(count)applyRelaxation<<<(count+127)/128,128,0,stream>>>(count,previous,d.residual.ptr,d.relaxation.ptr,current,d.residualHistory.ptr);
+    if(count)applyRelaxation<<<(count+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,stream>>>(count,previous,d.residual.ptr,d.relaxation.ptr,current,d.residualHistory.ptr);
     checked(cudaMemcpyAsync(&iteration->relaxation,d.relaxation.ptr,sizeof(GpuReal),cudaMemcpyDeviceToDevice,stream));
 }
 void SolidThermalProperties::enqueueResidentDiagnostic(diagnostics::DeviceContext* context,void* executionStream){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(executionStream);
     initializePropertyDiagnostic<<<1,1,0,stream>>>(d.fieldCount,d.diagnosticIndices.ptr);
-    if(d.fieldCount)propertyDiagnosticIndices<<<(d.fieldCount+127)/128,128,0,stream>>>(d.fieldCount,d.results.ptr,d.diagnosticIndices.ptr);
+    if(d.fieldCount)propertyDiagnosticIndices<<<(d.fieldCount+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,stream>>>(d.fieldCount,d.results.ptr,d.diagnosticIndices.ptr);
     propertyDiagnosticValues<<<1,1,0,stream>>>(d.fieldCount,d.results.ptr,d.diagnosticIndices.ptr,d.diagnosticResult.ptr);
     publishPropertyDiagnostic<<<1,1,0,stream>>>(d.diagnosticResult.ptr,context);
 }
@@ -317,10 +318,10 @@ void SolidThermalProperties::enqueueResidentAnchors(const GpuReal* temperature,c
 const SolidThermalConvergence* SolidThermalProperties::enqueueResidentConvergence(int cells,int surfaces,const GpuReal* volume,
     const GpuReal* flux,const GpuReal* temperature,const GpuReal* gradient,const GpuReal* energy,const GpuReal* area,double interval,void* executionStream,const double* deviceInterval){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(executionStream);
-    const int blocks=(std::max(cells,d.convergenceBoundaryCount)+127)/128;
-    if(blocks)thermalConvergenceParts<<<blocks,128,0,stream>>>(cells,surfaces,d.convergenceBoundaryCount,d.results.ptr,volume,
+    const int blocks=(std::max(cells,d.convergenceBoundaryCount)+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads;
+    if(blocks)thermalConvergenceParts<<<blocks,ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads*sizeof(SolidThermalConvergence),stream>>>(cells,surfaces,d.convergenceBoundaryCount,d.results.ptr,volume,
         d.convergenceSurfaceIndex.ptr,flux,temperature,d.convergencePreviousSurface.ptr,gradient,energy,area,interval,d.convergenceParts.ptr,deviceInterval);
-    thermalConvergenceFinish<<<1,128,0,stream>>>(blocks,d.convergenceParts.ptr,d.convergenceResult.ptr);return d.convergenceResult.ptr;
+    thermalConvergenceFinish<<<1,ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads*sizeof(SolidThermalConvergence),stream>>>(blocks,d.convergenceParts.ptr,d.convergenceResult.ptr);return d.convergenceResult.ptr;
 }
 void SolidThermalProperties::setResidentCellAnchors(const GpuReal* temperature,int count,void* stream){
     auto& d=*data_;d.waitFor(stream);d.cellAnchors.reserve(count);
@@ -334,7 +335,7 @@ void SolidThermalProperties::setConvergenceBoundary(const std::vector<int>& inde
 ThermalPropertyDiagnostic SolidThermalProperties::diagnostic()const{
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.diagnosticIndices.reserve(2);d.diagnosticResult.reserve(1);
     initializePropertyDiagnostic<<<1,1,0,d.stream>>>(d.fieldCount,d.diagnosticIndices.ptr);
-    if(d.fieldCount)propertyDiagnosticIndices<<<(d.fieldCount+127)/128,128,0,d.stream>>>(d.fieldCount,d.results.ptr,d.diagnosticIndices.ptr);
+    if(d.fieldCount)propertyDiagnosticIndices<<<(d.fieldCount+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(d.fieldCount,d.results.ptr,d.diagnosticIndices.ptr);
     propertyDiagnosticValues<<<1,1,0,d.stream>>>(d.fieldCount,d.results.ptr,d.diagnosticIndices.ptr,d.diagnosticResult.ptr);
     ThermalPropertyDiagnostic result;d.transfers.download(&result,d.diagnosticResult.ptr,sizeof(result));d.transfers.finish();return result;
 }
@@ -357,11 +358,11 @@ ThermalSolidContactDeviceView SolidThermalProperties::residentContact()const{
 }
 void SolidThermalProperties::enqueueResidentContact(const GpuReal* temperature,diagnostics::DeviceContext* context,void* executionStream){
     auto& d=*data_;const int n=d.contactCount;const auto stream=static_cast<cudaStream_t>(executionStream);
-    if(n)contactThermalState<<<(n+127)/128,128,0,stream>>>(n,d.contactCells.ptr,temperature,d.tables.ptr,d.knots.ptr,d.knotCount,
+    if(n)contactThermalState<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,stream>>>(n,d.contactCells.ptr,temperature,d.tables.ptr,d.knots.ptr,d.knotCount,
         d.contactTemperature.ptr,d.contactConductivity.ptr,d.contactStatus.ptr);
     if(context){
         initializePropertyDiagnostic<<<1,1,0,stream>>>(n,d.diagnosticIndices.ptr);
-        if(n)propertyDiagnosticIndices<<<(n+127)/128,128,0,stream>>>(n,d.contactStatus.ptr,d.diagnosticIndices.ptr);
+        if(n)propertyDiagnosticIndices<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,stream>>>(n,d.contactStatus.ptr,d.diagnosticIndices.ptr);
         propertyDiagnosticValues<<<1,1,0,stream>>>(n,d.contactStatus.ptr,d.diagnosticIndices.ptr,d.diagnosticResult.ptr);
         publishPropertyDiagnostic<<<1,1,0,stream>>>(d.diagnosticResult.ptr,context);
     }
@@ -384,14 +385,14 @@ ThermalInterfaceStateDeviceView SolidThermalProperties::interfaceState(const std
     d.interfaceTemperature.reserve(n);d.interfaceEffusivity.reserve(n);d.interfaceStatus.reserve(n);if(context)status.clear();else status.resize(n);
     d.interfaceEmissivity.reserve(n);
     if(context)d.waitFor(diagnosticStream);
-    if(n){interfaceThermalState<<<(n+127)/128,128,0,d.stream>>>(n,d.interfaceFaces.ptr,d.interfaceContact.ptr,temperature,
+    if(n){interfaceThermalState<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(n,d.interfaceFaces.ptr,d.interfaceContact.ptr,temperature,
         d.tables.ptr,d.knots.ptr,d.knotCount,d.interfaceTemperature.ptr,d.interfaceEffusivity.ptr,d.interfaceStatus.ptr,
             includeEmissivity,d.interfaceEmissivity.ptr);
         if(!context)d.transfers.download(status.data(),d.interfaceStatus.ptr,n*sizeof(ThermalPropertyResult));}
     if(context){
         status.clear();d.diagnosticIndices.reserve(2);d.diagnosticResult.reserve(1);
         initializePropertyDiagnostic<<<1,1,0,d.stream>>>(n,d.diagnosticIndices.ptr);
-        if(n)propertyDiagnosticIndices<<<(n+127)/128,128,0,d.stream>>>(n,d.interfaceStatus.ptr,d.diagnosticIndices.ptr);
+        if(n)propertyDiagnosticIndices<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(n,d.interfaceStatus.ptr,d.diagnosticIndices.ptr);
         propertyDiagnosticValues<<<1,1,0,d.stream>>>(n,d.interfaceStatus.ptr,d.diagnosticIndices.ptr,d.diagnosticResult.ptr);
         publishPropertyDiagnostic<<<1,1,0,d.stream>>>(d.diagnosticResult.ptr,context);
     }else d.transfers.finish();
@@ -429,7 +430,7 @@ void SolidThermalContact::begin(const std::vector<int>& mapping,const std::vecto
     if(d.cachedAuxiliaryDelta!=auxiliaryDelta){d.auxiliaryDelta.upload(auxiliaryDelta.data(),auxiliaryDelta.size(),d.transfers);d.cachedAuxiliaryDelta=auxiliaryDelta;}
     if(d.cachedArea!=area){d.area.upload(area.data(),area.size(),d.transfers);d.cachedArea=area;}
     d.primaryEnergy.reserve(d.primary);d.auxiliaryEnergy.reserve(d.auxiliary);d.previousPrimary.reserve(d.primary);d.previousAuxiliary.reserve(d.auxiliary);d.previousEnergy.reserve(d.auxiliary);
-    d.parts.reserve((std::max(d.primary,d.auxiliary)+127)/128);d.result.reserve(1);
+    d.parts.reserve((std::max(d.primary,d.auxiliary)+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads);d.result.reserve(1);
     if(d.primary)checked(cudaMemsetAsync(d.primaryEnergy.ptr,0,d.primary*sizeof(GpuReal),d.stream));
     if(d.auxiliary)checked(cudaMemsetAsync(d.auxiliaryEnergy.ptr,0,d.auxiliary*sizeof(GpuReal),d.stream));
     enqueueWindowStart(d.stream);
@@ -466,15 +467,15 @@ void SolidThermalContact::enqueueEvaluate(const ThermalSolidContactDeviceView& p
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(executionStream);
     if(d.primary)checked(cudaMemcpyAsync(d.previousPrimary.ptr,primary.temperature,d.primary*sizeof(GpuReal),cudaMemcpyDeviceToDevice,stream));
     if(d.auxiliary){checked(cudaMemcpyAsync(d.previousAuxiliary.ptr,auxiliary.temperature,d.auxiliary*sizeof(GpuReal),cudaMemcpyDeviceToDevice,stream));
-        contactExchangeEnergy<<<(d.auxiliary+127)/128,128,0,stream>>>(d.auxiliary,d.mapping.ptr,primary.temperature,primary.conductivity,
+        contactExchangeEnergy<<<(d.auxiliary+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,stream>>>(d.auxiliary,d.mapping.ptr,primary.temperature,primary.conductivity,
             auxiliary.temperature,auxiliary.conductivity,d.primaryDelta.ptr,d.auxiliaryDelta.ptr,d.area.ptr,interval,d.auxiliaryEnergy.ptr,deviceInterval);}
-    if(d.primary)contactOppositeEnergy<<<(d.primary+127)/128,128,0,stream>>>(d.primary,d.offsets.ptr,d.sources.ptr,d.auxiliaryEnergy.ptr,d.primaryEnergy.ptr);
+    if(d.primary)contactOppositeEnergy<<<(d.primary+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,stream>>>(d.primary,d.offsets.ptr,d.sources.ptr,d.auxiliaryEnergy.ptr,d.primaryEnergy.ptr);
 }
 const SolidContactConvergence* SolidThermalContact::enqueueConvergence(const ThermalSolidContactDeviceView& primary,
     const ThermalSolidContactDeviceView& auxiliary,void* executionStream){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(executionStream);
-    const int blocks=(std::max(d.primary,d.auxiliary)+127)/128;
-    if(blocks)contactConvergenceParts<<<blocks,128,0,stream>>>(d.primary,d.auxiliary,primary.temperature,auxiliary.temperature,
+    const int blocks=(std::max(d.primary,d.auxiliary)+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads;
+    if(blocks)contactConvergenceParts<<<blocks,ugkp::gpu::workPlan().thermalBlockThreads,3*ugkp::gpu::workPlan().thermalBlockThreads*sizeof(GpuReal),stream>>>(d.primary,d.auxiliary,primary.temperature,auxiliary.temperature,
         d.previousPrimary.ptr,d.previousAuxiliary.ptr,d.auxiliaryEnergy.ptr,d.previousEnergy.ptr,d.parts.ptr);
     contactConvergenceFinish<<<1,1,0,stream>>>(blocks,d.parts.ptr,d.result.ptr);return d.result.ptr;
 }

@@ -10,8 +10,8 @@ using namespace ugkp::gpu;
 void check(cudaError_t code){if(code!=cudaSuccess)throw std::runtime_error(cudaGetErrorString(code));}
 int main(){
     std::mt19937 rng(32997);int tested=0;
-    for(int count:{0,1,2,255,256,257,511,512,65539}){
-        const int batches=32,blocks=std::max(1,(count+255)/256);
+    for(int width:{32,64,96,128,256}) for(int count:{0,1,2,255,256,257,511,512,65539}){
+        const int batches=32,blocks=std::max(1,(count+width-1)/width);
         std::vector<double> input(std::size_t(count)*batches);
         std::vector<unsigned char> mask(input.size());
         for(std::size_t i=0;i<input.size();++i){input[i]=double(rng()%2001)-1000;mask[i]=rng()%5!=0;
@@ -26,9 +26,9 @@ int main(){
         check(cudaMalloc(reinterpret_cast<void**>(&b),blocks*batches*sizeof(OrderedMaximum)));
         if(count){check(cudaMemcpy(data,input.data(),input.size()*sizeof(double),cudaMemcpyHostToDevice));check(cudaMemcpy(valid,mask.data(),mask.size(),cudaMemcpyHostToDevice));}
         for(bool masked:{false,true}){
-            orderedMaximumPartials<<<dim3(blocks,batches),256>>>(count,data,masked?valid:nullptr,a);
+            orderedMaximumPartials<<<dim3(blocks,batches),width,width*sizeof(OrderedMaximum)>>>(count,data,masked?valid:nullptr,a);
             int remaining=blocks;OrderedMaximum *current=a,*next=b;
-            while(remaining>1){const int n=(remaining+255)/256;orderedMaximumMerge<<<dim3(n,batches),256>>>(remaining,current,next);std::swap(current,next);remaining=n;}
+            while(remaining>1){const int n=(remaining+width-1)/width;orderedMaximumMerge<<<dim3(n,batches),width,width*sizeof(OrderedMaximum)>>>(remaining,current,next);std::swap(current,next);remaining=n;}
             std::vector<OrderedMaximum> result(batches);check(cudaMemcpy(result.data(),current,batches*sizeof(OrderedMaximum),cudaMemcpyDeviceToHost));
             for(int batch=0;batch<batches;++batch){double reference=1e-15;
                 for(int i=0;i<count;++i){const auto index=std::size_t(batch)*count+i;if(masked&&!mask[index])continue;reference=reference>input[index]?reference:input[index];}

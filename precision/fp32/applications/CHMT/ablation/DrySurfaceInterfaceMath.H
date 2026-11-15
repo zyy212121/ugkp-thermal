@@ -58,7 +58,7 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
         ? EnergyReal(1)/(EnergyReal(in.gasDistance)/gasConductivity+EnergyReal(p.material.gasContactResistance)) : 0;
     const EnergyReal solidConductance=in.hasSolid && material.conductivity>0
         ? EnergyReal(1)/(EnergyReal(in.solidDistance)/EnergyReal(material.conductivity)+EnergyReal(p.material.solidContactResistance)) : 0;
-    result.radiationFlux=gasRatio*grayRadiation(topT,p);
+    result.radiationFlux=0;
     result.bottomTemperature=topT;
     PhysicalReal Y[Ns]{};
     for (int s=0; s<Ns; ++s) Y[s]=in.bulk.Y[s];

@@ -42,34 +42,11 @@ UGKP_RADIATION_HD inline ConservativeBoundaryEnergyScaleResult conservativeBound
     const RadiationReal radiativeEnergyMagnitudeJ = 0
 )
 {
-
-
-    if (finiteParticleRadiationScalar(grossRawEnergyJ)
-        && finiteParticleRadiationScalar(relativeTolerance)
-        && grossRawEnergyJ >= RadiationReal(0) && relativeTolerance > RadiationReal(0))
-    {
-        const RadiationReal roundoffToleranceJ =
-            RadiationReal(4096)*radiationDoubleEpsilon
-           *radiationMaximum(radiationMaximum(grossRawEnergyJ, radiativeEnergyMagnitudeJ), RadiationReal(1));
-        const RadiationReal zeroToleranceJ =
-            relativeTolerance*grossRawEnergyJ + roundoffToleranceJ;
-        if (std::abs(rawBoundaryEnergyJ) <= zeroToleranceJ)
-        {
-            const RadiationReal residualJ = acceptedParticleEnergyJ + rawBoundaryEnergyJ;
-            if (std::abs(residualJ) <= zeroToleranceJ)
-            {
-                return ConservativeBoundaryEnergyScaleResult{RadiationReal(1), residualJ};
-            }
-        }
-    }
-    if (rawBoundaryEnergyJ == RadiationReal(0) && acceptedParticleEnergyJ == RadiationReal(0))
-    {
-        return ConservativeBoundaryEnergyScaleResult{RadiationReal(1), RadiationReal(0)};
-    }
-    const RadiationReal scale = -acceptedParticleEnergyJ/rawBoundaryEnergyJ;
-    const RadiationReal residualJ = acceptedParticleEnergyJ + scale*rawBoundaryEnergyJ;
-
-    return ConservativeBoundaryEnergyScaleResult{scale, residualJ};
+    // Compatibility name for existing callers; no energy correction is made.
+    // Report the true signed balance even for near-cancelling or zero flux.
+    (void)grossRawEnergyJ;(void)relativeTolerance;(void)radiativeEnergyMagnitudeJ;
+    return ConservativeBoundaryEnergyScaleResult
+        {RadiationReal(1),acceptedParticleEnergyJ+rawBoundaryEnergyJ};
 }
 
 UGKP_RADIATION_HD inline bool oppositeSigns(const RadiationReal first, const RadiationReal second)

@@ -1,7 +1,7 @@
 """Actual CHMT reacting-SST recession + attached particle histories + restart."""
 import argparse,json,re,shutil,subprocess
 from pathlib import Path
-from chmt_particles_native import m,ROOT,table
+from chmt_particles_native import m,ROOT,table,set_input
 PROBE=r'''#include "restart/Checkpoint.C"
 #include <iostream>
 #include <iomanip>
@@ -29,14 +29,15 @@ int main(int argc,char** argv){
 }
 '''
 def main():
- a=argparse.ArgumentParser();a.add_argument('--output',type=Path,required=True);a.add_argument('--solver',type=Path,default=ROOT/'applications/CHMT/.build/native/CHMT');a.add_argument('--restart-comparator',type=Path);args=a.parse_args()
+ a=argparse.ArgumentParser();a.add_argument('--output',type=Path,required=True);a.add_argument('--solver',type=Path,default=ROOT/'applications/CHMT/.build/native/CHMT');a.add_argument('--restart-comparator',type=Path);a.add_argument('--precision',type=int,choices=(32,64),default=64);a.add_argument('--source-root',type=Path,default=ROOT);args=a.parse_args()
  out=args.output.resolve();out.mkdir(parents=True,exist_ok=True)
  probe=out/'geometry.cpp';probe.write_text(PROBE);exe=out/'geometry'
- subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT/'applications/CHMT'),'-I'+str(ROOT/'common'),str(probe),'-o',str(exe)],check=True)
+ subprocess.run(['g++','-std=c++17','-O2','-I'+str(args.source_root/'applications/CHMT'),'-I'+str(args.source_root/'common'),str(probe),'-o',str(exe)],check=True)
  solver=args.solver.resolve();meta=json.loads((ROOT/'validation/molecular_transport/fixtures.json').read_text())['chmt-moving']
  reports=[]
  for model in ('reboundContact','coldWall1D','coldWall2D'):
   case=out/model;m.prepare(ROOT/'validation/molecular_transport/fixtures/chmt-moving',case,meta)
+  set_input(case/'constant/scheme','precision',args.precision)
   m.entry(case/'system/controlDict','endTime',2e-6)
   boundary=(case/'constant/polyMesh/boundary').read_text()
   wall=re.search(r'\bwall\s*\{([^}]+)',boundary)[1];face=int(re.search(r'startFace\s+(\d+)',wall)[1])
@@ -46,15 +47,16 @@ def main():
   profiles=''
   if model=='coldWall1D':profiles='coldNodeSpecificEnthalpy ('+' '.join(str(h+j) for j in range(8))+'); coldRingSolidMass (0 0 0 0 0 0 0 0);'
   if model=='coldWall2D':profiles='cold2DNodeSpecificEnthalpy ('+' '.join(str(h+j) for j in range(64))+'); cold2DRingContactAge (0.02 0.01 0 0 0 0 0 0);'
-  properties=case/'constant/chmtProperties'
-  properties.write_text(properties.read_text()+f'''\nenableParticles true;
-particle {{volumeMode Coupled; capacity 8; rhoSolid 2500; dragModel none; heatTransferModel RanzMarshall; contactModel {model};
-contactCoeffs {{interfaceResistance 0.00001;}}}}
+  properties=case/'constant/particleProperties'
+  set_input(case/'constant/schedulingProperties','gpuResidentPureGasOnly','false')
+  set_input(case/'constant/schedulingProperties','gpuResidentParticleCapacity',8)
+  properties.write_text('FoamFile {version 2.0; format ascii; class dictionary; object particleProperties;}\n'+f'''\nvolumeMode Coupled; rhoS 2500; dragModel none; particleGasHeatTransferModel RanzMarshall;
+gpuResidentStuckModel {{wallInteractionModel {model}; heatTransfer true; interfaceThermalResistance 0.00001;}}
 particles {{attached {{id "42"; rng "1234567"; cell 0; face {face}; state 2;
 position (0.25 0 0.005); velocity (0 0 0); mass 1e-8; diameter .001; temperature 2500;
 contactAge .0001; contactDuration .001; contactArea 0;
 thermalHistory {{temperature 2500; savedVelocity (0 1 0); contactMaximumArea 1e-6; contactPeakFraction .4;
-specificEnthalpyResidual .125; {profiles}}}
+specificEnthalpyResidual {0 if model=='coldWall1D' else .125}; {profiles}}}
 }}}}\n''')
   seconds=m.run([solver,'-case',case],case/'run.log')
   output=case/'chmtOutput';last=max(int(p.name.split('-')[1]) for p in output.glob('checkpoint-*'))
@@ -64,7 +66,7 @@ specificEnthalpyResidual .125; {profiles}}}
   assert abs(q['age']-(initial['particles'][0]['age']+final['time']))<1e-16,q
   restart=out/(model+'-restart');shutil.copytree(case,restart,ignore=shutil.ignore_patterns('chmtOutput'))
   shutil.copytree(output/'checkpoint-1',restart/'initial-checkpoint')
-  d=restart/'constant/chmtProperties';d.write_text(d.read_text()+'\nrestartDirectory "initial-checkpoint";\n')
+  d=restart/'system/controlDict';d.write_text(d.read_text()+'\nrestartDirectory "initial-checkpoint";\n')
   m.run([solver,'-case',restart],restart/'restart.log')
   identical=(output/f'checkpoint-{last}/state.chmt').read_bytes()==(restart/'chmtOutput'/f'checkpoint-{last}/state.chmt').read_bytes()
   resumed=json.loads(subprocess.check_output([exe,restart/'chmtOutput'/f'checkpoint-{last}'],text=True))
@@ -77,11 +79,16 @@ specificEnthalpyResidual .125; {profiles}}}
   # can change a ledger value by one ulp; all accepted physical histories must
   # still be bit-identical, including every cold-profile node.
   ledger_delta=0.
+  ledger_scale=0.
   for left,right in zip(table(output/f'exchange-{last}.csv'),table(restart/'chmtOutput'/f'exchange-{last}.csv')):
    for key in left:
-    try:ledger_delta=max(ledger_delta,abs(float(left[key])-float(right[key])))
+    try:
+     lv,rv=float(left[key]),float(right[key]);delta=abs(lv-rv)
+     ledger_delta=max(ledger_delta,delta)
+     if delta:ledger_scale=max(ledger_scale,abs(lv),abs(rv))
+     if args.precision==32:assert delta<=8*(2**-23)*max(abs(lv),abs(rv),1e-30),(key,lv,rv)
     except ValueError:assert left[key]==right[key]
-  assert ledger_delta<1e-20,ledger_delta
+  if args.precision==64:assert ledger_delta<1e-20,ledger_delta
   reports.append(dict(model=model,seconds=seconds,initial=initial,final=final,restart_checkpoint_byte_identical=identical,maximum_ledger_difference=ledger_delta))
  (out/'results.json').write_text(json.dumps(reports,indent=2)+'\n');print(json.dumps(reports))
 if __name__=='__main__':main()

@@ -1,3 +1,4 @@
+
 #include "FoamSolverScheme.H"
 #include "GpuParticleRadiationCoupler.H"
 
@@ -216,7 +217,7 @@ ParticleRadiationMaterialResult solveValidatedParticleRadiationTransaction
 (
     const ParticleRadiationTransactionContext& context,
     const ParticleRadiationMaterialSnapshot& snapshot,
-    const std::function<MieDoResult(const scalarField&)>& solveRadiation
+    const std::function<MieDoResult(const scalarField&, ugkp::gpu::RadiationThermalCouplingDeviceView, ugkp::gpu::RadiationThermalIterationHook)>& solveRadiation
 )
 try
 {
@@ -241,25 +242,16 @@ try
 
     scalarField currentTemperatureK(snapshot.particleMeanTemperatureK);
     currentTemperatureK.setSize(context.mesh.nCells());
-    const MieDoResult radiationResult = solveRadiation(currentTemperatureK);
-    validateRadiationResult(context, radiationResult, 1);
-    result.absorptionCoefficientInvM = radiationResult.absorptionCoefficientInvM;
-    result.scatteringCoefficientInvM = radiationResult.scatteringCoefficientInvM;
-    result.extinctionCoefficientInvM = radiationResult.extinctionCoefficientInvM;
-    result.asymmetryFactor = radiationResult.asymmetryFactor;
-
     ugkp::gpu::ParticleRadiationMaterialInput input;
     const label cells=context.mesh.nCells();
-    input.resident=radiationResult.resident;
-    if(!input.resident.enabled){
+    input.particleResident=snapshot.resident;
+    input.volume.assign(context.mesh.V().begin(),context.mesh.V().end());
+    if(!snapshot.resident.enabled){
         input.epsilon.assign(snapshot.epsilonS.begin(),snapshot.epsilonS.begin()+cells);
         input.temperature.assign(currentTemperatureK.begin(),currentTemperatureK.end());
         input.diameter.assign(snapshot.representativeDiameterM.begin(),snapshot.representativeDiameterM.begin()+cells);
-        input.incident.assign(radiationResult.incidentRadiationG_Wm2.begin(),radiationResult.incidentRadiationG_Wm2.begin()+cells);
-        input.volume.assign(context.mesh.V().begin(),context.mesh.V().end());
-    }
-    if(!input.resident.enabled||!input.resident.mass)
         input.mass.assign(snapshot.particleMassInCellKg.begin(),snapshot.particleMassInCellKg.begin()+cells);
+    }
     input.response=snapshot.response;
     input.heatFactor=snapshot.particleHeatFactorJkgK;input.elapsed=couplingDeltaT;
     input.minimumTemperature=context.particleTemperatureMinK;
@@ -267,13 +259,22 @@ try
     input.activeEpsilonMinimum=context.radiationActiveEpsilonMin;
     forAll(context.mesh.boundary(),patchI){const bool coupled=isCoupledPatch(context.coupledSolidPatchIds,patchI);
         const vectorField& areas=context.mesh.Sf().boundaryField()[patchI];
-        forAll(areas,faceI){if(!input.resident.enabled){input.boundaryArea.push_back(mag(areas[faceI]));input.boundaryFlux.push_back(radiationResult.boundaryQrOutwardWm2[patchI][faceI]);}input.coupledBoundary.push_back(coupled);}}
-    // Production couplers retain the table and workspace. Standalone callers
-    // own one temporary workspace and execute the identical CUDA operator.
+        forAll(areas,faceI){input.boundaryArea.push_back(mag(areas[faceI]));input.coupledBoundary.push_back(coupled);}}
     std::unique_ptr<ugkp::gpu::ParticleRadiationMaterial> temporary;
     auto* device=context.materialDevice;
     if(!device){temporary.reset(new ugkp::gpu::ParticleRadiationMaterial(context.mieTable.exportGpuTable(),startupMaterialControls(context.mesh)));device=temporary.get();}
-    const auto completed=device->solve(input,context.exportFields||bool(temporary));
+    const auto thermal=device->beginAnchoredWindow(input);
+    const auto hook=[device](ugkp::gpu::ExecutionGraph graph,ugkp::gpu::ExecutionGraphNode dependency,void* stream,
+        const ugkp::gpu::RadiationThermalIterationDeviceView& view){
+        return device->appendAnchoredIteration(graph,dependency,stream,view);
+    };
+    const MieDoResult radiationResult=solveRadiation(currentTemperatureK,thermal,hook);
+    validateRadiationResult(context,radiationResult,1);
+    result.absorptionCoefficientInvM=radiationResult.absorptionCoefficientInvM;
+    result.scatteringCoefficientInvM=radiationResult.scatteringCoefficientInvM;
+    result.extinctionCoefficientInvM=radiationResult.extinctionCoefficientInvM;
+    result.asymmetryFactor=radiationResult.asymmetryFactor;
+    const auto completed=device->finishAnchoredWindow(radiationResult.resident,context.exportFields||bool(temporary));
     if(!context.exportFields&&!temporary){result.resident=completed.resident;return result;}
     result.finalMeanTemperatureK.setSize(cells);
     for(label cellI=0;cellI<cells;++cellI){result.finalMeanTemperatureK[cellI]=completed.temperature[cellI];result.deltaParticleRadiationEnergyJ[cellI]=completed.energy[cellI];}
@@ -281,7 +282,7 @@ try
     forAll(result.solidWallRadiationEnergyJ,patchI)forAll(result.solidWallRadiationEnergyJ[patchI],faceI)
         result.solidWallRadiationEnergyJ[patchI][faceI]=completed.boundaryEnergy[boundary++];
     result.escapedBoundaryRadiationEnergyJ=completed.escapedEnergy;
-    result.radiativeEnergyMagnitudeJ=completed.radiativeEnergyMagnitude;
+
     if(!temporary)result.resident=completed.resident;
     return result;
 
@@ -328,6 +329,9 @@ ParticleRadiationMaterialResult GpuParticleRadiationCoupler::solve
 ) const
 try
 {
+
+
+
     const detail::ParticleRadiationTransactionContext context
     {
         mesh_,
@@ -365,16 +369,20 @@ catch (const std::exception& error)
     );
 }
 
-void GpuParticleRadiationCoupler::settleAcceptedEnergy(const ugkp::gpu::RadiationAcceptedEnergyDeviceView& actual) const {
-    materialDevice_->settleAcceptedEnergy(actual);
+bool GpuParticleRadiationCoupler::readWarmStart(const std::string& path) const {
+    return radiationSolver_.readWarmStart(radiationWorkspace_,path);
+}
+bool GpuParticleRadiationCoupler::writeWarmStart(const std::string& path) const {
+    return radiationSolver_.writeWarmStart(radiationWorkspace_,path);
 }
 ParticleRadiationMaterialResult GpuParticleRadiationCoupler::collectBoundaryEnergy() const {
     const auto material=materialDevice_->collectBoundaryEnergy();ParticleRadiationMaterialResult result;
     result.solidWallRadiationEnergyJ.setSize(mesh_.boundary().size());std::size_t index=0;
     forAll(mesh_.boundary(),p){auto& energy=result.solidWallRadiationEnergyJ[p];energy.setSize(mesh_.boundary()[p].size());
         forAll(energy,f)energy[f]=material.boundaryEnergy[index++];}
-    result.escapedBoundaryRadiationEnergyJ=material.escapedEnergy;result.radiativeEnergyMagnitudeJ=material.radiativeEnergyMagnitude;
-    result.acceptedParticleRadiationEnergyJ=material.acceptedParticleEnergy;result.resident=material.resident;return result;
+    result.escapedBoundaryRadiationEnergyJ=material.escapedEnergy;
+
+    result.resident=material.resident;return result;
 }
 ParticleRadiationMaterialResult GpuParticleRadiationCoupler::collect() const {
     const auto radiation=radiationSolver_.collect(radiationWorkspace_);
@@ -390,7 +398,7 @@ ParticleRadiationMaterialResult GpuParticleRadiationCoupler::collect() const {
     result.solidWallRadiationEnergyJ.setSize(mesh_.boundary().size());std::size_t index=0;
     forAll(mesh_.boundary(),p){auto& energy=result.solidWallRadiationEnergyJ[p];energy.setSize(mesh_.boundary()[p].size());
         forAll(energy,f)energy[f]=material.boundaryEnergy[index++];}
-    result.escapedBoundaryRadiationEnergyJ=material.escapedEnergy;result.radiativeEnergyMagnitudeJ=material.radiativeEnergyMagnitude;
+    result.escapedBoundaryRadiationEnergyJ=material.escapedEnergy;
     result.resident=material.resident;return result;
 }
 

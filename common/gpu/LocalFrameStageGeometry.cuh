@@ -41,7 +41,7 @@ LocalFrameStageView LocalFrameStageGeometry::view()const{const auto& d=*data_;re
 ExecutionGraphNode LocalFrameStageGeometry::appendTo(ExecutionGraph graph,ExecutionGraphNode dependency,const LocalFrameStageInput* input){
     auto& d=*data_;return executionGraphDetail::appendCaptured(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},d.stream,[&]{
         initializeLocalFrameStage<<<1,1,0,d.stream>>>(input,d.controls.pointer,d.diagnostics.pointer);
-        if(d.points)localFrameStageCoordinates<<<(d.points-1)/128+1,128,0,d.stream>>>(d.points,input,d.old.pointer,d.endpoint.pointer);
+        if(d.points)localFrameStageCoordinates<<<(d.points-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,d.stream>>>(d.points,input,d.old.pointer,d.endpoint.pointer);
         d.stage->prepare(d.old.pointer,d.endpoint.pointer,d.controls.pointer,d.diagnostics.pointer,d.stream);
     });
 }

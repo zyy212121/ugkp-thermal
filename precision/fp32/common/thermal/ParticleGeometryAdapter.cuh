@@ -80,7 +80,7 @@ int refreshParticleTrackingGeometry(void* owner,const ParticleTrackingBoundaryVi
         setLastErrorText("particle tracking requires matching resident boundary topology/coefficients");return 1;
     }
     if(s->nCells) {
-        refreshParticleTrackingGeometryKernel<<<(s->nCells+127)/128,128,0,stream>>>(s->deviceState,boundary);
+        refreshParticleTrackingGeometryKernel<<<(s->nCells+s->fixedCellBlockThreads-1)/s->fixedCellBlockThreads,s->fixedCellBlockThreads,0,stream>>>(s->deviceState,boundary);
         const auto error=cudaGetLastError();
         if(error!=cudaSuccess){setLastError("refresh resident particle tracking geometry",error);return 1;}
     }

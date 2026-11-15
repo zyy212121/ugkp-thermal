@@ -1,8 +1,32 @@
+#include "gasBoundary/Definition.H"
 #include "ParticleInjectionVelocity.H"
 #pragma once
+#include "../wall/GpuColdWall1DHandles.cuh"
 #include "BoundaryInjectionSequence.H"
 #include "ParticleResidentInterval.H"
 #include "GpuParticleThermalCarryStorage.cuh"
+template<class State,class Real,class Time>
+__device__ bool fieldParticleInlet(const State& s,int face,int cell,Time time,
+    Real& ux,Real& uy,Real& uz,Real& rate,std::false_type) { return false; }
+template<class State,class Real,class Time>
+__device__ bool fieldParticleInlet(const State& s,int face,int cell,Time time,
+    Real& ux,Real& uy,Real& uz,Real& rate,std::true_type) {
+    const auto& view=s.gasBoundaryProgram;
+    if(!view.faces||face>=view.count)return false;
+    const auto& f=view.faces[face];if(f.solidMode<0)return false;
+    using namespace ugkp::boundary;
+    const Real eps=f.solidMode==0?s.epsS[cell]:
+        Real(evaluate(view,f.function[SolidFraction],time,f.value[SolidFraction]));
+    ux=f.uMode==0?s.gasBoundaryUx[face]:f.uMode==1?Real(evaluate(view,f.function[Ux],time,f.value[Ux])):s.gasBoundaryUx[face];
+    uy=f.uMode==0?s.gasBoundaryUy[face]:f.uMode==1?Real(evaluate(view,f.function[Uy],time,f.value[Uy])):s.gasBoundaryUy[face];
+    uz=f.uMode==0?s.gasBoundaryUz[face]:f.uMode==1?Real(evaluate(view,f.function[Uz],time,f.value[Uz])):s.gasBoundaryUz[face];
+    ux=ugkwp::particleInjectionVelocityComponent(s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[0],ux);
+    uy=ugkwp::particleInjectionVelocityComponent(s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[1],uy);
+    uz=ugkwp::particleInjectionVelocityComponent(s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[2],uz);
+    const Real incoming=-(ux*s.Sfx[face]+uy*s.Sfy[face]+uz*s.Sfz[face]);
+    rate=(eps>Real(0)?eps:Real(0))*s.rhoSolid*(incoming>Real(0)?incoming:Real(0));
+    return true;
+}
 __global__ void injectBoundaryParticlesKernel
 (
     DeviceState* sp,
@@ -43,36 +67,21 @@ __global__ void injectBoundaryParticlesKernel
         return;
     }
 
-    const bool scheduledInletActive =
-        scheduledInletFaceDevice(s, sourceFace);
-    const GPU_OPERATOR_REAL sourceUx = ugkwp::particleInjectionVelocityComponent
-      (s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[0], scheduledInletActive
-      ? finiteOr(s.gasBoundaryUx[sourceFace], finiteOr(s.sourceUx[j], GPU_OPERATOR_R(0.0)))
-      : finiteOr(s.sourceUx[j], GPU_OPERATOR_R(0.0)));
-    const GPU_OPERATOR_REAL sourceUy = ugkwp::particleInjectionVelocityComponent
-      (s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[1], scheduledInletActive
-      ? finiteOr(s.gasBoundaryUy[sourceFace], finiteOr(s.sourceUy[j], GPU_OPERATOR_R(0.0)))
-      : finiteOr(s.sourceUy[j], GPU_OPERATOR_R(0.0)));
-    const GPU_OPERATOR_REAL sourceUz = ugkwp::particleInjectionVelocityComponent
-      (s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[2], scheduledInletActive
-      ? finiteOr(s.gasBoundaryUz[sourceFace], finiteOr(s.sourceUz[j], GPU_OPERATOR_R(0.0)))
-      : finiteOr(s.sourceUz[j], GPU_OPERATOR_R(0.0)));
-    const GPU_OPERATOR_REAL sourceTheta = scheduledInletActive
-      ? clampMin(finiteOr(s.theta[sourceCell], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0))
-      : clampMin(finiteOr(s.sourceTheta[j], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
-    const GPU_OPERATOR_REAL scheduledRate =
-        scheduledSolidVolumeFractionDevice(s, simulationTime)
-       *s.rhoSolid
-       *clampMin
-        (
-           -(sourceUx*s.Sfx[sourceFace]
-           + sourceUy*s.Sfy[sourceFace]
-           + sourceUz*s.Sfz[sourceFace]),
-            GPU_OPERATOR_R(0.0)
-        );
-    const GPU_OPERATOR_REAL rate = scheduledInletActive
-      ? scheduledRate
-      : finiteOr(s.sourceMassRate[j], GPU_OPERATOR_R(0.0));
+    GPU_OPERATOR_REAL sourceUx=ugkwp::particleInjectionVelocityComponent(
+        s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[0],finiteOr(s.sourceUx[j],GPU_OPERATOR_R(0.0)));
+    GPU_OPERATOR_REAL sourceUy=ugkwp::particleInjectionVelocityComponent(
+        s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[1],finiteOr(s.sourceUy[j],GPU_OPERATOR_R(0.0)));
+    GPU_OPERATOR_REAL sourceUz=ugkwp::particleInjectionVelocityComponent(
+        s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[2],finiteOr(s.sourceUz[j],GPU_OPERATOR_R(0.0)));
+    // -1 is the host-encoded zeroGradient policy. The gas-stage face
+    // velocity mirror above preserves pre-drag inlet timing; theta follows
+    // the current particle owner just as the former scheduled inlet did.
+    const GPU_OPERATOR_REAL sourceTheta=clampMin(finiteOr(
+        s.sourceTheta[j]==GPU_OPERATOR_R(-1.0)?s.theta[sourceCell]:s.sourceTheta[j],
+        GPU_OPERATOR_R(0.0)),GPU_OPERATOR_R(0.0));
+    GPU_OPERATOR_REAL rate=finiteOr(s.sourceMassRate[j],GPU_OPERATOR_R(0.0));
+    fieldParticleInlet(s,sourceFace,sourceCell,simulationTime,
+        sourceUx,sourceUy,sourceUz,rate,ugkp::boundary::Capability<DeviceState>{});
     if (rate <= GPU_OPERATOR_R(0.0))
     {
         return;
@@ -99,6 +108,8 @@ __global__ void injectBoundaryParticlesKernel
             atomicSub(s.particleCountDevice, 1);
             break;
         }
+
+        Foam::gpuWall::allocateColdWall1DHandle(s,slot);
 
         unsigned long long rng =
             mixSeed

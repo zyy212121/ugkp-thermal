@@ -91,9 +91,9 @@
         ringSolidMass;
     if (lane == 0)
     {
-        s.pColdContactAge[particleI] =
+        s.pColdContactAge[Foam::gpuWall::coldWallSlot(s,particleI)] =
             static_cast<GpuTime>(profileContactAgeS);
-        s.pColdFrozenArea[particleI] = frozenArea;
+        s.pColdFrozenArea[Foam::gpuWall::coldWallSlot(s,particleI)] = frozenArea;
     }
     const GpuReal meanEnthalpy = coldWall1DGroupSum(candidateEnthalpy/GPU_R(8.0), mask);
     ColdWallThermalReal groupMeanTemperature = GPU_R(0.0);

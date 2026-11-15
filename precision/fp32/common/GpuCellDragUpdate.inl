@@ -124,7 +124,9 @@
         ? Energy(epsG)*(s.rhoE[c]-trueGasKineticDensity) : enerG-kgOld;
     Energy isOld = enerS - ksOld;
 
-    const Energy igMin = Energy(mg)*Energy(eMinGas);
+    const Energy igMin = ugkwp::mixtureGasActive(s)
+        ? Energy(epsG)*ugkwp::particleGasMinimumInternalEnergy(s,c,Energy(rhoG)*Energy(eMinGas))
+        : Energy(mg)*Energy(eMinGas);
     const Energy isMin = Energy(0);
 
     const bool repairGasInternal=!ugkwp::gasEnergyFallbackFinite(igOld) || igOld<igMin;

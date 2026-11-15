@@ -23,12 +23,12 @@ def main():
   path=case/'0/U';path.write_text(path.read_text().replace('(0 0 0)',f'({gas} 0 0)'))
   path=case/'0/epsilonS';path.write_text(path.read_text().replace('left{type zeroGradient;}','left{type fixedValue;value uniform .001;}'))
   if scheduled:
-   path=case/'constant/schedulingProperties';matrix.entry(path,'gpuResidentDynamicInlet','true')
-   path=case/'constant/particleProperties';path.write_text(path.read_text()+'\ngpuResidentInletPatch left;\n')
-   # Deliberately differ from the static .001 boundary so this exercises the schedule.
-   (case/'constant/inletPressure.table').write_text('((0 178167.05610328368)(1 178167.05610328368))\n')
-   (case/'constant/inletVolumeFraction.table').write_text('((0 .002)(1 .002))\n')
-   path=case/'0/p';path.write_text(path.read_text().replace('left{type zeroGradient;}','left{type fixedValue;value uniform 178167.05610328368;}'))
+   # Startup field programs replace the obsolete independent constant tables.
+   path=case/'0/epsilonS';path.write_text(path.read_text().replace(
+       'left{type fixedValue;value uniform .001;}',
+       'left{type uniformFixedValue;uniformValue table ((0 .002)(1 .002));value uniform .002;}'))
+   path=case/'0/p';path.write_text(path.read_text().replace('left{type zeroGradient;}',
+       'left{type uniformFixedValue;uniformValue table ((0 178167.05610328368)(1 178167.05610328368));value uniform 178167.05610328368;}'))
   control=case/'system/controlDict'
   for key,value in [('endTime',2e-6),('deltaT',1e-6),('writeInterval',2e-6)]:matrix.entry(control,key,value)
   matrix.entry(case/'constant/scheme','maxDeltaT',1e-6)

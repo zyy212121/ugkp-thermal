@@ -270,6 +270,7 @@ public:
     bool configureResidentLocalSolve(const Foam::dictionary& dictionary){
         if(!resident_.residentIteration())return false;
         ConjugateGradientControls controls;
+        controls.preconditioner=readSparsePreconditioner(dictionary);
         controls.maximumIterations=dictionary.lookupOrDefault<Foam::label>("maxIter",1000);
         controls.minimumIterations=dictionary.lookupOrDefault<Foam::label>("minIter",0);
         controls.tolerance=dictionary.lookupOrDefault<Foam::scalar>("tolerance",1e-6);

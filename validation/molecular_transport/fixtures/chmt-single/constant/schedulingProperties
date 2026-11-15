@@ -1,0 +1,12 @@
+FoamFile { version 2.0; format ascii; class dictionary; object schedulingProperties; }
+gpuCsrLevel L0;
+gpuCellBlockThreads 128;
+gpuFaceBlockThreads 128;
+gpuParticleBlockThreads 128;
+gpuReductionBlockThreads 128;
+gpuSparseBlockThreads 128;
+gpuRadiationBlockThreads 128;
+gpuThermalBlockThreads 128;
+gpuMaterialBlockThreads 128;
+gpuColdWallBlockThreads 128;
+gpuResidentPureGasOnly true;

@@ -40,32 +40,12 @@ def compile_run(tmp_path, code, flags=()):
 
 
 @pytest.mark.parametrize('contract', ['off', 'fast'])
-def test_finite_contact_exact_fixed_point_reduces_evaluations(tmp_path, contract):
-    actual = function_slice(ROOT / 'common/GpuParticleThermalConsumers.H',
-        'template<class Storage, class Caloric>', '\ntemplate<class Storage, class Caloric>')
-    actual = actual.replace('UGKWP_THERMAL_CONSUMER_HD', '').replace(
-        'publishFiniteWallThermalHeat', 'stagnationFiniteHeat').replace(
-        'const double middle =', '++stagnationIterations; const double middle =')
-    reference = FINITE_REFERENCE.replace('const double middle =',
-        '++referenceIterations; const double middle =')
-    code = r'''
-#include "GpuParticleThermalConsumers.H"
-#include "GpuParticleCaloric.H"
-#include <cstring>
-#include <iostream>
-#include <random>
-#include <vector>
-#include <limits>
-#include <cstdlib>
-#include <iomanip>
-namespace ugkwp { unsigned long long referenceIterations=0,stagnationIterations=0;
-''' + reference + actual + '}\n' + FINITE_BODY
-    result = compile_run(tmp_path, code, ['-ffp-contract=' + contract])[0]
-    assert result['mismatches'] == result['atomic_failure_count'] == 0
-    assert result['cases'] == 422750
-    assert result['candidate_bisections'] < result['reference_bisections']
-    assert result['cases_reduced'] > 0
-
+def test_finite_contact_increment_oracle_and_zero_identity(tmp_path, contract):
+    # Historical absolute-enthalpy bitwise oracle is retained in FINITE_REFERENCE,
+    # but is not the contract of the stable increment/zero-flux publication.
+    result = compile_run(tmp_path, FINITE_INCREMENT_ORACLE, ['-ffp-contract=' + contract])[0]
+    assert result['cases'] == 6000 and result['zero_identity'] == 6000
+    assert result['maximum_normalized_error'] <= 128
 
 def test_only_eight_node_candidate_prepares_equilibrium_increment(tmp_path):
     caloric = (ROOT / 'common/GpuParticleCaloric.H').read_text()
@@ -90,20 +70,21 @@ def test_only_eight_node_candidate_prepares_equilibrium_increment(tmp_path):
     assert result['actual_enthalpyIncrement_calls'] < result['baseline_enthalpyIncrement_calls']
 
 
-def test_cold_uniform_nonzero_combines_read_only_scans(tmp_path):
-    actual = function_slice(ROOT / 'common/wall/GpuColdWallThermalCarry.cuh',
+@pytest.mark.parametrize("bits", [32, 64])
+def test_cold_uniform_nonzero_combines_read_only_scans(tmp_path, bits):
+    precision_root = ROOT if bits == 64 else ROOT / "precision/fp32"
+    actual = function_slice(precision_root / 'common/wall/GpuColdWallThermalCarry.cuh',
         'UGKWP_COLD_CARRY_HD inline ColdWallHeatPublication publishColdWallUniformSpecificHeat',
         'template<class Parameters>').replace('UGKWP_COLD_CARRY_HD', '')
     def counted(source):
-
         source = re.sub(r'(for\(int j=0;j<count;\+\+j\)\s*\{)', r'\1 ++scanCount;', source)
-        source = source.replace('for(int j=0;j<count;++j)nodes[j]=',
-            'for(int j=0;j<count;++j){++scanCount;nodes[j]=')
-        source = source.replace('residual=next;', '}\n residual=next;')
+        source = source.replace('for(int j=0;j<count;++j)nodes[j]=static_cast<float>(double(nodes[j])+specificHeat);',
+            'for(int j=0;j<count;++j){++scanCount;nodes[j]=static_cast<float>(double(nodes[j])+specificHeat);}')
+        source = source.replace('for(int j=0;j<count;++j)nodes[j]+=specificHeat;',
+            'for(int j=0;j<count;++j){++scanCount;nodes[j]+=specificHeat;}')
+        source = source.replace('for(int j=0;j<count;++j)nodes[j]=double(nodes[j])+specificHeat;',
+            'for(int j=0;j<count;++j){++scanCount;nodes[j]=double(nodes[j])+specificHeat;}')
         return source
-    floor = function_slice(ROOT / 'common/wall/GpuColdWallThermalCarry.cuh',
-        'UGKWP_COLD_CARRY_HD inline float coldWallStoredEnthalpyFloor',
-        '// Leave only').replace('UGKWP_COLD_CARRY_HD', '')
     code = r'''
 #include <cmath>
 #include <cfloat>
@@ -114,10 +95,15 @@ def test_cold_uniform_nonzero_combines_read_only_scans(tmp_path):
 #include <array>
 struct ColdWallHeatPublication {bool valid;double acceptedSpecificHeat;};
 static unsigned long long scanCount=0;
-''' + floor + counted(COLD_REFERENCE) + counted(actual) + COLD_BODY
+''' + counted(COLD_REFERENCE) + counted(actual) + COLD_BODY
+    if bits == 64:
+        # Native64 node publication is double, not float storage plus carry.
+        code = re.sub(r'\bfloat\b', 'double', code)
+    else:
+        code = code.replace('double', 'float').replace('DBL_MAX', 'FLT_MAX')
     comparison, counts = compile_run(tmp_path, code)
     assert comparison['cases'] == 300000 and comparison['mismatches'] == 0
-    assert counts['zero_actual_node_visits'] == counts['zero_reference_node_visits'] > 0
+    assert 3 * counts['zero_actual_node_visits'] == 2 * counts['zero_reference_node_visits'] > 0
     assert 3 * counts['nonzero_actual_node_visits'] == 2 * counts['nonzero_reference_node_visits'] > 0
 
 
@@ -156,11 +142,11 @@ void wallMatrix(){
  instantiateWall<2,24>();instantiateWall<2,48>();instantiateWall<2,128>();
  instantiateWall<10,24>();instantiateWall<10,48>();instantiateWall<10,128>();
 }
-__global__ void heat(ugkwp::ParticleThermalCarry<GpuReal>* state,float* nodes,double* residual){
+__global__ void heat(ugkwp::ParticleThermalCarry<GpuReal>* state,double* nodes,double* residual){
  ugkwp::ParticleCaloric caloric;
  ugkwp::publishFiniteWallThermalHeat(*state,500.,1.,1.,.01,GpuReal(200),GpuReal(4000),caloric);
- ugkwp::publishColdWallUniformSpecificHeat(nodes,8,*residual,.01);
- ugkwp::publishColdWallUniformSpecificHeat(nodes,64,*residual,.01);
+ ugkwp::publishColdWallUniformSpecificHeat(nodes,8,.01);
+ ugkwp::publishColdWallUniformSpecificHeat(nodes,64,.01);
 }
 '''
     native_compile(tmp_path, code)
@@ -184,7 +170,7 @@ def test_actual_paired_candidate_compiles_as_cuda(tmp_path):
 
 
 FINITE_BODY = r'''
-struct Linear { double cp; double enthalpy(double x) const {return cp*x;} double temperature(double x) const {return x/cp;} };
+struct Linear { double cp; double enthalpyIncrement(double,double dt)const{return cp*dt;} double specificHeat(double)const{return cp;} double enthalpy(double x) const {return cp*x;} double temperature(double x) const {return x/cp;} };
 unsigned long long tests=0,failed=0,successful=0,ref=0,opt=0,stagnated=0,atomicFailures=0;
 template<class T>bool bits(T a,T b){return std::memcmp(&a,&b,sizeof(T))==0;}
 template<class T,class Law>void check(T t,double carry,double tw,double mass,double parcel,double g,T lo,T hi,const Law& law){
@@ -227,6 +213,7 @@ PAIRED_PREFIX = r'''
 #include <iostream>
 #include "GpuParticleCaloric.H"
 #include "GpuParticleThermalCarry.H"
+#define __host__
 #define __device__
 #define __forceinline__ inline
 using GpuReal=double;
@@ -235,19 +222,28 @@ using GpuTime=double;
 namespace Foam {namespace gpuThermal {enum {particleWallMobile=0,particleWallSolidifyingDeposition=3,particleWallColdWall2D=4};}}
 struct Parameters {GpuReal meltingTemperatureK=2327,mushyRangeK=20,latentHeatJkg=300000,solidSpecificHeatJkgK=800;};
 struct DeviceState {
- int nFaces=1,nCells=1;
+ int nFaces=1,nCells=1,particleStuckModelConfigured=1; int particleContactHeatEpoch[1]{1};
  int pStatus[1]{1},pCellId[1]{0},pStuck[1]{0},pStuckFaceId[1]{0},particleStuckCandidateMask[1]{0};
  int compactPStuck[1]{0},compactPStuckFaceId[1]{0};
  GpuReal pT[1]{300},compactPT[1]{300},pm[1]{1},pux[1]{0},puy[1]{0},puz[1]{0},pd[1]{.001};
  GpuReal couplingUxOld[1]{1},couplingUyOld[1]{0},couplingUzOld[1]{0},couplingRhoOld[1]{1},couplingTgasOld[1]{500};
  double pThermalEnthalpyResidual[1]{0},compactPThermalEnthalpyResidual[1]{0};
- float pColdNodeSpecificEnthalpy[8]{},compactPColdNodeSpecificEnthalpy[8]{},pCold2DNodeSpecificEnthalpy[64]{},compactPCold2DNodeSpecificEnthalpy[64]{};
+ double pColdNodeSpecificEnthalpy[8]{},compactPColdNodeSpecificEnthalpy[8]{}; float pCold2DNodeSpecificEnthalpy[64]{},compactPCold2DNodeSpecificEnthalpy[64]{};
  GpuReal particleDiameterFallback=.001,rhoMin=1e-10,gasMu=1.8e-5,gasPrOneThird=.9,rhoSolid=3900,TgasMin=200,TpMin=200,TpMax=4000,kappa=.02;
  Parameters coldWallSolidificationParameters;
 };
 template<class T>T finiteOr(T x,T fallback){return std::isfinite(x)?x:fallback;}
 template<class T>T clampMin(T x,T y){return x>y?x:y;}
 GpuReal molecularGasConductivity(const DeviceState&s){return s.kappa;}
+GpuReal molecularGasConductivity(const DeviceState&s,int,GpuReal){return s.kappa;}
+namespace ugkwp {
+__device__ inline GpuReal gasCellMolecularViscosityAt(const DeviceState&s,int,GpuReal){return s.gasMu;}
+__device__ inline GpuReal gasCellPrandtlOneThird(const DeviceState&s,int){return s.gasPrOneThird;}
+}
+namespace Foam { namespace gpuWall {
+template<class S> __host__ __device__ inline int coldWallSlot(const S&,int i,bool=false){return i;}
+}}
+__device__ bool pairedParticleHeatMember(const DeviceState& s,int i){return s.particleStuckModelConfigured&&(s.pStuck[i]!=0||s.particleContactHeatEpoch[i]);}
 #include "GpuParticleCaloricDevice.cuh"
 '''
 
@@ -277,7 +273,7 @@ int main(){std::mt19937_64 rng(1728);unsigned long long cases=0,invalid=0,zero=0
   double carry=std::uniform_real_distribution<double>(-1e7,1e7)(rng),q=std::uniform_real_distribution<double>(-1e7,1e7)(rng);
   if(i%5==0)q=0.;if(i%7==0)carry=1e-12;if(i%11==0)q=1e-15;
   if(i%17==0)q=std::numeric_limits<double>::infinity();if(i%19==0)carry=std::numeric_limits<double>::quiet_NaN();
-  b=init=a;double r=carry,t=carry;scanCount=0;auto x=referenceColdHeat(a.data(),n,r,q);const auto ref=scanCount;scanCount=0;auto y=publishColdWallUniformSpecificHeat(b.data(),n,t,q);const auto actual=scanCount;
+  b=init=a;double r=carry,t=carry;scanCount=0;auto x=referenceColdHeat(a.data(),n,q);const auto ref=scanCount;scanCount=0;auto y=publishColdWallUniformSpecificHeat(b.data(),n,q);const auto actual=scanCount;
   if(x.valid){if(q==0.){zeroRef+=ref;zeroActual+=actual;}else{nonzeroRef+=ref;nonzeroActual+=actual;}}
   if(x.valid!=y.valid||!bits(x.acceptedSpecificHeat,y.acceptedSpecificHeat)||!bits(r,t)||std::memcmp(a.data(),b.data(),sizeof(a)))return 2;
   if(!x.valid){++invalid;if(!bits(r,carry)||std::memcmp(a.data(),init.data(),sizeof(a)))return 3;}if(q==0.)++zero;++cases;
@@ -285,3 +281,53 @@ int main(){std::mt19937_64 rng(1728);unsigned long long cases=0,invalid=0,zero=0
  std::cout<<"{\"cases\":"<<cases<<",\"invalid_atomic_unchanged\":"<<invalid<<",\"zero_heat_cases\":"<<zero<<",\"mismatches\":0}"<<"\n{\"nonzero_reference_node_visits\":"<<nonzeroRef<<",\"nonzero_actual_node_visits\":"<<nonzeroActual<<",\"zero_reference_node_visits\":"<<zeroRef<<",\"zero_actual_node_visits\":"<<zeroActual<<"}"<<std::endl;
 }
 '''
+
+FINITE_INCREMENT_ORACLE = r"""
+#include "GpuParticleThermalConsumers.H"
+#include "GpuParticleCaloric.H"
+#include <cmath>
+#include <cstring>
+#include <limits>
+#include <iostream>
+#include <random>
+#include <cassert>
+struct Law {
+ double cp,b;
+ double enthalpy(double t)const{return cp*t+.5*b*t*t;}
+ double temperature(double h)const{return 2*h/(cp+std::sqrt(cp*cp+2*b*h));}
+ double specificHeat(double t)const{return cp+b*t;}
+ double enthalpyIncrement(double t,double d)const{return d*(cp+b*t+.5*b*d);}
+};
+int main(){
+ std::mt19937_64 rng(8103);unsigned cases=0,zeros=0;double worst=0;
+ for(int k=0;k<6000;++k){
+  Law law{1000.,k%2?.03:0.};
+  double t=std::uniform_real_distribution<double>(300,2800)(rng);
+  double tw=std::uniform_real_distribution<double>(300,2800)(rng);
+  double m=std::ldexp(1.,-25+k%20),parcel=3*m;
+  double g=m*std::pow(10.,-12.+(k%31));
+  ugkwp::ParticleThermalCarry<double> state{t,1.e-9},zero=state;
+  auto z=ugkwp::publishFiniteWallThermalHeat(zero,tw,m,parcel,0.,100.,4000.,law);
+  assert(z.valid&&z.wallEnergy==0&&zero.temperature==state.temperature&&zero.specificEnthalpyResidual==state.specificEnthalpyResidual);++zeros;
+  const long double h0=(long double)law.cp*t+.5L*law.b*t*t+state.specificEnthalpyResidual;
+  // Independent high-precision enthalpy-coordinate scalar equation:
+  // m*q = g*(Tw - inverseH(H0+q)); quadratic caloric inverse is rationalized.
+  auto temperature=[&](long double h){return 2*h/(law.cp+sqrtl((long double)law.cp*law.cp+2*law.b*h));};
+  const long double heq=(long double)law.cp*tw+.5L*law.b*tw*tw-h0;
+  long double low=std::min(0.L,heq),high=std::max(0.L,heq);
+  for(int i=0;i<256;++i){long double q=(low+high)/2;long double r=(long double)m*q-(long double)g*((long double)tw-temperature(h0+q));if(r<0)low=q;else high=q;}
+  long double q=(low+high)/2;
+  auto out=ugkwp::publishFiniteWallThermalHeat(state,tw,m,parcel,g,100.,4000.,law);
+  assert(out.valid&&std::isfinite(out.wallEnergy)&&state.temperature>=100&&state.temperature<=4000);
+  const double accepted=-out.wallEnergy/parcel;
+  const long double scale=std::numeric_limits<double>::epsilon()*(fabsl(h0)+fabsl(q)+1);
+  double error=double(fabsl((long double)accepted-q)/scale);
+  if(error>worst)worst=error;
+  assert(error<=128);
+  if(fabsl(q)>128*scale)assert((accepted>0)==(q>0));
+  assert(state.temperature>=std::min(t,tw)-1.e-10&&state.temperature<=std::max(t,tw)+1.e-10);
+  ++cases;
+ }
+ std::cout<<"{\"cases\":"<<cases<<",\"zero_identity\":"<<zeros<<",\"maximum_normalized_error\":"<<worst<<"}\n";
+}
+"""

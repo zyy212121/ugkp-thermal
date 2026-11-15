@@ -1,3 +1,8 @@
+#ifdef UGKP_RADIATION_PUBLICATION_OBSERVE
+#include <cstdio>
+#include <cstdlib>
+#endif
+#include "../gpu/WorkPlan.H"
 #include "BoundaryInjectionApi.H"
 #include "gasNumerics/GasScalarSolverControlsApi.H"
 #include "GpuParticlePhaseGraph.cuh"
@@ -7,14 +12,15 @@
 #include "GpuCsrConditionalGraph.H"
 #include "gasTransport/GasResidentInterval.H"
 #include "ParticleRadiationApi.H"
+#include "wall/GpuColdWall1DHandles.cuh"
 #include "GpuFrozenParticleRelease.cuh"
 #include "ParticleGasBinding.H"
 #include "ParticleNumericalControls.H"
 #include "gasTransport/MixturePorosity.H"
 #define GPU_GAS_POROSITY_SPECIES(s,c,scale) scaleMixturePorositySpecies(s,c,scale)
-#define GPU_MIXTURE_PARTICLE_COUPLING 1
 #include "../gasNumerics/GpuDragModels.cuh"
 #include "gasTransport/MixtureHeatExchange.H"
+#include "gasTransport/ParticleHeatReservoir.H"
 #include "../ParticleCaloricHeatResponse.H"
 #include "gasTransport/WallHeatExposure.H"
 #include "gasBoundary/Resident.cuh"
@@ -132,8 +138,9 @@ namespace
 
 
 
-constexpr int coldWallBlockThreads = 32;
-constexpr int particlePayloadThreads = 128;
+// Eight lanes cooperate on each retained axial profile (16 groups per CTA).
+#define coldWallBlockThreads (ugkp::gpu::workPlan().coldWallBlockThreads)
+#define particlePayloadThreads (ugkp::gpu::workPlan().particleBlockThreads)
 constexpr int particlePayloadSmBlocks = 0;
 
 char lastError[2048] = "no GPU resident strict error";
@@ -413,15 +420,6 @@ struct DeviceState
     GpuReal* riemannBoundaryUz = nullptr;
     GpuReal* riemannBoundaryP = nullptr;
     GpuReal* riemannBoundaryT = nullptr;
-    int nScheduledInletFaces = 0;
-    int* scheduledInletFaceMask = nullptr;
-    GpuReal scheduledInletTemperature = GPU_R(0.0);
-    int nPressureScheduleRows = 0;
-    GpuTime* pressureScheduleTimes = nullptr;
-    GpuReal* pressureScheduleValues = nullptr;
-    int nVolumeFractionScheduleRows = 0;
-    GpuTime* volumeFractionScheduleTimes = nullptr;
-    GpuReal* volumeFractionScheduleValues = nullptr;
     GpuReal* gradPx = nullptr;
     GpuReal* gradPy = nullptr;
     GpuReal* gradPz = nullptr;
@@ -580,8 +578,6 @@ struct DeviceState
     GpuReal* pT = nullptr;
     double* pThermalEnthalpyResidual = nullptr;
     // Source-epoch scratch; rebuilt after drag, never checkpointed or reordered.
-    double* mixtureHeatInitialTemperature = nullptr;
-    double* mixtureHeatFraction = nullptr;
     GpuReal* pTheta = nullptr;
     GpuTime* pContactAge = nullptr;
     GpuReal* pd = nullptr;
@@ -594,7 +590,9 @@ struct DeviceState
     double* pContactDuration = nullptr;
     double* pContactMaximumArea = nullptr;
     double* pContactPeakFraction = nullptr;
-    float* pColdNodeSpecificEnthalpy = nullptr;
+    int *pColdHandle=nullptr, *compactPColdHandle=nullptr;
+    int *coldFreeHandles=nullptr, *coldFreeCounts=nullptr;
+    double* pColdNodeSpecificEnthalpy = nullptr;
     double* pColdRingSolidMass = nullptr;
     double* pColdFrozenArea = nullptr;
     double* pColdContactAge = nullptr;
@@ -686,7 +684,7 @@ struct DeviceState
     double* compactPContactDuration = nullptr;
     double* compactPContactMaximumArea = nullptr;
     double* compactPContactPeakFraction = nullptr;
-    float* compactPColdNodeSpecificEnthalpy = nullptr;
+    double* compactPColdNodeSpecificEnthalpy = nullptr;
     double* compactPColdRingSolidMass = nullptr;
     double* compactPColdFrozenArea = nullptr;
     double* compactPColdContactAge = nullptr;
@@ -719,10 +717,14 @@ struct ActiveParticleIndexPredicate
          || s.pStatus[i] != 1
         )
         {
+            if(i>=0 && i<activeCount && i<s.particleCapacity)
+                Foam::gpuWall::releaseColdWall1DHandle(s,i);
             return false;
         }
         const int c = s.pCellId[i];
-        return c >= 0 && c < s.nCells;
+        const bool keep=c>=0 && c<s.nCells;
+        if(!keep)Foam::gpuWall::releaseColdWall1DHandle(s,i);
+        return keep;
     }
 };
 
@@ -1193,6 +1195,8 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->gasHllcAdcSensor);
     release(s->particleStuckCandidateMask);
     release(s->finiteContactRateTable);
+    release(s->pColdHandle); release(s->compactPColdHandle);
+    release(s->coldFreeHandles); release(s->coldFreeCounts);
     release(s->pColdNodeSpecificEnthalpy);
     release(s->pColdRingSolidMass);
     release(s->pColdFrozenArea);
@@ -1235,11 +1239,6 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->riemannBoundaryUz);
     release(s->riemannBoundaryP);
     release(s->riemannBoundaryT);
-    release(s->scheduledInletFaceMask);
-    release(s->pressureScheduleTimes);
-    release(s->pressureScheduleValues);
-    release(s->volumeFractionScheduleTimes);
-    release(s->volumeFractionScheduleValues);
     release(s->gradPx);
     release(s->gradPy);
     release(s->gradPz);
@@ -1386,7 +1385,6 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->compactPuzOld);
     release(s->pT);
     release(s->pThermalEnthalpyResidual);
-    release(s->mixtureHeatInitialTemperature);release(s->mixtureHeatFraction);
     release(s->pTheta);
     release(s->pContactAge);
     release(s->pd);
@@ -1741,8 +1739,6 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->compactPuzOld, np, "cudaMalloc strict compact particle old uz");
     rc |= allocate(s->pT, np, "cudaMalloc strict particle T");
     rc |= allocate(s->pThermalEnthalpyResidual, np, "cudaMalloc strict particle thermal enthalpy residual");
-    rc |= allocate(s->mixtureHeatInitialTemperature,np,"allocate mixture heat source temperatures");
-    rc |= allocate(s->mixtureHeatFraction,np,"allocate mixture heat source fractions");
     rc |= allocate(s->pTheta, np, "cudaMalloc strict particle theta");
     rc |= allocate(s->pContactAge, np, "cudaMalloc strict particle theta");
     rc |= allocate(s->pd, np, "cudaMalloc strict particle d");
@@ -2105,13 +2101,15 @@ __global__ void radiationEnthalpyCapacityKernel(DeviceState* sp,const Foam::gpuT
         atomicAdd(s.radiationMobileMass+c,double(s.pm[i])*fmax(0.,cap));
     }
 }
-__global__ void radiationEnthalpyApplyKernel(DeviceState* sp,const Foam::gpuThermal::RadiationAffineTemperatureUpdate* requests) {
+__global__ void radiationEnthalpyApplyKernel(DeviceState* sp,const Foam::gpuThermal::RadiationAffineTemperatureUpdate* requests,
+    const GpuReal* publicationFraction) {
     auto& s=*sp;if(s.diagnostics&&s.diagnostics->fatalClaim)return;
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<*s.particleCountDevice;i+=blockDim.x*gridDim.x){
         if(s.pStatus[i]!=1||s.pStuck[i]!=Foam::gpuThermal::particleWallMobile)continue;
         const int c=s.pCellId[i];const auto law=particleCaloricDevice(s,i);
         const double q=requests[c].scale,capacity=s.radiationMobileMass[c];
-        const double fraction=capacity>0?fmin(1.,fabs(q)/capacity):0.;
+        // Reuse the evaluated candidate fraction; do not re-sum its denominator.
+        const double fraction=publicationFraction?publicationFraction[c]:(capacity>0?fmin(1.,fabs(q)/capacity):0.);
         ugkwp::ParticleThermalCarry<GpuReal> candidate{s.pT[i],s.pThermalEnthalpyResidual[i]};
         const double delta=ugkp::gpu::radiationSpecificCapacity(law.enthalpy(double(candidate.temperature)),
             law.enthalpy(s.TpMin),law.enthalpy(s.TpMax),q>=0,candidate.specificEnthalpyResidual);
@@ -2130,29 +2128,11 @@ __device__ typename std::common_type<A,B,C>::type clampRange(const A x, const B 
     return x < lo ? lo : (x > hi ? hi : x);
 }
 
-#include "operators/linearScheduledValueDevice.cuh"
 
-__device__ GpuReal scheduledSolidVolumeFractionDevice
-(
-    const DeviceState& s,
-    const GpuTime simulationTime
-)
-{
-    return clampRange
-    (
-        linearScheduledValueDevice
-        (
-            s.volumeFractionScheduleTimes,
-            s.volumeFractionScheduleValues,
-            s.nVolumeFractionScheduleRows,
-            simulationTime
-        ),
-        GPU_R(0.0),
-        GPU_R(1.0) - GPU_R(GPU_REAL_EPSILON)
-    );
-}
 
-#include "operators/publishScheduledInletConfigurationKernel.cuh"
+
+
+#include "operators/sqr3.cuh"
 
 struct GasPrimDevice
 {
@@ -2347,8 +2327,6 @@ __device__ void initialiseColdWall2DParticleState(DeviceState&, int, GpuReal);
 #include "operators/trackParticlesLocalFaceWalkKernel.cuh"
 
 #include "../GpuMobileParticleHeat.cuh"
-#include "../GpuMixtureThermalParticleHeat.cuh"
-#include "gasTransport/MixtureParticleCoupling.cuh"
 #include "../GpuThermalParticleRelaxation.cuh"
 
 #include "operators/relaxMobileParticlesToResidentGasKernelStatic.cuh"
@@ -2708,7 +2686,7 @@ int prepareCsrHeavyReductionTasks(DeviceState* s, const int block)
     return prepareCsrSegmentedReductionTasks(s, block, false);
 }
 
-#include "../GpuToolB1.cuh"
+#include "../GpuWorkPlanPublish.cuh"
 
 #include "GpuParticleLaunchConfiguration.cuh"
 
@@ -3244,7 +3222,7 @@ struct ChtSpeciesTrialPolicy {
     static int commit(DeviceState* s){return s->gasModelPoisoned;}
     static int commitInterval(DeviceState* s){
         if(s->gasBoundaryLayer.enabled&&s->gasBoundaryLayerModel.acceptedHistory){
-            commitAcceptedWallHistory<<<(s->gasBoundaryLayer.count+63)/64,64,0,s->gasCaptureStream>>>(s->deviceState);
+            commitAcceptedWallHistory<<<(s->gasBoundaryLayer.count+s->fixedFaceBlockThreads-1)/s->fixedFaceBlockThreads,s->fixedFaceBlockThreads,0,s->gasCaptureStream>>>(s->deviceState);
             const auto e=cudaGetLastError();if(e!=cudaSuccess){setLastError("commit CHT wall history",e);return 1;}}
         return s->gasModelPoisoned;
     }
@@ -3473,6 +3451,8 @@ extern "C" int ugkwpGpuResidentStrictCreate
     }
     s->csrHeavyReductionActive = csrHeavyReductionMode == 1 ? 1 : 0;
     s->csrWarpAggregatedBinning = csrWarpAggregatedBinning;
+    s->fixedCellBlockThreads=ugkp::gpu::workPlan().cellBlockThreads;
+    s->fixedFaceBlockThreads=ugkp::gpu::workPlan().faceBlockThreads;
     s->particleBlockThreads = particleBlockThreads;
     s->reductionBlockThreads = reductionBlockThreads;
     s->dynamicHeavyThreshold = s->reductionBlockThreads;
@@ -3685,6 +3665,7 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
     release(s->sourceResidualMass);
     s->nBoundarySources = 0;
 
+
     const size_t n = static_cast<size_t>(nBoundarySources);
     if (n == 0)
     {
@@ -3763,117 +3744,13 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
     }
 
     s->nBoundarySources = nBoundarySources;
+    // A field table or extrapolated owner may become inflow later even if
+    // every startup rate is zero. Source existence keeps the path available.
+    if(s->nBoundarySources>0)s->particlesMayBePresent=true;
     return syncDeviceState(s, "cudaMemcpy strict deviceState after boundary source upload");
 }
 
-extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
-(
-    void* handle,
-    int nFaces,
-    const int* faceIds,
-    double inletTemperatureWire,
-    int nPressureRows,
-    const double* pressureTimes,
-    const double* pressureValues,
-    int nVolumeFractionRows,
-    const double* volumeFractionTimes,
-    const double* volumeFractionValues
-)
-{
-    const GpuReal inletTemperature = static_cast<GpuReal>(inletTemperatureWire);
-    DeviceState* s = asState(handle);
-    if(s)++s->particleGraphEpoch;
-    if (validateState(s, "scheduled inlet configuration") != 0)
-    {
-        return 1;
-    }
-    if
-    (
-        (nFaces > 0 && faceIds == nullptr)
-     || (nPressureRows > 0 && (pressureTimes == nullptr || pressureValues == nullptr))
-     || (nVolumeFractionRows > 0 && (volumeFractionTimes == nullptr || volumeFractionValues == nullptr))
-    )
-    {
-        setLastErrorText("missing scheduled inlet input arrays");
-        return 1;
-    }
-    std::vector<int> faceMask(static_cast<size_t>(s->nFaces), 0);
-    for (int i = 0; i < nFaces; ++i)
-    {
-        faceMask[static_cast<size_t>(faceIds[i])] = 1;
-    }
 
-    bool futureParticleInflow = false;
-    for (int i = 0; i < nVolumeFractionRows; ++i)
-    {
-        futureParticleInflow = futureParticleInflow || volumeFractionValues[i] > GPU_R(0.0);
-    }
-
-    release(s->scheduledInletFaceMask);
-    release(s->pressureScheduleTimes);
-    release(s->pressureScheduleValues);
-    release(s->volumeFractionScheduleTimes);
-    release(s->volumeFractionScheduleValues);
-    int rc = 0;
-    rc |= allocate(s->scheduledInletFaceMask, static_cast<size_t>(s->nFaces), "cudaMalloc strict scheduled inlet face mask");
-    rc |= allocate(s->pressureScheduleTimes, static_cast<size_t>(nPressureRows), "cudaMalloc strict pressure schedule times");
-    rc |= allocate(s->pressureScheduleValues, static_cast<size_t>(nPressureRows), "cudaMalloc strict pressure schedule values");
-    rc |= allocate(s->volumeFractionScheduleTimes, static_cast<size_t>(nVolumeFractionRows), "cudaMalloc strict volume-fraction schedule times");
-    rc |= allocate(s->volumeFractionScheduleValues, static_cast<size_t>(nVolumeFractionRows), "cudaMalloc strict volume-fraction schedule values");
-    if (rc != 0)
-    {
-        return 1;
-    }
-    rc |= copyToDevice(s->scheduledInletFaceMask, faceMask.data(), static_cast<size_t>(s->nFaces), "cudaMemcpy strict scheduled inlet face mask");
-    rc |= copyToDevice(s->pressureScheduleTimes, pressureTimes, static_cast<size_t>(nPressureRows), "cudaMemcpy strict pressure schedule times");
-    rc |= copyToDevice(s->pressureScheduleValues, pressureValues, static_cast<size_t>(nPressureRows), "cudaMemcpy strict pressure schedule values");
-    rc |= copyToDevice(s->volumeFractionScheduleTimes, volumeFractionTimes, static_cast<size_t>(nVolumeFractionRows), "cudaMemcpy strict volume-fraction schedule times");
-    rc |= copyToDevice(s->volumeFractionScheduleValues, volumeFractionValues, static_cast<size_t>(nVolumeFractionRows), "cudaMemcpy strict volume-fraction schedule values");
-    if (rc != 0)
-    {
-        return 1;
-    }
-    s->nScheduledInletFaces = nFaces;
-    s->scheduledInletTemperature = inletTemperature;
-    s->nPressureScheduleRows = nPressureRows;
-    s->nVolumeFractionScheduleRows = nVolumeFractionRows;
-    if (futureParticleInflow && s->nBoundarySources > 0)
-    {
-        s->particlesMayBePresent = true;
-    }
-    publishScheduledInletConfigurationKernel<<<1, 1>>>
-    (
-        s->deviceState,
-        nFaces,
-        s->scheduledInletFaceMask,
-        inletTemperature,
-        nPressureRows,
-        s->pressureScheduleTimes,
-        s->pressureScheduleValues,
-        nVolumeFractionRows,
-        s->volumeFractionScheduleTimes,
-        s->volumeFractionScheduleValues,
-        futureParticleInflow && s->nBoundarySources > 0 ? 1 : 0
-    );
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("publish scheduled inlet configuration", err);
-        return 1;
-    }
-    err = cudaDeviceSynchronize();
-    // Reuse this pre-existing completion point; do not add a synchronization.
-    if(err==cudaSuccess) {
-        err=s->diagnosticOwner->observeCompletedWork();
-        if(s->diagnosticOwner->dispatchPending())return 1;
-    }
-    if (err != cudaSuccess)
-    {
-        setLastError("synchronize scheduled inlet configuration", err);
-        return 1;
-    }
-    return 0;
-}
 
 extern "C" int ugkwpGpuResidentStrictDownloadSourceResidualMass
 (
@@ -4081,7 +3958,7 @@ extern "C" int ugkwpGpuResidentStrictUpdateSolidInterfaceState
     if(error==cudaSuccess)error=cudaEventRecord(wall.interfaceInputReady,static_cast<cudaStream_t>(view->producerStream));
     if(error==cudaSuccess)error=cudaStreamWaitEvent(nullptr,wall.interfaceInputReady,0);
     if(error!=cudaSuccess){setLastError("order resident solid interface state",error);return 1;}
-    publishSolidInterfaceStateKernel<<<(view->faces+127)/128,128>>>(view->faces,wall.interfaceRowOffsets,
+    publishSolidInterfaceStateKernel<<<(view->faces+s->fixedFaceBlockThreads-1)/s->fixedFaceBlockThreads,s->fixedFaceBlockThreads>>>(view->faces,wall.interfaceRowOffsets,
         wall.interfaceSourceIndices,wall.enabledFaceIds,view->temperature,view->effusivity,view->contactEnabled,
         s->gasBoundaryT,s->riemannBoundaryT,s->particleWallEffusivityByFace,view->emissivity,wall.interfaceEmissivityByFace,s->diagnostics);
     error=cudaGetLastError();
@@ -4400,6 +4277,22 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
         if(s->diagnosticOwner->dispatchPending())return 1;
     }
     }
+    // Preserve the GPU-derived cache in the host mirror after the existing
+    // initialization completion point. Later whole-state publications must not
+    // overwrite these constants with their default zeros.
+    if (err == cudaSuccess)
+    {
+        const size_t first = offsetof(DeviceState, sstJayatillekeP);
+        const size_t last = offsetof(DeviceState, sstThermalYPlus)
+            + sizeof(s->sstThermalYPlus);
+        err = cudaMemcpy
+        (
+            reinterpret_cast<unsigned char*>(s) + first,
+            reinterpret_cast<const unsigned char*>(s->deviceState) + first,
+            last - first,
+            cudaMemcpyDeviceToHost
+        );
+    }
     if (err != cudaSuccess)
     {
         setLastError("initialiseSstConservativeStateKernel", err);
@@ -4428,7 +4321,7 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
     }
     *maxCo = GPU_R(0.0);
 
-    if (!ugkwp::mixtureGasActive(*s) && tuneFixedWorkBlockThreads(s, dt, scheduleTime) != 0)
+    if (!ugkwp::mixtureGasActive(*s) && publishStartupWorkPlan(s, dt, scheduleTime) != 0)
     {
         return 1;
     }
@@ -4541,7 +4434,6 @@ int submitResidentThermalParticles(DeviceState* s,double dt,double simulationTim
 #endif
     const bool skipParticlePath = !s->particlesMayBePresent;
     const bool dragActive = gasDragModelActive(s->dragModelId);
-    const bool mixture=ugkwp::mixtureGasActive(*s);
 
     if (!skipParticlePath)
     {
@@ -4565,7 +4457,7 @@ int submitResidentThermalParticles(DeviceState* s,double dt,double simulationTim
         return 1;
     }
 
-    if (dragActive && !mixture)
+    if (dragActive)
     {
     computePressureGradientKernel<<<grid, block,0,stream>>>(s->deviceState);
     err = cudaGetLastError();
@@ -4627,12 +4519,7 @@ int submitResidentThermalParticles(DeviceState* s,double dt,double simulationTim
         }
     }
 
-    if(mixture) {
-        computePressureGradientKernel<<<grid,block,0,stream>>>(s->deviceState);
-        err=cudaGetLastError();
-        if(err!=cudaSuccess){setLastError("mixture particle pressure gradient",err);return 1;}
-    }
-    if (!mixture && s->solveParticleTemperature && s->particleGasHeatTransferModelId)
+    if (s->solveParticleTemperature && s->particleGasHeatTransferModelId)
     {
         if (s->particleStuckModelConfigured)
         {
@@ -4788,27 +4675,6 @@ int submitResidentThermalParticles(DeviceState* s,double dt,double simulationTim
     }
     UGKP_DEV_PROBE_LEAVE(ProbeCollisionPool);
 
-    if(mixture) {
-        // Reuse the same cell-owned drag transaction as gasUGKP. Thermal
-        // parcels supply their caloric response to the common bounded solve.
-        if(s->csrCellLocalPathEnabled==0 && binParticlesByCell(s,block)!=0)return 1;
-        const bool split=s->csrCellLocalPathEnabled!=0 && s->splitPreDirectoryActive!=0;
-        if(s->dragModelId==2)
-            err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag,false>
-                (s->deviceState,s->nCells,dt,dragActive,true,split,stream);
-        else
-            err=launchMixtureParticleCouplingCells<ugkwpGpuDrag::SchillerNaumannDeviceDrag,false>
-                (s->deviceState,s->nCells,dt,dragActive,true,split,stream);
-        if(err!=cudaSuccess){setLastError("thermal mixture paired drag",err);return 1;}
-        // Each heat cell prepares its existing particle-response scratch from
-        // the just-recovered gas state before starting the finite-bath solve.
-        err=launchMixtureThermalParticleHeatCells(s->deviceState,s->nCells,dt,true,split,stream);
-        if(err!=cudaSuccess){setLastError("thermal mixture caloric exchange",err);return 1;}
-        if(particleGrid>0)
-            mixtureParticleExternalKickKernel<<<particleGrid,s->particleBlockThreads,0,stream>>>(s->deviceState,dt);
-        err=cudaGetLastError();
-        if(err!=cudaSuccess){setLastError("thermal mixture external particle force",err);return 1;}
-    }
 
     if (pairedHeatActive)
     {
@@ -5317,7 +5183,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     // Legacy launch tuning cannot consume a mixture/ODE wall before its
     // first prepared profile. The shared stage selects its own valid launch.
     if(ugkwp::mixtureGasActive(*s))return advanceChtSharedGas(s,dt,simulationTime);
-    if (tuneFixedWorkBlockThreads(s, dt, simulationTime-dt) != 0)
+    if (publishStartupWorkPlan(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -5446,7 +5312,7 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
     // Legacy launch tuning cannot consume a mixture/ODE wall before its
     // first prepared profile. The shared stage selects its own valid launch.
     if(ugkwp::mixtureGasActive(*s))return advanceChtSharedGas(s,dt,simulationTime);
-    if (tuneFixedWorkBlockThreads(s, dt, simulationTime-dt) != 0)
+    if (publishStartupWorkPlan(s, dt, simulationTime-dt) != 0)
     {
         return 1;
     }
@@ -5664,14 +5530,16 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationDeviceEnergy(void* ha
     if(err==cudaSuccess)err=cudaEventRecord(wall.interfaceInputReady,static_cast<cudaStream_t>(input->producerStream));
     if(err==cudaSuccess)err=cudaStreamWaitEvent(nullptr,wall.interfaceInputReady,0);
     if(err!=cudaSuccess){setLastError("order resident radiation material energy",err);return 1;}
-    const int blocks=std::max(1,(s->nCells+127)/128);
-    prepareResidentRadiationHeat<<<blocks,128>>>(s->deviceState,input->energy,s->particleRadiationAffineUpdate);
+    const int width=ugkp::gpu::workPlan().radiationBlockThreads;
+    const int blocks=std::max(1,(s->nCells+width-1)/width);
+    prepareResidentRadiationHeat<<<blocks,width>>>(s->deviceState,input->energy,s->particleRadiationAffineUpdate);
     err=cudaMemsetAsync(s->radiationMobileMass,0,s->nCells*sizeof(GpuReal),0);
     if(err==cudaSuccess)err=cudaMemsetAsync(s->radiationMobileTemperatureMass,0,s->nCells*sizeof(GpuReal),0);
     if(err!=cudaSuccess){setLastError("clear resident radiation enthalpy sums",err);return 1;}
     if(s->particlesMayBePresent){
-        radiationEnthalpyCapacityKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,s->particleRadiationAffineUpdate);
-        radiationEnthalpyApplyKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,s->particleRadiationAffineUpdate);
+        if(!input->publicationFraction)
+            radiationEnthalpyCapacityKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,s->particleRadiationAffineUpdate);
+        radiationEnthalpyApplyKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,s->particleRadiationAffineUpdate,input->publicationFraction);
     }
     if((err=cudaGetLastError())!=cudaSuccess){setLastError("resident radiation enthalpy launch",err);return 1;}
     err=cudaEventRecord(wall.interfaceInputReady,nullptr);
@@ -5683,6 +5551,44 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationDeviceEnergy(void* ha
         if(err!=cudaSuccess){setLastError("resident radiation enthalpy publication",err);return 1;}
         return s->diagnosticOwner->dispatchPending()?1:0;
     }
+
+#ifdef UGKP_RADIATION_PUBLICATION_OBSERVE
+    // One-shot isolated observation only. No state/acceptance changes.
+    if(const char* prefix=std::getenv("UGKP_RADIATION_PUBLICATION_OBSERVE_PREFIX")) {
+        static unsigned observation=0;
+        int count=0;
+        std::vector<GpuReal> capacity(s->nCells),actual(s->nCells);
+        std::vector<Foam::gpuThermal::RadiationAffineTemperatureUpdate> request(s->nCells);
+        cudaError_t observed=cudaMemcpy(&count,s->particleCountDevice,sizeof(count),cudaMemcpyDeviceToHost);
+        if(observed==cudaSuccess)observed=cudaMemcpy(capacity.data(),s->radiationMobileMass,s->nCells*sizeof(GpuReal),cudaMemcpyDeviceToHost);
+        if(observed==cudaSuccess)observed=cudaMemcpy(actual.data(),s->radiationMobileTemperatureMass,s->nCells*sizeof(GpuReal),cudaMemcpyDeviceToHost);
+        if(observed==cudaSuccess)observed=cudaMemcpy(request.data(),s->particleRadiationAffineUpdate,s->nCells*sizeof(request[0]),cudaMemcpyDeviceToHost);
+        if(observed==cudaSuccess && count>=0) {
+            std::vector<int> status(count),cell(count),eligible(s->nCells,0);
+            std::vector<unsigned char> wall(count);
+            if(count) {
+                observed=cudaMemcpy(status.data(),s->pStatus,count*sizeof(int),cudaMemcpyDeviceToHost);
+                if(observed==cudaSuccess)observed=cudaMemcpy(cell.data(),s->pCellId,count*sizeof(int),cudaMemcpyDeviceToHost);
+                if(observed==cudaSuccess)observed=cudaMemcpy(wall.data(),s->pStuck,count*sizeof(unsigned char),cudaMemcpyDeviceToHost);
+            }
+            if(observed==cudaSuccess) {
+                for(int i=0;i<count;++i)if(status[i]==1 && wall[i]==Foam::gpuThermal::particleWallMobile && cell[i]>=0 && cell[i]<s->nCells)++eligible[cell[i]];
+                const std::string path=std::string(prefix)+"-"+std::to_string(++observation)+".csv";
+                if(FILE* f=std::fopen(path.c_str(),"w")) {
+                    std::fprintf(f,"cell,request_J,capacity_J,eligible_count,accepted_J,capacity_limited_J,capacity_delta_J,publication_delta_J\n");
+                    for(int c=0;c<s->nCells;++c) {
+                        const double q=request[c].scale,cap=capacity[c],a=actual[c];
+                        const double limited=std::copysign(std::min(std::abs(q),std::max(0.,cap)),q);
+                        std::fprintf(f,"%d,%.17g,%.17g,%d,%.17g,%.17g,%.17g,%.17g\n",c,q,cap,eligible[c],a,limited,limited-q,a-limited);
+                    }
+                    std::fclose(f);
+                } else std::fprintf(stderr,"RADIATION_OBSERVE unable to write %s\n",path.c_str());
+            }
+        }
+        if(observed!=cudaSuccess)std::fprintf(stderr,"RADIATION_OBSERVE copy failed: %s\n",cudaGetErrorString(observed));
+    }
+#endif
+
     // Sticky device diagnostics are published at the owner's output boundary.
     return 0;
 }
@@ -5705,7 +5611,7 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationEnergy(void* handle,i
     if(err==cudaSuccess)err=cudaMemsetAsync(s->radiationMobileTemperatureMass,0,cells*sizeof(GpuReal),0);
     if(err!=cudaSuccess){setLastError("clear radiation enthalpy sums",err);return 1;}
     radiationEnthalpyCapacityKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,s->particleRadiationAffineUpdate);
-    radiationEnthalpyApplyKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,s->particleRadiationAffineUpdate);
+    radiationEnthalpyApplyKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState,s->particleRadiationAffineUpdate,nullptr);
     if((err=cudaGetLastError())!=cudaSuccess){setLastError("radiation enthalpy launch",err);return 1;}
     return copyToHost(accepted,s->radiationMobileTemperatureMass,cells,"accepted radiation heat");
 }
@@ -6204,11 +6110,11 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
     GpuReal*& areaScale = s->particleWallContactAreaScale;
     GpuReal*& wallEffusivityByFace = s->particleWallEffusivityByFace;
     double*& finiteContactTable = s->finiteContactRateTable;
-    float*& coldNodeSpecificEnthalpy = s->pColdNodeSpecificEnthalpy;
+    double*& coldNodeSpecificEnthalpy = s->pColdNodeSpecificEnthalpy;
     double*& coldRingSolidMass = s->pColdRingSolidMass;
     double*& coldFrozenArea = s->pColdFrozenArea;
     double*& coldContactAge = s->pColdContactAge;
-    float*& compactColdNodeSpecificEnthalpy = s->compactPColdNodeSpecificEnthalpy;
+    double*& compactColdNodeSpecificEnthalpy = s->compactPColdNodeSpecificEnthalpy;
     double*& compactColdRingSolidMass = s->compactPColdRingSolidMass;
     double*& compactColdFrozenArea = s->compactPColdFrozenArea;
     double*& compactColdContactAge = s->compactPColdContactAge;
@@ -6302,9 +6208,18 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
     {
         return 1;
     }
+    if (coldWall1DEnabled && s->pColdHandle == nullptr) {
+        if (allocate(s->pColdHandle,particleCapacity,"cold wall handles")
+         || allocate(s->compactPColdHandle,particleCapacity,"cold wall compact handles")
+         || allocate(s->coldFreeHandles,particleCapacity,"cold wall free handles")
+         || allocate(s->coldFreeCounts,1u,"cold wall free stack count")) return 1;
+        Foam::gpuWall::ColdWall1DHandles pool{s->pColdHandle,s->compactPColdHandle,
+            s->coldFreeHandles,s->coldFreeCounts,s->particleCapacity};
+        Foam::gpuWall::initialiseColdWall1DHandlesKernel<<<(s->particleCapacity+coldWallBlockThreads-1)/coldWallBlockThreads,coldWallBlockThreads>>>(pool);
+    }
     if (coldWall1DEnabled)
     {
-        const cudaError_t e0 = initialise(coldNodeSpecificEnthalpy, coldNodeStorage*sizeof(float), coldNodeSpecificEnthalpyInit);
+        const cudaError_t e0 = initialise(coldNodeSpecificEnthalpy, coldNodeStorage*sizeof(double), coldNodeSpecificEnthalpyInit);
         const cudaError_t e1 = initialise(coldRingSolidMass, coldRingStorage*sizeof(double), coldRingSolidMassInit);
         const cudaError_t e2 = initialise(coldFrozenArea, particleCapacity*sizeof(double), coldFrozenAreaInit);
         const cudaError_t e3 = initialise(coldContactAge, particleCapacity*sizeof(*coldContactAge), coldContactAgeInit);
@@ -6504,7 +6419,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     const double* pContactDuration,
     const double* pContactMaximumArea,
     const double* pContactPeakFraction,
-    const float* pColdNodeSpecificEnthalpy,
+    const double* pColdNodeSpecificEnthalpy,
     const double* pColdRingSolidMass,
     const double* pColdFrozenArea,
     const double* pColdContactAge,
@@ -6679,6 +6594,9 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     rc |= copyToDevice(s->pContactPeakFraction, pContactPeakFraction, n, "cudaMemcpy restart pContactPeakFraction");
     if (s->coldWallSolidificationEnabled != 0)
     {
+        Foam::gpuWall::ColdWall1DHandles pool{s->pColdHandle,s->compactPColdHandle,
+            s->coldFreeHandles,s->coldFreeCounts,s->particleCapacity};
+        Foam::gpuWall::initialiseColdWall1DHandlesKernel<<<(s->particleCapacity+coldWallBlockThreads-1)/coldWallBlockThreads,coldWallBlockThreads>>>(pool,static_cast<int>(n));
         rc |= copyToDevice
         (
             s->pColdNodeSpecificEnthalpy,
@@ -6789,7 +6707,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     double* pContactDuration,
     double* pContactMaximumArea,
     double* pContactPeakFraction,
-    float* pColdNodeSpecificEnthalpy,
+    double* pColdNodeSpecificEnthalpy,
     double* pColdRingSolidMass,
     double* pColdFrozenArea,
     double* pColdContactAge,
@@ -6880,31 +6798,35 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     rc |= copyToHost(pContactPeakFraction, s->pContactPeakFraction, n, "cudaMemcpy restart pContactPeakFraction");
     if (s->coldWallSolidificationEnabled != 0)
     {
+        Foam::gpuWall::gatherColdWall1DStateKernel<std::remove_pointer<decltype(s->pColdNodeSpecificEnthalpy)>::type,8><<<(n*8+coldWallBlockThreads-1)/coldWallBlockThreads,coldWallBlockThreads>>>(s->deviceState,s->pColdNodeSpecificEnthalpy,s->compactPColdNodeSpecificEnthalpy,n);
+        Foam::gpuWall::gatherColdWall1DStateKernel<std::remove_pointer<decltype(s->pColdRingSolidMass)>::type,8><<<(n*8+coldWallBlockThreads-1)/coldWallBlockThreads,coldWallBlockThreads>>>(s->deviceState,s->pColdRingSolidMass,s->compactPColdRingSolidMass,n);
+        Foam::gpuWall::gatherColdWall1DStateKernel<std::remove_pointer<decltype(s->pColdFrozenArea)>::type,1><<<(n*1+coldWallBlockThreads-1)/coldWallBlockThreads,coldWallBlockThreads>>>(s->deviceState,s->pColdFrozenArea,s->compactPColdFrozenArea,n);
+        Foam::gpuWall::gatherColdWall1DStateKernel<std::remove_pointer<decltype(s->pColdContactAge)>::type,1><<<(n*1+coldWallBlockThreads-1)/coldWallBlockThreads,coldWallBlockThreads>>>(s->deviceState,s->pColdContactAge,s->compactPColdContactAge,n);
         rc |= copyToHost
         (
             pColdNodeSpecificEnthalpy,
-            s->pColdNodeSpecificEnthalpy,
+            s->compactPColdNodeSpecificEnthalpy,
             n*Foam::gpuThermal::coldWallAxialNodeCount,
             "cudaMemcpy restart pColdNodeSpecificEnthalpy"
         );
         rc |= copyToHost
         (
             pColdRingSolidMass,
-            s->pColdRingSolidMass,
+            s->compactPColdRingSolidMass,
             n*Foam::gpuThermal::coldWallRadialRingCount,
             "cudaMemcpy restart pColdRingSolidMass"
         );
         rc |= copyToHost
         (
             pColdFrozenArea,
-            s->pColdFrozenArea,
+            s->compactPColdFrozenArea,
             n,
             "cudaMemcpy restart pColdFrozenArea"
         );
         rc |= copyToHost
         (
             pColdContactAge,
-            s->pColdContactAge,
+            s->compactPColdContactAge,
             n,
             "cudaMemcpy restart pColdContactAge"
         );

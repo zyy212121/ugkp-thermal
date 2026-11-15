@@ -1,3 +1,4 @@
+#include "WorkPlan.H"
 #include "ThermalFieldOperators.H"
 #include "ThermalGradientKernels.cuh"
 #include <cuda_runtime.h>
@@ -41,17 +42,17 @@ ThermalFieldOperators::ThermalFieldOperators():data_(new Implementation){}
 ThermalFieldOperators::~ThermalFieldOperators()=default;
 void ThermalFieldOperators::interpolate(const std::vector<ScalarFaceInterpolation>& input,bool harmonic,std::vector<GpuReal>& output){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);int n=input.size();d.scalar.upload(input,d.transfers);d.scalarOutput.reserve(n);
-    if(n)interpolateScalar<<<(n+127)/128,128,0,d.stream>>>(n,d.scalar.ptr,harmonic,d.scalarOutput.ptr);
+    if(n)interpolateScalar<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(n,d.scalar.ptr,harmonic,d.scalarOutput.ptr);
     d.scalarOutput.download(output,n,d.transfers);d.transfers.finish();
 }
 void ThermalFieldOperators::dotInterpolate(const std::vector<VectorFaceInterpolation>& input,std::vector<GpuReal>& output){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);int n=input.size();d.vector.upload(input,d.transfers);d.scalarOutput.reserve(n);
-    if(n)interpolateDot<<<(n+127)/128,128,0,d.stream>>>(n,d.vector.ptr,d.scalarOutput.ptr);
+    if(n)interpolateDot<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(n,d.vector.ptr,d.scalarOutput.ptr);
     d.scalarOutput.download(output,n,d.transfers);d.transfers.finish();
 }
 void ThermalFieldOperators::correctGradient(const std::vector<GradientBoundaryCorrection>& input,std::vector<ThermalVector>& output){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);int n=input.size();d.boundary.upload(input,d.transfers);d.vectorOutput.reserve(n);
-    if(n)boundaryGradient<<<(n+127)/128,128,0,d.stream>>>(n,d.boundary.ptr,d.vectorOutput.ptr);
+    if(n)boundaryGradient<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(n,d.boundary.ptr,d.vectorOutput.ptr);
     d.vectorOutput.download(output,n,d.transfers);d.transfers.finish();
 }
 void ThermalFieldOperators::gradient(const GaussGradientInput& input,std::vector<ThermalVector>& output){
@@ -64,7 +65,7 @@ void ThermalFieldOperators::gradient(const GaussGradientInput& input,std::vector
         d.cells=n;d.internal=ni;d.owner=input.owner;d.neighbour=input.neighbour;
     }
     d.faceValue.upload(input.faceValue,d.transfers);d.volume.upload(input.volume,d.transfers);d.area.upload(input.area,d.transfers);d.vectorOutput.reserve(n);
-    if(n)thermalGradientDetail::cellGradient<<<(n+127)/128,128,0,d.stream>>>(n,d.offsets.ptr,d.faces.ptr,d.signs.ptr,d.faceValue.ptr,d.area.ptr,d.volume.ptr,d.vectorOutput.ptr);
+    if(n)thermalGradientDetail::cellGradient<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(n,d.offsets.ptr,d.faces.ptr,d.signs.ptr,d.faceValue.ptr,d.area.ptr,d.volume.ptr,d.vectorOutput.ptr);
     d.vectorOutput.download(output,n,d.transfers);d.transfers.finish();
 }
 }}

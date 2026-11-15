@@ -1,3 +1,4 @@
+#include "../../../common/gpu/WorkPlan.H"
 #pragma once
 #include "gpu/ResidentMaterialSlice.H"
 #include <cuda_runtime.h>
@@ -60,7 +61,7 @@ __global__ void commit(const ugkp::IntervalSlicePlan* plan,MaterialSliceAccumula
         if(f<externalFaces)current.externalRadiation[f]=candidate.externalRadiation[f];
     }
 }
-inline unsigned blocks(std::size_t n){const auto count=n/128+(n%128!=0);return unsigned(count>65535?65535:(count?count:1));}
+inline unsigned blocks(std::size_t n){const auto count=n/ugkp::gpu::workPlan().materialBlockThreads+(n%ugkp::gpu::workPlan().materialBlockThreads!=0);return unsigned(count>65535?65535:(count?count:1));}
 }
 // Allocations and stream ownership belong to the material owner. Preparation
 // and commit are separate so a rejected physical source never consumes history.
@@ -72,7 +73,7 @@ inline cudaError_t prepareResidentMaterialSlice(ResidentMaterialSlice slice,
     material_slice_detail::plan<<<1,1,0,stream>>>(slice.history,cursor,target,externalFaces,plan);
     auto error=cudaGetLastError();if(error!=cudaSuccess)return error;
     slice.plan=plan;const auto count=slice.history.faces>externalFaces?slice.history.faces:externalFaces;
-    if(count)material_slice_detail::prepare<<<material_slice_detail::blocks(count),128,0,stream>>>(slice,candidate,external,externalFaces,total,radiation);
+    if(count)material_slice_detail::prepare<<<material_slice_detail::blocks(count),ugkp::gpu::workPlan().materialBlockThreads,0,stream>>>(slice,candidate,external,externalFaces,total,radiation);
     return cudaGetLastError();
 }
 // The original host IntervalCursor already selected these record indices and
@@ -81,7 +82,7 @@ inline cudaError_t prepareHostSelectedMaterialSlice(ResidentMaterialSlice slice,
     MaterialSliceAccumulators candidate,const EnergyReal* external,std::size_t externalFaces,
     EnergyReal* radiation,cudaStream_t stream){
     const auto count=slice.history.faces>externalFaces?slice.history.faces:externalFaces;
-    if(count)material_slice_detail::prepare<<<material_slice_detail::blocks(count),128,0,stream>>>(
+    if(count)material_slice_detail::prepare<<<material_slice_detail::blocks(count),ugkp::gpu::workPlan().materialBlockThreads,0,stream>>>(
         slice,candidate,external,externalFaces,ugkp::CompensatedTime{},radiation);
     return cudaGetLastError();
 }
@@ -90,7 +91,7 @@ inline cudaError_t commitResidentMaterialSlice(const ugkp::IntervalSlicePlan* pl
     std::size_t faces,std::size_t externalFaces,ugkp::IntervalSliceCursor* cursor,
     const int* accepted,cudaStream_t stream){
     const auto count=faces>externalFaces?faces:externalFaces;
-    material_slice_detail::commit<<<material_slice_detail::blocks(count),128,0,stream>>>(plan,candidate,current,faces,externalFaces,cursor,accepted);
+    material_slice_detail::commit<<<material_slice_detail::blocks(count),ugkp::gpu::workPlan().materialBlockThreads,0,stream>>>(plan,candidate,current,faces,externalFaces,cursor,accepted);
     return cudaGetLastError();
 }
 }

@@ -11,8 +11,8 @@ __device__ void clearColdWallParticleState
     {
         return;
     }
-    const int nodeBase = particleI*Foam::gpuThermal::coldWallAxialNodeCount;
-    const int ringBase = particleI*Foam::gpuThermal::coldWallRadialRingCount;
+    const int nodeBase = Foam::gpuWall::coldWallSlot(s,particleI)*Foam::gpuThermal::coldWallAxialNodeCount;
+    const int ringBase = Foam::gpuWall::coldWallSlot(s,particleI)*Foam::gpuThermal::coldWallRadialRingCount;
     for (int node = 0; node < Foam::gpuThermal::coldWallAxialNodeCount; ++node)
     {
         s.pColdNodeSpecificEnthalpy[nodeBase + node] = 0.0;
@@ -21,8 +21,8 @@ __device__ void clearColdWallParticleState
     {
         s.pColdRingSolidMass[ringBase + ring] = 0.0;
     }
-    s.pColdFrozenArea[particleI] = 0.0;
-    s.pColdContactAge[particleI] = 0.0;
+    s.pColdFrozenArea[Foam::gpuWall::coldWallSlot(s,particleI)] = 0.0;
+    s.pColdContactAge[Foam::gpuWall::coldWallSlot(s,particleI)] = 0.0;
 }
 
 __device__ void initialiseColdWallParticleState
@@ -51,23 +51,21 @@ __device__ void initialiseColdWallParticleState
         temperatureK,
         s.coldWallSolidificationParameters
     );
-    const int nodeBase = particleI*Foam::gpuThermal::coldWallAxialNodeCount;
-    const int ringBase = particleI*Foam::gpuThermal::coldWallRadialRingCount;
+    const int nodeBase = Foam::gpuWall::coldWallSlot(s,particleI)*Foam::gpuThermal::coldWallAxialNodeCount;
+    const int ringBase = Foam::gpuWall::coldWallSlot(s,particleI)*Foam::gpuThermal::coldWallRadialRingCount;
     for (int node = 0; node < Foam::gpuThermal::coldWallAxialNodeCount; ++node)
     {
         s.pColdNodeSpecificEnthalpy[nodeBase + node] =
             static_cast<typename std::remove_reference<decltype(s.pColdNodeSpecificEnthalpy[0])>::type>(nodeEnthalpy[node]);
     }
 #ifdef GPU_PAIRED_PARTICLE_HEAT
-
-
-    s.pThermalEnthalpyResidual[particleI] += double(nodeEnthalpy[0])
-      - double(s.pColdNodeSpecificEnthalpy[nodeBase]);
+    // This shared slot is used only by non-profile caloric models.
+    s.pThermalEnthalpyResidual[particleI] = 0.0;
 #endif
     for (int ring = 0; ring < Foam::gpuThermal::coldWallRadialRingCount; ++ring)
     {
         s.pColdRingSolidMass[ringBase + ring] = 0.0;
     }
-    s.pColdFrozenArea[particleI] = 0.0;
-    s.pColdContactAge[particleI] = 0.0;
+    s.pColdFrozenArea[Foam::gpuWall::coldWallSlot(s,particleI)] = 0.0;
+    s.pColdContactAge[Foam::gpuWall::coldWallSlot(s,particleI)] = 0.0;
 }

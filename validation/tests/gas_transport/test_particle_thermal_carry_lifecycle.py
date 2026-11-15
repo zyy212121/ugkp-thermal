@@ -17,7 +17,7 @@ def contract_module():
     return module
 
 
-def test_carry_is_cht_only_and_real_lifecycle_preserves_sub_float_bits(tmp_path):
+def test_noncold_carry_lifecycle_preserves_sub_float_bits(tmp_path):
     meta = json.loads((ROOT / "common/ParticleFieldManifest.json").read_text())
     fields = {field["name"]: field for field in meta["fields"]}
     assert NAME in fields, "CHT thermal carry must have an explicit persistent lifecycle field"
@@ -42,11 +42,11 @@ copyCellLocalParticle(*s,1,9,0);
 """)
     source, binary = tmp_path / f"lifecycle{64}.cpp", tmp_path / f"lifecycle{64}"
     source.write_text(code)
-    subprocess.run(["g++", "-std=c++17", "-O0", "-I" + str(ROOT / "common"), str(source), "-o", str(binary)], check=True)
+    subprocess.run(["g++", "-std=c++17", "-O0", "-I"+str(tmp_path), "-I" + str(ROOT / "common"), str(source), "-o", str(binary)], check=True)
     subprocess.run([str(binary), str(tmp_path / f"lifecycle{64}.wire")], check=True)
 
 
-def test_schema8_preserves_carry_and_schema7_initializes_zero(tmp_path):
+def test_native_schema_preserves_noncold_carry_and_raw_nodes(tmp_path):
     header = (ROOT / "applications/CHT/gpu/GpuChtParticleRestart.H").read_text()
     assert "writeCurrent" in header, "exact thermal carry persistence needs its own wire version"
     meta = json.loads((ROOT / "common/ParticleFieldManifest.json").read_text())
@@ -69,15 +69,18 @@ DECLARATIONS
 ASSIGNMENTS
   double residual[3]={0.00030000000000000003,-0.00020000000000000001,std::nextafter(0.0005,1.0)};
   double restored[3]={9,9,9}; in.pThermalEnthalpyResidual=residual; out.pThermalEnthalpyResidual=restored;
+  for(int i=0;i<24;++i)pColdNodeSpecificEnthalpy[i]=std::nextafter(3000000.+i,4000000.);
+  const auto expectedNodes=pColdNodeSpecificEnthalpy;
   std::ostringstream wire(std::ios::binary); writeCurrent(wire,in);
+  std::fill(pColdNodeSpecificEnthalpy.begin(),pColdNodeSpecificEnthalpy.end(),0.);
   std::istringstream input(wire.str(),std::ios::binary); std::string marker; std::size_t count; std::uint32_t bound;
   input>>marker>>count>>bound; assert(marker==currentFormatName && count==3);
   readCurrentPayload(input,bound,out);
   for(int i=0;i<3;++i) assert(restored[i]==residual[i]);
-  std::ostringstream old(std::ios::binary); Foam::gpuThermalRestart::write<double>(old,in);
-  std::istringstream legacy(old.str(),std::ios::binary); legacy>>marker>>count>>bound;
-  readV7Payload(legacy,bound,out);
-  for(double value:restored) assert(value==0.0);
+  assert(pColdNodeSpecificEnthalpy==expectedNodes);
+  for(double h:pColdNodeSpecificEnthalpy)assert(h!=double(float(h)));
+  assert(marker==Foam::gpuThermalRestart::native64ChtMarker);
+  assert(!nativeRestartSupported(schema9FormatName));
   for (int kind=0;kind<3;++kind) {
     std::string broken=wire.str();
     if(kind==0) broken.pop_back();
@@ -105,12 +108,12 @@ def test_actual_injection_initializes_reused_slot_without_other_solver_storage(t
 #define __device__
 #define __global__
 #define __forceinline__ inline
-#include "GpuFrozenParticleRelease.cuh"
 #define GPU_OPERATOR_REAL double
 #define GPU_OPERATOR_TIME double
 #define GPU_OPERATOR_R(x) static_cast<double>(x)
 #define GPU_OPERATOR_THERMAL 0
-struct Dim { int x=0; } blockIdx, threadIdx, blockDim;
+struct Dim { int x=0; } blockIdx, threadIdx, blockDim, gridDim;
+#include "GpuFrozenParticleRelease.cuh"
 #include "BoundaryInjectionApi.H"
 struct DeviceState {
  ugkwp::BoundaryInjectionStorage boundaryInjection;
@@ -140,7 +143,7 @@ unsigned long long mixSeed(unsigned long long x){return x;}
 double sampleDiameterAroundDevice(const DeviceState&,double d,unsigned long long&){return d;}
 #include "GpuContactAgeStorage.cuh"
 #include "operators/injectBoundaryParticlesKernel.cuh"
-int main(){DeviceState s;blockDim.x=1;injectBoundaryParticlesKernel(&s,1.0,0.0);
+int main(){DeviceState s;blockDim.x=1;gridDim.x=1;injectBoundaryParticlesKernel(&s,1.0,0.0);
 assert(s.n==1&&s.pStatus[0]==1&&s.pT[0]==300&&s.pThermalEnthalpyResidual[0]==0.0);
 struct OtherState{} other;
 resetParticleThermalEnthalpyResidual(other,0,0);
@@ -148,9 +151,10 @@ copyParticleThermalEnthalpyResidual(other,0,0,0);
 swapParticleThermalEnthalpyResidual(other,0);
 }
 '''
+    (tmp_path/"cuda_runtime.h").write_text("")
     source, binary = tmp_path / "injection.cpp", tmp_path / "injection"
     source.write_text(code)
-    subprocess.run(["g++", "-std=c++17", "-O0", "-I" + str(ROOT / "common"), str(source), "-o", str(binary)], check=True)
+    subprocess.run(["g++", "-std=c++17", "-O0", "-I"+str(tmp_path), "-I" + str(ROOT / "common"), str(source), "-o", str(binary)], check=True)
     subprocess.run([str(binary)], check=True)
 
 
@@ -180,155 +184,73 @@ def test_cht_direct_backend_matches_public_restart_api(tmp_path):
                 assert count == expected, (filename, name, count)
 
 
-def test_actual_cold_profile_transitions_preserve_increment_and_legacy_reference(tmp_path):
-    """No transition-law repair: compare actual ±carry routes with zero-carry twins.
-
-    Schema7 supplies the initial nonzero temperature and zero carry. The test then
-    seeds a small represented increment, runs real initialization/clear/detach
-    bodies, and separates that increment from the pre-existing caloric-law jump.
-    """
-    def function(source, name):
-        start = source.index(name)
-        brace = source.index("{", start)
-        depth, end = 1, brace + 1
-        while depth:
-            depth += (source[end] == "{") - (source[end] == "}")
-            end += 1
-        return source[start:end]
-
-    source2d = (ROOT / "common/wall/GpuColdWall2DDevice.cuh").read_text()
-    bodies2d = "\n".join(function(source2d, "__device__ void " + name) for name in (
-        "clearColdWall2DParticleState", "initialiseColdWall2DParticleState"))
-    contact = (ROOT / "common/operators/FiniteContactRelaxation.inl").read_text()
-    detach = function(contact, "if (detach)")
-    meta = json.loads((ROOT / "common/ParticleFieldManifest.json").read_text())
-    fields = [f for f in meta["fields"] if "CHT" in f["host"] and f["schema7"] is not None]
-    def wire_type(field):
-        return {"unsigned long long": "std::uint64_t", "unsigned char": "std::uint8_t", "int": "std::int32_t"}.get(field["host"]["CHT"], field["host"]["CHT"])
-    declarations = "\n".join(f"std::vector<{wire_type(f)}> {f['name']}({f['width']}, static_cast<{wire_type(f)}>(1));" for f in fields)
-    assignments = "\n".join(f"in.{f['name']}={f['name']}.data(); out.{f['name']}={f['name']}.data();" for f in fields)
-    code = r'''
-#include "GpuPrecisionTypes.H"
-#include "wall/GpuColdWallSolidification.H"
-#include "wall/GpuColdWall2DSolidification.H"
-#include "wall/GpuFiniteWallContact.H"
-#include "GpuParticleCaloric.H"
-#include "applications/CHT/gpu/GpuChtParticleRestart.H"
-#include "validation/tests/fixtures/shared_operators/legacy_restart_writer.hpp"
+def test_raw_cold_profile_authority_and_release_without_compensation(tmp_path):
+    # Execute actual native64 initialization, caloric lookup and release helpers.
+    # Mobile residual remains a separate noncold model contract.
+    code = r"""
 #include <cassert>
 #include <cmath>
-#include <sstream>
-#include <vector>
+#include <initializer_list>
+#include "GpuParticleBoundaryModel.H"
+#include "wall/GpuFiniteWallContact.H"
+#include "GpuPrecisionTypes.H"
+#include "wall/GpuColdWallSolidification.H"
+#include "GpuParticleCaloric.H"
+#define __host__
 #define __device__
+#define __global__
 #define __forceinline__ inline
+struct Dim {int x=0;}; Dim blockIdx,threadIdx,blockDim{1},gridDim{1};
 #include "GpuFrozenParticleRelease.cuh"
 #define GPU_OPERATOR_REAL GpuReal
-#define GPU_OPERATOR_R(x) GPU_R(x)
-#define GPU_RESET_CONTACT_AGE(s,i) s.pContactAge[i]=0;
-struct InvalidTransition {};
-#define asm(...) throw InvalidTransition{}
+#define GPU_OPERATOR_R GPU_R
 struct DeviceState {
- int coldWallSolidificationEnabled=1,coldWall2DEnabled=1,nFaces=1;
- GpuReal pT[1]={GPU_R(300)},compactPT[1]={GPU_R(300)};
+ int coldWallSolidificationEnabled=1,nFaces=1;
+ double pT[1]={300},compactPT[1]={300};
  double pThermalEnthalpyResidual[1]={0},compactPThermalEnthalpyResidual[1]={0};
- unsigned char pStuck[1]={0},compactPStuck[1]={0},particleStuckCandidateMask[1]={0};
- int pStuckFaceId[1]={-1},compactPStuckFaceId[1]={-1};
- float pColdNodeSpecificEnthalpy[8]={},compactPColdNodeSpecificEnthalpy[8]={};
- double pColdRingSolidMass[8]={},pColdFrozenArea[1]={};double pColdContactAge[1]={};
+ unsigned char pStuck[1]={0},compactPStuck[1]={0},particleStuckCandidateMask[1]={3};
+ int pStuckFaceId[1]={0},compactPStuckFaceId[1]={0};
+ double pColdNodeSpecificEnthalpy[8]={},compactPColdNodeSpecificEnthalpy[8]={};
+ double pColdRingSolidMass[8]={},pColdFrozenArea[1]={},pColdContactAge[1]={};
  float pCold2DNodeSpecificEnthalpy[64]={},compactPCold2DNodeSpecificEnthalpy[64]={};
- double pCold2DRingContactAge[8]={};double pCold2DFrozenArea[1]={};
- GpuReal pux[1]={},puy[1]={},puz[1]={},puxOld[1]={GPU_R(1)},puyOld[1]={GPU_R(2)},puzOld[1]={GPU_R(3)},pTheta[1]={};
- double pContactAge[1]={};double pDepositionArea[1]={},pContactDuration[1]={},pContactMaximumArea[1]={},pContactPeakFraction[1]={};
  Foam::gpuThermal::ColdWallSolidificationParameters coldWallSolidificationParameters
-  {GPU_R(2327),GPU_R(20),GPU_R(1e6),GPU_R(3900),GPU_R(1000),GPU_R(5),GPU_R(.1),GPU_R(1e-6),0,3};
+ {2327,20,1e6,3900,1000,5,.1,1e-6,0,3};
 };
+#define GPU_PAIRED_PARTICLE_HEAT
+#include <cstdlib>
+#define asm(...) std::abort()
 #include "operators/clearColdWallParticleState.cuh"
-BODIES2D
 #include "GpuParticleCaloricDevice.cuh"
-void detachParticle(DeviceState& s,int i){const bool detach=true,releaseAtRest=false;DETACH}
-
-double schema7Temperature(const double temperature) {
- DECLARATIONS
- Foam::gpuFshRestart::ConstView in{};Foam::gpuFshRestart::MutableView out{};in.count=out.count=1;
- ASSIGNMENTS
- pT[0]=temperature;double carry=9;out.pThermalEnthalpyResidual=&carry;
- std::ostringstream old(std::ios::binary);Foam::gpuThermalRestart::write<double>(old,in);
- pT[0]=-1;
- std::istringstream stream(old.str(),std::ios::binary);std::string marker;std::size_t count;std::uint32_t bound;
- stream>>marker>>count>>bound;assert(marker==Foam::gpuFshRestart::schema7FormatName&&count==1);
- Foam::gpuFshRestart::readV7Payload(stream,bound,out);
- assert(pT[0]==temperature&&carry==0.0);return pT[0];
-}
-void sameMaterialRepresentation(const DeviceState& baseline,const DeviceState& carried,double increment) {
- assert(baseline.pT[0]==carried.pT[0]);
- assert(baseline.pThermalEnthalpyResidual[0]==0&&carried.pThermalEnthalpyResidual[0]==increment);
- assert(particleMaterialEnthalpyBaseDevice(baseline,0)==particleMaterialEnthalpyBaseDevice(carried,0));
- assert(particleCaloricDevice(baseline,0).specificHeat(double(baseline.pT[0]))==particleCaloricDevice(carried,0).specificHeat(double(carried.pT[0])));
- assert(particleCaloricDevice(baseline,0).phaseChange==particleCaloricDevice(carried,0).phaseChange);
- for(int n=0;n<8;++n){
-  assert(baseline.pColdNodeSpecificEnthalpy[n]==carried.pColdNodeSpecificEnthalpy[n]);
-  assert(baseline.pColdRingSolidMass[n]==carried.pColdRingSolidMass[n]);
-  assert(baseline.pCold2DRingContactAge[n]==carried.pCold2DRingContactAge[n]);
- }
- assert(baseline.pColdFrozenArea[0]==carried.pColdFrozenArea[0]&&baseline.pColdContactAge[0]==carried.pColdContactAge[0]&&baseline.pCold2DFrozenArea[0]==carried.pCold2DFrozenArea[0]);
- for(int n=0;n<64;++n)assert(baseline.pCold2DNodeSpecificEnthalpy[n]==carried.pCold2DNodeSpecificEnthalpy[n]);
- const double effectiveIncrement=particleEffectiveSpecificEnthalpyDevice(carried,0)-particleEffectiveSpecificEnthalpyDevice(baseline,0);
- assert(std::abs(effectiveIncrement-increment)<2e-9);
-}
 int main(){
- using namespace Foam::gpuThermal;
- for(double originalTemperature:{2200.0,2327.0,3000.0}) {
-  const GpuReal temperature=GpuReal(schema7Temperature(originalTemperature));
-  for(double increment:{0.00030000000000000003,-0.00020000000000000001}) {
-   for(int dimensions:{1,2}) {
-    DeviceState baseline,carried;baseline.pT[0]=carried.pT[0]=temperature;
-    carried.pThermalEnthalpyResidual[0]=increment;
-    sameMaterialRepresentation(baseline,carried,increment);
-    const double mobileBase=particleMaterialEnthalpyBaseDevice(baseline,0);
-    const double mobileEffective=particleEffectiveSpecificEnthalpyDevice(carried,0);
-    for(DeviceState* state:{&baseline,&carried}) {
-     state->pStuck[0]=particleWallTransientRebound;state->pStuckFaceId[0]=0;
-     state->particleStuckCandidateMask[0]=dimensions==1?particleWallSolidifyingDeposition:particleWallColdWall2D;
-     if(dimensions==1){initialiseColdWallParticleState(*state,0,temperature);clearColdWall2DParticleState(*state,0);}
-     else {clearColdWallParticleState(*state,0);initialiseColdWall2DParticleState(*state,0,temperature);}
-    }
-    // A mutation that erases carry on either transition must fail this probe.
-    MUTATION
-    sameMaterialRepresentation(baseline,carried,increment);
-    assert(particleCaloricDevice(carried,0).phaseChange);
-    const double coldBase=particleMaterialEnthalpyBaseDevice(baseline,0);
-    const double coldEffective=particleEffectiveSpecificEnthalpyDevice(carried,0);
-    const double legacyReferenceJump=coldBase-mobileBase;
-    assert(std::abs(legacyReferenceJump)>1.0); // Explicit existing reference/model difference.
-    assert(std::abs((coldEffective-mobileEffective)-legacyReferenceJump)<2e-9);
-    // Run the real stuck-to-mobile block, including both real clear helpers.
-    detachParticle(baseline,0);detachParticle(carried,0);
-    sameMaterialRepresentation(baseline,carried,increment);
-    assert(carried.pStuck[0]==particleWallMobile&&carried.pStuckFaceId[0]==-1);
-    assert(!particleCaloricDevice(carried,0).phaseChange);
-    assert(particleMaterialEnthalpyBaseDevice(carried,0)==mobileBase);
-    assert(std::abs((particleEffectiveSpecificEnthalpyDevice(carried,0)-coldEffective)+legacyReferenceJump)<2e-9);
-    for(float value:carried.pColdNodeSpecificEnthalpy)assert(value==0);
-    for(float value:carried.pCold2DNodeSpecificEnthalpy)assert(value==0);
-   }
-  }
+ for(double temperature:{2200.,2327.,3000.}){
+  DeviceState s;s.pT[0]=temperature;s.pThermalEnthalpyResidual[0]=.0003;
+  const double mobile=particleCaloricDevice(s,0).enthalpy(temperature);
+  assert(particleEffectiveSpecificEnthalpyDevice(s,0)==mobile+.0003);
+  s.pStuck[0]=1;
+  initialiseColdWallParticleState(s,0,temperature);
+  assert(s.pThermalEnthalpyResidual[0]==0.);
+  double mean=0;for(double h:s.pColdNodeSpecificEnthalpy)mean+=h/8.;
+  s.pThermalEnthalpyResidual[0]=123.; // stale shared noncold state cannot alter cold authority
+  assert(particleEffectiveSpecificEnthalpyDevice(s,0)==mean);
+  const ugkwp::ParticleCaloric freeLaw;
+  publishFrozenReleaseEnergy(s,0,mean,true);
+  assert(s.pThermalEnthalpyResidual[0]==0.);
+  assert(s.pT[0]==freeLaw.temperature(mean));
+  clearColdWallParticleState(s,0);
+  for(double h:s.pColdNodeSpecificEnthalpy)assert(h==0.);
+  publishFrozenReleaseEnergy(s,0,mean,false);
+  assert(s.pThermalEnthalpyResidual[0]==mean-freeLaw.enthalpy(s.pT[0]));
  }
 }
-'''.replace("BODIES2D", bodies2d).replace("DETACH", detach).replace("DECLARATIONS", declarations).replace("ASSIGNMENTS", assignments)
-    for mutant in (False,):
-        source = tmp_path / f"transition{64}_{mutant}.cpp"
-        binary = source.with_suffix("")
-        mutation = "carried.pThermalEnthalpyResidual[0]=0.0;" if mutant else ""
-        source.write_text(code.replace("MUTATION", mutation))
-        subprocess.run(["g++", "-std=c++17", "-O0", "-I" + str(ROOT / "common"), "-I" + str(ROOT), str(source), "-o", str(binary)], check=True)
-        result = subprocess.run([str(binary)], capture_output=True)
-        if mutant:
-            assert result.returncode != 0, "transition regression did not detect erased carry"
-        else:
-            assert result.returncode == 0, result.stderr.decode()
+"""
+    (tmp_path/"cuda_runtime.h").write_text("")
+    source=tmp_path/"raw.cpp";source.write_text(code)
+    binary=tmp_path/"raw"
+    subprocess.run(["g++","-std=c++17","-O0","-I"+str(tmp_path),"-I"+str(ROOT/"common"),str(source),"-o",str(binary)],check=True)
+    subprocess.run([str(binary)],check=True)
 
 
-def test_schema8_fixed_double_preserves_temperature_and_carry(tmp_path):
+def test_native_schema_preserves_noncold_temperature_and_carry(tmp_path):
     header = (ROOT / "applications/CHT/gpu/GpuChtParticleRestart.H").read_text()
     assert "prepareSchema8ThermalAuthorityForPrecision" not in header
     meta = json.loads((ROOT / "common/ParticleFieldManifest.json").read_text())
@@ -384,9 +306,7 @@ int main(){
     subprocess.run(["g++", "-std=c++17", "-O0", "-I" + str(ROOT / "common"), "-I" + str(ROOT), str(source), "-o", str(binary)], check=True)
     subprocess.run([str(binary)], check=True)
     host = (ROOT / "applications/CHT/gpu/GpuResidentStrict.H").read_text()
-    v8 = host.index("gpuFshRestart::readCurrentPayload")
-    v7 = host.index("else if (weightedV7)", v8)
-    assert "prepareSchema8ThermalAuthorityForPrecision" not in host[v8:v7]
+    assert "readNativePayload" in host
     assert "prepareSchema8ThermalAuthorityForPrecision" not in host
 
 

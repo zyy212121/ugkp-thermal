@@ -57,18 +57,19 @@ __global__ void preparePressureProjectionCacheKernel
         s.pressureProjectionCache[c] = preparePressureProjectionCell(s, c, kickDt);
 }
 
+template<bool Compact=false>
 __global__ void applyCachedPressureProjectionParticlesKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
-    const int nParticles = clampRange(*s.particleCountDevice, 0, s.particleCapacity);
+    const int nParticles = clampRange(Compact?s.cellParticleOffset[s.nCells]:*s.particleCountDevice, 0, s.particleCapacity);
     for (int i = blockIdx.x*blockDim.x + threadIdx.x; i < nParticles; i += blockDim.x*gridDim.x)
     {
-        if (s.pStatus[i] == 0) continue;
-        const int c = s.pCellId[i];
+        if ((Compact?s.compactPStatus[i]:s.pStatus[i]) == 0) continue;
+        const int c = Compact?s.compactPCellId[i]:s.pCellId[i];
         if (c < 0 || c >= s.nCells) continue;
         const PressureProjectionCell q = s.pressureProjectionCache[c];
         if (!q.active) continue;
-        applyCollisionalPressureProjectionOneParticle(s, i, c,
+        applyCollisionalPressureProjectionOneParticle<Compact>(s, i, c,
             q.ux0, q.uy0, q.uz0, q.ux1, q.uy1, q.uz1, q.theta1,
             q.resolved, q.thermalScale, q.thetaScale);
     }

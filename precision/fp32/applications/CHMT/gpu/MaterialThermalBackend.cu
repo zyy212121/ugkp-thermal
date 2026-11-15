@@ -1,3 +1,4 @@
+#include "../../../common/gpu/WorkPlan.H"
 #include "gpu/MaterialThermalBackend.H"
 #include "gpu/Buffer.H"
 namespace chmt {
@@ -25,7 +26,7 @@ bool MaterialThermalBackend::evaluate(const std::vector<Real>& temperature,Real 
     auto& d=*data_;
     std::vector<ConductionReal> encoded(temperature.begin(),temperature.end());
     if(!d.temperature.upload(encoded,d.fault)){error=d.fault.message;return false;}
-    const int n=temperature.size();if(n)evaluateMaterialThermal<<<(n+127)/128,128,0,d.stream.get()>>>(n,d.input.data(),d.temperature.data(),dt,d.physics.data(),d.output.data());
+    const int n=temperature.size();if(n)evaluateMaterialThermal<<<(n+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads,0,d.stream.get()>>>(n,d.input.data(),d.temperature.data(),dt,d.physics.data(),d.output.data());
     if(!d.fault.check(cudaPeekAtLastError(),"evaluate material implicit coefficients")||!d.output.download(output,d.stream.get())){error=d.fault.message;return false;}
     return true;
 }

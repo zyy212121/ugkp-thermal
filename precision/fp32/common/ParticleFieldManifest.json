@@ -4,9 +4,9 @@
   "disk_schema_role": "Historical schema7 ordinal map; current output layouts are owner-specific.",
   "current_disk_layouts": {
     "CHT": {
-      "marker": "UGKP_CHT_PARTICLES_SCHEMA10_FP32_SINGLE_STATE_BIN",
+      "marker": "UGKP_CHT_PARTICLES_SCHEMA12_NATIVE32_RAW_COLD_BIN",
       "field_order": "schema7 ordinals; no thermal carry",
-      "scalar_types": "host.CHT wire conversion; 8/64-node enthalpy profiles float; resident thermal scalars float",
+      "scalar_types": "host.CHT wire conversion; native 8-node cold1D and legacy 64-node cold2D enthalpy float; resident thermal scalars float",
       "bytes_per_particle": 605
     },
     "FSH": {
@@ -504,7 +504,7 @@
       },
       "host": {
         "FSH": "double",
-        "CHT": "float"
+        "CHT": "double"
       },
       "schema7": 20
     },

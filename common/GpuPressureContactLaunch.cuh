@@ -21,6 +21,11 @@ struct ContactAwarePressureLaunch
             <<<s->nCells,threads,shared,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState,dt);
         else applyContactAwarePressureProjectionKernel<FullMoments,false>
             <<<s->nCells,threads,shared,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState,dt);
+        auto err=cudaGetLastError();if(err!=cudaSuccess)return err;
+        if(compact)applyFreePressureProjectionParticlesKernel<true>
+            <<<s->particleWorkGrid,s->particleBlockThreads,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState);
+        else applyFreePressureProjectionParticlesKernel<false>
+            <<<s->particleWorkGrid,s->particleBlockThreads,0,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState);
         return cudaGetLastError();
     }
     static cudaError_t projectUnsorted(DeviceState* s,PressureTime dt,int grid,int block)

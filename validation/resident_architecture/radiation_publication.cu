@@ -83,28 +83,10 @@ int main(){
     same(expectedRadiation.incident,actualRadiation.incident,"resident DO intensity mismatch");same(expectedRadiation.boundaryFlux,actualRadiation.boundaryFlux,"resident wall flux mismatch");
     same(expected.temperature,actual.temperature,"resident material temperature mismatch");same(expected.energy,actual.energy,"resident material energy mismatch");
     same(expected.boundaryEnergy,actual.boundaryEnergy,"resident boundary energy mismatch");same(expectedLedger,actualLedger,"resident consumption sequence mismatch");
-    // A bounded particle update may accept different heat. Pair the final wall
-    // contribution on device and independently recompute the former host rule.
-    Buffer acceptedHeat({.75*actual.energy[0],.75*actual.energy[1]});
-    const double particleHeat=.75*actual.energy[0]+.75*actual.energy[1];
-    double wallHeat=actual.escapedEnergy,gross=fabs(actual.escapedEnergy);
-    for(double q:{.75*actual.energy[0],.75*actual.energy[1]})gross+=fabs(q);
-    for(double q:actual.boundaryEnergy){wallHeat+=q;gross+=fabs(q);}
-    const auto settlement=radiationMath::conservativeBoundaryEnergyScale(particleHeat,wallHeat,gross,1e-10,actual.radiativeEnergyMagnitude);
-    material.settleAcceptedEnergy({2,acceptedHeat.p,producer});
-    const auto settled=material.collectBoundaryEnergy();auto expectedBoundary=actual.boundaryEnergy;
-    for(double& q:expectedBoundary)q*=settlement.scale;
-    same(expectedBoundary,settled.boundaryEnergy,"resident accepted-heat boundary settlement mismatch");
-    same({particleHeat,actual.escapedEnergy*settlement.scale},{settled.acceptedParticleEnergy,settled.escapedEnergy},"resident accepted heat summary mismatch");
-    // An absent particle phase is represented without uploading a zero array.
-    const auto noParticleRequest=material.solve(transaction);double noParticleWall=noParticleRequest.escapedEnergy;
-    double noParticleGross=fabs(noParticleWall);
-    for(double q:noParticleRequest.boundaryEnergy){noParticleWall+=q;noParticleGross+=fabs(q);}
-    const auto noParticleScale=radiationMath::conservativeBoundaryEnergyScale(0,noParticleWall,noParticleGross,1e-10,noParticleRequest.radiativeEnergyMagnitude);
-    material.settleAcceptedEnergy({2,nullptr,producer});const auto noParticle=material.collectBoundaryEnergy();
-    auto noParticleExpected=noParticleRequest.boundaryEnergy;for(double& q:noParticleExpected)q*=noParticleScale.scale;
-    same(noParticleExpected,noParticle.boundaryEnergy,"absent-particle boundary settlement mismatch");
-    if(noParticle.acceptedParticleEnergy!=0)throw std::runtime_error("absent phase accepted particle heat");
+    // Boundary collection publishes the raw transport energy without settlement.
+    const auto boundary=material.collectBoundaryEnergy();
+    same(actual.boundaryEnergy,boundary.boundaryEnergy,"raw boundary collection mismatch");
+    same({actual.escapedEnergy},{boundary.escapedEnergy},"escaped boundary collection mismatch");
     ugkp::diagnostics::DeviceContext report{};check(cudaMemcpy(&report,diagnostics,sizeof(report),cudaMemcpyDeviceToHost));
     if(report.fatalClaim)throw std::runtime_error("unexpected deferred radiation failure");
     // Deferred faults remain visible and suppress dependent physical updates.
@@ -115,10 +97,9 @@ int main(){
     if(!report.fatalClaim||report.firstFatal.sourceSiteId!=34000)throw std::runtime_error("missing deferred radiation failure");
     for(double q:rejected.energy)if(q!=0)throw std::runtime_error("failed radiation committed particle energy");
     for(double q:rejected.boundaryEnergy)if(q!=0)throw std::runtime_error("failed radiation committed boundary energy");
-    material.settleAcceptedEnergy({2,acceptedHeat.p,producer});
-    const auto failedSettlement=material.collectBoundaryEnergy();
-    for(double q:failedSettlement.boundaryEnergy)if(q!=0)throw std::runtime_error("failed radiation committed accepted-heat settlement");
-    if(failedSettlement.acceptedParticleEnergy!=0||failedSettlement.escapedEnergy!=0)throw std::runtime_error("failed settlement published nonzero heat");
+    const auto failedBoundary=material.collectBoundaryEnergy();
+    for(double q:failedBoundary.boundaryEnergy)if(q!=0)throw std::runtime_error("failed radiation committed boundary collection");
+    if(failedBoundary.escapedEnergy!=0)throw std::runtime_error("failed radiation published nonzero escaped heat");
     bool caught=false;try{invalid.collect();}catch(const RadiationError&){caught=true;}
     if(!caught)throw std::runtime_error("explicit radiation publication lost native failure");
     check(cudaFree(diagnostics));check(cudaEventDestroy(ready));check(cudaStreamDestroy(producer));

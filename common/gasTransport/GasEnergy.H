@@ -22,7 +22,12 @@ UGKWP_GAS_HD inline bool gasEnergyFinite(Energy value) noexcept
 
 template<class Energy>
 UGKWP_GAS_HD inline bool gasEnergyFallbackFinite(Energy value) noexcept
-{ return value == value && value < 1.0e300 && value > -1.0e300; }
+{
+    // Every finite FP32 value was below the legacy FP64 sentinel. Test in its
+    // native type without promoting physical FP32 arithmetic to double.
+    if constexpr (std::is_same<Energy,float>::value) return std::isfinite(value);
+    else return value == value && value < 1.0e300 && value > -1.0e300;
+}
 
 template<class Energy>
 UGKWP_GAS_HD inline Energy gasEnergyFiniteOr(Energy value, Energy fallback) noexcept

@@ -21,17 +21,17 @@ __device__ GeometryBounds mergeBounds(GeometryBounds a,GeometryBounds b){
     return a;
 }
 __global__ void geometryBounds(int count,const Point* points,GeometryBounds* partial){
-    __shared__ GeometryBounds values[128];const int p=blockIdx.x*blockDim.x+threadIdx.x;
+    extern __shared__ double geometryShared[];auto* values=reinterpret_cast<GeometryBounds*>(geometryShared);const int p=blockIdx.x*blockDim.x+threadIdx.x;
     const Point q=points[p<count?p:count-1];values[threadIdx.x]={q,q};__syncthreads();
-    for(int half=64;half;half/=2){if(threadIdx.x<half)values[threadIdx.x]=mergeBounds(values[threadIdx.x],values[threadIdx.x+half]);__syncthreads();}
+    for(int active=blockDim.x;active>1;active=(active+1)/2){const int half=(active+1)/2;if(threadIdx.x<active-half)values[threadIdx.x]=mergeBounds(values[threadIdx.x],values[threadIdx.x+half]);__syncthreads();}
     if(!threadIdx.x)partial[blockIdx.x]=values[0];
 }
 template<class Result>
 __global__ void geometryScale(int count,const GeometryBounds* partial,Result* out){
-    __shared__ GeometryBounds values[128];GeometryBounds value=partial[0];
+    extern __shared__ double geometryShared[];auto* values=reinterpret_cast<GeometryBounds*>(geometryShared);GeometryBounds value=partial[0];
     for(int i=threadIdx.x;i<count;i+=blockDim.x)value=mergeBounds(value,partial[i]);
     values[threadIdx.x]=value;__syncthreads();
-    for(int half=64;half;half/=2){if(threadIdx.x<half)values[threadIdx.x]=mergeBounds(values[threadIdx.x],values[threadIdx.x+half]);__syncthreads();}
+    for(int active=blockDim.x;active>1;active=(active+1)/2){const int half=(active+1)/2;if(threadIdx.x<active-half)values[threadIdx.x]=mergeBounds(values[threadIdx.x],values[threadIdx.x+half]);__syncthreads();}
     if(!threadIdx.x)out->scale=magnitude(values[0].high-values[0].low);
 }
 __global__ void matchPeriodicVertices(int count,const PeriodicGeometryVertex* vertices,TopologyView topology,
@@ -97,7 +97,7 @@ ResidentGeometryBoundary::ResidentGeometryBoundary(const Topology& topology,Topo
     };
     upload(d.periodicFaces,periodicFaces);upload(d.periodicVertices,vertices);if(axis>=0)upload(d.mate,mate);
     d.faces=periodicFaces.size();d.vertices=vertices.size();d.matches.reserve(d.vertices);
-    if(d.faces)d.bounds.reserve((d.points+127)/128);
+    if(d.faces)d.bounds.reserve((d.points+workPlan().reductionBlockThreads-1)/workPlan().reductionBlockThreads);
     d.periodicResult.reserve(1);d.trajectoryResult.reserve(1);d.uniqueResult.reserve(1);
     if(axis>=0&&d.points){d.keys.reserve(d.points);
         checked(cub::DeviceMergeSort::SortKeys(nullptr,d.sortBytes,d.keys.pointer,d.points,EmptyCoordinateLess{}));
@@ -113,27 +113,27 @@ void ResidentGeometryBoundary::periodic(const Point* points,const FaceResult* fa
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(streamHandle);
     resetGeometryBoundary<<<1,1,0,stream>>>(d.periodicResult.pointer);checked(cudaGetLastError());
     if(d.faces){
-        geometryBounds<<<(d.points+127)/128,128,0,stream>>>(d.points,points,d.bounds.pointer);checked(cudaGetLastError());
-        geometryScale<<<1,128,0,stream>>>((d.points+127)/128,d.bounds.pointer,d.periodicResult.pointer);checked(cudaGetLastError());
-        matchPeriodicVertices<<<(d.vertices+127)/128,128,0,stream>>>(d.vertices,d.periodicVertices.pointer,d.topology,
+        geometryBounds<<<(d.points+workPlan().reductionBlockThreads-1)/workPlan().reductionBlockThreads,workPlan().reductionBlockThreads,workPlan().reductionBlockThreads*(sizeof(GeometryBounds)),stream>>>(d.points,points,d.bounds.pointer);checked(cudaGetLastError());
+        geometryScale<<<1,workPlan().reductionBlockThreads,workPlan().reductionBlockThreads*(sizeof(GeometryBounds)),stream>>>((d.points+workPlan().reductionBlockThreads-1)/workPlan().reductionBlockThreads,d.bounds.pointer,d.periodicResult.pointer);checked(cudaGetLastError());
+        matchPeriodicVertices<<<(d.vertices+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.vertices,d.periodicVertices.pointer,d.topology,
             points,faces,d.periodicResult.pointer,d.matches.pointer);checked(cudaGetLastError());
-        checkPeriodicFaces<<<(d.faces+127)/128,128,0,stream>>>(d.faces,d.periodicFaces.pointer,d.topology,faces,d.matches.pointer,d.periodicResult.pointer);checked(cudaGetLastError());
+        checkPeriodicFaces<<<(d.faces+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.faces,d.periodicFaces.pointer,d.topology,faces,d.matches.pointer,d.periodicResult.pointer);checked(cudaGetLastError());
     }
     finishGeometryBoundary<<<1,1,0,stream>>>(d.periodicResult.pointer);checked(cudaGetLastError());
 }
 void ResidentGeometryBoundary::emptyTrajectory(const Point* old,const Point* endpoint,void* streamHandle){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(streamHandle);
     resetGeometryBoundary<<<1,1,0,stream>>>(d.trajectoryResult.pointer);checked(cudaGetLastError());
-    if(d.axis>=0&&d.points){checkEmptyTrajectory<<<(d.points+127)/128,128,0,stream>>>(d.points,d.axis,d.mate.pointer,old,endpoint,d.trajectoryResult.pointer);checked(cudaGetLastError());}
+    if(d.axis>=0&&d.points){checkEmptyTrajectory<<<(d.points+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.points,d.axis,d.mate.pointer,old,endpoint,d.trajectoryResult.pointer);checked(cudaGetLastError());}
     finishGeometryBoundary<<<1,1,0,stream>>>(d.trajectoryResult.pointer);checked(cudaGetLastError());
 }
 void ResidentGeometryBoundary::emptyUniqueness(const Point* points,void* streamHandle){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(streamHandle);
     resetGeometryBoundary<<<1,1,0,stream>>>(d.uniqueResult.pointer);checked(cudaGetLastError());
     if(d.axis>=0&&d.points){
-        emptyCoordinateKeys<<<(d.points+127)/128,128,0,stream>>>(d.points,d.axis,points,d.keys.pointer);checked(cudaGetLastError());
+        emptyCoordinateKeys<<<(d.points+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.points,d.axis,points,d.keys.pointer);checked(cudaGetLastError());
         checked(cub::DeviceMergeSort::SortKeys(d.sortScratch.pointer,d.sortBytes,d.keys.pointer,d.points,EmptyCoordinateLess{},stream));
-        duplicateEmptyCoordinates<<<(d.points+127)/128,128,0,stream>>>(d.points,d.keys.pointer,d.uniqueResult.pointer);checked(cudaGetLastError());
+        duplicateEmptyCoordinates<<<(d.points+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.points,d.keys.pointer,d.uniqueResult.pointer);checked(cudaGetLastError());
     }
     finishGeometryBoundary<<<1,1,0,stream>>>(d.uniqueResult.pointer);checked(cudaGetLastError());
 }

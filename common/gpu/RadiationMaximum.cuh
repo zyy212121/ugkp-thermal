@@ -18,25 +18,25 @@ __host__ __device__ inline RadiationReal applyRadiationMaximum(RadiationReal ini
     if(!segment.valid)return initial;
     return segment.reset?segment.value:(initial>segment.value?initial:segment.value);
 }
-__global__ void radiationMaximumPartials(int count,const RadiationReal* input,const unsigned char* valid,RadiationMaximum* output){
-    __shared__ RadiationMaximum values[256];
-    const int i=blockIdx.x*256+threadIdx.x,batch=blockIdx.y;
+static __global__ void radiationMaximumPartials(int count,const RadiationReal* input,const unsigned char* valid,RadiationMaximum* output){
+    extern __shared__ RadiationMaximum values[];
+    const int i=blockIdx.x*blockDim.x+threadIdx.x,batch=blockIdx.y;
     const std::size_t index=std::size_t(batch)*count+i;
     values[threadIdx.x]=i<count&&(!valid||valid[index])?radiationMaximumSegment(input[index]):RadiationMaximum{0,0,0};
     __syncthreads();
-    for(int stride=1;stride<256;stride*=2){
-        if(threadIdx.x%(2*stride)==0)values[threadIdx.x]=joinRadiationMaximum(values[threadIdx.x],values[threadIdx.x+stride]);
+    for(int stride=1;stride<blockDim.x;stride*=2){
+        if(threadIdx.x%(2*stride)==0 && threadIdx.x+stride<blockDim.x)values[threadIdx.x]=joinRadiationMaximum(values[threadIdx.x],values[threadIdx.x+stride]);
         __syncthreads();
     }
     if(!threadIdx.x)output[batch*gridDim.x+blockIdx.x]=values[0];
 }
-__global__ void radiationMaximumMerge(int count,const RadiationMaximum* input,RadiationMaximum* output){
-    __shared__ RadiationMaximum values[256];
-    const int i=blockIdx.x*256+threadIdx.x,batch=blockIdx.y;
+static __global__ void radiationMaximumMerge(int count,const RadiationMaximum* input,RadiationMaximum* output){
+    extern __shared__ RadiationMaximum values[];
+    const int i=blockIdx.x*blockDim.x+threadIdx.x,batch=blockIdx.y;
     values[threadIdx.x]=i<count?input[std::size_t(batch)*count+i]:RadiationMaximum{0,0,0};
     __syncthreads();
-    for(int stride=1;stride<256;stride*=2){
-        if(threadIdx.x%(2*stride)==0)values[threadIdx.x]=joinRadiationMaximum(values[threadIdx.x],values[threadIdx.x+stride]);
+    for(int stride=1;stride<blockDim.x;stride*=2){
+        if(threadIdx.x%(2*stride)==0 && threadIdx.x+stride<blockDim.x)values[threadIdx.x]=joinRadiationMaximum(values[threadIdx.x],values[threadIdx.x+stride]);
         __syncthreads();
     }
     if(!threadIdx.x)output[batch*gridDim.x+blockIdx.x]=values[0];

@@ -127,7 +127,7 @@ __global__ void applyEulerianParticleMaterialHeatKernel
 
     const GPU_OPERATOR_REAL gasCv =
         s.Rgas/clampMin(s.gammaGas - GPU_OPERATOR_R(1.0), OfSmall);
-    const GPU_OPERATOR_REAL gasCapacity = epsG*rhoG*gasCv;
+    const GPU_OPERATOR_REAL gasCapacity = ugkwp::particleGasHeatCapacity(s,c,epsG,epsG*rhoG*gasCv);
     const GPU_OPERATOR_REAL solidCapacity = rhoP*particleCp;
 
                                                                            
@@ -155,6 +155,6 @@ __global__ void applyEulerianParticleMaterialHeatKernel
     const Energy kinetic=Energy(0.5)*(mx*mx+my*my+mz*mz)/Energy(rhoGCurrent);
     const Energy eMinGas=Energy(rhoGCurrent)*Energy(s.Rgas)*Energy(s.TgasMin)
         /ugkwp::gasEnergyClampMin(Energy(s.gammaGas)-Energy(1),Energy(OfSmall));
-    rhoEnew=ugkwp::gasEnergyClampMin(ugkwp::gasEnergyFiniteOr(rhoEnew,rhoEold),kinetic+eMinGas);
+    rhoEnew=ugkwp::gasEnergyClampMin(ugkwp::gasEnergyFiniteOr(rhoEnew,rhoEold),kinetic+ugkwp::particleGasMinimumInternalEnergy(s,c,eMinGas));
     s.rhoE[c] = rhoEnew;
 }

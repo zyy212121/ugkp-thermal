@@ -3,13 +3,12 @@ schemaVersion 1; executionMode Multirate; modelName coupledInputFixture;
 materialSource syntheticControlledV1; mechanismSource controlledSurfaceConversion;
 condensedNames (C0 C1); elements (X);
 
-gasConductivity 0.03; gasViscosity 1.8e-05;
+
 condensedThermo {
 C0 { rho 1000; cp0 1000; cp1 0; e0 0; conductivity 1; Tmin 100; Tmax 3000; element (35.714285714285715); }
 C1 { rho 1000; cp0 1000; cp1 0; e0 0; conductivity 1; Tmin 100; Tmax 3000; element (35.714285714285715); }
 }
-solidRegion solid;
-surface { patch interface; gasPatch wall; }
+
 multirate {   }
 
 material { gasContactResistance 0; solidContactResistance 0; enableMelting false; enablePoreOutflow false; evaporation Disabled;
@@ -18,11 +17,8 @@ surfaceReactions { conversion { A 0.035714285714285712; temperaturePower 0; acti
 }
 
 meshMotion { policy CoupledRecession; }
-emissivity 0; ambientTemperature 300; permeability 0; poreViscosity 1.8e-05;
+permeability 0; poreViscosity 1.8e-05;
 
-enableSst true;
-sst {  wallTreatment boundaryLayer;
-boundaryLayer { model reactingSst;      }
-  }
-boundaries { sides {kind Slip;} inlet { kind Inlet; } outlet { kind Outlet; } wall { kind Interface; } top { kind Slip; } }
+
+
 modelFingerprint "c528e318d513b79ef126c051ed848fa9b339853e37480a6782abdd68d5f96bf8";

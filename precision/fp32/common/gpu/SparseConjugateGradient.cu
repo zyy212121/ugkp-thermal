@@ -1,5 +1,6 @@
 #include "SparseConjugateGradient.H"
 #include "ExecutionGraph.cuh"
+#include "WorkPlan.H"
 #include <cuda_runtime.h>
 #include "PinnedTransferQueue.cuh"
 #include <algorithm>
@@ -24,7 +25,16 @@ template<class T> struct DeviceArray {
         reserve(count);queue.uploadConverted(ptr,host,count);
     }
 };
-constexpr int threads=256;
+// Host launch policy and actual device CTA width share one reduction contract.
+__host__ __device__ inline int sparseThreads(){
+#ifdef __CUDA_ARCH__
+    return blockDim.x;
+#else
+    return workPlan().sparseBlockThreads;
+#endif
+}
+#define threads sparseThreads()
+
 __global__ void multiply(int n,const int* offsets,const int* columns,const GpuReal* values,const GpuReal* x,GpuReal* y,const GpuReal* stop){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=n||(stop&&stop[7]))return;
     GpuReal value=values[offsets[i]]*x[i];
@@ -63,20 +73,80 @@ __global__ void addInitialAffine(int n,const GpuReal* affine,GpuReal* product){
 __global__ void initialResidual(int n,const GpuReal* source,const GpuReal* ax,GpuReal* r){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<n)r[i]=source[i]-ax[i];
 }
+template<int B,class R>
+__global__ void factorBlock(const int* member,const int* offsets,const int* columns,const R* values,R* factor,int* valid){
+ const int i=threadIdx.x,b=blockIdx.x;R* a=factor+b*B*B;
+ __shared__ int good;if(i==0)good=1;__syncthreads();
+ if(i<B){int row=member[b*B+i];for(int j=0;j<B;++j){
+  R v=R(0);int col=member[b*B+j];
+  if(row>=0 && col>=0){for(int e=offsets[row];e<offsets[row+1];++e)if(columns[e]==col)v+=values[e];}
+  else if(i==j)v=R(1);
+  a[i*B+j]=v;
+ }}
+ __syncthreads();
+ for(int k=0;k<B;++k){
+  if(i==k){R v=a[k*B+k];for(int j=0;j<k;++j)v-=a[k*B+j]*a[k*B+j];if(!(v>R(0))||!isfinite(v)){good=0;v=R(1);}a[k*B+k]=sqrt(v);}
+  __syncthreads();
+  if(i>k && i<B){R v=a[i*B+k];for(int j=0;j<k;++j)v-=a[i*B+j]*a[k*B+j];a[i*B+k]=v/a[k*B+k];}
+  __syncthreads();
+ }
+ if(i==0)valid[b]=good;
+}
+template<int B,class R>
+__global__ void applyBlock(const int* member,const R* factor,const int* valid,const int* offsets,const R* values,const R* r,R* z,const R* stop){
+ if(stop&&stop[7])return;
+ const int i=threadIdx.x,b=blockIdx.x;const R* a=factor+b*B*B;
+ if(!valid[b]){if(i<B&&member[b*B+i]>=0){int row=member[b*B+i];z[row]=r[row]/values[offsets[row]];}return;}
+ __shared__ R q[B];
+ if(i<B){const int row=member[b*B+i];q[i]=row>=0?r[row]:R(0);}
+ __syncthreads();
+ for(int k=0;k<B;++k){
+  if(i==k)q[k]/=a[k*B+k];__syncthreads();
+  if(i>k&&i<B)q[i]-=a[i*B+k]*q[k];__syncthreads();
+ }
+ for(int k=B-1;k>=0;--k){
+  if(i==k)q[k]/=a[k*B+k];__syncthreads();
+  if(i<k)q[i]-=a[k*B+i]*q[k];__syncthreads();
+ }
+ if(i<B&&member[b*B+i]>=0)z[member[b*B+i]]=q[i];
+}
+
+
 __global__ void precondition(int n,const int* offsets,const GpuReal* values,const GpuReal* r,GpuReal* z,const GpuReal* stop){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<n&&!(stop&&stop[7]))z[i]=r[i]/values[offsets[i]];
 }
-// Recurrence scalars: rho, pAp, previous rho, alpha, |r|_1, singular, completed iterations.
+// Recurrence: rho,pAp,previous rho,alpha,|r|1,singular,total iterations,stop,
+// changed components since confirmation,restart direction,replacements,stagnated.
 __global__ void direction(int n,const GpuReal* z,const GpuReal* recurrence,GpuReal* p){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;
-    if(i<n&&!recurrence[7])p[i]=recurrence[6]==0?z[i]:z[i]+(recurrence[0]/recurrence[2])*p[i];
+    if(i<n&&!recurrence[7])p[i]=(recurrence[6]==0||recurrence[9]!=0)?z[i]:z[i]+(recurrence[0]/recurrence[2])*p[i];
 }
 struct LocalSolveParameters {GpuReal norm,initial,mean;ConjugateGradientControls controls;};
+__device__ bool confirmTrueResidual(LocalSolveParameters* parameters,GpuReal* recurrence){
+    const auto& c=parameters->controls;
+    const GpuReal residual=recurrence[4]/parameters->norm;
+    const bool converged=residual<c.tolerance ||
+        (c.relativeTolerance>c.normalizationSmall&&residual<c.relativeTolerance*parameters->initial);
+    const bool exhausted=recurrence[6]>=c.maximumIterations&&recurrence[6]>=c.minimumIterations;
+    // An exactly unchanged iterate at consecutive confirmations is a finite-
+    // precision fixed point/cycle, not an exhausted iteration budget.
+    recurrence[11]=!converged&&!exhausted&&!recurrence[5]&&recurrence[8]==0;
+    recurrence[7]=converged||exhausted||recurrence[5]||recurrence[11];
+    if(!recurrence[7]){recurrence[9]=1;recurrence[10]+=1;}
+    return recurrence[7]!=0;
+}
+__global__ void setConfirmationCondition(const GpuReal* recurrence,cudaGraphConditionalHandle handle){
+    if(!threadIdx.x&&!blockIdx.x)cudaGraphSetConditional(handle,recurrence[7]!=0);
+}
+__global__ void completeTrueResidualConfirmation(LocalSolveParameters* parameters,GpuReal* recurrence,
+    cudaGraphConditionalHandle loop){
+    if(!threadIdx.x&&!blockIdx.x)cudaGraphSetConditional(loop,confirmTrueResidual(parameters,recurrence)?0:1);
+}
 __global__ void initializeLocalParameters(int count,ConjugateGradientControls controls,
     LocalSolveParameters* parameters,GpuReal* recurrence,const ConjugateGradientControls* deviceControls){
     if(blockIdx.x||threadIdx.x)return;
     *parameters={0,0,0,deviceControls?*deviceControls:controls};
-    for(int i=0;i<8;++i)recurrence[i]=0;
+    for(int i=0;i<12;++i)recurrence[i]=0;
 }
 __global__ void normalizeLocalMean(int count,GpuReal* mean){
     if(!blockIdx.x&&!threadIdx.x)*mean/=count?count:1;
@@ -93,20 +163,28 @@ __global__ void initializeLocalCondition(LocalSolveParameters* parameters,GpuRea
     cudaGraphSetConditional(handle,recurrence[7]?0:1);
 }
 __global__ void publishLocalReport(const LocalSolveParameters* parameters,const GpuReal* recurrence,
-    ConjugateGradientReport* report){
+    ConjugateGradientReport* report,const int* blockValid=nullptr,int blockCount=0){
     if(blockIdx.x||threadIdx.x)return;
     const auto& c=parameters->controls;const GpuReal residual=recurrence[4]/parameters->norm;
+    report->preconditionerFallbackBlocks=0;
+    for(int b=0;b<blockCount;++b)report->preconditionerFallbackBlocks+=blockValid[b]==0;
     report->iterations=int(recurrence[6]);report->initialResidual=parameters->initial;report->finalResidual=residual;
     report->singular=recurrence[5]!=0;
     report->converged=residual<c.tolerance ||
         (c.relativeTolerance>c.normalizationSmall&&residual<c.relativeTolerance*parameters->initial);
+    report->residualReplacements=int(recurrence[10]);
+    report->stagnated=recurrence[11]!=0;
+    report->budgetExhausted=!report->converged&&report->iterations>=c.maximumIterations;
+    report->targetResidual=c.tolerance;
+    if(c.relativeTolerance>c.normalizationSmall)
+        report->targetResidual=fmaxf(report->targetResidual,c.relativeTolerance*parameters->initial);
 }
 __global__ void prepareStep(GpuReal* recurrence,GpuReal norm,GpuReal singularSmall,const LocalSolveParameters* parameters=nullptr){
     if(blockIdx.x||threadIdx.x||recurrence[7])return;
     if(parameters){norm=parameters->norm;singularSmall=parameters->controls.singularSmall;}
     recurrence[5]=fabsf(recurrence[1])/norm<singularSmall;
     if(!recurrence[5]){recurrence[3]=recurrence[0]/recurrence[1];recurrence[6]+=1;}
-    recurrence[2]=recurrence[0];
+    recurrence[2]=recurrence[0];recurrence[9]=0;
 }
 __global__ void update(int n,const GpuReal* recurrence,const GpuReal* p,const GpuReal* ap,GpuReal* x,GpuReal* r){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;
@@ -118,23 +196,24 @@ __global__ void partialReduction(int n,int mode,const GpuReal* a,const GpuReal* 
     const GpuReal* rowSum,GpuReal mean,GpuReal* partial,const GpuReal* stop,const GpuReal* residentMean=nullptr){
     if(residentMean)mean=*residentMean;
     if(stop&&stop[7])return;
-    __shared__ GpuReal values[threads];GpuReal v=0;
+    extern __shared__ GpuReal values[];GpuReal v=0;
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<n;i+=blockDim.x*gridDim.x){
         if(mode==0)v+=a[i];
         else if(mode==1)v+=fabsf(a[i]);
         else if(mode==2)v+=a[i]*b[i];
+        else if(mode==4)v+=a[i]!=b[i]?1:0;
         else {const GpuReal reference=rowSum[i]*mean;v+=fabsf(a[i]-reference)+fabsf(b[i]-reference);}
     }
     values[threadIdx.x]=v;__syncthreads();
-    for(int stride=threads/2;stride;stride/=2){if(threadIdx.x<stride)values[threadIdx.x]+=values[threadIdx.x+stride];__syncthreads();}
+    for(int active=threads;active>1;active=(active+1)/2){if(threadIdx.x<active/2)values[threadIdx.x]+=values[threadIdx.x+(active+1)/2];__syncthreads();}
     if(threadIdx.x==0)partial[blockIdx.x]=values[0];
 }
 __global__ void finishReduction(int n,const GpuReal* partial,GpuReal* result,const GpuReal* stop){
     if(stop&&stop[7])return;
-    __shared__ GpuReal values[threads];GpuReal v=0;
+    extern __shared__ GpuReal values[];GpuReal v=0;
     for(int i=threadIdx.x;i<n;i+=threads)v+=partial[i];
     values[threadIdx.x]=v;__syncthreads();
-    for(int stride=threads/2;stride;stride/=2){if(threadIdx.x<stride)values[threadIdx.x]+=values[threadIdx.x+stride];__syncthreads();}
+    for(int active=threads;active>1;active=(active+1)/2){if(threadIdx.x<active/2)values[threadIdx.x]+=values[threadIdx.x+(active+1)/2];__syncthreads();}
     if(threadIdx.x==0)*result=values[0];
 }
 __global__ void gatherInterface(int count,const int* cells,const GpuReal* x,const GpuReal* y,GpuReal* packed){
@@ -143,12 +222,12 @@ __global__ void gatherInterface(int count,const int* cells,const GpuReal* x,cons
 __global__ void scatterInterface(int count,const int* cells,const GpuReal* packed,GpuReal* y){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)y[cells[i]]=packed[i];
 }
-// Keep each reduction's original grid-stride order and binary FP32 tree, while
+// Keep each reduction's original grid-stride order and binary FP64 tree, while
 // producing its terms in the vector/matrix kernel that already owns the row.
 __device__ GpuReal localBlockSum(GpuReal value,GpuReal* scratch){
     scratch[threadIdx.x]=value;__syncthreads();
-    for(int stride=threads/2;stride;stride/=2){
-        if(threadIdx.x<stride)scratch[threadIdx.x]+=scratch[threadIdx.x+stride];
+    for(int active=threads;active>1;active=(active+1)/2){
+        if(threadIdx.x<active/2)scratch[threadIdx.x]+=scratch[threadIdx.x+(active+1)/2];
         __syncthreads();
     }
     return scratch[0];
@@ -156,7 +235,7 @@ __device__ GpuReal localBlockSum(GpuReal value,GpuReal* scratch){
 __global__ void preconditionAndDot(int n,const int* offsets,const GpuReal* values,
     const GpuReal* r,GpuReal* z,GpuReal* partial,const GpuReal* recurrence){
     if(recurrence[7])return;
-    __shared__ GpuReal scratch[threads];GpuReal sum=0;
+    extern __shared__ GpuReal scratch[];GpuReal sum=0;
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<n;i+=blockDim.x*gridDim.x){
         const GpuReal value=r[i]/values[offsets[i]];z[i]=value;sum+=value*r[i];
     }
@@ -165,7 +244,7 @@ __global__ void preconditionAndDot(int n,const int* offsets,const GpuReal* value
 __global__ void multiplyAndDot(int n,const int* offsets,const int* columns,const GpuReal* values,
     const GpuReal* p,GpuReal* ap,GpuReal* partial,const GpuReal* recurrence){
     if(recurrence[7])return;
-    __shared__ GpuReal scratch[threads];GpuReal sum=0;
+    extern __shared__ GpuReal scratch[];GpuReal sum=0;
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<n;i+=blockDim.x*gridDim.x){
         GpuReal value=values[offsets[i]]*p[i];
         for(int e=offsets[i]+1;e<offsets[i+1];++e)value+=values[e]*p[columns[e]];
@@ -176,7 +255,7 @@ __global__ void multiplyAndDot(int n,const int* offsets,const int* columns,const
 __global__ void updatePreconditionAndNorm(int n,const int* offsets,const GpuReal* values,
     const GpuReal* recurrence,const GpuReal* p,const GpuReal* ap,GpuReal* x,GpuReal* r,GpuReal* z,GpuReal* partial){
     if(recurrence[7])return;
-    __shared__ GpuReal scratch[threads];GpuReal norm=0,rho=0;
+    extern __shared__ GpuReal scratch[];GpuReal norm=0,rho=0;
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<n;i+=blockDim.x*gridDim.x){
         GpuReal value=r[i];
         if(!recurrence[5]){x[i]+=recurrence[3]*p[i];value-=recurrence[3]*ap[i];r[i]=value;}
@@ -187,11 +266,25 @@ __global__ void updatePreconditionAndNorm(int n,const int* offsets,const GpuReal
     __syncthreads();
     rho=localBlockSum(rho,scratch);if(!threadIdx.x)partial[gridDim.x+blockIdx.x]=rho;
 }
+__global__ void blockNormAndRho(int n,const int* offsets,const GpuReal* values,
+    const GpuReal* recurrence,const GpuReal* p,const GpuReal* ap,GpuReal* x,GpuReal* r,GpuReal* z,GpuReal* partial){
+    if(recurrence[7])return;
+    extern __shared__ GpuReal scratch[];GpuReal norm=0,rho=0;
+    for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<n;i+=blockDim.x*gridDim.x){
+        GpuReal value=r[i];
+
+        const GpuReal preconditioned=z[i];
+        norm+=fabsf(value);rho+=preconditioned*value;
+    }
+    norm=localBlockSum(norm,scratch);if(!threadIdx.x)partial[blockIdx.x]=norm;
+    __syncthreads();
+    rho=localBlockSum(rho,scratch);if(!threadIdx.x)partial[gridDim.x+blockIdx.x]=rho;
+}
 
 template<int Stage> __global__ void finishLocalReduction(int n,const GpuReal* partial,
     GpuReal* recurrence,const LocalSolveParameters* parameters,cudaGraphConditionalHandle handle){
     if(recurrence[7])return;
-    __shared__ GpuReal scratch[threads];GpuReal sum=0;
+    extern __shared__ GpuReal scratch[];GpuReal sum=0;
     for(int i=threadIdx.x;i<n;i+=threads)sum+=partial[i];
     sum=localBlockSum(sum,scratch);
     GpuReal nextRho=0;
@@ -206,7 +299,7 @@ template<int Stage> __global__ void finishLocalReduction(int n,const GpuReal* pa
         recurrence[1]=sum;
         recurrence[5]=fabsf(sum)/parameters->norm<parameters->controls.singularSmall;
         if(!recurrence[5]){recurrence[3]=recurrence[0]/sum;recurrence[6]+=1;}
-        recurrence[2]=recurrence[0];
+        recurrence[2]=recurrence[0];recurrence[9]=0;
     }else{
         recurrence[4]=sum;recurrence[0]=nextRho;
         const auto& controls=parameters->controls;
@@ -220,16 +313,17 @@ template<int Stage> __global__ void finishLocalReduction(int n,const GpuReal* pa
 }
 
 // A matrix with at most one row per lane needs no inter-block dependencies.
-// Keep the identical CSR order and 256-lane reduction tree, and synchronize
+// Keep the identical CSR order and configured-width reduction tree, and synchronize
 // its complete PCG recurrence inside the owning block instead of dispatching
 // a graph node for each vector operation. No mesh/physics assumption is used.
 __global__ void solveLocalBlock(int n,const int* offsets,const int* columns,const GpuReal* values,
-    const GpuReal* rowSum,const GpuReal* b,const GpuReal* affine,GpuReal* x,GpuReal* r,GpuReal* z,GpuReal* p,GpuReal* ap,
+    const GpuReal* rowSum,const GpuReal* b,const GpuReal* affine,GpuReal* x,GpuReal* r,GpuReal* z,GpuReal* p,GpuReal* ap,GpuReal* confirmedX,
     ConjugateGradientControls settings,const ConjugateGradientControls* deviceSettings,
     LocalSolveParameters* parameters,GpuReal* recurrence,ConjugateGradientReport* report){
-    __shared__ GpuReal scratch[threads];const int i=threadIdx.x;
-    if(!i){*parameters={0,0,0,deviceSettings?*deviceSettings:settings};for(int j=0;j<8;++j)recurrence[j]=0;}
+    extern __shared__ GpuReal scratch[];const int i=threadIdx.x;
+    if(!i){*parameters={0,0,0,deviceSettings?*deviceSettings:settings};for(int j=0;j<12;++j)recurrence[j]=0;}
     __syncthreads();
+    if(i<n)confirmedX[i]=x[i];
     GpuReal sum=localBlockSum(i<n?x[i]:0.f,scratch);
     if(!i)parameters->mean=sum/(n?n:1);
     __syncthreads();
@@ -259,7 +353,7 @@ __global__ void solveLocalBlock(int n,const int* offsets,const int* columns,cons
         sum=localBlockSum(i<n?preconditioned*r[i]:0.f,scratch);
         if(!i)recurrence[0]=sum;
         __syncthreads();
-        if(i<n)p[i]=recurrence[6]==0?preconditioned:preconditioned+(recurrence[0]/recurrence[2])*p[i];
+        if(i<n)p[i]=(recurrence[6]==0||recurrence[9]!=0)?preconditioned:preconditioned+(recurrence[0]/recurrence[2])*p[i];
         __syncthreads();
         product=0;
         if(i<n){
@@ -271,7 +365,7 @@ __global__ void solveLocalBlock(int n,const int* offsets,const int* columns,cons
         if(!i){
             recurrence[1]=sum;recurrence[5]=fabsf(sum)/parameters->norm<parameters->controls.singularSmall;
             if(!recurrence[5]){recurrence[3]=recurrence[0]/sum;recurrence[6]+=1;}
-            recurrence[2]=recurrence[0];
+            recurrence[2]=recurrence[0];recurrence[9]=0;
         }
         __syncthreads();
         if(i<n&&!recurrence[5]){x[i]+=recurrence[3]*p[i];r[i]-=recurrence[3]*ap[i];}
@@ -282,22 +376,34 @@ __global__ void solveLocalBlock(int n,const int* offsets,const int* columns,cons
             recurrence[7]=recurrence[5]||((recurrence[6]>=c.maximumIterations||converged)&&recurrence[6]>=c.minimumIterations);
         }
         __syncthreads();
+        if(recurrence[7]){
+            GpuReal changed=0;product=0;
+            if(i<n){
+                changed=x[i]!=confirmedX[i]?1:0;confirmedX[i]=x[i];
+                product=values[offsets[i]]*x[i];
+                for(int e=offsets[i]+1;e<offsets[i+1];++e)product+=values[e]*x[columns[e]];
+                if(affine)product+=affine[i];
+                r[i]=b[i]-product;
+            }
+            sum=localBlockSum(changed,scratch);if(!i)recurrence[8]=sum;
+            __syncthreads();
+            sum=localBlockSum(i<n?fabsf(r[i]):GpuReal(0),scratch);
+            if(!i){recurrence[4]=sum;confirmTrueResidual(parameters,recurrence);}
+            __syncthreads();
+        }
     }
-    // Publish the actual FP32 b-A*x-affine residual, not its recurrence.
-    product=0;
-    if(i<n){
-        product=values[offsets[i]]*x[i];
-        for(int e=offsets[i]+1;e<offsets[i+1];++e)product+=values[e]*x[columns[e]];
-        if(affine)product+=affine[i];
-    }
-    sum=localBlockSum(i<n?fabsf(b[i]-product):0.0f,scratch);
-    if(!i)recurrence[4]=sum;
-    __syncthreads();
     if(!i){
         const auto& c=parameters->controls;const GpuReal value=recurrence[4]/parameters->norm;
+        report->preconditionerFallbackBlocks=0;
         report->iterations=int(recurrence[6]);report->initialResidual=parameters->initial;report->finalResidual=value;
         report->singular=recurrence[5]!=0;report->converged=value<c.tolerance||
             (c.relativeTolerance>c.normalizationSmall&&value<c.relativeTolerance*parameters->initial);
+    report->residualReplacements=int(recurrence[10]);
+    report->stagnated=recurrence[11]!=0;
+    report->budgetExhausted=!report->converged&&report->iterations>=c.maximumIterations;
+    report->targetResidual=c.tolerance;
+    if(c.relativeTolerance>c.normalizationSmall)
+        report->targetResidual=fmaxf(report->targetResidual,c.relativeTolerance*parameters->initial);
     }
 }
 
@@ -312,7 +418,7 @@ struct SparseConjugateGradient::Implementation {
     std::vector<double> cachedBoundaryJump;
     SparseDeviceLduValues residentValues{};
     int residentRows=0;bool residentConfigured=false,residentAffine=false;
-    DeviceArray<GpuReal> values,rowSum,x,b,r,z,p,ap,partial,result,recurrence;
+    DeviceArray<GpuReal> values,rowSum,x,b,r,z,p,ap,confirmedX,partial,result,recurrence;
     std::vector<GpuReal> interfaceX,interfaceResult,interfacePacked;
     std::vector<int> cachedInterfaceCells;
     DeviceArray<int> interfaceCells;
@@ -337,7 +443,7 @@ struct SparseConjugateGradient::Implementation {
         void clear(){if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);executable=nullptr;graph=nullptr;}
         ~Graph(){clear();}
     } localGraph;
-    int graphRows=-1;std::vector<const void*> graphAddresses;
+    int graphRows=-1,graphBlockThreads=-1;std::vector<const void*> graphAddresses;
     cudaEvent_t externalReady=nullptr,externalDone=nullptr;
     void waitFor(void* producer){
         if(!externalReady)checked(cudaEventCreateWithFlags(&externalReady,cudaEventDisableTiming));
@@ -349,13 +455,13 @@ struct SparseConjugateGradient::Implementation {
         checked(cudaEventRecord(externalDone,stream));
         checked(cudaStreamWaitEvent(static_cast<cudaStream_t>(consumer),externalDone,0));
     }
-    Implementation(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfers.bind(stream);const auto status=cudaMallocHost(reinterpret_cast<void**>(&hostRecurrence),8*sizeof(GpuReal));if(status!=cudaSuccess){cudaStreamDestroy(stream);stream=nullptr;checked(status);}}
+    Implementation(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfers.bind(stream);const auto status=cudaMallocHost(reinterpret_cast<void**>(&hostRecurrence),12*sizeof(GpuReal));if(status!=cudaSuccess){cudaStreamDestroy(stream);stream=nullptr;checked(status);}}
     ~Implementation(){transfers.discard();if(stream){cudaStreamSynchronize(stream);localGraph.clear();cudaStreamDestroy(stream);}if(hostRecurrence)cudaFreeHost(hostRecurrence);if(externalReady)cudaEventDestroy(externalReady);if(externalDone)cudaEventDestroy(externalDone);}
     void reduce(int n,int mode,const GpuReal* a,const GpuReal* other,GpuReal* output,
         const SparseCommunication& comm,GpuReal mean=0,const GpuReal* stop=nullptr,const GpuReal* residentMean=nullptr){
         const int blocks=std::max(1,std::min(1024,(n+threads-1)/threads));partial.reserve(blocks);
-        partialReduction<<<blocks,threads,0,stream>>>(n,mode,a,other,rowSum.ptr,mean,partial.ptr,stop,residentMean);
-        finishReduction<<<1,threads,0,stream>>>(blocks,partial.ptr,output,stop);
+        partialReduction<<<blocks,threads,threads*sizeof(GpuReal),stream>>>(n,mode,a,other,rowSum.ptr,mean,partial.ptr,stop,residentMean);
+        finishReduction<<<1,threads,threads*sizeof(GpuReal),stream>>>(blocks,partial.ptr,output,stop);
         if(comm.globalSum){
             GpuReal host=0;transfers.download(&host,output,sizeof(GpuReal));
             transfers.finish();comm.globalSum(comm.context,&host,1);
@@ -389,10 +495,47 @@ struct SparseConjugateGradient::Implementation {
             }
         }
     }
+    DeviceArray<int> blockMembers;
+    DeviceArray<GpuReal> blockFactors;
+    DeviceArray<int> blockValid;
+    int blockCount=0;
+    unsigned long long blockTopologyRevision=0;
+    std::vector<int> blockOffsetsCache,blockColumnsCache;
+    SparsePreconditioner selected=SparsePreconditioner::Jacobi;
+    bool usingBlock(int n)const{return selected==SparsePreconditioner::Block8 && n>threads;}
+    void selectPreconditioner(SparsePreconditioner choice){
+        if(choice!=selected){selected=choice;cachedRows=-1;localGraph.clear();graphRows=-1;blockCount=0;}
+    }
+    void refreshBlocks(int n){
+        if(usingBlock(n)&&blockCount)
+            factorBlock<8><<<blockCount,threads,0,stream>>>(blockMembers.ptr,offsets.ptr,columns.ptr,values.ptr,blockFactors.ptr,blockValid.ptr);
+    }
+
+    void buildBlocks(int n,const std::vector<int>& off,const std::vector<int>& col){
+        if(blockCount && off==blockOffsetsCache && col==blockColumnsCache)return;
+        localGraph.clear();graphRows=-1;++blockTopologyRevision;
+        blockOffsetsCache=off;blockColumnsCache=col;
+        std::vector<int> seen(n,0),packed;
+        for(int seed=0;seed<n;++seed)if(!seen[seed]){
+            std::vector<int> group{seed};seen[seed]=1;
+            for(int j=0;j<int(group.size()) && int(group.size())<8;++j)
+                for(int e=off[group[j]];e<off[group[j]+1] && int(group.size())<8;++e)
+                    if(!seen[col[e]]){seen[col[e]]=1;group.push_back(col[e]);}
+            for(int j=0;j<8;++j)packed.push_back(j<int(group.size())?group[j]:-1);
+        }
+        blockCount=packed.size()/8;
+        blockMembers.upload(packed.data(),packed.size(),transfers);
+        blockFactors.reserve(blockCount*8*8);blockValid.reserve(blockCount);transfers.finish();
+    }
+    void applyBlocks(const GpuReal* stop){
+        if(blockCount)applyBlock<8><<<blockCount,threads,0,stream>>>(blockMembers.ptr,blockFactors.ptr,blockValid.ptr,offsets.ptr,values.ptr,r.ptr,z.ptr,stop);
+    }
+
+
     void iteration(int n,GpuReal norm,GpuReal singularSmall,const SparseCommunication& comm,bool local=false){
         const GpuReal* stop=local?recurrence.ptr:nullptr;
         const int blocks=(n+threads-1)/threads;
-        if(n)precondition<<<blocks,threads,0,stream>>>(n,offsets.ptr,values.ptr,r.ptr,z.ptr,stop);
+        if(usingBlock(n))applyBlocks(stop);else if(n)precondition<<<blocks,threads,0,stream>>>(n,offsets.ptr,values.ptr,r.ptr,z.ptr,stop);
         reduce(n,2,z.ptr,r.ptr,recurrence.ptr,comm,0,stop);
         if(n)direction<<<blocks,threads,0,stream>>>(n,z.ptr,recurrence.ptr,p.ptr);
         matvec(n,p.ptr,ap.ptr,comm,stop);
@@ -407,13 +550,14 @@ struct SparseConjugateGradient::Implementation {
         int n,const ConjugateGradientControls& controls,const GpuReal* initialAffine,const ConjugateGradientControls* deviceControls=nullptr){
         using executionGraphDetail::appendCaptured;using executionGraphDetail::addWhile;
         if(n<=threads)return appendCaptured(graph,dependencies,stream,[&]{
-            solveLocalBlock<<<1,threads,0,stream>>>(n,offsets.ptr,columns.ptr,values.ptr,rowSum.ptr,b.ptr,
-                initialAffine,x.ptr,r.ptr,z.ptr,p.ptr,ap.ptr,controls,deviceControls,localParameters.ptr,recurrence.ptr,localReport.ptr);
+            solveLocalBlock<<<1,threads,threads*sizeof(GpuReal),stream>>>(n,offsets.ptr,columns.ptr,values.ptr,rowSum.ptr,b.ptr,
+                initialAffine,x.ptr,r.ptr,z.ptr,p.ptr,ap.ptr,confirmedX.ptr,controls,deviceControls,localParameters.ptr,recurrence.ptr,localReport.ptr);
         });
         cudaGraphConditionalHandle handle;
         checked(cudaGraphConditionalHandleCreate(&handle,graph,0,cudaGraphCondAssignDefault));
         const auto initialized=appendCaptured(graph,dependencies,stream,[&]{
             initializeLocalParameters<<<1,1,0,stream>>>(n,controls,localParameters.ptr,recurrence.ptr,deviceControls);
+            if(n)checked(cudaMemcpyAsync(confirmedX.ptr,x.ptr,n*sizeof(GpuReal),cudaMemcpyDeviceToDevice,stream));
             matvec(n,x.ptr,ap.ptr,{});
             if(n&&initialAffine)addInitialAffine<<<(n+threads-1)/threads,threads,0,stream>>>(n,initialAffine,ap.ptr);
             if(n)initialResidual<<<(n+threads-1)/threads,threads,0,stream>>>(n,b.ptr,ap.ptr,r.ptr);
@@ -423,11 +567,17 @@ struct SparseConjugateGradient::Implementation {
             reduce(n,1,r.ptr,nullptr,recurrence.ptr+4,{});
             initializeLocalCondition<<<1,1,0,stream>>>(localParameters.ptr,recurrence.ptr,handle);
             const int blocks=std::max(1,std::min(1024,(n+threads-1)/threads));
-            preconditionAndDot<<<blocks,threads,0,stream>>>(n,offsets.ptr,values.ptr,r.ptr,z.ptr,partial.ptr,recurrence.ptr);
-            finishLocalReduction<0><<<1,threads,0,stream>>>(blocks,partial.ptr,recurrence.ptr,localParameters.ptr,handle);
+            if(usingBlock(n)){
+                applyBlocks(recurrence.ptr);
+                partialReduction<<<blocks,threads,threads*sizeof(GpuReal),stream>>>(n,2,z.ptr,r.ptr,rowSum.ptr,GpuReal(0),partial.ptr,recurrence.ptr);
+            }else
+            preconditionAndDot<<<blocks,threads,threads*sizeof(GpuReal),stream>>>(n,offsets.ptr,values.ptr,r.ptr,z.ptr,partial.ptr,recurrence.ptr);
+            finishLocalReduction<0><<<1,threads,threads*sizeof(GpuReal),stream>>>(blocks,partial.ptr,recurrence.ptr,localParameters.ptr,handle);
         });
         cudaGraph_t body=nullptr;const auto loop=addWhile(graph,handle,{initialized},body);
-        appendCaptured(body,{},stream,[&]{
+        cudaGraphConditionalHandle confirmation;
+        checked(cudaGraphConditionalHandleCreate(&confirmation,body,0,cudaGraphCondAssignDefault));
+        const auto iterated=appendCaptured(body,{},stream,[&]{
             // No inter-rank callbacks are involved in this resident loop.
             // MPI/interface solves keep their existing exchange ordering below.
             const int blocks=std::max(1,std::min(1024,(n+threads-1)/threads));
@@ -436,42 +586,62 @@ struct SparseConjugateGradient::Implementation {
             // stop flag; unused stages after convergence perform no arithmetic.
             for(int batch=0;batch<4;++batch){
                 if(n)direction<<<(n+threads-1)/threads,threads,0,stream>>>(n,z.ptr,recurrence.ptr,p.ptr);
-                multiplyAndDot<<<blocks,threads,0,stream>>>(n,offsets.ptr,columns.ptr,values.ptr,p.ptr,ap.ptr,partial.ptr,recurrence.ptr);
-                finishLocalReduction<1><<<1,threads,0,stream>>>(blocks,partial.ptr,recurrence.ptr,localParameters.ptr,handle);
-                updatePreconditionAndNorm<<<blocks,threads,0,stream>>>(n,offsets.ptr,values.ptr,recurrence.ptr,p.ptr,ap.ptr,x.ptr,r.ptr,z.ptr,partial.ptr);
-                finishLocalReduction<2><<<1,threads,0,stream>>>(blocks,partial.ptr,recurrence.ptr,localParameters.ptr,handle);
+                multiplyAndDot<<<blocks,threads,threads*sizeof(GpuReal),stream>>>(n,offsets.ptr,columns.ptr,values.ptr,p.ptr,ap.ptr,partial.ptr,recurrence.ptr);
+                finishLocalReduction<1><<<1,threads,threads*sizeof(GpuReal),stream>>>(blocks,partial.ptr,recurrence.ptr,localParameters.ptr,handle);
+                if(usingBlock(n)){
+                    update<<<(n+threads-1)/threads,threads,0,stream>>>(n,recurrence.ptr,p.ptr,ap.ptr,x.ptr,r.ptr);
+                    applyBlocks(recurrence.ptr);
+                    blockNormAndRho<<<blocks,threads,threads*sizeof(GpuReal),stream>>>(n,offsets.ptr,values.ptr,recurrence.ptr,p.ptr,ap.ptr,x.ptr,r.ptr,z.ptr,partial.ptr);
+                }else
+                updatePreconditionAndNorm<<<blocks,threads,threads*sizeof(GpuReal),stream>>>(n,offsets.ptr,values.ptr,recurrence.ptr,p.ptr,ap.ptr,x.ptr,r.ptr,z.ptr,partial.ptr);
+                finishLocalReduction<2><<<1,threads,threads*sizeof(GpuReal),stream>>>(blocks,partial.ptr,recurrence.ptr,localParameters.ptr,handle);
             }
+            setConfirmationCondition<<<1,1,0,stream>>>(recurrence.ptr,confirmation);
         });
-        return appendCaptured(graph,{loop},stream,[&]{
+        cudaGraph_t confirmationBody=nullptr;
+        executionGraphDetail::addIf(body,confirmation,{iterated},confirmationBody);
+        appendCaptured(confirmationBody,{},stream,[&]{
+            reduce(n,4,x.ptr,confirmedX.ptr,recurrence.ptr+8,{});
+            if(n)checked(cudaMemcpyAsync(confirmedX.ptr,x.ptr,n*sizeof(GpuReal),cudaMemcpyDeviceToDevice,stream));
             matvec(n,x.ptr,ap.ptr,{});
             if(n&&initialAffine)addInitialAffine<<<(n+threads-1)/threads,threads,0,stream>>>(n,initialAffine,ap.ptr);
             if(n)initialResidual<<<(n+threads-1)/threads,threads,0,stream>>>(n,b.ptr,ap.ptr,r.ptr);
             reduce(n,1,r.ptr,nullptr,recurrence.ptr+4,{});
-            publishLocalReport<<<1,1,0,stream>>>(localParameters.ptr,recurrence.ptr,localReport.ptr);
+            completeTrueResidualConfirmation<<<1,1,0,stream>>>(localParameters.ptr,recurrence.ptr,handle);
+            const int blocks=std::max(1,std::min(1024,(n+threads-1)/threads));
+            if(usingBlock(n)){
+                applyBlocks(recurrence.ptr);
+                partialReduction<<<blocks,threads,threads*sizeof(GpuReal),stream>>>(n,2,z.ptr,r.ptr,rowSum.ptr,GpuReal(0),partial.ptr,recurrence.ptr);
+            }else preconditionAndDot<<<blocks,threads,threads*sizeof(GpuReal),stream>>>(n,offsets.ptr,values.ptr,r.ptr,z.ptr,partial.ptr,recurrence.ptr);
+            finishLocalReduction<0><<<1,threads,threads*sizeof(GpuReal),stream>>>(blocks,partial.ptr,recurrence.ptr,localParameters.ptr,handle);
+        });
+        return appendCaptured(graph,{loop},stream,[&]{
+            publishLocalReport<<<1,1,0,stream>>>(localParameters.ptr,recurrence.ptr,localReport.ptr,blockValid.ptr,usingBlock(n)?blockCount:0);
         });
     }
-    void prepareResidentRhs(GpuReal* solution){
+    void prepareResidentRhs(GpuReal* solution,bool factor=true){
         const int n=residentRows;const auto& values=residentValues;
         if(n){
             assembleLdu<<<(n+threads-1)/threads,threads,0,stream>>>(n,offsets.ptr,entrySource.ptr,entryKind.ptr,
                 boundaryOffsets.ptr,boundaryIndices.ptr,boundaryNeighbour.ptr,values.diagonal,values.upper,values.lower,
                 values.source,values.boundaryDiagonal,values.boundarySource,this->values.ptr,b.ptr,rowSum.ptr,
                 residentAffine?(values.boundaryJump?values.boundaryJump:boundaryJump.ptr):nullptr,residentAffine?affine.ptr:nullptr);
+            if(factor)refreshBlocks(n);
             checked(cudaMemcpyAsync(x.ptr,solution,n*sizeof(GpuReal),cudaMemcpyDeviceToDevice,stream));
         }
     }
     void enqueueLocal(int n,const ConjugateGradientControls& controls,const GpuReal* initialAffine,bool launch=true){
-        localParameters.reserve(1);localReport.reserve(1);recurrence.reserve(8);
+        localParameters.reserve(1);localReport.reserve(1);recurrence.reserve(12);confirmedX.reserve(n);
         partial.reserve(2*std::max(1,std::min(1024,(n+threads-1)/threads)));
-        const std::vector<const void*> addresses={offsets.ptr,columns.ptr,values.ptr,rowSum.ptr,
-            r.ptr,z.ptr,p.ptr,ap.ptr,x.ptr,b.ptr,recurrence.ptr,partial.ptr,localParameters.ptr,localReport.ptr,initialAffine};
-        const bool sameControls=graphControls.maximumIterations==controls.maximumIterations
+        const std::vector<const void*> addresses={blockMembers.ptr,blockFactors.ptr,blockValid.ptr,offsets.ptr,columns.ptr,values.ptr,rowSum.ptr,
+            r.ptr,z.ptr,p.ptr,ap.ptr,confirmedX.ptr,x.ptr,b.ptr,recurrence.ptr,partial.ptr,localParameters.ptr,localReport.ptr,initialAffine};
+        const bool sameControls=graphControls.preconditioner==controls.preconditioner && graphControls.maximumIterations==controls.maximumIterations
             &&graphControls.minimumIterations==controls.minimumIterations&&graphControls.tolerance==controls.tolerance
             &&graphControls.relativeTolerance==controls.relativeTolerance&&graphControls.normalizationSmall==controls.normalizationSmall
             &&graphControls.singularSmall==controls.singularSmall;
         auto& graph=localGraph;
-        if(graphRows!=n||graphAddresses!=addresses||!sameControls){
-            graph.clear();graphRows=n;graphAddresses=addresses;graphControls=controls;
+        if(graphRows!=n||graphBlockThreads!=threads||graphAddresses!=addresses||!sameControls){
+            graph.clear();graphRows=n;graphBlockThreads=threads;graphAddresses=addresses;graphControls=controls;
         }
         if(!graph.executable){
             checked(cudaGraphCreate(&graph.graph,0));
@@ -486,7 +656,7 @@ SparseConjugateGradient::SparseConjugateGradient():data_(new Implementation){}
 SparseConjugateGradient::~SparseConjugateGradient()=default;
 ExecutionGraphSignature SparseConjugateGradient::residentExecutionSignature()const{
     const auto& d=*data_;ExecutionGraphSignature key;key.add(this);
-    for(const void* p:{
+    for(const void* p:{static_cast<const void*>(d.blockMembers.ptr),static_cast<const void*>(d.blockFactors.ptr),static_cast<const void*>(d.blockValid.ptr),
         static_cast<const void*>(d.offsets.ptr),static_cast<const void*>(d.columns.ptr),static_cast<const void*>(d.entrySource.ptr),
         static_cast<const void*>(d.entryKind.ptr),static_cast<const void*>(d.boundaryOffsets.ptr),static_cast<const void*>(d.boundaryIndices.ptr),
         static_cast<const void*>(d.boundaryNeighbour.ptr),static_cast<const void*>(d.boundaryJump.ptr),static_cast<const void*>(d.affine.ptr),
@@ -495,21 +665,25 @@ ExecutionGraphSignature SparseConjugateGradient::residentExecutionSignature()con
         static_cast<const void*>(d.p.ptr),static_cast<const void*>(d.ap.ptr),static_cast<const void*>(d.partial.ptr),
         static_cast<const void*>(d.recurrence.ptr),static_cast<const void*>(d.localParameters.ptr),static_cast<const void*>(d.localReport.ptr)
     })key.add(p);
-    key.add(d.residentRows);key.add(d.residentConfigured);key.add(d.residentAffine);
+    key.add(workPlan().sparseBlockThreads);key.add(d.residentRows);key.add(d.residentConfigured);key.add(d.residentAffine);
     const auto& v=d.residentValues;
     key.add(v.diagonal);key.add(v.upper);key.add(v.lower);key.add(v.source);
     key.add(v.boundaryDiagonal);key.add(v.boundarySource);key.add(v.boundaryJump);
     const auto& c=d.graphControls;
     key.add(c.maximumIterations);key.add(c.minimumIterations);key.add(c.tolerance);
+    key.add(d.blockTopologyRevision);key.add(d.blockCount);
+    key.add(static_cast<int>(c.preconditioner));
     key.add(c.relativeTolerance);key.add(c.normalizationSmall);key.add(c.singularSmall);
     return key;
 }
 ConjugateGradientReport SparseConjugateGradient::solve(const SparseMatrixView& matrix,
     const double* source,double* solution,const ConjugateGradientControls& controls,const SparseCommunication& comm){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);const int n=matrix.rows;
+    d.selectPreconditioner(controls.preconditioner);
     d.offsets.upload(matrix.offsets,n+1,d.transfers);d.columns.upload(matrix.columns,matrix.entries,d.transfers);
     d.values.upload(matrix.values,matrix.entries,d.transfers);d.rowSum.upload(matrix.rowSum,n,d.transfers);
     d.b.upload(source,n,d.transfers);
+    if(d.usingBlock(n))d.buildBlocks(n,std::vector<int>(matrix.offsets,matrix.offsets+n+1),std::vector<int>(matrix.columns,matrix.columns+matrix.entries));
     // Raw CSR uploads replace the address storage, invalidating an LDU cache.
     d.cachedRows=-1;d.residentConfigured=false;
     return solvePrepared(n,solution,controls,comm);
@@ -520,6 +694,7 @@ ConjugateGradientReport SparseConjugateGradient::solvePrepared(int n,double* sol
     if(deviceSolution){d.x.reserve(n);if(n)checked(cudaMemcpyAsync(d.x.ptr,deviceSolution,n*sizeof(GpuReal),cudaMemcpyDeviceToDevice,d.stream));}
     else d.x.upload(solution,n,d.transfers);
     d.r.reserve(n);d.z.reserve(n);d.p.reserve(n);d.ap.reserve(n);
+    d.refreshBlocks(n);
     if(!comm.addInterface&&!comm.globalSum){
         d.enqueueLocal(n,controls,initialAffine);
         ConjugateGradientReport report;
@@ -539,23 +714,39 @@ ConjugateGradientReport SparseConjugateGradient::solvePrepared(int n,double* sol
     auto converged=[&]{return report.finalResidual<controls.tolerance ||
         (controls.relativeTolerance>controls.normalizationSmall && report.finalResidual<controls.relativeTolerance*report.initialResidual);};
     report.converged=converged();
+    report.targetResidual=controls.tolerance;
+    if(controls.relativeTolerance>controls.normalizationSmall)
+        report.targetResidual=std::max(report.targetResidual,controls.relativeTolerance*report.initialResidual);
     if(controls.minimumIterations>0||!report.converged){
-        d.recurrence.reserve(8);checked(cudaMemsetAsync(d.recurrence.ptr,0,8*sizeof(GpuReal),d.stream));
-        do {
+        d.confirmedX.reserve(n);
+        if(n)checked(cudaMemcpyAsync(d.confirmedX.ptr,d.x.ptr,n*sizeof(GpuReal),cudaMemcpyDeviceToDevice,d.stream));
+        d.recurrence.reserve(12);checked(cudaMemsetAsync(d.recurrence.ptr,0,12*sizeof(GpuReal),d.stream));
+        for(;;){
             d.iteration(n,norm,controls.singularSmall,comm);
-            checked(cudaMemcpyAsync(d.hostRecurrence,d.recurrence.ptr,8*sizeof(GpuReal),cudaMemcpyDeviceToHost,d.stream));
+            checked(cudaMemcpyAsync(d.hostRecurrence,d.recurrence.ptr,12*sizeof(GpuReal),cudaMemcpyDeviceToHost,d.stream));
             d.transfers.finish();report.iterations=int(d.hostRecurrence[6]);
             report.singular=d.hostRecurrence[5]!=0;
             report.finalResidual=d.hostRecurrence[4]/norm;report.converged=converged();
-            if(report.singular)break;
-        }while((report.iterations<controls.maximumIterations&&!report.converged)||report.iterations<controls.minimumIterations);
+            const bool exhausted=report.iterations>=controls.maximumIterations&&report.iterations>=controls.minimumIterations;
+            if(report.singular||exhausted||(report.converged&&report.iterations>=controls.minimumIterations)){
+                const GpuReal changed=d.sum(n,4,d.x.ptr,d.confirmedX.ptr,comm);
+                if(n)checked(cudaMemcpyAsync(d.confirmedX.ptr,d.x.ptr,n*sizeof(GpuReal),cudaMemcpyDeviceToDevice,d.stream));
+                d.matvec(n,d.x.ptr,d.ap.ptr,comm);
+                if(n&&initialAffine)addInitialAffine<<<blocks,threads,0,d.stream>>>(n,initialAffine,d.ap.ptr);
+                if(n)initialResidual<<<blocks,threads,0,d.stream>>>(n,d.b.ptr,d.ap.ptr,d.r.ptr);
+                report.finalResidual=d.sum(n,1,d.r.ptr,nullptr,comm)/norm;report.converged=converged();
+                report.stagnated=!report.converged&&!report.singular&&!exhausted&&changed==0;
+                if(report.converged||report.singular||exhausted||report.stagnated)break;
+                ++report.residualReplacements;
+                d.hostRecurrence[9]=1;
+                checked(cudaMemcpyAsync(d.recurrence.ptr,d.hostRecurrence,12*sizeof(GpuReal),cudaMemcpyHostToDevice,d.stream));
+            }
+        }
     }
-    d.matvec(n,d.x.ptr,d.ap.ptr,comm);
-    if(n&&initialAffine)addInitialAffine<<<blocks,threads,0,d.stream>>>(n,initialAffine,d.ap.ptr);
-    if(n)initialResidual<<<blocks,threads,0,d.stream>>>(n,d.b.ptr,d.ap.ptr,d.r.ptr);
-    report.finalResidual=d.sum(n,1,d.r.ptr,nullptr,comm)/norm;report.converged=converged();
+    report.budgetExhausted=!report.converged&&report.iterations>=controls.maximumIterations;
     if(n){if(deviceSolution)checked(cudaMemcpyAsync(deviceSolution,d.x.ptr,n*sizeof(GpuReal),cudaMemcpyDeviceToDevice,d.stream));
         else d.transfers.downloadConverted(solution,d.x.ptr,n);}
+    if(d.usingBlock(n)){std::vector<int> valid(d.blockCount);d.transfers.download(valid.data(),d.blockValid.ptr,valid.size()*sizeof(int));d.transfers.finish();for(int v:valid)report.preconditionerFallbackBlocks+=v==0;}
     d.transfers.finish();return report;
 }
 void SparseConjugateGradient::prepareLdu(const SparseLduView& matrix,const SparseDeviceLduValues* resident,bool assemble){
@@ -580,6 +771,7 @@ void SparseConjugateGradient::prepareLdu(const SparseLduView& matrix,const Spars
             offsets.push_back(columns.size());bIndices.insert(bIndices.end(),boundaries[c].begin(),boundaries[c].end());bOffsets.push_back(bIndices.size());
         }
         d.offsets.upload(offsets.data(),offsets.size(),d.transfers);d.columns.upload(columns.data(),columns.size(),d.transfers);
+        if(d.usingBlock(n))d.buildBlocks(n,offsets,columns);
         d.entrySource.upload(indices.data(),indices.size(),d.transfers);d.entryKind.upload(kinds.data(),kinds.size(),d.transfers);
         d.boundaryOffsets.upload(bOffsets.data(),bOffsets.size(),d.transfers);d.boundaryIndices.upload(bIndices.data(),bIndices.size(),d.transfers);
         d.boundaryNeighbour.upload(matrix.boundaryNeighbour,nb,d.transfers);
@@ -612,7 +804,7 @@ void SparseConjugateGradient::prepareLdu(const SparseLduView& matrix,const Spars
 }
 ConjugateGradientReport SparseConjugateGradient::solveLdu(const SparseLduView& matrix,double* solution,
     const ConjugateGradientControls& controls,const SparseCommunication& comm){
-    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.residentConfigured=false;prepareLdu(matrix,nullptr);
+    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.residentConfigured=false;d.selectPreconditioner(controls.preconditioner);prepareLdu(matrix,nullptr);
     return solvePrepared(matrix.rows,solution,controls,comm,matrix.boundaryJump?d.affine.ptr:nullptr);
 }
 ConjugateGradientReport SparseConjugateGradient::solveResidentLdu(const SparseLduView& matrix,
@@ -621,13 +813,13 @@ ConjugateGradientReport SparseConjugateGradient::solveResidentLdu(const SparseLd
         configureResidentLocalLdu(matrix,values,controls);enqueueResidentLocalLdu(solution);
         return collectResidentLocalReport();
     }
-    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.residentConfigured=false;prepareLdu(matrix,&values);
+    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.residentConfigured=false;d.selectPreconditioner(controls.preconditioner);prepareLdu(matrix,&values);
     const auto report=solvePrepared(matrix.rows,nullptr,controls,comm,matrix.boundaryJump?d.affine.ptr:nullptr,solution);
     d.publishTo(values.readyStream);return report;
 }
 void SparseConjugateGradient::configureResidentLocalLdu(const SparseLduView& matrix,
     const SparseDeviceLduValues& values,const ConjugateGradientControls& controls){
-    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);prepareLdu(matrix,&values,false);
+    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.selectPreconditioner(controls.preconditioner);prepareLdu(matrix,&values,false);
     const int n=matrix.rows;d.x.reserve(n);d.r.reserve(n);d.z.reserve(n);d.p.reserve(n);d.ap.reserve(n);
     d.residentRows=n;d.residentValues=values;d.residentAffine=matrix.boundaryJump!=nullptr;
     d.enqueueLocal(n,controls,d.residentAffine?d.affine.ptr:nullptr,false);d.residentConfigured=true;
@@ -653,7 +845,7 @@ ExecutionGraphNode SparseConjugateGradient::appendResidentLocalLdu(ExecutionGrap
 ExecutionGraphNode SparseConjugateGradient::appendResidentLocalResidual(ExecutionGraph graph,ExecutionGraphNode dependency,GpuReal* solution,GpuReal* residual){
     auto& d=*data_;if(!d.residentConfigured)throw std::logic_error("resident local sparse residual is not configured");
     return executionGraphDetail::appendCaptured(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},d.stream,[&]{
-        d.prepareResidentRhs(solution);const int n=d.residentRows;d.matvec(n,d.x.ptr,d.ap.ptr,{});
+        d.prepareResidentRhs(solution,false);const int n=d.residentRows;d.matvec(n,d.x.ptr,d.ap.ptr,{});
         if(n&&d.residentAffine)addInitialAffine<<<(n+threads-1)/threads,threads,0,d.stream>>>(n,d.affine.ptr,d.ap.ptr);
         if(n)initialResidual<<<(n+threads-1)/threads,threads,0,d.stream>>>(n,d.b.ptr,d.ap.ptr,residual);
     });
@@ -675,3 +867,5 @@ void SparseConjugateGradient::residualResidentLdu(const SparseLduView& matrix,
 }
 
 }}
+
+#undef threads

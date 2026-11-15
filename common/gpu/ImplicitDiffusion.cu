@@ -1,3 +1,4 @@
+#include "WorkPlan.H"
 #include <cstring>
 #include "ImplicitDiffusion.H"
 #include "ThermalFieldOperators.H"
@@ -168,29 +169,29 @@ struct ImplicitDiffusion::Implementation {
     } prepared;
     void assemblePrepared(cudaStream_t target,const double* deviceInterval=nullptr){
         const int n=cells,ni=internal,nf=prepared.faces,nb=nf-ni;
-        if(prepared.conductivity&&nf)interpolateResidentConductivity<<<(nf+127)/128,128,0,target>>>(nf,ni,deviceOwner.ptr,deviceNeighbour.ptr,
+        if(prepared.conductivity&&nf)interpolateResidentConductivity<<<(nf+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(nf,ni,deviceOwner.ptr,deviceNeighbour.ptr,
             prepared.conductivity,conductivityWeights.ptr,conductivityBoundary.ptr,conductivityNeighbour.ptr,conductivityCoupled.ptr,conductivityAdjacentCells.ptr,conductivityJump.ptr,prepared.boundaryConductivity,prepared.harmonic,gamma.ptr);
         if(prepared.temperature){
-            if(nb&&prescribedConductivity)prescribeEnergyGradient<<<(nb+127)/128,128,0,target>>>(nb,prescribedSelected.ptr,prescribedEnergy.ptr,
+            if(nb&&prescribedConductivity)prescribeEnergyGradient<<<(nb+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(nb,prescribedSelected.ptr,prescribedEnergy.ptr,
                 area.ptr+ni,prescribedConductivity,prescribedInterval,gradientBoundary.ptr,valueBoundary.ptr,normalBoundary.ptr,boundaryValueDelta.ptr,deviceInterval);
-            if(nf)residentTemperatureFaces<<<(nf+127)/128,128,0,target>>>(nf,ni,deviceOwner.ptr,deviceNeighbour.ptr,
+            if(nf)residentTemperatureFaces<<<(nf+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(nf,ni,deviceOwner.ptr,deviceNeighbour.ptr,
                 prepared.temperature,gradientWeights.ptr,gradientNeighbour.ptr,valueInternal.ptr,valueBoundary.ptr,jump.ptr,faceTemperature.ptr);
-            if(prepared.corrected&&n)thermalGradientDetail::cellGradient<<<(n+127)/128,128,0,target>>>(n,offsets.ptr,faces.ptr,signs.ptr,
+            if(prepared.corrected&&n)thermalGradientDetail::cellGradient<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(n,offsets.ptr,faces.ptr,signs.ptr,
                 faceTemperature.ptr,faceArea.ptr,volume.ptr,gradient.ptr);
-            if(prepared.corrected&&nf)residentNormalCorrection<<<(nf+127)/128,128,0,target>>>(nf,ni,deviceOwner.ptr,deviceNeighbour.ptr,
+            if(prepared.corrected&&nf)residentNormalCorrection<<<(nf+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(nf,ni,deviceOwner.ptr,deviceNeighbour.ptr,
                 prepared.temperature,gradient.ptr,gradientWeights.ptr,faceArea.ptr,area.ptr,correctionDirection.ptr,
                 gradientNeighbour.ptr,normalInternal.ptr,normalBoundary.ptr,neighbourTransform.ptr,correction.ptr);
-        }else if(nb&&prescribedConductivity)prescribeEnergyGradient<<<(nb+127)/128,128,0,target>>>(nb,prescribedSelected.ptr,prescribedEnergy.ptr,
+        }else if(nb&&prescribedConductivity)prescribeEnergyGradient<<<(nb+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(nb,prescribedSelected.ptr,prescribedEnergy.ptr,
             area.ptr+ni,prescribedConductivity,prescribedInterval,gradientBoundary.ptr,nullptr,nullptr,nullptr,deviceInterval);
-        if(nf)faceFactors<<<(nf+127)/128,128,0,target>>>(nf,ni,gamma.ptr,area.ptr,delta.ptr,gradientInternal.ptr,gradientBoundary.ptr,correction.ptr,prepared.corrected,upper.ptr,boundaryDiagonal.ptr,boundarySource.ptr,flux.ptr);
-        if(n)cellAssembly<<<(n+127)/128,128,0,target>>>(n,ni,offsets.ptr,faces.ptr,signs.ptr,upper.ptr,flux.ptr,volume.ptr,prepared.corrected,diagonal.ptr,source.ptr);
+        if(nf)faceFactors<<<(nf+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(nf,ni,gamma.ptr,area.ptr,delta.ptr,gradientInternal.ptr,gradientBoundary.ptr,correction.ptr,prepared.corrected,upper.ptr,boundaryDiagonal.ptr,boundarySource.ptr,flux.ptr);
+        if(n)cellAssembly<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(n,ni,offsets.ptr,faces.ptr,signs.ptr,upper.ptr,flux.ptr,volume.ptr,prepared.corrected,diagonal.ptr,source.ptr);
         if(prepared.transient){
-            if(n)transientCells<<<(n+127)/128,128,0,target>>>(n,volume.ptr,prepared.capacity,prepared.rhs,
+            if(n)transientCells<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(n,volume.ptr,prepared.capacity,prepared.rhs,
                 prepared.interval,prepared.sourceFromCapacity,diagonal.ptr,source.ptr,deviceInterval);
-            if(ni)negate<<<(ni+127)/128,128,0,target>>>(ni,upper.ptr,false);
-            if(nb){negate<<<(nb+127)/128,128,0,target>>>(nb,boundaryDiagonal.ptr,true);
-                negate<<<(nb+127)/128,128,0,target>>>(nb,boundarySource.ptr,true);}
-            if(nf)negate<<<(nf+127)/128,128,0,target>>>(nf,flux.ptr,false);
+            if(ni)negate<<<(ni+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(ni,upper.ptr,false);
+            if(nb){negate<<<(nb+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(nb,boundaryDiagonal.ptr,true);
+                negate<<<(nb+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(nb,boundarySource.ptr,true);}
+            if(nf)negate<<<(nf+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(nf,flux.ptr,false);
         }
     }
     Implementation(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfers.bind(stream);}
@@ -199,7 +200,7 @@ struct ImplicitDiffusion::Implementation {
 ImplicitDiffusion::ImplicitDiffusion():data_(new Implementation){}
 ImplicitDiffusion::~ImplicitDiffusion()=default;
 ExecutionGraphSignature ImplicitDiffusion::residentExecutionSignature()const{
-    const auto& d=*data_;ExecutionGraphSignature key;key.add(this);
+    const auto& d=*data_;ExecutionGraphSignature key;key.add(this);key.add(workPlan().thermalBlockThreads);
     for(const void* p:{
         static_cast<const void*>(d.offsets.ptr),static_cast<const void*>(d.faces.ptr),static_cast<const void*>(d.signs.ptr),
         static_cast<const void*>(d.deviceOwner.ptr),static_cast<const void*>(d.deviceNeighbour.ptr),static_cast<const void*>(d.coupled.ptr),
@@ -335,12 +336,12 @@ void ImplicitDiffusion::enqueueBoundaryJumpSchedule(void* stream,const double* i
     const auto execution=static_cast<cudaStream_t>(stream);
     advanceBoundaryScheduleTime<<<1,1,0,execution>>>(d.jumpScheduleTime.ptr,interval);
     const boundary::View view{d.jumpScheduleFaces.ptr,d.jumpScheduleFunctions.ptr,d.jumpScheduleTerms.ptr,d.jumpScheduleCount};
-    evaluateBoundaryJumpSchedule<<<(d.jumpScheduleCount+127)/128,128,0,execution>>>(view,d.jumpScheduleSigns.ptr,d.jumpScheduleTime.ptr,d.jump.ptr,d.fluxJump.ptr);
+    evaluateBoundaryJumpSchedule<<<(d.jumpScheduleCount+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,execution>>>(view,d.jumpScheduleSigns.ptr,d.jumpScheduleTime.ptr,d.jump.ptr,d.fluxJump.ptr);
 }
 void ImplicitDiffusion::enqueueResidentInterfaceEnergy(void* stream){
     auto& d=*data_;
     for(int segment=0;segment<2;++segment){const auto& view=d.interfaceEnergy[segment];if(view.enabled&&view.faces)
-        scatterInterfaceEnergy<<<(view.faces+127)/128,128,0,static_cast<cudaStream_t>(stream)>>>(view.faces,
+        scatterInterfaceEnergy<<<(view.faces+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,static_cast<cudaStream_t>(stream)>>>(view.faces,
             d.interfaceBoundaryFaces.ptr+d.interfaceEnergyOffset[segment],view.energy,d.prescribedEnergy.ptr);}
 }
 void ImplicitDiffusion::prescribeBoundaryEnergy(const std::vector<double>& energy,const std::vector<int>& selected,
@@ -354,7 +355,7 @@ void ImplicitDiffusion::prescribeBoundaryEnergy(const std::vector<double>& energ
     if(d.cachedPrescribedSelected!=selected){d.prescribedSelected.upload(selected,d.transfers);d.cachedPrescribedSelected=selected;}
     for(int segment=0;segment<2;++segment){const auto& view=d.interfaceEnergy[segment];if(view.enabled&&view.faces){
         d.waitFor(view.producerStream);
-        scatterInterfaceEnergy<<<(view.faces+127)/128,128,0,d.stream>>>(view.faces,
+        scatterInterfaceEnergy<<<(view.faces+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(view.faces,
             d.interfaceBoundaryFaces.ptr+d.interfaceEnergyOffset[segment],view.energy,d.prescribedEnergy.ptr);
     }}
     d.prescribedConductivity=conductivity;d.prescribedInterval=interval;if(conductivity)d.waitFor(propertyStream);
@@ -377,7 +378,7 @@ void ImplicitDiffusion::setInterfaceEnergy(const std::vector<int>& boundaryFaces
 void ImplicitDiffusion::refreshBoundaryTemperature(){enqueueResidentBoundaryTemperature(data_->stream);}
 void ImplicitDiffusion::enqueueResidentBoundaryTemperature(void* stream){
     auto& d=*data_;if(!d.residentBoundary)return;const int nf=d.owner.size();
-    if(nf)residentTemperatureFaces<<<(nf+127)/128,128,0,static_cast<cudaStream_t>(stream)>>>(nf,d.internal,d.deviceOwner.ptr,d.deviceNeighbour.ptr,
+    if(nf)residentTemperatureFaces<<<(nf+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,static_cast<cudaStream_t>(stream)>>>(nf,d.internal,d.deviceOwner.ptr,d.deviceNeighbour.ptr,
         d.solution.ptr,d.gradientWeights.ptr,d.gradientNeighbour.ptr,d.valueInternal.ptr,d.valueBoundary.ptr,d.jump.ptr,d.faceTemperature.ptr);
 }
 void ImplicitDiffusion::initializeBoundaryTemperature(const std::vector<double>& temperature){
@@ -442,7 +443,7 @@ void ImplicitDiffusion::flux(const std::vector<double>& neighbour,const std::vec
     auto& d=*data_;const int nf=d.owner.size(),start=boundaryOnly?d.internal:0,count=nf-start;
     d.neighbourTemperature.upload(neighbour,d.transfers);d.coupled.upload(coupled,d.transfers);d.faceFlux.reserve(count);
     d.fluxAdjacentCells.upload(adjacentCells,d.transfers);d.fluxJump.upload(jump,d.transfers);
-    if(count)matrixFaceFlux<<<(count+127)/128,128,0,d.stream>>>(nf,d.internal,start,d.deviceOwner.ptr,d.deviceNeighbour.ptr,
+    if(count)matrixFaceFlux<<<(count+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(nf,d.internal,start,d.deviceOwner.ptr,d.deviceNeighbour.ptr,
         d.upper.ptr,d.asymmetric?d.lower.ptr:d.upper.ptr,d.boundaryDiagonal.ptr,d.boundarySource.ptr,d.flux.ptr,
         d.solution.ptr,d.neighbourTemperature.ptr,d.coupled.ptr,d.fluxAdjacentCells.ptr,d.fluxJump.ptr,d.faceFlux.ptr);
     if(download){d.faceFlux.download(output,count,d.transfers);d.transfers.finish();}
@@ -450,7 +451,7 @@ void ImplicitDiffusion::flux(const std::vector<double>& neighbour,const std::vec
 
 void ImplicitDiffusion::enqueueResidentBoundaryFlux(void* stream){
     auto& d=*data_;const int nf=d.owner.size(),count=nf-d.internal;
-    if(count)matrixFaceFlux<<<(count+127)/128,128,0,static_cast<cudaStream_t>(stream)>>>(nf,d.internal,d.internal,d.deviceOwner.ptr,d.deviceNeighbour.ptr,
+    if(count)matrixFaceFlux<<<(count+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,static_cast<cudaStream_t>(stream)>>>(nf,d.internal,d.internal,d.deviceOwner.ptr,d.deviceNeighbour.ptr,
         d.upper.ptr,d.asymmetric?d.lower.ptr:d.upper.ptr,d.boundaryDiagonal.ptr,d.boundarySource.ptr,d.flux.ptr,
         d.solution.ptr,d.neighbourTemperature.ptr,d.coupled.ptr,d.fluxAdjacentCells.ptr,d.fluxJump.ptr,d.faceFlux.ptr);
 }
@@ -462,11 +463,11 @@ void ImplicitDiffusion::transient(const std::vector<double>& volume,const std::v
     d.volume.upload(volume,d.transfers);d.capacity.upload(capacity,d.transfers);d.rhs.upload(rhs,d.transfers);
     d.diagonal.upload(matrix.diagonal,d.transfers);d.source.upload(matrix.source,d.transfers);d.upper.upload(matrix.upper,d.transfers);d.lower.upload(matrix.lower,d.transfers);
     d.boundaryDiagonal.upload(matrix.boundaryDiagonal,d.transfers);d.boundarySource.upload(matrix.boundarySource,d.transfers);d.flux.upload(matrix.fluxCorrection,d.transfers);
-    if(n)transientCells<<<(n+127)/128,128,0,d.stream>>>(n,d.volume.ptr,d.capacity.ptr,d.rhs.ptr,dt,sourceFromCapacity,d.diagonal.ptr,d.source.ptr);
-    if(ni)negate<<<(ni+127)/128,128,0,d.stream>>>(ni,d.upper.ptr,false);
-    if(nl)negate<<<(nl+127)/128,128,0,d.stream>>>(nl,d.lower.ptr,false);
-    if(nb){negate<<<(nb+127)/128,128,0,d.stream>>>(nb,d.boundaryDiagonal.ptr,true);negate<<<(nb+127)/128,128,0,d.stream>>>(nb,d.boundarySource.ptr,true);}
-    if(nf)negate<<<(nf+127)/128,128,0,d.stream>>>(nf,d.flux.ptr,false);
+    if(n)transientCells<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(n,d.volume.ptr,d.capacity.ptr,d.rhs.ptr,dt,sourceFromCapacity,d.diagonal.ptr,d.source.ptr);
+    if(ni)negate<<<(ni+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(ni,d.upper.ptr,false);
+    if(nl)negate<<<(nl+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(nl,d.lower.ptr,false);
+    if(nb){negate<<<(nb+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(nb,d.boundaryDiagonal.ptr,true);negate<<<(nb+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(nb,d.boundarySource.ptr,true);}
+    if(nf)negate<<<(nf+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(nf,d.flux.ptr,false);
     d.diagonal.download(matrix.diagonal,n,d.transfers);d.source.download(matrix.source,n,d.transfers);d.upper.download(matrix.upper,ni,d.transfers);d.lower.download(matrix.lower,nl,d.transfers);
     d.boundaryDiagonal.download(matrix.boundaryDiagonal,nb,d.transfers);d.boundarySource.download(matrix.boundarySource,nb,d.transfers);d.flux.download(matrix.fluxCorrection,nf,d.transfers);
     d.transfers.finish();

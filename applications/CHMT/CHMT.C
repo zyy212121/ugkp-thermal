@@ -1,3 +1,4 @@
+#include "Switch.H"
 #include "FoamSolverScheme.H"
 #include "../../common/HostMemory.H"
 #include "DiagnosticsFoam.H"
@@ -44,8 +45,8 @@ int main(int argc,char** argv) {
         std::cerr<<"CHMT input-only build has no CUDA backend; use the native build to evolve.\n";return 2;
 #else
         std::string error;
-        if(properties.found("restartDirectory")){
-            Foam::fileName restart(chmt::io::text(properties,"restartDirectory"));
+        if(time.controlDict().found("restartDirectory")){
+            Foam::fileName restart(chmt::io::text(time.controlDict(),"restartDirectory"));
             if(!restart.isAbsolute())restart=time.path()/restart;
             chmt::io::require(chmt::readCheckpoint(restart,input.model,input.state,error),error);
             // Older checkpoints may contain an unnormalized initial diagnostic.
@@ -53,10 +54,12 @@ int main(int argc,char** argv) {
                 ugkp::thermal::normalizeParticleContactMechanicalEnergy(particle);
         }
         chmt::GasExecutionOptions options;
+        options.adjustTimeStep=time.controlDict().lookupOrDefault<Foam::Switch>("adjustTimeStep",true);
+        options.fixedDeltaT=time.controlDict().lookup<Foam::scalar>("deltaT");
         options.fluxScheme=input.gasNumerics.gasFluxScheme;options.reconstruction=input.gasNumerics.gasReconstruction;
         options.limiter=input.gasNumerics.gasLimiter;options.timeIntegrator=input.gasNumerics.gasTimeIntegrator;
         options.turbulenceModel=input.model.physics.enableSst?3:0;
-        const Foam::word gasRegion(chmt::io::text(properties,"gasRegion",Foam::polyMesh::defaultRegion));
+        const Foam::word gasRegion(input.gasMesh->name());
         const auto& scheme=ugkp::solverControls::startupScheme(time);
         options.courantUpdateInterval=1;options.maximumTimeStepGrowth=1.05;
         scheme.read("gasTimeStep","courantUpdateInterval",options.courantUpdateInterval,"default",gasRegion);
@@ -69,6 +72,8 @@ int main(int argc,char** argv) {
         chmt::setDiagnosticsSink(*backend,ugkp::diagnostics::makeFoamSink());
         // Observe the actual startup structures passed to the backend/driver.
         // No residual evaluation, device transfer or per-step logging is added.
+        std::cout<<"CHMT_TIME_CONTROL adjustTimeStep="<<options.adjustTimeStep
+            <<" deltaT="<<options.fixedDeltaT<<" source=system/controlDict readOnce=1"<<std::endl;
         std::cout<<"CHMT_SOLVER_CONTROLS gasMinDt="<<input.model.physics.minDt
             <<" gasMaxDt="<<input.model.physics.maxDt<<" gasMaxCo="<<input.model.physics.cfl
             <<" materialMaxSubstep="<<input.material.maxSubstep
@@ -94,13 +99,18 @@ int main(int argc,char** argv) {
         std::unique_ptr<chmt::CoupledRadiation> radiation;
         if(input.thermalSchedule.radiationEnabled)
             radiation.reset(new chmt::CoupledRadiation(time,*input.gasMesh,input.model,input.state,input.thermalSchedule.radiationFrequency));
+        if(radiation&&time.controlDict().found("restartDirectory")){
+            Foam::fileName restart(chmt::io::text(time.controlDict(),"restartDirectory"));
+            if(!restart.isAbsolute())restart=time.path()/restart;
+            radiation->readWarmStart((restart/"domWarmStart.bin").c_str());
+        }
         std::cout<<"CHMT couplingInterval="<<input.coupling.interval<<" radiationFrequency="
             <<(radiation?input.thermalSchedule.radiationFrequency:0)<<std::endl;
         const chmt::Real end=time.controlDict().lookup<Foam::scalar>("endTime");
-        const Foam::fileName directory=time.path()/chmt::io::text(properties,"outputDirectory","chmtOutput");
+        const Foam::fileName directory=time.path()/chmt::io::text(time.controlDict(),"outputDirectory","chmtOutput");
         chmt::io::require(!Foam::isDir(directory)&&!Foam::isFile(directory),"output directory already exists");
         chmt::io::require(Foam::mkDir(directory),"cannot create coupled output directory");
-        const auto& outputControls=properties.found("outputControls")?properties.subDict("outputControls"):properties;
+        const auto& outputControls=time.controlDict();
         const auto diagnosticInterval=outputControls.lookupOrDefault<Foam::label>("diagnosticInterval",1);
         const auto fieldInterval=outputControls.lookupOrDefault<Foam::label>("fieldInterval",1);
         const auto checkpointInterval=outputControls.lookupOrDefault<Foam::label>("checkpointInterval",1);
@@ -134,7 +144,11 @@ int main(int argc,char** argv) {
                 chmt::io::require(chmt::io::writeAcceptedWallLayerFields(wall,input.state,input.model,error),error);
             }
             }
-            if(checkpoint)chmt::io::require(chmt::writeCheckpoint(directory/Foam::fileName("checkpoint-"+suffix),input.model,input.state,error),error);
+            if(checkpoint){
+                const auto checkpointPath=directory/Foam::fileName("checkpoint-"+suffix);
+                chmt::io::require(chmt::writeCheckpoint(checkpointPath,input.model,input.state,error),error);
+                if(radiation)radiation->writeWarmStart((checkpointPath/"domWarmStart.bin").c_str());
+            }
         };
         if(writeInitial||(writeFinal&&input.state.time>=end))publish(true);
         input.state.ledger.clear(); // already published audit packets are not PDE state

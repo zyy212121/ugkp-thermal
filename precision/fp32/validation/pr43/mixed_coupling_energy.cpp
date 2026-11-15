@@ -37,6 +37,7 @@ constexpr Real OfVSmall=GPU_R(1e-30);
 constexpr Real OfGreat=GPU_R(1.0)/OfSmall;
 struct GasPrimDevice { Real rho,ux,uy,uz,p,T; };
 #include "gasTransport/GasStateView.H"
+#include "gasTransport/ParticleHeatReservoir.H"
 #include "operators/clampMin.cuh"
 #include "operators/clampRange.cuh"
 #include "operators/linearScheduledValueDevice.cuh"

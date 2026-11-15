@@ -3,6 +3,7 @@
 #include "core/HostState.H"
 #include "coupling/IntervalContracts.H"
 #include <memory>
+#include "../../../common/gpu/SparseConjugateGradient.H"
 #include "../../../common/gasTransport/GasMechanismIO.H"
 namespace Foam {class fvMesh;}
 namespace chmt {
@@ -15,6 +16,7 @@ struct CpuMaterialControls {
     bool retainDonorHistory=true; // Explicit external consumer capability.
     int maxSubsteps=100000,nonlinearMaxIterations=50;
     int linearMaxIterations=2000;
+    ugkp::gpu::SparsePreconditioner preconditioner=ugkp::gpu::SparsePreconditioner::Jacobi;
     PhysicalReal linearEnergyBudgetFraction=PhysicalReal(.5);
     PhysicalReal nonlinearRelativeTolerance=1e-10f,energyAbsoluteTolerance=1e-10f,energyRelativeTolerance=1e-10f;
 };

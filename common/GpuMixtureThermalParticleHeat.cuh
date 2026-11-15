@@ -120,32 +120,3 @@ __device__ void mixtureThermalParticleHeatCell(State&s,int c,double dt,bool csr,
         }
     }
 }
-
-template<bool Cooperative=false,class State>
-__global__ void mixtureThermalParticleHeatKernel(State*sp,double requestedDt,bool csr=true,bool split=false,bool skipHeavy=false){
-    const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
- State&s=*sp;if(!s.solveParticleTemperature||!s.particleGasHeatTransferModelId||dt==0.)return;
- const int thread=blockIdx.x*blockDim.x+threadIdx.x;
-#if defined(__CUDACC__)
- if constexpr(Cooperative){
-  for(int c=thread/32;c<s.nCells;c+=gridDim.x*(blockDim.x/32))
-   if(mixtureParticles::count(s,c,csr,split)>=32)
-    mixtureThermalParticleHeatCell(s,c,dt,csr,split,mixtureParticles::WarpCouplingTeam{});
- }else
-#endif
- {if(thread<s.nCells&&(!skipHeavy||mixtureParticles::count(s,thread,csr,split)<32))
-   mixtureThermalParticleHeatCell(s,thread,dt,csr,split,mixtureParticles::SerialCouplingTeam{});}
-}
-#if defined(__CUDACC__)
-template<class State>
-inline cudaError_t launchMixtureThermalParticleHeatCells(State*state,int cells,double dt,bool csr,bool split,cudaStream_t stream=nullptr){
- if(cells<=0)return cudaSuccess;
- mixtureThermalParticleHeatKernel<<<(cells+127)/128,128,0,stream>>>(state,dt,csr,split,true);
- auto error=cudaGetLastError();if(error!=cudaSuccess)return error;
- // One warp per cell; the device scheduler, not an SM-independent cap,
- // distributes the available cell work.
- const int groups=(cells+3)/4;
- mixtureThermalParticleHeatKernel<true><<<groups,128,0,stream>>>(state,dt,csr,split);
- return cudaGetLastError();
-}
-#endif

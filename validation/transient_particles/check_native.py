@@ -20,12 +20,12 @@ def set_entry(path,name,value):
  path.write_text(t)
 def control(case,steps,steady=False,write=20,dt=2e-5):
  p=case/'system/controlDict'
- for k,v in dict(application='gasUGKPSteady' if steady else 'gasUGKP',endTime=steps if steady else format(steps*dt,'.12g'),deltaT=1 if steady else dt,writeInterval=write,timePrecision=12).items():set_entry(p,k,v)
+ for k,v in dict(application='gasUGKPSteady' if steady else 'gasUGKP',adjustTimeStep='false',endTime=steps if steady else format(steps*dt,'.12g'),deltaT=1 if steady else dt,writeInterval=write,timePrecision=12).items():set_entry(p,k,v)
  # Preserve explicit case numerics; only create the fixed default for cases
  # without scheme. Schedule edits below do not replace gasNumerics.
  scheme=case/'constant/scheme'
  if not scheme.exists():scheme.write_text(f'''FoamFile {{version 2.0; format ascii; class dictionary; object scheme;}}
-gasTimeStep {{adjustTimeStep false; courantUpdateInterval 1; maximumTimeStepGrowth 1;}}
+gasTimeStep {{ courantUpdateInterval 1; maximumTimeStepGrowth 1;}}
 steadyGas {{maxCo .15; maxDeltaT .001; boundaryTime 0; relativeTolerance 0; absoluteTolerance 0; minimumIterations 20001; residualInterval 1000;}}
 steadyParticle {{samplingDeltaT {dt}; boundaryTime 0; windowSamples 20; minimumWindows 20001; stableWindows 2; meanTolerance 0; inventoryTolerance 0;}}
 particle {{tracking {{maxFaceWalkHops 1000;}}}}

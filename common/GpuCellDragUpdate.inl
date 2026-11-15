@@ -121,7 +121,7 @@
         ? Energy(epsG)*(s.rhoE[c]-trueGasKineticDensity) : enerG-kgOld;
     GPU_OPERATOR_REAL isOld = enerS - ksOld;
 
-    const GPU_OPERATOR_REAL igMin = mg*eMinGas;
+    const GPU_OPERATOR_REAL igMin = ugkwp::mixtureGasActive(s) ? epsG*ugkwp::particleGasMinimumInternalEnergy(s,c,rhoG*eMinGas) : mg*eMinGas;
     const GPU_OPERATOR_REAL isMin = GPU_OPERATOR_R(0.0);
 
     const bool repairGasInternal=!ugkwp::gasEnergyFallbackFinite(igOld) || igOld<igMin;

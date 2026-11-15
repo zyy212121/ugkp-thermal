@@ -2,7 +2,6 @@ FoamFile { version 2.0; format ascii; class dictionary; object schedulingPropert
 
 schemaVersion 1;
 gpuResidentPureGasOnly true;
-gpuResidentDynamicInlet false;
 gpuResidentParticleCapacity 0;
 
 

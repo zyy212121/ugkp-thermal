@@ -1,5 +1,6 @@
 #pragma once
 #include <cuda_runtime.h>
+#include "gpu/WorkPlan.H"
 #include <cstring>
 #include <type_traits>
 #include <utility>
@@ -15,6 +16,7 @@ struct ParticlePhaseGraph {
     cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;
     cudaGraphNode_t intervalNode=nullptr;cudaKernelNodeParams intervalParameters{};
     ugkwp::ParticleResidentInterval parameters{};bool advances=false,sequenceAdvances=false;
+    WorkPlan plan{};
     unsigned long long epoch=0;
     int tasksReady=0,preparedKind=0,baseReady=0,splitActive=0,injectionActive=0;
 };
@@ -102,7 +104,7 @@ int launchParticlePhaseGraph(State* state,double dt,double end,Submit&& submit,A
         const auto error=cudaMalloc(reinterpret_cast<void**>(&owner.clock),sizeof(*owner.clock));
         if(error!=cudaSuccess)return failed("allocate particle graph clock",error);
     }
-    if(!entry.executable||entry.epoch!=state->particleGraphEpoch){
+    if(!entry.executable||entry.epoch!=state->particleGraphEpoch||!(entry.plan==workPlan())){
         auto error=releaseParticlePhaseGraph(entry);
         if(error!=cudaSuccess)return failed("release particle phase graph",error);
         error=cudaGraphCreate(&entry.graph,0);
@@ -142,7 +144,7 @@ int launchParticlePhaseGraph(State* state,double dt,double end,Submit&& submit,A
 #endif
         entry.tasksReady=mirror.tasksReady;entry.preparedKind=mirror.preparedKind;
         entry.baseReady=mirror.baseReady;entry.splitActive=mirror.splitActive;entry.injectionActive=mirror.injectionActive;
-        entry.parameters=parameters;entry.advances=advance;entry.sequenceAdvances=advanceSequence;entry.epoch=state->particleGraphEpoch;
+        entry.parameters=parameters;entry.advances=advance;entry.sequenceAdvances=advanceSequence;entry.epoch=state->particleGraphEpoch;entry.plan=workPlan();
     }else if(entry.advances!=advance||entry.sequenceAdvances!=advanceSequence
         ||!sameParticleInterval(entry.parameters,parameters)){
         void* arguments[]={&state->deviceState,&owner.clock,&parameters,&advance,&advanceSequence};

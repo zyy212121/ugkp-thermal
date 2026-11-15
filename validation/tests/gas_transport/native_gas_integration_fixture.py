@@ -64,6 +64,7 @@ template<bool Capture,class State> int snapshotWallRecords(State*,SharedGasTrial
 int cudaDeviceSynchronize(){return 0;}
 template<class F>void emulateLaunch(F f,int grid,int block){blockDim.x=block;for(blockIdx.x=0;blockIdx.x<grid;++blockIdx.x)for(threadIdx.x=0;threadIdx.x<block;++threadIdx.x)f();}
 int tuneFixedWorkBlockThreads(DeviceState*,double,double){return 0;}
+int publishStartupWorkPlan(DeviceState*,double,double){return 0;}
 SQR3_FUNCTION
 #include "GpuGravityUpdate.cuh"
 #include "operators/advanceGasChemistryKernel.cuh"
@@ -98,7 +99,7 @@ template<bool Capture,int Capacity=0,class GasState> void evaluateGasBoundaryLay
     gas=function(native,'extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly\n').split('#ifndef UGKP_DEVELOPMENT_PROBES',1)[0]+'std::abort();}\n'
     combined=""
     if include_combined:
-        combined=function(native,'extern "C" int ugkwpGpuResidentStrictAdvance\n').split('    if (tuneFixedWorkBlockThreads',1)[0]
+        combined=function(native,'extern "C" int ugkwpGpuResidentStrictAdvance\n').split('    if (publishStartupWorkPlan' if 'publishStartupWorkPlan' in native else '    if (tuneFixedWorkBlockThreads',1)[0]
 
         combined=combined[:combined.index('    if (s->gasSpecies.mode == ugkwp::GasMode::SingleLegacy')] if '    if (s->gasSpecies.mode == ugkwp::GasMode::SingleLegacy)'in combined else combined
         end=combined.index('    if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)')

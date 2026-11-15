@@ -18,8 +18,11 @@ __global__ void checkThermalLinearReport(const ConjugateGradientReport* report,d
     using namespace diagnostics;if(threadIdx.x)return;
     if(!isfinite(report->finalResidual))recordFatal(context,makeRecord(Code::NonFinite,34012,0,report->iterations,
         EntityKind::None,-1,-1,report->finalResidual,report->initialResidual,0,Quantity::LinearSystem));
-    else if(!report->converged)recordWarning(context,makeRecord(Code::AccuracyResidual,34013,0,report->iterations,
-        EntityKind::None,-1,-1,report->finalResidual,report->initialResidual,0,Quantity::LinearSystem));
+    else if(!report->converged){
+        const int site=report->budgetExhausted?34013:(report->stagnated?34018:(report->singular?34019:34024));
+        recordWarning(context,makeRecord(Code::AccuracyResidual,site,0,report->iterations,
+            EntityKind::None,-1,-1,report->finalResidual,report->targetResidual,0,Quantity::LinearSystem));
+    }
 }
 __global__ void finishThermalIteration(SolidThermalIteration* state,const SolidThermalConvergence* metrics,
     SolidThermalIterationControls controls,diagnostics::DeviceContext* context,cudaGraphConditionalHandle handle){

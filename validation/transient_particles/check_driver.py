@@ -17,9 +17,10 @@ def prepare_adaptive_case(case,adaptive):
  m.copy_inputs(m.ROOT/'validation/steady_cuda/evidence/cases/mixture_particles',case)
  m.control(case,100 if adaptive else 200,write=20,dt=2e-5 if adaptive else 1e-5)
  if adaptive:
+  m.set_entry(case/'system/controlDict','adjustTimeStep','true')
   p=case/'constant/scheme';text=p.read_text()
   text=re.sub(r'\bgasTimeStep\s*\{[^{}]*\}',
-   'gasTimeStep { adjustTimeStep true; maxDeltaT 1e-5; maxCo 100; courantUpdateInterval 1; maximumTimeStepGrowth 1; }',text)
+   'gasTimeStep { maxDeltaT 1e-5; maxCo 100; courantUpdateInterval 1; maximumTimeStepGrowth 1; }',text)
   p.write_text(text)
 def main():
  p=argparse.ArgumentParser(description=__doc__)
@@ -44,14 +45,15 @@ def main():
   d=out/('adaptive' if adaptive else 'fixed_dt');prepare_adaptive_case(d,adaptive)
   run('candidate',d);cases.append(d)
  row=m.compare(m.dirs(cases[0])[-1],m.dirs(cases[1])[-1],32);row['case']='adaptive vs fixed 1e-5 physical dt';report['comparisons'].append(row);assert len(m.dirs(cases[1]))==11;save()
- # Preserve the existing unsupported mixture scheduled-boundary contract.
- # This PR enables particle coupling, not a new mixture boundary operator.
- d=out/'scheduled_mixture_unsupported';m.copy_inputs(m.ROOT/'validation/steady_cuda/evidence/cases/mixture_particles',d);m.control(d,1,write=1)
- m.set_entry(d/'constant/schedulingProperties','gpuResidentDynamicInlet','true');m.set_entry(d/'constant/particleProperties','gpuResidentInletPatch','left')
- (d/'constant/inletPressure.table').write_text('((0 207861.56545383102) (0.004 212018.79676290765))\n')
- (d/'constant/inletVolumeFraction.table').write_text('((0 0.000001) (0.004 0.000002))\n')
- row=m.run(a.candidate.resolve(),d);row.update(binary='candidate',case=d.name,expected_exit=1);report['runs'].append(row)
- assert row['exit']!=0 and len(m.dirs(d))==1 and 'missing mixture boundary operator' in (d/'run.log').read_text()
- report['unchanged_limitation']='Scheduled pressure boundaries are not implemented for mixture gas; existing diagnostic retained.'
+ # Mixture gas now uses the same startup boundary-field programs.
+ d=out/'scheduled_mixture_fields';m.copy_inputs(m.ROOT/'validation/steady_cuda/evidence/cases/mixture_particles',d);m.control(d,1,write=1)
+ for field,rows,initial in [('p','((0 207861.56545383102) (0.004 212018.79676290765))','207861.56545383102'),('epsilonS','((0 0.000001) (0.004 0.000002))','0.000001')]:
+  path=d/'0'/field;text=path.read_text()
+  text,count=re.subn(r'left\s*\{[^{}]*\}',f'left {{ type uniformFixedValue; uniformValue table {rows}; value uniform {initial}; }}',text)
+  assert count==1
+  path.write_text(text)
+ row=m.run(a.candidate.resolve(),d);row.update(binary='candidate',case=d.name,expected_exit=0);report['runs'].append(row)
+ assert row['exit']==0 and len(m.dirs(d))>1
+ report['boundary_program']='Mixture pressure and epsilonS use native startup field tables.'
  report['pass']=True;save()
 if __name__=='__main__':main()

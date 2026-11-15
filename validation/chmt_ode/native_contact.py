@@ -10,7 +10,7 @@ import chmt_moving_particles_native as existing
 original=existing.m.prepare
 def prepare(*args,**kwargs):
     result=original(*args,**kwargs)
-    case=Path(args[1]);p=case/'constant/chmtProperties'
+    case=Path(args[1]);p=case/'constant/momentumTransport'
     p.write_text(p.read_text().replace('model reactingSst;','model equilibriumOde;'))
     return result
 existing.m.prepare=prepare

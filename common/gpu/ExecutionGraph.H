@@ -1,6 +1,7 @@
 #ifndef UGKP_GPU_EXECUTION_GRAPH_H
 #define UGKP_GPU_EXECUTION_GRAPH_H
 #include <vector>
+#include "WorkPlan.H"
 #include <type_traits>
 struct CUgraph_st;
 struct CUgraphNode_st;
@@ -9,6 +10,7 @@ namespace ugkp { namespace gpu {
 // addresses, extents and by-value controls must match before graph replay.
 struct ExecutionGraphSignature {
     std::vector<unsigned char> bytes;
+    ExecutionGraphSignature(){add(workPlan());}
     template<class T> void add(const T& value){
         static_assert(std::is_trivially_copyable<T>::value,"graph argument must be trivially copyable");
         const auto* first=reinterpret_cast<const unsigned char*>(&value);

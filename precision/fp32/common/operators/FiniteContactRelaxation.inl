@@ -104,7 +104,7 @@
                 theta1, peakTimeFraction
             );
         const GPU_OPERATOR_REAL frozenArea = coldWallContact
-          ? static_cast<GPU_OPERATOR_REAL>(s.pColdFrozenArea[i])
+          ? static_cast<GPU_OPERATOR_REAL>(s.pColdFrozenArea[Foam::gpuWall::coldWallSlot(s,i)])
           : GPU_OPERATOR_R(0.0);
         const GPU_OPERATOR_REAL effectiveContactArea =
             fmax(kinematicArea, frozenArea) - damageArea;
@@ -166,7 +166,7 @@
             s.pContactPeakFraction[i] = 0.0;
             clearColdWallParticleState(s, i);
             clearColdWall2DParticleState(s, i);
-            if (releaseAtRest) publishFrozenReleaseEnergy(s,i,releaseEnergy);
+            if (releaseAtRest) publishFrozenReleaseEnergy(s,i,releaseEnergy,true);
         }
         else if (enterLongDeposit)
         {

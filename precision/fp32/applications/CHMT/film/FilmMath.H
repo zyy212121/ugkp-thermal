@@ -182,11 +182,7 @@ CHMT_HD inline FilmQ filmAdvectiveFlux(const FilmQ& density, PhysicalReal sweptL
     for (int s=0; s<Ns; ++s) flux.species[s]=density.species[s]*sweptLengthRate;
     return flux;
 }
-CHMT_HD inline EnergyReal grayRadiation(EnergyReal temperature, const PhysicsConfig& p) {
-    if (!p.enableRadiation) return 0;
-    const EnergyReal t2=temperature*temperature, ambient=EnergyReal(p.ambientTemperature), a2=ambient*ambient;
-    return EnergyReal(PhysicalReal(5.670374419e-8))*EnergyReal(physicalFraction(p,p.emissivity))*(a2*a2-t2*t2);
-}
+
 CHMT_HD inline bool freezeFilmRemainder(const FilmQ& q, PhysicalReal pressure,
     const PhysicsConfig& p, ExchangePacket& out) {
     const int c=p.material.phaseCondensed;

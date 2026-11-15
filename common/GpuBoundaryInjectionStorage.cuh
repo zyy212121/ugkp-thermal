@@ -45,7 +45,7 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySourceGeometry
     if(rc){s->boundaryInjection=previous;releaseBoundaryInjection(g);return rc;}
     releaseBoundaryInjection(previous);
     if(!g.offsets)return 0;
-    buildBoundaryInjectionKernel<<<(s->nBoundarySources+127)/128,128>>>(s->deviceState);
+    buildBoundaryInjectionKernel<<<(s->nBoundarySources+s->fixedFaceBlockThreads-1)/s->fixedFaceBlockThreads,s->fixedFaceBlockThreads>>>(s->deviceState);
     auto err=cudaGetLastError();
     if(err==cudaSuccess)err=cudaStreamSynchronize(nullptr);
     if(err!=cudaSuccess){setLastError("build initial injection polygons",err);return 1;}

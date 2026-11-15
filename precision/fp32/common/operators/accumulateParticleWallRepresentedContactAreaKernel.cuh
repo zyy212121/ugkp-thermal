@@ -72,7 +72,7 @@ __global__ void accumulateParticleWallRepresentedContactAreaKernel
             const GPU_OPERATOR_GEOMETRY frozenArea =
                 interactionType
              == Foam::gpuThermal::particleWallSolidifyingDeposition
-              ? static_cast<GPU_OPERATOR_GEOMETRY>(s.pColdFrozenArea[i])
+              ? static_cast<GPU_OPERATOR_GEOMETRY>(s.pColdFrozenArea[Foam::gpuWall::coldWallSlot(s,i)])
               : interactionType == Foam::gpuThermal::particleWallColdWall2D
               ? static_cast<GPU_OPERATOR_GEOMETRY>(s.pCold2DFrozenArea[i])
               : GPU_OPERATOR_G(0.0);

@@ -18,24 +18,24 @@ __host__ __device__ inline double applyMaximum(double initial,OrderedMaximum seg
     return segment.reset?segment.value:(initial>segment.value?initial:segment.value);
 }
 __global__ void orderedMaximumPartials(int count,const double* input,const unsigned char* valid,OrderedMaximum* output){
-    __shared__ OrderedMaximum values[256];
-    const int i=blockIdx.x*256+threadIdx.x,batch=blockIdx.y;
+    extern __shared__ OrderedMaximum values[];
+    const int i=blockIdx.x*blockDim.x+threadIdx.x,batch=blockIdx.y;
     const std::size_t index=std::size_t(batch)*count+i;
     values[threadIdx.x]=i<count&&(!valid||valid[index])?maximumSegment(input[index]):OrderedMaximum{0,0,0};
     __syncthreads();
-    for(int stride=1;stride<256;stride*=2){
-        if(threadIdx.x%(2*stride)==0)values[threadIdx.x]=joinMaximum(values[threadIdx.x],values[threadIdx.x+stride]);
+    for(int stride=1;stride<blockDim.x;stride*=2){
+        if(threadIdx.x%(2*stride)==0 && threadIdx.x+stride<blockDim.x)values[threadIdx.x]=joinMaximum(values[threadIdx.x],values[threadIdx.x+stride]);
         __syncthreads();
     }
     if(!threadIdx.x)output[batch*gridDim.x+blockIdx.x]=values[0];
 }
 __global__ void orderedMaximumMerge(int count,const OrderedMaximum* input,OrderedMaximum* output){
-    __shared__ OrderedMaximum values[256];
-    const int i=blockIdx.x*256+threadIdx.x,batch=blockIdx.y;
+    extern __shared__ OrderedMaximum values[];
+    const int i=blockIdx.x*blockDim.x+threadIdx.x,batch=blockIdx.y;
     values[threadIdx.x]=i<count?input[std::size_t(batch)*count+i]:OrderedMaximum{0,0,0};
     __syncthreads();
-    for(int stride=1;stride<256;stride*=2){
-        if(threadIdx.x%(2*stride)==0)values[threadIdx.x]=joinMaximum(values[threadIdx.x],values[threadIdx.x+stride]);
+    for(int stride=1;stride<blockDim.x;stride*=2){
+        if(threadIdx.x%(2*stride)==0 && threadIdx.x+stride<blockDim.x)values[threadIdx.x]=joinMaximum(values[threadIdx.x],values[threadIdx.x+stride]);
         __syncthreads();
     }
     if(!threadIdx.x)output[batch*gridDim.x+blockIdx.x]=values[0];

@@ -56,15 +56,15 @@ int main(int argc,char**argv) try {
   auto overflowRoot=detail::solveImplicitMaterialTemperature(300,1000,200,2000,1e308,1,1,1e-10,1e-10,[](double){return 1.;});check(overflowRoot.temperatureK==650 && std::isinf(overflowRoot.residualJ),"actual overflowing midpoint residual");
  } else if(mode.find("scale_")==0){
   if(mode=="scale_errors"){
-   auto zero=detail::conservativeBoundaryEnergyScale(1,0,1,1e-10);check(std::isinf(zero.scale) && std::isnan(zero.residualJ),"actual zero-divisor scale");
-   auto overflow=detail::conservativeBoundaryEnergyScale(1,1e-320,1,1e-10);check(std::isinf(overflow.scale) && std::isinf(overflow.residualJ),"actual overflowing scale");
+   auto zero=detail::conservativeBoundaryEnergyScale(1,0,1,1e-10);check(zero.scale==1 && zero.residualJ==1,"zero boundary without division");
+   auto overflow=detail::conservativeBoundaryEnergyScale(1,1e-320,1,1e-10);check(overflow.scale==1 && overflow.residualJ==1,"tiny boundary without division");
    auto z=detail::conservativeBoundaryEnergyScale(0,0,0,1e-10);check(z.scale==1 && z.residualJ==0,"zero identity");
   }else{
    double a=mode=="scale_negative"?2:mode=="scale_tiny"?1e-20:-2;
    double b=mode=="scale_tiny"?1e-20:1;
    auto r=detail::conservativeBoundaryEnergyScale(a,b,std::abs(a)+std::abs(b),1e-10);
    if(mode=="scale_tiny")check(r.scale==1 && r.residualJ==a+b,"original successful near-zero identity");
-   else check(r.scale==-a/b && r.residualJ==a+r.scale*b,"actual boundary division");
+   else check(r.scale==1 && r.residualJ==a+b,"actual raw boundary balance");
   }
  } else if(mode.find("phase_")==0){
   List<scalarField> k(2); k[0]=scalarField(2);k[1]=scalarField(2);

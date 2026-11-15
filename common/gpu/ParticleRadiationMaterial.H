@@ -5,6 +5,7 @@
 #include "MieOpticalProperties.H"
 #include "ParticleRadiationResponse.H"
 #include "RadiationResidentView.H"
+#include "DiscreteOrdinateRadiation.H"
 #include <memory>
 #include <vector>
 namespace ugkp { namespace gpu {
@@ -13,13 +14,14 @@ struct ParticleRadiationMaterialInput {
     std::vector<unsigned char> coupledBoundary;
     ParticleRadiationResponseView response{};
     RadiationDeviceView resident{};
+    RadiationParticleDeviceView particleResident{};
     RadiationReal heatFactor=0;
     double elapsed=0; // Host clock interval converts once at kernel entry.
     RadiationReal minimumTemperature=0,maximumTemperature=0,activeEpsilonMinimum=0;
 };
 struct ParticleRadiationMaterialResult {
     std::vector<RadiationReal> temperature,energy,boundaryEnergy;
-    RadiationReal escapedEnergy=0,radiativeEnergyMagnitude=0,acceptedParticleEnergy=0;
+    RadiationReal escapedEnergy=0;
     RadiationMaterialDeviceView resident{};
 };
 class ParticleRadiationMaterial {
@@ -27,11 +29,11 @@ class ParticleRadiationMaterial {
 public:
     explicit ParticleRadiationMaterial(const MieOpticalTable&,const ParticleRadiationSolveControls& controls={});
     ~ParticleRadiationMaterial();
+    RadiationThermalCouplingDeviceView beginAnchoredWindow(const ParticleRadiationMaterialInput&);
+    ExecutionGraphNode appendAnchoredIteration(ExecutionGraph,ExecutionGraphNode,void*,const RadiationThermalIterationDeviceView&);
+    ParticleRadiationMaterialResult finishAnchoredWindow(const RadiationDeviceView&,bool exportFields=true);
     ParticleRadiationMaterialResult solve(const ParticleRadiationMaterialInput&,bool exportFields=true);
     ParticleRadiationMaterialResult collect();
-    // Reconcile the already computed wall contribution with actual bounded
-    // particle heat. The same conservative scaling stays entirely on device.
-    void settleAcceptedEnergy(const RadiationAcceptedEnergyDeviceView&);
     ParticleRadiationMaterialResult collectBoundaryEnergy();
 };
 }}

@@ -1,4 +1,5 @@
 #pragma once
+#include "wall/GpuColdWall1DHandles.cuh"
 // One face-walk algorithm; wall state and coordinate precision are adapters.
 template<bool SommerfeldEnabled = true>
 __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const GPU_OPERATOR_TIME dt)
@@ -12,6 +13,7 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
     if (c < 0 || c >= s.nCells)
     {
         s.pStatus[i] = 0;
+        Foam::gpuWall::releaseColdWall1DHandle(s,i);
         return;
     }
 
@@ -59,6 +61,7 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
         if (plane < 0)
         {
             s.pStatus[i] = 0;
+        Foam::gpuWall::releaseColdWall1DHandle(s,i);
             return;
         }
 
@@ -81,6 +84,7 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
             if (!isPeriodicFace(s, faceI))
             {
                 s.pStatus[i] = 0;
+        Foam::gpuWall::releaseColdWall1DHandle(s,i);
                 return;
             }
             const GPU_OPERATOR_REAL eps =
@@ -212,12 +216,14 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
         else
         {
             s.pStatus[i] = 0;
+        Foam::gpuWall::releaseColdWall1DHandle(s,i);
             return;
         }
 
         if (c < 0 || c >= s.nCells)
         {
             s.pStatus[i] = 0;
+        Foam::gpuWall::releaseColdWall1DHandle(s,i);
             return;
         }
     }
@@ -226,6 +232,7 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
     if (!inside || remainingDt > GPU_OPERATOR_R(0.0))
     {
         s.pStatus[i] = 0;
+        Foam::gpuWall::releaseColdWall1DHandle(s,i);
         return;
     }
     s.px[i] = x;

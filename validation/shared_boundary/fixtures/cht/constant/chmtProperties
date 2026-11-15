@@ -3,12 +3,11 @@ schemaVersion 1; executionMode Multirate; modelName coupledNativeAcceptance;
 materialSource syntheticConstantSolid; mechanismSource noMaterialReaction;
 condensedNames (C0 C1); elements ();
 
-gasConductivity 1; gasViscosity 0;
+
 condensedThermo {
  C0 { rho 1000; cp0 1000; cp1 0; e0 0; conductivity 1; Tmin 100; Tmax 3000; element (); }
  C1 { rho 1000; cp0 1000; cp1 0; e0 0; conductivity 1; Tmin 100; Tmax 3000; element (); }
 }
-solidRegion solid;
-surface { patch right; gasPatch left; }
+
 multirate {   }
 modelFingerprint "44842beceb5c0ac48797a1e42e26399e15b71a79d98180dfdccd970abfd1800a";

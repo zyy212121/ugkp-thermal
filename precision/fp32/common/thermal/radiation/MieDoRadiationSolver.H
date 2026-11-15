@@ -4,6 +4,7 @@
 #include "MieTable.H"
 #include "gpu/RadiationPrecision.H"
 #include "gpu/RadiationResidentView.H"
+#include "gpu/DiscreteOrdinateRadiation.H"
 #include "dictionary.H"
 #include "fvMesh.H"
 #include "labelList.H"
@@ -11,6 +12,7 @@
 #include "volFields.H"
 
 #include <memory>
+#include <string>
 #include <stdexcept>
 
 namespace Foam
@@ -23,7 +25,7 @@ struct MieDoControls
 {
     label nTheta;
     label nPhi;
-    label maxSourceIterations{300};
+    label maxSourceIterations{500};
     RadiationReal sourceRelativeTolerance{RadiationReal(1e-10)};
     RadiationReal phaseBalanceTolerance{RadiationReal(1e-12)};
     label maxPhaseBalanceIterations{200};
@@ -41,6 +43,8 @@ struct MieDoSnapshot
     const volScalarField& wallTemperatureK;
     const List<scalarField>& coupledWallEmissivity;
     ugkp::gpu::RadiationParticleDeviceView resident{};
+    ugkp::gpu::RadiationThermalCouplingDeviceView thermalCoupling{};
+    ugkp::gpu::RadiationThermalIterationHook thermalIterationHook{};
 };
 
 struct MieDoResult
@@ -55,6 +59,8 @@ struct MieDoResult
     RadiationReal integratedParticlePowerW;
     RadiationReal integratedBoundaryPowerW;
     RadiationReal conservationResidualW;
+    scalar materialRelativeResidual=0,transportRelativeResidual=0;
+    scalar materialResidualTarget=0,transportResidualTarget=0;
     label sourceIterations;
     label angleThreadsUsed;
     ugkp::gpu::RadiationDeviceView resident{};
@@ -127,6 +133,8 @@ public:
         bool exportFields=true
     ) const;
     MieDoResult collect(MieDoRadiationWorkspace&) const;
+    bool readWarmStart(MieDoRadiationWorkspace&,const std::string& path) const;
+    bool writeWarmStart(MieDoRadiationWorkspace&,const std::string& path) const;
 };
 
 }

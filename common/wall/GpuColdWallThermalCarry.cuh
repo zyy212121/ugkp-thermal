@@ -10,54 +10,23 @@
 #endif
 namespace ugkwp {
 struct ColdWallHeatPublication { bool valid; double acceptedSpecificHeat; };
-// Equal-mass nodes: the one persistent scalar is a uniform specific-enthalpy
-// correction, never a second copy of the profile or an unbounded heat ledger.
-UGKWP_COLD_CARRY_HD inline float coldWallStoredEnthalpyFloor(double target) {
-
- if(target>double(FLT_MAX))return FLT_MAX;
- if(target<-double(FLT_MAX))return -FLT_MAX;
- float stored=static_cast<float>(target);
- if(double(stored)>target)stored=::nextafterf(stored,-INFINITY);
- return stored;
-}
-// Leave only the double-arithmetic cancellation margin before crediting a
-// uniform cooling proposal. Float rounding is handled by directed publication.
-UGKWP_COLD_CARRY_HD inline double coldWallUniformCoolingBound
-(const float* nodes,int count,double residual) {
- double minimum=double(nodes[0])+residual,maximum=minimum;
- for(int j=1;j<count;++j){const double h=double(nodes[j])+residual;
-  if(h<minimum)minimum=h;
-  if(h>maximum)maximum=h;
- }
- const double margin=16.*0x1p-52*maximum+double(FLT_MIN);
- return minimum>margin?margin-minimum:0.;
+// Raw equal-mass-node publication: no uniform correction or residual state.
+UGKWP_COLD_CARRY_HD inline double coldWallUniformCoolingBound(const double* nodes,int count) {
+ double minimum=double(nodes[0]);
+ for(int j=1;j<count;++j)if(double(nodes[j])<minimum)minimum=double(nodes[j]);
+ return minimum>0.?-minimum:0.;
 }
 UGKWP_COLD_CARRY_HD inline ColdWallHeatPublication publishColdWallUniformSpecificHeat
-(float* nodes, int count, double& residual, double specificHeat) {
- if (!nodes || count<=0 || !(::fabs(residual)<=DBL_MAX)
-     || !(::fabs(specificHeat)<=DBL_MAX)) return {false,0.0};
- if (specificHeat==0.0) {
-  for(int j=0;j<count;++j) {
-   const double effective=double(nodes[j])+residual;
-   if(!(::fabs(effective)<=DBL_MAX)) return {false,0.0};
-  }
-  return {true,0.0};
+(double* nodes,int count,double specificHeat) {
+ if(!nodes||count<=0||!(::fabs(specificHeat)<=DBL_MAX))return {false,0.};
+ double accepted=0.;
+ for(int j=0;j<count;++j){
+  const double target=double(nodes[j])+specificHeat;
+  const double stored=target;
+  if(!(::fabs(double(nodes[j]))<=DBL_MAX)||!(::fabs(target)<=DBL_MAX)||!(::fabs(double(stored))<=DBL_MAX))return {false,0.};
+  accepted+=(double(stored)-double(nodes[j]))/double(count);
  }
- const double correction=residual+specificHeat;
- double storageChange=0.0;
- for(int j=0;j<count;++j) {
-  const double effective=double(nodes[j])+residual;
-  if(!(::fabs(effective)<=DBL_MAX)) return {false,0.0};
-  const double target=double(nodes[j])+correction;
-  const float stored=coldWallStoredEnthalpyFloor(target);
-  if(!(::fabs(target)<=DBL_MAX) || !(::fabs(stored)<=FLT_MAX)) return {false,0.0};
-  storageChange+=(double(stored)-double(nodes[j]))/count;
- }
- const double next=(residual-storageChange)+specificHeat;
- const double accepted=storageChange+(next-residual);
- if(!(::fabs(next)<=DBL_MAX) || !(::fabs(accepted)<=DBL_MAX))return {false,0.};
- for(int j=0;j<count;++j)nodes[j]=coldWallStoredEnthalpyFloor(double(nodes[j])+correction);
- residual=next;
+ for(int j=0;j<count;++j)nodes[j]=double(nodes[j])+specificHeat;
  return {true,accepted};
 }
 template<class Parameters>

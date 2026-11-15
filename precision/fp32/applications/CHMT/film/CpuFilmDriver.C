@@ -51,9 +51,6 @@ bool validate(const HostState& h,const PhysicsConfig& p,Real dt,
     if((!validCondensed(p.liquid)||!finite(p.liquid.conductivity)||p.liquid.conductivity<0
         ||!finite(p.liquidViscosity)||p.liquidViscosity<=0||!finite(p.gravity)
         ||(p.spatialOrder!=1&&p.spatialOrder!=2))) return numericReject(error,"invalid constitutive configuration",0,numericalFailure);
-    if((p.enableRadiation&&(!finite(p.emissivity)
-        ||!finite(p.ambientTemperature)||p.ambientTemperature<=0)))
-        return numericReject(error,"invalid radiation configuration",0,numericalFailure);
     if(!optionalSize(m.gasFace,n)||!optionalSize(m.baseVelocity,n)
         ||!optionalSize(m.prescribedTopTraction,n)||!optionalSize(m.prescribedPressureGradient,n)
         ||(m.edgeNeighbour.size()!=ne)||(m.edgeLength.size()!=ne)||(m.edgeConormal.size()!=ne)
@@ -303,7 +300,7 @@ bool evaluate(const HostState& h,const PhysicsConfig& p,Real dt,
         if(!m.prescribedPressureGradient.empty())bodyPower-=EnergyReal(h.film[f].mass)/EnergyReal(p.liquid.rho)*surfaceEnergyDot(physicalVectorInput(m.prescribedPressureGradient[f]),a.meanVelocity);
         if(!source.topWorkIncluded)prescribedTopPower=EnergyReal(a.area)*(surfaceEnergyDot(e.shear[f],a.topVelocity)-EnergyReal(a.pressure)*EnergyReal(a.normalVelocity));
         if(!source.bottomWorkIncluded)supportPower=EnergyReal(a.area)*(-surfaceEnergyDot(profile.bottomShear,a.baseVelocity)+EnergyReal(a.pressure)*EnergyReal(a.solidNormalVelocity));
-        const EnergyReal localRadiation=!coupled&&h.film[f].mass>0?EnergyReal(a.area)*grayRadiation(a.temperature,p):0;
+        const EnergyReal localRadiation=0; // Public DOM is the only radiation source.
         e.rhs[f].enthalpy+=bodyPower+supportPower+prescribedTopPower+localRadiation;
         if((!finite(e.rhs[f].enthalpy)||!finite(a.normalVelocity)))
             return numericReject(error,"nonfinite surface source",f,numericalFailure);

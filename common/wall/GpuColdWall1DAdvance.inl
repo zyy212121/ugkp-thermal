@@ -4,9 +4,6 @@
 
     const bool inputValid =
         true
-#ifdef GPU_PAIRED_PARTICLE_HEAT
-     && s.pThermalEnthalpyResidual != nullptr
-#endif
      && s.pColdNodeSpecificEnthalpy != nullptr
      && s.pColdRingSolidMass != nullptr
      && s.pColdFrozenArea != nullptr
@@ -16,20 +13,18 @@
         return false;
     }
 
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+    if(lane==0)s.pThermalEnthalpyResidual[particleI]=0.0;
+#endif
     const int nodeBase =
-        particleI*Foam::gpuThermal::coldWallAxialNodeCount;
+        Foam::gpuWall::coldWallSlot(s,particleI)*Foam::gpuThermal::coldWallAxialNodeCount;
     const int ringBase =
-        particleI*Foam::gpuThermal::coldWallRadialRingCount;
+        Foam::gpuWall::coldWallSlot(s,particleI)*Foam::gpuThermal::coldWallRadialRingCount;
     const ColdWallThermalReal storedOldEnthalpy = static_cast<ColdWallThermalReal>
     (
         s.pColdNodeSpecificEnthalpy[nodeBase + lane]
     );
-#ifdef GPU_PAIRED_PARTICLE_HEAT
-    const double oldCarry = s.pThermalEnthalpyResidual[particleI];
-    const double oldEnthalpy = storedOldEnthalpy + oldCarry;
-#else
-    const GpuReal oldEnthalpy = storedOldEnthalpy;
-#endif
+    const ColdWallThermalReal oldEnthalpy = storedOldEnthalpy;
     ColdWallThermalReal candidateEnthalpy = oldEnthalpy;
     ColdWallThermalReal guessedTemperature =
         coldWallCarryTemperature
@@ -45,7 +40,7 @@
     (
         mask,
         lane == 0
-          ? static_cast<GpuTime>(s.pColdContactAge[particleI])
+          ? static_cast<GpuTime>(s.pColdContactAge[Foam::gpuWall::coldWallSlot(s,particleI)])
           : GPU_R(0.0),
         0,
         8
@@ -54,7 +49,7 @@
     (
         mask,
         lane == 0
-          ? static_cast<ColdWallThermalReal>(s.pColdFrozenArea[particleI])
+          ? static_cast<ColdWallThermalReal>(s.pColdFrozenArea[Foam::gpuWall::coldWallSlot(s,particleI)])
           : GPU_R(0.0),
         0,
         8

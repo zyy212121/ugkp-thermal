@@ -1,3 +1,4 @@
+#include "WorkPlan.H"
 #include "MieOpticalProperties.H"
 #include "PinnedTransferQueue.cuh"
 #include "MiePhaseBalance.cuh"
@@ -45,10 +46,10 @@ void MieOpticalProperties::balance(const std::vector<MieOpticalQuery>& input,con
     d.queries.upload(input,d.transfers);d.weights.upload(weights,d.transfers);d.cosines.upload(cosines,d.transfers);
     d.phaseBrackets.reserve(cosines.size());d.scaling.reserve(entries);d.nextScaling.reserve(entries);
     d.rowError.reserve(entries);d.columnError.reserve(entries);d.phaseMetrics.reserve(input.size());
-    if(!cosines.empty())mieDetail::phaseBrackets<<<(cosines.size()+127)/128,128,0,d.stream>>>(cosines.size(),d.table,d.cosines.ptr,d.phaseBrackets.ptr);
+    if(!cosines.empty())mieDetail::phaseBrackets<<<(cosines.size()+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads,ugkp::gpu::workPlan().radiationBlockThreads,0,d.stream>>>(cosines.size(),d.table,d.cosines.ptr,d.phaseBrackets.ptr);
     scaling.resize(entries);metrics.resize(input.size());
     if(!input.empty()){
-        mieDetail::balancePhase<<<input.size(),128,0,d.stream>>>(input.size(),directions,d.table,d.queries.ptr,d.weights.ptr,
+        mieDetail::balancePhase<<<input.size(),ugkp::gpu::workPlan().radiationBlockThreads,0,d.stream>>>(input.size(),directions,d.table,d.queries.ptr,d.weights.ptr,
             d.phaseBrackets.ptr,tolerance,maximumIterations,d.scaling.ptr,d.nextScaling.ptr,d.rowError.ptr,d.columnError.ptr,d.phaseMetrics.ptr);
         d.transfers.download(scaling.data(),d.scaling.ptr,entries*sizeof(RadiationReal));
         d.transfers.download(metrics.data(),d.phaseMetrics.ptr,metrics.size()*sizeof(MiePhaseMetrics));
@@ -57,7 +58,7 @@ void MieOpticalProperties::balance(const std::vector<MieOpticalQuery>& input,con
 }
 void MieOpticalProperties::evaluate(const std::vector<MieOpticalQuery>& input,std::vector<MieOpticalResult>& output){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);d.queries.upload(input,d.transfers);d.results.reserve(input.size());output.resize(input.size());
-    if(!input.empty()){evaluateOptics<<<(input.size()+127)/128,128,0,d.stream>>>(input.size(),d.table,d.queries.ptr,d.results.ptr);
+    if(!input.empty()){evaluateOptics<<<(input.size()+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads,ugkp::gpu::workPlan().radiationBlockThreads,0,d.stream>>>(input.size(),d.table,d.queries.ptr,d.results.ptr);
         d.transfers.download(output.data(),d.results.ptr,output.size()*sizeof(MieOpticalResult));}
     d.transfers.finish();
 }

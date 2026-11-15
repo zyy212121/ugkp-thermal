@@ -1,3 +1,4 @@
+#include "../../../common/gpu/WorkPlan.H"
 #ifndef CHMT_GPU_MATERIALTRANSPORTKERNELS_CUH
 #define CHMT_GPU_MATERIALTRANSPORTKERNELS_CUH
 #include "materials/MaterialTransportMath.H"
@@ -50,12 +51,12 @@ static __global__ void faces(Mesh meshValue,State q,const PhysicsConfig* p,
 // stage. No racing first-error writer and no host per-cell diagnostics copy.
 static __global__ void compactErrors(const int* errors,int count,MaterialTransportDeviceResult* result) {
     if(result->errorCode)return;
-    __shared__ int first[128];
+    extern __shared__ int first[];
     int entity=count;
     for(int i=threadIdx.x;i<count;i+=blockDim.x)if(errors[i]){entity=i;break;}
     first[threadIdx.x]=entity;__syncthreads();
-    for(int stride=blockDim.x/2;stride>0;stride/=2){
-        if(threadIdx.x<stride&&first[threadIdx.x+stride]<first[threadIdx.x])first[threadIdx.x]=first[threadIdx.x+stride];
+    for(int active=blockDim.x;active>1;active=(active+1)/2){const int stride=(active+1)/2;
+        if(threadIdx.x<active-stride&&first[threadIdx.x+stride]<first[threadIdx.x])first[threadIdx.x]=first[threadIdx.x+stride];
         __syncthreads();
     }
     if(threadIdx.x==0&&first[0]<count){result->entity=first[0];result->errorCode=errors[first[0]];result->numerical=true;}
@@ -69,12 +70,12 @@ static __global__ void gather(Mesh meshValue,State q,const PhysicsConfig* p,
 }
 static __global__ void compactTimestep(const Real* dt,int count,MaterialTransportDeviceResult* result) {
     if(result->errorCode)return;
-    __shared__ Real limits[128];
+    extern __shared__ Real limits[];
     Real limit=std::numeric_limits<Real>::max();
     for(int i=threadIdx.x;i<count;i+=blockDim.x)limit=minValue(limit,dt[i]);
     limits[threadIdx.x]=limit;__syncthreads();
-    for(int stride=blockDim.x/2;stride>0;stride/=2){
-        if(threadIdx.x<stride)limits[threadIdx.x]=minValue(limits[threadIdx.x],limits[threadIdx.x+stride]);
+    for(int active=blockDim.x;active>1;active=(active+1)/2){const int stride=(active+1)/2;
+        if(threadIdx.x<active-stride)limits[threadIdx.x]=minValue(limits[threadIdx.x],limits[threadIdx.x+stride]);
         __syncthreads();
     }
     if(threadIdx.x==0){
@@ -93,20 +94,20 @@ inline cudaError_t launchMaterialTransport(int cellCount,int faceCount,Mesh mesh
     using namespace materialTransportGpu;
     initialize<<<1,1,0,stream>>>(p,interval,cfl,cellCount,result);
     if(cellCount==0)return cudaGetLastError();
-    constexpr int threads=128;
+    const int threads=ugkp::gpu::workPlan().materialBlockThreads;
     const int cells=(cellCount+threads-1)/threads,faceBlocks=(faceCount+threads-1)/threads;
     recover<<<cells,threads,0,stream>>>(mesh,q,p,workspace,result);
-    compactErrors<<<1,threads,0,stream>>>(workspace.cellErrors,cellCount,result);
+    compactErrors<<<1,threads,threads*sizeof(int),stream>>>(workspace.cellErrors,cellCount,result);
     pressure<<<cells,threads,0,stream>>>(mesh,p,workspace,result);
-    compactErrors<<<1,threads,0,stream>>>(workspace.cellErrors,cellCount,result);
+    compactErrors<<<1,threads,threads*sizeof(int),stream>>>(workspace.cellErrors,cellCount,result);
     stability<<<cells,threads,0,stream>>>(mesh,q,p,swept,interval,workspace,result);
-    compactErrors<<<1,threads,0,stream>>>(workspace.cellErrors,cellCount,result);
+    compactErrors<<<1,threads,threads*sizeof(int),stream>>>(workspace.cellErrors,cellCount,result);
     if(faceCount){
         faces<<<faceBlocks,threads,0,stream>>>(mesh,q,p,swept,interval,workspace,result);
-        compactErrors<<<1,threads,0,stream>>>(workspace.faceErrors,faceCount,result);
+        compactErrors<<<1,threads,threads*sizeof(int),stream>>>(workspace.faceErrors,faceCount,result);
     }
     gather<<<cells,threads,0,stream>>>(mesh,q,p,cfl,workspace,result);
-    compactTimestep<<<1,threads,0,stream>>>(workspace.cellDtLimit,cellCount,result);
+    compactTimestep<<<1,threads,threads*sizeof(Real),stream>>>(workspace.cellDtLimit,cellCount,result);
     return cudaGetLastError();
 }
 // Existing immutable-value callers share the same launch sequence. Resident

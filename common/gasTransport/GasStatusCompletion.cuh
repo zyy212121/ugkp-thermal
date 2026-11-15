@@ -2,6 +2,7 @@
 #include "GasCapabilities.H"
 #include "../Diagnostics.H"
 #include <cuda_runtime.h>
+#include "../gpu/WorkPlan.H"
 
 namespace ugkwp {
 namespace gasStatusCompletion {
@@ -45,9 +46,10 @@ inline cudaError_t enqueueGasStatusCheck(const int* cells,int cellCount,
     if(error!=cudaSuccess)return error;
     const auto count=static_cast<unsigned long long>(cellCount)+faceCount;
     if(count) {
-        const auto needed=(count+255)/256;
+        const int block=ugkp::gpu::workPlan().reductionBlockThreads;
+        const auto needed=(count+block-1)/block;
         const int blocks=static_cast<int>(needed<65535?needed:65535);
-        gasStatusCompletion::findUnavailable<<<blocks,256,0,stream>>>
+        gasStatusCompletion::findUnavailable<<<blocks,block,0,stream>>>
             (cells,cellCount,faces,faceCount,diagnostics,first);
         error=cudaGetLastError();if(error!=cudaSuccess)return error;
     }

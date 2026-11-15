@@ -10,6 +10,9 @@
 #include "wallPolyPatch.H"
 
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <fstream>
 #include <exception>
 #include <limits>
 #include <sstream>
@@ -647,6 +650,10 @@ public:
     void prepare(const std::shared_ptr<const MieDoRadiationSolverData>& data)
     {
         if(owner==data)return;
+        // Geometry refresh rebuilds the source graph. Detach the previous
+        // material window first: its buffers may have been resized or released.
+        // solve() installs the current window hook after prepare() completes.
+        if(gpu)gpu->setThermalIterationHook({});
         if(owner&&owner->geometryFamily==data->geometryFamily){
             gpu->updateGeometry(radiationGeometry(*data));owner=data;return;
         }
@@ -663,6 +670,12 @@ public:
 namespace {
 MieDoResult publishedRadiationResult(const fvMesh& mesh,MieDoRadiationWorkspaceData& scratch,const ugkp::gpu::RadiationResult& output){
     MieDoResult result;result.resident=scratch.gpu->deviceView();
+    result.materialRelativeResidual=output.materialRelativeResidual;
+    result.transportRelativeResidual=output.transportRelativeResidual;
+    result.materialResidualTarget=output.materialResidualTarget;
+    result.transportResidualTarget=output.transportResidualTarget;
+    result.sourceIterations=output.sourceIterations;
+
     if(output.power.empty()&&mesh.nCells()){
         result.integratedParticlePowerW=result.integratedBoundaryPowerW=result.conservationResidualW=0;
         result.sourceIterations=output.sourceIterations;result.angleThreadsUsed=1;return result;
@@ -777,6 +790,60 @@ MieDoRadiationWorkspace MieDoRadiationSolver::makeWorkspace() const
     );
 }
 
+
+namespace {
+std::uint64_t warmLayout(const MieDoRadiationSolverData& data) {
+    std::uint64_t hash=1469598103934665603ULL;
+    const auto append=[&](const auto& value){const auto* p=reinterpret_cast<const unsigned char*>(&value);
+        for(std::size_t i=0;i<sizeof(value);++i){hash^=p[i];hash*=1099511628211ULL;}};
+    // Array ordering, not metric values: moving meshes retain their angular seed.
+    append(data.mesh.nCells());
+    for(const auto v:data.mesh.owner())append(v);
+    for(const auto v:data.mesh.neighbour())append(v);
+    for(const auto& patch:data.mesh.boundary()){append(patch.start());append(patch.size());}
+    for(const auto& direction:data.directions)for(int i=0;i<3;++i){const double v=direction[i];append(v);}
+    for(const auto weight:data.weights){const double v=weight;append(v);}
+    return hash;
+}
+}
+bool MieDoRadiationSolver::writeWarmStart(MieDoRadiationWorkspace& workspace,const std::string& path) const {
+    auto& scratch=*workspace.data_;
+    const std::uint64_t header[]={0x55474b50444f4d31ULL,2,sizeof(ugkp::gpu::RadiationReal),
+        std::uint64_t(data_->mesh.nCells()),std::uint64_t(data_->directions.size()),warmLayout(*data_),
+        std::uint64_t(scratch.intensitiesInitialized)};
+    std::vector<double> values;
+    if(scratch.intensitiesInitialized){scratch.prepare(data_);scratch.gpu->downloadIntensities(values);}
+    const std::string temporary=path+".tmp";
+    std::ofstream out(temporary,std::ios::binary|std::ios::trunc);
+    out.write(reinterpret_cast<const char*>(header),sizeof(header));
+    const std::vector<ugkp::gpu::RadiationReal> payload(values.begin(),values.end());
+    if(!payload.empty())out.write(reinterpret_cast<const char*>(payload.data()),payload.size()*sizeof(ugkp::gpu::RadiationReal));
+    out.close();
+    if(!out||std::rename(temporary.c_str(),path.c_str())!=0){
+        WarningInFunction<<"DOM warm-start cache write failed: "<<path<<"; physical checkpoint remains usable with cold start"<<endl;return false;}
+    return true;
+}
+bool MieDoRadiationSolver::readWarmStart(MieDoRadiationWorkspace& workspace,const std::string& path) const {
+    auto& scratch=*workspace.data_;scratch.intensitiesInitialized=false;
+    std::ifstream in(path,std::ios::binary);
+    if(!in){Info<<"DOM warm-start cache absent; using compatible cold start: "<<path<<endl;return false;}
+    std::uint64_t header[7]={};in.read(reinterpret_cast<char*>(header),sizeof(header));
+    const std::uint64_t cells=data_->mesh.nCells(),angles=data_->directions.size();
+    const auto invalid=[&](){WarningInFunction<<"DOM warm-start cache incompatible or incomplete; using cold start: "<<path<<endl;return false;};
+    // Main physical checkpoint precision policy remains authoritative. A cache
+    // never permits a restart that its owning application would otherwise reject.
+    if(!in||header[0]!=0x55474b50444f4d31ULL||header[1]!=2||header[2]!=sizeof(ugkp::gpu::RadiationReal)
+        ||header[3]!=cells||header[4]!=angles||header[5]!=warmLayout(*data_)||header[6]>1)return invalid();
+    if(!header[6])return true;
+    std::vector<ugkp::gpu::RadiationReal> payload(std::size_t(cells*angles));
+    in.read(reinterpret_cast<char*>(payload.data()),payload.size()*sizeof(ugkp::gpu::RadiationReal));
+    const std::vector<double> values(payload.begin(),payload.end());
+    if(!in||in.peek()!=std::char_traits<char>::eof())return invalid();
+    for(const double v:values)if(!std::isfinite(v))return invalid();
+    scratch.prepare(data_);scratch.gpu->uploadIntensities(values);scratch.intensitiesInitialized=true;
+    Info<<"DOM warm-start cache restored: "<<path<<endl;return true;
+}
+
 MieDoResult MieDoRadiationSolver::solve(const MieDoSnapshot& snapshot) const
 {
     MieDoRadiationWorkspace workspace = makeWorkspace();
@@ -806,6 +873,8 @@ MieDoResult MieDoRadiationSolver::solve
     const label nCells=mesh.nCells();
     ugkp::gpu::RadiationSnapshot input;
     input.resident=snapshot.resident;
+    input.thermalCoupling=snapshot.thermalCoupling;
+    scratch.gpu->setThermalIterationHook(snapshot.thermalIterationHook, snapshot.thermalCoupling.graphOwner, snapshot.thermalCoupling.graphRevision);
     if(!input.resident.enabled){
         input.epsilon.assign(snapshot.epsilonS.begin(),snapshot.epsilonS.begin()+nCells);
         input.temperature.assign(snapshot.particleTemperatureK.begin(),snapshot.particleTemperatureK.begin()+nCells);

@@ -5,6 +5,15 @@
 #ifndef GPU_THERMAL_GPU_COLD_WALL_2D_DEVICE_CUH
 #define GPU_THERMAL_GPU_COLD_WALL_2D_DEVICE_CUH
 
+// Legacy 2D directed storage rule. Not used by raw native-precision 1D.
+__device__ inline float legacyColdWall2DStoredEnthalpyFloor(double target) {
+    if(target>double(FLT_MAX))return FLT_MAX;
+    if(target<-double(FLT_MAX))return -FLT_MAX;
+    float stored=static_cast<float>(target);
+    if(double(stored)>target)stored=::nextafterf(stored,-INFINITY);
+    return stored;
+}
+
 template<class Scalar>
 __device__ inline Scalar coldWall2DGroupSum
 (
@@ -550,7 +559,7 @@ __device__ bool advanceColdWall2DThermalGroup
     double localStorageChange=0.0;
     for(int node=0;node<8;++node) {
         enthalpy[node]+=correction;
-        const float stored=ugkwp::coldWallStoredEnthalpyFloor(enthalpy[node]);
+        const float stored=legacyColdWall2DStoredEnthalpyFloor(enthalpy[node]);
         localStorageChange+=(double(stored)-double(s.pCold2DNodeSpecificEnthalpy[nodeBase+node]))/64.0;
     }
     const double storageChange=coldWall2DGroupSum(localStorageChange,groupMask);
@@ -559,7 +568,7 @@ __device__ bool advanceColdWall2DThermalGroup
     if(radialNode==0)s.pThermalEnthalpyResidual[particleI]=nextCarry;
     // Phase and output caches use exactly the published float profile + carry.
     for(int node=0;node<8;++node) {
-        const float stored=ugkwp::coldWallStoredEnthalpyFloor(enthalpy[node]);
+        const float stored=legacyColdWall2DStoredEnthalpyFloor(enthalpy[node]);
         s.pCold2DNodeSpecificEnthalpy[nodeBase+node]=stored;
         enthalpy[node]=double(stored)+nextCarry;
     }

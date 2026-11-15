@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <cstring>
 #include <istream>
+#include <iostream>
+#include <string>
 #include <limits>
 #include <ostream>
 #include <vector>
@@ -49,7 +51,7 @@ struct ConstView
     const double* pContactDuration;
     const double* pContactMaximumArea;
     const double* pContactPeakFraction;
-    const float* pColdNodeSpecificEnthalpy;
+    const double* pColdNodeSpecificEnthalpy;
     const double* pColdRingSolidMass;
     const double* pColdFrozenArea;
     const double* pColdContactAge;
@@ -85,7 +87,7 @@ struct MutableView
     double* pContactDuration;
     double* pContactMaximumArea;
     double* pContactPeakFraction;
-    float* pColdNodeSpecificEnthalpy;
+    double* pColdNodeSpecificEnthalpy;
     double* pColdRingSolidMass;
     double* pColdFrozenArea;
     double* pColdContactAge;
@@ -704,7 +706,12 @@ inline void readV8Payload(std::istream& is, std::uint32_t bound, const MutableVi
 
 static const char* const schema9FormatName = gpuThermalRestart::schema9ChtMarker;
 static const char* const singleStateFormatName = "UGKP_CHT_PARTICLES_SCHEMA10_FP32_SINGLE_STATE_BIN";
-static const char* const currentFormatName = schema9FormatName;
+static const char* const currentFormatName = gpuThermalRestart::native64ChtMarker;
+inline bool nativeRestartSupported(const std::string& marker){return marker==gpuThermalRestart::native64ChtMarker;}
+inline void readNativePayload(std::istream& is,std::uint32_t bound,const MutableView& v,const std::string& marker){
+ if(!nativeRestartSupported(marker))throw std::runtime_error("native64 CHT requires schema11 native64 raw-cold checkpoint; old/FP32 payload is not supported");
+ gpuThermalRestart::readCurrentPayload<true>(is,bound,v);
+}
 inline void readLegacyCarryPayload(std::istream& os,std::uint32_t bound,const MutableView& v)
 { gpuThermalRestart::readCurrentPayload<true>(os,bound,v); }
 inline void readSingleStatePayload(std::istream& os,std::uint32_t bound,const MutableView& v)

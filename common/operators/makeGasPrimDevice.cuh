@@ -175,14 +175,14 @@ __device__ GasPrimDevice riemannBoundaryState
                 if(before!=Y[k])recordWarning(s.diagnostics,makeRecord(Code::FiniteYClip,2605,26,0,EntityKind::Face,f,k,before,Y[k],Y[k],Quantity::MassFraction));
             }
             const GPU_OPERATOR_REAL R=ugkwp::mixtureGasConstant(Y,s.gasSpecies.thermo);
-            if(s.riemannBoundaryUFix[f]==3 || s.nScheduledInletFaces>0)
+            if(s.riemannBoundaryUFix[f]==3)
             {
                 using namespace ugkp::diagnostics;
                 // This rejection is a missing mixture boundary operator, not a
                 // soft numerical residual. Preserve the precise producer before
                 // the coarse face status makes the flux caller return false.
-                const int mode=s.riemannBoundaryUFix[f]==3?0:2;
-                const int selector=mode==0?s.riemannBoundaryUFix[f]:s.nScheduledInletFaces;
+                const int mode=0;
+                const int selector=s.riemannBoundaryUFix[f];
                 recordFatal(s.diagnostics,makeRecord(Code::MissingOperator,30420,26,nativeRefinement?1:0,
                     EntityKind::Face,f,mode,selector));
                 ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::UnsupportedConfiguration);

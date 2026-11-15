@@ -44,15 +44,21 @@ struct SparseDeviceLduValues {
     void* readyStream=nullptr;
     const GpuReal* boundaryJump=nullptr;
 };
+enum class SparsePreconditioner { Jacobi, Block8 };
 struct ConjugateGradientControls {
+    SparsePreconditioner preconditioner=SparsePreconditioner::Jacobi;
     int maximumIterations=1000, minimumIterations=0;
     GpuReal tolerance=1e-6f, relativeTolerance=0;
     GpuReal normalizationSmall=1e-20f, singularSmall=std::numeric_limits<GpuReal>::min();
 };
 struct ConjugateGradientReport {
+    int preconditionerFallbackBlocks=0;
     int iterations=0;
     GpuReal initialResidual=0, finalResidual=0;
     bool converged=false, singular=false;
+    bool stagnated=false, budgetExhausted=false;
+    int residualReplacements=0;
+    GpuReal targetResidual=0;
 };
 struct ConjugateGradientDeviceReport {
     const ConjugateGradientReport* report=nullptr;

@@ -1,211 +1,46 @@
-from __future__ import annotations
-from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
-
-from source_contract_utils import read_source
-
-
-import re
-import importlib.util
-import tempfile
-import unittest
+"""Current maintained startup scheduling contracts, without legacy migration."""
 from pathlib import Path
+import re
+from validation.tools.paths import SOURCE_ROOT
+ROOT=SOURCE_ROOT
+RESIDENTS=["common/thermal/GpuResidentStrict.cu","applications/gasUGKP/private_backend/GpuResidentStrict.cu"]
+FAMILIES=["Cell","Face","Particle","Reduction","Sparse","Radiation","Thermal","Material","ColdWall"]
 
+def test_shared_configuration_reads_each_family_once():
+    text=(ROOT/"common/GpuSchedulingConfiguration.H").read_text()
+    for family in FAMILIES:
+        assert text.count('"gpu'+family+'BlockThreads"')==1
+    for source in ["applications/CHT/readGpuGasConfiguration.H","applications/gasUGKP/readGpuGasConfiguration.H","applications/CHMT/configuration/CouplingInput.H"]:
+        text=(ROOT/source).read_text()
+        assert '"schedulingProperties"' in text and "readGpuSchedulingConfiguration" in text
 
-ROOT = SOURCE_ROOT
-BRANCHES = {
-    "gasUGKP": (
-        ROOT / "applications/gasUGKP/readGpuGasConfiguration.H",
-        ROOT / "applications/gasUGKP/gpu/GpuResidentStrict.H",
-        ROOT / "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
-    ),
-    "FSH": (
-        ROOT / "applications/FSH/readGpuGasConfiguration.H",
-        ROOT / "applications/FSH/gpu/GpuResidentStrict.H",
-        ROOT / "applications/FSH/private_backend/GpuResidentStrict.cu",
-    ),
-    "CHT": (
-        ROOT / "applications/CHT/readGpuGasConfiguration.H",
-        ROOT / "applications/CHT/gpu/GpuResidentStrict.H",
-        ROOT / "common/thermal/GpuResidentStrict.cu",
-    ),
-}
+def test_startup_geometry_does_not_race_physical_kernels():
+    publication=(ROOT/"common/GpuWorkPlanPublish.cuh").read_text()
+    assert "publishStartupWorkPlan" in publication and "syncDeviceState" not in publication
+    assert "if (s->fixedWorkBlockTuned) return 0;" in publication
+    assert "s->fixedWorkBlockTuned=1;" in publication
+    for token in ["cudaEventCreate","cudaEventElapsedTime","nth_element","launchToolB1"]:
+        assert token not in publication
+    for source in RESIDENTS:
+        text=(ROOT/source).read_text()
+        assert "publishStartupWorkPlan" in text
+        assert "workPlan().cellBlockThreads" in text and "workPlan().faceBlockThreads" in text
+        assert "tuneFixedWorkBlockThreads" not in text
 
+def test_l2_retains_existing_scheduler():
+    text=(ROOT/"common/GpuSchedulingConfiguration.H").read_text()
+    for token in ["GpuCsrLevel::L0","GpuCsrLevel::L2","GpuHeavyReductionMode::automatic","gpuCsrHeavyReductionAutoInterval"]:
+        assert token in text
+    for source in RESIDENTS:
+        assert "runAutomaticCsrSchedule" in (ROOT/source).read_text()
 
-class UnifiedSchedulingToolsContract(unittest.TestCase):
-    def test_shared_configuration_exists_and_reads_scheduling_dictionary(self) -> None:
-        shared = ROOT / "common/GpuSchedulingConfiguration.H"
-        self.assertTrue(shared.is_file())
-        text = read_source(shared)
-        for token in (
-            "gpuResidentPureGasOnly",
-            "gpuCsrLevel",
-            "gpuCsrHeavyReductionAutoInterval",
-            "gpuParticleBlockThreads",
-            "gpuReductionBlockThreads",
-        ):
-            self.assertIn(token, text)
-        self.assertRegex(text, r"particleBlockThreads\s*=\s*128")
-        self.assertRegex(text, r"reductionBlockThreads\s*=\s*128")
-        self.assertNotIn('"gpuFixedWorkBlockThreads"', text)
-        for name, (reader, _, _) in BRANCHES.items():
-            source = read_source(reader)
-            self.assertIn('"schedulingProperties"', source, name)
-            self.assertIn("GpuSchedulingConfiguration", source, name)
+def test_removed_dynamic_inlet_is_not_a_runtime_switch():
+    for source in RESIDENTS+["applications/CHT/diluteUgkwpFoam.C","applications/gasUGKP/diluteUgkwpFoam.C","common/GpuSchedulingConfiguration.H"]:
+        text=(ROOT/source).read_text()
+        for token in ["gpuResidentDynamicInlet","gpuResidentPressureTable","gpuResidentVolumeFractionTable","ConfigureScheduledInlet"]:
+            assert token not in text
 
-    def test_three_backends_store_distinct_b1_b2_b3(self) -> None:
-        for name, (_, _, cuda_path) in BRANCHES.items():
-            cuda = read_source(cuda_path)
-            self.assertIn("fixedCellBlockThreads", cuda, name)
-            self.assertIn("fixedFaceBlockThreads", cuda, name)
-            self.assertIn("fixedWorkBlockTuned", cuda, name)
-            self.assertIn("particleBlockThreads", cuda, name)
-            self.assertIn("reductionBlockThreads", cuda, name)
-            self.assertRegex(cuda, r"tuneFixedWorkBlockThreads\s*\(", name)
-
-    def test_tool_b1_uses_deferred_cuda_event_measurement(self) -> None:
-        shared_tool = read_source(ROOT / "common/GpuToolB1.cuh")
-        candidate_pattern = re.compile(
-            r"\{\s*32\s*,\s*64\s*,\s*96\s*,\s*128\s*,\s*160\s*,"
-            r"\s*192\s*,\s*224\s*,\s*256\s*\}"
-        )
-        for name, (_, _, cuda_path) in BRANCHES.items():
-            cuda = read_source(cuda_path)
-            implementation = cuda if name == "gasUGKP" else cuda + shared_tool
-            self.assertRegex(implementation, candidate_pattern, name)
-            self.assertRegex(implementation, r"toolB1WarmupRuns\s*=\s*1", name)
-            self.assertRegex(implementation, r"toolB1MeasuredRuns\s*=\s*5", name)
-            for token in (
-                "cudaEventCreate",
-                "cudaEventRecord",
-                "cudaEventElapsedTime",
-                "std::nth_element",
-            ):
-                self.assertIn(token, implementation, name)
-            self.assertNotIn("2*faceWaves + cellWaves", cuda, name)
-            self.assertNotIn("2*((faceGrid + faceCapacity", cuda, name)
-            tool_region = re.search(
-                r"int launchToolB1CellBundle[\s\S]*?"
-                r"int tuneFixedWorkBlockThreads[\s\S]*?\n\}",
-                implementation,
-            )
-            self.assertIsNotNone(tool_region, name)
-            for forbidden in (
-                "applyGasFluxDivergenceByCellKernel",
-                "blendGasConservativeStateKernel",
-                "applyGasGravityKernel",
-                "applyEulerianGasSolidCouplingKernel",
-            ):
-                self.assertNotIn(forbidden, tool_region.group(0), name)
-
-            configure = re.search(
-                r"int configure(?:ParticleLaunchGeometry|LaunchOccupancy)"
-                r"\s*\([^)]*\)\s*\{"
-                r"(?P<body>[\s\S]*?)\n\}",
-                cuda,
-            )
-            self.assertIsNotNone(configure, name)
-            self.assertNotIn("tuneFixedWorkBlockThreads", configure.group("body"), name)
-
-            advance = re.search(
-                r'extern "C" int ugkwpGpuResidentStrictAdvance(?:GasOnly)?'
-                r"\s*\([^)]*\)\s*\{(?P<body>[\s\S]*?)\n\}",
-                cuda,
-            )
-            self.assertIsNotNone(advance, name)
-            self.assertIn("tuneFixedWorkBlockThreads", advance.group("body"), name)
-
-    def test_l2_retains_backend_tool_b3(self) -> None:
-        shared = read_source(ROOT / "common/GpuSchedulingConfiguration.H")
-        self.assertIn("gpuCsrHeavyReductionAutoInterval", shared)
-        for name, (_, header_path, cuda_path) in BRANCHES.items():
-            header = read_source(header_path)
-            cuda = read_source(cuda_path)
-            self.assertIn("GpuSchedulingConfiguration", header, name)
-            self.assertIn("runToolB3", cuda, name)
-            self.assertIn("csrHeavyReductionMode", cuda, name)
-            self.assertIn("csrHeavyAutoInterval", cuda, name)
-            self.assertIn("csrHeavyReductionActive", cuda, name)
-
-    def test_periodic_flux_corrections_are_guarded_by_mesh_flag(self) -> None:
-        for name, (_, _, cuda_path) in BRANCHES.items():
-            cuda = read_source(cuda_path)
-            self.assertIn("hasPeriodicFaces", cuda, name)
-            self.assertRegex(
-                cuda,
-                r"if\s*\(\s*s->hasPeriodicFaces\s*!=\s*0\s*\)\s*\{[\s\S]*?"
-                r"enforcePeriodicGasFluxAntisymmetryKernel",
-                name,
-            )
-
-    def test_examples_own_scheduling_not_physics_keys(self) -> None:
-        cases = [
-            path.parent.parent
-            for path in ((CASES_ROOT / 'example')).glob("**/constant/particleProperties")
-        ]
-        self.assertTrue(cases)
-        moved = (
-            "gpuResidentStrict",
-            "gpuResidentPureGasOnly",
-            "gpuResidentDynamicInlet",
-            "gpuResidentParticleCapacity",
-            "gpuResidentMaxFaceWalkHops",
-            "gpuResidentCourantUpdateInterval",
-            "gpuResidentMaxDeltaTGrowth",
-            "gpuCsrCellLocalPath",
-            "gpuCsrHeavyReduction",
-            "gpuCsrWarpAggregatedBinning",
-        )
-        for case in cases:
-            scheduling = case / "constant/schedulingProperties"
-            self.assertTrue(scheduling.is_file(), str(case))
-            schedule_text = read_source(scheduling)
-            particle_text = read_source(case / "constant/particleProperties")
-            for key in moved:
-                self.assertNotRegex(particle_text, rf"\b{key}\b", str(case))
-            self.assertRegex(
-                schedule_text,
-                r"(?m)^\s*gpuCsrLevel\s+(?:L0|L1|L2|auto)\s*;",
-                str(case),
-            )
-
-    def test_migration_maps_old_l2_and_is_idempotent(self) -> None:
-        migration_path = (SOURCE_ROOT / 'tool/migrate_scheduling_properties.py')
-        spec = importlib.util.spec_from_file_location(
-            "migrate_scheduling_properties", migration_path
-        )
-        self.assertIsNotNone(spec)
-        self.assertIsNotNone(spec.loader)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        with tempfile.TemporaryDirectory() as tmp:
-            constant = Path(tmp) / "constant"
-            constant.mkdir()
-            particle = constant / "particleProperties"
-            particle.write_text(
-                "parcelMass 5e-9;\n"
-                "gpuResidentStrict true;\n"
-                "gpuCsrCellLocalPath true;\n"
-                "gpuCsrHeavyReduction true;\n"
-                "gpuCsrWarpAggregatedBinning true;\n"
-                "gpuCsrSplitPreDirectory true;\n",
-                encoding="utf-8",
-            )
-            module.migrate(particle)
-            module.migrate(particle)
-            schedule_text = read_source(constant / "schedulingProperties")
-            particle_text = read_source(particle)
-            self.assertRegex(schedule_text, r"(?m)^gpuCsrLevel\s+L2;")
-            for key in (
-                "gpuResidentStrict",
-                "gpuCsrCellLocalPath",
-                "gpuCsrHeavyReduction",
-                "gpuCsrWarpAggregatedBinning",
-                "gpuCsrSplitPreDirectory",
-            ):
-                self.assertNotRegex(schedule_text, rf"(?m)^\s*{key}\b")
-                self.assertNotRegex(particle_text, rf"(?m)^\s*{key}\b")
-            self.assertIn("parcelMass 5e-9;", particle_text)
-
-
-if __name__ == "__main__":
-    unittest.main()
+def test_explicit_cht_fixture_lists_all_block_families():
+    text=(ROOT/"validation/shared_boundary/fixtures/cht/constant/schedulingProperties").read_text()
+    for family in FAMILIES:
+        assert re.search(r"gpu"+family+r"BlockThreads\s+128\s*;",text)

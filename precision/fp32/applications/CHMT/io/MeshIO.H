@@ -395,7 +395,7 @@ namespace chmt {
                 return;
             }
             require(model.physics.enableGas && !state.gas.empty(), "thermal particles require imported gas");
-            const auto& policy = d.subDict("particle");
+            const auto& policy = d;
             require(text(policy,"volumeMode","Coupled")=="Coupled",
                 "CHMT uses the shared coupled gas/particle phase-volume convention");
             std::vector<PhysicalReal> fractions(state.gas.size(),1);

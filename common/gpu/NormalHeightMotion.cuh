@@ -16,8 +16,8 @@ __global__ void normalHeightPoints(int count,const int* offsets,const int* incid
         if(height<minimum)minimum=height;}
         penalties[p]=penalty;
     }
-    __shared__ double values[128];values[threadIdx.x]=minimum;__syncthreads();
-    for(int stride=64;stride;stride/=2){if(threadIdx.x<stride&&values[threadIdx.x+stride]<values[threadIdx.x])
+    extern __shared__ double values[];values[threadIdx.x]=minimum;__syncthreads();
+    for(int active=blockDim.x;active>1;active=(active+1)/2){const int stride=(active+1)/2;if(threadIdx.x<active-stride&&values[threadIdx.x+stride]<values[threadIdx.x])
         values[threadIdx.x]=values[threadIdx.x+stride];__syncthreads();}
     if(!threadIdx.x)partial[blockIdx.x]=values[0];
 }
@@ -25,8 +25,8 @@ __global__ void normalHeightControl(int blocks,const double* partial,const Norma
     NormalHeightMotionControl* out){
     double minimum=std::numeric_limits<double>::infinity();
     for(int i=threadIdx.x;i<blocks;i+=blockDim.x)if(partial[i]<minimum)minimum=partial[i];
-    __shared__ double values[128];values[threadIdx.x]=minimum;__syncthreads();
-    for(int stride=64;stride;stride/=2){if(threadIdx.x<stride&&values[threadIdx.x+stride]<values[threadIdx.x])
+    extern __shared__ double values[];values[threadIdx.x]=minimum;__syncthreads();
+    for(int active=blockDim.x;active>1;active=(active+1)/2){const int stride=(active+1)/2;if(threadIdx.x<active-stride&&values[threadIdx.x+stride]<values[threadIdx.x])
         values[threadIdx.x]=values[threadIdx.x+stride];__syncthreads();}
     if(!threadIdx.x)*out={values[0],normalHeightMotionTolerance(input->geometricTolerance,values[0])};
 }
@@ -50,7 +50,7 @@ ResidentNormalHeightMotion::ResidentNormalHeightMotion(const Topology& topology,
     std::vector<int> incident(offsets.back()),cursor=offsets;
     for(std::size_t i=0;i<faces.size();++i){const int cell=owner[faces[i]];
         for(int k=topology.vertexOffsets[cell];k<topology.vertexOffsets[cell+1];++k)incident[cursor[topology.vertices[k]]++]=i;}
-    auto& d=*data_;d.points=count;d.walls=faces.size();d.blocks=count?(count-1)/128+1:0;
+    auto& d=*data_;d.points=count;d.walls=faces.size();d.blocks=count?(count-1)/workPlan().reductionBlockThreads+1:0;
     PinnedTransferQueue transfer;PinnedTransferQueue::Operation pending(transfer);
     d.faceOffsets.upload(topology.faceOffsets,transfer);d.facePoints.upload(topology.facePoints,transfer);
     d.faces.upload(faces,transfer);d.offsets.upload(offsets,transfer);d.incident.upload(incident,transfer);
@@ -62,10 +62,10 @@ NormalHeightMotionView ResidentNormalHeightMotion::view()const{
 }
 void ResidentNormalHeightMotion::evaluate(const NormalHeightMotionInput* input,void* rawStream){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
-    if(d.walls)normalHeightWalls<<<(d.walls-1)/128+1,128,0,stream>>>(d.walls,d.topology(),d.faces.pointer,input,d.geometry.pointer);
-    if(d.points)normalHeightPoints<<<d.blocks,128,0,stream>>>(d.points,d.offsets.pointer,d.incident.pointer,input,
+    if(d.walls)normalHeightWalls<<<(d.walls-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.walls,d.topology(),d.faces.pointer,input,d.geometry.pointer);
+    if(d.points)normalHeightPoints<<<d.blocks,workPlan().reductionBlockThreads,workPlan().reductionBlockThreads*(sizeof(double)),stream>>>(d.points,d.offsets.pointer,d.incident.pointer,input,
         d.geometry.pointer,d.penalties.pointer,d.partial.pointer);
-    normalHeightControl<<<1,128,0,stream>>>(d.blocks,d.partial.pointer,input,d.control.pointer);checked(cudaGetLastError());
+    normalHeightControl<<<1,workPlan().reductionBlockThreads,workPlan().reductionBlockThreads*(sizeof(double)),stream>>>(d.blocks,d.partial.pointer,input,d.control.pointer);checked(cudaGetLastError());
 }
 namespace {
 __global__ void bindNormalHeightPointMotion(const NormalHeightPointMotionInput* input,const unsigned char* fixed,
