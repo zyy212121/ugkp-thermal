@@ -145,7 +145,7 @@ public:
         geometryOptions_.reconstructMatching=true;
         geometryOptions_.constructQuadrature=turbulenceModel==3&&config_.model==1;
         geometryOptions_.profileNodes=nodes;
-        // Numerical iteration controls come exclusively from constant/scheme.
+
         config_.stretch=ugkwp::gaswall::defaultWallStretch;
         geometryOptions_.profileStretch=config_.stretch;
         config_.turbulentPrandtl=coefficient(d,"turbulentPrandtl","Prt",turbulentPrandtl);

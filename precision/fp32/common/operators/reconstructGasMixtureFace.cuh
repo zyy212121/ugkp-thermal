@@ -3,12 +3,12 @@
 #include "gasTransport/MixtureThermo.H"
 #include "Diagnostics.H"
 
-// Mixture extension of the common MUSCL path. The existing Green-Gauss and
-// configured scalar limiters supply the slopes; the existing acoustic limiter
-// acts in primitive rho/U/p variables with a frozen-composition acoustic basis.
-// Formation energy is never used as a perfect-gas Roe enthalpy. Composition has
-// one shared slope factor and its final component closes the mass simplex.
-// Evaluate the configured reconstruction once, without candidate searches.
+
+
+
+
+
+
 template<class GasState>
 __device__ bool reconstructGasMixtureFace
 (
@@ -48,8 +48,8 @@ __device__ bool reconstructGasMixtureFace
         if(yc[k]!=original)recordWarning(s.diagnostics,makeRecord(Code::FiniteYClip,2101,21,0,EntityKind::Face,f,k,original,yc[k],yc[k],Quantity::MassFraction));
     }
     (void)nativeRefinement;
-    // Fractions live on one simplex. Close on a present, largest carrier:
-    // 1-sum(Y_other) must never invent an absent trace species from roundoff.
+
+
     int dependent=Ns-1;
     GPU_OPERATOR_REAL total=GPU_OPERATOR_R(0.0);
     for(int k=0;k<Ns;++k){total+=yc[k];if(yc[k]>yc[dependent])dependent=k;}
@@ -127,8 +127,8 @@ __device__ bool reconstructGasMixtureFace
     }
     GasPrimDevice candidate{centre.rho+increment.rho,centre.ux+increment.ux,
         centre.uy+increment.uy,centre.uz+increment.uz,centre.p+increment.p,centre.T};
-    // One analytic feasible slope, not a candidate search or a physical-dt
-    // retry. The dependent slope is the negative sum of the independent ones.
+
+
     GPU_OPERATOR_REAL slopeSum=GPU_OPERATOR_R(0.0);
     for(int k=0;k<Ns;++k)if(k!=dependent)slopeSum+=dy[k];
     dy[dependent]=-slopeSum;
@@ -156,8 +156,8 @@ __device__ bool reconstructGasMixtureFace
                 EntityKind::Face,f,k,original,y[k],y[k],Quantity::MassFraction));
     }
     for(int k=0;k<Ns;++k)if(y[k]>y[closure])closure=k;
-    // Only roundoff remains after the feasible slope. Put that closure on a
-    // largest present component; exact zeros and proportional slopes survive.
+
+
     GPU_OPERATOR_REAL sum=GPU_OPERATOR_R(0.0);
     for(int k=0;k<Ns;++k)if(k!=closure)sum+=y[k];
     y[closure]=GPU_OPERATOR_R(1.0)-sum;
@@ -185,7 +185,7 @@ __device__ bool reconstructGasMixtureFace
         return false;
     }
     output=candidate;for(int k=0;k<Ns;++k)massFractions[k]=y[k];
-    // This R belongs to the same limited composition that determined T.
+
     if(reconstructedGasConstant)*reconstructedGasConstant=gasConstant;
     if(evaluated)*evaluated=true;
     return true;

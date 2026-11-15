@@ -190,7 +190,7 @@ def test_whole_recovery_wrapper_gas_particle_and_initializer(tmp_path,mixed_ener
     from test_full_heat_advance import cache_path_fixture
     from test_mixture_state import HERE
     fixture=cache_path_fixture().split('int main(int argc',1)[0]
-    # Removed legacy inlet-table fields are no longer part of GasStateView.
+
     fixture="\n".join(line for line in fixture.splitlines() if not any(
         old in line for old in ("s.pressureScheduleTimes=", "s.pressureScheduleValues=", "s.scheduledInletFaceMask=")))
     fixture=fixture.replace('ThreadIndex gridDim{1};','')

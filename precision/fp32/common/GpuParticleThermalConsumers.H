@@ -14,9 +14,9 @@ struct ParticleWallThermalPublication
     float wallEnergy;
 };
 
-// The existing lumped implicit wall law, evaluated against effective material
-// state. Publish through the same single rounded temperature representation as gas heat.
-// Callers may work on a local candidate and commit after other checks succeed.
+
+
+
 template<class Storage, class Caloric>
 UGKWP_THERMAL_CONSUMER_HD inline ParticleWallThermalPublication publishFiniteWallThermalHeat
 (
@@ -53,18 +53,18 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleWallThermalPublication publishFiniteWal
             const float middle=lower+.5f*(upper-lower);
             if(middle==lower||middle==upper)break;
             const float heat=caloric.enthalpyIncrement(oldTemperature,middle);
-            // Scale by the dominant coefficient; neither G*dT nor m*dh can overflow.
+
             const float residual=strong ? (physicalMass/conductanceIntegral)*heat+(middle-delta)
                 : heat-(conductanceIntegral/physicalMass)*(delta-middle);
             if(!finiteThermalCarry(residual))return {false,0.f};
             if(residual<0.f)lower=middle;else upper=middle;
         }
         const float solvedDelta=lower+.5f*(upper-lower);
-        // Heat from enthalpy in the strong limit, from flux in the weak limit.
+
         proposedSpecificHeat=strong ? caloric.enthalpyIncrement(oldTemperature,solvedDelta)
             : (conductanceIntegral/physicalMass)*(delta-solvedDelta);
     }
-    // Positive infinite conductance represents the zero-resistance ideal contact limit.
+
     auto candidate=state;
     const auto publication=publishParticleThermalHeatImpl<true>
         (candidate,proposedSpecificHeat,minimumTemperature,maximumTemperature,caloric);
@@ -94,7 +94,7 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleThermalPublication publishAffineRadiati
     const float proposedTemperature = oldTemperature + temperatureIncrement;
     if (!finiteThermalCarry(oldTemperature) || !finiteThermalCarry(proposedTemperature))
         return {false, false, 0.0f};
-    // Integrate the small interval before adding it to the large thermal state.
+
     const float proposedSpecificHeat = caloric.enthalpyIncrement(oldTemperature, temperatureIncrement);
 
 

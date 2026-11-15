@@ -192,8 +192,8 @@ SolidContactIterationGraph::SolidContactIterationGraph(SolidThermalIterationGrap
     });
     cudaGraph_t body=nullptr;addWhile(d.graph,handle,{initialized},body);
     const auto exchange=appendCaptured(body,{},d.stream,[&]{contact.enqueueEvaluate(primary.contactState(),auxiliary.contactState(),interval,deviceInterval,d.stream);});
-    // Both candidates consume the same contact-energy iterate and the accepted
-    // window anchors; neither region consumes the other's unfinished candidate.
+
+
     const auto primaryDone=primary.appendTo(body,exchange,true);
     const auto auxiliaryDone=auxiliary.appendTo(body,exchange,true);
     appendCaptured(body,{primaryDone,auxiliaryDone},d.stream,[&]{

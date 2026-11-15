@@ -10,7 +10,7 @@ extern "C" int chmt_write_cp3(const char*,int);
 extern "C" int chmt_write_cp3_inspect(const char*,double*);
 namespace {
 using namespace chmt;using namespace chmt_accept;
-// Physical inventory types follow selected precision; only explicit geometry/time exceptions stay binary64.
+
 #define CHECK_ENERGY_TYPE(field,unit,value) static_assert(sizeof(std::remove_reference_t<decltype(std::declval<HostState>().field)>)==sizeof(E),"energy width: " #field);
 CHMT_ENERGY_FIELDS(CHECK_ENERGY_TYPE)
 CHMT_PHYSICAL_FIELDS(CHECK_ENERGY_TYPE)
@@ -48,15 +48,15 @@ int main(){
   const char* tmp=std::getenv("TMPDIR");std::string pattern=std::string(tmp?tmp:"/tmp")+"/chmt-combined-codec.XXXXXX";
   std::vector<char> name(pattern.begin(),pattern.end());name.push_back(0);require(mkdtemp(name.data()),"scratch directory");
   const std::string root(name.data());std::string error;
-  // One process owns both old writers; old namespace/type/source closures are independent.
+
   for(int history=0;history<2;++history){
    const std::string label=history?"legacy_cp3":"legacy_cp2",dir=root+"/"+label;
    require((history?chmt_write_cp3:chmt_write_cp2)(dir.c_str(),1)==0,label+" historical writer");
    const auto legacyBytes=bytes(dir+"/state.chmt");require(!legacyBytes.empty(),label+" bytes");
    HostState actual;require(readCheckpoint(dir,model,actual,error),label+" "+error);
    compare(actual,expected,label);
-   // The ordinary mobile caloric branch is linear below 2327 K. This independent
-   // double observer reconstructs OLD physical h; it is never written into state.
+
+
    const double oldT=701.123456789,carry=0.125,cp=153.5/0.101961276;
    const double actualH=double(actual.particles[0].thermal.temperature)*cp+carried(actual.particles[0].thermal);
    const double expectedH=oldT*cp+carry;
@@ -75,8 +75,8 @@ int main(){
   require(readCheckpoint(native,model,roundtrip,error),error);compare(roundtrip,expected,"native_roundtrip");
   require(writeCheckpoint(native,model,roundtrip,error),error);
   require(bytes(native+"/state.chmt")==first,"native selected-state full wire roundtrip");
-  // Only this unknown-metadata behavior is tested here. Known 32->64 error and
-  // 64->32 warning belong to the planner's shared codec family, not extra nodes.
+
+
   std::ofstream metadata(native+"/ugkpPrecision");metadata<<"schema 997\ncomputePrecision 17\nrestartPrecision 17\n";metadata.close();
   HostState unknown;require(readCheckpoint(native,model,unknown,error),"unknown metadata keeps existing reader: "+error);
   compare(unknown,expected,"unknown_metadata");

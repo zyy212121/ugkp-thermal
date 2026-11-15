@@ -2,12 +2,12 @@
 #include "core/HostState.H"
 #include "../../../common/gasWall/FaceAreaPartition.H"
 namespace chmt {
-// A gas cell owns one conservative reactant inventory, even if several of
-// its faces react. Partition that inventory over the exposed physical areas
-// for one explicit surface interval. The partition changes only an active
-// donor constraint, not the unconstrained kinetic law. Unused shares are not
-// borrowed during this interval; temporal refinement reduces that splitting
-// error without changing the global flow step because of reactant starvation.
+
+
+
+
+
+
 inline bool surfaceGasDonorShares(const HostState& h,std::vector<PhysicalReal>& shares,std::string& error) {
     const auto& surface=h.surface;
     if(surface.gasFace.size()!=surface.area.size()){

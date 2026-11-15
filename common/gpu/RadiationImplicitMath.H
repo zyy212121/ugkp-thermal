@@ -42,8 +42,8 @@ UGKP_RADIATION_HD inline ConservativeBoundaryEnergyScaleResult conservativeBound
     const RadiationReal radiativeEnergyMagnitudeJ = 0
 )
 {
-    // Compatibility name for existing callers; no energy correction is made.
-    // Report the true signed balance even for near-cancelling or zero flux.
+
+
     (void)grossRawEnergyJ;(void)relativeTolerance;(void)radiativeEnergyMagnitudeJ;
     return ConservativeBoundaryEnergyScaleResult
         {RadiationReal(1),acceptedParticleEnergyJ+rawBoundaryEnergyJ};

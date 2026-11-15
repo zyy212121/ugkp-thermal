@@ -2,10 +2,10 @@
 #include "gpu/ResidentMaterialDrive.H"
 #include "../../../common/IntervalSlice.H"
 namespace chmt {
-// Fixed slots reflect the accepted producer layout, not a model restriction:
-// primary, optional pore, optional particle contact. Inactive slots are skipped
-// by consumers, preserving native record/face/packet order without compaction
-// or a second full history of copied ExchangePackets.
+
+
+
+
 CHMT_HD inline ExchangePacket materialHistoryPacket(const CoupledSurfaceDownload& r,unsigned slot){
     if(slot==0)return r.primary;
     if(slot==1)return r.pore;
@@ -16,7 +16,7 @@ CHMT_HD inline ExchangePacket materialHistoryPacket(const CoupledSurfaceDownload
     p.energy=p.conductive=r.particleWallEnergy;return p;
 }
 struct MaterialSliceAccumulators {
-    ExchangePacket* packets=nullptr; // three slots per face, partial record only
+    ExchangePacket* packets=nullptr;
     EnergyReal* radiation=nullptr;
     EnergyReal* externalRadiation=nullptr;
 };

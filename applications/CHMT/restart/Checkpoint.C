@@ -745,9 +745,9 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
                     oldParticle(saved.physics.enableParticles);newParticle(expected.physics.enableParticles);
                     auto oldModel=ugkp::thermal::particleModelIdentity(saved.particlePhase);
                     auto newModel=ugkp::thermal::particleModelIdentity(expected.particlePhase);
-                    // Startup numerical controls may change across a restart.
-                    // Normalize comparison copies only; keep the archive layout
-                    // and every physical model field unchanged.
+
+
+
                     oldModel.packingIterations=newModel.packingIterations;
                     oldModel.maxFaceWalkHops=newModel.maxFaceWalkHops;
                     auto oldContact=saved.particleContact;

@@ -1,30 +1,30 @@
 #include "GpuPrecisionTypes.H"
 #pragma once
 
-  
-                                                                   
-                                               
-  
-                                                      
-  
-                                    
-                                                
-  
-        
-  
-                                             
-                                               
-                                                      
-  
-                                                                     
-  
-                                                 
-  
-                                                                        
-                                                                         
-                                                                        
-                                                                    
-   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #include <cmath>
 #include <limits>
@@ -120,7 +120,7 @@ UGKP_TRANSPORT_HD SnGradGeometryT<GpuReal> makeInternalSnGradGeometry
 {
     using Real=GpuReal;
     const Vector3T<Real> unitNormal{Real(inputNormal.x),Real(inputNormal.y),Real(inputNormal.z)};
-    // Global coordinates retain tracking precision; local flux geometry does not.
+
     const Vector3T<Real> centreDelta{Real(neighbourCentre.x-ownerCentre.x),
         Real(neighbourCentre.y-ownerCentre.y),Real(neighbourCentre.z-ownerCentre.z)};
     const Real centreDistance = magnitude(centreDelta);
@@ -204,6 +204,6 @@ UGKP_TRANSPORT_HD Vector3T<Real> openFoamNewtonianTraction
 using Vector3 = Vector3T<GpuReal>;
 using SnGradGeometry = SnGradGeometryT<GpuReal>;
 
-}                           
+}
 
 #undef UGKP_TRANSPORT_HD

@@ -3,8 +3,8 @@
 #include "core/Types.H"
 #include "../../../common/gasTransport/MixtureThermo.H"
 namespace chmt {
-// Immutable application POD -> short-lived common borrowed view. Copies own
-// their arrays; view() always points at the current object, never a prior copy.
+
+
 template<int Count,class TableReal=EnergyReal>
 struct GasThermoAdapter {
     ugkwp::SpeciesThermoData<TableReal> data[Count]{};
@@ -13,9 +13,9 @@ struct GasThermoAdapter {
         for(int i=0;i<Count;++i) {
             const SpeciesThermo& s=input[i];auto& d=data[i];
             d.model=s.model;d.coefficientOffset=14*i;
-            // Inactive historical CHMT tables can be entirely unconfigured.
-            // Form invalid metadata without raising OpenFOAM's enabled FPE
-            // traps; common validation still rejects it when it is active.
+
+
+
             const TableReal Ru=ugkwp::universalGasConstant<TableReal>();
             const TableReal minimumR=Ru/std::numeric_limits<TableReal>::max();
 
@@ -49,9 +49,9 @@ CHMT_SHARED_SPECIES_PROPERTY(speciesE)
 CHMT_SHARED_SPECIES_PROPERTY(speciesH)
 #undef CHMT_SHARED_SPECIES_PROPERTY
 
-// This callback joins independent condensed calorics with shared gas calorics.
-// Its inactive-species behavior preserves historical CHMT thermal recovery;
-// configuration/chemistry validation still checks every configured species.
+
+
+
 struct MaterialEnergyEvaluator {
     ugkwp::SpeciesThermoView<EnergyReal,Ns> thermo;
     const PhysicalReal* gasMass;
@@ -79,8 +79,8 @@ struct MaterialEnergyEvaluator {
 };
 
 
-// Three-point Gauss integration is exact for NASA7's quartic cv on one
-// temperature branch and for LinearCp. Formation constants never enter.
+
+
 template<bool Terminal=false>
 CHMT_HD inline EnergyReal gasCapacitySecantBranch(const SpeciesThermo& s,EnergyReal a,EnergyReal b) {
     const EnergyReal midpoint=EnergyReal(.5)*(a+b),offset=EnergyReal(.5)*(b-a)*std::sqrt(EnergyReal(3)/5);
@@ -94,8 +94,8 @@ CHMT_HD inline EnergyReal speciesEnergySecant(const SpeciesThermo& s,EnergyReal 
     if((!finite(a)||!finite(b)||a<=0||b<=0))return std::numeric_limits<EnergyReal>::quiet_NaN();
     if(a>b){const EnergyReal swap=a;a=b;b=swap;}
     if(s.model==ugkwp::SpeciesThermoModel::NASA7&&a<=EnergyReal(s.Tmid)&&b>EnergyReal(s.Tmid)) {
-        // Evaluate both one-sided values with the shared evaluator. Source
-        // tables may have small jumps; integrating cv alone would refit them.
+
+
         GasThermoAdapter<1> upper(&s);
         for(int j=0;j<7;++j)upper.coefficients[j]=s.nasa7[j+7];
         const EnergyReal upperEnergy=ugkwp::speciesE(0,EnergyReal(s.Tmid),upper.view());

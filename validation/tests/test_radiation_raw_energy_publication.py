@@ -1,4 +1,4 @@
-"""Execute production publication/settlement bodies with native float and double."""
+pass
 import subprocess
 import pytest
 from validation.tools.paths import SOURCE_ROOT

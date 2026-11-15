@@ -1,7 +1,7 @@
 #pragma once
 #include "GpuPoolMomentOperations.cuh"
 #include "CsrPersistentQueue.cuh"
-// Common pool queue operation, partial publication, finalization and launch protocol.
+
 template<bool PoissonMode
 #if GPU_POOL_STATIC_DIRECTORY
     , HeavyDirectoryKind DirectoryKind = HeavyDirectoryKind::full
@@ -244,4 +244,4 @@ cudaError_t thermalPoolLaunchOccupancy(int* count, int block, size_t sharedBytes
 }
 #endif
 
-#endif // UGKP_POOL_REDUCTION_DEVICE_ONLY
+#endif

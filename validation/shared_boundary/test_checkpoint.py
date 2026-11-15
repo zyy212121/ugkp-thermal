@@ -85,8 +85,8 @@ int main(){
 }
 """
     for precision,include in [('fp64',R/'common'),('fp32',R/'precision/fp32/common')]:
-        # FP32 Term has separate time/coefficient/value fields; a two-value
-        # aggregate would populate coefficient, not the physical table value.
+
+
         probe=code if precision=='fp64' else code.replace(
             'd.terms={{0,.125},{1,.25}};',
             'd.terms={Term::table(0,.125f),Term::table(1,.25f)};')

@@ -3,10 +3,10 @@
 
 namespace ugkwp
 {
-// A face needs density-weighted e but mass-fraction-weighted cv. Keeping both
-// weights preserves the existing sums while evaluating each species only once.
-// R has already been evaluated for this composition before reconstructing T.
-// No state, table, geometry or authoritative energy storage is cached here.
+
+
+
+
 template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline ThermoStatus evaluateMixtureFaceEnergy
 (
@@ -29,8 +29,8 @@ UGKWP_GAS_HD inline ThermoStatus evaluateMixtureFaceEnergy
         if(status!=ThermoStatus::Success)
         {
             if(!nativeRefinement)return status;
-            // Match the native scalar channels on a failed energy evaluation:
-            // preserve its diagnostic and still evaluate the independent cv.
+
+
             values.e=gasThermoDetail::invalidValue<Real>();
             values.cv=speciesCv(k,temperature,view);
         }
@@ -54,4 +54,4 @@ UGKWP_GAS_HD inline ThermoStatus evaluateMixtureFaceEnergy
     if(evaluated)*evaluated=true;
     return ThermoStatus::Success;
 }
-} // namespace ugkwp
+}

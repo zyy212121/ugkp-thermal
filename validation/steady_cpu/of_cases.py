@@ -56,7 +56,7 @@ ddtSchemes {{ default Euler; }} gradSchemes {{ default Gauss linear; }}
 divSchemes {{ default none; div(phi,U) Gauss {divu}; div(phi,e) Gauss {dive}; div(phi,K) Gauss {dive}; div(phi,(p|rho)) Gauss {dive}; div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear; }}
 laplacianSchemes {{ default Gauss linear corrected; }} interpolationSchemes {{ default linear; }} snGradSchemes {{ default corrected; }}
 wallDist {{ method meshWave; }}''')
-    # Direct unified controls for this reference-case generator; no legacy import.
+
     write('constant','scheme',f'''gasTimeStep {{ adjustTimeStep false; courantUpdateInterval 1; maximumTimeStepGrowth 1; }}
 steadyGas {{ maxCo {a['courant']}; maxDeltaT {a['maxDt']}; boundaryTime 0;
 relativeTolerance 0; absoluteTolerance 0; minimumIterations {int(a['iterations'])+1}; residualInterval {int(a['outputEvery'])}; }}

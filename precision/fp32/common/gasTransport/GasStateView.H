@@ -18,13 +18,13 @@
 namespace ugkwp
 {
 
-// A non-owning snapshot of the existing density-storage gas operator contract.
-// Conserved fields are rho, rho*u and rho*E, not integrated cell inventories.
-// Allocation, lifetime, device upload and scalar refresh belong to the caller.
-// In particular, a copied view does not track later pointer/scalar assignments.
-// The SST fields are optional at runtime when sstConfigured is zero; they do
-// not introduce particle, scheduler, host container or CUDA runtime ownership.
-// Wall exposure and accepted wall energy remain separate caller capabilities.
+
+
+
+
+
+
+
 template<class Real, class Time, class SstCoefficients, class Energy = Real, class Geometry = Real, class Wall = Real>
 struct GasStateView
 {
@@ -42,18 +42,18 @@ struct GasStateView
     GasGeometryState<Geometry> gasGeometry;
     GasBoundaryLayerState<Wall> gasBoundaryLayer;
     bool gasThermalConductivityConfigured = false;
-    Real gasThermalConductivity = Real(-1); // finite negative and not configured: legacy mu*cp/Pr; otherwise W/(m K)
+    Real gasThermalConductivity = Real(-1);
 
 #define UGKWP_GAS_STATE_FIELD(Type, Name) Type Name{};
 #include "GasStateFields.inc"
 #undef UGKWP_GAS_STATE_FIELD
 };
 
-// Optional species capability. Storage uses exactly Ns species, never padded
-// capacity. Cell arrays use [species*nCells+cell], face arrays use
-// [species*nFaces+face]; scalar primitive/status fields are per-cell/per-face.
-// rho and initial have units kg/m^3; flux is signed kg/s. grad* are gradients
-// of mass fraction [1/m]. All arrays belong to the caller's trial allocation.
+
+
+
+
+
 template<class Real, int Ns, class TableReal = Real>
 struct GasSpeciesState
 {
@@ -64,7 +64,7 @@ struct GasSpeciesState
     ThermoInversionControls<TableReal> thermoControls;
     GasMechanismView<TableReal, Ns> mechanism;
     ChemistryControls<TableReal> chemistryControls;
-    ChemistryStatus* chemistryStatus = nullptr;        // per-cell attempted status
+    ChemistryStatus* chemistryStatus = nullptr;
     Real densityClosureTolerance = Real(64)*std::numeric_limits<Real>::epsilon();
     Real* rho = nullptr;
     Real* initial = nullptr;
@@ -72,20 +72,20 @@ struct GasSpeciesState
     Real* gradX = nullptr;
     Real* gradY = nullptr;
     Real* gradZ = nullptr;
-    Real* limiter = nullptr;             // one jointly admissible scale per cell
+    Real* limiter = nullptr;
     Real* boundaryMassFraction = nullptr;
-    int* compositionBoundaryFixed = nullptr; // per face, 0 extrapolated, 1 fixed
-    Real* positivityScale = nullptr;     // species-specific donor scale per cell
-    const Real* diffusivity = nullptr;   // Ns molecular D values, m^2/s; null=off
+    int* compositionBoundaryFixed = nullptr;
+    Real* positivityScale = nullptr;
+    const Real* diffusivity = nullptr;
     Real turbulentSchmidt = Real(0.7);
     Real* soundSpeed = nullptr;
-    Real* heatCapacity = nullptr;        // mixture cp, J/(kg K)
-    Real* gasConstant = nullptr;         // mixture R, J/(kg K)
+    Real* heatCapacity = nullptr;
+    Real* gasConstant = nullptr;
     int* cellStatus = nullptr;
     int* faceStatus = nullptr;
 };
 
-// Legacy DeviceState types require no added field, allocation or runtime work.
+
 template<class State, class = void>
 struct GasStateTraits { static constexpr int speciesCount = 0; };
 
@@ -198,7 +198,7 @@ template<class State> UGKWP_GAS_HD inline auto gasFaceMolecularPrandtl(const Sta
     }
     return s.gasPrClamped;
 }
-// Diffusive coefficients share local T,Y. Const retains its original Cp interpolation.
+
 template<class State> UGKWP_GAS_HD inline auto gasFaceMolecularHeatCapacity(const State& s,int f,int own,int nei){
     using R=std::remove_cv_t<std::remove_reference_t<decltype(s.gasMu)>>;
     constexpr int N=GasStateTraits<State>::speciesCount;
@@ -247,8 +247,8 @@ UGKWP_GAS_HD inline bool gasHasDirectConductivity(const State& state)
     if constexpr (GasConfiguredConductivity<State>::value)
         if(state.gasThermalConductivityConfigured)return true;
     if constexpr (GasDirectConductivity<State>::value)
-        // Only a finite negative value is the legacy absent sentinel.
-        // Preserve configured NaN/Inf for the consuming physical diagnostic.
+
+
         return !gasFinite(state.gasThermalConductivity) || state.gasThermalConductivity >= 0;
     return false;
 }
@@ -263,9 +263,9 @@ UGKWP_GAS_HD inline bool gasMovingGeometry(const State& state)
     return false;
 }
 
-// Bind legacy storage (or any conforming gas-only storage) without copying
-// field data. Pointer assignment also rejects accidental precision changes.
-// This is a host-side binding operation; upload the returned POD as needed.
+
+
+
 template<class State, class = void>
 struct GasWallScalar { using type = std::remove_pointer_t<decltype(std::declval<State>().rho)>; };
 template<class State>
@@ -308,6 +308,6 @@ inline auto makeGasStateView(const State& state)
     return view;
 }
 
-} // namespace ugkwp
+}
 
 #include "GasConservativeWallAccess.H"

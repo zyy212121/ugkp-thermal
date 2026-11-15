@@ -29,7 +29,7 @@ def prepare(d,mass,diameter,end_time,window):
   for x in [.35,.5,.5,0,0,0,10000,0,diameter,mass]:out.write(struct.pack('<d',x))
   out.write(struct.pack('<iiQQ',0,1,12345,1))
 
- # Explicit controls of the existing one-cell heat-exchange fixture.
+
  (d/'constant/scheme').write_text(f'''FoamFile {{version 2.0; format ascii; class dictionary; object scheme;}}
 gasTimeStep {{adjustTimeStep false; courantUpdateInterval 1; maximumTimeStepGrowth 1;}}
 steadyGas {{maxCo .15; maxDeltaT .001; boundaryTime 0; relativeTolerance 0; absoluteTolerance 0; minimumIterations 20001; residualInterval 1000;}}

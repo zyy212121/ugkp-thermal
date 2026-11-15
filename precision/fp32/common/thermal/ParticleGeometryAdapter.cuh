@@ -1,8 +1,8 @@
 #pragma once
 #include "ParticleGeometryApi.H"
 namespace {
-// Relabel free particles after a moving internal face passes their unchanged
-// physical position. External wall/inlet/outlet events stay with face transport.
+
+
 __global__ void relocateMobileParticleCellsKernel(DeviceState* sp){
     DeviceState& s=*sp;
     const int count=*s.particleCountDevice;
@@ -22,8 +22,8 @@ __global__ void relocateMobileParticleCellsKernel(DeviceState* sp){
 int refreshParticleGeometryMoments(DeviceState* s){
     relocateMobileParticleCellsKernel<<<s->particleWorkGrid,s->particleBlockThreads>>>(s->deviceState);
     const auto error=cudaGetLastError();if(error!=cudaSuccess){setLastError("relocate particles on refreshed mesh",error);return 1;}
-    // Rebuild moments with new cell volumes but retain the accepted lagged gas
-    // fraction, so the common volume source accounts for the geometry change.
+
+
     const int code=rebuildResidentParticleMomentsFromParticles(s,s->particleCapacity,false);
     if(!code)s->particleGeometryDirty=false;
     return code;
@@ -65,8 +65,8 @@ __global__ void mapAttachedParticleGeometryKernel(DeviceState* sp,
             recordFatal(s.diagnostics,record);continue;
         }
         s.px[i]=mapped.position.x;s.py[i]=mapped.position.y;s.pz[i]=mapped.position.z;
-        // Mesh remapping is not a force or a velocity update. In particular,
-        // preserve the lab-frame incident velocity used by deferred rebound.
+
+
         s.pCellId[i]=mapped.cell;s.pStuckFaceId[i]=mapped.face;
     }
 }

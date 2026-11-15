@@ -3,8 +3,8 @@
 
 namespace ugkp { namespace gasNumerics {
 
-// Value-only startup controls, copied with each gas resident state/view.
-// Geometry, physical validity and diagnostic severity are unchanged.
+
+
 template<class Real> struct ScalarSolverControls {
     int laminarMaximumIterations = 10;
     Real laminarRelativeTolerance = Real(1.0e-8);

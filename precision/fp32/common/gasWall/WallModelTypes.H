@@ -24,10 +24,10 @@ template<class R> struct WallModelConfig {
     R relativeTolerance=R(defaultWallRelativeTolerance),absoluteTolerance=R(defaultWallAbsoluteTolerance),stretch=R(defaultWallStretch);
     R turbulentPrandtl=R(.9f),turbulentSchmidt=R(.7f);
     R equilibriumKappa=R(.41f),equilibriumAPlus=R(17);
-    bool localStressCorrection=true; // blowing/suction local stress; wall damping retained
+    bool localStressCorrection=true;
     bool enableSst=false;
-    // Internal route selection, set only on a coherent solver/profile config copy.
-    // Legacy, analytic and unrelated template routes retain their original math.
+
+
     bool coherentDiscretization=false;
 };
 template<class R,int N> struct WallMatchingState {
@@ -39,36 +39,36 @@ template<class R,int N,class TableReal=R> struct WallGasModel {
     GasMechanismView<TableReal,N> mechanism;
     GasMode mode=GasMode::MixtureFrozen;
     R viscosity=0,conductivity=0,diffusivity[N]{},molecularPrandtl=0;
-    // molecularPrandtl>0 selects mu*Cp(local T,Y)/Pr; zero uses conductivity.
+
     SstCoefficientsT<R> sstCoefficients=defaultSstCoefficientsT<R>();
 };
 template<class R> struct WallOwnerQuadrature {
     const R* distance=nullptr;
     const R* volumeWeight=nullptr;
     int count=0;
-    R volume=0,firstMoment=0; // m^3 and integral y dV, from actual owner geometry.
+    R volume=0,firstMoment=0;
 };
 template<class R,int N,class TableReal=R> struct WallInput {
     ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
     std::int64_t diagnosticEntity=-1;
     std::uint32_t diagnosticNode=0;
     R pressure=0,temperature=0,massFlux[N]{},velocity[3]{},normal[3]{};
-    // False: prescribed wall temperature. True: solve wall temperature from
-    // zero conductive heat flux; temperature then supplies the coordinate origin.
+
+
     bool adiabatic=false;
     R matchingDistance=0,ownerDistance=0;
     WallMatchingState<R,N> matching;
     WallGasModel<R,N,TableReal> model;
     WallOwnerQuadrature<TableReal> quadrature;
-    // Optional quadrature publication; volumeSstClosure promotes its conservative
-    // projection into the gas owner operator. Standalone diagnostics stay optional.
+
+
     bool integrateOwnerKSource=false;
-    bool volumeSstClosure=false; // actual owner volume only, not the matching extension
-    // Frozen resolved tangential derivatives in the orthonormal (t0,t1,n)
-    // frame. Columns 0/1 are tangential directions; the BVP supplies column 2.
+    bool volumeSstClosure=false;
+
+
     R sstTangentialGradient[3][2]{};
-    // Optional coarse chemistry integrated per wall area over the same domain.
-    // Absence sets chemistryMismatchAvailable=false and mismatch values to NaN.
+
+
     const TableReal* coarseReactionIntegral=nullptr;
 };
 template<class R,int N> struct WallExchangeOutput {
@@ -76,17 +76,17 @@ template<class R,int N> struct WallExchangeOutput {
     R conductiveHeatFlux=0,traction[3]{},wallSpeciesFlux[N]{},matchingSpeciesFlux[N]{};
     R reactionIntegral[N]{},chemistryMismatch[N]{},speciesBalanceResidual[N]{};
     R integratedKSource=0,ownerOmega=0,wallKFlux=0;
-    R ownerKContent=0,ownerKDestruction=0,ownerKBalanceResidual=0; // integral rho*k and betaStar*rho*k*omega
-    // Persistent total normal k transport and omega diffusion; workspace is pooled.
-    // Faces interpolate these shared fluxes, preserving owner/neighbour antisymmetry.
+    R ownerKContent=0,ownerKDestruction=0,ownerKBalanceResidual=0;
+
+
     int kFluxCount=0;
     R heatConduction=0,heatViscous=0,heatTransport=0,heatBalanceResidual=0;
     bool chemistryMismatchAvailable=false;
     int iterations=0;
     R residual=0;
 };
-// Full results remain useful at standalone entrypoints and in a bounded worker
-// pool. Resident faces keep only exchange scalars plus model-sized flux arrays.
+
+
 template<class R,int N> struct WallOutput : WallExchangeOutput<R,N> {
     R kFluxHeight[129]{},kTransportFlux[129]{},omegaDiffusiveFlux[129]{};
 };
@@ -107,17 +107,17 @@ template<class R,int N> UGKWP_GAS_HD inline void storeWallResidentOutput(
         target.omegaDiffusiveFlux[i]=source.omegaDiffusiveFlux[i];
     }
 }
-// Caller-owned FP64 scratch, independent of outer/table storage precision.
-// No inventory, recursion, allocation or persistent gas state.
-// Dense blocks form a block-tridiagonal Jacobian: storage O(MaxNodes*(N+4)^2),
-// solve O(MaxNodes*(N+4)^3), independent wall faces can execute in parallel.
+
+
+
+
 template<int N,int MaxNodes> struct WallWorkspaceStorage {
     using R=WallReal;
     static constexpr int maxNodes=MaxNodes,blockSize=N+4;
-    // ReactingSst state: wall-relative tangential u[2], T-Tw, Ns-1 Y, sqrt(k), 1/sqrt(omega).
+
     R y[MaxNodes]{},state[MaxNodes][blockSize]{},trial[MaxNodes][blockSize]{};
     R residual[MaxNodes][blockSize]{},delta[MaxNodes][blockSize]{};
-    R seed[MaxNodes][8]{}; // Reusable positive Picard initializer scratch.
+    R seed[MaxNodes][8]{};
     R lower[MaxNodes][blockSize][blockSize]{},diagonal[MaxNodes][blockSize][blockSize]{},upper[MaxNodes][blockSize][blockSize]{};
 };
 template<class StateReal,int N,int MaxNodes=48> using WallWorkspace=WallWorkspaceStorage<N,MaxNodes>;
@@ -126,7 +126,7 @@ template<class R,int N,class T> UGKWP_GAS_HD inline R wallMolecularViscosity(
  return ugkwp::molecularViscosity<N>(in.model.molecularViscosity,in.model.viscosity,temperature,Y);
 }
 template<class R,int N,class T> UGKWP_GAS_HD inline R wallMolecularPrandtl(const WallInput<R,N,T>& in,const R* Y){
-    // An explicitly supplied conductivity retains the existing precedence.
+
     return in.model.molecularPrandtl>0?ugkwp::molecularPrandtl<N>(in.model.molecularViscosity,in.model.molecularPrandtl,Y):R(0);
 }
 template<class R,int N,class T> UGKWP_GAS_HD inline R wallMolecularDiffusivity(const WallInput<R,N,T>& in,int j,R temperature,R pressure){
@@ -195,8 +195,8 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool validateInput(c
     if(in.matchingDistance==0||in.pressure==0){fail(s,WallCode::InvalidInput);return wallFatal(in,ugkp::diagnostics::Code::ZeroDenominator,10029,in.matchingDistance==0?in.matchingDistance:in.pressure);}
     return true;
 }
-// The legacy terminalProfile argument remains source-compatible, but never
-// bypasses physical validity or selects an alternate thermodynamic profile.
+
+
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool trace(const WallInput<R,N,TableReal>& in,const R* Y,WallOutput<R,N>& out,const bool terminalProfile=false){
     if(!in.model.thermo.species)return false;
     R gasR=0,m=0;for(int j=0;j<N;++j){gasR+=Y[j]*universalGasConstant<R>()/in.model.thermo.species[j].molarMass;m+=in.massFlux[j];out.traceMassFraction[j]=Y[j];out.wallSpeciesFlux[j]=in.massFlux[j];}
@@ -207,5 +207,5 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool trace(const Wal
     (void)terminalProfile;
     return true;
 }
-} // detail
-}} // namespace
+}
+}}

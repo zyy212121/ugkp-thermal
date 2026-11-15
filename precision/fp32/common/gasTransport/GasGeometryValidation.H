@@ -4,9 +4,9 @@
 
 namespace ugkwp
 {
-// Bridge only unambiguous legacy statuses here. Composition, geometry,
-// thermodynamic and step-limit codes mix physical errors with residuals and
-// need classification at their producer, not a blanket fatal conversion.
+
+
+
 template<class State>
 UGKWP_GAS_HD inline bool gasRecordTransportDiagnostic(const State& s,
     int entity, bool face, GasTransportCode code, unsigned site=2600,

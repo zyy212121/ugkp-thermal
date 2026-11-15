@@ -3,9 +3,9 @@
 #include "coupling/IntervalContracts.H"
 #include <algorithm>
 namespace chmt {
-// Keep the original subtract/multiply/add rounding order on both processors.
-// Prepared wall reuse compares these interpolated inputs exactly; contracting
-// them into a device FMA would spuriously invalidate an identical wall closure.
+
+
+
 CHMT_HD inline PhysicalReal interpolateGasWallValue(PhysicalReal a,PhysicalReal b,Real alpha){
     const PhysicalReal weight=PhysicalReal(alpha);
 #if defined(__CUDA_ARCH__)

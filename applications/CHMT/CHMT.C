@@ -70,8 +70,8 @@ int main(int argc,char** argv) {
             chmt::createBackend(input.model,input.gasModel,input.gasMechanism,options,input.state,error),chmt::destroyBackend);
         chmt::io::require(bool(backend),error);
         chmt::setDiagnosticsSink(*backend,ugkp::diagnostics::makeFoamSink());
-        // Observe the actual startup structures passed to the backend/driver.
-        // No residual evaluation, device transfer or per-step logging is added.
+
+
         std::cout<<"CHMT_TIME_CONTROL adjustTimeStep="<<options.adjustTimeStep
             <<" deltaT="<<options.fixedDeltaT<<" source=system/controlDict readOnce=1"<<std::endl;
         std::cout<<"CHMT_SOLVER_CONTROLS gasMinDt="<<input.model.physics.minDt

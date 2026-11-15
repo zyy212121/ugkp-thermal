@@ -52,7 +52,7 @@ CHMT_HD inline bool evaluateFilmContractMath(const FilmProfileRequest& in, FilmP
     next.massFlux=next.volumeFlux*in.rho;
     const EnergyReal heatScale=EnergyReal(in.delta)*EnergyReal(in.rho)*in.h;
     next.enthalpyFlux={EnergyReal(p.meanVelocity.x)*heatScale,EnergyReal(p.meanVelocity.y)*heatScale,EnergyReal(p.meanVelocity.z)*heatScale};
-    // Boundary traction work; pressure/body-gradient work is a separate term.
+
     next.boundaryWork=surfaceEnergyDot(in.topShear,p.topVelocity)-surfaceEnergyDot(p.bottomShear,in.baseVelocity);
     next.nSamples=in.nSamples;
     for (int i=0; i<in.nSamples; ++i) {

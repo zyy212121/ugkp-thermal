@@ -12,8 +12,8 @@ struct DiffusionInput {
     std::vector<int> owner,neighbour;
     std::vector<double> volume,gamma,area,delta,gradientInternal,gradientBoundary,correction;
     bool corrected=false;
-    // Optional resident cell conductivity for the selected common linear
-    // interpolation. Boundary values still follow their native patch policy.
+
+
     const GpuReal* deviceConductivity=nullptr;
     const GpuReal* deviceBoundaryConductivity=nullptr;
     void* conductivityStream=nullptr;
@@ -21,15 +21,15 @@ struct DiffusionInput {
     std::vector<int> conductivityCoupled,conductivityAdjacentCells;
     std::vector<double> conductivityJump;
     bool harmonicConductivity=false;
-    // Selected Gauss-linear/corrected operators consume the retained iterate.
+
     const GpuReal* deviceTemperature=nullptr;
     std::vector<double> gradientWeights,valueInternal,valueBoundary,normalInternal,normalBoundary,jump,boundaryValueDelta;
     std::vector<int> gradientNeighbour;
     std::vector<ThermalVector> faceArea,correctionDirection,neighbourTransform;
 
 };
-// Borrowed host inputs; assemble uploads these once and keeps its matrix on
-// device through transient completion. The caller still owns native FV output.
+
+
 struct DiffusionTransientInput {
     const std::vector<double>* capacity=nullptr;
     const std::vector<double>* rhs=nullptr;
@@ -46,15 +46,15 @@ class ImplicitDiffusion {
 public:
     ImplicitDiffusion();~ImplicitDiffusion();
     ExecutionGraphSignature residentExecutionSignature() const;
-    // This owner retains matrix factors and the iterate across its shared
-    // assembly, sparse solve, residual and flux operators.
+
+
     void assembleResident(const DiffusionInput&,const DiffusionTransientInput* transient=nullptr);
-    // Replay the configured discretization with updated in-place device fields.
-    // The enclosing device graph orders producers and owns executionStream;
-    // topology, policies and borrowed addresses remain fixed until reconfigured.
+
+
+
     void enqueueResidentAssembly(void* executionStream,const double* deviceInterval=nullptr);
     void enqueueResidentSnapshot(void* executionStream);
-    // Contact fixed-point candidates restart from the same accepted window.
+
     void prepareResidentWindowSnapshot();
     void enqueueResidentWindowSnapshot(void* executionStream);
     void enqueueResidentWindowRestore(void* executionStream);

@@ -1,4 +1,4 @@
-# Bound the compiler stack within this build process, never the OS/user setting.
+
 ugkp_cuda_stack_soft=$(ulimit -S -s)
 ugkp_cuda_stack_hard=$(ulimit -H -s)
 if [[ "$ugkp_cuda_stack_soft" != unlimited && "$ugkp_cuda_stack_soft" -lt 262144 ]]; then

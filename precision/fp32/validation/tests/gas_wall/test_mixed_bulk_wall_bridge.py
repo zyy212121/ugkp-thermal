@@ -1,4 +1,4 @@
-"""Scheduled-checkpoint coverage of float bulk and the double coherent wall."""
+pass
 import subprocess
 from validation.tools.paths import SOURCE_ROOT
 

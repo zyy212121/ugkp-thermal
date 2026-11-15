@@ -5,7 +5,7 @@
 #include <cuda_runtime.h>
 #include <memory>
 namespace ugkwp {
-// Initialization/reconfiguration owner only; no per-step work or host fields.
+
 class MolecularTransportDevice {
     SutherlandSpecies<GpuReal>* species_=nullptr;
     PowerLawDiffusivity<GpuReal>* diffusion_=nullptr;
@@ -34,4 +34,4 @@ public:
     MolecularViscosityView<GpuReal> view()const{return view_;}
     MolecularViscosityView<GpuReal> hostView()const{return host_.view();}
 };
-} // namespace ugkwp
+}

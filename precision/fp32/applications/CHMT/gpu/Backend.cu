@@ -111,8 +111,8 @@ inline void bindSharedGasStorage(Backend& b){
     b.gasSpecies=view.gasSpecies;b.gasBoundaryLayer=view.gasBoundaryLayer;b.gasGeometry=view.gasGeometry;
     b.deviceState=b.storage.deviceView();b.nCells=view.nCells;b.nFaces=view.nFaces;b.nInternalFaces=view.nInternalFaces;
 }
-// Only addresses and launch shape invalidate capture. Moving coordinates,
-// swept volumes and physical record identities are read from resident storage.
+
+
 inline void validateCoupledGraphBindings(Backend& b){
     const auto& model=b.storage.hostView().gasBoundaryLayerModel;
     const std::vector<const void*> pointers={b.deviceState,b.interfaceFaces.data(),b.interfaceCells.data(),
@@ -179,8 +179,8 @@ __global__ void refreshCoupledWallFluxKernel(State* state){
     computeRiemannGasFaceFluxDevice<false>(*state,face,state->gasPhiRho[face],
         state->gasPhiRhoUx[face],state->gasPhiRhoUy[face],state->gasPhiRhoUz[face],state->gasPhiRhoE[face]);
 }
-} // transport
-} // chmt
+}
+}
 #include "../../../common/GpuGasHostPolicy.cuh"
 namespace chmt { namespace transport {
 thread_local std::string lastError;
@@ -190,8 +190,8 @@ struct GasHostPolicy:GasHostWithWallEnergy<Real,Real,&accountCoupledFaces> {
     static int prepareBoundaryLayer(Backend* s,Real dt,Real time){return prepareCoupledBoundaryLayer(s,dt,time);}
     static int applyFaceSources(Backend* s,Real dt,Real time){return applyCoupledFaces(s,dt,time);}
     static void prepareGraphCapture(Backend* b,Real dt,Real time,bool prepared){
-        // The shared first-stage cache has already been normalized to (1,0).
-        // Keep the private prepared-closure cache in that same coordinate.
+
+
         b->preparedWallReady=prepared&&b->preparedWallReady
             &&b->preparedWallTime==time&&b->preparedWallDt==dt;
         if(b->preparedWallReady){b->preparedWallTime=0;b->preparedWallDt=1;}
@@ -252,17 +252,17 @@ struct CoupledTrialPolicy {
             ::commitAcceptedWallHistory<<<(b->gasBoundaryLayer.count+ugkp::gpu::workPlan().faceBlockThreads-1)/ugkp::gpu::workPlan().faceBlockThreads,ugkp::gpu::workPlan().faceBlockThreads,0,b->gasCaptureStream>>>(b->deviceState);
             const auto error=cudaGetLastError();if(error!=cudaSuccess){b->error=cudaGetErrorString(error);return 1;}
         }
-        // Material consumes the sparse accepted history only after all RK stages.
-        // The complete gas endpoint stays resident until downloadGasWindow.
+
+
         b->trial.time=b->record.end;return 0;
     }
 
 };
 }}
 namespace chmt {
-// The gas owner retains accepted physical history on device until a material
-// consumer explicitly publishes the window. A high-water buffer grows only
-// when a window exceeds the previously observed number of microsteps.
+
+
+
 bool reserveCoupledHistory(Backend& b,std::size_t frames){
     if(frames<=b.historyFrameCapacity)return true;
     const std::size_t count=b.interfaceRecords.size();
@@ -416,8 +416,8 @@ int prepareCoupledBoundaryLayer(Backend* b,Real dt,Real stageTime){
 }
 int applyCoupledFaces(Backend* b,Real dt,Real stageTime){
     const int count=int(b->interfaceFaces.size());if(!count)return 0;
-    // Transport fluxes now exist. Re-evaluate the physical wall closure using
-    // the remaining donor budget, before constructing any accepted packet.
+
+
     const bool reactive=b->model.physics.material.enableSurfaceReactions||b->model.physics.material.enablePoreOutflow;
     const bool staged=reactive||b->gasBoundaryLayer.enabled;
     if(staged&&prepareResidentSurface(b,dt,true))return 1;
@@ -449,8 +449,8 @@ int accountCoupledFaces(Backend* b,Real ledgerDt){
     }
     ++b->gasStageIndex;return 0;
 }
-// Preserve accepted cell integrals across a corrected material endpoint.
-// Use each field's selected precision for the original multiply/divide sequence.
+
+
 __global__ void rebaseAcceptedGasInventory(SharedGasDeviceView* state,const Real* oldVolume,const Real* newVolume){
     auto& s=*state;const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=s.nCells)return;
     using Field=typename std::remove_reference<decltype(s.rho[c])>::type;
@@ -466,15 +466,15 @@ __global__ void rebaseAcceptedGasInventory(SharedGasDeviceView* state,const Real
 bool loadGasWindowState(Backend& b,const HostState& snapshot,std::string& error){
     b.storage.beginOperation();
     b.wallDiagnosticsReady=false;b.historyFrameCount=0;b.historyPublishedFrames=0;
-    // Window contents are republished through the resident state. Structural
-    // changes are checked before replay by validateCoupledGraphBindings.
+
+
     b.microGeometryPrepared=false;b.preparedWallReady=false;ugkwp::invalidateGasBoundaryLayerPreparation(b);
     if(b.gasBoundaryLayer.enabled&&b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static)b.storage.invalidateWallGeometry();
     const bool reuse=b.residentAcceptedEndpoint;
     b.residentAcceptedEndpoint=false;b.gasEndpointPublished=false;
     if(reuse){
-        // Preserve inventories, wave pressure and particle source/phase history.
-        // Status reset is still required even when no host import is needed.
+
+
         const bool moving=b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static;
         if((moving&&!b.storage.uploadGeometry(snapshot.gasMesh,false))
             ||!b.storage.clearGeometry()||!b.storage.clearTrialStatus()){
@@ -512,9 +512,9 @@ Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati
         && (!ugkwp::mixtureGasFluxImplemented(options.fluxScheme)||(options.reconstruction!=0&&options.reconstruction!=1))) {
         error="selected mixture gas operator is unavailable";return nullptr;
     }
-    // Outlined calls in CUDA fast-compile builds may exceed the default
-    // per-thread stack. Match the existing gasUGKP opt-in runtime control;
-    // normal release builds retain the CUDA default.
+
+
+
     if(const char* requested=std::getenv("CHMT_CUDA_STACK_BYTES")){
         char* end=nullptr;errno=0;
         const auto bytes=std::strtoull(requested,&end,10);
@@ -599,8 +599,8 @@ static bool dispatchHostDiagnostics(Backend& b){
 static bool beginGasWindowImpl(Backend& b,const WallProgram& program,std::string& error){
     if(b.poisoned){error="gas backend is unusable after a failed device operation";return false;}
     if(program.knots.size()<2){error="wall program sample outside interval";return false;}
-    // Reuse capture across windows when addresses, launch shape and host
-    // branches match; the existing resident interval node updates the clock.
+
+
     b.trial=b.accepted;b.program=program;
     b.movingWindow=false;
     if(b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static){
@@ -653,8 +653,8 @@ struct CoupledCourantValue {PhysicalReal value;bool unavailable;unsigned char in
 struct CoupledCourantRead {
     const PhysicalReal* field;const int* status;const ugkp::diagnostics::DeviceContext* diagnostics;
     __host__ __device__ CoupledCourantValue operator()(int cell)const{
-        // This is the reduction identity, never a replacement physical state.
-        // The host discards the reduction after observing the fatal latch.
+
+
         if(ugkp::diagnostics::hasFatal(diagnostics))return {-std::numeric_limits<PhysicalReal>::infinity(),false};
         return {field[cell],status&&status[cell]==int(ugkwp::GasTransportCode::InvalidStorage)};
     }
@@ -679,8 +679,8 @@ static bool currentGasCourant(Backend& b,Real referenceDt,transport::GasCourantM
                 CoupledCourantValue{-std::numeric_limits<PhysicalReal>::infinity(),false},CoupledCourantReduce{});
         }
         catch(const std::exception& e){transport::setLastErrorText(e.what());return 1;}
-        // Dispatch outside the Thrust exception adapter: a frontend fatal
-        // carries physical context that std::exception::what() may discard.
+
+
         if(!b.storage.observeDiagnostics())return 1;
         if(reduced.unavailable){transport::setLastErrorText("current Co consumed input unavailable");return 1;}
         value=reduced.value;
@@ -697,8 +697,8 @@ static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,s
     }
     b.microTime=windowAbsolute(b.program.interval.begin,b.elapsed);
     const auto diagnosticSequence=b.history.records().size()+1;
-    // acceptedSteps is the zero-based completed global-step count. This launch
-    // precedes all producers on their stream and adds no synchronization/copy.
+
+
     ugkp::diagnostics::beginOperation(b.hostDiagnostics,diagnosticSequence,b.trial.acceptedSteps,b.microTime);
     ugkp::diagnostics::beginOperationKernel<<<1,1,0,b.gasCaptureStream>>>(b.diagnostics.device(),diagnosticSequence,b.trial.acceptedSteps,b.microTime);
     const auto metadataLaunch=cudaGetLastError();
@@ -791,8 +791,8 @@ bool downloadGasWindow(Backend& b,HostState& out,std::string& error){
                 error=b.surfaceTransferFault.message;return false;
             }
         }
-        // Join the existing endpoint publication; no per-microstep node arrays
-        // and no additional host wait. The staging owner survives failed reads.
+
+
         if(!b.storage.enqueueRead(b.interfaceWallDiagnostics.data(),count,b.wallDiagnosticStaging)){
             error=b.storage.error();return false;
         }
@@ -824,17 +824,17 @@ bool downloadGasWindow(Backend& b,HostState& out,std::string& error){
 }
 static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& error,bool preservePublishedEndpoint){
     if(b.poisoned){error="gas backend is unusable after a failed device operation";return false;}
-    // The public commit API can be called without a preceding full gas export.
-    // Its host material endpoint comparison still requires the actual predicted
-    // coordinates. Normal downloadGasWindow already completed this publication.
+
+
+
     if(!publishWindowGeometry(b,error))return false;
-    // Publish the synchronized material/gas endpoint on the host. The next
-    // beginGasWindow imports it once; an immediate upload here was overwritten
-    // by that same import before any device consumer could use it.
-    // The material owner may correct the predicted macro trajectory. Map the
-    // actual accepted endpoint too, before publishing particles/checkpoints.
-    // A microstep-only map would otherwise leave attached parcels on the old
-    // predicted wall and free parcels associated with displaced internal cells.
+
+
+
+
+
+
+
     bool corrected=b.trial.gasMesh.points.size()!=candidate.gasMesh.points.size();
     for(std::size_t i=0;!corrected&&i<candidate.gasMesh.points.size();++i){
         const auto a=b.trial.gasMesh.points[i],c=candidate.gasMesh.points[i];
@@ -851,7 +851,7 @@ static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& err
         if(!b.storage.observeDiagnostics()){error=b.storage.error();return false;}
         if(!b.particles.download(candidate,error))return false;
     }
-    // Only the endpoint-preserving driver opts in; public/default imports remain unchanged.
+
     b.residentAcceptedEndpoint=preservePublishedEndpoint&&b.gasEndpointPublished
         &&candidate.gasMesh.topologyHash==b.trial.gasMesh.topologyHash
         &&candidate.gas.size()==b.trial.gas.size()
@@ -874,7 +874,7 @@ static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& err
         }
     }
     HostState newAccepted=candidate,newTrial=candidate;
-    newAccepted.ledger.clear();newTrial.ledger.clear(); // publication diagnostics are frontend-owned
+    newAccepted.ledger.clear();newTrial.ledger.clear();
     b.accepted=std::move(newAccepted);b.trial=std::move(newTrial);error.clear();return true;
 }
 bool commitGasWindow(Backend& b,HostState& candidate,std::string& error,bool preservePublishedEndpoint){
@@ -892,8 +892,8 @@ bool borrowRadiationState(Backend& b,ParticleRadiationState& out,std::string& er
     if(!b.particles.result(ugkp::thermal::orderParticlePhaseAfterGas(b.particles.owner(),b.gasCaptureStream),error))return false;
     if(!b.particles.result(ugkwpGpuResidentStrictBorrowRadiationParticleState(b.particles.owner(),&out.resident),error)
         ||!b.particles.result(ugkwpGpuResidentStrictParticleRadiationResponse(b.particles.owner(),&out.response),error))return false;
-    // CHMT's accepted material wall program supplies temperature; particle
-    // coverage remains the same shared independent contact contribution.
+
+
     out.resident.boundaryTemperature=nullptr;
     return true;
 }

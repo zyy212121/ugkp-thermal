@@ -2,8 +2,8 @@
 #include "ReactingWallLayer.H"
 
 namespace ugkwp { namespace gaswall {
-// Reference solves borrow accepted history; only the macro-step commit may
-// publish a new history. Scratch is worker-owned, history is wall-owned.
+
+
 template<int N,int M> struct WallReferenceScratch {
     WallReal best[M][N+4]{};
 };
@@ -11,7 +11,7 @@ struct WallReferenceStats {
     GpuReal residual=std::numeric_limits<GpuReal>::infinity();
     int iterations=0,residualEvaluations=0,jacobianEvaluations=0,centralDirections=0;
     bool usedHistory=false,converged=false;
-    bool usedNumericalState=false; // separate from accepted macro history
+    bool usedNumericalState=false;
 };
 struct WallReferenceCounters {
  unsigned long long solves=0,failures=0,iterations=0,residuals=0,jacobians=0,central=0,history=0;
@@ -25,7 +25,7 @@ UGKWP_GAS_HD inline bool assembleReferenceCentralNode(
  const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,int node,bool& storageAvailable)
 {
     constexpr int B=N+4;
-    // Keep the simplex-tangent species columns, including absent species.
+
     if(!assembleJacobianNode(in,c,ctx,w,node))return false;
     auto silent=in;silent.diagnostics=nullptr;silent.model.thermo.diagnostics=nullptr;
     PerturbedLayerState<R,N> state(w.state,node);
@@ -43,7 +43,7 @@ UGKWP_GAS_HD inline bool assembleReferenceCentralNode(
         state.row[col]=old-h;if(!ctx.trialStorageComplete&&!layerTrialStorageAvailable(in,in.temperature+state.row[2],node)){storageAvailable=false;return false;}cache.invalidate(node);
         for(int i=lo;i<=hi;++i)valid=layerRow(silent,c,ctx,cache,w.y,i,minus[i-lo])&&valid;
         state.row[col]=old;
-        if(!valid)continue; // Preserve the feasible forward column at a boundary.
+        if(!valid)continue;
         for(int i=lo;i<=hi;++i)for(int row=0;row<B;++row){
             R* block=node<i?w.lower[i][row]:node==i?w.diagonal[i][row]:w.upper[i][row];
             block[col]=(plus[i-lo][row]-minus[i-lo][row])/(R(2)*h);
@@ -72,18 +72,18 @@ template<class R,int N,int M,class Team>
 UGKWP_GAS_HD inline R referenceMerit(const WallModelConfig<R>& c,
  const WallWorkspace<R,N,M>& w,const Team& team)
 {
-    // Deterministic order matches the CPU reference, independent of warp width.
+
     R value=0;if(team.leader())for(int i=0;i<c.nodes;++i)for(int j=0;j<N+4;++j)
         value+=w.residual[i][j]*w.residual[i][j];
     return team.broadcast(value);
 }
 }
 
-// accepted is an optional, immutable transformed profile in the CURRENT wall
-// frame/species coordinates and on the same node geometry. The adapter owns
-// coordinate conversion and geometry invalidation. No endpoint lift or warm
-// Picard pass is applied here. Only a converged equation solve publishes an accepted wall output; a finite
-// but nonconverged iterate remains in scratch for diagnostics.
+
+
+
+
+
 template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam>
 UGKWP_GAS_HD inline bool evaluateWallReference(
  const WallInput<R,N,TableReal>& original,const WallModelConfig<R>& c,
@@ -146,8 +146,8 @@ UGKWP_GAS_HD inline bool evaluateWallReference(
             for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<B;++j)w.state[i][j]=w.trial[i][j];
             team.sync();continue;
         }
-        // Preserve the best forward trial while re-evaluating the original
-        // residual. This replaces CPU old-state/old-residual stack copies.
+
+
         for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<B;++j)
             scratch.best[i][j]=improved?w.trial[i][j]:w.state[i][j];
         team.sync();if(!measure(in,w.state)){if(team.leader())fail(status,WallCode::InadmissibleState);return false;}

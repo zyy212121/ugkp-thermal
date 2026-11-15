@@ -21,9 +21,9 @@ inline const char* materialReactionMessage(MaterialReactionCode code) {
     }
     return "reaction local EOS/admissibility failure";
 }
-// One cell's independent physical clock, using the original dry Euler map.
-// The warning budget never truncates integration. A failed operation leaves
-// the caller's candidate unchanged; this is not a retry or alternate method.
+
+
+
 CHMT_HD inline MaterialReactionStatus advanceMaterialReactionsMath(const SolidQ& base,
     Real volume,const PhysicsConfig& p,Real interval,Real maxStep,PhysicalReal cfl,
     int warningBudget,SolidQ& output) {
@@ -32,16 +32,16 @@ CHMT_HD inline MaterialReactionStatus advanceMaterialReactionsMath(const SolidQ&
         ||!(finite(cfl)&&cfl>0)||warningBudget<=0){
         status.code=MaterialReactionCode::InvalidControls;return status;
     }
-    // Disabled reactions are an identity map. In the terminal source stage,
-    // base.energy may be the pending implicit-conduction RHS, not an EOS state.
-    // The caller validates inventory and the conduction solver validates its
-    // final temperature; active reaction integration still requires a valid EOS.
+
+
+
+
     if(!p.enableReactions){output=base;return status;}
     SolidQ state=base;MaterialPrimitive material;
     if(!recoverMaterial<false>(state,volume,p,material,nullptr,-1,&status.numericalFailure)){
         status.code=MaterialReactionCode::BaseRecovery;return status;
     }
-    // Preserve count/domain diagnostic precedence before reading the network.
+
     ReactionStepControl initialControl;
     if(!reactionStepControl(state,volume,p,cfl,initialControl,&status.numericalFailure,
         dryAdapter::CoreReactionRates{})){

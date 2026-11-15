@@ -1,5 +1,5 @@
 #pragma once
-// Recovery equation is an application physical adapter; task ownership is shared.
+
 __global__ void solidRecoveryFromParticleMomentsKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;

@@ -107,7 +107,7 @@ __global__ void gatherInterfaceExchangeKernel
         ?s.particleWallDepositedEnergy[face]:0.0f;
     const float reflected=s.particleWallHeatTransferEnabled
         ?s.particleWallReflectedEnergy[face]:0.0f;
-    // Preserve the host expression order: gas + radiation + (deposit + reflect).
+
     float combined=gas;
     if(hasRadiation)combined+=boundaryRadiation?boundaryRadiation[face-boundaryOffset]:s.interfaceRadiationEnergy[slot];
     if(s.particleWallHeatTransferEnabled)combined+=deposited+reflected;
@@ -515,8 +515,8 @@ extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange
     return 0;
 }
 
-// Reset is ordered on the same stream as ledger producers and borrowed views;
-// the next owner operation or explicit output publication observes completion.
+
+
 extern "C" int ugkwpGpuResidentStrictDownloadAndResetGasWallEnergy
 (
     void* handle,
@@ -737,8 +737,8 @@ extern "C" int ugkwpGpuResidentStrictResetParticleWallHeatLedgers(void* handle)
     return 0;
 }
 
-// The map is built once from the existing conformal/nonconformal mapper.
-// All arrays use configured-face order; CSR entries retain fluid-face order.
+
+
 extern "C" int ugkwpGpuResidentStrictConfigureInterfaceExchange
 (
     void* handle,int nSolidFaces,const int* rowOffsets,
@@ -826,9 +826,9 @@ extern "C" int ugkwpGpuResidentStrictCollectInterfaceExchange(void* handle,doubl
     auto* s=asState(handle);if(validateState(s,"publish interface exchange")!=0)return 1;
     return copyToHost(s,output,s->interfacePreview,3*s->nEnabledFaces+s->nInterfaceSolidFaces,"publish interface exchange");
 }
-// The DO material workspace owns boundaryEnergy in complete boundary-face
-// order. Read it directly and retain the mapped, integrated solid energy for
-// the implicit owner; optional host publication is diagnostic/output only.
+
+
+
 extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice
 (
     void* handle,double deltaT,

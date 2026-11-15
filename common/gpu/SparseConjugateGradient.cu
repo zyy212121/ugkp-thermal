@@ -25,7 +25,7 @@ template<class T> struct DeviceArray {
         reserve(count);queue.upload(ptr,host,count*sizeof(T));
     }
 };
-// Host launch policy and actual device CTA width share one reduction contract.
+
 __host__ __device__ inline int sparseThreads(){
 #ifdef __CUDA_ARCH__
     return blockDim.x;
@@ -115,8 +115,8 @@ __global__ void applyBlock(const int* member,const R* factor,const int* valid,co
 __global__ void precondition(int n,const int* offsets,const double* values,const double* r,double* z,const double* stop){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<n&&!(stop&&stop[7]))z[i]=r[i]/values[offsets[i]];
 }
-// Recurrence: rho,pAp,previous rho,alpha,|r|1,singular,total iterations,stop,
-// changed components since confirmation,restart direction,replacements,stagnated.
+
+
 __global__ void direction(int n,const double* z,const double* recurrence,double* p){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;
     if(i<n&&!recurrence[7])p[i]=(recurrence[6]==0||recurrence[9]!=0)?z[i]:z[i]+(recurrence[0]/recurrence[2])*p[i];
@@ -128,8 +128,8 @@ __device__ bool confirmTrueResidual(LocalSolveParameters* parameters,double* rec
     const bool converged=residual<c.tolerance ||
         (c.relativeTolerance>c.normalizationSmall&&residual<c.relativeTolerance*parameters->initial);
     const bool exhausted=recurrence[6]>=c.maximumIterations&&recurrence[6]>=c.minimumIterations;
-    // An exactly unchanged iterate at consecutive confirmations is a finite-
-    // precision fixed point/cycle, not an exhausted iteration budget.
+
+
     recurrence[11]=!converged&&!exhausted&&!recurrence[5]&&recurrence[8]==0;
     recurrence[7]=converged||exhausted||recurrence[5]||recurrence[11];
     if(!recurrence[7]){recurrence[9]=1;recurrence[10]+=1;}
@@ -313,7 +313,7 @@ template<int Stage> __global__ void finishLocalReduction(int n,const double* par
 }
 
 // A matrix with at most one row per lane needs no inter-block dependencies.
-// Keep the identical CSR order and configured-width reduction tree, and synchronize
+
 // its complete PCG recurrence inside the owning block instead of dispatching
 // a graph node for each vector operation. No mesh/physics assumption is used.
 __global__ void solveLocalBlock(int n,const int* offsets,const int* columns,const double* values,

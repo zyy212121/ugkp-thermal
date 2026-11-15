@@ -1,6 +1,6 @@
 #pragma once
-// Host-only launch policy, published once before CUDA owners and graph capture.
-// Scratch sizes and graph geometry depend on this immutable startup policy.
+
+
 namespace ugkp { namespace gpu {
 struct WorkPlan {
     int cellBlockThreads=128,faceBlockThreads=128;

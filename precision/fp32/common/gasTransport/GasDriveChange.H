@@ -23,10 +23,10 @@ template<class A,class B> UGKP_GAS_DRIVE_HD inline GpuReal distance(const A& a,c
     return std::sqrt(x*x+y*y+z*z);
 }
 }
-// Ordered local driving-state variation, shared by host publication adapters
-// and resident history consumers. Views expose indexed fields without owning
-// storage. Keep category/face/component ordering, including IEEE max semantics;
-// this is a local lag criterion, not a bound on global PDE error.
+
+
+
+
 template<int Ns,class Held,class Sample>
 UGKP_GAS_DRIVE_HD GasDriveComparison compareGasDrive(const Held& held,const Sample& r,GpuReal tractionScale){
     using namespace drive_detail;GasDriveComparison result;

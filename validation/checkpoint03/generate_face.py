@@ -1,4 +1,4 @@
-"""Generate only. Never imports/runs the test module or a numerical executable."""
+pass
 from pathlib import Path
 import ast,argparse,re
 ap=argparse.ArgumentParser()
@@ -12,7 +12,7 @@ ret=next(n for n in fn.body if isinstance(n,ast.Return))
 body=ast.literal_eval(ret.value.func.value)
 fields=re.findall(r"    ([\w:]+\*) (\w+)\{\};",(here/"legacy_gas_fixture.hpp").read_text())
 assert fields, "No fixture allocation fields found"
-# Allocate each field with its actual production State pointer type.
+
 body=body.replace("ALLOCATE","\n".join(f"s.{name}=new std::remove_pointer_t<decltype(s.{name})>[8]{{}};" for ty,name in fields))
 state_header=(a.root/"common/gasTransport/GasStateView.H").read_text()
 mixed_tables="class TableReal = Real" in state_header
@@ -25,7 +25,7 @@ body=body.replace("SpeciesThermoData<Real>","SpeciesThermoData<double>").replace
 pre=(here/"gas_state_probe.cpp").read_text().split("void hashBytes")[0]
 main=Path(__file__).with_name("face_fixture.cpp").read_text()
 
-# Static extraction of the established refinement case; no module import.
+
 rt=ast.parse((here/"test_mixture_reconstruction.py").read_text())
 rf=next(n for n in rt.body if isinstance(n,ast.FunctionDef) and n.name=="test_smooth_periodic_muscl_has_refinement_gain_over_first_order")
 snippet=next(n.value for n in ast.walk(rf) if isinstance(n,ast.Constant) and isinstance(n.value,str) and "Real error(int n" in n.value)

@@ -1,6 +1,6 @@
 #pragma once
 #include "wall/GpuColdWall1DHandles.cuh"
-// Shared Gaussian sampling and weighted moments; native contact metadata remains an extension.
+
 template<bool AtomicMoments = true>
 __device__ void sampleOnePoissonPoolParticle
 (
@@ -67,9 +67,9 @@ __device__ void sampleOnePoissonPoolParticle
         ;
     if (singletonMobile)
     {
-        // This collision is an identity for a mobile singleton unless the
-        // caller requests physical theta drag. Never reconstruct old theta
-        // from a rounded M*theta/M, even when alpha is exactly one.
+
+
+
         if (applyThetaDrag)
         {
             const float alpha=clampRange(finiteOr(s.thetaDragAlpha[c],1.0f),0.0f,1.0f);
@@ -79,7 +79,7 @@ __device__ void sampleOnePoissonPoolParticle
         if constexpr (!AtomicMoments)
         {
             const float one[5]={s.pm[i],s.pux[i],s.puy[i],s.puz[i],1.5f*s.pm[i]*s.pTheta[i]};
-            // The singleton's unresolved theta is retained on the parcel.
+
             float state[5]={moments[0],moments[1],moments[2],moments[3],moments[4]};
             mergeCollisionMomentGroup(state,one);
             for(int k=0;k<5;++k)moments[k]=state[k];

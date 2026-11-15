@@ -2,9 +2,9 @@
 #include "ablation/InterfaceMath.H"
 #include "coupling/IntervalContracts.H"
 namespace chmt {
-// The material closure consumes a gas inventory based on the original bulk
-// trace. Matching pressure is installed afterward; it must not change that
-// conservative inventory or the accepted species/condensed transfer rates.
+
+
+
 CHMT_HD inline void setMaterialSurfaceGasDrive(SurfacePhysicsInput& in,
     const GasPrimitive& bulk,const GasGradient* gradient,PhysicalReal phaseVolume,PhysicalReal donorShare,
     const WallFaceSample* accepted,const PhysicsConfig& physics){

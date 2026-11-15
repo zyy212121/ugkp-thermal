@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Materialize isolated solver source trees; FP32 overlays never use include precedence."""
+pass
 from __future__ import annotations
 import argparse
 import hashlib
@@ -61,7 +61,7 @@ def materialize(root: Path, bits: int) -> Path:
             rel = Path(name)
             if rel not in selected:
                 stale = destination / rel
-                # Manifest entries are relative names created by this tool.
+
                 if not rel.is_absolute() and ".." not in rel.parts and (stale.is_file() or stale.is_symlink()):
                     stale.unlink()
     records = {}

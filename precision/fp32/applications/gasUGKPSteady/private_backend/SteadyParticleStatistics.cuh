@@ -2,8 +2,8 @@
 #include "SteadySamplingMoments.cuh"
 #include "../../../common/gasTransport/GasResidentInterval.H"
 #include "../../../common/GpuVectorSum.cuh"
-// Parcel boundary inventory audit, before/after injection and face walking.
-// Optional buffers are null for all existing transient executions.
+
+
 struct SteadyParcelInventory {
     DeviceState* state;
     __device__ int count()const {
@@ -43,8 +43,8 @@ int configureSteadyAuditStorage(DeviceState* s)
         ugkwp::vectorSumPartials<GpuSteadySamplingReport::gasFluxFields,SteadyGasBoundaryFlux>,block,GpuSteadySamplingReport::gasFluxFields*(block/32)*sizeof(GpuReal));
     if(err!=cudaSuccess){setLastError("steady audit reduction occupancy",err);return 1;}
     s->steadyAuditParts=s->multiprocessorCount*(parcelBlocks>gasBlocks?parcelBlocks:gasBlocks);
-    // Separate slices allow independent gas/particle streams. Neither slice
-    // depends on parcel capacity, so growth and graph replay cannot overrun it.
+
+
     return allocate(s->steadyAuditWorkspace,
         size_t(6+GpuSteadySamplingReport::gasFluxFields)*s->steadyAuditParts,
         "allocate resident steady audit partials");

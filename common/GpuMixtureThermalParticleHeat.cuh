@@ -29,9 +29,9 @@ template<class State>
 __device__ ugkwp::ParticleCaloricHeatResponse response(const State& s,int c,int i,double dt) {
     return response(s,i,dt,mixtureParticles::heatCellProperties(s,c));
 }
-// Called by the same cell team that owns root trials and publication. All
-// eligible entries are written before any trial, independently of old scratch
-// contents, sorting, migration or the previous source epoch.
+
+
+
 template<class State,class Team>
 __device__ void prepareCell(State& s,int c,double dt,bool csr,bool split,const Team& team) {
     mixtureParticles::HeatCellProperties properties{};
@@ -60,8 +60,8 @@ __device__ ugkwp::ParticleCaloricHeatResponse cachedResponse(const State& s,int 
 // Freeze only quantities independent of the gas root. Parcel enthalpy and its
 // derivative retain the original piecewise law at every trial temperature.
 // Repeated trials inside the same open segment reuse its aggregate polynomial.
-// Retain the standalone preparation entry for reference callers. Production
-// prepares inside its heat-cell team after drag, avoiding this extra launch.
+
+
 template<class State>
 __global__ void prepareMixtureThermalParticleHeatKernel(State*sp,double requestedDt){
     const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);

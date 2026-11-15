@@ -3,7 +3,7 @@
 #include "BoundaryInjectionApi.H"
 #include <vector>
 struct ParticleState : DeviceState {
- // CPU fixture owns scratch independently of particle payload and its copies.
+
  std::vector<double> couplingDragBeta,couplingResponseFraction;
  ugkwp::BoundaryInjectionStorage boundaryInjection;
  int particleCapacity=0,particleCount=0,*particleCountDevice=&particleCount,nBoundarySources=1,maxFaceWalkHops=1000;

@@ -8,8 +8,8 @@
 
 namespace ugkwp
 {
-// Host-owned canonical SI tables. A view is rebuilt against each host/device
-// allocation; neither this object nor any borrowed pointer is an IPC payload.
+
+
 template<class Real> struct GasMechanismConfigurationStorage
 {
     std::string phase;
@@ -145,7 +145,7 @@ inline std::uint64_t mechanismIdentity(const GasMechanismConfigurationStorage<do
     }
     return hash;
 }
-} // namespace gasModelIoDetail
+}
 
 template<int Ns, class Real>
 inline GasMechanismConfiguration parseGasMechanismProperties
@@ -161,7 +161,7 @@ inline GasMechanismConfiguration parseGasMechanismProperties
     const Dictionary dict = tokens.dictionary();
     (void)expectedPhase;
     (void)thermo;
-    // Binary64 wire staging is destroyed after preserving the old identity.
+
     GasMechanismConfigurationStorage<double> model;
     if (dict.count("phase")) model.phase = word(dict, "phase");
     model.speciesNames = list(dict, "species");
@@ -326,5 +326,5 @@ inline GasMechanismConfiguration readGasMechanismProperties
     if (input.bad()) throw gasModelIoDetail::error("failed reading mechanism '" + path + "'");
     return parseGasMechanismProperties<Ns>(text, thermo, expectedPhase, thermoSpeciesNames);
 }
-} // namespace ugkwp
+}
 #endif

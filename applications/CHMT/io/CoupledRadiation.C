@@ -29,8 +29,8 @@ struct CoupledRadiation::Data {
         std::set<int> ids;for(int f:state.surface.gasFace)if(f>=0)ids.insert(mesh.boundaryMesh().whichPatch(f));
         patches.setSize(ids.size());int k=0;for(int id:ids){if(id<0)throw std::runtime_error("radiation coupled face is internal");patches[k++]=id;}
         const auto& d=m.subDict("do");
-        // The DOM boundary dictionary is the sole optical boundary source.
-        // Match its absorptivity-over-emissivity precedence, including defaults.
+
+
         const auto optical=[](const Foam::dictionary& values,Foam::scalar prior) {
             return values.lookupOrDefault<Foam::scalar>("absorptivity",
                 values.lookupOrDefault<Foam::scalar>("emissivity",prior));
@@ -85,7 +85,7 @@ bool CoupledRadiation::advance(Backend& backend,const WallProgram& program,HostS
     ugkp::gpu::RadiationAcceptedEnergyDeviceView actual;
     if(!applyResidentRadiationEnergy(backend,requested.resident,actual,state,error))return false;
     // The material history owner still consumes boundary records. Publish only
-    // its raw boundary energy here, never optical or per-cell heat fields.
+
     const auto result=d.coupler->collectBoundaryEnergy();
     std::vector<Real> wallHeat(state.surface.gasFace.size(),0);
     for(std::size_t f=0;f<wallHeat.size();++f){const int face=state.surface.gasFace[f];if(face<0)continue;

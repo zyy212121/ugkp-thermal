@@ -1,17 +1,17 @@
 #ifndef CHMT_ABLATION_INTERFACECOMPOSITIONARITHMETIC_H
 #define CHMT_ABLATION_INTERFACECOMPOSITIONARITHMETIC_H
 namespace composition_detail {
-    // These arithmetic guards preserve the original operation when representable.
-    // Trial equations never execute a host overflow/divide-by-zero before returning
-    // a typed mathematical failure; the caller owns final error publication.
+
+
+
 
     CHMT_HD inline bool productFinite(PhysicalReal a,PhysicalReal b,PhysicalReal& result) {
         if(!finite(a)||!finite(b))return false;
         const PhysicalReal aa=energyArithmetic::absolute(a),bb=energyArithmetic::absolute(b),safe=std::sqrt(std::numeric_limits<PhysicalReal>::max())*PhysicalReal(.5);
         if(aa<=1||bb<=1||(aa<=safe&&bb<=safe)){result=a*b;return true;}
-        // Same binary scaling as auditProduct. Scaling an already rounded
-        // mantissa preserves a result that rounds to finite MAX, and never
-        // executes the overflowing unscaled operation.
+
+
+
         int ea=0,eb=0,em=0;
         const PhysicalReal mantissa=std::frexp(aa,&ea)*std::frexp(bb,&eb);
         (void)std::frexp(mantissa,&em);
@@ -33,8 +33,8 @@ namespace composition_detail {
         const PhysicalReal magnitude=exponent==std::numeric_limits<PhysicalReal>::max_exponent?std::ldexp(mantissa,ea-eb):aa/bb;
         result=(a<0)!=(b<0)?-magnitude:magnitude;return true;
     }
-    // The factorization avoids an overflowing intermediate in C*D/Rref.  frexp
-    // mantissas stay bounded; the final scalbn is preceded by a range check.
+
+
 
     CHMT_HD inline bool diffusionScale(PhysicalReal pressure,PhysicalReal D,PhysicalReal T,PhysicalReal distance,
     PhysicalReal Rref,PhysicalReal& result) {
@@ -58,8 +58,8 @@ namespace composition_detail {
         return finite(result);
     }
 
-    // R varies with each candidate. Share its EOS division across species while
-    // preserving diffusionScale's operation order and guarded extreme-range path.
+
+
     struct DiffusionState {
         PhysicalReal pressure,T,distance,R,rho=0;
         bool attempted=false,ready=false;
@@ -124,8 +124,8 @@ namespace composition_detail {
     }
 }
 namespace surfaceEnergyArithmetic {
-// Diagnostic reductions must not raise OpenFOAM's enabled overflow/invalid traps.
-// An infinity/NaN here describes an unrepresentable audit, never a repaired state.
+
+
 CHMT_HD inline EnergyReal auditAdd(EnergyReal a,EnergyReal b) {
     const EnergyReal bound=std::numeric_limits<EnergyReal>::max();
     if(!finite(a)||!finite(b)) {
@@ -134,8 +134,8 @@ CHMT_HD inline EnergyReal auditAdd(EnergyReal a,EnergyReal b) {
     }
     if(((a>0&&b>0)||(a<0&&b<0))
         &&(energyArithmetic::absolute(a)>bound*EnergyReal(.5)||energyArithmetic::absolute(b)>bound*EnergyReal(.5))) {
-        // max-b may round upward at the last ULP. Binary scaling performs
-        // the same rounded addition without ever forming an overflowing sum.
+
+
         const EnergyReal half=a*EnergyReal(.5)+b*EnergyReal(.5);
         if(energyArithmetic::absolute(half)>bound*EnergyReal(.5))return a<0
             ?-std::numeric_limits<EnergyReal>::infinity():std::numeric_limits<EnergyReal>::infinity();
@@ -150,21 +150,21 @@ CHMT_HD inline EnergyReal auditProduct(EnergyReal a,EnergyReal b) {
     if(aa<=1||bb<=1)return a*b;
     int ea=0,eb=0,em=0;
     const EnergyReal ma=::frexpf(aa,&ea),mb=::frexpf(bb,&eb);
-    const EnergyReal mantissa=ma*mb; // [1/4,1), so this multiplication cannot overflow.
+    const EnergyReal mantissa=ma*mb;
     (void)::frexpf(mantissa,&em);
     const int exponent=ea+eb+em;
     if(exponent>std::numeric_limits<EnergyReal>::max_exponent)
         return ((a<0)!=(b<0))?-std::numeric_limits<EnergyReal>::infinity():std::numeric_limits<EnergyReal>::infinity();
     if(exponent==std::numeric_limits<EnergyReal>::max_exponent) {
-        // max/b may round upward. Scale the already rounded mantissa here;
-        // a result rounding to finite MAX must remain finite, not a warning.
+
+
         const EnergyReal result=::ldexpf(mantissa,ea+eb);
         return ((a<0)!=(b<0))?-result:result;
     }
     return a*b;
 }
-// Quotients used only by diagnostics/tolerances, including explicit IEEE
-// audit sentinels. Never execute zero division or an overflowing division.
+
+
 CHMT_HD inline EnergyReal auditQuotient(EnergyReal numerator,EnergyReal denominator) {
     if(numerator!=numerator||denominator!=denominator)return std::numeric_limits<EnergyReal>::quiet_NaN();
     const bool negative=::copysignf(EnergyReal(1),numerator)!=::copysignf(EnergyReal(1),denominator);
@@ -181,8 +181,8 @@ CHMT_HD inline EnergyReal auditQuotient(EnergyReal numerator,EnergyReal denomina
     if(exponent>maximum||(exponent==maximum&&mantissa>maximumMantissa))return negative?-infinity:infinity;
     return numerator/denominator;
 }
-// Keep an unrepresentable denominator product from destroying a representable
-// audit quotient. The usual path keeps its original division order.
+
+
 CHMT_HD inline EnergyReal auditQuotientProduct(EnergyReal numerator,EnergyReal first,EnergyReal second) {
     const EnergyReal product=auditProduct(first,second);
     if(finite(product)&&product!=0)return auditQuotient(numerator,product);

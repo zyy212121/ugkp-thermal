@@ -5,7 +5,7 @@ __device__ __forceinline__ float materialEnthalpyMoment(const Real mass, const R
     return float(mass)*float(particleSpecificEnthalpyDevice(temperature));
 }
 
-// Material moments are derived from the single published thermal state.
+
 template<bool CompactParticles = false, class State, class Real>
 __device__ __forceinline__ float materialEnthalpyMomentFromParticle
 (const State&, const int, const Real mass, const Real temperature, long)

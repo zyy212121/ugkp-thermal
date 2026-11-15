@@ -32,13 +32,13 @@ struct MaterialPolicyConfig {
     EvaporationLaw evaporation=EvaporationLaw::Disabled;
     PhysicalReal evaporationAccommodation[Ns]{};
     PhysicalReal saturationPressureScale[Ns]{},saturationTemperature[Ns]{};
-    PhysicalReal gasContactResistance=0,solidContactResistance=0; // m^2 K/W.
+    PhysicalReal gasContactResistance=0,solidContactResistance=0;
 };
 enum class ParticleContactMode { ElasticRebound, Deposit };
 struct ParticlePolicyConfig {
     int condensedIndex=-1,maxFaceCrossings=32;
-    PhysicalReal heatTransferCoefficient=0,contactHeatTransferCoefficient=0; // W/(m^2 K).
-    Real contactDuration=0;PhysicalReal emissivity=0; // s, dimensionless.
+    PhysicalReal heatTransferCoefficient=0,contactHeatTransferCoefficient=0;
+    Real contactDuration=0;PhysicalReal emissivity=0;
     ParticleContactMode contact=ParticleContactMode::ElasticRebound;
 };
 enum class MeshMotionPolicy { Static, CoupledRecession, PrescribedSinusoidal };
@@ -53,7 +53,7 @@ inline ugkwp::gaswall::WallModelConfig<PhysicalReal> defaultWallModel() {
 struct PhysicsConfig {
     ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
     ugkwp::gaswall::WallModelConfig<PhysicalReal> wallModel=defaultWallModel();
-    int wallWorkspaceSlots=0; // zero resolves a bounded pool from the actual device
+    int wallWorkspaceSlots=0;
     bool enableGas=true;
     ugkwp::GasMode gasMode=ugkwp::GasMode::SingleLegacy;
     ugkwp::MolecularViscosityModel gasViscosityModel=ugkwp::MolecularViscosityModel::Constant;
@@ -61,23 +61,23 @@ struct PhysicsConfig {
     std::uint64_t gasTransportFingerprint=0;
     ugkwp::SutherlandSpecies<PhysicalReal> gasSutherland[Ns]{};
     PhysicalReal gasMassRatioQuarter[Ns*Ns]{},gasWilkeDenominator[Ns*Ns]{};
-    // Immutable coefficients are reconstructed from the input dictionary on restart;
-    // gasTransportFingerprint already identifies all of them in the checkpoint.
+
+
     ugkwp::MolecularViscosityView<PhysicalReal> gasTransportCoefficients{};
     ugkwp::PowerLawDiffusivity<PhysicalReal> gasPowerLaw[Ns]{};
     bool gasPowerLawEnabled=false;
-    int singleGasSpecies=-1; // Active physical material species in legacy five-field transport.
+    int singleGasSpecies=-1;
     std::uint64_t gasThermoFingerprint=0,gasMechanismFingerprint=0;
     ugkwp::ChemistryControls<PhysicalReal> gasChemistryControls{};
     MeshMotionConfig meshMotion{};
     ParticlePolicyConfig particle{};
     MaterialPolicyConfig material{};
     SpeciesThermo species[Ns]{};CondensedThermo condensed[Nc]{};Reaction reactions[Nr]{};int nReactions=0,nElements=0;
-    CondensedThermo liquid{}; // e0 is h_ref's T=0 intercept for THIS table.
+    CondensedThermo liquid{};
     PhysicalReal liquidViscosity=0,liquidReferencePressure=0,meltTemperature=0;
     PhysicalReal permeability=0,poreViscosity=0,gasViscosity=0,gasConductivity=0,gasDiffusivity[Ns]{};
-    // Effective pore diffusivity [m2/s], including porosity/tortuosity once.
-    // Independent of gas-side molecular transport; zero preserves pure Darcy.
+
+
     PhysicalReal poreEffectiveDiffusivity[Ns]{};
     PhysicalReal emissivity=0,ambientTemperature=0;PhysicalVec3 gravity{};
     bool enableFilm=false,enableReactions=false,enableParticles=false,enableSst=false,enableRadiation=false;
@@ -155,5 +155,5 @@ inline bool validateSpeciesSet(const ModelConfig& config,std::string& error) {
     }
     error.clear();return true;
 }
-} // namespace chmt
+}
 #endif

@@ -13,8 +13,8 @@
 #endif
 
 namespace ugkp { namespace boundary {
-// Physical mesh roles are independent of scalar/vector boundary operators.
-// Values are retained for existing mesh checkpoints.
+
+
 enum class Kind { Internal,Periodic,Slip,NoSlip,Inlet,Outlet,Interface,Empty };
 enum class Geometry : int { Standard=0,Symmetry=1,Wall=2,Processor=3,Empty=4,Cyclic=5,
     standard=Standard,symmetry=Symmetry,wall=Wall,processor=Processor,empty=Empty,cyclic=Cyclic };
@@ -63,7 +63,7 @@ struct Face {
     int wave=0,compositionMode=-1;
     GpuReal waveGamma=0,waveFieldInf=0,waveLInf=-1e30f;
     GpuReal value[Components]{};
-    // Explicit gamma and pressure branch preserve the selected total-condition law.
+
     GpuReal pressureGamma=1,temperatureGamma=1;
     int compressiblePressure=0;
     int function[Components]={-1,-1,-1,-1,-1,-1,-1};
@@ -103,7 +103,7 @@ UGKP_RESIDENT_BOUNDARY_HD inline int geometry(Kind k) {
     return k==Kind::Periodic?5:k==Kind::Slip?1:
         (k==Kind::NoSlip||k==Kind::Interface)?2:k==Kind::Empty?4:0;
 }
-// General prescribed-state interface, also used by programmatic mesh clients.
+
 inline Face prescribed(Kind kind,bool fixedTemperature,double rho,double ux,double uy,
     double uz,double p,double T) {
     Face f;f.geometry=geometry(kind);

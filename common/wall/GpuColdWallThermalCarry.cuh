@@ -10,7 +10,7 @@
 #endif
 namespace ugkwp {
 struct ColdWallHeatPublication { bool valid; double acceptedSpecificHeat; };
-// Raw equal-mass-node publication: no uniform correction or residual state.
+
 UGKWP_COLD_CARRY_HD inline double coldWallUniformCoolingBound(const double* nodes,int count) {
  double minimum=double(nodes[0]);
  for(int j=1;j<count;++j)if(double(nodes[j])<minimum)minimum=double(nodes[j]);

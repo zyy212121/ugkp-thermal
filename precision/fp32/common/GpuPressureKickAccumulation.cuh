@@ -1,10 +1,10 @@
 #pragma once
 #include "GpuPressureUnsortedAlgebra.cuh"
 #include "GpuPressureConvexAlgebra.cuh"
-// Each face is one fixed-weight convex substate (weight=1/faceCount).
-// A neighbouring cell may only shorten that substate's safe segment.
-// Invalid local inputs retain the original zero-kick fallback; the existing
-// projection and closure still run their finite-value and nonnegative clamps.
+
+
+
+
 __device__ inline PressureReal pressureLocalConvexScale(DeviceState& s,int c,PressureTime dt)
 {
     const PressureReal rho=s.momRhoP[c],px=s.momRhoUPx[c],py=s.momRhoUPy[c],pz=s.momRhoUPz[c],e=s.momRhoEP[c];

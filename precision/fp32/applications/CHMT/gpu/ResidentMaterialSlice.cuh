@@ -7,7 +7,7 @@ __global__ void plan(ResidentMaterialDriveHistory h,const ugkp::IntervalSliceCur
     const ugkp::CompensatedTime* target,std::size_t externalFaces,ugkp::IntervalSlicePlan* result){
     if(blockIdx.x||threadIdx.x)return;
     auto p=ugkp::planIntervalSlice(h,*cursor,*target);
-    // The host cursor checks this only when it has a history radiation vector.
+
     if(p.error==ugkp::IntervalSliceError::None&&p.hasRecords()&&h.faces&&externalFaces&&externalFaces!=h.faces)
         p.error=ugkp::IntervalSliceError::RadiationLayout;
     *result=p;
@@ -18,7 +18,7 @@ __global__ void prepare(ResidentMaterialSlice slice,MaterialSliceAccumulators ca
     const auto h=slice.history;const auto count=h.faces>externalFaces?h.faces:externalFaces;
     for(std::size_t f=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x;f<count;f+=std::size_t(blockDim.x)*gridDim.x){
         if(f<h.faces){
-            // Only the last partial record survives in the candidate cursor.
+
             for(unsigned k=0;k<3;++k){const auto local=3*f+k;ExchangePacket used{};
                 if(!p.hasRecords())used=slice.used.packets[local];
                 else if(p.end.record<p.past){
@@ -63,9 +63,9 @@ __global__ void commit(const ugkp::IntervalSlicePlan* plan,MaterialSliceAccumula
 }
 inline unsigned blocks(std::size_t n){const auto count=n/ugkp::gpu::workPlan().materialBlockThreads+(n%ugkp::gpu::workPlan().materialBlockThreads!=0);return unsigned(count>65535?65535:(count?count:1));}
 }
-// Allocations and stream ownership belong to the material owner. Preparation
-// and commit are separate so a rejected physical source never consumes history.
-// No publication, host decision or temporary packet-history copy is required.
+
+
+
 inline cudaError_t prepareResidentMaterialSlice(ResidentMaterialSlice slice,
     const ugkp::IntervalSliceCursor* cursor,const ugkp::CompensatedTime* target,
     MaterialSliceAccumulators candidate,const EnergyReal* external,std::size_t externalFaces,
@@ -76,8 +76,8 @@ inline cudaError_t prepareResidentMaterialSlice(ResidentMaterialSlice slice,
     if(count)material_slice_detail::prepare<<<material_slice_detail::blocks(count),ugkp::gpu::workPlan().materialBlockThreads,0,stream>>>(slice,candidate,external,externalFaces,total,radiation);
     return cudaGetLastError();
 }
-// The original host IntervalCursor already selected these record indices and
-// fractions. Reuse the same preparation arithmetic without a second clock decision.
+
+
 inline cudaError_t prepareHostSelectedMaterialSlice(ResidentMaterialSlice slice,
     MaterialSliceAccumulators candidate,const EnergyReal* external,std::size_t externalFaces,
     EnergyReal* radiation,cudaStream_t stream){

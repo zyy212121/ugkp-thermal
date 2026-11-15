@@ -138,7 +138,7 @@ namespace
 
 
 
-// Eight lanes cooperate on each retained axial profile (16 groups per CTA).
+
 #define coldWallBlockThreads (ugkp::gpu::workPlan().coldWallBlockThreads)
 #define particlePayloadThreads (ugkp::gpu::workPlan().particleBlockThreads)
 constexpr int particlePayloadSmBlocks = 0;
@@ -568,8 +568,8 @@ struct DeviceState
     GpuReal* pux = nullptr;
     GpuReal* puy = nullptr;
     GpuReal* puz = nullptr;
-    // Source-epoch scratch, not particle payload: each coupling pass writes
-    // before reading, so restart, sorting and migration need no cache copies.
+
+
     GpuReal* couplingDragBeta = nullptr;
     double* couplingResponseFraction = nullptr;
     GpuReal* puxOld = nullptr;
@@ -2108,7 +2108,7 @@ __global__ void radiationEnthalpyApplyKernel(DeviceState* sp,const Foam::gpuTher
         if(s.pStatus[i]!=1||s.pStuck[i]!=Foam::gpuThermal::particleWallMobile)continue;
         const int c=s.pCellId[i];const auto law=particleCaloricDevice(s,i);
         const double q=requests[c].scale,capacity=s.radiationMobileMass[c];
-        // Reuse the evaluated candidate fraction; do not re-sum its denominator.
+
         const double fraction=publicationFraction?publicationFraction[c]:(capacity>0?fmin(1.,fabs(q)/capacity):0.);
         ugkwp::ParticleThermalCarry<GpuReal> candidate{s.pT[i],s.pThermalEnthalpyResidual[i]};
         const double delta=ugkp::gpu::radiationSpecificCapacity(law.enthalpy(double(candidate.temperature)),
@@ -3744,8 +3744,8 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
     }
 
     s->nBoundarySources = nBoundarySources;
-    // A field table or extrapolated owner may become inflow later even if
-    // every startup rate is zero. Source existence keeps the path available.
+
+
     if(s->nBoundarySources>0)s->particlesMayBePresent=true;
     return syncDeviceState(s, "cudaMemcpy strict deviceState after boundary source upload");
 }
@@ -4121,8 +4121,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasScalarSolvers(
         return 1;
     }
     s->gasScalarSolvers=ugkp::gasNumerics::castScalarSolverControls<GpuReal>(*controls);
-    // Publish only the startup controls: gasUGKP scrubs unrelated host physical
-    // scalars after field upload, so a whole-state upload would overwrite them.
+
+
     const cudaError_t error=cudaMemcpy(
         reinterpret_cast<unsigned char*>(s->deviceState)+offsetof(DeviceState,gasScalarSolvers),
         &s->gasScalarSolvers,sizeof(s->gasScalarSolvers),cudaMemcpyHostToDevice);
@@ -4277,9 +4277,9 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
         if(s->diagnosticOwner->dispatchPending())return 1;
     }
     }
-    // Preserve the GPU-derived cache in the host mirror after the existing
-    // initialization completion point. Later whole-state publications must not
-    // overwrite these constants with their default zeros.
+
+
+
     if (err == cudaSuccess)
     {
         const size_t first = offsetof(DeviceState, sstJayatillekeP);
@@ -5039,9 +5039,9 @@ int bindParticleGas(void* handle,const ParticleGasBinding& gas) {
         const auto err=cudaEventCreateWithFlags(&s->particleGasDone,cudaEventDisableTiming);
         if(err!=cudaSuccess){setLastError("particle gas done event",err);return 1;}
     }
-    // Compare every rebound input, not the entire owner (which also contains
-    // evolving interval, directory and graph-cache metadata). Real address or
-    // model changes still invalidate; repeated publication alone does not.
+
+
+
     bool changed=!s->borrowedGasFields||!s->borrowedGasSpecies;
 #define UGKP_PARTICLE_GAS_FIELD(Type,Name) \
     changed=changed||(s->Name!=gas.Name)||!(s->borrowedGasFields&(std::uint64_t(1)<<particleGasField_##Name));
@@ -5553,7 +5553,7 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationDeviceEnergy(void* ha
     }
 
 #ifdef UGKP_RADIATION_PUBLICATION_OBSERVE
-    // One-shot isolated observation only. No state/acceptance changes.
+
     if(const char* prefix=std::getenv("UGKP_RADIATION_PUBLICATION_OBSERVE_PREFIX")) {
         static unsigned observation=0;
         int count=0;

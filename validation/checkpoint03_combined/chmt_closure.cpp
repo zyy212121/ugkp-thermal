@@ -26,8 +26,8 @@ void thermal(bool hot){
  auto p=physics();const E Tg=hot?E(1000):E(400),Ts=hot?E(600):E(900);
  p.ambientTemperature=hot?750:700;
  SurfacePhysicsInput in;in.hasSolid=true;in.hasFilm=false;in.ablating=false;
- // Data literals enter production field types once. Physical mass/composition
- // follow selected precision; only owner-declared geometry/time boundaries remain double.
+
+
  in.area=in.gasArea=in.solidArea=.125;in.gasDistance=.02;in.solidDistance=.03;in.dt=.01;
  in.normal=in.gasNormal=in.solidNormal={1,0,0};in.solidVolume=.001;
  in.solid.condensed[0]=1;in.solid.energy=E(1000)*Ts;in.solidBase=in.solid;
@@ -122,8 +122,8 @@ void wetLedger(){
  const double initialGas=g.energy,initialSolid=s.energy,initialFilm=f.enthalpy,initialGasMass=g.mass,initialSolidMass=s.condensed[0];
  double gasTransfer=0,solidTransfer=0,filmTransfer=0,massTransfer=0;
  double observation=sumEnergy(g,s,f),mass=double(g.mass)+s.condensed[0]+f.mass,expected=observation,scale=std::abs(observation);
- // Single production scalar updates only. The double total below is read-only
- // test observation; it is never fed back to g, s, f or any packet.
+
+
  for(int i=0;i<64;++i){
   ExchangePacket x;x.step=i;x.face=9;x.filmFace=x.gasCell=x.solidCell=0;
   x.kind=i%2?ExchangeKind::SolidFilm:ExchangeKind::GasFilm;

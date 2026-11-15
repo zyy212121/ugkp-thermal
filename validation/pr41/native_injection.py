@@ -15,7 +15,7 @@ DT=1e-7
 def patch(path,name,body):
  text,n=re.subn(r'\b'+name+r'\s*\{[^}]*\}',name+' { '+body+' }',path.read_text());assert n==1,(path,name);path.write_text(text)
 def scheme_entry(case, section, key, value):
- # Explicit destination only; no old-file lookup or migration.
+
  p=case/'constant/scheme';text=p.read_text()
  pattern=r'(\b'+re.escape(section)+r'\s*\{)([^{}]*)(\})'
  def change(m):

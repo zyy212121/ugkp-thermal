@@ -1,6 +1,6 @@
 #pragma once
-// CHT only. The residual has the same J/kg meaning on both legacy caloric
-// branches; activation/release does not reinterpret it as temperature.
+
+
 template<bool CompactParticles=false>
 __device__ __forceinline__ int particleColdProfileNodeCountDevice(const DeviceState& s,int i)
 {

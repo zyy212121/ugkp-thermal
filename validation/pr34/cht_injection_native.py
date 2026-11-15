@@ -23,7 +23,7 @@ def main():
   path=case/'0/U';path.write_text(path.read_text().replace('(0 0 0)',f'({gas} 0 0)'))
   path=case/'0/epsilonS';path.write_text(path.read_text().replace('left{type zeroGradient;}','left{type fixedValue;value uniform .001;}'))
   if scheduled:
-   # Startup field programs replace the obsolete independent constant tables.
+
    path=case/'0/epsilonS';path.write_text(path.read_text().replace(
        'left{type fixedValue;value uniform .001;}',
        'left{type uniformFixedValue;uniformValue table ((0 .002)(1 .002));value uniform .002;}'))

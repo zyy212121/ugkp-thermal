@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Checkpoint03: freeze explicitly built inputs, then one declared, non-retrying batch."""
+pass
 from pathlib import Path
 import argparse, datetime, hashlib, json, math, os, platform, shutil, statistics
 import subprocess, threading, time, traceback
@@ -50,7 +50,7 @@ def freeze(args):
             target=dest/rel;target.parent.mkdir(parents=True,exist_ok=True)
             if src.is_symlink():target.symlink_to(os.readlink(src))
             else:shutil.copy2(src,target)
-        # New acceptance code is identical for both variants. Production remains distinct.
+
         target=dest/"validation/checkpoint03";target.mkdir(exist_ok=True)
         for src in controls.iterdir():
             if src.is_file() and not src.name.lower().startswith("readme"):shutil.copy2(src,target/src.name)
@@ -147,7 +147,7 @@ def compare(node,records):
         error=abs(a[key]-b[key]);allowed=at+rt*max(abs(a[key]),abs(b[key]))
         errors[key]={"baseline":a[key],"candidate":b[key],"error":error,"allowed":allowed}
         assert math.isfinite(a[key]) and math.isfinite(b[key]),(key,errors[key])
-        # These are independently bounded diagnostic errors, not solution states.
+
         diagnostic=("residual" in key.lower() or "budget_error" in key.lower())
         errors[key]["diagnostic_only"]=diagnostic
         if not diagnostic:assert error<=allowed,(key,errors[key])
@@ -220,10 +220,6 @@ def run(args):
           "No radiation target-residual claim is made; historical CP2 CHT reported 4.909006e-7 > requested 1e-8."]
         save(out/"batch-status.json",status)
         save(out/"evidence-sha256.json",{str(p.relative_to(out)):digest(p) for p in results.rglob("*") if p.is_file()})
-    summarizer=out/"source/candidate/validation/checkpoint03/summarize.py"
-    with (out/"summary.log").open("w") as stream:
-        report=subprocess.run(["python3",str(summarizer),str(out)],stdout=stream,stderr=subprocess.STDOUT)
-    status["summary_exit"]=report.returncode;save(out/"batch-status.json",status)
     raise SystemExit(0 if status["status"]=="PASS_EXECUTION_REVIEW_REQUIRED" else 1)
 def main():
     p=argparse.ArgumentParser(description=__doc__);sub=p.add_subparsers(dest="action",required=True)

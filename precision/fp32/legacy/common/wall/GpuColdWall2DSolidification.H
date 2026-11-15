@@ -1,4 +1,4 @@
-// Legacy: abandoned 2D cold-wall model; retained for compatibility only.
+
 #include "../../../common/GpuPrecisionTypes.H"
 #ifndef GPU_THERMAL_GPU_COLD_WALL_2D_SOLIDIFICATION_H
 #define GPU_THERMAL_GPU_COLD_WALL_2D_SOLIDIFICATION_H

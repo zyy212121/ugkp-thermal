@@ -1,4 +1,4 @@
-"""Changed owner storage and restart byte boundaries; no alternate solver mode."""
+pass
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
 
 import importlib.util
@@ -25,8 +25,8 @@ def test_physical_manifest_owner_widths():
             if typ in ("float", "double", *aliases):
                 device = "float" if (owner == "CHT" and f["name"] in PROFILES) or (owner in {"CHT", "gasUGKP"} and f["name"] in bulk) else "double"
                 assert aliases.get(typ, typ) == device, (owner, f["name"], typ)
-        # The gas old-velocity snapshots are device-only; validate host wire
-        # widths for the owner APIs that actually expose each field.
+
+
         for owner, typ in f["host"].items():
             if typ in ("float", "double", *aliases):
                 host = "float" if owner == "CHT" and f["name"] in PROFILES else "double"

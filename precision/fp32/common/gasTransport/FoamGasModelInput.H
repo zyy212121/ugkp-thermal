@@ -15,8 +15,8 @@
 
 namespace Foam
 {
-// OpenFOAM I/O and storage adapter only. EOS, calorics, model parsing and
-// mechanism validation have common owners; this class performs no evolution.
+
+
 class SharedGasModelInput
 {
     ugkwp::GasModelConfiguration model_;
@@ -81,8 +81,8 @@ class SharedGasModelInput
     static tmp<volScalarField> physicalSpeciesDensity
     (const volScalarField& rho,const volScalarField& fractions)
     {
-        // Match OpenFOAM's field-product temporary and patch construction; only
-        // the physical multiplication precedes the conversion back to scalar.
+
+
         tmp<volScalarField> result=volScalarField::New
             ('('+rho.name()+'*'+fractions.name()+')',rho.mesh(),rho.dimensions()*fractions.dimensions());
         auto& values=result.ref().primitiveFieldRef();
@@ -264,7 +264,7 @@ public:
     void downloadSpecies(void* handle,const volScalarField& rho)
     {
         if(!active()) return;
-        // controlDict may have changed since construction.
+
         ensureRestartPrecision();
         const auto id=identity();
         std::vector<double> values(std::size_t(mesh_.nCells())*ugkwp::compiledGasSpecies);
@@ -285,5 +285,5 @@ public:
         }
     }
 };
-} // namespace Foam
+}
 #endif

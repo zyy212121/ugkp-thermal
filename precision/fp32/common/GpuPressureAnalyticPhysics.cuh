@@ -1,6 +1,6 @@
 #pragma once
 #include "ParticleResidentInterval.H"
-// Gas reference projection: one cell target followed by parcel velocity mapping.
+
 #include "GpuPressureUnsortedAlgebra.cuh"
 #include "GpuPressureParticleUpdate.cuh"
 template<bool CompactParticles = false>

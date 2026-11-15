@@ -27,7 +27,7 @@ __device__ __forceinline__ void applyGasGravityCell
             return;
         }
     }
-    // Retain the finite legacy density floor; never substitute invalid gas data.
+
     if constexpr (ApplyDensityFloor)
         rho=clampMin(rho,s.rhoMin);
     Energy updatedEnergy;

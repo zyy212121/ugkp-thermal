@@ -11,9 +11,9 @@
 #include "fixedGradientFvPatchFields.H"
 #include <type_traits>
 namespace ugkp { namespace gpu {
-// A scoped request follows the native runtime-selected Gauss/interpolation/
-// snGrad path. It exists only while constructing one equation, never in a
-// matrix-address cache; a nested or failed construction restores its parent.
+
+
+
 struct FoamTransientAssembly {
     DiffusionTransientInput input;
     bool consumed=false;
@@ -32,8 +32,8 @@ struct FoamTransientAssembly {
         ~Scope(){active()=previous;}
     };
 };
-// Retain OpenFOAM's selected interpolation, snGrad and boundary policies. The
-// cell/face matrix assembly and correction divergence execute on CUDA.
+
+
 class FoamImplicitDiffusion : public Foam::fv::gaussLaplacianScheme<Foam::scalar,Foam::scalar> {
     using Base=Foam::fv::gaussLaplacianScheme<Foam::scalar,Foam::scalar>;
 public:
@@ -64,8 +64,8 @@ public:
     }
     Foam::tmp<Foam::fvMatrix<Foam::scalar>> fvmLaplacian(const Foam::volScalarField& gamma,const Foam::volScalarField& temperature) override {
         auto* request=FoamTransientAssembly::active();
-        // Dispatch by the actual selected interpolation implementation. Other
-        // registered schemes continue to execute their own unchanged policy.
+
+
         if(request&&request->resident&&request->deviceConductivity
             &&dynamic_cast<const FoamThermalLinear*>(&this->tinterpGammaScheme_())){
             const auto weights=this->tinterpGammaScheme_().weights(gamma);
@@ -159,8 +159,8 @@ public:
             tmp<fvScalarMatrix> result(new fvScalarMatrix(temperature,
                 delta().dimensions()*gamma.dimensions()*mesh.magSf().dimensions()*temperature.dimensions()));
             auto& matrix=result.ref();matrix.diag()=0;if(mesh.nInternalFaces())matrix.upper()=0;
-            // Native remote interfaces consume boundary coefficients on the
-            // host; local cyclic/jump coefficients stay entirely on device.
+
+
             bool remote=false;
             forAll(temperature.boundaryField(),p)
                 remote=remote||(temperature.boundaryField()[p].coupled()
@@ -191,9 +191,9 @@ public:
 };
 inline void installGpuImplicitDiffusion(){
     installGpuThermalFields();
-    // Replace the common Gauss implementation in these two applications;
-    // dictionary selection and existing interpolation/snGrad choices survive.
-    // There is no retry or CPU solver dispatch on a CUDA failure.
+
+
+
     using Scheme=Foam::fv::laplacianScheme<Foam::scalar,Foam::scalar>;
     static const bool installed=[](){
         Scheme::IstreamConstructorTablePtr_->set("Gauss",+[](const Foam::fvMesh& mesh,Foam::Istream& input)->Foam::tmp<Scheme>{return Foam::tmp<Scheme>(new FoamImplicitDiffusion(mesh,input));});
@@ -203,9 +203,9 @@ inline void installGpuImplicitDiffusion(){
 }
 inline void formGpuImplicitEquation(Foam::fvScalarMatrix&,const Foam::volScalarField&,
     const Foam::volScalarField&,double,bool);
-// Both volume and face conductivity overloads preserve the native selected
-// interpolation and nonorthogonal correction. Only the unnecessary intermediate
-// matrix download/re-upload is removed; residual/flux consumers retain fvMatrix.
+
+
+
 template<class Conductivity> inline Foam::tmp<Foam::fvScalarMatrix> gpuImplicitThermalEquation(
     const Conductivity& conductivity,const Foam::volScalarField& temperature,
     const Foam::volScalarField& capacity,const Foam::volScalarField& rhs,
@@ -217,8 +217,8 @@ template<class Conductivity> inline Foam::tmp<Foam::fvScalarMatrix> gpuImplicitT
     auto selected=Foam::fv::laplacianScheme<Foam::scalar,Foam::scalar>::New(temperature.mesh(),
         ugkp::solverControls::thermalDiscretization(temperature.mesh()).selection("laplacianSchemes","laplacian("+conductivity.name()+','+temperature.name()+')'));
     auto result=selected.ref().fvmLaplacian(conductivity,temperature);
-    // A separately registered non-Gauss scheme owns its native assembly.
-    // Preserve that explicit dictionary selection and its existing completion.
+
+
     if(!request.consumed)formGpuImplicitEquation(result.ref(),capacity,rhs,dt,sourceFromCapacity);
     return result;
 }
@@ -248,9 +248,9 @@ inline void formGpuImplicitEquation(Foam::fvScalarMatrix& matrix,const Foam::vol
         forAll(correction->boundaryField(),p)forAll(correction->boundaryField()[p],i)correction->boundaryFieldRef()[p][i]=factors.fluxCorrection[f++];}
 }
 
-// A native policy adapter around one resident equation owner. Native boundary
-// evaluation and explicitly selected schemes are retained. No assembled cell or
-// face coefficient is downloaded just to feed the CUDA sparse solver again.
+
+
+
 class FoamResidentThermalEquation {
     Foam::tmp<Foam::fvScalarMatrix> equation_;
     ImplicitDiffusion& resident_;
@@ -373,8 +373,8 @@ template<class Conductivity> inline FoamResidentThermalEquation residentImplicit
         }else equation=selected.ref().fvmLaplacian(conductivity,temperature);
     }else equation=selected.ref().fvmLaplacian(conductivity,temperature);
     if(!request.consumed){
-        // This is the previously supported native runtime-selected non-Gauss
-        // discretization, not a numerical retry. Its own factors are retained.
+
+
         formGpuImplicitEquation(equation.ref(),capacity,rhs,dt,sourceFromCapacity);
         const auto& mesh=temperature.mesh();DiffusionInput input;DiffusionMatrix factors;
         input.cells=mesh.nCells();input.internalFaces=mesh.nInternalFaces();
@@ -393,9 +393,9 @@ template<class Conductivity> inline FoamResidentThermalEquation residentImplicit
     return FoamResidentThermalEquation(equation,resident,sparse,true);
 }
 
-// The same selected scheme and boundary capability checks as assembly, before
-// deciding whether host constitutive fields have a consumer. Unsupported
-// policies retain the original publication path rather than being rejected.
+
+
+
 inline bool residentMaterialStartupSupported(const Foam::volScalarField& conductivity,
     const Foam::volScalarField& temperature){
     using namespace Foam;
@@ -419,9 +419,9 @@ inline bool residentMaterialStartupSupported(const Foam::volScalarField& conduct
     return true;
 }
 
-// Harmonic material conduction already overrides all internal interpolated
-// values. Keep only the selected native boundary policy before that operator;
-// the standard linear policy needs no intermediate full face-field transfer.
+
+
+
 inline Foam::tmp<Foam::surfaceScalarField> thermalHarmonicBoundaryValues(const Foam::volScalarField& field){
     using namespace Foam;
     const auto selected=surfaceInterpolationScheme<scalar>::New(field.mesh(),ugkp::solverControls::thermalDiscretization(field.mesh()).selection("interpolationSchemes","interpolate("+field.name()+')'));

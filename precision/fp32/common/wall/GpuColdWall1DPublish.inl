@@ -1,4 +1,4 @@
-    // Ring allocation follows the final published bottom temperature.
+
     ringCoolingPower = ringConductance*
         (__shfl_sync(mask, guessedTemperature, 0, 8) - wallTemperatureK);
     ColdWallThermalReal connectedFraction = coldWall1DSolidFractionFromKnownTemperature

@@ -1,9 +1,9 @@
-"""Checkpoint 2 dual-precision coverage on fresh synthetic cases; execution is deferred.
+pass
 
-This suite uses real native binaries. It reports quantization-scale tolerances,
-not bitwise equivalence or production-case convergence. Shared thermodynamic
-and wall nonlinear convergence are checked by the companion C++ fixtures.
-"""
+
+
+
+
 from pathlib import Path
 import argparse, csv, hashlib, importlib.util, json, math, os, re, subprocess, time
 import numpy as np
@@ -21,11 +21,11 @@ inlet = module("fp32_inlet", ROOT / "validation/pr41/native_injection.py")
 restart = module("fp32_restart", ROOT / "validation/pr41/native_transient_restart.py")
 ENV = dict(inlet.m.ENV)
 EPS = float(np.finfo(np.float32).eps)
-# These are declared before any run. Particle mass has one FP32 publication;
-# the source remainder stays double. 32 eps leaves room for reduction/CSV IO.
+
+
 MASS_RTOL = 32 * EPS
-# Comparisons measure practical field continuity across restart, not strict
-# round-trip identity. Geometry remains double; particle velocity is float.
+
+
 RESTART_RTOL = 5e-4
 POSITION_ATOL = 2e-7
 BUDGET_RTOL = 256 * EPS
@@ -34,8 +34,8 @@ NUMBER = re.compile(r"(?<![A-Za-z_])[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?
 NONFINITE = re.compile(r"(?<![A-Za-z_])[-+]?(?:nan|inf|infinity)(?![A-Za-z_])", re.I)
 
 def configure_precision(case,bits,select=True):
-    # Fixed acceptance-case values, written as one explicit set. No fallback
-    # dictionary, per-precision override, or legacy-value inference is used.
+
+
     scheme=case/"constant/scheme"
     controls=scheme.read_text() if scheme.exists() else "FoamFile { version 2.0; format ascii; class dictionary; object scheme; }\n"
     controls=re.sub(r'(?m)^precision\s+(?:32|64)\s*;[ \t]*\n?', '', controls)
@@ -67,8 +67,8 @@ def execute(binary, case, report, label="run"):
     report["runs"].append(record)
     assert result.returncode == 0, record
     text = log.read_text(errors="replace")
-    # Output-field checks below are authoritative; record existing diagnostics
-    # without turning every warning or error-word into a new rejection policy.
+
+
     record["warning_lines"] = [line for line in text.splitlines()
                                if "warning" in line.lower()][:30]
 
@@ -246,8 +246,8 @@ def main():
         def coupling():
             case = output/name
             inlet.g.one_cell(case, mass, diameter, steps, slope, velocity)
-            # The historical fixture predates the diameter-schema migration.
-            # Its dMin == dMax already specifies the same monodisperse input.
+
+
             properties = case/"constant/particleProperties"
             properties.write_text(re.sub(r"\bdSigma\s+[^;]+;", "", properties.read_text()))
             inlet.m.run(["blockMesh", "-case", case], case/"mesh.log")
@@ -262,8 +262,8 @@ def main():
             assert particles and 100 < particles[0][6] < 10000
             scalar = lambda field: inlet.g.fields.internal(final/field, 1)[0][0]
             gas_temperature = scalar("T")
-            # The FP32 temperature cache may round a positive sub-ULP heat
-            # gain back to its initial value. Check the FP64 energy directly.
+
+
             temperature_cache_tolerance = 8*EPS*max(1000., abs(gas_temperature))
             initial_gas_energy_density = 1000*1000 + .5*slope*1e6 - 8.31446261815324/.028*1000
             gas_energy_gain = scalar("rhoE") - initial_gas_energy_density

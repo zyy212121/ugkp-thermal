@@ -2,7 +2,7 @@
 #include <limits>
 #include "gasTransport/GasGeometryValidation.H"
 #include "gasTransport/GasResidentInterval.H"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<bool IncludeTurbulence, class GasState>
 __global__ void computeGasInternalFaceFluxKernel(GasState* sp, const GPU_OPERATOR_TIME requestedDt, const bool nativeRefinement=false)
 {
@@ -28,8 +28,8 @@ __global__ void computeGasInternalFaceFluxKernel(GasState* sp, const GPU_OPERATO
                 s.gasSpecies.flux[k*s.nFaces+f] = GPU_OPERATOR_R(0.0);
     }
 #ifdef UGKP_BOUNDARY_FLUX_TRACE
-    // Compile-time regression probe: values consumed by the actual flux kernel.
-    // Ordinary builds contain neither printf nor additional device transfers.
+
+
     if constexpr (ugkp::boundary::Capability<GasState>::value)
         if (f >= s.nInternalFaces && s.gasBoundaryProgram.faces
             && s.gasBoundaryProgram.faces[f].function[ugkp::boundary::Temperature] >= 0)
@@ -130,14 +130,14 @@ __global__ void enforcePeriodicGasFluxAntisymmetryKernel(GasState* sp, const boo
                 &&ugkwp::gasFinite(sum)&&ugkwp::gasFinite(mag)
                 &&ugkwp::gasFinite(boundF)&&ugkwp::gasFinite(boundPair)&&ugkwp::gasFinite(finalBound)
                 &&fabs(sumF-originalMassF)<=boundF&&fabs(sumPair-originalMassPair)<=boundPair;
-            // Cancellation can expose rounding present in two individually closed
-            // inputs. Repair only that bounded publication error, never bad input.
+
+
             if(valid&&fabs(sum-rho)>finalBound)
             {
                 const GPU_OPERATOR_REAL allowance=GPU_OPERATOR_R(.5)*(boundF+boundPair)+finalBound;
                 valid=(nativeRefinement || ugkwp::gasFinite(allowance))&&fabs(sum-rho)<=allowance;
-                // Fix the largest original carrier before computing a correction;
-                // do not probe alternate species when the correction is unsuitable.
+
+
                 int carrier=Ns-1;
                 for(int k=0;k<Ns;++k)if(fabs(value[k])>fabs(value[carrier]))carrier=k;
                 GPU_OPERATOR_REAL rest=0;
@@ -149,8 +149,8 @@ __global__ void enforcePeriodicGasFluxAntisymmetryKernel(GasState* sp, const boo
                 valid=valid&&legal&&ugkwp::gasFinite(replacement)&&fabs(replacement-value[carrier])<=allowance;
                 if(valid)value[carrier]=replacement;
             }
-            // These sums are conservation audits, not published flux fields.
-            // Overflow of an audit cannot discard independently finite fluxes.
+
+
             valid=valid&&ugkwp::gasFinite(sumF)&&ugkwp::gasFinite(sumPair)
                 &&ugkwp::gasFinite(sum)&&ugkwp::gasFinite(magF)
                 &&ugkwp::gasFinite(magPair)&&ugkwp::gasFinite(mag);

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Two fixed future native nodes. Preparing this source does not run the case."""
+pass
 from pathlib import Path
 import argparse, hashlib, importlib.util, json, math, os, re, subprocess, traceback
 import numpy as np
@@ -36,7 +36,7 @@ def main():
         control = case/'system/controlDict'
         scheme_path=case/'constant/scheme'
         original=scheme_path.read_text()
-        # Fixed reservoir test: only its explicit steadyGas block is edited.
+
         match=re.search(r'(steadyGas\s*\{)([^{}]*)(\})',original)
         body=re.sub(r'\brelativeTolerance\s+[^;]+;', '', match[2])
         body=re.sub(r'\bminimumIterations\s+[^;]+;', 'minimumIterations 1000;', body)
@@ -85,8 +85,8 @@ def main():
         assert np.isfinite(initial).all() and np.isfinite(final_values).all()
         assert np.max(np.abs(initial)) > 0, 'A zero-residual start cannot demonstrate decay'
         assert np.max(np.abs(final_values)) <= .1*np.max(np.abs(initial)), 'Initial nonzero residual did not decay'
-        # OpenFOAM prints a rounded decimal. This allowance only parses the
-        # printed evidence; the real production converged branch is mandatory.
+
+
         report['printed_ratio_allowance'] = 1.00001
         assert math.isfinite(final['max_relative'])
         assert final['max_relative'] <= 1.00001*report['default_relative_tolerance']

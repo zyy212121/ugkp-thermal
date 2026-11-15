@@ -112,7 +112,7 @@ template<class Real> __global__ void importBoundaryState(int faces,RadiationPart
     if(contact[face]&&input.boundaryEmissivity)emissivity[face]=input.boundaryEmissivity[full];
     if(contact[face]&&input.contactArea&&input.contactScale){
         // Match the prior host mirror's represented-area product in its native
-        // storage precision, followed by the same-precision exposed-area correction.
+
         const RadiationReal occupied=static_cast<const Real*>(input.contactArea)[full]*static_cast<const Real*>(input.contactScale)[full];
         const RadiationReal covered=occupied/area[face];
         const RadiationReal bounded=covered<1?covered:1;const RadiationReal remaining=1-bounded;
@@ -197,7 +197,7 @@ __global__ void prepareDirection(Geometry g,Fields f,int direction,int iteration
             G+=g.weights[other]*consume(intensities[std::size_t(other)*g.cells+cell],*f.reference,
                 Scattering,iteration,cell,-1,-1,errors,cell,g.boundary+cell);
         if(errors.records[cell].code)return;
-        // Isotropic thermal feedback is independent of the Mie phase operator.
+
         emission=f.thermal->linearizedEmission[cell]+f.thermal->thermalFeedback[cell]*G/fourPi;
     }
     source[cell]=rhs+g.volume[cell]*(f.absorption[cell]*emission+f.scattering[cell]*mean);
@@ -459,8 +459,8 @@ struct DiscreteOrdinateRadiation::Implementation {
             incidentFlux<<<boundaryBlocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,angular,incident.ptr,errors());
             rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
         });
-        // Entry optics are initialized before launch. Each material update below
-        // refreshes them for the next sweep and the same-state transport residual.
+
+
         for(int begin=0;begin<g.directions;begin+=concurrentAngles){
             const int end=std::min(g.directions,begin+concurrentAngles);
             std::vector<cudaGraphNode_t> complete;
@@ -477,8 +477,8 @@ struct DiscreteOrdinateRadiation::Implementation {
                 for(int angle=begin;angle<end;++angle){auto& q=*directions[angle];
                     finishDirectionReport<<<1,1,0,stream>>>(angle,q.graph->report(),q.errors(),sourceReport.ptr,warnings.ptr);
                     relaxedDirection<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g.cells,angle,controls.sourceRelaxation,angular,q.solved.ptr,intensities.ptr,change.ptr,magnitude.ptr,sourceReport.ptr);
-                    // The single stored intensity has its own measured residual;
-                    // no double equation or low component is retained for this check.
+
+
                     if(controls.sourceRelaxation!=RadiationReal(1))q.graph->measurePublished(q.matrix,owner.ptr,neighbour.ptr,
                         internalFlux.ptr+std::size_t(angle)*g.faces,q.diagonal.ptr,q.source.ptr,q.solved.ptr,
                         {controls.linearTolerance,controls.linearRelativeTolerance,controls.small,controls.linearIterations,controls.controlsAlreadyResolved},stream);
@@ -488,9 +488,9 @@ struct DiscreteOrdinateRadiation::Implementation {
                 }
             });
         }
-        // Sweep uses coeff(T_k). Owner appends Q/T_(k+1) and material residual.
-        // DOM then refreshes optics/phase and measures physical transport at
-        // that same new temperature without advancing the angular solution.
+
+
+
         if(thermalIterationHook){
             tail=appendCaptured(body,{tail},stream,[&]{
                 reset();moments<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,intensities.ptr,0,incidentRadiation.ptr,power.ptr,errors(),sourceReport.ptr);
@@ -637,8 +637,8 @@ void DiscreteOrdinateRadiation::setThermalIterationHook(RadiationThermalIteratio
     if(rebuild)checked(cudaStreamSynchronize(d.stream));
     d.thermalIterationHook=std::move(hook);d.thermalGraphOwner=owner;d.thermalGraphRevision=revision;
     if(widthChanged){
-        // Direction graphs and reduction scratch also capture the work width.
-        // Unchanged geometry retains the angular field allocations/initial guess.
+
+
         d.clearSourceGraph();d.directions.clear();d.initialize();
     }else if(rebuild)d.buildSourceGraph();
 }

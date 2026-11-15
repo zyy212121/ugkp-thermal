@@ -1,6 +1,6 @@
 #pragma once
 #include "../GpuPrecisionTypes.H"
-// Shared execution policy for finite-bath drag and caloric heat transactions.
+
 namespace mixtureParticles {
 struct SerialCouplingTeam {
  __device__ int rank()const{return 0;} __device__ int width()const{return 1;}

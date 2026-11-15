@@ -88,8 +88,8 @@ UGKP_GEOMETRY_HD inline Polynomial planarPolynomial(const Point* old,const Point
     }return out;
 }
 UGKP_GEOMETRY_HD inline Point normalized(Point a){const double m=magnitude(a);return m>0&&std::isfinite(m)?a/m:Point{};}
-// Face identities use volume-mesh indices; periodic neighbour endpoint indices
-// retain the canonical topological correspondence supplied by the application.
+
+
 struct SurfaceEdge {int a,b,ownerFace,neighbourFace,neighbourA,neighbourB;};
 struct EdgeResult {Point conormal,ownerOffset,neighbourOffset;double length=0,sweep=0,residual=0,tolerance=0;int invalid=0,converged=0;};
 constexpr double geometryEpsilon=std::numeric_limits<double>::epsilon();

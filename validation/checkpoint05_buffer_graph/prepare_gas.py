@@ -1,10 +1,10 @@
-"""Prepare-only fixed16 live-particle gas Graph inputs. No solver executes here."""
+pass
 from pathlib import Path
 import argparse,ast,types,json,hashlib,shutil,sys,re,os,struct
 
 def prepare(source,output,baseline32,baseline64,candidate32,candidate64,mesh_donor):
     source=Path(source);output=Path(output);output.mkdir(parents=True,exist_ok=False)
-    # Reuse only reviewed legacy helper definitions. Never import its executable CLI.
+
     original=source/'validation/resident_architecture/gas_graph.py';tree=ast.parse(original.read_text())
     selected=[n for n in tree.body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name in ('entry','patch','particles')]
     namespace=dict(re=re,struct=struct,Path=Path);exec(compile(ast.Module(body=selected,type_ignores=[]),str(original),'exec'),namespace)
@@ -17,7 +17,7 @@ def prepare(source,output,baseline32,baseline64,candidate32,candidate64,mesh_don
          label=f'{solver}-{csr}-{bits}-{variant}';case=output/label
          shutil.copytree(source/'validation/shared_boundary/fixtures/gas-total',case)
          donor=Path(mesh_donor)
-         # Exact existing mesh definition; do not regenerate a different case.
+
          normalize=lambda s:re.sub(r'\s+','',re.sub(r'//[^\n]*|/\*[\s\S]*?\*/','',s))
          assert normalize((case/'system/blockMeshDict').read_text())==normalize((donor/'system/blockMeshDict').read_text())
          if not (case/'constant/polyMesh/points').exists():shutil.copytree(donor/'constant/polyMesh',case/'constant/polyMesh',dirs_exist_ok=True)
@@ -30,7 +30,7 @@ def prepare(source,output,baseline32,baseline64,candidate32,candidate64,mesh_don
          entry(case/'system/controlDict','adjustTimeStep','false' if steady else 'true')
          patch(case,'T','inlet','type uniformFixedValue; uniformValue table ((0 300) (1e-6 400)); value uniform 300;')
          header='FoamFile { version 2.0; format ascii; class dictionary; object scheme; }\n'
-         # Explicit fixed Graph-test controls, not values inferred from old inputs.
+
          controls=header+f"precision {bits};\n"+"gasTimeStep { maxCo .1; maxDeltaT 1e-7; maximumTimeStepGrowth 1.3; courantUpdateInterval 1; }\n"
          controls+="gasNumerics { fluxScheme Kurganov; gasLimiter barthJespersen; ddtSchemes { default SSPRK2; } gradSchemes { default Gauss linear; } divSchemes { default none; div(phi,U) Gauss MUSCL; div(phi,e) Gauss MUSCL; div(phi,K) Gauss MUSCL; div(phi,(p|rho)) Gauss MUSCL; div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear; } laplacianSchemes { default Gauss linear corrected; } interpolationSchemes { default linear; } snGradSchemes { default corrected; } }\n"
          controls+="particle { tracking { maxFaceWalkHops 8; } }\n"

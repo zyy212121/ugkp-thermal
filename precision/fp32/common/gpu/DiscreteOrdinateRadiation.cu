@@ -27,8 +27,8 @@ constexpr RadiationReal fourPi=RadiationReal(12.56637061435917295385057353311801
 __device__ RadiationReal blackIntensity(RadiationReal t,RadiationReal band){const RadiationReal square=t*t;return band*RadiationReal(5.670374419e-8)*square*square/(fourPi/4);}
 struct Failure {RadiationReal value;int code,iteration,cell,patch,face;};
 struct SourceReport {RadiationReal maximumRelativeChange=0,materialRelativeResidual=0,transportRelativeResidual=0,materialResidualTarget=0,transportResidualTarget=0;int iterations=0;Failure failure{};};
-// Keep convergence reports and sticky diagnostics beside the fields they
-// describe. Publishing these diagnostics does not require a host decision.
+
+
 __global__ void publishSourceDiagnostics(const SourceReport* report,
     const MiePhaseMetrics* phase,const RadiationDirectionWarning* direction,
     int cells,int angles,RadiationControls controls,diagnostics::DeviceContext* context){
@@ -111,8 +111,8 @@ template<class Real> __global__ void importBoundaryState(int faces,RadiationPart
     if(useTemperature[face]&&input.boundaryTemperature)temperature[face]=static_cast<const Real*>(input.boundaryTemperature)[full];
     if(contact[face]&&input.boundaryEmissivity)emissivity[face]=input.boundaryEmissivity[full];
     if(contact[face]&&input.contactArea&&input.contactScale){
-        // Match the prior host mirror's represented-area product in its native
-        // storage precision, followed by the same-precision exposed-area correction.
+
+
         const RadiationReal occupied=static_cast<const Real*>(input.contactArea)[full]*static_cast<const Real*>(input.contactScale)[full];
         const RadiationReal covered=occupied/area[face];
         const RadiationReal bounded=covered<1?covered:1;const RadiationReal remaining=1-bounded;
@@ -177,8 +177,8 @@ __global__ void prepareDirection(Geometry g,Fields f,int direction,int iteration
     RadiationReal rhs=0;
     for(int i=g.boundaryOffsets[cell];i<g.boundaryOffsets[cell+1];++i){const int face=g.boundaryCells[i];const RadiationReal flux=g.boundaryFlux[direction*g.boundary+face];
         if(flux<0){const RadiationReal value=incoming(g,f,intensities,incident,direction,face,errors,cell,face);
-            // A failed consumer is the first error for this cell; later work must
-            // not overwrite its unique failure record before the stream completes.
+
+
             if(errors.records[cell].code)return;
             rhs-=flux*value;}}
     RadiationReal mean=0;
@@ -197,7 +197,7 @@ __global__ void prepareDirection(Geometry g,Fields f,int direction,int iteration
             G+=g.weights[other]*consume(intensities[std::size_t(other)*g.cells+cell],*f.reference,
                 Scattering,iteration,cell,-1,-1,errors,cell,g.boundary+cell);
         if(errors.records[cell].code)return;
-        // Isotropic thermal feedback is independent of the Mie phase operator.
+
         emission=f.thermal->linearizedEmission[cell]+f.thermal->thermalFeedback[cell]*G/fourPi;
     }
     source[cell]=rhs+g.volume[cell]*(f.absorption[cell]*emission+f.scattering[cell]*mean);
@@ -296,7 +296,7 @@ struct DiscreteOrdinateRadiation::Implementation {
     Array<RadiationReal> absorption,scattering,extinction,asymmetry,emission,wallBlack,scaling,nextScaling,rowError,columnError,reference;
     Array<MieOpticalQuery> queries;Array<MieBracket> phaseBrackets;Array<MiePhaseMetrics> phaseMetrics;
     Array<RadiationReal> intensities,frozen,incident,initial,incidentRadiation,power,wallFlux,directionChange;
-    // finish() is ordered on the owner stream; these reductions are shared scratch.
+
     Array<RadiationReal> change,magnitude;
     Array<unsigned char> initialValid;
     Array<int> reflectionOffsets,reflectionDonors;Array<RadiationReal> reflectionWeights;
@@ -332,8 +332,8 @@ struct DiscreteOrdinateRadiation::Implementation {
         ~Direction(){if(stream)cudaStreamSynchronize(stream);graph.reset();if(complete)cudaEventDestroy(complete);}
         Errors errors(){return {firstError.ptr,failures.ptr};}
     };
-    // Cached arrays are configuration inputs; the working wall arrays are
-    // refreshed from these device copies before contact coverage is applied.
+
+
     Array<RadiationReal> configuredWallTemperature,configuredEmissivity;
     std::vector<double> hostWallTemperature,hostEmissivity;
     std::vector<unsigned char> hostResidentWallTemperature,hostContactEmissivity;
@@ -459,8 +459,8 @@ struct DiscreteOrdinateRadiation::Implementation {
             incidentFlux<<<boundaryBlocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,angular,incident.ptr,errors());
             rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
         });
-        // Entry optics are initialized before launch. Each material update below
-        // refreshes them for the next sweep and the same-state transport residual.
+
+
         for(int begin=0;begin<g.directions;begin+=concurrentAngles){
             const int end=std::min(g.directions,begin+concurrentAngles);
             std::vector<cudaGraphNode_t> complete;
@@ -471,14 +471,14 @@ struct DiscreteOrdinateRadiation::Implementation {
                 });
                 complete.push_back(q.graph->appendSolve(body,{prepared},stream));
             }
-            // Reports and publications remain in angular order. The next batch
-            // waits for publication before reusing its direction workspaces.
+
+
             tail=appendCaptured(body,complete,stream,[&]{
                 for(int angle=begin;angle<end;++angle){auto& q=*directions[angle];
                     finishDirectionReport<<<1,1,0,stream>>>(angle,q.graph->report(),q.errors(),sourceReport.ptr,warnings.ptr);
                     relaxedDirection<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g.cells,angle,controls.sourceRelaxation,angular,q.solved.ptr,intensities.ptr,change.ptr,magnitude.ptr,sourceReport.ptr);
-                    // The single stored intensity has its own measured residual;
-                    // no double equation or low component is retained for this check.
+
+
                     if(controls.sourceRelaxation!=RadiationReal(1))q.graph->measurePublished(q.matrix,owner.ptr,neighbour.ptr,
                         internalFlux.ptr+std::size_t(angle)*g.faces,q.diagonal.ptr,q.source.ptr,q.solved.ptr,
                         {controls.linearTolerance,controls.linearRelativeTolerance,controls.small,controls.linearIterations,controls.controlsAlreadyResolved},stream);
@@ -488,9 +488,9 @@ struct DiscreteOrdinateRadiation::Implementation {
                 }
             });
         }
-        // Sweep uses coeff(T_k). Owner appends Q/T_(k+1) and material residual.
-        // DOM then refreshes optics/phase and measures physical transport at
-        // that same new temperature without advancing the angular solution.
+
+
+
         if(thermalIterationHook){
             tail=appendCaptured(body,{tail},stream,[&]{
                 reset();moments<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,intensities.ptr,0,incidentRadiation.ptr,power.ptr,errors(),sourceReport.ptr);
@@ -546,8 +546,8 @@ void DiscreteOrdinateRadiation::updateGeometry(const RadiationGeometry& geometry
         ||geometry.directionCosines!=old.directionCosines)
         throw std::invalid_argument("radiation metric update requires unchanged topology and angular quadrature");
     d.transfers.finish();checked(cudaStreamSynchronize(d.stream));
-    // Direction graphs capture metric addresses and upwind order. Rebuild them
-    // even when a face changes its sign relative to an ordinate.
+
+
     d.resultReady=false;d.clearSourceGraph();d.directions.clear();d.geometry=geometry;d.initialize();
 }
 
@@ -637,8 +637,8 @@ void DiscreteOrdinateRadiation::setThermalIterationHook(RadiationThermalIteratio
     if(rebuild)checked(cudaStreamSynchronize(d.stream));
     d.thermalIterationHook=std::move(hook);d.thermalGraphOwner=owner;d.thermalGraphRevision=revision;
     if(widthChanged){
-        // Direction graphs and reduction scratch also capture the work width.
-        // Unchanged geometry retains the angular field allocations/initial guess.
+
+
         d.clearSourceGraph();d.directions.clear();d.initialize();
     }else if(rebuild)d.buildSourceGraph();
 }

@@ -1,4 +1,4 @@
-// Production graph owner probe; execute only as a scheduled checkpoint batch.
+
 #include <cuda_runtime.h>
 #include <type_traits>
 #include <utility>
@@ -42,20 +42,20 @@ int main(){
         const Real expected=Real(end+2*dt+model);
         for(int i=0;i<count;++i)if(std::abs(double(target[i]-expected))>1e-6){std::fprintf(stderr,"value mismatch\n");std::exit(4);}
     };
-    // A header publication with unchanged inputs keeps the capture epoch.
+
     for(int i=1;i<=8;++i){
         checked(cudaMemcpy(state.deviceState,&state,sizeof(State),cudaMemcpyHostToDevice));
         run(.125,i*.125);
     }
     if(captures!=1)return 5;
-    run(.25,3.); // Discontinuous interval must update, not recapture.
+    run(.25,3.);
     if(captures!=1)return 6;
-    // Configuration/owner operations continue invalidating real dependencies.
+
     target=second;++state.particleGraphEpoch;run(.25,3.25);
     count=128;++state.particleGraphEpoch;run(.25,3.5);
     model=7;++state.particleGraphEpoch;run(.25,3.75);
     if(captures!=4)return 7;
-    run(0.,3.75); // Zero-duration branch has a separate cache slot.
+    run(0.,3.75);
     if(captures!=5)return 8;
     std::printf("PASS precision=%zu captures=%d",sizeof(Real)*8,captures);
 #if defined(UGKP_DEVELOPMENT_PROBES) && UGKP_DEVELOPMENT_PROBES

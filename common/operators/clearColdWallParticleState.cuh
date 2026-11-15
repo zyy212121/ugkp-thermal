@@ -59,7 +59,7 @@ __device__ void initialiseColdWallParticleState
             static_cast<typename std::remove_reference<decltype(s.pColdNodeSpecificEnthalpy[0])>::type>(nodeEnthalpy[node]);
     }
 #ifdef GPU_PAIRED_PARTICLE_HEAT
-    // This shared slot is used only by non-profile caloric models.
+
     s.pThermalEnthalpyResidual[particleI] = 0.0;
 #endif
     for (int ring = 0; ring < Foam::gpuThermal::coldWallRadialRingCount; ++ring)

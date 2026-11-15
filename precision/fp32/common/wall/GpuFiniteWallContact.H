@@ -41,9 +41,9 @@ enum ParticleWallState : unsigned char
     particleWallTransientDeposit = 3
 };
 
-// Rebound classification never becomes deposition through freezing alone.
-// A frozen contact is released at rest; only a Sommerfeld deposit candidate
-// may enter the long-deposit lifecycle.
+
+
+
 struct ReboundContactRelease { bool detach; bool atRest; };
 GPU_FINITE_CONTACT_HD inline ReboundContactRelease reboundContactRelease
 (const GpuReal kinematicArea, const GpuReal frozenArea, const GpuReal damageArea)

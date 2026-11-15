@@ -7,11 +7,11 @@
 #include <algorithm>
 namespace chmt {
 using CommonGasView=ugkwp::GasStateView<PhysicalReal,Real,ugkwp::SstCoefficients,EnergyReal,Real,PhysicalReal>;
-// Explicit integral/density staging, not a numerical backend. This only binds
-// the five conserved arrays plus volume. Geometry, gradients, boundaries, RK
-// buffers and device upload must be bound before any common operator launch.
-// The current common G1 view has no species state: reject mixture inventories
-// instead of losing species or pretending density is integrated mass.
+
+
+
+
+
 class SharedGasDensityStorage {
     std::vector<PhysicalReal> rho_,px_,py_,pz_,energy_,volume_;
 public:
@@ -45,8 +45,8 @@ public:
         std::vector<GasQ>& accepted,std::string& error) const {
         if(activeSpecies<0||activeSpecies>=Ns||endpointVolume.size()!=rho_.size()){
             error="invalid density-to-integral staging dimensions";return false;}
-        // G1 is fixed-grid only. ALE conversion requires the common stage-volume
-        // policy, not an application-local rescaling by arbitrary new volumes.
+
+
         if(!std::equal(endpointVolume.begin(),endpointVolume.end(),volume_.begin(),
             [](Real a,PhysicalReal b){return static_cast<PhysicalReal>(a)==b;})){error="ALE stage-volume policy is not wired to the shared gas view";return false;}
         std::vector<GasQ> candidate(rho_.size());

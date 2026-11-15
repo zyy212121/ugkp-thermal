@@ -1,4 +1,4 @@
-"""Native cold1D checkpoint widths and existing precision-direction policy; CPU only."""
+pass
 from pathlib import Path
 import shutil,subprocess
 ROOT=Path(__file__).resolve().parents[2]

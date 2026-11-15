@@ -19,21 +19,21 @@ struct ConservativeWallData {
   int *projectedStatus = nullptr;
 
   const ConservativeWallColumn *columns =
-      nullptr; // indexed by the existing wall slot
+      nullptr;
   const int *cellSlot = nullptr;
   const int *faceSlot = nullptr;
   const int *faceIndex = nullptr;
-  gaswall::reconstruction::Q *baseInventory = nullptr; // two entries per wall
-  ConservativeWallFace *face = nullptr;                // three entries per wall
+  gaswall::reconstruction::Q *baseInventory = nullptr;
+  ConservativeWallFace *face = nullptr;
   GpuReal *sourceK = nullptr;
   GpuReal *sourceOmega = nullptr;
   GpuReal *kFluxScale = nullptr;
   GpuReal *momentResidual = nullptr;
   int *active =
-      nullptr; // stage-local, all four coupling consumers use this flag
+      nullptr;
   int *fallbacks = nullptr;
   gaswall::reconstruction::ProfileScratch *scratch =
-      nullptr; // bounded worker pool
+      nullptr;
   gaswall::WallMatchingState<GpuReal, 2> *matching = nullptr;
   GpuReal *pressure = nullptr;
 };
@@ -124,7 +124,7 @@ UGKWP_GAS_HD inline void reconstructConservativeWall(
   for (int i = 0; i < 2; ++i) {
     auto source = p.sourceTeam(i, team, cfg.coherentDiscretization ? 1 : 4);
     if (team.leader()) {
-      // base() is unchanged by trace/moment fitting; reuse this exact mean.
+
       auto q = data.scratch[worker].baseMeans[i];
       if (i == 0)
         q[6] = q[0] * out.ownerOmega;
@@ -160,4 +160,4 @@ UGKWP_GAS_HD inline void reconstructConservativeWall(
   }
   team.sync();
 }
-} // namespace ugkwp
+}

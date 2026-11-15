@@ -1,4 +1,4 @@
-"""Narrow production CUDA pool tests, not solver-level thermal validation."""
+pass
 import os
 from pathlib import Path
 import shutil
@@ -37,7 +37,7 @@ def test_cold_wall_reorder_and_snapshot_routes():
 
 
 def test_cold_wall_handle_cuda_lifecycle(tmp_path):
-    # Explicit opt-in avoids taking the shared GPU during unrelated pytest runs.
+
     if os.environ.get("UGKP_RUN_COLD_HANDLE_CUDA") != "1":
         pytest.skip("set UGKP_RUN_COLD_HANDLE_CUDA=1 for the narrow GPU lifecycle fixture")
     nvcc = shutil.which("nvcc")

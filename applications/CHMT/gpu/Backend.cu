@@ -444,8 +444,8 @@ int accountCoupledFaces(Backend* b,Real ledgerDt){
     }
     ++b->gasStageIndex;return 0;
 }
-// Preserve accepted cell integrals across a corrected material endpoint.
-// Use each field's selected precision for the original multiply/divide sequence.
+
+
 __global__ void rebaseAcceptedGasInventory(SharedGasDeviceView* state,const Real* oldVolume,const Real* newVolume){
     auto& s=*state;const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=s.nCells)return;
     using Field=typename std::remove_reference<decltype(s.rho[c])>::type;
@@ -461,15 +461,15 @@ __global__ void rebaseAcceptedGasInventory(SharedGasDeviceView* state,const Real
 bool loadGasWindowState(Backend& b,const HostState& snapshot,std::string& error){
     b.storage.beginOperation();
     b.wallDiagnosticsReady=false;b.historyFrameCount=0;b.historyPublishedFrames=0;
-    // Window contents are republished through the resident state. Structural
-    // changes are checked before replay by validateCoupledGraphBindings.
+
+
     b.microGeometryPrepared=false;b.preparedWallReady=false;ugkwp::invalidateGasBoundaryLayerPreparation(b);
     if(b.gasBoundaryLayer.enabled&&b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static)b.storage.invalidateWallGeometry();
     const bool reuse=b.residentAcceptedEndpoint;
     b.residentAcceptedEndpoint=false;b.gasEndpointPublished=false;
     if(reuse){
-        // Preserve inventories, wave pressure and particle source/phase history.
-        // Status reset is still required even when no host import is needed.
+
+
         const bool moving=b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static;
         if((moving&&!b.storage.uploadGeometry(snapshot.gasMesh,false))
             ||!b.storage.clearGeometry()||!b.storage.clearTrialStatus()){
@@ -594,8 +594,8 @@ static bool dispatchHostDiagnostics(Backend& b){
 static bool beginGasWindowImpl(Backend& b,const WallProgram& program,std::string& error){
     if(b.poisoned){error="gas backend is unusable after a failed device operation";return false;}
     if(program.knots.size()<2){error="wall program sample outside interval";return false;}
-    // Reuse capture across windows when addresses, launch shape and host
-    // branches match; the existing resident interval node updates the clock.
+
+
     b.trial=b.accepted;b.program=program;
     b.movingWindow=false;
     if(b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static){
@@ -846,7 +846,7 @@ static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& err
         if(!b.storage.observeDiagnostics()){error=b.storage.error();return false;}
         if(!b.particles.download(candidate,error))return false;
     }
-    // Only the endpoint-preserving driver opts in; public/default imports remain unchanged.
+
     b.residentAcceptedEndpoint=preservePublishedEndpoint&&b.gasEndpointPublished
         &&candidate.gasMesh.topologyHash==b.trial.gasMesh.topologyHash
         &&candidate.gas.size()==b.trial.gas.size()

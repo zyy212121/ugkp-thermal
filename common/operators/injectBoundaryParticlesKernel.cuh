@@ -73,9 +73,9 @@ __global__ void injectBoundaryParticlesKernel
         s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[1],finiteOr(s.sourceUy[j],GPU_OPERATOR_R(0.0)));
     GPU_OPERATOR_REAL sourceUz=ugkwp::particleInjectionVelocityComponent(
         s.particleInjectionVelocitySpecified,s.particleInjectionVelocity[2],finiteOr(s.sourceUz[j],GPU_OPERATOR_R(0.0)));
-    // -1 is the host-encoded zeroGradient policy. The gas-stage face
-    // velocity mirror above preserves pre-drag inlet timing; theta follows
-    // the current particle owner just as the former scheduled inlet did.
+
+
+
     const GPU_OPERATOR_REAL sourceTheta=clampMin(finiteOr(
         s.sourceTheta[j]==GPU_OPERATOR_R(-1.0)?s.theta[sourceCell]:s.sourceTheta[j],
         GPU_OPERATOR_R(0.0)),GPU_OPERATOR_R(0.0));

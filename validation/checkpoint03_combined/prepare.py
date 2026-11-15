@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile-only against complete materialized trees. Never launch a compiled fixture."""
+pass
 from pathlib import Path
 import argparse,ast,hashlib,json,os,shlex,shutil,subprocess,time
 CORE=('pressure','face','coupling','bath','probe')
@@ -71,7 +71,7 @@ def main():
    elif family in ('pressure','coupling','bath'):
     name=family+'_fixture.'+('cu' if family=='pressure' else 'cpp');shutil.copy2(controls/name,work/name);units=[work/name]
     if family=='pressure':compiler=cu;gpu=True
-    # GCC11 ree pass ICE workaround, identical for CP2/candidate and32/64.
+
     if family=='coupling':compiler=host+['-fno-ree']+(['-DCP3_FP64'] if bits==64 else [])+(['-DCP3_CELL_PREPARES_HEAT'] if a.variant=='candidate' else [])
    elif family in ('ordered','radiation'):
     radiation=source/'validation/checkpoint03/radiation'
@@ -91,8 +91,8 @@ def main():
     units=[work/'cht_codec.cpp'];compiler=host+(['-DCP3_FP32'] if bits==32 else [])
    else:
     all_recipes=json.loads((here/'chmt_build_recipe.json').read_text());recipe=all_recipes[family]
-    # Recipe files list the worker's isolated historical/current translation units.
-    # The worker may provide a compile-only helper; it must never run a fixture.
+
+
     repl=lambda x:str(x).replace('{source}',str(source)).replace('{controls}',str(here)).replace('{fixture}',str(here)).replace('{output}',str(work)).replace('{build}',str(work)).replace('{bits}',str(bits))
     if family=='chmt_codec':
      for historical in all_recipes.get('precompile_objects',[]):
@@ -120,7 +120,7 @@ def main():
       command(compiler+['-MMD','-MF',dep,'-c',unit,'-o',obj],buildkey+'-object'+str(index));objects.append(obj)
      linkmap=work/'link.map'
      command(compiler+objects+args+['-Wl,-Map='+str(linkmap),'-Wl,-t','-o',binary],buildkey+'-link')
-     # readelf inspects ELF data; it never starts the compiled fixture (unlike ldd).
+
      elf=['readelf','-d','-l',str(binary)]
      info=subprocess.run(elf,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
      (work/'elf-dependencies.txt').write_text(info.stdout)

@@ -24,7 +24,7 @@ __global__ void aitkenRelaxation(int n,const GpuReal* residual,const GpuReal* pr
     if(!havePrevious){if(!threadIdx.x)*result=relaxation;return;}
     extern __shared__ GpuReal aitkenScratch[]; auto* products=aitkenScratch; auto* squares=products+blockDim.x;
     GpuReal numerator=0,denominator=0;
-    // Coalesced reads and products, followed by the unchanged ordered sum.
+
     for(int first=0;first<n;first+=blockDim.x){
         const int i=first+threadIdx.x;
         if(i<n){const GpuReal difference=residual[i]-previous[i];
@@ -163,7 +163,7 @@ __global__ void contactConvergenceParts(int primary,int auxiliary,const GpuReal*
     if(!threadIdx.x)parts[blockIdx.x]={temperature[0],difference[0],scale[0]};
 }
 __global__ void contactConvergenceFinish(int count,const SolidContactConvergence* parts,SolidContactConvergence* output){
-    // Only compact block summaries reach this ordered final reduction.
+
     SolidContactConvergence result;
     for(int i=0;i<count;++i)mergeContactConvergence(result,parts[i]);*output=result;
 }

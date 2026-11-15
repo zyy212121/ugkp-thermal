@@ -23,8 +23,8 @@
 namespace chmt {
 namespace {
 using namespace materialSourceDetail;
-// All conduction kernels use the accepted material owner's stream and inventory.
-// Candidate energy/EOS results are published only after every cell succeeds.
+
+
 __global__ void prepareConductionKernel(int count,const SolidQ* initial,const Real* initialVolumes,
     const SolidQ* current,const Real* volumes,const Real* nativeVolumes,const PhysicsConfig* physics,
     MaterialThermalInput* input,MaterialStepResult* status){
@@ -49,8 +49,8 @@ __global__ void conductionCoefficientsKernel(int count,const MaterialThermalInpu
     if(c<count){const auto value=materialThermalCoefficients(input[c],temperature[c],dt,*physics);
         output[c]=value;capacity[c]=value.capacity;source[c]=value.source;conductivity[c]=value.conductivity;}
 }
-// Initial publication diagnostics only. The repeated constitutive kernel above
-// remains unchanged, including its launch arguments and per-cell work.
+
+
 __global__ void inspectConductionStartupKernel(int count,const MaterialThermalCoefficients* coefficients,
     const PhysicsConfig* physics,MaterialStepResult* status){
     const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=count)return;
@@ -204,9 +204,9 @@ struct MaterialBackend {
     std::uint64_t sequence=0,step=0;Real time=0;
     Buffer<PhysicsConfig> devicePhysics,quietSurfacePhysics;
     Buffer<SolidQ> current,next,initial,gasChange,candidateGasChange,donor;
-    // Geometry still consumes a published host mirror. Remember that exact
-    // publication so a window handoff need not upload it back to the GPU.
-    // Compare fields, not a hash/sequence: external callers may replace state.
+
+
+
     Buffer<int> observationCells;Buffer<SolidQ> observation;
     std::vector<int> cachedObservationCells;int observedInventorySize=-1;
     std::vector<SolidQ> publishedCurrent;
@@ -498,9 +498,9 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
     const int blocks=(std::max(b.cells,static_cast<int>(external.size()))+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads;
     auto& report=b.conductionReport;
     if(!b.allocate(b.conductionAuditParts,blocks)||!b.allocate(b.conductionAuditResult,1)||!b.allocate(report,1))return b.failure(error);
-    // Reuse the complete nonlinear/sparse graph while every captured argument
-    // remains valid. Matrix values and geometry coefficients update in place.
-    // Changed extents, storage addresses, interval or controls recapture it.
+
+
+
     auto& graph=b.conductionGraph;
     auto signature=diffusion.residentExecutionSignature();
     signature.append(sparse.residentExecutionSignature());
@@ -620,8 +620,8 @@ bool evaluateResidentMaterialTransport(MaterialBackend& b,const HostMesh& mesh,
 bool beginResidentMaterialHistory(MaterialBackend& b,const ResidentMaterialDriveHistory* supplied,
     const IntervalHistory& host,std::string& error){
     b.sliceReady=false;b.slicePending=false;b.borrowedHistory={};
-    // Optional borrowed view is an optimization only. External material callers
-    // and histories without the producer layout keep the original upload path.
+
+
     if(!supplied||!supplied->surface||!supplied->interval||!supplied->faces
         ||supplied->frames!=host.records().size())return true;
     for(const auto& record:host.records())if(record.radiationEnergy.size()!=supplied->faces
@@ -646,8 +646,8 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
     numerical=true;
     const int count=int(b.current.size());
     if(controls.retainDonorHistory&&!b.allocate(b.donor,count))return b.failure(error);
-    // Keep existing owner admission errors, while constructing row schedules
-    // from resident packets and receiver maps on device in stable input order.
+
+
     for(const auto& packet:packets)if(requiredConsumers(packet.kind)&ConsumeSolid){
         if(packet.solidCell<0||packet.solidCell>=count){error="material packet owner invalid";return false;}
     }
@@ -662,8 +662,8 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
     }
     b.slicePending=b.sliceReady&&selectedSlice;
     if(b.slicePending){
-        // These decisions were emitted by the same host cursor that produced
-        // the geometry/ledger packets. No device time comparison is repeated.
+
+
         b.pendingSlicePlan={};b.pendingSlicePlan.begin.record=selectedSlice->beginRecord;
         b.pendingSlicePlan.past=selectedSlice->beginRecord+selectedSlice->parts.size();
         b.pendingSlicePlan.end.record=selectedSlice->endRecord;
@@ -733,22 +733,22 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
 }
 bool commitResidentMaterialStep(MaterialBackend& b,Real time,std::string& error){
     if(b.slicePending){
-        // Advance accepted history only with the whole material transaction;
-        // a failed endpoint surface solve never consumes this candidate slice.
+
+
         if(!b.fault.check(commitResidentMaterialSlice(b.slicePlan.data(),b.candidateSlice(),b.currentSlice(),
             b.borrowedHistory.faces,b.sliceExternal.size(),b.sliceCursor.data(),nullptr,b.stream.get()),
             "commit borrowed material source slice"))return b.failure(error);
         b.slicePending=false;
     }
     b.current.swap(b.next);b.volumes.swap(b.nextVolumes);b.gasChange.swap(b.candidateGasChange);b.time=time;
-    // A local-source commit changes current before the conduction publication.
+
     b.publishedCurrentValid=false;return true;
 }
 
 void commitResidentMaterialStep(MaterialBackend& b,Real time){
-    // Preserve the old external entry point. Its default source path does not
-    // bind resident history, so no new cursor commit kernel is launched.
-    // The production driver uses the error-reporting overload above.
+
+
+
     std::string error;(void)commitResidentMaterialStep(b,time,error);
 }
 
@@ -858,8 +858,8 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
                         sizeof(Three::Storage<SurfacePhysicsResult>),sms,b.surfaceProbeResident3),"query three-round root residency"))return b.failure(error);
                 b.surfaceProbePlanReady=true;
             }
-            // Extra root probes use otherwise idle subteams. With enough
-            // independent faces, keep the ordinary one-warp traversal.
+
+
             if(sizing.slots<=b.surfaceProbeResident3)surfaceProbeDepth=3;
             else if(sizing.slots<=b.surfaceProbeResident2)surfaceProbeDepth=2;
             surfaceProbes=(1<<surfaceProbeDepth)-1;
@@ -929,4 +929,4 @@ bool evaluateResidentMaterialSurface(MaterialBackend& b,const HostState& h,
         result,error,numerical,sideVolume,terminalWallFailure))return false;
     output=std::move(result.front());return true;
 }
-} // namespace chmt
+}

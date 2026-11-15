@@ -49,7 +49,7 @@ RadiationGeometry geometry(int cells,int polar,const std::string& topology){
    g.reflectionOffsets.push_back(g.reflectionDonors.size());
   }g.transportDiagonal.push_back(diagonal);
  }}
- // Add real upwind dependencies; a periodic ring exercises SCC iteration.
+
  if(topology!="isolated"){
   if(cells<3)throw std::runtime_error("connected topology requires at least three cells");
   const bool cyclic=topology=="cycle";
@@ -79,8 +79,8 @@ RadiationSnapshot snapshot(const RadiationGeometry& g,double temperature=700,dou
  RadiationSnapshot s;s.epsilon.assign(g.cells,1e-5);s.diameter.assign(g.cells,1e-5);s.temperature.assign(g.cells,temperature);
  s.wallTemperature.assign(g.boundaryOwner.size(),wall);s.emissivity.assign(g.boundaryOwner.size(),1);return s;
 }
-// Analytic one-cell, black-wall, zero-scattering solution for the actual
-// rotated geometry: (D_a+k*V)*I_a = D_a*Bw+k*V*Bp.
+
+
 double isolatedBlackPower(const RadiationGeometry& g,double tp,double tw,double k){
  const double pi=std::acos(-1.),Bp=5.670374419e-8*tp*tp*tp*tp/pi;
  const double difference=5.670374419e-8/pi*(tw-tp)*(tw+tp)*(tw*tw+tp*tp);

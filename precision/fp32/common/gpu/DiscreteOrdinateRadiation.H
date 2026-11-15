@@ -18,7 +18,7 @@ struct RadiationGeometry {
     std::vector<double> reflectionWeights;
     std::vector<RadiationBoundary> boundaryType;
     std::vector<double> volume,weights,directionCosines;
-    // Direction-major arrays preserve the native geometry and face order.
+
     std::vector<double> internalFlux,transportDiagonal,boundaryFlux,boundaryCosine;
     std::vector<double> boundaryArea,diffuseDenominator,fixedIntensity;
 };
@@ -26,11 +26,11 @@ struct RadiationControls {
     RadiationReal activeEpsilonMinimum=0,phaseTolerance=RadiationReal(1e-12),sourceTolerance=RadiationReal(1e-10);
     RadiationReal linearTolerance=RadiationReal(1e-12),linearRelativeTolerance=0,sourceRelaxation=1,small=RadiationReal(1e-15);
     int phaseIterations=200,sourceIterations=500,linearIterations=1000;
-    // This retains the original distinction between frozen angular sources
-    // and sequential angular Gauss-Seidel updates; it is not a case selector.
+
+
     bool parallelAngles=false;
-    int maximumConcurrentAngles=0; // 0 retains all-direction concurrency for API callers.
-    bool controlsAlreadyResolved=false; // Direct API callers retain precision defaults.
+    int maximumConcurrentAngles=0;
+    bool controlsAlreadyResolved=false;
 };
 struct RadiationSnapshot {
     std::vector<double> epsilon,temperature,diameter,wallTemperature,emissivity;
@@ -56,8 +56,8 @@ struct RadiationError:std::runtime_error {
     RadiationError(const std::string& reason,RadiationReal v,int i,int c,int p,int f):
         std::runtime_error(reason),value(v),iteration(i),cell(c),patch(p),face(f){}
 };
-// Called only during graph construction, never on a source-iteration replay.
-// power is physical kappa_a*(G-4pi*Ib(Ttrial)), not a linearized energy surrogate.
+
+
 struct RadiationThermalIterationDeviceView {
     int cells=0;
     const RadiationReal *incident=nullptr,*power=nullptr,*volume=nullptr;
@@ -72,12 +72,12 @@ public:
     DiscreteOrdinateRadiation(const RadiationGeometry&,const MieOpticalTable&,const RadiationControls&);
     ~DiscreteOrdinateRadiation();
     RadiationResult solve(const RadiationSnapshot&,bool warmStart,bool exportFields=true);
-    // Explicit output publication. Device consumers use deviceView() directly.
+
     RadiationResult collect(bool exportFields=true);
-    // Same topology/angular quadrature: refresh metric/transport graphs while
-    // retaining optical tables and angular intensities on the device.
+
+
     void updateGeometry(const RadiationGeometry&);
-    // Explicit diagnostic export; ordinary solves retain angular fields on GPU.
+
     void downloadIntensities(std::vector<double>&)const;
     void uploadIntensities(const std::vector<double>&);
     RadiationDeviceView deviceView() const noexcept;

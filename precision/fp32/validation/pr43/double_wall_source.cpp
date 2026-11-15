@@ -1,5 +1,5 @@
-// Checkpoint 2 host fixture. Executes real production operators serially, not CUDA.
-// Runs unchanged production device functions serially on a host. Not CUDA execution.
+
+
 #include <cmath>
 using std::isfinite;
 #include <cstdio>
@@ -27,7 +27,7 @@ using Time=double;
 #define __global__
 #define __device__
 #define __forceinline__ inline
-// PTX traps are represented by process failure in this serial host emulator.
+
 #define asm(...) std::abort()
 struct ThreadIndex { int x=0; } blockIdx, threadIdx, blockDim;
 constexpr Real OfSmall=GPU_R(2.22044604925031308085e-16);
@@ -86,7 +86,7 @@ int main() {
         std::fprintf(stderr,"active double wall sources were narrowed by the bulk interface\n");
         return 1;
     }
-    // The normal float consumer remains the same interface and rounding.
+
     GpuReal bulkSource=0,bulkOmega=0;
     if(!sstSourcesForCell(s,0,GpuReal(0),bulkSource,bulkOmega)
         ||bulkSource!=GpuReal(k)||bulkOmega!=GpuReal(omega))return 2;

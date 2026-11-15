@@ -3,9 +3,9 @@
 #include <cmath>
 #include <limits>
 
-// Steady driving deliberately calls the same face, reconstruction, molecular
-// transport, turbulence and wall stages as the transient resident solver.
-// The common operators scale only their cell updates by gasPseudoDt/referenceDt.
+
+
+
 __global__ void prepareSteadyGasTimeStepKernel(DeviceState* sp,GpuReal courant,GpuTime maximumDt)
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
@@ -42,22 +42,22 @@ __global__ void prepareSteadyGasTimeStepKernel(DeviceState* sp,GpuReal courant,G
                 const GpuReal pressure=other>=0?w*s.p[own]+(1-w)*s.p[other]
                     :(s.riemannBoundaryPFix[f]?s.riemannBoundaryP[f]:s.p[own]);
                 const GpuReal D=ugkwp::gasLocalMolecularDiffusivity(s,k,T,pressure);
-                // Mixture correction couples species: sum of raw diagonal
-                // diffusion plus correction has row norm bounded by 2 max D.
+
+
                 diffusivity=std::fmax(diffusivity,2*densityRatio*(D+nut/s.gasSpecies.turbulentSchmidt));
             }
         diffusionRate+=2*diffusivity*s.magSf[f]*s.deltaCoeffs[f]/s.V[c];
     }
-    // Courant scratch contains Co(dt=1). Add explicit diffusive and SST
-    // destruction rates; recomputed every pseudo iteration, never host fields.
+
+
     const GpuReal sourceRate=s.sstConfigured?s.omega[c]:0;
     const GpuReal rate=s.gasFluxPositivityScale[c]+diffusionRate+sourceRate;
     s.gasPseudoDt[c]=std::fmin(maximumDt,GpuTime(courant
         /std::fmax(rate,std::numeric_limits<GpuReal>::min())));
 }
 
-// Raw FV equation residual, not a timestep-weighted update norm. Components:
-// rho, rhoUx/y/z, rhoE, each species, rhoK, unconstrained rhoOmega.
+
+
 __global__ void steadyGasSpatialResidualKernel(DeviceState* sp)
 {
     DeviceState& s=*sp;
@@ -91,7 +91,7 @@ __global__ void steadyGasSpatialResidualKernel(DeviceState* sp)
     for(int k=0;k<7+Ns;++k)r[k]/=s.V[c];
     if(!steadyAddChemistryResidual(s,c,r+5))
     {
-        // An unavailable chemical source must never appear as zero/converged.
+
         for(int k=0;k<7+Ns;++k)s.gasSteadyResidual[k*s.nCells+c]=NAN;
         return;
     }

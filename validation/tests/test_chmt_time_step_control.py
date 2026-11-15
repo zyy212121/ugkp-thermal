@@ -1,4 +1,4 @@
-"""CHMT fixed/adaptive time-step policy; one implementation for FP32/FP64."""
+pass
 from pathlib import Path
 import subprocess
 ROOT=Path(__file__).resolve().parents[2]

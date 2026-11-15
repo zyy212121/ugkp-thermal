@@ -32,8 +32,8 @@ GPU_PARTICLE_RADIATION_HD inline GpuReal invalidRadiationMathValue() noexcept
 
 struct RadiationAffineTemperatureUpdate
 {
-    // Precision-local host requests and resident payload use one FP32 value
-    // per coefficient. The FP64 build retains its original payload.
+
+
     GpuReal scale;
     GpuReal offset;
 };

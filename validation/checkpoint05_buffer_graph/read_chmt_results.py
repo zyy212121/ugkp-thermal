@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read completed batch only; never launches solver/profiler or declares exit0 convergence."""
+pass
 import argparse,csv,json,math,re
 from pathlib import Path
 def number(s):
@@ -16,7 +16,7 @@ def summaries(rows):
 def api_stats(prefix):
     found=[]
     for p in prefix.parent.glob(prefix.name+'-api*.csv'):
-        # nsys may put informational text before the CSV header.
+
         lines=p.read_text().splitlines();start=next((i for i,l in enumerate(lines) if 'Name' in l and ('Num Calls' in l or 'Instances' in l)),None)
         if start is None:continue
         for row in csv.DictReader(lines[start:]):

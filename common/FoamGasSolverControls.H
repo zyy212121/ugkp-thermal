@@ -5,13 +5,13 @@
 
 namespace ugkp { namespace solverControls {
 
-// The serialized model is the common host/device source of truth. Only live
-// numerical keys are injected; physical model bounds and compatibility-only fields are not exposed.
+
+
 inline void applyGasSolverControlOverrides(Foam::dictionary& model,
     const Foam::Time& time,const Foam::word& region=Foam::word::null)
 {
     const auto& scheme=startupScheme(time);
-    model.remove("solverControlOverrides"); // This transport block is owned by scheme, not by the model file.
+    model.remove("solverControlOverrides");
     Foam::dictionary overrides,chemistry,thermo;
     const auto chemical=scheme.module("gasChemistry",region);
     const auto thermal=scheme.module("gasThermo",region);

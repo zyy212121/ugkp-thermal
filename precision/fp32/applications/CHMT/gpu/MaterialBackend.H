@@ -14,11 +14,11 @@ struct MaterialBackend;
 MaterialBackend* createMaterialBackend(std::string&);
 void destroyMaterialBackend(MaterialBackend*) noexcept;
 void setMaterialDiagnosticsSink(MaterialBackend&,const ugkp::diagnostics::HostSink&);
-// Accepted material inventories remain resident across windows. A supplied
-// state differing from the last full publication is explicitly re-imported;
-// unchanged window handoffs retain the device inventory and workspaces.
+
+
+
 bool beginMaterialWindow(MaterialBackend&,const HostState&,const PhysicsConfig&,std::string&);
-// Borrowed gas history remains owned by the producer until this material window finishes.
+
 bool beginResidentMaterialHistory(MaterialBackend&,const ResidentMaterialDriveHistory*,
     const IntervalHistory&,std::string&);
 bool prepareResidentMaterialConduction(MaterialBackend&,const HostMesh&,
@@ -45,8 +45,8 @@ struct MaterialConductionAudit {
 bool auditResidentMaterialConduction(MaterialBackend&,const ConductionReal* temperature,const ConductionReal* previous,
     const ConductionReal* powerResidual,const ConductionReal* boundaryFlux,const std::vector<int>& externalBoundary,Real dt,
     void* producerStream,MaterialConductionAudit&,std::string&);
-// The configured local discretization, physical error budget and nonlinear
-// stopping rule execute as one nested device graph; publication is at its end.
+
+
 bool solveResidentMaterialConduction(MaterialBackend&,ugkp::gpu::ImplicitDiffusion&,ugkp::gpu::SparseConjugateGradient&,
     const std::vector<int>& externalBoundary,Real dt,const CpuMaterialControls&,Real normalizationSmall,Real singularSmall,
     std::string&);
@@ -64,8 +64,8 @@ bool evaluateResidentMaterialSurface(MaterialBackend&,const HostState& geometry,
     const std::vector<GasWallClosureContext>* contexts=nullptr,
     bool* terminalWallFailure=nullptr,
     const std::vector<WallFaceSample>* acceptedRates=nullptr);
-// Independent history samples share the same resident material state. Batching
-// changes only execution scheduling; each face retains its constitutive solve.
+
+
 struct MaterialSurfaceRequest {
     const std::vector<GasPrimitive>* bulk=nullptr;
     const std::vector<GasGradient>* gradients=nullptr;
@@ -76,9 +76,9 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend&,const HostState&,
     const std::vector<MaterialSurfaceRequest>&,Real dt,bool useTransportRates,
     bool candidateState,std::vector<CpuSurfaceResult>&,std::string&,bool& numericalFailure,
     const std::vector<Real>* sideVolume=nullptr,bool* terminalWallFailure=nullptr);
-// The optional observation selects only material cells read by the geometry
-// owner. In that mode hostMirror is packed in observedCells order; the full
-// authoritative inventory stays resident through local source steps.
+
+
+
 bool advanceResidentMaterialSources(MaterialBackend&,const HostMesh& endpointMesh,
     const SurfaceMesh&,const std::vector<ExchangePacket>&,
     const std::vector<EnergyReal>& radiation,const std::vector<unsigned>& radiationReceiver,
@@ -87,7 +87,7 @@ bool advanceResidentMaterialSources(MaterialBackend&,const HostMesh& endpointMes
     std::string&,bool& numericalFailure,const std::vector<int>* observedCells=nullptr,
     const IntervalSliceMetadata* selectedSlice=nullptr);
 bool commitResidentMaterialStep(MaterialBackend&,Real time,std::string&);
-// Legacy direct callers use the original upload path without borrowed history.
+
 void commitResidentMaterialStep(MaterialBackend&,Real time);
 }
 #endif

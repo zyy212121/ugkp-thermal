@@ -11,8 +11,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureSteady(void* handle,double boundar
     s->gasSteadyBoundaryFrozen=true;
     s->gasSteadyBoundaryTime=boundaryTime;
     s->gasPseudoReferenceDt=1;
-    // Shared graph replay uses resident local pseudo-time and frozen boundary
-    // forcing. Residual refresh remains a separate zero-interval operator.
+
+
     invalidateSharedGasConfiguration(s);
     if(!s->gasPseudoDt&&allocate(s->gasPseudoDt,s->nCells,"allocate local pseudo time"))return 1;
     if(!s->gasSteadyResidual&&allocate(s->gasSteadyResidual,
@@ -55,8 +55,8 @@ extern "C" int ugkwpGpuResidentStrictSteadyResidual(void* handle,double* residua
     if(boundaryGrid>0)
         updateLegacyGasBoundaryMirrorKernel<<<boundaryGrid,faceBlock,0,s->gasCaptureStream>>>
             (s->deviceState,s->gasSteadyBoundaryTime);
-    // dt=0 refreshes raw face fluxes without a time-weighted positivity limiter.
-    // It applies the same algebraic wall constraints/primitive projections.
+
+
     if(advanceGasEulerSubstage(s,0,0,s->gasSteadyBoundaryTime))return 1;
     const int block=s->fixedCellBlockThreads,grid=(s->nCells+block-1)/block;
     steadyGasSpatialResidualKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);

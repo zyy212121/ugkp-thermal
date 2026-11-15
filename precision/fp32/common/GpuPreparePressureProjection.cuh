@@ -1,5 +1,5 @@
 #pragma once
-// Shared physical update; the including backend supplies its state and scalar adapters.
+
 __device__ PressureProjectionCell preparePressureProjectionCell
 (DeviceState& s, const int c, const PressureTime kickDt)
 {
@@ -50,9 +50,9 @@ __device__ PressureProjectionCell preparePressureProjectionCell
 
     publishPressureCellState(s,c,rhoP,px1,py1,pz1,e1,theta1);
 
-    // The atomic path historically publishes the cell update, then reads it
-    // back and reconstructs the old state. Preserve its rounding and clamps:
-    // (e0 + de) - de is not equivalent to e0 near the resolved-theta threshold.
+
+
+
     if (!s.csrCellLocalPathEnabled)
     {
         const PressureReal ax1 = finiteOr(px1, 0.0f);

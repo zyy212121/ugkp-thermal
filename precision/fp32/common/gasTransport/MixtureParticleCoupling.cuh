@@ -7,10 +7,10 @@
 #include "MixtureCouplingTeam.cuh"
 #include "MixtureParticleResponse.cuh"
 
-// Physical-time source transaction shared by gasUGKP and gasUGKPSteady. One cell worker
-// owns all parcel writes and the reverse gas publication for its cell. CSR and
-// split direct-base + indexed-injection ranges consume the same post-collision
-// epoch. A full scan remains available only for the serial reference oracle.
+
+
+
+
 
 template<class DragModel,bool ConstantHeat,class State,class Team>
 __device__ void mixtureParticleCouplingCell(State&s,int c,GpuTime dt,bool dragActive,bool useCsr,bool useSplit,const Team&team)
@@ -22,7 +22,7 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,GpuTime dt,bool dragAc
     GpuReal weight=0,x=0,y=0,z=0;
     mixtureParticles::DragCellProperties dragProperties{};
     bool dragPropertiesReady=false;
-    // No parcel or gas state is changed while forming the finite-bath target.
+
     for(int pos=begin+team.rank();pos<end;pos+=team.width())
     {
         const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
@@ -36,8 +36,8 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,GpuTime dt,bool dragAc
             }
             const auto b=mixtureParticles::beta<DragModel>(s,i,epsG,dragProperties);
             const GpuReal a=-expm1f(-b*GpuReal(dt));
-            // Every eligible parcel is overwritten before the second pass.
-            // No sorting, migration or physical publication occurs in between.
+
+
             s.couplingDragBeta[i]=b;s.couplingResponseFraction[i]=a;
             const GpuReal w=s.pm[i]*a;
             weight+=w;x+=w*s.pux[i];y+=w*s.puy[i];z+=w*s.puz[i];
@@ -60,8 +60,8 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,GpuTime dt,bool dragAc
             s.pTheta[i]=oldTheta*expf(-2*b*GpuReal(dt));
             const GpuReal dx=s.pux[i]-oldX,dy=s.puy[i]-oldY,dz=s.puz[i]-oldZ;
             dpx+=s.pm[i]*dx;dpy+=s.pm[i]*dy;dpz+=s.pm[i]*dz;
-            // Actual represented differences, not independently recomputed work
-            // or subtraction of two large mechanical energies.
+
+
             dEnergy+=s.pm[i]*(GpuReal(.5)*(dx*(s.pux[i]+oldX)+dy*(s.puy[i]+oldY)+dz*(s.puz[i]+oldZ))
                               +GpuReal(1.5)*(s.pTheta[i]-oldTheta));
         }
@@ -82,8 +82,8 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,GpuTime dt,bool dragAc
         +GpuReal(s.rhoUy[c])*GpuReal(s.rhoUy[c])+GpuReal(s.rhoUz[c])*GpuReal(s.rhoUz[c]))/GpuReal(s.rho[c]);
         const GpuReal oldInternal=s.rhoE[c]-kinetic;
         const GpuReal referenceTemperature=s.Tgas[c];
-        // Drag has published and recovered the gas state. Its viscosity
-        // cache is no longer valid for this heat source epoch.
+
+
         mixtureParticles::HeatCellProperties heatProperties{};
         bool heatPropertiesReady=false;
         GpuReal A=0,B=0;
@@ -111,8 +111,8 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,GpuTime dt,bool dragAc
         if(status!=ugkwp::ThermoStatus::Success)
         {
             if(team.rank()==0){s.gasSpecies.cellStatus[c]=static_cast<int>(status);
-            // A failed physical exchange must reach this step's completion,
-            // including the final sample, without waiting for another flux.
+
+
             using namespace ugkp::diagnostics;
             auto failure=makeRecord(Code::InvalidPhysicalState,30700,0,0,
                 EntityKind::Cell,c,-1,static_cast<int>(status));

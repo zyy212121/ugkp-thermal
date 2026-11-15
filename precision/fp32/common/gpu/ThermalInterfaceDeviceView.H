@@ -2,20 +2,20 @@
 #define UGKP_GPU_THERMAL_INTERFACE_DEVICE_VIEW_H
 #include "../GpuPrecisionTypes.H"
 namespace ugkp { namespace gpu {
-// Borrowed interface fields use the configured mapper's compact solid-face
-// order. The producer owns storage through candidate evaluation and commit;
-// consumers order their stream against producerStream before reading it.
+
+
+
 struct ThermalInterfaceEnergyDeviceView {
     bool enabled=false;
     int faces=0;
-    const GpuWallEnergy* energy=nullptr; // J, positive into the solid over the interval.
+    const GpuWallEnergy* energy=nullptr;
     void* producerStream=nullptr;
-    const double* interval=nullptr; // Resident duration of the completed exchange.
+    const double* interval=nullptr;
 };
 struct ThermalInterfaceStateDeviceView {
     bool enabled=false;
     int faces=0;
-    const GpuReal* temperature=nullptr; // Surface temperature, not owner-cell T.
+    const GpuReal* temperature=nullptr;
     const GpuReal* effusivity=nullptr;
     const int* contactEnabled=nullptr;
     void* producerStream=nullptr;

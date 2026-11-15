@@ -1,7 +1,7 @@
 #pragma once
 #include "wall/GpuColdWall1DHandles.cuh"
 #include "GpuOperatorContract.cuh"
-// One face-walk algorithm; wall state and coordinate precision are adapters.
+
 template<bool SommerfeldEnabled = true>
 __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const GPU_OPERATOR_TIME dt)
 {
@@ -132,8 +132,8 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
             }
             const unsigned char wallInteractionType =
                 s.particleStuckCandidateMask[globalFaceId];
-            // Use the segment that reached this face, including prior reflections.
-            // Keep the existing wall-relative contact and lab-frame rebound laws.
+
+
             const GPU_OPERATOR_GEOMETRY un =
                 vxStep*nx + vyStep*ny + vzStep*nz;
             const GPU_OPERATOR_GEOMETRY normalSpeed = fabs

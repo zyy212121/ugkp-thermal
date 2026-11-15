@@ -11,8 +11,8 @@
 #include <utility>
 
 namespace chmt {
-// Host-side, CUDA-runtime/OpenFOAM-independent contracts. All transfer amounts
-// are extensive. A history is provisional until a synchronized macro commit.
+
+
 struct IntervalIdentity { std::uint64_t sequence=0,epoch=0; };
 struct CouplingInterval { IntervalIdentity identity{}; Real begin=0,end=0; };
 struct CouplingControls {
@@ -24,7 +24,7 @@ struct WallFaceSample {
     PhysicalReal speciesRate[Ns]{},condensedRate[Nc]{},poreRate[Ns]{},poreSweepRate[Ns]{};
     EnergyReal radiationFlux=0;PhysicalReal solidNormalVelocity=0,normalVelocity=0;
     PhysicalReal materialEffusivity=0;
-}; // rates kg/(reference-surface m^2 s), radiation W/m^2; proposals, not transfers.
+};
 struct WallKnot {
     Real time=0; WindowTime localTime{-1}; std::vector<WallFaceSample> faces{};
     std::vector<Vec3> gasPoints{},solidPoints{};
@@ -33,7 +33,7 @@ struct MaterialReserveKnot {
     Real time=0; WindowTime localTime{-1};
     std::vector<SolidQ> cumulativeSolid{};
     std::vector<FilmQ> cumulativeFilm{};
-}; // signed cumulative INTERNAL component increments; never gas-facing packets.
+};
 struct MaterialDonorPlan { CouplingInterval interval{}; std::vector<MaterialReserveKnot> knots{}; };
 struct WallProgram { CouplingInterval interval{}; SurfaceMesh surface{}; std::vector<WallKnot> knots{}; MaterialDonorPlan donorPlan{}; };
 template<class Knot> inline WindowTime knotOffset(const CouplingInterval& interval,const Knot& knot){
@@ -41,23 +41,23 @@ template<class Knot> inline WindowTime knotOffset(const CouplingInterval& interv
 }
 inline WindowTime intervalDuration(const CouplingInterval& interval){return windowOffset(interval.begin,interval.end);}
 struct GasWallMatchingSample {
-    EnergyReal pressure=0,mechanicalPressure=0; // matching EOS p; same-stage local wall-force p.
+    EnergyReal pressure=0,mechanicalPressure=0;
     ugkwp::gaswall::WallMatchingState<EnergyReal,Ns> state{};
-}; // actual gas driving snapshot, never an inventory or chemical source.
+};
 struct GasIntervalRecord {
     std::uint64_t microSequence=0; Real begin=0,end=0,actualDt=0;
     WindowTime localBegin{-1},localEnd{-1};
-    Real gasTraceTime=-1; // one coherent representative gas stage; -1 for isolated legacy fixtures.
+    Real gasTraceTime=-1;
     std::uint64_t gasGeometry=0,solidGeometry=0;
     std::vector<ExchangePacket> packets{};
-    std::vector<GasPrimitive> gasTrace{}; // OWNER bulk at gasTraceTime, paired with gradient/traction/matching.
+    std::vector<GasPrimitive> gasTrace{};
     std::vector<GasGradient> gasGradient{};
     std::vector<PhysicalVec3> gasTraction{};
-    ugkp::SharedSnapshotVector<WallFaceSample> gasAcceptedWall{}; // instantaneous accepted rates at gasTraceTime, not integrated sources.
-    std::vector<GasWallMatchingSample> gasWallMatching{}; // populated only for boundaryLayer.
+    ugkp::SharedSnapshotVector<WallFaceSample> gasAcceptedWall{};
+    std::vector<GasWallMatchingSample> gasWallMatching{};
     std::vector<EnergyReal> radiationEnergy{};
     std::vector<unsigned> radiationReceiver{};
-}; // trace/traction/radiation have stable SurfaceMesh face order.
+};
 
 inline bool intervalFailure(std::string& error,const char* text){error=text;return false;}
 inline bool validCouplingInterval(const CouplingInterval& w){
@@ -68,7 +68,7 @@ inline unsigned intervalProducerMask(ExchangeKind kind){
     if(kind==ExchangeKind::ParticleGas)return ConsumeParticle|ConsumeGas;
     return ConsumeGas;
 }
-// Scale only physical integral fields; identity and consumer mask are untouched.
+
 CHMT_HD inline ExchangePacket scaledIntervalPacket(const ExchangePacket& p,Real inputScale){
     const PhysicalReal scale=PhysicalReal(inputScale);
     ExchangePacket q=p;
@@ -141,8 +141,8 @@ public:
     IntervalCursor cursor()const;
 };
 
-// Optional compact description emitted by the original host cursor itself.
-// Device consumers borrow packet payloads but never reselect time boundaries.
+
+
 struct IntervalSliceRecordPart {Real fraction=0;bool last=false;};
 struct IntervalSliceMetadata {
     std::size_t beginRecord=0,endRecord=0;
@@ -150,8 +150,8 @@ struct IntervalSliceMetadata {
     Real externalFraction=0;bool externalLast=false;
 };
 
-// The history must outlive this cursor and must not be changed while it is in
-// use. Each interval consumer uses a fresh cursor; failed slice calls are atomic.
+
+
 class IntervalCursor {
     const IntervalHistory* history_=nullptr;
     WindowTime time_{};
@@ -335,8 +335,8 @@ public:
 
 };
 
-// Select the physical coupling interval once. There is no failed-window
-// shortening, replay epoch, or residual acceptance controller.
+
+
 class CouplingWindowController {
     CouplingInterval interval_{};
 public:
@@ -346,5 +346,5 @@ public:
         interval_=next;error.clear();return true;
     }
 };
-} // namespace chmt
+}
 #endif

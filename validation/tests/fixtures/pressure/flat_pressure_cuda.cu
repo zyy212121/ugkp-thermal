@@ -1,4 +1,4 @@
-// Real production CUDA pressure kernels; synthetic state fixture only.
+
 #include <cuda_runtime.h>
 #include <cmath>
 #include <cstdio>
@@ -61,7 +61,7 @@ __device__ R particleSpecificEnthalpyDevice(R t){return t;}
 #include "GpuPressureConstrainedAdapter.cuh"
 #include "GpuPressureUnsortedConstrained.cuh"
 #include "GpuPressureContactProjection.cuh"
-// Reference uses the previous production per-cell traversal, not copied math.
+
 template<bool Compact> __global__ void cellReference(DeviceState* s,double dt){
     const int c=blockIdx.x;
     if(pressureDirectoryContainsContact<PressureDirectory::Full,Compact>(*s,c))

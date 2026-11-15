@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Non-numerical tests of source isolation and process startup selection."""
+pass
 from pathlib import Path
 import importlib.util
 import os

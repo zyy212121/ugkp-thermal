@@ -1,5 +1,5 @@
 #pragma once
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<class Value, class Bound>
 __device__ Value clampMin(const Value x, const Bound lo)
 {

@@ -1,4 +1,4 @@
-"""Host-only epsilonS Function1 compatibility and empty-patch input contracts."""
+pass
 from pathlib import Path
 import os, subprocess
 import pytest

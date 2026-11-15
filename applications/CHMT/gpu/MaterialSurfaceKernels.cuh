@@ -30,7 +30,7 @@ struct MaterialSurfaceView {
     const PhysicsConfig* quietPhysics=nullptr;
     std::size_t workspaceStride=0;
     int workspaceCapacity=0,workers=0;
-    int scalarWorkersPerBlock=0; // 0 keeps dense indexing for direct callers
+    int scalarWorkersPerBlock=0;
 };
 template<class View>
 __global__ void evaluateMaterialSurfaceKernel(View binding,const PhysicsConfig* physics) {

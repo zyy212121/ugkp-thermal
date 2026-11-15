@@ -1,5 +1,5 @@
 #pragma once
-// Shared physical update; the including backend supplies its state and scalar adapters.
+
 template<class State> __device__ GpuReal gasWallExposedAreaFractionImpl(const State&,int,long){return GPU_R(1.0);}
 
 template<class State>

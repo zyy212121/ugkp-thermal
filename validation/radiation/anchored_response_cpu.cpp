@@ -29,12 +29,12 @@ int main(){
   assert(actual==r.actualEnergy&&mean==r.temperature);
  }
  assert(!response(d.upper+Real(1)).withinDomain);assert(!response(d.lower-Real(1)).withinDomain);
- // Sign changes and repetitions are from the same entrance, never cumulative.
+
  auto a=response(d.upper/Real(4));(void)response(d.lower/Real(2));auto b=response(d.upper/Real(4));
  assert(a.actualEnergy==b.actualEnergy&&a.temperature==b.temperature);assert(std::memcmp(p,snapshot,sizeof(p))==0);
  Response empty{nullptr,0,Real(100),Real(1000),{}};assert(empty(Real(0)).withinDomain&&!empty(Real(1)).withinDomain);
 #ifndef TEST_FP32
- // A sub-temperature-ULP heat remains represented by the existing FP64 carry.
+
  auto tiny=response(Real(1e-14));assert(tiny.publicationValid&&near(tiny.actualEnergy,Real(1e-14)));
 #endif
  std::cout<<"ANCHOR_PASS bits="<<sizeof(Real)*8<<" heating cooling endpoints out_of_domain repeated_sign_change immutable_entry inactive empty actual_publication\n";

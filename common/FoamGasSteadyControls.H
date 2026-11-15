@@ -16,8 +16,8 @@ struct ParticleSteadyControls {
     Foam::label windowSamples=200,minimumWindows=4,stableWindows=2;
     SteadySolverReal meanTolerance=SteadySolverReal(1e-3),inventoryTolerance=SteadySolverReal(1e-2);
 };
-// Preserve the existing count normalization; it is not a convergence tolerance
-// floor. The reported value is the value actually used by the modulo/window.
+
+
 inline void readSteadyCount(const Scheme& scheme,const char* module,const char* key,
     Foam::label& value,Foam::label minimum,const Foam::word& region) {
     const auto section=scheme.section(module,region);

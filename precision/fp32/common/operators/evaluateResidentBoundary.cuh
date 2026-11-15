@@ -1,5 +1,5 @@
 #pragma once
-// Included after primitive/EOS helpers, within the application's kernel namespace.
+
 template<class State> __device__ bool evaluateResidentBoundary(State& s,int f,GPU_OPERATOR_TIME time)
 {
     if constexpr (ugkp::boundary::Capability<State>::value) {

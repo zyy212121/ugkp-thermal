@@ -1,5 +1,5 @@
-// Checkpoint 2A fixture: real mixed storage and production divergence/ALE operator.
-// Runs unchanged production device functions serially on a host. Not CUDA execution.
+
+
 #include <cmath>
 using std::isfinite;
 #include <cstdio>
@@ -27,7 +27,7 @@ using Time=double;
 #define __global__
 #define __device__
 #define __forceinline__ inline
-// PTX traps are represented by process failure in this serial host emulator.
+
 #define asm(...) std::abort()
 struct ThreadIndex { int x=0; } blockIdx, threadIdx, blockDim;
 constexpr Real OfSmall=GPU_R(2.22044604925031308085e-16);
@@ -112,17 +112,17 @@ struct Fixture {
     }
 };
 
-// Instantiate the other changed geometry consumers during compilation only.
-// Their numerical audits remain in the parent checkpoint's existing SST/CFL set.
+
+
 void instantiateMixedSstAndCourant(State* s,GpuTime dt) {
     applySstFluxAndSourceKernel(s,dt);
     computeGasConvectiveCourantByCellKernel(s,dt);
 }
 
-// Independent integrated-balance oracle. Production performs its density update;
-// this oracle forms inventories first in long double, without copying its scale
-// or densityRatio intermediate. Assertions protect the deliberately FP64 channels,
-// not exact equality of ordinary FP32 state across different solver executions.
+
+
+
+
 void runCase(const std::string& name,bool strict) {
     Fixture f;auto& s=f.s;
     double dt=.123456789012345,oldV=1.,newV=1.;

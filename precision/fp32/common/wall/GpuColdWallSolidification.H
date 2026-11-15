@@ -338,9 +338,9 @@ GPU_COLD_WALL_HD inline void solveColdWallTridiagonal
     }
 }
 
-// Integrate one whole-particle Ranz--Marshall exchange with a frozen secant
-// heat capacity. Exact for constant cp; first-order across nonlinear/phase
-// regions. The result is a specific-enthalpy increment shared by all nodes.
+
+
+
 
 
 GPU_COLD_WALL_HD inline bool coldWallGasSpecificEnthalpyIncrement
@@ -378,9 +378,9 @@ GPU_COLD_WALL_HD inline bool coldWallGasSpecificEnthalpyIncrement
     const GpuReal temperatureDifference = gasTemperatureK - bulkTemperatureK;
     const GpuReal temperatureScale = gasTemperatureK > bulkTemperatureK
       ? gasTemperatureK : bulkTemperatureK;
-    // Include the 40-bisection inversion resolution as well as arithmetic
-    // roundoff, avoiding a zero/wrong-sign secant near equilibrium in either
-    // precision. No nodal enthalpy clipping is used.
+
+
+
     const GpuReal inverseRelativeTolerance = GPU_R(4.0/1099511627776.0)
       + GPU_R(8.0)*GPU_REAL_EPSILON;
     const GpuReal secantSpecificHeat =
@@ -576,7 +576,7 @@ GPU_COLD_WALL_HD inline ColdWallSolidificationStep advanceColdWallProfile
                     parameters
                 )/(GpuReal(deltaTSeconds) + GPU_REAL_MIN);
             diagonal[node] = capacity;
-            // Linearize H(T_new) about this iterate, always at the same old time level.
+
             rightHandSide[node] = capacity*guessedTemperature[node]
               + nodeMass*(oldEnthalpy[node] - candidateEnthalpy[node])
                /(GpuReal(deltaTSeconds) + GPU_REAL_MIN)

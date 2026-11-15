@@ -301,8 +301,8 @@ public:
         linearSolverRelativeTolerance(0),
         linearSolverMaxIterations(1000)
     {
-        // Preserve default precision budgets, then allow explicitly requested
-        // startup controls to replace the effective values exactly once.
+
+
         controls.phaseBalanceTolerance=ugkp::gpu::radiationPhaseTolerance(
             controls.phaseBalanceTolerance,controls.nTheta*controls.nPhi);
         controls.sourceRelativeTolerance=ugkp::gpu::radiationConvergenceTolerance(controls.sourceRelativeTolerance);
@@ -659,9 +659,9 @@ public:
     void prepare(const std::shared_ptr<const MieDoRadiationSolverData>& data)
     {
         if(owner==data)return;
-        // Geometry refresh rebuilds the source graph. Detach the previous
-        // material window first: its buffers may have been resized or released.
-        // solve() installs the current window hook after prepare() completes.
+
+
+
         if(gpu)gpu->setThermalIterationHook({});
         if(owner&&owner->geometryFamily==data->geometryFamily){
             gpu->updateGeometry(radiationGeometry(*data));owner=data;return;
@@ -805,7 +805,7 @@ std::uint64_t warmLayout(const MieDoRadiationSolverData& data) {
     std::uint64_t hash=1469598103934665603ULL;
     const auto append=[&](const auto& value){const auto* p=reinterpret_cast<const unsigned char*>(&value);
         for(std::size_t i=0;i<sizeof(value);++i){hash^=p[i];hash*=1099511628211ULL;}};
-    // Array ordering, not metric values: moving meshes retain their angular seed.
+
     append(data.mesh.nCells());
     for(const auto v:data.mesh.owner())append(v);
     for(const auto v:data.mesh.neighbour())append(v);
@@ -839,8 +839,8 @@ bool MieDoRadiationSolver::readWarmStart(MieDoRadiationWorkspace& workspace,cons
     std::uint64_t header[7]={};in.read(reinterpret_cast<char*>(header),sizeof(header));
     const std::uint64_t cells=data_->mesh.nCells(),angles=data_->directions.size();
     const auto invalid=[&](){WarningInFunction<<"DOM warm-start cache incompatible or incomplete; using cold start: "<<path<<endl;return false;};
-    // Main physical checkpoint precision policy remains authoritative. A cache
-    // never permits a restart that its owning application would otherwise reject.
+
+
     if(!in||header[0]!=0x55474b50444f4d31ULL||header[1]!=2||header[2]!=sizeof(ugkp::gpu::RadiationReal)
         ||header[3]!=cells||header[4]!=angles||header[5]!=warmLayout(*data_)||header[6]>1)return invalid();
     if(!header[6])return true;

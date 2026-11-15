@@ -1,11 +1,11 @@
-// Legacy: abandoned 2D cold-wall model; retained for compatibility only.
+
 #include "../../../common/GpuPrecisionTypes.H"
 #include <type_traits>
 #include "../../../common/wall/GpuColdWallThermalCarry.cuh"
 #ifndef GPU_THERMAL_GPU_COLD_WALL_2D_DEVICE_CUH
 #define GPU_THERMAL_GPU_COLD_WALL_2D_DEVICE_CUH
 
-// Legacy 2D directed storage rule. Not used by raw native-precision 1D.
+
 __device__ inline float legacyColdWall2DStoredEnthalpyFloor(double target) {
     if(target>double(FLT_MAX))return FLT_MAX;
     if(target<-double(FLT_MAX))return -FLT_MAX;
@@ -566,7 +566,7 @@ __device__ bool advanceColdWall2DThermalGroup
     const double nextCarry=(oldCarry-storageChange)+meanIncrement;
     const double actualSpecificChange=storageChange+(nextCarry-oldCarry);
     if(radialNode==0)s.pThermalEnthalpyResidual[particleI]=nextCarry;
-    // Phase and output caches use exactly the published float profile + carry.
+
     for(int node=0;node<8;++node) {
         const float stored=legacyColdWall2DStoredEnthalpyFloor(enthalpy[node]);
         s.pCold2DNodeSpecificEnthalpy[nodeBase+node]=stored;
@@ -687,8 +687,8 @@ __device__ bool advanceColdWall2DThermalGroup
 #ifdef GPU_PAIRED_PARTICLE_HEAT
     if(radialNode==0 && gasConductanceWK!=GPU_R(0.0)) {
         const int cell=s.pCellId[particleI];
-        // This is the actual accepted inventory delta. Wall heat is external
-        // to the gas-particle pair, and is added back using its published value.
+
+
         atomicAdd(&s.particleHeatBudget[cell],double(s.pm[particleI])*actualSpecificChange
           +double(representedWallEnergy));
     }
@@ -996,7 +996,7 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
             }
         }
 
-        // The release owner reads all updated ring profiles before clearing.
+
         __syncwarp(groupMask);
         int transition = 0;
         GpuReal longDepositAreaM2 = GPU_R(0.0);

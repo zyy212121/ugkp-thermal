@@ -1,6 +1,6 @@
 #pragma once
 #include "wall/GpuColdWall1DHandles.cuh"
-// Shared weighted sampling correction; physical contact finalization is an extension.
+
 #if GPU_OPERATOR_THERMAL
 template<bool StuckPath>
 __device__ void correctOnePoissonThermalizedParticlePath
@@ -68,8 +68,8 @@ __device__ void correctOnePoissonThermalizedParticle
 #endif
     )
     {
-        // Sampling already retained the original state, applying physical
-        // theta drag if requested. Do not round-trip it through pool moments.
+
+
         s.pStatus[i]=1;
         return;
     }
@@ -134,9 +134,9 @@ __device__ void correctOnePoissonThermalizedParticle
 #else
     if (n <= 1 || sampleFluctuationEnergy <= OfSmall*meanParticleMass)
     {
-                                                                            
-                                                                       
-                                                                            
+
+
+
         s.pux[i] = targetUx;
         s.puy[i] = targetUy;
         s.puz[i] = targetUz;

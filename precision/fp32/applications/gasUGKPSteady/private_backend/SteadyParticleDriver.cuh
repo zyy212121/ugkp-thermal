@@ -5,12 +5,12 @@
 extern "C" int ugkwpGpuResidentStrictConfigureSteadySamplingFromRestart(void* handle,double boundaryTime,std::uint64_t completedSamples)
 {
     DeviceState* s=asState(handle);
-    s->gasSteadyMode=false; // keep the complete original physical-dt scheme
+    s->gasSteadyMode=false;
     s->gasSteadyBoundaryFrozen=true;
     s->gasSteadyBoundaryTime=boundaryTime;
     s->particlePhaseGraphs.positionSequenceEnabled=true;
     s->particlePhaseGraphs.positionSequence=completedSamples;
-    // Sampling retains physical time steps; only boundary forcing is frozen.
+
     invalidateSharedGasConfiguration(s);
     const size_t n=size_t(GpuSteadySamplingReport::fields)*s->nCells;
     int rc=0;
@@ -42,7 +42,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSteadySamplingFromRestart(void* ha
     return 0;
 }
 
-// Retain the original two-argument ABI for fresh sampling callers.
+
 extern "C" int ugkwpGpuResidentStrictConfigureSteadySampling(void* handle,double boundaryTime)
 {
     return ugkwpGpuResidentStrictConfigureSteadySamplingFromRestart(handle,boundaryTime,0);
@@ -63,8 +63,8 @@ extern "C" int ugkwpGpuResidentStrictAccumulateSamplingWindow(void* handle,doubl
 {
     DeviceState* s=asState(handle);
     const int block=s->fixedCellBlockThreads,grid=(s->nCells+block-1)/block;
-    // Mixture transactions complete in advanceOneStep for both applications.
-    // Retain the existing per-sample completion for the legacy particle path.
+
+
     if(s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy
         && SharedGasTrialPolicy::complete(s))return 1;
     accumulateSteadySampleWindowKernel<<<grid,block>>>(s->deviceState,dt);

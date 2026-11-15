@@ -28,7 +28,7 @@ struct DeviceState {
     int* particleCountDevice=&particleCount;
     R rhoMin=R(1e-20),particleDiameterFallback=1,TpMin=1,TpMax=1000;
     R epsSMin=R(1e-8),rhoSolid=1,thetaMin=R(.01),pressureKickFraction=10;
-    R V[2]={1}; double cellLength[2]={1}; // Volume arithmetic follows Real; tracking length remains double.
+    R V[2]={1}; double cellLength[2]={1};
     R momRhoP[2]={2},momRhoUPx[2]={0},momRhoUPy[2]={0},momRhoUPz[2]={0}; AcceptanceEnergy momRhoEP[2]={R(3.25)};
     R rhoUsx[2]={0},rhoUsy[2]={0},rhoUsz[2]={0}; AcceptanceEnergy rhoEs[2]={R(3.25)};
     R Usx[2]={0},Usy[2]={0},Usz[2]={0},theta[2]={R(3.25/3)},epsS[2]={2};
@@ -129,7 +129,7 @@ int main(int argc,char**argv){
  bool first=true;int checks=0; double samples[5]={};
  std::ostringstream counts;bool firstCount=true;
  if(perf){
-  // Same declared warmup in A and B, never selected from observed timings.
+
   const auto until=std::chrono::steady_clock::now()+std::chrono::seconds(3);
   unsigned long long warmupLaunches=0;
   do{reset(1025,0);for(int k=0;k<128;++k)project(s,0,0,128);CUDA(cudaDeviceSynchronize());warmupLaunches+=128;}

@@ -1,5 +1,5 @@
-// Draft synthetic dictionary fixture. NOT COMPILED OR RUN.
-// Only snapshot mode writes its disposable fixture case's constant/scheme.
+
+
 #include "argList.H"
 #include "Time.H"
 #include "../../common/FoamSolverScheme.H"

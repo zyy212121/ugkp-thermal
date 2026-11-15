@@ -1,9 +1,9 @@
 #ifndef CHMT_ABLATION_INTERFACECOMPOSITION_H
 #define CHMT_ABLATION_INTERFACECOMPOSITION_H
-// Included inside namespace chmt, after compositionResidual.
-// On the composition simplex the nonlinear equations are equivalent to the
-// real eigenvectors of a diagonal plus rank-two matrix. Use real-root and
-// critical-point isolation, then certify the original equations, not P alone.
+
+
+
+
 namespace composition_detail {
 
     struct Poly {
@@ -54,9 +54,9 @@ namespace composition_detail {
 
     CHMT_HD inline Poly polynomial(PhysicalReal left,PhysicalReal right,const PhysicalReal* d,
     const PhysicalReal* u,const PhysicalReal* v,const PhysicalReal* r) {
-        // Rank-two determinant recurrence, O(Ns^2), entirely in the local Bernstein
-        // basis. P is the diagonal product; A,B,C,D are its one-factor removals and
-        // Q its rank-two minors. No monomial expansion or eigensystem is formed.
+
+
+
         PhysicalReal uScale=1;
         for(int i=0;i<Ns;++i)uScale=energyArithmetic::maximum(uScale,energyArithmetic::absolute(u[i]));
         Poly P,A,B,C,D,Q;
@@ -174,12 +174,12 @@ namespace composition_detail {
         for(int j=0;j<count;++j)if(points[j]==value)return;
         if(count<ScalarCandidateCapacity)points[count++]=value;
     }
-    // A multiple real root is a stationary point. A rounded polynomial may have
-    // a tiny complex conjugate pair instead, so a sign-only root finder loses it.
-    // The derivative hierarchy supplies all critical points without sampling:
-    // roots of each derivative partition the next polynomial into monotone pieces.
-    // Keep lower-level critical points as well, which covers higher multiplicity.
-    // These are only mathematical candidates; the original equations certify them.
+
+
+
+
+
+
 
     CHMT_HD inline int criticalPoints(Poly original,PhysicalReal* points,int maximumIterations=80) {
         Poly hierarchy[Ns];
@@ -226,7 +226,7 @@ namespace composition_detail {
     CHMT_HD inline int roots(Poly p,Info& info,PhysicalReal* output,bool* genuine=nullptr,int bisectionIterations=80,int isolatedIterations=80){
         int count=0;if(genuine)for(int i=0;i<ScalarCandidateCapacity;++i)genuine[i]=false;
         if(Ns==2){
-            // A quadratic is the complete scalar problem for two species.
+
             const PhysicalReal A=(p.c[0]-p.c[1])+(p.c[2]-p.c[1]);
             const PhysicalReal B=2*(p.c[1]-p.c[0]),C=p.c[0];
             if(A==0){
@@ -275,9 +275,9 @@ namespace composition_detail {
             int v=variations(a.p);
             if(!v)continue;
             if(v==1){
-                // The interval already isolates one root. Safeguarded Newton
-                // refines that same root; a step outside the bracket uses its
-                // midpoint. No physical state, time or target is retried.
+
+
+
                 PhysicalReal lo=0,hi=1,t=PhysicalReal(.5);
                 PhysicalReal sign=0;for(int k=0;k<=Ns;++k)if(a.p.c[k]!=0){sign=a.p.c[k];break;}
                 bool settled=false;
@@ -367,8 +367,8 @@ namespace composition_detail {
             if(!finite(Y[i])||Y[i]<0||Y[i]>1)return false;
             sum+=Y[i];
         }
-        // This bound describes only floating-point normalization error, never a
-        // physical acceptance tolerance.  No normalization/clipping repairs a root.
+
+
         const PhysicalReal roundoff=Ns*std::numeric_limits<PhysicalReal>::epsilon()/(1-Ns*std::numeric_limits<PhysicalReal>::epsilon());
         if(energyArithmetic::absolute(sum-1)>roundoff*2)return false;
         const PhysicsConfig& p=supplied;
@@ -442,9 +442,9 @@ namespace composition_detail {
         }
         return true;
     }
-    // Euclidean projection onto a prescribed mass simplex.  Subtract the largest
-    // level before summation; only active levels are added, so no large common
-    // multiplier can overflow this audit-free mathematical calculation.
+
+
+
 
     CHMT_HD inline void projectMass(const PhysicalReal* bulk,const PhysicalReal* r,const int* index,
     int count,PhysicalReal mass,PhysicalReal multiplier,PhysicalReal* Y) {
@@ -481,8 +481,8 @@ namespace composition_detail {
         for(int j=0;j<count;++j)value+=r[j]*Y[index[j]];
         return value;
     }
-    // KKT gives y=max(b-lambda-mu*r,0).  The projected moment is continuous and
-    // nonincreasing in mu; bracket and bisect this monotone scalar equation.
+
+
 
     CHMT_HD inline void simplexCandidate(const PhysicalReal* raw,PhysicalReal* Y) {
         PhysicalReal centered[Ns]{},zero[Ns]{};int index[Ns]{};PhysicalReal maximum=raw[0];
@@ -512,7 +512,7 @@ namespace composition_detail {
             projectMass(bulk,zero,index,count,mass,0,Y);
             return true;
         }
-        // Exact endpoint means permit mass only in its corresponding equal-R group.
+
         if(moment==rmin*mass || moment==rmax*mass){
             PhysicalReal endpoint=moment==rmin*mass?rmin:rmax;
             int group[Ns]{},n=0;
@@ -540,7 +540,7 @@ namespace composition_detail {
             step*=2;
         }
         if(lo==hi)return false;
-        // Full binary exponent range plus mantissa bits bounds adjacent-double work.
+
         for(int iteration=0;iteration<2200;++iteration){
             PhysicalReal mid=lo+(hi-lo)/2;
             if(mid==lo||mid==hi)break;
@@ -554,7 +554,7 @@ namespace composition_detail {
     }
 
     CHMT_HD inline bool boundLinear(PhysicalReal coefficient,PhysicalReal rhs,PhysicalReal& lo,PhysicalReal& hi) {
-        // coefficient*r <= rhs
+
         PhysicalReal ratio=0;
         if(coefficient!=0&&!quotientFinite(rhs,coefficient,ratio)){
             bool positive=(rhs>0)==(coefficient>0);
@@ -620,9 +620,9 @@ namespace composition_detail {
             gmin=energyArithmetic::minimum(gmin,r[index[j]]);
             gmax=energyArithmetic::maximum(gmax,r[index[j]]);
         }
-        // A common positive scale preserves each affine constraint, including its
-        // solution ratio. In a pole eigenspace individual coefficients can approach
-        // MAX even though the feasible R interval is small and representable.
+
+
+
         PhysicalReal coefficientScale=energyArithmetic::maximum(PhysicalReal(1),energyArithmetic::maximum(energyArithmetic::absolute(A),energyArithmetic::maximum(energyArithmetic::absolute(B),energyArithmetic::maximum(energyArithmetic::absolute(AR),energyArithmetic::absolute(BR)))));
         PhysicalReal scaledA=A/coefficientScale,scaledB=B/coefficientScale;
         PhysicalReal scaledAR=AR/coefficientScale,scaledBR=BR/coefficientScale,one=1/coefficientScale;
@@ -643,10 +643,10 @@ namespace composition_detail {
         if(!boundLinear(scaledA,massBound,lo,hi)
         || !boundLinear(-minCoefficient,-minRhs,lo,hi)
         || !boundLinear(maxCoefficient,maxRhs,lo,hi))return false;
-        // With no nonzero group flux R remains free.  The feasible interval above is
-        // convex, and squared distance to its affine simplex slice is convex in R.
-        // Golden-section minimization selects the same nearest-bulk policy as simple
-        // roots; it changes no physical time or imposed flux.
+
+
+
+
         PhysicalReal left=lo,right=hi,x1=right-(right-left)*PhysicalReal(.6180339887498948482);
         PhysicalReal x2=left+(right-left)*PhysicalReal(.6180339887498948482),f1=0,f2=0,y1[Ns]{},y2[Ns]{};
         bool v1=poleProfile(x1,index,count,r,bulk,a,b,A,B,AR,BR,y1,f1);
@@ -679,9 +679,9 @@ namespace composition_detail {
         PhysicalReal* out,Info& info,Info* suppliedInfo) {
         if(suppliedInfo)*suppliedInfo=info;
         if(!best.certified)return false;
-        // Selection owns the exact state and original-equation residual certified
-        // together in this invocation. Publishing changes neither state nor inputs;
-        // private certification suppresses only failures, with no success side effect.
+
+
+
         const PhysicalReal finalResidual=best.residual;
         info.state=finalResidual<=tolerance?SolveState::Converged:SolveState::AdmissibleApproximation;
         info.actualResidual=finalResidual;
@@ -696,8 +696,8 @@ namespace composition_detail {
         const PhysicalReal* r,const PhysicalReal* bulk,const PhysicalReal* Js,PhysicalReal pressure,PhysicalReal T,PhysicalReal distance,
         const PhysicsConfig& trial,PhysicalReal tolerance,PhysicalReal a,PhysicalReal b,PhysicalReal rmin,PhysicalReal rmax,Selection& best,
         const CompositionResidualInputs* prepared) {
-        // Pole eigenvalues are genuine possibilities (zero/repeated diffusion), not
-        // removable singularities. Their normalized eigenspace is a convex slice.
+
+
         for(int i=0;i<Ns;++i){
             bool duplicate=false;
             for(int j=0;j<i;++j)duplicate=duplicate||d[j]==d[i];
@@ -706,7 +706,7 @@ namespace composition_detail {
             if(recoverPole(d[i],d,u,v,r,bulk,rmin,rmax,Y,trial.numerics.surface.poleSearchIterations))
             certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false,prepared);
         }
-        // The closed admissible interval can contain a pure-species boundary root.
+
         for(int endpoint=0;endpoint<2;++endpoint){
             PhysicalReal Y[Ns]{};
             if(recoverRoot(endpoint?b:a,d,u,v,r,Y)){
@@ -717,9 +717,9 @@ namespace composition_detail {
         }
     }
 
-    // In scalarSolve's normalized domain all off-diagonal arithmetic is
-    // representable. Its strict margin is minimized at one excluding-self
-    // r extremum: minimum for u>=0, maximum for u<0.
+
+
+
     CHMT_HD inline bool uniquePositiveMatrix(const PhysicalReal* u,const PhysicalReal* v,
         const PhysicalReal* r,const PhysicalReal* bulk,PhysicalReal gamma) {
         PhysicalReal lo=std::numeric_limits<PhysicalReal>::infinity(),secondLo=std::numeric_limits<PhysicalReal>::infinity(),hi=-std::numeric_limits<PhysicalReal>::infinity(),secondHi=-std::numeric_limits<PhysicalReal>::infinity();
@@ -740,8 +740,8 @@ namespace composition_detail {
     }
 
     CHMT_HD inline bool twoByTwo(PhysicalReal a,PhysicalReal b,PhysicalReal e,PhysicalReal c,PhysicalReal d,PhysicalReal f,PhysicalReal& x,PhysicalReal& y) {
-        // Pivoted two-row elimination. Safe operations also cover remote scalar
-        // iterates; a singular representation simply needs root isolation.
+
+
         if(energyArithmetic::absolute(c)>energyArithmetic::absolute(a)){PhysicalReal t=a;a=c;c=t;t=b;b=d;d=t;t=e;e=f;f=t;}
         PhysicalReal factor=0,term=0;
         if(!quotientFinite(c,a,factor)||!productFinite(factor,b,term)||!sumFinite(d,-term,d)
@@ -750,10 +750,10 @@ namespace composition_detail {
         return true;
     }
 
-    // For a 2x2 irreducible Metzler matrix, the positive Perron vector
-    // follows directly from its quadratic eigenvalue. Choose the sign branch
-    // with an addition rather than a subtractive cancellation. sqrt(b)*sqrt(c)
-    // avoids underflow of b*c. The original physical equations still certify it.
+
+
+
+
     CHMT_HD inline bool uniqueTwoSpecies(const PhysicalReal* d,const PhysicalReal* u,const PhysicalReal* v,
         const PhysicalReal* r,const PhysicalReal* bulk,const PhysicalReal* Js,PhysicalReal pressure,PhysicalReal T,
         PhysicalReal distance,const PhysicsConfig& p,PhysicalReal tolerance,Selection& best,
@@ -769,11 +769,11 @@ namespace composition_detail {
         return solved;
     }
 
-    // Newton for (z+d_i)Y_i-u_i(r.Y)-v_i=0, sum(Y)=1.
-    // Its bordered diagonal/rank-one linearization eliminates to two scalars,
-    // delta(r.Y) and delta(z), with O(Ns) work. The mixture density is variable.
-    // Only a proved unique case may return early; all other roots retain the
-    // established isolation/nearest-bulk selection policy below.
+
+
+
+
+
     CHMT_HD inline bool uniqueNewton(const PhysicalReal* d,const PhysicalReal* u,const PhysicalReal* v,
         const PhysicalReal* r,PhysicalReal J,PhysicalReal Db,const PhysicalReal* bulk,const PhysicalReal* Js,PhysicalReal pressure,
         PhysicalReal T,PhysicalReal distance,const PhysicsConfig& p,PhysicalReal tolerance,Selection& best,Info& info,
@@ -856,9 +856,9 @@ namespace composition_detail {
         }
         PhysicalReal a=energyArithmetic::minimum(J*rmin,J*rmax)+Db-dmax;
         PhysicalReal b=energyArithmetic::maximum(J*rmin,J*rmax)+Db-dmin;
-        // Forward-error bounds for the signed sum J, positive sum Db and
-        // endpoint expressions. gamma_n is an operation-count bound, not a
-        // case tolerance. Bounds describe the represented matrix coefficients.
+
+
+
         const PhysicalReal epsilon=std::numeric_limits<PhysicalReal>::epsilon();
         PhysicalReal absU=0,absV=0;for(int i=0;i<Ns;++i){absU+=energyArithmetic::absolute(u[i]);absV+=energyArithmetic::absolute(v[i]);}
         const PhysicalReal gamma=(2*Ns+8)*epsilon/(1-(2*Ns+8)*epsilon);
@@ -870,10 +870,10 @@ namespace composition_detail {
         b/=intervalScale;
         for(int i=0;i<Ns;++i)if(!quotientFinite(d[i],intervalScale,d[i])
         ||!quotientFinite(u[i],intervalScale,u[i])||!quotientFinite(v[i],intervalScale,v[i]))return false;
-        // Strictly positive off-diagonals make M irreducible Metzler. Its only
-        // nonnegative normalized eigenvector is the Perron vector. Collatz bounds
-        // from the positive bulk vector narrow this SAME scalar isolation problem;
-        // they are not an alternate implementation or a physical empirical switch.
+
+
+
+
         PhysicalReal sumBulk=0,rBulk=0;
         const PhysicalReal matrixGamma=3*epsilon/(1-3*epsilon);
         const bool positive=uniquePositiveMatrix(u,v,r,bulk,matrixGamma);info.unique=positive;
@@ -888,8 +888,8 @@ namespace composition_detail {
         if(positive){PhysicalReal lower=std::numeric_limits<PhysicalReal>::max(),upper=-lower;bool bounded=true;
             const PhysicalReal rowGamma=(4*Ns+16)*epsilon/(1-(4*Ns+16)*epsilon);
             for(int i=0;i<Ns;++i){PhysicalReal one=0,two=0,three=0,numerator=0,magnitude=0,ratio=0,error=0;
-                // Use v_i as represented; do not silently assume v_i=d_i*b_i
-                // has no multiplication rounding error.
+
+
                 if(!productFinite(u[i],rBulk,one)||!productFinite(v[i],sumBulk,two)
                     ||!productFinite(d[i],bulk[i],three)||!sumFinite(one,two,numerator)
                     ||!sumFinite(numerator,-three,numerator)||!quotientFinite(numerator,bulk[i],ratio)
@@ -926,7 +926,7 @@ namespace composition_detail {
         int uniqueCount=0;
         for(int i=0;i<cutCount;++i)if(!uniqueCount||cuts[i]!=cuts[uniqueCount-1])cuts[uniqueCount++]=cuts[i];
         cutCount=uniqueCount;
-        // Preserve pole/endpoint ordering when multiple roots can compete.
+
         if(!positive)boundaryCandidates(d,u,v,r,bulk,Js,pressure,T,distance,trial,tolerance,a,b,rmin,rmax,best,prepared);
         for(int segment=1;segment<cutCount;++segment){
             PhysicalReal left=cuts[segment-1],right=cuts[segment];
@@ -945,9 +945,9 @@ namespace composition_detail {
                 if(!solved){
                 PhysicalReal projected[Ns]{};simplexCandidate(Y,projected);Selection projectedResult;
                 certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,projectedResult,&projectedSolved,true,prepared);
-                // Projection is only a mathematical candidate. A remote
-                // nonphysical eigenvector may not become a published finite
-                // approximation merely by projecting it into the simplex.
+
+
+
                 if(projectedSolved)certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false,prepared);
                 if(!solved&&!projectedSolved){
                     refine(Y,bulk,Js,pressure,T,distance,trial,info,prepared);
@@ -977,8 +977,8 @@ namespace composition_detail {
             for(int i=0;i<Ns;++i){
                 PhysicalReal difference=0,delta=0;
                 if(!sumFinite(Js[i],-Js[peak],difference)||!quotientFinite(difference,J,delta))delta=-1;
-                // A level at least one below the highest cannot be active in a mass-one
-                // simplex projection. This is an exact bound, not a physical limiter.
+
+
                 centered[i]=energyArithmetic::maximum(PhysicalReal(-1),delta);
             }
         }

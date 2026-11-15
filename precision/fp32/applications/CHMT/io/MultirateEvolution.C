@@ -21,8 +21,8 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         if(!material.predictWall(base,interval,program,error,&prediction))return false;
         if(!beginGasWindow(backend,program,error))return false;
         Real gasTime=interval.begin;WindowTime gasElapsed{};
-        // Ordinary physical gas microsteps remain. A failed operation returns
-        // directly to the frontend fatal boundary, without rollback or replay.
+
+
         while(gasElapsed<intervalDuration(interval)) {
             GasMicroReport micro;
             if(!advanceGasMicrostep(backend,controls.gasMaxDt,micro,error))return false;
@@ -37,8 +37,8 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
             }
             gasTime=micro.time;gasElapsed=micro.localTime;
         }
-        // The backend owns the immutable history until material consumers
-        // finish; ledger publication then consumes and releases its storage.
+
+
         HostState gasEndpoint;
         if(!downloadGasWindow(backend,gasEndpoint,error))return false;
         const IntervalHistory& history=gasWindowHistory(backend);
@@ -47,7 +47,7 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         HostState candidate;WallProgram corrected;CpuMaterialReport cpu;
         ++report.materialSolves;
         auto executionControls=materialControls;
-        executionControls.retainDonorHistory=false; // Corrected donor history is not replayed in this single-pass driver.
+        executionControls.retainDonorHistory=false;
         const auto residentHistory=residentGasWindowDriveHistory(backend);
         if(!material.advanceCandidate(base,gasEndpoint,history,executionControls,candidate,corrected,cpu,error,&program,&residentHistory))return false;
         candidate.radiationTime=gasEndpoint.radiationTime;
@@ -72,8 +72,8 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         if(!commitGasWindow(backend,candidate,error,true))return false;
         accepted=std::move(candidate);error.clear();return true;
     } catch(const Foam::error&) {
-        // Preserve the original GPU/OpenFOAM diagnostic for the application
-        // boundary; Foam::error::what() alone discards its physical context.
+
+
         throw;
     } catch(const std::exception& exception) {
         error=std::string("single-pass multirate operation failed: ")+exception.what();

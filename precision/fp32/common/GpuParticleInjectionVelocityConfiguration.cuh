@@ -1,4 +1,4 @@
-// Included at the backend API scope after DeviceState and syncDeviceState.
+
 extern "C" int ugkwpGpuResidentStrictConfigureParticleInjectionVelocity
 (void* handle, int specified, double ux, double uy, double uz)
 {

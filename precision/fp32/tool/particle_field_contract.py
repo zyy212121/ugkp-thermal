@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Generate field registries and verify typed lifecycle closure without CUDA.
+pass
 
-The CPU probe executes the actual allocation/release and transfer expressions,
-actual copy/swap bodies and actual schema7 codec. It does not emulate launch
-scheduling, allocator failures, restart validation, or cold-wall rollback paths.
-"""
+
+
+
+
 from pathlib import Path
 import argparse
 import hashlib
@@ -36,8 +36,8 @@ def restart_fields(meta):
 
 
 def function_body(text, name):
-    # A call inside an if-condition is not a definition. Match balanced
-    # parameters first, then require the opening body immediately afterwards.
+
+
     start = None
     for match in re.finditer(r'\b' + re.escape(name) + r'\s*\(', text):
         depth, end = 1, match.end()
@@ -63,7 +63,7 @@ def function_body(text, name):
 
 
 def calls(text, name):
-    # Balanced argument extraction preserves production expressions and labels.
+
     for match in re.finditer(r'\b' + re.escape(name) + r'\s*\(', text):
         level, string, escape = 1, False, False
         for index in range(match.end(), len(text)):
@@ -87,7 +87,7 @@ def calls(text, name):
 
 
 def lambda_definition(text, name):
-    """Keep the constructor's actual acquisition/initialization helper body."""
+    pass
     match = re.search(r'\bauto\s+' + re.escape(name) + r'\s*=\s*\[[^]]*\]\s*\([^;{}]*\)\s*\{', text)
     if not match:
         raise ValueError('missing constructor helper: ' + name)
@@ -295,7 +295,7 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
         code += 'std::vector<GpuReal> physicalTheta(n);std::vector<GpuTime> contactAge(n);\n'
         code += 'unpackParticleRestartTheta(n,pStuck,pTheta,physicalTheta.data(),contactAge.data());\n'
     code += ''.join(call + ';\n' for call in upload_calls)
-    # Exercise the production copy body, including cold arrays and conditional independent age.
+
     code += 'copyCellLocalParticle(*s,1,9,0);\n'
     for f in fields:
         name, compact, width = f['name'], f['compact'], f['width']
@@ -304,7 +304,7 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
             code += f'if(s->{compact}[0]!={expected}) throw std::runtime_error("copy semantic: {name}");\n'
         else:
             code += f'for(size_t j=0;j<{width};++j) if(s->{compact}[j]!=s->{name}[{width}+j]) throw std::runtime_error("copy closure: {name}");\n'
-    # Read back the original uploaded arrays before swap; same ABI conversions and width expressions.
+
     code += ''.join(call + ';\n' for call in download_calls)
     if app == 'CHT':
         code += 'packParticleRestartTheta(n,pStuck,contactAge.data(),pTheta);\n'

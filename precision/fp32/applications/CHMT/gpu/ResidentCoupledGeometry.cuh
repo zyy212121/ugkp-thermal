@@ -8,8 +8,8 @@
 namespace chmt {
 namespace coupled_geometry_detail {
 using namespace ugkp::gpu::geometry;
-// Candidate owners expose status without forcing a host decision. The consuming
-// application records an invalid physical trajectory in its existing fatal latch.
+
+
 __global__ void consumeStageStatus(const StageGeometryStatus* status,int region,
     ugkp::diagnostics::DeviceContext* diagnostics){
     if(threadIdx.x||blockIdx.x||!ugkp::diagnostics::blockMayProceed(diagnostics)
@@ -51,9 +51,9 @@ __global__ void acceptSurface(int count,const SurfaceFaceGeometry* endpoint,Surf
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)accepted[i]=endpoint[i];
 }
 }
-// Application adapter only: topology, ownership and CHMT's private interface
-// identity are supplied here. All mesh, surface and matching mathematics is
-// delegated to the shared resident owners.
+
+
+
 class ResidentCoupledGeometry {
     using Point=ugkp::gpu::geometry::Point;
     using Face=ugkp::gpu::geometry::SurfaceFaceGeometry;

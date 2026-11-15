@@ -4,8 +4,8 @@
 #include "../GpuParticleCaloric.H"
 #include <cmath>
 namespace ugkp { namespace thermal {
-// The attached state code identifies the lifecycle, not the caloric model.
-// The selected face/contact model determines which stored profile is active.
+
+
 template<class Vector,class PhysicalVector>
 float particleSnapshotThermalEnergy(const ParticleState<Vector,PhysicalVector>& p,int contactModel) {
     float h=ugkwp::ParticleCaloric{}.enthalpy(p.thermal.temperature);
@@ -13,8 +13,8 @@ float particleSnapshotThermalEnergy(const ParticleState<Vector,PhysicalVector>& 
     if(p.state&&contactModel==4){h=0;for(float value:p.thermal.cold2DNodeSpecificEnthalpy)h+=float(value)/64;}
     return p.mass*h;
 }
-// Import of an uninitialized, free parcel. Attached profiles require their
-// complete history and cannot be reconstructed from one total energy value.
+
+
 template<class Vector,class PhysicalVector>
 bool initializeMobileParticleHistory(ParticleState<Vector,PhysicalVector>& p,const ParticlePhaseConfiguration& config) {
     if(p.thermal.initialized)return true;

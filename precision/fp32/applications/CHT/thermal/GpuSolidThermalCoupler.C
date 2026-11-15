@@ -304,8 +304,8 @@ GpuSolidThermalCandidateSolver::GpuSolidThermalCandidateSolver
     ownerConductivityPatchIds_(ownerConductivityPatchIds),
     controls_(controls)
 {
-    // FP32 defaults retain the approved engineering stopping budgets.
-    // Preserve looser requests and leave invalid inputs to existing handling.
+
+
     constexpr GpuReal relativeBudget=1e-5f,energyRelativeBudget=1e-4f;
     if(std::isfinite(controls_.nonlinearRelativeTolerance)
         &&controls_.nonlinearRelativeTolerance>=0
@@ -351,8 +351,8 @@ bool GpuSolidThermalCandidateSolver::prepareResident(const volScalarField& tempe
     if(!energy.enabled||!energy.interval)return false;
     List<scalarField> initialEnergy(coupledPatchIds_.size());
     forAll(initialEnergy,i)initialEnergy[i].setSize(mesh_.boundary()[coupledPatchIds_[i]].size(),scalar(0));
-    // Configure coefficients and storage without advancing the initial field.
-    // Each replay reads its actual interval from the shared device ledger.
+
+
     solveCandidate(temperature,initialEnergy,1,energy,appended,true,context);
     return bool(residentGraph_);
 }
@@ -448,8 +448,8 @@ GpuSolidThermalCandidateSolver::solveCandidate
     GpuReal finalSurfaceFluxResidual = std::numeric_limits<GpuReal>::quiet_NaN();
     GpuReal finalEnergyLimit = scalar(0);
 
-    // Each gas surface needs one initial snapshot. The convergence pass below
-    // updates it in place for the next iteration; owner-only patches need none.
+
+
     List<scalarField> previousSurface(coupledPatchIds_.size());
     forAll(coupledPatchIds_, coupledI)
     {
@@ -476,8 +476,8 @@ GpuSolidThermalCandidateSolver::solveCandidate
     std::vector<double> residentInterfaceEnergy(residentBoundaryCount,0);std::vector<int> residentInterfaceSelected(residentBoundaryCount,0),residentInterfaceFaces;
     forAll(coupledPatchIds_,i)forAll(interfaceEnergyJ[i],f){const label b=residentBoundaryOffset[coupledPatchIds_[i]]+f;
         residentInterfaceEnergy[b]=interfaceEnergyJ[i][f];residentInterfaceSelected[b]=1;residentInterfaceFaces.push_back(b);}
-    // The gas ledger is the leading mapper prefix. A three-region solid may
-    // append its independently computed solid-contact patch after that prefix.
+
+
     residentDiffusion_->setInterfaceEnergy(residentInterfaceFaces,residentEnergy,appendedEnergy);
     bool residentConvergence=false;
     std::vector<int> convergenceSurfaceIndex(residentBoundaryCount,-2);
@@ -661,9 +661,9 @@ GpuSolidThermalCandidateSolver::solveCandidate
                         scheduled=true;
                     }
                     if(scheduled)residentDiffusion_->configureBoundaryJumpSchedule(schedule,signs,mesh_.time().value());
-                    // Matrix preparation prescribes zero initial exchange only
-                    // to establish coefficients. Preserve the accepted restart
-                    // boundary state for the first nonlinear window candidate.
+
+
+
                     residentDiffusion_->initializeBoundaryTemperature(initialBoundaryTemperature);
                     problem.deviceInterval=residentEnergy.interval;problem.diagnostics=context;
                     residentGraph_.reset(new ugkp::gpu::SolidThermalIterationGraph(*deviceProperties_,*residentDiffusion_,*sparse_,problem));
@@ -740,8 +740,8 @@ GpuSolidThermalCandidateSolver::solveCandidate
         else candidate->correctBoundaryConditions();
         finalSurfaceResidual = scalar(0);
         finalSurfaceFluxResidual = scalar(0);
-        // Preserve the original surface-then-cell consumption order while
-        // evaluating the completed iterate's conductivity and caloric integral.
+
+
         propertyQueries.clear();propertySources.clear();
         forAll(coupledPatchIds_, coupledI)
         {
@@ -808,8 +808,8 @@ GpuSolidThermalCandidateSolver::solveCandidate
                         GpuReal(1)
                     )
                 );
-                // The completed-interval ledger remains prescribed. Iterate
-                // only its solid surface closure k(Tw)*grad(T) = E/(A*dt).
+
+
                 const GpuReal prescribedFlux = GpuReal(interfaceEnergyJ[coupledI][faceI])
                    /(GpuReal(area[faceI])*GpuReal(deltaTExchange));
                 const GpuReal surfaceFlux =
@@ -1890,8 +1890,8 @@ public:
                 pairI, solidWallTemperature
             );
             Tgas.boundaryFieldRef()[fluidPatchI] == mapped;
-            // Contact pair ids are built in ascending mapper order. Retain
-            // only their accepted surfaces, without a second face copy/read.
+
+
             if
             (
                 nextContactI < particleContactPairIds.size()
@@ -2104,8 +2104,8 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
         if (radiationDue)
         {
             const auto residentRadiation=data_->resident.radiationParticleDeviceState();
-            // Configured wall emissivity is combined with resident contact
-            // coverage by the shared radiation input kernel.
+
+
             List<scalarField> emissivity;
             if(residentRadiation.boundaryEmissivity){
                 emissivity.setSize(data_->fluidMesh.boundary().size());
@@ -2134,8 +2134,8 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
             data_->lastRadiationIntervalS=elapsedSinceRadiation;
         }
 
-        // Physical input remains resident from DO material response through the
-        // shared wall ledger and mapper. Host fields below are output/audit mirrors.
+
+
         scalarField compactRadiationEnergy;
         List<scalarField> solidEnergy;
         List<scalarField> gasHeatFlux;
@@ -2193,8 +2193,8 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
                 std::vector<double> primaryAudit,auxiliaryAudit;
                 data_->solidContact->evaluate(primaryState,auxiliaryState,deltaTExchange,
                     primaryContactEnergy,auxiliaryContactEnergy,primaryAudit,auxiliaryAudit);
-                // These endpoint mirrors retain native custom-boundary semantics
-                // and the candidate's audit. Device segments feed standard RHSs.
+
+
                 List<scalarField> auxiliaryEnergyList(1),primaryEnergy(data_->mapper->size()+1);
                 auxiliaryEnergyList[0].setSize(auxiliaryAudit.size());std::copy(auxiliaryAudit.begin(),auxiliaryAudit.end(),auxiliaryEnergyList[0].begin());
                 forAll(solidEnergy,pairI)primaryEnergy[pairI]=solidEnergy[pairI];
@@ -2363,8 +2363,8 @@ label GpuSolidThermalCoupler::persistAtWriteTime
     if(data_->solidCandidateSolver->residentAdvanced()){
         data_->solidCandidateSolver->publishResident(data_->Tsolid());
         if(data_->threeRegion&&data_->solidContactGraph)data_->auxiliaryCandidateSolver->publishResident(data_->TauxiliarySolid());
-        // The preview survives consumption of the accumulated ledgers. Publish
-        // the last completed exchange, never a recomputation from reset ledgers.
+
+
         List<scalarField> gas,deposited,reflected;
         data_->resident.collectInterfaceExchange(gas,deposited,reflected);
         data_->gasConvectiveWallHeatFlux->primitiveFieldRef()=scalar(0);

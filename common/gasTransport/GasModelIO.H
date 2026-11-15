@@ -241,8 +241,8 @@ inline void readNumericControls
         else if (whole != integers.end()) *whole->second = integer(scalar(dict, entry.first), entry.first, std::numeric_limits<int>::min());
     }
 }
-// The original chemistry model owns only these physical inversion bounds.
-// Numerical controls are not read from chemistryControls.
+
+
 inline void readThermoModelBounds(const Dictionary& dict,ChemistryControls<double>& c)
 {
     if (dict.count("thermo"))
@@ -253,8 +253,8 @@ inline void readThermoModelBounds(const Dictionary& dict,ChemistryControls<doubl
              {"maxTemperature", &c.thermo.maxTemperature}}, {});
     }
 }
-// This block is injected only from the immutable constant/scheme snapshot.
-// Model files no longer select numerical controls; absent scheme keys retain typed defaults.
+
+
 inline void applySolverControlOverrides(const Dictionary& dict,ChemistryControls<double>& c)
 {
     if(dict.count("chemistry"))
@@ -345,10 +345,10 @@ inline GasModelConfiguration parseGasModelProperties(const std::string& text, bo
     {
         model.mechanism = word(dict, "mechanism");
         if (dict.count("phase")) model.phase = word(dict, "phase");
-        // Keep the original physical bounds in their model interface.
+
         if (dict.count("chemistryControls"))
             readThermoModelBounds(subdict(dict,"chemistryControls"),model.chemistryControls);
-        // Iteration controls are supplied only through the startup scheme payload.
+
     }
     if(dict.count("solverControlOverrides"))
         applySolverControlOverrides(subdict(dict,"solverControlOverrides"),model.chemistryControls);

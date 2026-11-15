@@ -1,7 +1,7 @@
 #pragma once
 #include "GpuCollisionCentralMoment.H"
-// Shuffle the complete state before merging it. A component-wise sum is not
-// a reduction operation for a mean and its central energy.
+
+
 template<int N>
 __device__ void blockReduceCollisionMoments(float (&q)[N], float* scratch)
 {

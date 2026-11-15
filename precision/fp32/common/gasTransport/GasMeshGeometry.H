@@ -11,8 +11,8 @@ struct GasFaceGeometry {
     ugkp::gpu::geometry::Point periodicShift{};
     GpuReal area=0,delta=0,weight=GpuReal(.5);
 };
-// Keep global coordinates and periodic maps in their geometry-owner precision.
-// Publish one FP32 set of local metrics for ordinary transport.
+
+
 UGKP_GAS_MESH_HD inline GasFaceGeometry gasFaceGeometry(
     ugkp::gpu::geometry::Point areaVector,ugkp::gpu::geometry::Point faceCentre,
     ugkp::gpu::geometry::Point ownerCentre,bool neighbour,

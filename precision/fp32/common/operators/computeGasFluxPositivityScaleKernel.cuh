@@ -4,7 +4,7 @@
 #include "GpuWallEnergySink.cuh"
 #include "gasTransport/GasGeometryValidation.H"
 
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<class GasState>
 __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPERATOR_TIME stepDt)
 {
@@ -174,9 +174,9 @@ __global__ void applyGasFluxPositivityScaleKernel(GasState* sp, const bool nativ
                 if (flux!=GPU_OPERATOR_R(0.0) && donor>=0 && donor<s.nCells)
                     scale=fmin(scale,s.gasSpecies.positivityScale[k*s.nCells+donor]);
             }
-            // A prescribed physical wall exchange cannot be silently reduced:
-            // that would separate the gas update from its material/source input.
-            // Net-zero counterflow still checks each gas-side species donor.
+
+
+
             if(ugkwp::gasBoundaryLayerFaceSlot(s,f)>=0)
             {
                 if(scale<GPU_OPERATOR_R(1.0))

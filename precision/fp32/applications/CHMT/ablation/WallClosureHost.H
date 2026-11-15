@@ -6,8 +6,8 @@
 #include <memory>
 #include "../../../common/gasTransport/GasModelCast.H"
 namespace chmt {
-// Geometry is cached per immutable stage version. The caller invalidates this
-// cache on rollback/alternate geometry, whose version can be reused by a trial.
+
+
 class WallClosureHost {
     ugkwp::gaswall::WallGeometryCache<Real> cache_;
     std::unique_ptr<ugkwp::gaswall::WallWorkspace<EnergyReal,Ns,24>> smallWorkspace_;
@@ -20,9 +20,9 @@ class WallClosureHost {
         return options;
     }
     std::vector<std::vector<EnergyReal>> physicalDistance_,physicalWeight_;
-    // Canonical host mechanism input is immutable for this closure owner.
-    // Repeated history contexts reuse these allocations, so every borrowed view
-    // remains valid until the owner is reconfigured or destroyed.
+
+
+
     std::vector<ugkwp::GasReactionData<EnergyReal>> physicalReactions_;
     std::vector<ugkwp::GasStoichTerm<EnergyReal>> physicalReactants_,physicalProducts_;
     std::vector<ugkwp::GasColliderEfficiency<EnergyReal>> physicalEfficiencies_;

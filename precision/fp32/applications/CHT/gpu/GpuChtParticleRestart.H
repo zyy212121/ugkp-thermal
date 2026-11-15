@@ -676,8 +676,8 @@ inline void readV7Payload(std::istream& is,std::uint32_t bound,const MutableView
         std::fill(v.pThermalEnthalpyResidual, v.pThermalEnthalpyResidual + v.count, 0.0);
 }
 
-// Schema 8 retains all schema 7 fields and appends one binary64 carry per
-// particle to each chunk. No old field type, order or caloric meaning changes.
+
+
 static const char* const schema8FormatName = "UGKP_CHT_PARTICLES_SCHEMA8_THERMAL_CARRY_BIN";
 inline void readV8Payload(std::istream& is, std::uint32_t bound, const MutableView& v)
 {

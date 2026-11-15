@@ -1,6 +1,6 @@
 #pragma once
-// Shared S2 task execution and reduction. Physical accumulation/copy hooks are
-// provided by GpuParticleMoments.cuh; application identity is not a policy.
+
+
 #include "CsrPersistentQueue.cuh"
 #include "GpuLaunchOptions.cuh"
 template<bool GatherSurvivors = false>
@@ -145,7 +145,7 @@ int launchCommonSegmentedMomentReduction
         setLastError("CSR segmented moment worker launch", err);
         return 1;
     }
-    // Only advance has a following fused recovery; restart must complete here.
+
     if (!deferRecovery)
     {
         const int finalizeGrid =

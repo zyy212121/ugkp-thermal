@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Real-app fixed/adaptive stepping regression. Uses existing verification cases.
-No production changes; each run has an isolated input and evidence directory.
-"""
+pass
+
+
 import argparse,hashlib,importlib.util,json,math,os,re,shutil,subprocess,time
 from pathlib import Path
 DT=2.0**-22
@@ -30,7 +30,7 @@ def copy_inputs(source,target):
 
 def configure(case,bits,adaptive,app):
     control=case/'system/controlDict';scheme=case/'constant/scheme'
-    # Canonical final inputs have one owner per control. No legacy fallback.
+
     scheme.write_text(re.sub(r'\badjustTimeStep\s+[^;{}]+;','',scheme.read_text()))
     control.write_text(re.sub(r'\b(?:maxCo|maxDeltaT)\s+[^;{}]+;','',control.read_text()))
     for key,value in {'adjustTimeStep':'true' if adaptive else 'false','deltaT':DT,
@@ -93,7 +93,7 @@ def main():
           case=out/(app+'-'+str(bits)+'-'+('adaptive' if adaptive else 'fixed'))
           if app=='gasUGKP':
             driver.prepare_adaptive_case(case,adaptive)
-            # Existing verification fixture is monodisperse; use the current diameter interface.
+
             pp=case/'constant/particleProperties'
             pp.write_text(re.sub(r'\bdSigma\s+[^;]+;', 'dn 1;', pp.read_text()))
           else:

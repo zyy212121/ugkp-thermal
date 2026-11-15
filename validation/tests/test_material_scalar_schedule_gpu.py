@@ -1,4 +1,4 @@
-"""Opt-in static material worker scheduling check; no kernel timing race."""
+pass
 import os
 import shutil
 import subprocess

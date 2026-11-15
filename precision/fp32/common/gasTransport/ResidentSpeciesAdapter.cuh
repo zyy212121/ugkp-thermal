@@ -1,6 +1,6 @@
 #pragma once
-// Host adapter for the native resident backend. No transport/thermo/chemistry
-// formula is implemented here: model parsing and capability gates are common.
+
+
 inline ugkwp::GasCapabilityRequest sharedGasCapabilityRequest
 (const DeviceState* state,ugkwp::GasMode mode,int wallTreatment)
 {
@@ -16,8 +16,8 @@ inline ugkwp::GasCapabilityRequest sharedGasCapabilityRequest
 inline bool sharedGasViewRollbackFailed(DeviceState* state)
 {
     if(!syncSharedGasSpecies(state)) return false;
-    // The device may still hold addresses from the rejected view. Forbid all
-    // further resident operations and retain those allocations until teardown.
+
+
     state->gasModelPoisoned=true;
     setLastErrorText("shared gas device view rollback failed; resident must be destroyed");
     return true;
@@ -103,7 +103,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
         if(model.mode==ugkwp::GasMode::MixtureChemistry && !accepted.chemistryStatus)
         {ALLOC_SHARED(chemistryStatus,cells);}
 #undef ALLOC_SHARED
-        // Copy only canonical immutable metadata into separate device allocations.
+
         candidate.thermo=ugkwp::castSpeciesThermoViewMetadata<GpuReal>(hostThermo);
         candidate.thermo.diagnostics=state->diagnostics;
         candidate.thermo.species=nullptr;candidate.thermo.coefficients=nullptr;candidate.thermo.elementComposition=nullptr;
@@ -167,8 +167,8 @@ extern "C" int ugkwpGpuResidentStrictUploadSpeciesV1
     (void)identity;
     if(validateState(state,"species upload") || !values || !state->gasSpecies.rho)
     {setLastErrorText("missing species upload storage or input");return 1;}
-    // A failed transfer must not leave a partially populated resident field.
-    // Stage the complete input before publishing a new borrowed device view.
+
+
     decltype(state->gasSpecies.rho) staged=nullptr;
     const std::size_t count=std::size_t(state->nCells)*ugkwp::compiledGasSpecies;
     if(allocateSharedGasZero(staged,count)

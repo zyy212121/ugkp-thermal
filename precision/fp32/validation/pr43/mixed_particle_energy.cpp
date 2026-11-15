@@ -1,6 +1,6 @@
-// Internal checkpoint 2A: production recovery/publication on a serial host.
-// This is not a CUDA reduction test. Only the cell publication routine from
-// GpuParticleMoments is executed; its unused parallel reduction shim aborts.
+
+
+
 #include <cassert>
 #include <initializer_list>
 #include <cmath>
@@ -50,8 +50,8 @@ struct DeviceState {
     float pTheta[1]={},pd[1]={.001f},pT[1]={1000};
     double pThermalEnthalpyResidual[1]={},compactPThermalEnthalpyResidual[1]={};
 };
-// Gas recovery is outside this fixture: these kernels call it before the
-// solid operator, but none of the fixture state has gas data to modify.
+
+
 void recoverGasPrimitiveCell(DeviceState&,int){}
 double particleMomentThetaDevice(const DeviceState&s,int i){return s.pTheta[i];}
 float particleHeatFactorDevice(const DeviceState&s){return s.particleCp;}
@@ -108,7 +108,7 @@ int main(){
     for(int n=0;n<4;++n)recoverPrimitivesKernel(&s);
     assert(s.rhoHp[0]==enthalpy&&s.Tp[0]==cache);
 
-    // Genuine out-of-range/invalid repairs still operate, not a cache roundtrip.
+
     s.rhoHp[0]=std::numeric_limits<double>::quiet_NaN();
     recoverPrimitivesKernel(&s);
     assert(s.Tp[0]==s.TpMin&&std::isfinite(s.rhoHp[0]));

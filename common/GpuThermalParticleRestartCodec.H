@@ -198,8 +198,8 @@ inline void readNative64ChtPayload(std::istream& is,std::uint32_t bound,const Vi
                 for(std::size_t j=0;j<n;++j)p[b+j]=static_cast<float>(nodes[j]);
             }else readArray(is,p,b,n);
         });
-        // Native64 still has the shared non-cold material residual field.
-        // Native32 has no compensating inventory: consume wire values only.
+
+
         std::vector<double> residual(chunk);readArray(is,residual.data(),0,chunk);
         if(v.pThermalEnthalpyResidual)
             for(std::size_t j=0;j<chunk;++j)v.pThermalEnthalpyResidual[begin+j]=0;

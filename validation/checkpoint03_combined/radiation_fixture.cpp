@@ -50,7 +50,7 @@ RadiationGeometry geometry(int cells,int polar,const std::string& topology){
    g.reflectionOffsets.push_back(g.reflectionDonors.size());
   }g.transportDiagonal.push_back(diagonal);
  }}
- // Add real upwind dependencies; a periodic ring exercises SCC iteration.
+
  if(topology!="isolated"){
   if(cells<3)throw std::runtime_error("connected topology requires at least three cells");
   const bool cyclic=topology=="cycle";
@@ -80,8 +80,8 @@ RadiationSnapshot snapshot(const RadiationGeometry& g,double temperature=700,dou
  RadiationSnapshot s;s.epsilon.assign(g.cells,1e-5);s.diameter.assign(g.cells,1e-5);s.temperature.assign(g.cells,temperature);
  s.wallTemperature.assign(g.boundaryOwner.size(),wall);s.emissivity.assign(g.boundaryOwner.size(),1);return s;
 }
-// Analytic one-cell, black-wall, zero-scattering solution for the actual
-// rotated geometry: (D_a+k*V)*I_a = D_a*Bw+k*V*Bp.
+
+
 double isolatedBlackPower(const RadiationGeometry& g,double tp,double tw,double k){
  const double pi=std::acos(-1.),Bp=5.670374419e-8*tp*tp*tp*tp/pi;
  const double difference=5.670374419e-8/pi*(tw-tp)*(tw+tp)*(tw*tw+tp*tp);
@@ -94,7 +94,7 @@ double isolatedBlackPower(const RadiationGeometry& g,double tp,double tw,double 
 }
 int failures=0;
 void require(bool ok,const std::string& reason){if(!ok){++failures;std::cout<<"FAIL "<<reason<<'\n';}}
-// Observational FP64 diagnostics do not feed the solver or retain a low part.
+
 double black(double temperature){const double t2=temperature*temperature;return 5.670374419e-8*t2*t2/std::acos(-1.);}
 double roundoffCoefficient(const RadiationGeometry& g){
  return sizeof(RadiationReal)==4?8.*(g.directions+8)*std::numeric_limits<float>::epsilon():0.;
@@ -126,7 +126,7 @@ void record(const std::string& prefix,const std::string& name,const RadiationGeo
  const RadiationResult& r,const std::vector<double>& intensity,double seconds,std::size_t bytes,double requested,bool closure=true){
  double maxClosure=0,total=0,grossTotal=0,maxResidual=0,maxTarget=0,maxCellWatts=0,maxCellBound=0;
  double totalGrossRadiative=0,externalPower=0,externalAngularPower=0;int warningCount=0;bool cellsAccepted=true;
- // FP32 closure allowance only; preserve stopping criteria and FP64.
+
  const double oldCoefficient=roundoffCoefficient(g);
  const double coefficient=sizeof(RadiationReal)==4?std::max(oldCoefficient,256.*std::numeric_limits<float>::epsilon()):oldCoefficient;
  for(int cell=0;cell<g.cells;++cell){

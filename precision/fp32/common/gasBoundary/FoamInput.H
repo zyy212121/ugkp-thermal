@@ -68,9 +68,9 @@ template<class Type> void function(Definition& out,const dictionary& dict,const 
         for(int i=0;i<count;++i)faces[start+i].function[firstComponent+c]=id;
     }
 }
-// EpsilonS previously supplied an evaluated startup snapshot. Keep that
-// behavior for Function1 programs outside the existing resident evaluator,
-// rather than expanding its rejection policy to otherwise usable old cases.
+
+
+
 inline bool residentEpsilonFunctionSupported(const dictionary& dict,const word& key) {
     if(!dict.found(key))return false;
     dictionary input(dict);
@@ -91,14 +91,14 @@ inline bool residentEpsilonFunctionSupported(const dictionary& dict,const word& 
     return true;
 }
 inline scalar epsilonStartupSnapshot(const scalar value,const int mode) {
-    // Owner-following modes never use a startup value. For legacy snapshots,
-    // nonfinite source rates were already suppressed by finiteOr(rate,0).
+
+
     const GpuReal stored=GpuReal(value);
     return mode!=0&&std::isfinite(stored)?scalar(stored):scalar(0);
 }
-// Inspect only the newly parsed epsilonS program. Structural/parser errors
-// still reach their existing diagnostics; nonfinite legacy inputs keep the
-// evaluated startup snapshot instead of extending gas validation to epsilonS.
+
+
+
 inline bool retainFiniteEpsilonProgram(Definition& out,std::size_t functions,
     std::size_t terms,int start,int count) {
     bool finite=true;
@@ -171,7 +171,7 @@ inline Definition read(const fvMesh& mesh,const volScalarField& rho,const volVec
             f.value[Density]=rp[i];f.value[Pressure]=pm==2?p0[i]:ppv[i];f.value[Temperature]=tm==2?T0[i]:tp[i];
             vector velocity=up[i];
             if(inletOutlet)velocity=refCast<const inletOutletFvPatchField<vector>>(up).refValue()[i];
-            if(um==4)velocity=vector::zero; // optional tangential program is projected on device
+            if(um==4)velocity=vector::zero;
             f.value[Ux]=velocity.x();f.value[Uy]=velocity.y();f.value[Uz]=velocity.z();
             if(pm==2) {
                 f.pressureGamma=pd.lookupOrDefault<scalar>("gamma",1);
@@ -196,14 +196,14 @@ inline Definition read(const fvMesh& mesh,const volScalarField& rho,const volVec
         if(um==4)function<vector>(out,ud,"tangentialVelocity",Ux,out.faces,start,size);
     }
 
-    // Capture epsilonS policy and table once. Extrapolated values are read from
-    // the current device owner cell at injection, never from this startup field.
+
+
     if(mesh.foundObject<volScalarField>("epsilonS")) {
         const auto& eps=mesh.lookupObject<volScalarField>("epsilonS");
         forAll(mesh.boundaryMesh(),patch) {
             const auto& pp=mesh.boundaryMesh()[patch];
-            // Empty poly patches own geometry but their fvPatchField has no
-            // values. Match the gas boundary loop and never index that storage.
+
+
             if(isA<emptyPolyPatch>(pp))continue;
             const auto& field=eps.boundaryField()[patch];
             const auto config=configuration(field);
@@ -214,8 +214,8 @@ inline Definition read(const fvMesh& mesh,const volScalarField& rho,const volVec
             }
             if(field.type()=="uniformFixedValue"
                 &&residentEpsilonFunctionSupported(config,"uniformValue")) {
-                // No catch-all: supported table syntax/data errors retain their
-                // real diagnostics instead of silently becoming a snapshot.
+
+
                 const auto functions=out.functions.size(),terms=out.terms.size();
                 function<scalar>(out,config,"uniformValue",SolidFraction,out.faces,pp.start(),pp.size());
                 if(retainFiniteEpsilonProgram(out,functions,terms,pp.start(),pp.size())) {

@@ -58,9 +58,9 @@ struct MaterialGeometryInventory {
     const SolidQ& at(int cell)const{return values.at(row.at(cell));}
 };
 struct MaterialConductionWorkspace {
-    // Destroy fields before their private native region. Geometry changes
-    // replace that region without movePoints callbacks on the accepted mesh;
-    // the common GPU matrix/workspace survives those native metadata changes.
+
+
+
     std::unique_ptr<Foam::fvMesh> mesh;
     std::unique_ptr<Foam::volScalarField> temperature,capacity,conductivity,source;
     ugkp::gpu::ImplicitDiffusion diffusion;
@@ -154,8 +154,8 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
     residentDiffusion.copySolution(initialDeviceFields.initialTemperature,n,initialDeviceFields.readyStream);
     bool startupDiagnosticsEmitted=false;
     for(int iteration=0;iteration<(controls.nonlinearMaxIterations);++iteration){Foam::scalarField previous(temperature.primitiveField());
-        // Preserve the native scheme's original fresh-field inputs while
-        // reusing their allocations, including nonlocal configured policies.
+
+
         capacity.primitiveFieldRef()=Foam::scalar(0);conductivity.primitiveFieldRef()=Foam::scalar(0);source.primitiveFieldRef()=Foam::scalar(0);
         forAll(mesh.boundary(),patch){
             capacity.boundaryFieldRef()[patch]==Foam::scalar(0);
@@ -173,8 +173,8 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
             const auto& value=coefficients[c];
             if(value.error){error=value.error==1?"nonpositive implicit caloric secant":"material mass/geometry incompatible during implicit solve";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;}
             capacity[c]=value.capacity;source[c]=value.source;conductivity[c]=value.conductivity;
-            // Replay the existing warning for finite porosity clipping on the
-            // host diagnostic owner; coefficient arithmetic stays on device.
+
+
             if(value.rawPorosity!=value.porosity){PhysicalReal phi=value.rawPorosity;clipPhysicsMassFraction(p,phi,3824,static_cast<int>(c));}
             next.solid[c].porosity=value.porosity;
         }
@@ -185,9 +185,9 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
             deviceFields.capacity,deviceFields.source,deviceFields.readyStream,deviceFields.conductivity,true,&conductivity,&faceK);
         residentConvergence=residentDiffusion.residentIteration();
         if(residentConvergence&&equation.configureResidentLocalSolve(solver)){
-            // Native FV supplies the configured topology/policies once. The
-            // common sparse graph and material constitutive graph retain every
-            // nonlinear update and energy-based linear tolerance on device.
+
+
+
             equation.residentBoundaryFlux();
             if(!solveResidentMaterialConduction(thermal,residentDiffusion,sparse,externalBoundary,dt,controls,
                 Foam::solverPerformance::small_,Foam::solverPerformance::vsmall_,error)){
@@ -201,18 +201,18 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
             return true;
         }
         if(deviceStartup){
-            // Capability lookup is only an optimization. If actual equation
-            // setup cannot retain the solve, publish the original inputs and
-            // assemble its native host path before taking any numerical step.
+
+
+
             if(!publishResidentMaterialConductionInput(thermal,thermalInput,error))return false;
             for(std::size_t c=0;c<n;++c){const auto& input=thermalInput[c];
                 caloric[c]=input.caloric;anchor[c]=input.anchor;target[c]=input.target;temperature[c]=input.anchor;}
             deviceStartup=false;residentConvergence=false;--iteration;continue;
         }
-        // The FV residual is an integral power, whereas PCG normalises by
-        // a matrix-dependent normFactor. Use a relative residual ratio: the
-        // same normFactor cancels, so this is an energy budget in physical
-        // units without copying OpenFOAM's boundary/parallel normalisation.
+
+
+
+
         const auto energyAdd=[](EnergyReal a,EnergyReal b){return a+b;};
         const auto energyGlobalSum=[](EnergyReal value,int communicator){
             Foam::reduce(value,Foam::sumOp<EnergyReal>(),Foam::Pstream::msgType(),communicator);return value;};
@@ -238,8 +238,8 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
         }
         const EnergyReal linearEnergyTolerance=EnergyReal(controls.energyAbsoluteTolerance)
             +EnergyReal(controls.energyRelativeTolerance)*std::max(1.0f,initialEnergy)+inventoryRoundoff;
-        // Split the existing error budget between the linear equation and
-        // nonlinear caloric closure. This is not a new user/case tolerance.
+
+
         const EnergyReal relativeLinearTarget=initialEnergy>0
             ?static_cast<EnergyReal>(std::min(1.0f,(linearEnergyTolerance/initialEnergy)*EnergyReal(controls.linearEnergyBudgetFraction))):1;
         solver.set("tolerance",std::numeric_limits<EnergyReal>::min());
@@ -268,7 +268,7 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
                 -(static_cast<EnergyReal>(target[c])-caloric[c].energy<false>(anchor[c])));
             inventoryScale=energyAdd(inventoryScale,static_cast<EnergyReal>(fabsf(target[c]))+fabsf(caloric[c].energy<false>(T)));change=fmaxf(change,fabsf(T-EnergyReal(previous[c]))/fmaxf(1,fmaxf(fabsf(T),fabsf(previous[c]))));}
         }
-        // All ranks must make the same nonlinear stopping decision.
+
         const EnergyReal globalChangeEnergy=energyGlobalSum(stableChange,mesh.comm());
         boundary=energyGlobalSum(boundary,mesh.comm());
         Foam::reduce(change,Foam::maxOp<EnergyReal>(),Foam::Pstream::msgType(),mesh.comm());
@@ -299,8 +299,8 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
     }
     error="OpenFOAM material caloric nonlinear iteration failed";report.failureOrigin=MaterialFailureOrigin::ConductionNumerical;return false;
 }
-// The dry interface owns geometry, not a liquid inventory. Keep the shared
-// geometry carrier face-sized even when a caller has no legacy FilmAux slots.
+
+
 std::vector<FilmAux> dryGeometryAux(const HostState& state){
     auto aux=state.filmAux;const auto oldSize=aux.size();aux.resize(state.surface.area.size());
     for(std::size_t f=0;f<aux.size();++f){
@@ -326,7 +326,7 @@ bool baseTrace(const HostState& base,const PhysicsConfig& p,std::vector<GasPrimi
     }
     return true;
 }
-} // namespace
+}
 struct CpuMaterialDriver::Implementation {
     std::unique_ptr<ugkp::gpu::SparseConjugateGradient> conduction;
     MaterialConductionWorkspace conductionWorkspace;
@@ -508,9 +508,9 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
         };
         MaterialGeometryInventory geometryInventory(base,history);
         HostState state=base;state.filmAux=dryGeometryAux(base);state.ledger.clear();state.filmStorage.clear();
-        // Local sources own material inventories on device. Geometry reads a
-        // separate packed observation; publish a full state only at the window
-        // endpoint, after conduction, rather than copying it every substep.
+
+
+
         state.solid.clear();
         const bool staticGeometry=p.meshMotion.policy==MeshMotionPolicy::Static;
         HostState trial;
@@ -533,8 +533,8 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
             if(accumulated.materialSteps==static_cast<std::uint64_t>(controls.maxSubsteps))materialWarning(state,ugkp::diagnostics::Code::AccuracyResidual,"CPU material substep warning budget exceeded; advancing calculation retained",accumulated.materialSteps,controls.maxSubsteps);
             if(accumulated.materialSteps==std::numeric_limits<std::uint64_t>::max()){error="CPU material substep counter overflow";return false;}
             Real dt=std::min(boundedWindowDuration(windowEnd,elapsed),controls.maxSubstep>0?controls.maxSubstep:interval);
-            // Only a real regime change forces alignment with a gas-history knot.
-            // Ordinary gas micro boundaries do not determine the material clock.
+
+
             const GasIntervalRecord* driveRecord=driveCursor.at(elapsed);
             if(!driveRecord){error="CPU material driving history exhausted";return false;}
             WindowTime boundedEnd=elapsed+dt;
@@ -556,8 +556,8 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
             std::vector<Real> solidSweep,gasSweep;IntervalCursor trialCursor=cursor;
             bool accepted=false;WindowTime trialElapsed;
             MaterialFailureOrigin lastFailure=MaterialFailureOrigin::None;
-            // Select the physical transport CFL step once, before any sources
-            // or candidate state are evaluated.
+
+
             bool transportNumerical=false;
             if(!evaluateResidentMaterialTransport(*data_->gpu,state.solidMesh,{},dt,controls.transportCfl,transport.dtLimit,error,transportNumerical)) {
                 report=accumulated;report.failureOrigin=transportNumerical?MaterialFailureOrigin::TransportNumerical:MaterialFailureOrigin::None;return false;
@@ -582,7 +582,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     endpointBulk=&endpointRecord->gasTrace;
                 }
                 if(radiation.size()!=state.surface.area.size()&&!radiation.empty()){lastFailure=MaterialFailureOrigin::LocalSourceNumerical;error="CPU radiation face layout mismatch";break;}
-                // Build the imposed endpoint/ALE geometry once before the interface RHS.
+
                 auto prepareImposedGeometry=[&]()->bool{
                     const Real fraction=windowFraction(trialElapsed,WindowTime{},windowEnd,trial.time,window.begin,window.end);std::vector<Vec3> gp=base.gasMesh.points,sp=base.solidMesh.points;
                     if((gp.size()!=geometryEndpoint.gasMesh.points.size()||sp.size()!=geometryEndpoint.solidMesh.points.size())){lastFailure=MaterialFailureOrigin::OwnerNumerical;error="material trajectory topology mismatch";return false;}
@@ -601,15 +601,15 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     if(!prepareImposedGeometry())break;
                 }
                 bool stageSweepsReady=p.meshMotion.policy!=MeshMotionPolicy::CoupledRecession;
-                // The dry surface path reads inventories, face geometry and
-                // matching gas data; it does not consume a film edge sweep.
-                // Its immutable view needs no duplicate mesh/field inventory.
+
+
+
                 const HostState& evaluation=state;
                 std::vector<FilmAux> aux;std::vector<Real> target;
                 sideVolume.assign(state.surface.area.size(),0);
                 if(!data_->evaluate(evaluation,p,bulk,driveRecord->gasGradient,true,false,dt,window.identity.sequence,surface,error,&sideVolume,&driveRecord->gasWallMatching,&driveRecord->gasAcceptedWall.values())){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
-                // Geometry follows the accepted condensed transfer. The new
-                // constitutive proposal never replaces accepted gas energy.
+
+
                 target.assign(state.surface.area.size(),0);
                 for(const auto& packet:packets)if(packet.kind==ExchangeKind::GasSolid){
                     std::size_t match=0;
@@ -626,10 +626,10 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 for(std::size_t f=0;f<aux.size();++f)if(state.surface.gasFace[f]>=0){const int sf=state.surface.solidFace[f];const Real as=sf>=0?mag(state.solidMesh.areaVectors[sf]):0;
                     aux[f]=materialRecessionFront(state.filmAux[f],target[f],as,dt);}
                 if(!error.empty())break;
-                // Local reaction/transport steps follow the already executed gas trajectory.
-                // Solve the material-volume correction and harmonic mesh only at
-                // the macro endpoint. The signed sweep carry accumulates every
-                // accepted transfer exactly, including intermediate substeps.
+
+
+
+
                 if(p.meshMotion.policy==MeshMotionPolicy::CoupledRecession&&!target.empty()
                     &&(!executedProgram||trialElapsed==windowEnd)){SweepConstraintReport motion;
                     bool numerical=false;
@@ -659,11 +659,11 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 }
                 if(!stageSweepsReady&&(!stageGeometry(state.solidMesh,trial.solidMesh.points,dt,trial.solidMesh,solidSweep,lastFailure)
                     ||!stageGeometry(state.gasMesh,trial.gasMesh.points,dt,trial.gasMesh,gasSweep,lastFailure)))break;
-                // Audit source variation without replacing the accepted transfer.
+
                 std::vector<const GasIntervalRecord*> variationRecords;
                 variationCursor.samplesInside(elapsed,trialElapsed,variationRecords);
-                // Bound temporary storage independently of the gas-history length.
-                // Samples share a material state and have no feedback into one another.
+
+
                 const std::size_t recordsPerBatch=std::max(std::size_t(1),std::size_t(4096)/std::max(std::size_t(1),state.surface.area.size()));
                 for(std::size_t begin=0;begin<variationRecords.size();begin+=recordsPerBatch){
                     const std::size_t end=std::min(variationRecords.size(),begin+recordsPerBatch);
@@ -688,8 +688,8 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 }
                 if(!error.empty())break;
 
-                // The initial physical transport evaluation remains valid when
-                // no face swept volume was added. Only ALE changes its rates.
+
+
                 if(std::any_of(solidSweep.begin(),solidSweep.end(),[](Real swept){return swept!=0;})){
                 bool numerical=false;if(!evaluateResidentMaterialTransport(*data_->gpu,state.solidMesh,solidSweep,dt,controls.transportCfl,transport.dtLimit,error,numerical)){
                     lastFailure=numerical?MaterialFailureOrigin::TransportNumerical:MaterialFailureOrigin::None;
@@ -732,9 +732,9 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
             } while(false);
             if(!accepted){if(error.empty())error="CPU material single-pass operation failed";report=accumulated;report.failureOrigin=lastFailure;return false;}
         }
-        // Lie/IMEX splitting: all conservative local sources are now in Utarget.
-        // This is one true 3-D backward-Euler conduction candidate per window,
-        // regardless of gas microstep or local reaction step count.
+
+
+
         if(!state.solidMesh.volumes.empty()){
             if(p.diagnostics)ugkp::diagnostics::beginOperation(*p.diagnostics,window.identity.sequence,base.acceptedSteps,state.time);
             if(!data_->conduction)data_->conduction.reset(new ugkp::gpu::SparseConjugateGradient);
@@ -745,9 +745,9 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
         if(samePoints(state.gasMesh,geometryEndpoint.gasMesh)&&samePoints(state.solidMesh,geometryEndpoint.solidMesh)){
             state.gasMesh=geometryEndpoint.gasMesh;state.solidMesh=geometryEndpoint.solidMesh;state.gasStages=geometryEndpoint.gasStages;state.solidStages=geometryEndpoint.solidStages;
             if(executedProgram&&p.meshMotion.policy==MeshMotionPolicy::CoupledRecession&&!base.surface.solidFace.empty()){
-                // Re-certify the executed piecewise trajectory, not an invented
-                // straight macro chord. Do not increment a provisional carry a
-                // second time when adopting the gas owner's endpoint metadata.
+
+
+
                 if((executedProgram->knots.size()<2||executedProgram->knots.front().time!=window.begin||executedProgram->knots.back().time!=window.end)){report.failureOrigin=MaterialFailureOrigin::OwnerNumerical;error="executed material remainder trajectory interval mismatch";return false;}
                 {
                     const auto& firstPoints=executedProgram->knots.front().solidPoints;
@@ -780,12 +780,12 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
         state.time=window.end;program.donorPlan=accumulated.donorPlan;
         if(data_->wall&&p.meshMotion.policy!=MeshMotionPolicy::Static)data_->wall->clearGeometry();
         if(!program.knots.empty()){const auto& last=history.records().back();CpuSurfaceResult endpointSurface;
-            // Close the completed interval against its accepted stage rates.
-            // The next predictor evaluates fresh kinetics from the new state.
+
+
             if(!data_->evaluate(state,p,last.gasTrace,last.gasGradient,false,false,interval,window.identity.sequence,endpointSurface,error,nullptr,&last.gasWallMatching,&last.gasAcceptedWall.values())){report=accumulated;report.failureOrigin=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;report.recoverable=false;return false;}
             program.knots.back().faces=endpointSurface.wall;
-            // The executed regime owns the interval including its terminal flux.
-            // Endpoint proposals affect only the next window's predictor.
+
+
             for(std::size_t f=0;f<program.knots.back().faces.size();++f)program.knots.back().faces[f].primaryKind=program.knots.front().faces[f].primaryKind;
         }
         for(std::size_t i=0;i<state.gasMesh.points.size();++i)if(mag(state.gasMesh.points[i]-geometryEndpoint.gasMesh.points[i])>p.tolerances.absoluteGeometry)accumulated.geometryCorrection=true;
@@ -794,4 +794,4 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
     }catch(const Foam::error& e){report.failureOrigin=MaterialFailureOrigin::None;error="OpenFOAM CPU material failure: "+std::string(e.what());return false;}
     catch(const std::exception& e){report.failureOrigin=MaterialFailureOrigin::None;error="CPU material failure: "+std::string(e.what());return false;}
 }
-} // namespace chmt
+}

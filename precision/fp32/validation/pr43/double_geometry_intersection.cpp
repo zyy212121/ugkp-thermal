@@ -1,4 +1,4 @@
-// Scheduled 2A geometry test. Calls the real production intersection helpers.
+
 #include "GpuPrecisionTypes.H"
 #include "GpuOperatorContract.cuh"
 #include <cassert>
@@ -23,8 +23,8 @@ int main() {
     static_assert(std::is_same<GpuReal,float>::value,"exercise float bulk");
     static_assert(std::is_same<GpuGeometry,double>::value,"geometry stays double");
     static_assert(std::is_same<decltype(segmentPlaneIntersectionFraction(0.,1.,0.)),double>::value,"fraction stays double");
-    // The original strict binary64 threshold: below and exactly at it retain
-    // the endpoint fallback. The neighboring larger double uses interpolation.
+
+
     const double threshold=1e-300;
     assert(segmentPlaneIntersectionFraction(0.,threshold,.25*threshold)==1.);
     assert(segmentPlaneIntersectionFraction(-1e-310,1e-310,0.)==1.);

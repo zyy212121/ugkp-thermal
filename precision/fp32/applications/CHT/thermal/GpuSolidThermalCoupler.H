@@ -59,7 +59,7 @@ scalarField coupledPatchOwnerTemperature
     label patchI
 );
 
-// Gas/contact/radiation need the accepted surface, not the owner node.
+
 scalarField coupledPatchSurfaceTemperature
 (
     const volScalarField& solidTemperature,

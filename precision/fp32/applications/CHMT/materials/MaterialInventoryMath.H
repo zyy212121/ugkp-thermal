@@ -3,8 +3,8 @@
 #include "coupling/IntervalContracts.H"
 namespace chmt {
 enum class MaterialInventoryCode : int {Success=0,DonorInventory,NonfiniteInventory,NonfiniteEnergy};
-// A CSR row contains every solid-consumed packet for this cell, in the original
-// packet order (including zero packets). Progress and porosity are unchanged.
+
+
 template<class Packets>
 CHMT_HD inline MaterialInventoryCode applyMaterialPacketRowView(const SolidQ& initial,
     Packets packets,const int* indices,int begin,int end,SolidQ& output){
@@ -33,8 +33,8 @@ CHMT_HD inline MaterialInventoryCode applyMaterialPacketRowView(const SolidQ& in
     if(!finite(result.energy))return MaterialInventoryCode::NonfiniteEnergy;
     output=result;return MaterialInventoryCode::Success;
 }
-// Preserve the public contiguous-storage entry point. Resident history views
-// use the same ordered accumulator and donor bound without copying packets.
+
+
 CHMT_HD inline MaterialInventoryCode applyMaterialPacketRow(const SolidQ& initial,
     const ExchangePacket* packets,const int* indices,int begin,int end,SolidQ& output){
     return applyMaterialPacketRowView(initial,packets,indices,begin,end,output);

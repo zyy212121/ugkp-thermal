@@ -52,8 +52,8 @@ public:
         out=std::move(value);return true;}
     bool downloadOne(T& out,cudaStream_t stream)const{if(size_!=1)return false;std::vector<T> values;if(!download(values,stream))return false;out=values[0];return true;}
     void rebindFault(CudaFault& fault)noexcept{fault_=&fault;}
-    // Empty views retain allocation privately, but preserve the historical null
-    // binding seen by optional CUDA arguments. Transfers always use logical size.
+
+
     T* data()const{return size_?pointer_:nullptr;}std::size_t size()const{return size_;}
     std::size_t capacity()const{return capacity_;}
 };

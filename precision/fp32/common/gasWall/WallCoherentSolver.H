@@ -5,7 +5,7 @@
 namespace ugkwp { namespace gaswall { namespace coherent {
 using namespace reconstruction;
 struct BoundaryTransform {int column=0,lo=0,hi=0;GpuReal diagonal=0;GpuReal values[35]{};};
-// Numerical cache belongs to a physical wall; it is not accepted macro history.
+
 template<int M> struct Cache {
  bool haveState=false;
  CachedLU<M> factors;
@@ -14,7 +14,7 @@ template<int M> struct Cache {
  BoundedVector<BoundaryTransform,11> boundary;
  int dirichletMask=-1;
 };
-// Bounded worker scratch: never a separate dense matrix for every wall or lane.
+
 template<int M> struct Scratch {
  WallWorkspace<GpuReal,2,M> probe;
  WallOutput<GpuReal,2> trialOut;
@@ -26,25 +26,25 @@ template<int M> struct Scratch {
  bool collectNutBranches=false,nutBranchPhase=false;
  BoundedVector<unsigned char,9*M> currentNutBranches,baseNutBranches;
  BoundedVector<GpuReal,M*6> base,res,rhs,scale,plus,steps;
- // Save only the active colored entries when trying an opposite FD batch.
- // This is worker-owned, not a per-lane vector or persistent wall cache.
+
+
  GpuReal originalSteps[M*6];
  BoundedVector<GpuReal,M*6*M*6> matrix;
- // Candidate positions are deterministic; compaction preserves scalar observer order.
+
  unsigned char nutSlotValue[9*M];bool nutSlotUsed[9*M];
  unsigned long long fdRoundoff=0,fdBranchHalves=0,fdFailures=0,factorFailures=0,centralDirections=0;
 };
-// Scalar arithmetic reference; the cooperative engine below reuses its physical helpers.
+
 template<int M> struct ScalarEngine {
  using W=WallWorkspace<GpuReal,2,M>;using Ctx=detail::LayerContext<GpuReal,2>;
  Scratch<M>&s;
  GpuReal (&cachedUslopes)[M][2];
  bool&collectNutBranches;bool&nutBranchPhase;
  BoundedVector<unsigned char,9*M>&currentNutBranches;
- int observerSlot=-1; // Lane-local fixed position, or scalar append when negative.
+ int observerSlot=-1;
  UGKWP_GAS_HD explicit ScalarEngine(Scratch<M>&scratch):s(scratch),cachedUslopes(s.cachedUslopes),collectNutBranches(s.collectNutBranches),nutBranchPhase(s.nutBranchPhase),currentNutBranches(s.currentNutBranches){}
 UGKWP_GAS_HD bool trackedEvaluate(const Input&in,const Config&cfg,const physical::Primitive<GpuReal,2>&v,GpuReal y,const GpuReal*normal,GpuReal mesh,physical::Face<GpuReal,2>&f,physical::Source<GpuReal,2>&src){int slot=observerSlot<0?-1:observerSlot++;bool ok=physical::evaluatePrimitive(in,cfg,v,y,normal,mesh,f,src);if(collectNutBranches&&nutBranchPhase&&cfg.enableSst&&y>0){GpuReal s2=0;for(int a=0;a<3;++a){s2+=2*v.gradU[a][a]*v.gradU[a][a];for(int b=a+1;b<3;++b){GpuReal x=v.gradU[a][b]+v.gradU[b][a];s2+=x*x;}}bool branch=in.model.sstCoefficients.a1*v.omega>in.model.sstCoefficients.b1*src.f2*std::sqrt(s2);if(slot<0)currentNutBranches.push_back(branch);else{s.nutSlotValue[slot]=branch;s.nutSlotUsed[slot]=true;}}return ok;}
-// Base-only assembly: same Hermite values and analytic derivatives, no post-fit operations.
+
 UGKWP_GAS_HD physical::Primitive<GpuReal,2> basePhysical(Profile&p,GpuReal y){
  int l=0;while(l+1<p.cfg.nodes-1&&p.w.y[l+1]<y)++l;if(l==0)return p.physicalPrimitive(y);
  GpuReal h=p.w.y[l+1]-p.w.y[l],t=(y-p.w.y[l])/h,state[6],ds[6];
@@ -55,8 +55,8 @@ UGKWP_GAS_HD physical::Primitive<GpuReal,2> basePhysical(Profile&p,GpuReal y){
  return v;
 }
 UGKWP_GAS_HD void copyActive(const Config&cfg,W&dest,const W&src){for(int i=0;i<cfg.nodes;++i){dest.y[i]=src.y[i];for(int j=0;j<6;++j){dest.state[i][j]=src.state[i][j];dest.residual[i][j]=src.residual[i][j];}}}
-// Reduced energy is stored explicitly. Momentum Face remains absolute-frame;
-// tangential reduced M subtracts m*wallU. Species rows retain old interval flux.
+
+
 UGKWP_GAS_HD physical::Face<GpuReal,2> resistanceFace(Profile&p,int l,const GpuReal*speciesFlux,GpuReal*resistance=nullptr,GpuReal*stressIntegral=nullptr,bool*valid=nullptr,GpuReal*advectiveIntegral=nullptr){
  const auto&in=p.in;const auto&cfg=p.cfg;GpuReal ya=p.w.y[l],yb=p.w.y[l+1],y=(ya+yb)/2;
  auto v=basePhysical(p,y);physical::Face<GpuReal,2>f;physical::Source<GpuReal,2>src;bool pointOk=trackedEvaluate(in,cfg,v,y,in.normal,p.ctx.wallNormal,f,src);if(valid)*valid=pointOk&&*valid;
@@ -70,9 +70,9 @@ UGKWP_GAS_HD physical::Face<GpuReal,2> resistanceFace(Profile&p,int l,const GpuR
  f.energy=integral.energy(p.w.state[l+1][2]-p.w.state[l][2]);for(int j=0;j<2;++j)f.species[j]=F[j];return f;
 }
 
-// Solve the SAME first-face constitutive fixed point, rather than truncating a
-// Picard series. q and two tangential tractions are local auxiliary variables,
-// not additional BVP nodes/unknowns. Always retain the last physical iterate.
+
+
+
 UGKWP_GAS_HD bool closeFirstFace(Profile&p,const GpuReal*speciesFlux,GpuReal wallEnergy,WallOutput<GpuReal,2>&out,GpuReal&closure,GpuReal&scaledClosure){
  GpuReal x[3]={out.conductiveHeatFlux,0,0};for(int d=0;d<2;++d)for(int a=0;a<3;++a)x[d+1]+=out.traction[a]*p.ctx.tangent[d][a];
  const auto wallBasis=p.wallFluxBasis();
@@ -86,8 +86,8 @@ UGKWP_GAS_HD bool closeFirstFace(Profile&p,const GpuReal*speciesFlux,GpuReal wal
  bool accepted=false;for(int direction=0;direction<2&&!accepted;++direction){if(direction==0&&!invertible)continue;if(direction==1)for(int i=0;i<3;++i)step[i]=r[i];GpuReal alpha=1;for(int line=0;line<p.cfg.numerics.maximumLineSearchIterations;++line){GpuReal v[3],rr[3];for(int i=0;i<3;++i)v[i]=x[i]+alpha*step[i];bool evaluated=evaluate(v,rr);GpuReal next=magnitude(rr);if(evaluated&&std::isfinite(next)&&next<closure){for(int i=0;i<3;++i){x[i]=v[i];r[i]=rr[i];}closure=next;accepted=true;break;}alpha*=p.cfg.numerics.lineSearchReduction;}}
  if(!accepted)break;
  }
- // No new input rejection: expose remaining local residual to the caller's
- // actual equation norm instead of falsely claiming a closed first interval.
+
+
  out.conductiveHeatFlux=x[0];for(int a=0;a<3;++a){out.traction[a]=0;for(int d=0;d<2;++d)out.traction[a]+=x[d+1]*p.ctx.tangent[d][a];}p.setWallFlux(out,wallBasis);scaledClosure=std::max(std::abs(r[0])/p.ctx.scale[2],std::max(std::abs(r[1])/p.ctx.scale[0],std::abs(r[2])/p.ctx.scale[1]));return valid;
 }
 
@@ -111,7 +111,7 @@ UGKWP_GAS_HD bool refresh(const Input&in,const Config&cfg,W&w,const Ctx&ctx,GpuR
  if(cfg.nodes>2&&cfg.enableSst)low[1][5]=points[1].z-points[0].z-w.y[1]*std::sqrt(points[0].rho*in.model.sstCoefficients.beta1/(6*points[0].mu));
  GpuReal wallEnergy=coherent_energy::wallTransport(in,ctx,points[0]);out={};out.conductiveHeatFlux=oldFlux[0].energy-wallEnergy;for(int d=0;d<2;++d)for(int a=0;a<3;++a)out.traction[a]-=oldFlux[0].momentum[d]*ctx.tangent[d][a];
  Profile p(in,cfg,w,s.transformSlope);for(int i=1;i<cfg.nodes;++i)for(int j=0;j<2;++j)cachedUslopes[i][j]=p.nodeSlope(i,j);p.setWallFlux(out);Segment seg;seg.lo=0;seg.hi=w.y[cfg.nodes-1];p.segments.push_back(seg);auto& faces=s.faces;
- // Zero-blowing/constant-composition diagnostic only. Derived first flux and wall gradient share a fixed point.
+
  GpuReal closure=0,scaledClosure=0;bool physicalValid=closeFirstFace(p,oldFlux[0].species,wallEnergy,out,closure,scaledClosure);
  nutBranchPhase=true;for(int i=0;i<cfg.nodes-1;++i)faces[i]=resistanceFace(p,i,oldFlux[i].species,nullptr,nullptr,&physicalValid);
 
@@ -122,7 +122,7 @@ UGKWP_GAS_HD bool refresh(const Input&in,const Config&cfg,W&w,const Ctx&ctx,GpuR
  if(!cfg.enableSst){high[4]=w.state[i][4];high[5]=w.state[i][5]-1;}for(int j=0;j<6;++j){w.residual[i][j]=high[j];norm=std::max(norm,std::abs(high[j]));}}
  return physicalValid;}
 UGKWP_GAS_HD BoundedVector<int,2*M> hermiteBranches(const Config&cfg,const W&w){BoundedVector<int,2*M>b;for(int j:{4,5}){for(int i=1;i<cfg.nodes-1;++i){GpuReal dl=w.state[i][j]-w.state[i-1][j],dr=w.state[i+1][j]-w.state[i][j];b.push_back((dl>0?1:dl<0?-1:0)*3+(dr>0?1:dr<0?-1:0));}int i=cfg.nodes-1;if(i==1){b.push_back(2);continue;}GpuReal h0=w.y[i]-w.y[i-1],h1=w.y[i-1]-w.y[i-2],d0=(w.state[i][j]-w.state[i-1][j])/h0,d1=(w.state[i-1][j]-w.state[i-2][j])/h1,sl=((2*h0+h1)*d0-h0*d1)/(h0+h1);b.push_back(sl*d0<=0?0:d0*d1<0&&std::abs(sl)>3*std::abs(d0)?1:2);}return b;}
-// Publication retains old species-row semantics and replaces every changed high-operator field.
+
 UGKWP_GAS_HD bool completePublication(const Input&in,const Config&cfg,W&w,const Ctx&ctx,Profile&p,int iterations,GpuReal norm,WallOutput<GpuReal,2>&out,GpuReal totalR,GpuReal totalStress,GpuReal totalAdvective,bool physicalValid){
  auto& faces=s.faces;
  out.heatConduction=(out.traceTemperature-in.matching.temperature)/totalR;out.heatViscous=totalStress/totalR;detail::LayerPoint<GpuReal,2> wallPoint;if(!detail::pointState(in,cfg,ctx,w.state[0],wallPoint))return false;out.heatTransport=totalAdvective/totalR-coherent_energy::wallTransport(in,ctx,wallPoint);out.heatBalanceResidual=out.heatConduction+out.heatViscous+out.heatTransport-out.conductiveHeatFlux;
@@ -152,7 +152,7 @@ template<class Stats> UGKWP_GAS_HD bool solve(const Input&in,const Config&origin
  for(int col=0;col<6&&ok;++col)for(int color=0;color<5&&ok;++color){copyActive(cfg,probe,w);
  for(int node=color;node<cfg.nodes;node+=5){int j=node*6+col;GpuReal old=base[j],eps=std::sqrt(std::numeric_limits<GpuReal>::epsilon()),vs=col==2?100:1;if(col==4)vs=std::sqrt(std::max(1.f,in.matching.k))*eps;if(col==5)vs=eps/std::sqrt(in.matching.omega);scale[j]=std::max(std::abs(old),vs);GpuReal h=eps*scale[j];if(col==3&&old>=.5f)h=-h;probe.state[node][col]=old+h;if((col==4||col==5)&&!pchipFdCompatible(cfg,w,probe,node,col)){probe.state[node][col]=old-h;if(!pchipFdCompatible(cfg,w,probe,node,col))probe.state[node][col]=old+h;}steps[j]=probe.state[node][col]-old;}
  GpuReal nn;bool valid=refresh(in,cfg,probe,ctx,nn,trialOut);++evaluations;
- // Try an equally sized opposite batch before shrinking unrelated columns.
+
  bool mirrorAdmissible=true;
  for(int node=color;node<cfg.nodes;node+=5){int j=node*6+col;if(!fdProbeAdmissible(in,col,base[j]-steps[j]))mirrorAdmissible=false;}
  if(valid&&mirrorAdmissible&&(currentNutBranches!=baseNutBranches||!pchipFdCompatible(cfg,w,probe))){
@@ -173,8 +173,8 @@ template<class Stats> UGKWP_GAS_HD bool solve(const Input&in,const Config&origin
  if(zero||fullZero)fallback=true;
  for(int i=lo*6;i<(hi+1)*6;++i)a[i*n+j]=(probe.residual[i/6][i%6]-res[i])/steps[j]*scale[j];} if(fallback){ for(int node=color;node<cfg.nodes&&ok;node+=5){int j=node*6+col;GpuReal old=base[j],eps=std::sqrt(std::numeric_limits<GpuReal>::epsilon()),vs=col==2?100:1;if(col==4)vs=std::sqrt(std::max(1.f,in.matching.k))*eps;if(col==5)vs=eps/std::sqrt(in.matching.omega);GpuReal h=eps*std::max(std::abs(old),vs);if(col==3&&old>=.5f)h=-h;GpuReal nn;bool valid=false;
  copyActive(cfg,probe,w);probe.state[node][col]=old+h;if((col==4||col==5)&&!pchipFdCompatible(cfg,w,probe,node,col)){probe.state[node][col]=old-h;if(pchipFdCompatible(cfg,w,probe,node,col))h=-h;}
- // Prefer ordinary-sized per-column directions after a colored obstruction.
- // Only the newly added opposite direction gets the alternative-domain check.
+
+
  GpuReal directionH=h;
  int direction=fdSelectDirection([&](int sign){GpuReal candidate=old+sign*directionH;if(sign<0&&!fdProbeAdmissible(in,col,candidate))return false;copyActive(cfg,probe,w);probe.state[node][col]=candidate;valid=refresh(in,cfg,probe,ctx,nn,trialOut);++evaluations;return valid&&currentNutBranches==baseNutBranches&&pchipFdCompatible(cfg,w,probe);});
  if(direction)h=direction*directionH;
@@ -192,8 +192,8 @@ template<class Stats> UGKWP_GAS_HD bool solve(const Input&in,const Config&origin
  }
  cachedScale=scale;cache.branches=branches;cache.dirichletMask=mask;collectNutBranches=false;
  cache.boundary.clear();
- // Store only exact Dirichlet elimination transforms, never a second raw J.
- // Nonzero boundary RHS still receives the original interior coupling.
+
+
  for(int node:{0,cfg.nodes-1})for(int col=0;col<6;++col){if(node==0&&(col==3||(col==2&&in.adiabatic)||(col==5&&cfg.enableSst&&ctx.mass>0)))continue;int j=node*6+col;
  BoundaryTransform t;t.column=j;t.lo=std::max(0,j-17);t.hi=std::min(n,j+18);t.diagonal=a[j*n+j];for(int i=t.lo;i<t.hi;++i)t.values[i-t.lo]=a[i*n+j];cache.boundary.push_back(t);
  for(int i=0;i<n;++i)if(i!=j)a[i*n+j]=0;
@@ -212,9 +212,9 @@ template<class Stats> UGKWP_GAS_HD bool solve(const Input&in,const Config&origin
 }
 
 };
-// Every lane enters the same control flow and collectives. Residual rows,
-// interval fluxes and colored FD columns have one writer; ordered reductions,
-// local first-face closure, LU and publication retain their scalar owner.
+
+
+
 template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M> {
  using Base=ScalarEngine<M>;using W=typename Base::W;using Ctx=typename Base::Ctx;
  using Base::s;using Base::cachedUslopes;using Base::collectNutBranches;
@@ -226,8 +226,8 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
  UGKWP_GAS_HD void copyActive(const Config&cfg,W&dest,const W&src){
   for(int i=team.rank();i<cfg.nodes;i+=team.size()){dest.y[i]=src.y[i];for(int j=0;j<6;++j){dest.state[i][j]=src.state[i][j];dest.residual[i][j]=src.residual[i][j];}}team.sync();
  }
- // Independent interval work is distributed, while the final R/W/A sums
- // retain exactly the scalar interval order and the same publication helper.
+
+
  UGKWP_GAS_HD bool publishTeam(const Input&in,const Config&cfg,W&w,const Ctx&ctx,int iterations,GpuReal norm,WallOutput<GpuReal,2>&out){
   bool valid=false;
   if(team.leader()){
@@ -254,7 +254,7 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
   }
   return team.broadcast(published);
  }
- // Only the leader inspects a shared probe before a collective permits writes.
+
  UGKWP_GAS_HD bool sameBranches(const Config&cfg,const W&w,const W&probe){bool same=false;if(team.leader())same=currentNutBranches==s.baseNutBranches&&pchipFdCompatible(cfg,w,probe);return team.broadcast(same);}
  UGKWP_GAS_HD bool refresh(const Input&in,const Config&cfg,W&w,const Ctx&ctx,GpuReal&norm,WallOutput<GpuReal,2>&out){
   const int nodes=cfg.nodes,edge=nodes-1;
@@ -287,7 +287,7 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
   if(team.leader())physicalValid=closeFirstFace(p,oldFlux[0].species,wallEnergy,out,closure,scaledClosure);
   if(team.leader()&&in.adiabatic)low[0][2]=out.conductiveHeatFlux/ctx.scale[2];
   physicalValid=team.broadcast(physicalValid);scaledClosure=team.broadcast(scaledClosure);
-  // Each lane owns its Profile correction; propagate the leader's closed flux.
+
   p.setWallFlux(out);if(team.leader())nutBranchPhase=true;team.sync();
   for(int i=team.rank();i<edge;i+=team.size()){observerSlot=2*edge+3*i;faces[i]=resistanceFace(p,i,oldFlux[i].species,nullptr,nullptr,&physicalValid);}
   physicalValid=team.all(physicalValid);
@@ -387,8 +387,8 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
        if(team.leader()){probe.state[node][col]=old+h;if((col==4||col==5)&&!pchipFdCompatible(cfg,w,probe,node,col)){probe.state[node][col]=old-h;if(pchipFdCompatible(cfg,w,probe,node,col))h=-h;}}
        h=team.broadcast(h);
        const GpuReal directionH=h;
-       // Every lane invokes this callback: refresh and branch inspection contain
-       // full-team collectives. All candidate decisions are lane-uniform.
+
+
        int direction=fdSelectDirection([&](int sign){
         GpuReal candidate=old+sign*directionH;
         if(sign<0&&!fdProbeAdmissible(in,col,candidate))return false;
@@ -467,9 +467,9 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
   return team.broadcast(ok);
  }
 };
-// Keep scalar order/arithmetic exactly, without artificial collective overhead.
+
 template<int M> struct Engine<M,detail::SerialWallTeam> : ScalarEngine<M> {
  UGKWP_GAS_HD explicit Engine(Scratch<M>&scratch,const detail::SerialWallTeam& = detail::SerialWallTeam{}):ScalarEngine<M>(scratch){}
 };
 
-}}} // ugkwp::gaswall::coherent
+}}}

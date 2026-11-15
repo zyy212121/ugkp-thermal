@@ -20,8 +20,8 @@ __global__ void applyResidentMaterialSources(const ResidentMaterialState* state,
         radiation,receivers,binding.candidateMesh.volumes,physics,step->dt,step->finalStep,
         binding.candidate,donor,status,reactionMaxStep,reactionCfl,reactionBudget);
 }
-// The existing host-driven material owner borrows a slice without packing
-// or uploading its extensive packets. Arithmetic stays in the same cell operator.
+
+
 __global__ void applyMaterialSliceSourcesKernel(int count,const SolidQ* current,const SolidQ* rates,
     const SolidQ* initial,const SolidQ* gasChange,SolidQ* candidateGasChange,ResidentMaterialSlice packets,const int* offsets,
     const int* indices,const int* radiationOffsets,const int* radiationFaces,

@@ -185,8 +185,8 @@ def test_cht_direct_backend_matches_public_restart_api(tmp_path):
 
 
 def test_raw_cold_profile_authority_and_release_without_compensation(tmp_path):
-    # Execute actual native64 initialization, caloric lookup and release helpers.
-    # Mobile residual remains a separate noncold model contract.
+
+
     code = r"""
 #include <cassert>
 #include <cmath>

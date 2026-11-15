@@ -14,7 +14,7 @@ int main(){using namespace ugkp::gpu;
  for(bool heating:{false,true}){auto d=anchoredTemperatureDerivative(response,heating);assert(d.valid&&d.available&&d.derivative>Real(0));
   auto dom=response.domain();Real sum=0;for(int i=0;i<2;++i)sum+=p[i].mass*std::abs(response.specificCapacity(p[i],heating))/law.enthalpyDerivative(p[i].thermal.temperature);
   assert(near(d.derivative,sum/(dom.mass*(heating?dom.upper:-dom.lower))));}
- // At solidus/liquidus use the physical one-sided H' rather than specificHeat.
+
  law.phaseChange=true;law.solidCp=Real(800);law.latentHeat=Real(300000);response.caloric=law;response.count=1;
  for(Real boundary:{Real(law.solidus()),Real(law.liquidus()),Real(4000)}){
   p[0].thermal.temperature=boundary;

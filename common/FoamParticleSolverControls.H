@@ -2,7 +2,7 @@
 #include "FoamSolverScheme.H"
 #include "thermal/ParticleNumericalControls.H"
 namespace ugkp { namespace solverControls {
-// Host startup control only: preserve the existing device-create ABI.
+
 inline int readParticleTrackingMaxFaceWalkHops(
     const Foam::Time& time,const Foam::word& region=Foam::word::null) {
     int hops=32;

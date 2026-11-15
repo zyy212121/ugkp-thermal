@@ -9,7 +9,7 @@
 #include "../../../common/gasTransport/GasMechanismIO.H"
 #include "gpu/ResidentMaterialDrive.H"
 namespace chmt {
-// Gas-window storage/scheduling boundary. All gas numerical stages are common.
+
 struct Backend;
 struct GasExecutionOptions {int fluxScheme=1,reconstruction=0,limiter=0,timeIntegrator=1,turbulenceModel=0;
     int courantUpdateInterval=1;double maximumTimeStepGrowth=1.05;
@@ -26,13 +26,13 @@ struct GasMicroReport {
 };
 bool beginGasWindow(Backend&,const WallProgram&,std::string&);
 bool advanceGasMicrostep(Backend&,Real,GasMicroReport&,std::string&);
-// Physical history is published by downloadGasWindow; microsteps retain it on device.
+
 const IntervalHistory& gasWindowHistory(const Backend&);
 ResidentMaterialDriveHistory residentGasWindowDriveHistory(const Backend&);
-std::vector<GasIntervalRecord> releaseGasWindowRecords(Backend&); // after material consumers finish
+std::vector<GasIntervalRecord> releaseGasWindowRecords(Backend&);
 bool gasWindowStageGeometry(Backend&,std::array<HostStageGeometry,2>&,std::array<HostStageGeometry,2>&,std::string&);
 bool downloadGasWindow(Backend&,HostState&,std::string&);
-// Internal driver may retain an unchanged published device endpoint; old callers import normally.
+
 bool commitGasWindow(Backend&,HostState&,std::string&,bool preservePublishedEndpoint=false);
 bool downloadState(const Backend&,HostState&,std::string&);
 struct ParticleRadiationState {ugkp::gpu::RadiationParticleDeviceView resident{};std::vector<EnergyReal> mass,temperature,diameter,occupiedArea;ugkp::gpu::ParticleRadiationResponseView response{};};

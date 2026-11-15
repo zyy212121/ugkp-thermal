@@ -86,8 +86,8 @@ __global__ void rawBoundaryEnergy(int count,RadiationReal elapsed,const Radiatio
 __global__ void publishMaterialBoundary(int faces,const RadiationReal* raw,const unsigned char* coupled,
     RadiationReal* boundary,RadiationReal* escaped){
     if(threadIdx.x)return;
-    // Computed face exchange is published unchanged. Escaped energy remains
-    // a physical CHMT external-heat input, not a particle-balance adjustment.
+
+
     RadiationReal other=0;
     for(int face=0;face<faces;++face){boundary[face]=coupled[face]?raw[face]:0;if(!coupled[face])other+=raw[face];}
     *escaped=other;
@@ -197,8 +197,8 @@ RadiationThermalCouplingDeviceView ParticleRadiationMaterial::beginAnchoredWindo
  }else{d.anchors.reserve(n);d.anchorMapping.reserve(n);anchorLumped<<<(n+1+width-1)/width,width,0,d.stream>>>(n,v.mass,v.temperature,d.anchorOffsets.ptr,d.anchors.ptr);}
  if(n){anchorInitialize<<<(n+width-1)/width,width,0,d.stream>>>(n,d.anchorParcels,d.anchorCp,d.anchors.ptr,d.anchorOffsets.ptr,d.anchorMinimum,d.anchorMaximum,d.anchorDt,d.optical.deviceTable(),v,d.arrays());}
  checkedMaterial(cudaMemsetAsync(d.maximumMaterialResidual.ptr,0,sizeof(RadiationReal),d.stream));checkedMaterial(cudaGetLastError());d.anchorActive=true;d.resultReady=false;
- // Upload one window descriptor on the material stream; DOM already waits for
- // this stream before replay. No per-iteration host parameter update.
+
+
  d.windowDescriptor.reserve(1);
  AnchorWindowDescriptor window{n,d.anchorParcels,d.anchorCp,d.anchorMinimum,d.anchorMaximum,d.anchorDt,d.anchors.ptr,d.anchorOffsets.ptr,d.optical.deviceTable(),d.arrays()};
  d.transfer.upload(d.windowDescriptor.ptr,&window,sizeof(window));

@@ -83,7 +83,7 @@ int main(){
     same(expectedRadiation.incident,actualRadiation.incident,"resident DO intensity mismatch");same(expectedRadiation.boundaryFlux,actualRadiation.boundaryFlux,"resident wall flux mismatch");
     same(expected.temperature,actual.temperature,"resident material temperature mismatch");same(expected.energy,actual.energy,"resident material energy mismatch");
     same(expected.boundaryEnergy,actual.boundaryEnergy,"resident boundary energy mismatch");same(expectedLedger,actualLedger,"resident consumption sequence mismatch");
-    // Boundary collection publishes the raw transport energy without settlement.
+
     const auto boundary=material.collectBoundaryEnergy();
     same(actual.boundaryEnergy,boundary.boundaryEnergy,"raw boundary collection mismatch");
     same({actual.escapedEnergy},{boundary.escapedEnergy},"escaped boundary collection mismatch");

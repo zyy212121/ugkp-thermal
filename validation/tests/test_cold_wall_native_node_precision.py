@@ -1,4 +1,4 @@
-"""Native coldWall1D precision contract; not a GPU physical validation."""
+pass
 from validation.tools.paths import SOURCE_ROOT
 
 
@@ -19,8 +19,8 @@ def test_native_cold_node_storage_and_publication():
             source = (root / "common/wall" / leaf).read_text()
             assert "meanCorrection" not in source
             assert "oldCarry" not in source
-        # Host boundary buffers use the existing double wire API; resident
-        # copyToDevice/copyToHost performs native conversion for FP32.
+
+
         assert "const double* pColdNodeSpecificEnthalpy," in resident
     api = (SOURCE_ROOT / "common/thermal/GpuBackendApi.H").read_text()
     assert "const double* pColdNodeSpecificEnthalpy" in api

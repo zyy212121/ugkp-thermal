@@ -8,16 +8,16 @@ CHMT_HD inline bool reactionControlFailure(const PhysicsConfig& p,ugkp::diagnost
     recordFatal(p.diagnostics,makeRecord(code,site,4,0,EntityKind::Cell,-1,component,value,0,0,quantity));
     return false;
 }
-// Shared host/device timestep mathematics. No state is committed by these
-// helpers: CPU chemistry and the retained CUDA explicit controller use the same
-// constant-U rate bound and conservative Euler advancement.
+
+
+
 struct ReactionStepControl {
     EnergyReal temperature=0,capacity=0;PhysicalReal massTolerance=0,dtLimit=std::numeric_limits<PhysicalReal>::max();
     PhysicalReal sensitivity=0,stoichiometricMass[Nr]{};EnergyReal extentEnergy[Nr]{};
     bool active=false;
 };
-// A first-order factor has a finite derivative at zero. Singular fractional
-// factors have no finite Jacobian bound; inventory limiting still applies.
+
+
 CHMT_HD inline PhysicalReal reactionMassDerivative(const Reaction& reaction,int component,const SolidQ& q,
     PhysicalReal volume,PhysicalReal temperature,PhysicalReal rate) {
     const PhysicalReal order=reaction.order[component],mass=q.condensed[component];
@@ -66,14 +66,14 @@ CHMT_HD inline bool reactionStepControl(const SolidQ& state,PhysicalReal volume,
             fractionalDonor=fractionalDonor||(nu<0&&reaction.order[k]>0&&reaction.order[k]<1&&state.condensed[k]<=c.massTolerance);}
         for(int s=0;s<Ns;++s){const PhysicalReal nu=reaction.gasNu[s];loss.pore[s]+=rate*maxValue(0,-nu);c.extentEnergy[r]+=EnergyReal(nu)*speciesE(p.species[s],c.temperature);
             c.stoichiometricMass[r]+=absValue(nu);if(nu<0)donorExtent=minValue(donorExtent,state.pore[s]/(-nu));}
-        // Only tolerance-sized fractional donor changes may bypass a singular
-        // bound at extinction. The aggregate limiter still applies;
-        // no component inventory is clipped, discarded, or artificially seeded.
+
+
+
         negligible[r]=fractionalDonor&&rate>0&&donorExtent*c.stoichiometricMass[r]<=c.massTolerance;
     }
     if(!c.active){output=c;return true;}
-    // Infinity norm of d(rate_r)/d(extent_j): cross-reaction composition terms
-    // and temperature response dT/dextent_j=-sum(nu_j*e)/capacity at fixed U.
+
+
     for(int r=0;r<p.nReactions;++r)if(!negligible[r]){
         const auto& reaction=p.reactions[r];PhysicalReal row=0,dm[Nc]{};
         for(int k=0;k<Nc;++k)dm[k]=evaluator.derivative(reaction,k,state,volume,c.temperature,stageRates[r]);
@@ -91,8 +91,8 @@ CHMT_HD inline bool reactionStepControl(const SolidQ& state,PhysicalReal volume,
     if(!(c.dtLimit>0)||!finite(c.dtLimit))return reactionControlFailure(p,!finite(c.dtLimit)?ugkp::diagnostics::Code::NonFinite:ugkp::diagnostics::Code::InvalidPhysicalState,4116,c.dtLimit);
     output=c;return true;
 }
-// Advance one full conservative Euler step selected from the rate/CFL bound.
-// There is no defect-estimator integration or failed-step repetition.
+
+
 CHMT_HD inline bool reactionStepCandidate(const SolidQ& state,PhysicalReal volume,const PhysicsConfig& p,
     Real maximumStep,PhysicalReal cfl,SolidQ& output,Real& step,bool& active,bool* numericalFailure=nullptr) {
     if(numericalFailure)*numericalFailure=true;

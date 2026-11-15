@@ -7,9 +7,9 @@
 #include "gasTransport/GasStateView.H"
 #include "gasTransport/GasBuildConfig.H"
 namespace ugkp { namespace thermal {
-// Borrowed pointers remain owned by the gas application. The gas owner must
-// outlive the particle owner; rebind after replacing any allocation. Binding
-// transfers no field values and the phase API uses CUDA events for ordering.
+
+
+
 struct ParticleGasBinding {
     int nCells=0,nFaces=0,nInternalFaces=0;
 #define UGKP_PARTICLE_GAS_FIELD(Type,Name) Type* Name=nullptr;
@@ -37,25 +37,25 @@ template<class Gas> ParticleGasBinding particleGasBinding(const Gas& gas) {
     out.viscosity=gas.gasViscosity;out.diagnostics=gas.diagnostics;
     return out;
 }
-// Configuration/state publication boundary. Existing private physical-field
-// allocations are released on first binding; borrowed memory is never freed.
+
+
 int bindParticleGas(void* particleOwner,const ParticleGasBinding& gas);
-// Allocate/configure the same owner used by CHT and bind the externally owned
-// gas mesh/state. The caller selects contact faces in its mesh adapter. It must
-// upload complete particle history and refresh tracking geometry before advance.
+
+
+
 int createBoundParticlePhase(const ParticlePhaseConfiguration& phase,
     const ParticleContactConfiguration& contact,const ParticleGasBinding& gas,
     int nCellPlanes,const unsigned char* contactFaces,const double* gravity,void** owner);
 const GpuReal* particleGasVolumeFraction(void* particleOwner);
-// Refresh contact occupancy before gas conductive fluxes, on the caller stream.
+
 int prepareParticleGasInterval(void* particleOwner,cudaStream_t gasStream);
 
-// Order borrowed gas/particle state through device events. These operations
-// never wait for the producer on the host.
+
+
 int orderParticlePhaseAfterGas(void* particleOwner,cudaStream_t gasStream);
 int orderGasAfterParticlePhase(void* particleOwner,cudaStream_t gasStream);
 
-// Submit the shared physical particle phase between gasStream events. The
-// caller observes its own diagnostics after this stream reaches completion.
+
+
 int advanceBoundParticlePhase(void* particleOwner,double dt,double endTime,cudaStream_t gasStream);
 }}

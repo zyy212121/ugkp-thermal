@@ -6,8 +6,8 @@
 #include <utility>
 #include "ParticleResidentInterval.H"
 namespace ugkp { namespace gpu {
-// Conservative equality for plain binding/configuration records. Padding may
-// cause an extra capture, never reuse a graph after a changed field.
+
+
 template<class T> inline bool sameParticleGraphBindingValue(const T& a,const T& b){
     static_assert(std::is_trivially_copyable<T>::value,"plain graph binding metadata required");
     return std::memcmp(&a,&b,sizeof(T))==0;

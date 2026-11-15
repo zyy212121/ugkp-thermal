@@ -2,8 +2,8 @@
 #include "FoamSolverScheme.H"
 #include "IStringStream.H"
 namespace ugkp { namespace solverControls {
-// Keep the existing OpenFOAM-shaped selector grammar, but its sole configurable
-// source is the immutable scheme snapshot, never system/fvSchemes.
+
+
 inline Foam::dictionary readGasNumericsDictionary(const Foam::Time& time,
     const Foam::word& region=Foam::word::null) {
     Foam::IStringStream defaults(

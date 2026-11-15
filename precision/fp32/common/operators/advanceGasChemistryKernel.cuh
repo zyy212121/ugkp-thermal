@@ -15,7 +15,7 @@ using GasChemistryStateReal = typename std::remove_pointer
 
 namespace gasChemistryAdapterDetail
 {
-// Preserve the first fatal and keep warning-only numerical residuals usable.
+
 template<class State>
 UGKWP_GAS_HD inline ChemistryStatus recordFailure
 (
@@ -45,8 +45,8 @@ UGKWP_GAS_HD inline ChemistryStatus recordFailure
         const bool zero=linear.quantity==DenseLinearQuantity::Pivot || linear.quantity==DenseLinearQuantity::RowScale;
         const Code linearCode=!gasFinite(linear.value)?Code::NonFinite:
             (zero?Code::ZeroDenominator:Code::InvalidPhysicalState);
-        // Row is component; column is reference; metadata names the failing
-        // quantity. The exact consumed scalar is observed (never the norm).
+
+
         record=makeRecord(linearCode,2207,22,0,EntityKind::Cell,cell,linear.row,
             linear.value,linear.column,linear.value,Quantity::LinearSystem);
         record.metadata=static_cast<std::uint32_t>(linear.quantity);
@@ -62,19 +62,19 @@ UGKWP_GAS_HD inline ChemistryStatus recordFailure
     return status;
 }
 
-} // namespace gasChemistryAdapterDetail
+}
 
-// The single density-storage-to-closed-reactor adapter. Both application
-// adapters supply the same gas-only view. All arrays must belong to a disposable
-// trial: a successful cell may publish to that trial before another cell fails.
 
-//
-// stageVolume is explicit: Vold for the first chemical half and Vnew for the
-// second. This routine does not read state.V, change geometry, or add p*dV work.
-// rho, rhoUx/y/z and formation-inclusive rhoE are never written. Primitive
-// recovery remains the caller's common recovery stage after successful chemistry.
-// Optional audit storage is overwritten per successful call, never accumulated:
-// the orchestrator owns half-stage identity and accepted diagnostic publication.
+
+
+
+
+
+
+
+
+
+
 template<class GasState, class Time>
 UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
 (
@@ -90,8 +90,8 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
     ChemistryStatus status;
     if constexpr (GasStateTraits<GasState>::speciesCount == 0)
     {
-        // No species field, allocation, metadata access, or floating-point work
-        // is required by the unchanged legacy path.
+
+
         if(evaluated)*evaluated=true;
         return status;
     }
@@ -170,8 +170,8 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
         const Real uz = Real(state.rhoUz[cell])/density;
         const Real kineticDensity = Real(0.5)*density*(ux*ux + uy*uy + uz*uz);
         input.internalEnergy = (state.rhoE[cell] - kineticDensity)*stageVolume;
-        // Negative formation-inclusive U is valid; the common caloric inversion
-        // determines admissibility. No heat source, energy floor, or repair.
+
+
         if (!gasFinite(ux) || !gasFinite(uy) || !gasFinite(uz)
             || !gasFinite(input.internalEnergy))
         {
@@ -198,7 +198,7 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
         gasChemistryDetail::retainDiagnostic(status,inputDiagnostic);
 
 
-        // call retains the original density bits, not their volume round trip.
+
         StorageReal candidateDensity[Ns];
         densitySum = Real(0);
         for (int s = 0; s < Ns; ++s)
@@ -224,7 +224,7 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             densitySum += candidateDensity[s];
             if(!gasFinite(densitySum)){
                 recordWarning(state.diagnostics,makeRecord(Code::ConservationResidual,10037,22,0,EntityKind::Cell,cell,s,densitySum,density,0,Quantity::Conservation));
-                // This sum is diagnostic only; every published component is finite.
+
             }
         }
         const Real densityResidual=densitySum-density;
@@ -232,7 +232,7 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             recordWarning(state.diagnostics,makeRecord(Code::ConservationResidual,2204,22,0,EntityKind::Cell,cell,-1,densityResidual,species.densityClosureTolerance*gasThermoDetail::absValue(density),0,Quantity::Conservation));
         if(!gasFinite(inputDensityDefect) || gasThermoDetail::absValue(inputDensityDefect)>species.densityClosureTolerance*gasThermoDetail::absValue(density))
             recordWarning(state.diagnostics,makeRecord(Code::ConservationResidual,10038,22,0,EntityKind::Cell,cell,-1,inputDensityDefect,species.densityClosureTolerance*gasThermoDetail::absValue(density),inputDensityDefect,Quantity::Conservation));
-        // A zero interval must not change density bits through a round trip with
+
 
         if (interval != Time(0))
         {
@@ -270,11 +270,11 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCellWithVolumes
     }
 }
 
-} // namespace ugkwp
+}
 
 #if defined(__CUDACC__)
-// No application-specific chemical body: a CUDA launch merely assigns cells to
-// the same tested host/device adapter. Stage volumes are mandatory and immutable.
+
+
 template<class GasState, class Time,class Volumes>
 __global__ void advanceGasChemistryKernel
 (
@@ -288,8 +288,8 @@ __global__ void advanceGasChemistryKernel
     if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
     const int cell = blockIdx.x*blockDim.x + threadIdx.x;
     if (cell >= state->nCells) return;
-    // The launch interval can be a Strang half-step. Scale it once here;
-    // direct cell adapters continue to accept an already physical interval.
+
+
     const Time localInterval=ugkwp::gasCellTimeStep(*state,cell,chemicalInterval);
     ugkwp::advanceGasChemistryCellWithVolumes(*state, cell, localInterval, stageVolumes, nativeRefinement);
 }

@@ -1,6 +1,6 @@
-// Compile this translation unit separately against EACH historical FP64
-// source closure, with namespaces renamed. Never include candidate headers.
-// CHMT_LEGACY_CHECKPOINT is an absolute, frozen Checkpoint.C include.
+
+
+
 #define CHMT_LEGACY_SEED 1
 #include CHMT_LEGACY_CHECKPOINT
 #include "chmt_seed.H"
@@ -14,9 +14,9 @@ extern "C" int CHMT_LEGACY_EXPORT(const char* directory,int carry){
 #define CHMT_JOIN_I(a,b) a##b
 #define CHMT_JOIN(a,b) CHMT_JOIN_I(a,b)
 extern "C" int CHMT_JOIN(CHMT_LEGACY_EXPORT,_inspect)(const char* directory,double* carry){
- // Inspect wire compatibility using the archive's actual configuration, not
- // old double defaults that differ from widened FP32 configuration values.
- // The real historical readCheckpoint still validates and decodes the state.
+
+
+
  chmt::ModelConfig model;chmt::HostState read;std::string error;
  std::ifstream input(std::string(directory)+"/state.chmt",std::ios::binary|std::ios::ate);
  if(!input || input.tellg()<72)return 2;

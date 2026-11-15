@@ -625,7 +625,7 @@ template<class Archive,class Value> void visitHostStateFields(Archive& a,Value& 
     a(x.ledger);
     a(x.filmStorage);
     a(x.gasSstAudit);
-    // gasWallDiagnostics/time are reconstructible output, intentionally absent.
+
     a(x.time);
     a(x.acceptedSteps);
     a(x.rejectedSteps);
@@ -648,8 +648,8 @@ std::string parentDirectory(std::string path){
     const auto slash=path.find_last_of('/');return slash==std::string::npos?".":(slash==0?"/":path.substr(0,slash));
 }
 
-// New schema16 writes native binary32 cold1D nodes; schema15 input
-// decodes binary64 nodes once at the precision boundary. No old schema path.
+
+
 template<class Archive> void encodeParticleHistory(Archive& a,const ugkp::thermal::ParticleThermalHistory& h){
     a(h.initialized);a(h.status);a(h.temperature);a(h.theta);
     const double removedCarry=0;a(removedCarry);
@@ -659,7 +659,7 @@ template<class Archive> void encodeParticleHistory(Archive& a,const ugkp::therma
     for(const auto& v:h.cold2DNodeSpecificEnthalpy)a.profile32(v);
     a(h.cold2DRingContactAge);a(h.cold2DFrozenArea);
 }
-// Double-only legacy wire shadow, never retained as current configuration.
+
 struct LegacyContactWire {
     int model=3,heatTransfer=1,wallTransientResistance=1,nonlinearIterations=4;
     double sommerfeldThreshold=20,maximumCoverage=.63;
@@ -680,7 +680,7 @@ void decodeParticleHistory(Decoder& a,ParticleQ& p,const ugkwp::legacyRestart::P
     a(h.coldRingSolidMass);a(h.coldFrozenArea);a(h.coldContactAge);
     for(auto& v:h.cold2DNodeSpecificEnthalpy)a.profile32(v);
     a(h.cold2DRingContactAge);a(h.cold2DFrozenArea);
-    // Cold1D has only its native nodes: never consume or migrate a carry.
+
     if(!(p.state&&contactModel==3))
         ugkwp::legacyRestart::importParticleThermalHistory(p,originalTemperature,carry,contactModel,law);
 }
@@ -690,11 +690,11 @@ template<class Archive> void encodeStatePayload(Archive& payload,const HostState
         if(state.gasMesh.gasBoundary&&ugkp::boundary::needsCheckpoint(*state.gasMesh.gasBoundary)) {
             std::vector<int> integers;std::vector<double> values;
             ugkp::boundary::encode(*state.gasMesh.gasBoundary,integers,values);
-            payload.integer(0x31444e42474b5055ULL,8); // UPKGBND1, optional boundary-definition extension
+            payload.integer(0x31444e42474b5055ULL,8);
             payload(integers);payload(values);
         }
         if(!state.particles.empty()) {
-            payload.integer(0x31524150504b4755ULL,8); // UGKPPAR1, complete thermal/contact history
+            payload.integer(0x31524150504b4755ULL,8);
             payload.integer(state.particles.size(),8);
             for(const auto& particle:state.particles)
                 encodeParticleHistory(payload,particle.thermal);
@@ -707,17 +707,17 @@ template<class Archive> void encodeStatePayload(Archive& payload,const HostState
         }
 }
 bool writeAll(int fd,const Bytes& bytes){std::size_t done=0;while(done<bytes.size()){const auto n=::write(fd,bytes.data()+done,bytes.size()-done);if(n<0&&errno==EINTR)continue;if(n<=0)return false;done+=static_cast<std::size_t>(n);}return true;}
-} // namespace
+}
 bool writeCheckpoint(const std::string& directory,const ModelConfig& config,const HostState& state,std::string& error){
     std::string temp;int fd=-1;
     try{
         if(directory.empty()){error="empty checkpoint directory";return false;}
         ugkp::precision::beginPrecisionWrite(directory);
         Encoder configData,payload;configData(config);
-        configData.integer(0x31474643504b4755ULL,8); // UGKPCFG1
+        configData.integer(0x31474643504b4755ULL,8);
         ugkp::thermal::visitParticlePhaseConfiguration(configData,config.particlePhase);
         ugkp::thermal::visitParticleContactConfiguration(configData,config.particleContact);
-        configData.integer(0x314c4157504b4755ULL,8); // UGKPWAL1
+        configData.integer(0x314c4157504b4755ULL,8);
         configData(config.physics.wallModel.localStressCorrection);
         CountingEncoder extent;encodeStatePayload(extent,state);
         payload.data.reserve(extent.bytes);encodeStatePayload(payload,state);
@@ -726,15 +726,15 @@ bool writeCheckpoint(const std::string& directory,const ModelConfig& config,cons
         header.integer(Ns,4);header.integer(Nc,4);header.integer(Nr,4);header.integer(Ne,4);
         header.integer(checksum(reinterpret_cast<const unsigned char*>(FieldSchema),std::strlen(FieldSchema)),8);
         header.integer(configData.data.size(),8);header.integer(payload.data.size(),8);
-        // Same concatenated FNV checksum and wire bytes without materialising
-        // two additional copies of a potentially large accepted ledger.
+
+
         const auto configHash=checksum(configData.data.data(),configData.data.size());
         header.integer(checksum(payload.data.data(),payload.data.size(),configHash),8);
         const int directoryResult=::mkdir(directory.c_str(),0700);
         if(directoryResult!=0&&errno!=EEXIST){error=systemError("create checkpoint directory");return false;}
-        // Also sync on EEXIST: a previous failed parent fsync may have left
-        // this directory present but not durably linked. Retry must re-establish
-        // parent durability rather than mistake existence for successful sync.
+
+
+
         if(!syncDirectory(parentDirectory(directory),"sync checkpoint parent directory entry",error))return false;
         struct stat st;if(::stat(directory.c_str(),&st)!=0||!S_ISDIR(st.st_mode)){error="checkpoint destination is not a directory";return false;}
         temp=directory+"/.state.chmt.XXXXXX";std::vector<char> name(temp.begin(),temp.end());name.push_back(0);fd=::mkstemp(name.data());temp=name.data();
@@ -771,8 +771,8 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
         if(checksum(bytes.data()+decoder.offset,bytes.size()-decoder.offset)!=bodyChecksum)
             throw std::runtime_error("checkpoint checksum mismatch");
         const auto configEnd=decoder.offset+configSize,stateEnd=configEnd+stateSize;
-        // Schema10 has no independent contact law wire record. For that legacy
-        // case use the selected runtime law, exactly as the prior reader did.
+
+
         ugkwp::legacyRestart::ParticleCaloric legacyLaw;
         legacyLaw.phaseChange=true;legacyLaw.meltingTemperature=expected.particleContact.meltingTemperature;
         legacyLaw.mushyRange=expected.particleContact.mushyRange;
@@ -780,8 +780,8 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
         legacyLaw.solidCp=expected.particleContact.solidSpecificHeat;
         int legacyContactModel=expected.particleContact.model;
         {
-            // Decode legacy physical configuration too; skipping its bytes made
-            // reordered species and changed calorics indistinguishable.
+
+
             decoder.configurationVersion=unsigned(schema);
             ModelConfig saved;decoder(saved);
             if(schema<=8&&expected.physics.gasTransportFingerprint!=0)
@@ -803,9 +803,9 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
                     oldParticle(saved.physics.enableParticles);newParticle(expected.physics.enableParticles);
                     auto oldModel=ugkp::thermal::particleModelIdentity(saved.particlePhase);
                     auto newModel=ugkp::thermal::particleModelIdentity(expected.particlePhase);
-                    // Startup numerical controls may change across a restart.
-                    // Normalize comparison copies only; keep the archive layout
-                    // and every physical model field unchanged.
+
+
+
                     oldModel.packingIterations=newModel.packingIterations;
                     oldModel.maxFaceWalkHops=newModel.maxFaceWalkHops;
                     auto oldContact=saved.particleContact;
@@ -832,8 +832,8 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
                 if(oldInlet.data!=newInlet.data)throw std::runtime_error("checkpoint particle inlet differs from configured input");
             }
             const auto& a=saved.physics;const auto& b=expected.physics;
-            // Compare physical identity, independently of tolerances, scheduling,
-            // workspace sizes and other controls which may change at restart.
+
+
             Encoder oldThermo,newThermo;
             oldThermo(saved.speciesNames);newThermo(expected.speciesNames);
             oldThermo(saved.condensedNames);newThermo(expected.condensedNames);
@@ -875,7 +875,7 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
             for(auto& particle:candidate.particles)
                 decodeParticleHistory(decoder,particle,legacyLaw,legacyContactModel);
         }
-        if(schema<14)candidate.radiationTime=candidate.time; // old non-DO checkpoints start a new radiation epoch
+        if(schema<14)candidate.radiationTime=candidate.time;
         if(decoder.offset<stateEnd){
             decoder(candidate.gasTemperature);decoder.integer(8);
             for(int i=0;i<8;++i)decoder.integer(1);
@@ -895,4 +895,4 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
         output=std::move(candidate);error.clear();return true;
     }catch(const std::exception& e){error=std::string("checkpoint read: ")+e.what();return false;}
 }
-} // namespace chmt
+}

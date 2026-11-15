@@ -99,8 +99,8 @@ __global__ void cellAssembly(int n,int ni,const int* offsets,const int* faces,co
         if(signs[i]>0)sum+=flux[f];else sum-=flux[f];
     }
     diagonal[c]=d;
-    // Preserve the native surfaceIntegrate -> divide by V -> matrix source
-    // integration, including its floating-point rounding; do not cancel V.
+
+
     source[c]=corrected?0-volume[c]*(sum/volume[c]):0;
 }
 __global__ void matrixFaceFlux(int nf,int ni,int start,const int* owner,const int* neighbour,
@@ -122,9 +122,9 @@ struct ImplicitDiffusion::Implementation {
     void geometry(Array<GpuReal>& target,std::vector<double>& cache,const std::vector<double>& values){
         if(cache!=values){target.upload(values,transfers);cache=values;}
     }
-    // These arrays are host-authored read-only kernel inputs. Compare exact
-    // bytes so changes in signed zero, NaNs or moving-mesh geometry invalidate
-    // the device copy as well. Kernel-written boundary arrays are not cached.
+
+
+
     template<class T,class Host> void immutableInput(Array<T>& target,std::vector<Host>& cache,const std::vector<Host>& values){
         if(cache.size()!=values.size() || (!values.empty() &&
             std::memcmp(cache.data(),values.data(),values.size()*sizeof(Host))!=0)){
@@ -347,8 +347,8 @@ void ImplicitDiffusion::enqueueResidentInterfaceEnergy(void* stream){
 void ImplicitDiffusion::prescribeBoundaryEnergy(const std::vector<double>& energy,const std::vector<int>& selected,
     double interval,const GpuReal* conductivity,void* propertyStream){
     auto& d=*data_;std::vector<double> hostEnergy(energy);
-    // Device segments replace their physical input slots; never upload their
-    // downloaded audit mirrors merely to overwrite them with the same ledger.
+
+
     for(int segment=0;segment<2;++segment){const auto& view=d.interfaceEnergy[segment];if(view.enabled)for(int i=0;i<view.faces;++i)
         hostEnergy[d.cachedInterfaceBoundaryFaces[d.interfaceEnergyOffset[segment]+i]]=0;}
     d.geometry(d.prescribedEnergy,d.cachedPrescribedEnergy,hostEnergy);

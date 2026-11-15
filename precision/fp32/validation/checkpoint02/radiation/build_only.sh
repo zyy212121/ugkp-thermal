@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Compilation only. Does not launch any fixture or benchmark.
-# The parent checkpoint runner owns the one active nvcc slot.
+
+
 set -euo pipefail
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 out=${1:?usage: build_only.sh OUTPUT_DIRECTORY}

@@ -12,10 +12,10 @@ struct ParticleHeatSegment {
 struct ParticleCaloricHeatResponse {
     ParticleCaloric law;
     float initialTemperature,fraction,minimumTemperature,maximumTemperature;
-    // An open interval in gas temperature on which this response is exactly
-    // quadratic. Cuts include clipping and every caloric/phase boundary.
-    // At a cut, evaluate the original response so its one-sided derivative
-    // convention is preserved. The roundoff margin only shrinks the cache.
+
+
+
+
     UGKP_CALORIC_RESPONSE_HD ParticleHeatSegment segment(float gasTemperature)const noexcept {
         ParticleHeatSegment out;
         if(fraction==0.f)return out;
@@ -32,7 +32,7 @@ struct ParticleCaloricHeatResponse {
         const float cuts[6]={minimumTemperature,maximumTemperature,2327.f,4000.f,
             law.phaseChange?law.solidus():2327.f,law.phaseChange?law.liquidus():4000.f};
         for(int k=0;k<6;++k){
-            // Caloric cuts cannot affect an already clipped response.
+
             if(k>=2&&!active)continue;
             const float offset=(cuts[k]-initialTemperature)/fraction;
             const float cut=initialTemperature+offset;
@@ -44,9 +44,9 @@ struct ParticleCaloricHeatResponse {
         }
         return out;
     }
-    // The relaxation fraction is frozen at the source epoch, exactly as in
-    // the reference gas particle exchange. Particle bounds are independent
-    // of the gas thermo table. Clipping is part of the evaluated equation.
+
+
+
     UGKP_CALORIC_RESPONSE_HD void operator()(float gasTemperature,
         float& specificHeat,float& derivative)const noexcept {
         const float rawDelta=fraction*(gasTemperature-initialTemperature);

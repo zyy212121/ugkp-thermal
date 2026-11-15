@@ -2,7 +2,7 @@
 #include "GpuOperatorContract.cuh"
 #include "gasStencilDiagnostics.cuh"
 #include "GpuCellNeighbour.cuh"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<class GasState>
 __global__ void computeGasGradientLimiterKernel(GasState* sp, const bool nativeRefinement=false)
 {
@@ -49,7 +49,7 @@ __global__ void computeGasGradientLimiterKernel(GasState* sp, const bool nativeR
                 for(int i=0;i<count;++i)
                 {
                     const int f=s.cellFaceId[start+i];
-                    // The range and coupling were checked in the extrema pass.
+
                     GPU_OPERATOR_GEOMETRY cx,cy,cz;periodicMappedCellCentre(s,f,c,cx,cy,cz);
                     const GPU_OPERATOR_REAL predicted=yc+s.gasSpecies.gradX[index]*GPU_OPERATOR_R(s.faceCx[f]-cx)
                         +s.gasSpecies.gradY[index]*GPU_OPERATOR_R(s.faceCy[f]-cy)+s.gasSpecies.gradZ[index]*GPU_OPERATOR_R(s.faceCz[f]-cz);
@@ -131,7 +131,7 @@ __global__ void computeGasGradientLimiterKernel(GasState* sp, const bool nativeR
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
-        // The extrema pass checked this immutable face index and coupling.
+
         const GPU_OPERATOR_REAL dx = GPU_OPERATOR_R(s.faceCx[f] - s.Cx[c]);
         const GPU_OPERATOR_REAL dy = GPU_OPERATOR_R(s.faceCy[f] - s.Cy[c]);
         const GPU_OPERATOR_REAL dz = GPU_OPERATOR_R(s.faceCz[f] - s.Cz[c]);

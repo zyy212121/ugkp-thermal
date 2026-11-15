@@ -1,8 +1,8 @@
-"""Native adapter ownership tests use a host-memory CUDA allocation shim.
+pass
 
-This executes the real adapter's loading/identity/allocation paths. It does not
-claim a GPU kernel, CUDA build or native transport result.
-"""
+
+
+
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
 
 from pathlib import Path

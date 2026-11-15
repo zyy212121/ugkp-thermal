@@ -8,8 +8,8 @@
 #define UGKP_ANCHORED_RAD_HD
 #endif
 namespace ugkp { namespace gpu {
-// Own/copy these records ONCE at the radiation-window entrance. The response
-// only borrows const snapshot records, never the evolving resident state.
+
+
 template<class Real> struct RadiationEntryParticle {
     Real mass=0;
     ugkwp::ParticleThermalCarry<Real> thermal{};
@@ -41,7 +41,7 @@ template<class Real,class Caloric> struct AnchoredParticleRadiationResponse {
     UGKP_ANCHORED_RAD_HD Real specificCapacity(const RadiationEntryParticle<Real>& p,bool heating)const {
         const Real base=caloric.enthalpy(p.thermal.temperature);
         const Real carry=anchoredRadiationDetail::carry<Real>(p.thermal,0);
-        // Difference first: preserve the existing FP64 represented carry.
+
         return heating?anchoredRadiationDetail::positive((caloric.enthalpy(maximumTemperature)-base)-carry)
                       :-anchoredRadiationDetail::positive((base-caloric.enthalpy(minimumTemperature))+carry);
     }
@@ -56,18 +56,18 @@ template<class Real,class Caloric> struct AnchoredParticleRadiationResponse {
     UGKP_ANCHORED_RAD_HD AnchoredRadiationSample<Real> operator()(Real q)const {return evaluate(q,domain());}
     UGKP_ANCHORED_RAD_HD AnchoredRadiationSample<Real> evaluate(Real q,const RadiationEnergyDomain<Real>& cachedDomain)const {
         AnchoredRadiationSample<Real> out;out.requestedEnergy=q;out.domain=cachedDomain;out.mass=out.domain.mass;
-        // Exchange is the difference of entrance and published enthalpies.
-        // This explicit engineering tolerance allows one temperature-output
-        // grid at EACH endpoint; it is not a minimum representability proof.
+
+
+
         out.temperatureGridAllowance=out.domain.entryTemperatureGridAllowance;
         out.withinDomain=out.domain.contains(q);
-        // Infeasible trial, not a clipped replacement request and not a stop gate.
+
         if(!out.withinDomain)return out;
         const bool heating=q>=Real(0);
         const Real bound=heating?out.domain.upper:out.domain.lower;
         out.fraction=bound!=Real(0)?q/bound:Real(0);
         for(int i=0;i<count;++i){const auto& p=entries[i];if(!p.eligible)continue;
-            auto candidate=p.thermal; // always the same entrance anchor
+            auto candidate=p.thermal;
             const Real dq=out.fraction*specificCapacity(p,heating);
             const auto published=ugkwp::publishParticleThermalHeat(candidate,dq,minimumTemperature,maximumTemperature,caloric);
             out.publicationValid=out.publicationValid&&published.valid;

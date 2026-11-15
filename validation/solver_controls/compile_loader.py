@@ -1,4 +1,4 @@
-"""Compile/link the loader fixture only; never execute it."""
+pass
 from pathlib import Path
 import argparse,hashlib,json,os,subprocess
 def main():

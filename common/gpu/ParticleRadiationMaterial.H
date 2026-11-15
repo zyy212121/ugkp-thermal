@@ -16,7 +16,7 @@ struct ParticleRadiationMaterialInput {
     RadiationDeviceView resident{};
     RadiationParticleDeviceView particleResident{};
     RadiationReal heatFactor=0;
-    double elapsed=0; // Host clock interval converts once at kernel entry.
+    double elapsed=0;
     RadiationReal minimumTemperature=0,maximumTemperature=0,activeEpsilonMinimum=0;
 };
 struct ParticleRadiationMaterialResult {

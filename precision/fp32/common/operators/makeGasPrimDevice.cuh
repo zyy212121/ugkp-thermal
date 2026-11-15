@@ -4,8 +4,8 @@
 #include "gasTransport/GasBoundaryThermodynamics.H"
 #include "gasTransport/GasCapabilities.H"
 #include "gasTransport/GasGeometryValidation.H"
-// Called only after an actual face evaluation fails, never for a residual
-// certificate. Preserve the original status as the observed diagnostic value.
+
+
 template<class GasState>
 __device__ bool gasRecordEvaluatedFaceFailure(const GasState& s,int f,
     ugkwp::GasTransportCode code,unsigned site=2610)
@@ -19,7 +19,7 @@ __device__ bool gasRecordEvaluatedFaceFailure(const GasState& s,int f,
     const bool legacyRecorded=ugkwp::gasRecordFaceFailure(s,f,code);
     return legacyRecorded || (s.diagnostics && code!=ugkwp::GasTransportCode::UnsupportedConfiguration);
 }
-// One operator implementation; scalar/time adapters are compile-time only.
+
 __device__ GasPrimDevice makeGasPrimDevice
 (
     const GPU_OPERATOR_REAL rho,
@@ -127,7 +127,7 @@ __device__ bool useRiemannBoundaryVelocity
         return false;
     }
 
-                                                                           
+
     const GPU_OPERATOR_REAL area = clampMin(s.magSf[f], OfSmall);
     GPU_OPERATOR_REAL outwardVelocity =
         (ownerState.ux*s.Sfx[f]
@@ -179,9 +179,9 @@ __device__ GasPrimDevice riemannBoundaryState
             if(s.riemannBoundaryUFix[f]==3)
             {
                 using namespace ugkp::diagnostics;
-                // This rejection is a missing mixture boundary operator, not a
-                // soft numerical residual. Preserve the precise producer before
-                // the coarse face status makes the flux caller return false.
+
+
+
                 const int mode=0;
                 const int selector=s.riemannBoundaryUFix[f];
                 recordFatal(s.diagnostics,makeRecord(Code::MissingOperator,30420,26,nativeRefinement?1:0,
@@ -319,9 +319,9 @@ __device__ GasPrimDevice riemannBoundaryState
         );
     }
 
-                                                                             
-                                                                               
-                                                         
+
+
+
     if (pFixed && TFixed)
     {
         rho = p/clampMin(s.Rgas*T, OfSmall);

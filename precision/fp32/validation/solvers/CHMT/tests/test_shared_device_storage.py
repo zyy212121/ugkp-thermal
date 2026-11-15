@@ -1,4 +1,4 @@
-"""Allocation/marshaling test with a host CUDA API shim; never native CUDA."""
+pass
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
 
 from pathlib import Path

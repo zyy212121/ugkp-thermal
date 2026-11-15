@@ -60,8 +60,8 @@ template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> 
     // Keep output untouched on failure so it cannot become a ready closure.
     if(!gasFinite(norm)||norm>tolerance){
         if(team.leader()){
-            // Failure-only observation: no additional residual evaluation or
-            // alteration of the accepted state, iteration budget or tolerance.
+
+
             int maximumNode=0,maximumComponent=0;
             R maximumResidual=abs(w.residual[0][0]);
             for(int i=0;i<c.nodes;++i)for(int j=0;j<N+4;++j){

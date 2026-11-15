@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Copy original saved inputs and write fixed test controls. Never launch a solver."""
+pass
 from pathlib import Path
 import argparse,hashlib,json,re,shutil
 

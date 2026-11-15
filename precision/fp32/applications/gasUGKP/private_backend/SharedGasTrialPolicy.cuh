@@ -1,7 +1,7 @@
 #pragma once
-// One requested interval, one physical execution. Stage checks stay on device;
-// the public interval/Courant completion boundary publishes diagnostics before
-// the host can advance its physical clock or consume its timestep selection.
+
+
+
 
 
 #include "gasTransport/ResidentWallHistory.inl"
@@ -25,8 +25,8 @@ struct SharedGasTrialPolicy
     }
     static int complete(DeviceState* s)
     {
-        // Pair the bounded diagnostic readback with this stream's single wait.
-        // Error paths also drain queued work before the public API returns.
+
+
         const auto error=s->diagnosticOwner
             ?s->diagnosticOwner->observeCompletedWork(s->gasCaptureStream)
             :cudaStreamSynchronize(s->gasCaptureStream);

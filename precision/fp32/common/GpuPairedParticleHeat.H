@@ -13,7 +13,7 @@ UGKWP_PAIRED_HEAT_HD inline float pairedHeatBathFraction(float a,float C,float C
  const float invR=Cg>=C?1.f/(1.f+C/Cg):(Cg/C)/(1.f+Cg/C);
  if(a==1.f||invR==0.f)return invR;
  const float d=-::log1p(-a),x=d/invR;
- // Evaluate tiny time/capacity ratios without cancellation or overflowing1/a.
+
  float beta=x<1e-5f?(1.f-x*.5f+x*x/6.f)*(d/a)
   :(invR/a)*(-::expm1(-x));
  return beta<0.f?0.f:(beta>1.f?1.f:beta);
@@ -32,7 +32,7 @@ UGKWP_PAIRED_HEAT_HD inline float pairedHeatAcceptanceScale(float proposed,float
 }
 template<class Caloric>
 UGKWP_PAIRED_HEAT_HD inline float boundedParticleSpecificHeat
-(const Caloric& law,float oldH,float Ti,float Tg,float /*cp*/,float a,float Tmin,float Tmax)
+(const Caloric& law,float oldH,float Ti,float Tg,float       ,float a,float Tmin,float Tmax)
 {
  if(!(a>0.f)||Ti==Tg)return 0.f;
  if(a>1.f)a=1.f;

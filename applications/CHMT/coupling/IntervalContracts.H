@@ -140,8 +140,8 @@ public:
     IntervalCursor cursor()const;
 };
 
-// Optional compact description emitted by the original host cursor itself.
-// Device consumers borrow packet payloads but never reselect time boundaries.
+
+
 struct IntervalSliceRecordPart {Real fraction=0;bool last=false;};
 struct IntervalSliceMetadata {
     std::size_t beginRecord=0,endRecord=0;

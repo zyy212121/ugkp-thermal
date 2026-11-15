@@ -52,7 +52,7 @@ inline void readModelSolverControls(ModelConfig& model,const Foam::Time& time,
     scheme.read("chmt.meshMotion","harmonicRelativeTolerance",motion.harmonicRelativeTolerance,"default",solidRegion);
     model.particleNumerics=ugkp::solverControls::readParticleNumericalControls(time,gasRegion);
     model.particlePhase.maxFaceWalkHops=ugkp::solverControls::readParticleTrackingMaxFaceWalkHops(time,gasRegion);
-    // Preserve the existing particle checkpoint identity for a migrated same-value case.
+
     model.particlePhase.packingIterations=model.particleNumerics.packingIterations;
     scheme.read("coldWall1D","solidificationIterations",model.particleContact.nonlinearIterations,"default",gasRegion);
     ugkp::solverControls::readWallLayerSolverControls(p.wallModel,time,gasRegion);

@@ -65,9 +65,9 @@ CHMT_HD inline bool recoverMaterial(const SolidQ& q, PhysicalReal volume, const 
     return true;
 }
 
-// The same material caloric law and conductivity used by the material owner
-// supply the finite-contact wall response; particle material defaults are not
-// properties of a CHMT wall.
+
+
+
 CHMT_HD inline EnergyReal materialThermalEffusivity(const SolidQ& q,PhysicalReal volume,const PhysicsConfig& p){
     MaterialPrimitive w;if(!recoverMaterial(q,volume,p,w))return undefinedValue();
     EnergyReal capacity=0;
@@ -77,11 +77,11 @@ CHMT_HD inline EnergyReal materialThermalEffusivity(const SolidQ& q,PhysicalReal
     return std::sqrt(w.conductivity*capacity/EnergyReal(volume));
 }
 
-// All reactions evaluate the same stage state. Bound the NET assembled species
-// loss with one common extent factor. Gross-consumption limiting would freeze
-// a midpoint-generated intermediate absent from the accepted base, even when
-// simultaneous production leaves its final inventory positive. Shared-donor
-// losses still add before applying the one conservative mechanism-wide factor.
+
+
+
+
+
 template<bool Terminal=false>
 CHMT_HD inline bool boundedReactionRates(const SolidQ& evaluation, const SolidQ& capacity,
     PhysicalReal volume, const PhysicsConfig& p, PhysicalReal dt, PhysicalReal* rates,
@@ -136,9 +136,9 @@ CHMT_HD inline bool advanceLocalReactions(const SolidQ& base, PhysicalReal volum
     out=next; return true;
 }
 
-// Stationary skeleton ALE flux uses INTERNAL energy, not pore enthalpy. Darcy's
-// physical pore flow below separately uses enthalpy. Interface faces replace
-// this boundary remap by the same accepted moving-interface packet.
+
+
+
 CHMT_HD inline SolidQ materialAleFlux(const SolidQ& q, PhysicalReal volume, PhysicalReal meshVolumeRate) {
     SolidQ flux;
     const PhysicalReal factor=-meshVolumeRate/volume;
@@ -176,8 +176,8 @@ CHMT_HD inline bool darcyConductionFluxWithGradient(const SolidQ& left, const So
     if (volumeRate!=0 && state.porosity<=0) return false;
     for (int s=0; s<Ns; ++s) {
         flux.pore[s]=state.porosity>0 ? volumeRate*donor.pore[s]/(state.porosity*volume) : 0;
-        // Dry/no-Darcy faces transport no gas enthalpy. Their inactive gas
-        // tables may be absent; never turn zero transport into 0*NaN.
+
+
         if(flux.pore[s]!=0){
             EnergyReal enthalpy=speciesH(p.species[s],state.temperature);
             if(!finite(enthalpy))return false;
@@ -191,8 +191,8 @@ CHMT_HD inline bool darcyConductionFluxWithGradient(const SolidQ& left, const So
     return true;
 }
 
-// Orthogonal/two-point convenience entry. General mesh operators must use
-// darcyConductionFluxWithGradient with a corrected original-cell derivative.
+
+
 CHMT_HD inline bool darcyConductionFlux(const SolidQ& left, const SolidQ& right,
     const MaterialPrimitive& a, const MaterialPrimitive& b, PhysicalReal volumeA, PhysicalReal volumeB,
     PhysicalReal area, PhysicalReal distance, PhysicalVec3 normal, const PhysicsConfig& p, SolidQ& out) {
@@ -267,5 +267,5 @@ inline bool validateMaterialPolicy(const PhysicsConfig& p, std::string& error) {
     }
     error.clear(); return true;
 }
-} // namespace chmt
+}
 #endif

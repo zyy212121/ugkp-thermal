@@ -1,9 +1,9 @@
-"""Read current owner-specific particle layouts, without guessing old widths.
+pass
 
-Historical schema7 files are decoded by thermal_particle_restart_schema7.py.
-CHT schema9 has float enthalpy profiles and a double carry; schema10 omits
-the carry for single-state FP32 computation. FSH schema8 is FP64.
-"""
+
+
+
+
 from __future__ import annotations
 import struct
 from pathlib import Path

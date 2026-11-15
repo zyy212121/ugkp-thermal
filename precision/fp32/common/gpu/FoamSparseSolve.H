@@ -11,9 +11,9 @@
 #include <vector>
 #include <algorithm>
 namespace ugkp { namespace gpu {
-// Bridge the native FV boundary contract to the shared CUDA sparse solver.
-// This bridge is also the independent assembly reference while cell/face
-// assembly is migrated. It never dispatches to a CPU linear solver.
+
+
+
 template<class Operation> inline auto withFoamScalarMatrix(
     Foam::fvScalarMatrix& equation,Operation operation) {
     using namespace Foam;
@@ -33,10 +33,10 @@ template<class Operation> inline auto withFoamScalarMatrix(
             adjacent=&refCast<const cyclicFvPatch>(temperature.mesh().boundary()[patch]).neighbFvPatch().faceCells();
             interfaces.set(patch,nullptr);
         }
-        // jumpCyclic applies its affine term only to the original solution
-        // field, never to Krylov vectors. Transfer that term explicitly before
-        // removing this native interface; copying psi into a callback loses
-        // the field-identity test used by OpenFOAM's jump implementation.
+
+
+
+
         tmp<scalarField> jump;scalar jumpSign=1;
         const auto& field=temperature.boundaryField()[patch];
         if(localCyclic && isA<jumpCyclicFvPatchScalarField>(field)){
@@ -62,9 +62,9 @@ template<class Operation> inline auto withFoamScalarMatrix(
         const auto& context=*static_cast<Context*>(data);
         for(int i=0;i<n;++i)reduce(values[i],sumOp<GpuReal>(),Pstream::msgType(),context.communicator);
     };
-    // The native nonlocal FV interface still owns exchange/interpolation.
-    // Its double arithmetic is a documented remaining boundary, not an FP32
-    // implementation. Local cyclic coupling is assembled into FP32 CSR.
+
+
+
     if(haveInterface)communication.addInterface=[](void* data,const GpuReal* x,GpuReal* result,int n){
         auto& context=*static_cast<Context*>(data);auto& input=context.input;auto& output=context.output;
         for(int c:context.cells){input[c]=x[c];output[c]=result[c];}

@@ -1,4 +1,4 @@
-"""Static code generation only. Does not import or execute any numerical test."""
+pass
 from pathlib import Path
 import argparse,re
 ap=argparse.ArgumentParser();ap.add_argument('--root',type=Path,required=True);ap.add_argument('--output',type=Path,required=True)

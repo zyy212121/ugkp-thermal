@@ -3,8 +3,8 @@
 #include <algorithm>
 #include "MolecularViscosity.H"
 namespace ugkwp {
-// Molecular transport is independent of calorics, chemistry and solid properties.
-// All applications read constant/gasTransportProperties with this parser.
+
+
 template<class Real> struct MolecularTransportConfigurationStorage {
     MolecularViscosityModel model=MolecularViscosityModel::Constant;
     std::vector<std::string> speciesNames;
@@ -12,7 +12,7 @@ template<class Real> struct MolecularTransportConfigurationStorage {
     std::vector<Real> massRatioQuarter,wilkeDenominator;
     MolecularViscosityView<Real> coefficients;
     std::vector<PowerLawDiffusivity<Real>> diffusion;
-    std::uint64_t hash=0; // zero preserves the absent/const identity
+    std::uint64_t hash=0;
     MolecularViscosityView<Real> view() const {
         auto v=coefficients;v.model=model;v.count=int(speciesNames.empty()?species.size():speciesNames.size());
         v.species=species.data();v.massRatioQuarter=massRatioQuarter.data();v.wilkeDenominator=wilkeDenominator.data();
@@ -32,8 +32,8 @@ inline MolecularTransportConfigurationStorage<D> castMolecularTransportConfigura
     out.coefficients=castMolecularViscosityMetadata<D>(input.coefficients);
     out.diffusion=castGasModelTable<PowerLawDiffusivity<D>>(input.diffusion);
     out.hash=input.hash;
-    // Derived physical coefficients are computed in the selected precision,
-    // not in the temporary binary64 dictionary/hash representation.
+
+
     for (const auto& a : out.species) for (const auto& b : out.species)
     {
         out.massRatioQuarter.push_back(std::sqrt(std::sqrt(b.molarMass/a.molarMass)));
@@ -45,7 +45,7 @@ inline MolecularTransportConfigurationStorage<D> castMolecularTransportConfigura
 inline MolecularTransportConfiguration parseMolecularTransport(const std::string& text,
     const std::vector<std::string>& expected={}) {
     using namespace gasModelIoDetail;
-    // Preserve canonical external identities before the one-way float import.
+
     MolecularTransportConfigurationStorage<double> out;if(text.empty())return castMolecularTransportConfiguration<float>(out);
     Tokens tokens(text);const auto dict=tokens.dictionary();
     const auto tag=word(dict,"viscosityModel");
@@ -137,4 +137,4 @@ inline MolecularTransportConfiguration readMolecularTransport(const std::string&
     if(input.bad())throw std::runtime_error("failed reading molecular transport: "+path);
     return parseMolecularTransport(text,species);
 }
-} // namespace ugkwp
+}

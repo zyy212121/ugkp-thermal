@@ -28,7 +28,7 @@ int main(int argc,char**argv){
  ugkwp::SpeciesThermoView<Thermal,1> view;view.species=meta;view.coefficients=coeff;view.coefficientCount=3;
  ugkwp::ThermoInversionControls<Thermal> controls;
  controls.relativeEnergyTolerance=Thermal(1e-8);controls.relativeTemperatureTolerance=Thermal(1e-8);
- // Requested controls remain explicit; report production termination, never overwrite it here.
+
  double times[5]={},temperatures[6]={},residuals[6]={};
  const double Tg[6]={300,1600,2200,2400,4100,5000};
  const double Tp[6]={1600,300,2600,2100,3900,5000};
@@ -51,7 +51,7 @@ int main(int argc,char**argv){
     ck(std::abs(residuals[i])<=allowed);
     std::cout<<std::setprecision(17)<<"bath_case="<<i<<" requested_relative_energy="<<controls.relativeEnergyTolerance<<" requested_absolute_energy="<<controls.absoluteEnergyTolerance<<" residual_allowed="<<allowed<<" residual_actual="<<residuals[i]<<std::endl;
     temperatures[i]=t;
-    // Independent trial responses, including exact caloric cuts, cannot mutate parcel state.
+
     const auto saved=response.parcel;
     for(double trial:{100.,2327.,4000.,5000.}){response(trial,q,dq);ck(std::isfinite(q)&&std::isfinite(dq));}
     ck(response.parcel.initialTemperature==saved.initialTemperature);

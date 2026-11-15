@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Only after the parent explicitly declares the unified checkpoint-2 batch.
-# Compilation and freeze are separate. Never rebuild or repair here.
+
+
 source "${OPENFOAM_BASHRC:-/opt/openfoam10/etc/bashrc}"
 set -euo pipefail
 export OMP_NUM_THREADS="${OMP_NUM_THREADS:-4}"

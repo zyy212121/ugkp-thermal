@@ -4,7 +4,7 @@
 #include <cuda_runtime.h>
 namespace ugkp { namespace gpu {
 namespace anchoredSnapshotDetail {
-// SFINAE keeps the single-state FP32 path free of carry fields/readbacks.
+
 template<class State,class View>
 __device__ auto copyCarry(State& state,const View& view,int i,int)
  ->decltype(state.specificEnthalpyResidual=view.enthalpyCarry[i],void()) {
@@ -13,11 +13,11 @@ __device__ auto copyCarry(State& state,const View& view,int i,int)
 template<class State,class View>
 __device__ void copyCarry(State&,const View&,int,long) {}
 }
-// Window entrance only. offsets/indices are an already-built cell directory.
-// Null indices means the source arrays themselves have that contiguous order.
-// Launch over the owner's slot capacity; the device endpoint bounds the work.
-// entries and sourceParticleIndex must not alias any resident source arrays.
-// No source iteration may recapture or mutate these entry snapshots.
+
+
+
+
+
 __global__ void captureAnchoredRadiationEntriesKernel
 (ParticleRadiationResponseView borrowed,const int* cellOffsets,const int* indices,
  int cells,RadiationEntryParticle<GpuReal>* entries,int* sourceParticleIndex){
@@ -32,6 +32,6 @@ __global__ void captureAnchoredRadiationEntriesKernel
         entries[slot]=entry;sourceParticleIndex[slot]=i;
     }
 }
-// No host synchronization, allocation, source mutation, final publication or
-// stopping policy lives here. Owner controls stream and window lifetime.
+
+
 }}

@@ -10,7 +10,7 @@
 
 namespace ugkwp
 {
-// FP32 thermal authority is one stored temperature. There is no rounding carry.
+
 template<class TemperatureStorage>
 struct ParticleThermalCarry
 {
@@ -42,9 +42,9 @@ UGKWP_THERMAL_CARRY_HD inline float effectiveParticleTemperature
     return float(state.temperature);
 }
 
-// Compute a candidate before changing the single thermal state. Caloric
-// enthalpy(T) and temperature(h) operations both use binary32.
-// The caller pairs acceptedSpecificHeat with its other phase and commits only
+
+
+
 
 
 template<bool LimitAcceptedHeat, bool TerminalPublication = false, class Storage,class Caloric>
@@ -89,7 +89,7 @@ UGKWP_THERMAL_CARRY_HD inline ParticleThermalPublication publishParticleThermalH
     if (published<minimumTemperature) published=minimumTemperature;
     if (published>maximumTemperature) published=maximumTemperature;
     const float publishedBase=caloric.enthalpy(float(published));
-    // Accepted exchange is measured from the single rounded published state.
+
     const float actual=publishedBase-base;
     if (!TerminalPublication && (!finiteThermalCarry(publishedBase)
         ||!finiteThermalCarry(actual))) return {false,false,0.0f};

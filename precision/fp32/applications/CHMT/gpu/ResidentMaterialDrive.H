@@ -3,9 +3,9 @@
 #include "../../../common/CompensatedTime.H"
 #include "../../../common/gasTransport/GasDriveChange.H"
 namespace chmt {
-// Borrowed record view: the gas owner stores face-ordered bulk, gradients,
-// traction and matching values together. Consumers inspect that storage
-// directly; this adapter performs no field packing or host publication.
+
+
+
 struct ResidentMaterialDriveRecord {
     const CoupledSurfaceDownload* surface=nullptr;
     const CoupledWallDownload* wall=nullptr;
@@ -30,8 +30,8 @@ struct ResidentMaterialDriveHistory {
     const CoupledWallDownload* wall=nullptr;
     const ResidentMaterialDriveInterval* interval=nullptr;
     std::size_t frames=0,faces=0;
-    // Stream identity is ownership metadata; numerical consumers use the
-    // arrays above after a device event dependency, without a host wait.
+
+
     void* producerStream=nullptr;
     CHMT_HD ResidentMaterialDriveRecord record(std::size_t frame)const{
         const auto offset=frame*faces;

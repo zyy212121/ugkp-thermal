@@ -1,4 +1,4 @@
-// Combined checkpoint only. No production source or runtime gate is changed.
+
 #include <cuda_runtime.h>
 #include <array>
 #include <cmath>
@@ -17,7 +17,7 @@ struct DeviceState {
  Foam::gpuThermal::ColdWallSolidificationParameters coldWallSolidificationParameters;
 };
 #include "wall/GpuColdWallThermalCarry.cuh"
-// Count calls to the original PCR function without replacing its arithmetic.
+
 #define coldWall1DPcrSolve cp3OriginalPcrSolve
 #include "wall/GpuColdWall1DAlgebra.cuh"
 #undef coldWall1DPcrSolve
@@ -49,7 +49,7 @@ int main()try{
  const ColdWallSolidificationParameters pars{GPU_R(2327),GPU_R(20),GPU_R(1.16e6),
   GPU_R(3990),GPU_R(1273),GPU_R(5.9),GPU_R(.25),GPU_R(0),1,12};
  const double eps=std::numeric_limits<GpuReal>::epsilon(),mass=double(GPU_R(2.8952917895483536e-9));
- // Frozen input cases: solid, post-gas solid, crossing, liquid, two sign reversals.
+
  const std::array<const char*,6> names={"allsolid","postgas_solid","crossphase","liquid",
   "bottom_cold_to_hot","bottom_hot_to_cold"};
  const double walls[6]={486,486,4000,486,500,2100};
@@ -82,8 +82,8 @@ int main()try{
   if(k==4)ck(bottom>walls[k],"cold-to-hot bottom sign reversal not exercised");
   if(k==5)ck(bottom<walls[k],"hot-to-cold bottom sign reversal not exercised");
   if(k==4||k==5){
-   // Independent allocation observation: final bottom cooling uses the ring
-   // conductance; final heating uses wet area. It never changes solver input.
+
+
    const double maximum=double(GPU_R(2.2e-8)),contact=double(GPU_R(1.7e-8)),volume=double(GPU_R(9.047786842338605e-13));
    const double ringArea=maximum/8,thickness=volume/contact,nodeThickness=thickness/8;
    double weights[8]{},capacity[8]{},expected[8]{};
@@ -109,8 +109,8 @@ int main()try{
    <<" wall="<<walls[k]<<" wallEnergyJ="<<out[3]<<" gasEnergyJ="<<gasEnergy
    <<" closureJ="<<closure<<" allowedJ="<<bound<<" ringMassKg="<<ringMass<<'\n';
  }
- // Zero proposed heat must preserve a single stored temperature, including
- // values not reproduced exactly by an enthalpy/temperature round trip.
+
+
  ugkwp::ParticleCaloric law;law.phaseChange=true;law.solidCp=GPU_R(1273);
  for(double t:{300.125,2317.,2327.,4000.,4999.875}){
   ugkwp::ParticleThermalCarry<GpuReal> q{};q.temperature=GpuReal(t);

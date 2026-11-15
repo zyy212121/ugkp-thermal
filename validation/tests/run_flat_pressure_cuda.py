@@ -8,8 +8,8 @@ def main():
     a=p.parse_args();a.work.mkdir(parents=True,exist_ok=False)
     for bits in (32,64):
         exe=a.work/f"pressure{bits}"
-        # Match the production materialized tree: overlay-first -I paths alone
-        # allow quoted nested includes to load both physical headers.
+
+
         includes=[ROOT/".build/precision/fp32/source/common"] if bits==32 else [ROOT/"common"]
         command=[a.nvcc,"-std=c++17","-O2","--expt-relaxed-constexpr",
                  "-DTEST_REAL="+("float" if bits==32 else "double"),

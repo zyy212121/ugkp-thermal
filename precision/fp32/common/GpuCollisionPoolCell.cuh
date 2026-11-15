@@ -1,7 +1,7 @@
 #pragma once
 #include "GpuPoolMomentOperations.cuh"
 #include "GpuCollisionProbability.cuh"
-// Shared ordinary full-directory collision reduction.
+
 #if GPU_POOL_STATIC_DIRECTORY
 template<bool HeavyReductionEnabled>
 #endif

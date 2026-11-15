@@ -1,4 +1,4 @@
-// Legacy: abandoned 2D cold-wall model; retained for compatibility only.
+
 #include "../../../common/GpuPrecisionTypes.H"
 #include <type_traits>
 #include "../../../common/wall/GpuColdWallThermalCarry.cuh"
@@ -640,8 +640,8 @@ __device__ bool advanceColdWall2DThermalGroup
     const GpuReal gasEnergyJ = coldWall2DGroupSum(localGasEnergyJ, groupMask);
     if(radialNode==0 && gasConductanceWK!=GPU_R(0.0f)) {
         const int cell=s.pCellId[particleI];
-        // Settle the integrated physical gas heat. Profile rounding has no
-        // separate correction or persistent carry.
+
+
         atomicAdd(&s.particleHeatBudget[cell],(s.pm[particleI]/physicalMassKg)*gasEnergyJ);
     }
 #endif
@@ -948,7 +948,7 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
             }
         }
 
-        // The release owner reads all updated ring profiles before clearing.
+
         __syncwarp(groupMask);
         int transition = 0;
         GpuReal longDepositAreaM2 = GPU_R(0.0f);

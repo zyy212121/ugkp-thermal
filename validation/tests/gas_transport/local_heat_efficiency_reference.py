@@ -150,7 +150,7 @@ PAIRED_REFERENCE = r'''
 }
 '''
 
-# Independent raw1D three-pass oracle; legacy compensated reference retained above.
+
 COLD_REFERENCE = r'''
 inline ColdWallHeatPublication referenceColdHeat(float* nodes,int count,double heat) {
  if(!nodes||count<=0||!std::isfinite(heat))return {false,0.};

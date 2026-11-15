@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compile only; run the produced fixtures only at the coordinated checkpoint.
+
 set -euo pipefail
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 out=${1:?usage: build_only.sh OUTPUT_DIRECTORY}

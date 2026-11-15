@@ -66,8 +66,8 @@ int main() {
         require(remainder[0]==remainder[1],"signed carry parity");
         ++cases;
     }
-    // Multiple material faces can share a cell. Their inventory error budget
-    // is divided identically even when no host material snapshot is present.
+
+
     {
         auto full=coupledPair();
         full.surface=SurfaceMesh{};full.filmAux.clear();

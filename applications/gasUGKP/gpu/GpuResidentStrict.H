@@ -553,8 +553,8 @@ protected:
         const label packingProjectionIterations =
             ugkp::solverControls::startupScheme(runTime).value(
                 "particle.packing","iterations",label(20),"effectiveDefault",mesh.name());
-                                                                      
-                                                                         
+
+
 
         const bool csrCellLocalPathEnabled = scheduling.csrCellLocalPath;
         const int csrHeavyReductionMode = gpuHostValue<int>(scheduling.heavyReductionMode);
@@ -684,9 +684,9 @@ protected:
         if (enableParticleModule)
         {
             readParticleRestartMirrorIfPresent(runTime);
-                                                                             
-                                                                          
-                                                                             
+
+
+
             readEpsGPrevRestartMirrorIfPresent(runTime);
             readSourceResidualRestartMirrorIfPresent(runTime);
         }
@@ -2219,9 +2219,9 @@ protected:
                         )
                         {
                             kind = 1;
-                                                                         
-                                                                          
-                                                                        
+
+
+
                             restitution = gpuParticleBoundary::geometricReflectionRestitution;
                         }
                         else if
@@ -2373,8 +2373,8 @@ protected:
             const fvPatchScalarField& epsPatch = epsS.boundaryField()[patchI];
             if (isA<wallPolyPatch>(mesh.boundaryMesh()[patchI])
                 || isA<emptyPolyPatch>(mesh.boundaryMesh()[patchI])
-                // Match gasBoundary geometry==0: geometric constraint
-                // patches are not physical particle entry surfaces.
+
+
                 || isA<wedgePolyPatch>(mesh.boundaryMesh()[patchI])
                 || isA<symmetryPolyPatch>(mesh.boundaryMesh()[patchI])
                 || isA<symmetryPlanePolyPatch>(mesh.boundaryMesh()[patchI])
@@ -2444,8 +2444,8 @@ protected:
                 {
                     thetaValue = scalar(0);
                 }
-                // Internal owner policy, not a physical negative theta. Preserve
-                // explicit fixed values and the old suppression of invalid ones.
+
+
                 if(thetaPatch.type()=="zeroGradient")thetaValue=scalar(-1);
 
                 sourceGeometry.append(mesh, faceI);

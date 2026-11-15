@@ -1,4 +1,4 @@
-# Actual CHT executable: raw particle radiation, and disk restart.
+
 import argparse,json,sys,subprocess,re,shutil
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
@@ -39,7 +39,7 @@ boundaryRadiation {default {type diffuseGrey; emissivity 1; T '''+str(wall)+''';
  scheme=case/'constant/scheme';tol='2e-6' if a.precision==32 else '1e-13'
  scheme.write_text(scheme.read_text()+'\nradiation { do { maxSourceIterations 300; sourceRelativeTolerance '+tol+'; linearSolverTolerance '+tol+'; linearSolverRelTol 0; linearSolverMaxIterations 200; maxPhaseBalanceIterations 200; phaseBalanceTolerance '+tol+'; angleParallelThreads 1; } }\n')
  (case/'constant/mie.table').write_text('Tvals 1000 4000\nDvals .001 .002\nMuvals -1 1\nPlanckBandFractions 1 1\nDATA\n'+''.join(f'NODE {d} {t} .6666666666666667 0 .6666666666666667\nPHI 1 1\n' for d in range(2) for t in range(2))+'END_MIE_TABLE\n')
- carry=(0,0) # Native raw fixture; no compensation inventory.
+ carry=(0,0)
  subprocess.run(list(map(str,[codec,'create',case/'0/gpuResidentStrictParticles.dat',t0,t1,*carry])),check=True)
  m.run([a.solver.resolve(),'-case',case],case/'run.log')
  checkpoints=m.times(case);assert len(checkpoints)>=2

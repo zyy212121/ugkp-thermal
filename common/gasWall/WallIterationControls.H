@@ -5,7 +5,7 @@
 #define UGKP_WALL_CONTROL_HD
 #endif
 namespace ugkwp { namespace gaswall {
-// Mathematical iteration controls only. Defaults preserve the existing solver.
+
 template<class R> struct WallIterationControls {
     int maximumLineSearchIterations=40;
     R lineSearchReduction=R(.5);
@@ -30,7 +30,7 @@ castWallIterationControls(const WallIterationControls<S>& s) {
     return d;
 }
 template<class R> UGKP_WALL_CONTROL_HD inline R relaxWallSeed(R oldValue,R candidate,R relaxation) {
-    // Keep the previous arithmetic exactly for the default half relaxation.
+
     return relaxation==R(.5)?(oldValue+candidate)/R(2)
         :(R(1)-relaxation)*oldValue+relaxation*candidate;
 }

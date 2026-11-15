@@ -9,9 +9,9 @@ template<class State,class=void> struct HasTrackingFaceMetrics : std::false_type
 template<class State> struct HasTrackingFaceMetrics<State,
     std::void_t<decltype(std::declval<State>().trackingSfx)>> : std::true_type {};
 
-// Addresses/topology are initialized by the gas owner. Only mutable metric
-// arrays are written here. Failed candidate geometry is never published.
-// These kernels do not touch physical fields, boundary data or resident clocks.
+
+
+
 template<class State>
 __global__ void publishGasCellGeometryKernel(State* state,
     ugkp::gpu::geometry::PolyhedralGeometryDeviceView geometry,

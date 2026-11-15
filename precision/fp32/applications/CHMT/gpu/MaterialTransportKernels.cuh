@@ -10,7 +10,7 @@ static __global__ void initialize(const PhysicsConfig* p,Interval intervalValue,
     MaterialTransportDeviceResult* result) {
     const Real interval=intervalValue;const PhysicalReal cfl=cflValue;
     *result=MaterialTransportDeviceResult{};
-    result->numerical=true; // Same initial failure classification as the host API.
+    result->numerical=true;
     if(!(interval>0)||!finite(interval)||!(finite(cfl)&&cfl>0)){
         result->errorCode=int(MaterialTransportError::InvalidControl);result->numerical=true;return;}
     if(cells==0)return;
@@ -47,8 +47,8 @@ static __global__ void faces(Mesh meshValue,State q,const PhysicsConfig* p,
     const int f=blockIdx.x*blockDim.x+threadIdx.x;if(f>=mesh.faces||result->errorCode)return;
     w.faceErrors[f]=int(materialTransport::face(mesh,q,*p,swept,interval,f,w));
 }
-// A deterministic compact record: minimum failing entity in this completed
-// stage. No racing first-error writer and no host per-cell diagnostics copy.
+
+
 static __global__ void compactErrors(const int* errors,int count,MaterialTransportDeviceResult* result) {
     if(result->errorCode)return;
     extern __shared__ int first[];
@@ -84,9 +84,9 @@ static __global__ void compactTimestep(const Real* dt,int count,MaterialTranspor
         if(!finite(limits[0])||limits[0]<=0){result->errorCode=int(MaterialTransportError::InvalidTimestep);result->numerical=true;}
     }
 }
-} // namespace materialTransportGpu
-// All pointers, including p and result, refer to device storage. Geometry and
-// workspaces remain owned by the caller; stream completion bounds their use.
+}
+
+
 template<class Mesh,class State,class Sweep,class Interval,class Cfl>
 inline cudaError_t launchMaterialTransport(int cellCount,int faceCount,Mesh mesh,State q,
     const PhysicsConfig* p,Sweep swept,Interval interval,Cfl cfl,
@@ -110,14 +110,14 @@ inline cudaError_t launchMaterialTransport(int cellCount,int faceCount,Mesh mesh
     compactTimestep<<<1,threads,threads*sizeof(Real),stream>>>(workspace.cellDtLimit,cellCount,result);
     return cudaGetLastError();
 }
-// Existing immutable-value callers share the same launch sequence. Resident
-// owners pass topology counts plus DeviceValue bindings for geometry/state;
-// no accepted pointer or numerical mesh value has to be returned to the host.
+
+
+
 template<class State,class Sweep,class Interval,class Cfl>
 inline cudaError_t launchMaterialTransport(MaterialMeshView mesh,State q,
     const PhysicsConfig* p,Sweep swept,Interval interval,Cfl cfl,
     MaterialTransportWorkspace workspace,MaterialTransportDeviceResult* result,cudaStream_t stream){
     return launchMaterialTransport(mesh.cells,mesh.faces,mesh,q,p,swept,interval,cfl,workspace,result,stream);
 }
-} // namespace chmt
+}
 #endif

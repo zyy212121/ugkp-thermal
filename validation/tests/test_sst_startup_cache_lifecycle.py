@@ -1,4 +1,4 @@
-"""Source-order regression for startup cache ownership, not a numerical test."""
+pass
 from pathlib import Path
 import pytest
 ROOT = Path(__file__).resolve().parents[2]

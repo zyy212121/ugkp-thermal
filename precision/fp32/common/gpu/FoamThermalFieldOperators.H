@@ -15,8 +15,8 @@
 namespace ugkp { namespace gpu {
 inline ThermalVector thermalVector(const Foam::vector& v){return {GpuReal(v.x()),GpuReal(v.y()),GpuReal(v.z())};}
 inline Foam::vector foamVector(const ThermalVector& v){return {v.x,v.y,v.z};}
-// The gradient field created by Gauss uses native geometric constraint
-// patches. Store their linear vector transformation once with the topology.
+
+
 inline Foam::vector thermalGradientBoundaryValue(const Foam::fvPatch& patch,Foam::label face,const Foam::vector& value){
     using namespace Foam;
     if(isA<wedgeFvPatch>(patch))return transform(refCast<const wedgeFvPatch>(patch).faceT(),value);

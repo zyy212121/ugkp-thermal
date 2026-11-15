@@ -64,9 +64,9 @@ static __global__ void finishSweep(UpwindLinearReport* report,UpwindLinearContro
 }
 
 }
-// Immutable launch graph for the original sequential-cell linear iteration.
-// All pointers are device pointers and remain owned by the caller, except the
-// compact report and scratch storage owned here. Launches use the caller stream.
+
+
+
 class OrderedUpwindGraph {
     using Report=UpwindLinearReport;
     int cells_,faces_;
@@ -104,7 +104,7 @@ public:
         partialA_(std::max(1,(cells_+faces_+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads)),partialB_(std::max(1,(cells_+faces_+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads)),
         failure_(1),levels_(plan.levelOffsets.size()),failures_(cells_),report_(1){
         if(!controls.controlsAlreadyResolved)controls.tolerance=radiationConvergenceTolerance(controls.tolerance);
-        (void)concurrentDirections; // Scheduling is independent of the angular iteration policy.
+        (void)concurrentDirections;
         using upwindGraphDetail::checkedCudaUpwind;cudaStream_t stream=nullptr;
         checkedCudaUpwind(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
         try {
@@ -118,9 +118,9 @@ public:
             checkedCudaUpwind(cudaStreamEndCapture(stream,&initializeGraph_));
             checkedCudaUpwind(cudaGraphInstantiateWithFlags(&initializeExecutable_,initializeGraph_,0));
             checkedCudaUpwind(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));
-            // Keep the existing 128-thread wide-level path. Up to 32 adjacent
-            // levels fitting one CTA share a graph node, with a barrier per level.
-            // These are scheduling constants, identical for FP32 and FP64.
+
+
+
             const int levelThreads=ugkp::gpu::workPlan().radiationBlockThreads; constexpr int narrowLevelBatch=32;
             snapshotUpwind<<<std::max(1,(cells_+levelThreads-1)/levelThreads),levelThreads,0,stream>>>(cells_,values,previous,&report_.ptr->active);
             for(std::size_t level=0;level+1<plan.levelOffsets.size();){
@@ -157,16 +157,16 @@ public:
     }
     ~OrderedUpwindGraph(){release();}
     OrderedUpwindGraph(const OrderedUpwindGraph&)=delete;OrderedUpwindGraph& operator=(const OrderedUpwindGraph&)=delete;
-    // Batches are a scheduling choice only: the device active flag freezes
-    // the first converged/failed iterate, including within a queued batch.
+
+
     void begin(cudaStream_t stream){upwindGraphDetail::checkedCudaUpwind(cudaGraphLaunch(initializeExecutable_,stream));}
     void advance(cudaStream_t stream,int count=-1){if(count<0)count=8;for(int i=0;i<count;++i)upwindGraphDetail::checkedCudaUpwind(cudaGraphLaunch(executable_,stream));}
     const Report& collect(cudaStream_t stream){
         upwindGraphDetail::checkedCudaUpwind(cudaMemcpyAsync(hostReport_,report_.ptr,sizeof(Report),cudaMemcpyDeviceToHost,stream));
         upwindGraphDetail::checkedCudaUpwind(cudaStreamSynchronize(stream));return *hostReport_;
     }
-    // Embed the unchanged initial residual and ordered sweeps in a device
-    // controlled loop. The returned node completes exactly the accepted iterate.
+
+
     cudaGraphNode_t appendSolve(cudaGraph_t graph,const std::vector<cudaGraphNode_t>& dependencies,cudaStream_t stream){
         using namespace upwindGraphDetail;
         cudaGraphNode_t initialized=nullptr;
@@ -189,8 +189,8 @@ private:
         if(graph_)cudaGraphDestroy(graph_);if(initializeGraph_)cudaGraphDestroy(initializeGraph_);if(hostReport_)cudaFreeHost(hostReport_);
     }
 public:
-    // Measure the actual stored field after relaxation without changing the
-    // solve's iteration count, continuation state, target, or failure outcome.
+
+
     void measurePublished(OrderedUpwindDevice matrix,const int* owner,const int* neighbour,
         const RadiationReal* flux,const RadiationReal* diagonal,const RadiationReal* source,
         const RadiationReal* values,UpwindLinearControls controls,cudaStream_t stream){

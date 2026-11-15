@@ -12,10 +12,10 @@
 
 namespace ugkp { namespace solverControls {
 
-// Case-level numerical controls. The dictionary is read only at startup;
-// device owners receive their existing typed controls, never this dictionary.
-// Top-level precision selects the launcher backend. One explicit numerical
-// setting applies to either backend; omitted settings retain its typed defaults.
+
+
+
+
 class Scheme {
     Foam::dictionary values_;
     Foam::fileName path_;
@@ -84,8 +84,8 @@ public:
     }
 };
 
-// One immutable snapshot for each case root, including applications that create
-// several region registries. Own only dictionary bytes, not a Time reference.
+
+
 inline const Scheme& startupScheme(const Foam::Time& time) {
     static std::map<std::string,std::unique_ptr<const Scheme>> cases;
     const std::string key=(time.path()/time.constant()).c_str();

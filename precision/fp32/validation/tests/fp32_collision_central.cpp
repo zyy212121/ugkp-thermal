@@ -29,8 +29,8 @@ int main()
         }
         const double ux=px/mass,uy=py/mass,uz=pz/mass;
         for(auto q:terms)energy+=0.5*double(q.mass)*((q.ux-ux)*(q.ux-ux)+(q.uy-uy)*(q.uy-uy)+(q.uz-uz)*(q.uz-uz))+q.q;
-        // Partial groups, then a tree. This is an independent FP64 oracle,
-        // not FP64 arithmetic or compensation in the production accumulator.
+
+
         std::vector<CollisionCentralMoment> partials;
         for(size_t begin=0;begin<terms.size();begin+=97)
         {
@@ -47,8 +47,8 @@ int main()
         }
         all=partials[0];
         assert(std::abs(all.mass-mass)<mass*2e-5);
-        // Large boosts expose ordinary FP32 mean/writeback rounding; they do
-        // not justify a promise of arbitrarily long bitwise conservation.
+
+
         maxEnergyRelative=std::max(maxEnergyRelative,std::abs(all.q-energy)/energy);
         assert(std::abs(all.q-energy)<energy*(shift>10000?0.03:0.001));
         assert(mergeCollisionCentralMoments({},a).q==a.q);

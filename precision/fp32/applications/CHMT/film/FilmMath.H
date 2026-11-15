@@ -4,12 +4,12 @@
 #include "coupling/ExchangeLedger.H"
 
 namespace chmt {
-// Explicit value boundaries, never implicit physical/geometry operators.
+
 CHMT_HD inline PhysicalVec3 physicalVectorInput(Vec3 value){return toPhysical(value);}
 CHMT_HD inline PhysicalVec3 physicalVectorInput(PhysicalVec3 value){return value;}
 
-// Physical energy products round their operands before arithmetic. PhysicalVec3 remains
-// the independent host geometry/kinematics transport type.
+
+
 CHMT_HD inline EnergyReal surfaceEnergyDot(PhysicalVec3 a,PhysicalVec3 b) {
     return EnergyReal(a.x)*EnergyReal(b.x)+EnergyReal(a.y)*EnergyReal(b.y)+EnergyReal(a.z)*EnergyReal(b.z);
 }
@@ -53,8 +53,8 @@ CHMT_HD inline FilmProfile withNormalProfile(FilmProfile p, PhysicalVec3 normal,
     p.topVelocity=profileVelocity(p,p.delta);
     return p;
 }
-// The interface owner supplies a reference-frame normal trace independently
-// of film mass. A dry owner explicitly clears it; no old wet trace is inferred.
+
+
 template<bool Terminal=false>
 CHMT_HD inline bool setCoupledFilmNormalTrace(FilmAux& aux, PhysicalVec3 normal, bool wet,
     PhysicalReal bottom, PhysicalReal top, DeviceStatus* status=nullptr, int index=-1,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
@@ -79,9 +79,9 @@ CHMT_HD inline bool setCoupledFilmNormalTrace(FilmAux& aux, PhysicalVec3 normal,
     }
     aux=next; return true;
 }
-// Thermal recovery does not own a coupled interface's normal kinematics. The
-// plain recoverFilm empty-film convention remains unchanged for standalone EOS
-// callers. Only a finite, explicitly coupled trace is restored here.
+
+
+
 template<bool Terminal=false>
 CHMT_HD inline bool recoverFilmThermalState(const FilmQ& q, PhysicalReal area, PhysicalReal pressure,
     const PhysicsConfig& p, PhysicalVec3 normal, bool coupled, FilmAux& aux,
@@ -113,7 +113,7 @@ CHMT_HD inline bool recoverFilmThermalState(const FilmQ& q, PhysicalReal area, P
     }
     aux=next; return true;
 }
-// Shared by the actual CUDA profile kernel and the host sequence regression.
+
 template<bool Terminal=false>
 CHMT_HD inline bool updateFilmProfileState(FilmAux& aux, const PhysicsConfig& p, PhysicalVec3 normal,
     PhysicalVec3 shear, PhysicalVec3 pressureBodyGradient, bool coupled, DeviceStatus* status=nullptr, int index=-1) {
@@ -143,7 +143,7 @@ CHMT_HD inline bool updateFilmProfileState(FilmAux& aux, const PhysicsConfig& p,
     aux=next; return true;
 }
 CHMT_HD inline EnergyReal profileKineticFlux(const FilmProfile& p, PhysicalVec3 gridVelocity, PhysicalVec3 conormal) {
-    // The same four-point Gauss rule, evaluated entirely at energy precision.
+
     const EnergyReal x[4]={EnergyReal(-PhysicalReal(0.8611363115940525752)),EnergyReal(-PhysicalReal(0.3399810435848562648)),
         EnergyReal(PhysicalReal(0.3399810435848562648)),EnergyReal(PhysicalReal(0.8611363115940525752))};
     const EnergyReal w[4]={EnergyReal(PhysicalReal(0.3478548451374538574)),EnergyReal(PhysicalReal(0.6521451548625461426)),
@@ -203,5 +203,5 @@ CHMT_HD inline bool freezeFilmRemainder(const FilmQ& q, PhysicalReal pressure,
     packet.advective=packet.energy;
     out=packet; return true;
 }
-} // namespace chmt
+}
 #endif

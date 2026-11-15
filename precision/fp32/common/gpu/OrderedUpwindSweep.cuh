@@ -27,7 +27,7 @@ __device__ inline void orderedUpwindCell(int cell,OrderedUpwindDevice matrix,
     }
     RadiationReal value=rhs/diagonal[cell];
     if(deviceReference)reference=*deviceReference;
-    // Same physical intensity consumption and roundoff bound as the native DO.
+
     if(!std::isfinite(value)){failures[cell]={cell,value};if(firstFailure)atomicMin(firstFailure,unsigned(cell));return;}
     if(value<0){const RadiationReal magnitude=fabs(reference);const RadiationReal scale=magnitude>1?magnitude:1;
         if(value>=-upwindIntensityRoundoff*scale)value=0;
@@ -42,9 +42,9 @@ __global__ void orderedUpwindLevel(int begin,int end,OrderedUpwindDevice matrix,
     const int row=begin+blockIdx.x*blockDim.x+threadIdx.x;if(row>=end)return;
     orderedUpwindCell(matrix.levelCells[row],matrix,diagonal,source,previous,current,reference,failures,firstFailure,deviceReference);
 }
-// A single CTA traverses a consecutive run of narrow dependency levels.
-// Every thread reaches the barrier, including rows whose physical check failed.
-// Kernel boundaries on either side retain the original wide-level dependencies.
+
+
+
 __global__ void orderedUpwindNarrowLevels(int firstLevel,int endLevel,const int* levelOffsets,
     OrderedUpwindDevice matrix,const RadiationReal* diagonal,const RadiationReal* source,
     const RadiationReal* previous,RadiationReal* current,RadiationReal reference,
@@ -64,7 +64,7 @@ __global__ void upwindResidual(OrderedUpwindDevice matrix,const RadiationReal* d
     const int cell=blockIdx.x*blockDim.x+threadIdx.x;if(cell>=matrix.cells)return;
     RadiationReal value=diagonal[cell]*current[cell]-source[cell];
     const RadiationReal a=fabs(diagonal[cell]*current[cell]),b=fabs(source[cell]);magnitude[cell]=a>b?a:b;
-    // The native residual accumulates internal faces in global face order.
+
     for(int j=matrix.offsets[cell];j<matrix.offsets[cell+1];++j){const int i=matrix.residualOrder[j];
         if(matrix.subtract[i])value+=matrix.flux[i]*current[matrix.neighbour[i]];
         else value-=matrix.flux[i]*current[matrix.neighbour[i]];}

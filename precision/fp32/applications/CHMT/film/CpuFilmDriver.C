@@ -28,7 +28,7 @@ bool coupledFace(const SurfaceMesh& mesh,std::size_t f) {
     return !mesh.gasFace.empty()&&mesh.gasFace[f]>=0;
 }
 PhysicalReal endpointPressure(const CpuFilmDrive& d) {
-    // Only NaN is the documented omitted value; infinity is not omitted.
+
     return d.endpointPressure==d.endpointPressure?d.endpointPressure:d.pressure;
 }
 bool validate(const HostState& h,const PhysicsConfig& p,Real dt,
@@ -107,9 +107,9 @@ bool validate(const HostState& h,const PhysicsConfig& p,Real dt,
             ||!finite(m.edgeOwnerOffset[e])||!finite(m.edgeNeighbourOffset[e])
             ||(!m.sweptEdgeArea.empty()&&!finite(m.sweptEdgeArea[e]))))
             return numericReject(error,"invalid surface edge",e,numericalFailure);
-        // Geometry owns one shared hinge metric. On a curved surface its
-        // conormal is tangent to the bisector plane, not either face alone.
-        // Open edges retain their owner-face metric.
+
+
+
         const Vec3 hingeNormal=neighbour>=0?normalized(m.normal[owner]+m.normal[neighbour]):m.normal[owner];
         if(mag(hingeNormal)==0)
             return numericReject(error,"undefined hinge normal",e,numericalFailure,mag(hingeNormal),0);
@@ -197,7 +197,7 @@ bool recoverAndProfile(const HostState& h,const PhysicsConfig& p,
         FilmAux check=a;
         if(!recoverFilm(h.film[f],m.area[f],h.filmAux[f].pressure,p,check,nullptr,-1))
             return numericReject(error,"inadmissible accepted thermal inventory",f,numericalFailure);
-        // Evaluation pressure changes storage, never the physical base U or T.
+
         e.q[f].enthalpy+=pressureVolumeProduct(h.filmAux[f].pressure,EnergyReal(h.film[f].mass)/EnergyReal(p.liquid.rho),
             d.pressure,EnergyReal(h.film[f].mass)/EnergyReal(p.liquid.rho));
         if(coupled) {
@@ -300,14 +300,14 @@ bool evaluate(const HostState& h,const PhysicsConfig& p,Real dt,
         if(!m.prescribedPressureGradient.empty())bodyPower-=EnergyReal(h.film[f].mass)/EnergyReal(p.liquid.rho)*surfaceEnergyDot(physicalVectorInput(m.prescribedPressureGradient[f]),a.meanVelocity);
         if(!source.topWorkIncluded)prescribedTopPower=EnergyReal(a.area)*(surfaceEnergyDot(e.shear[f],a.topVelocity)-EnergyReal(a.pressure)*EnergyReal(a.normalVelocity));
         if(!source.bottomWorkIncluded)supportPower=EnergyReal(a.area)*(-surfaceEnergyDot(profile.bottomShear,a.baseVelocity)+EnergyReal(a.pressure)*EnergyReal(a.solidNormalVelocity));
-        const EnergyReal localRadiation=0; // Public DOM is the only radiation source.
+        const EnergyReal localRadiation=0;
         e.rhs[f].enthalpy+=bodyPower+supportPower+prescribedTopPower+localRadiation;
         if((!finite(e.rhs[f].enthalpy)||!finite(a.normalVelocity)))
             return numericReject(error,"nonfinite surface source",f,numericalFailure);
     }
     return true;
 }
-} // namespace
+}
 
 bool finalizeCpuFilmPhasePacketImpl(const FilmQ& accepted,PhysicalReal acceptedPressure,
     const FilmQ& localRate,const CpuFilmForcing& primary,Real dt,PhysicalVec3 bottomVelocity,
@@ -374,8 +374,8 @@ bool advanceCpuFilmCandidateImpl(const HostState& h,const PhysicsConfig& p,Real 
         const EnergyReal oldPV=EnergyReal(h.filmAux[f].pressure)*EnergyReal(old.mass)/EnergyReal(p.liquid.rho);
         const PhysicalReal newPressure=endpointPressure(drive[f]);const EnergyReal newPV=EnergyReal(newPressure)*EnergyReal(q.mass)/EnergyReal(p.liquid.rho);
         const EnergyReal before=old.enthalpy-oldPV;
-        // Match assembleFilmCandidate: primary physical energy, primary K,
-        // recorded radiation, then phase K and the exact phase remainder last.
+
+
         EnergyReal physical=before+EnergyReal(dt)*e.rhs[f].enthalpy;
         physical+=source.energy;physical+=source.interfaceKineticOutflow;
         physical+=source.radiationEnergy;physical+=source.phaseKineticOutflow;
@@ -397,7 +397,7 @@ bool advanceCpuFilmCandidateImpl(const HostState& h,const PhysicsConfig& p,Real 
         a.gasFront=h.filmAux[f].gasFront+dt*Real(e.aux[f].normalVelocity);
         if((!finite(a.solidFront)||!finite(a.gasFront)))return numericReject(error,"nonfinite front motion",f,numericalFailure);
     }
-    // Recover endpoint profiles using endpoint pressure, composition and thickness.
+
 
     HostState endpoint;endpoint.surface=h.surface;endpoint.film=next.film;endpoint.filmAux=next.filmAux;
     auto endpointDrive=drive;for(auto& d:endpointDrive)d.pressure=endpointPressure(d);
@@ -463,4 +463,4 @@ bool finalizeCpuFilmPhasePacket(const FilmQ& q,PhysicalReal pressure,const FilmQ
 bool advanceCpuFilmCandidate(const HostState& h,const PhysicsConfig& p,Real dt,const std::vector<CpuFilmForcing>& f,const std::vector<CpuFilmDrive>& d,CpuFilmCandidate& out,std::string& error,bool* numerical){return advanceCpuFilmCandidateImpl(h,p,dt,f,d,out,error,numerical);}
 bool evaluateCpuFilmTransport(const HostState& h,const PhysicsConfig& p,Real dt,const std::vector<CpuFilmDrive>& d,std::vector<FilmQ>& rates,std::string& error,std::vector<FilmAux>* aux,std::vector<PhysicalVec3>* gradient,std::vector<Real>* side,bool* numerical){return evaluateCpuFilmTransportImpl(h,p,dt,d,rates,error,aux,gradient,side,numerical);}
 bool estimateCpuFilmStep(const HostState& h,const PhysicsConfig& p,const std::vector<CpuFilmForcing>& f,const std::vector<CpuFilmDrive>& d,Real interval,Real maximum,Real& out,std::string& error,bool* numerical){return estimateCpuFilmStepImpl(h,p,f,d,interval,maximum,out,error,numerical);}
-} // namespace chmt
+}

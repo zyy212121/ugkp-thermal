@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Actual-state restart matrix. Run only inside the declared frozen batch."""
+pass
 from pathlib import Path
 import argparse, importlib.util, json, os, shutil, subprocess, time, traceback
 from acceptance_support import BranchCollector

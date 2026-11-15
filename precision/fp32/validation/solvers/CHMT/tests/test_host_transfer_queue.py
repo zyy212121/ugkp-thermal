@@ -1,4 +1,4 @@
-"""Delayed host CUDA shim: transfer ordering and lifetime, no GPU execution."""
+pass
 from pathlib import Path
 import subprocess
 from validation.tools.paths import SOURCE_ROOT

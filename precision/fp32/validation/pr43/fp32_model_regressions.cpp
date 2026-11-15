@@ -1,5 +1,5 @@
-// Checkpoint 2 regression fixture; compile now, execute in the full batch only.
-// Reuse the actual mixed-state production-kernel host harness.
+
+
 #define main mixed_divergence_fixture_main
 #include "mixed_divergence_ale.cpp"
 #undef main
@@ -11,8 +11,8 @@ static unsigned warnings(const Fixture& f) {
 }
 
 static void waleRegression() {
-    // Independent double oracle for this diagonal family, evaluated only when
-    // the full checkpoint batch executes this fixture.
+
+
     const double ratio=std::pow(2./3.,1.5)
         /(std::pow(2.,2.5)+std::pow(2./3.,1.25));
     for(const auto magnitude:{1e-4f,1.f,1e7f,1e30f}) {
@@ -81,8 +81,8 @@ static void speciesRoundoffRegression() {
             "one-ULP periodic species sum was diagnosed as a conservation failure");
         require(paired[0]==-paired[1]&&paired[2]==-paired[3],"periodic antisymmetry lost");
 
-        // Exercise the RK closure repair for multiple exactly stored species
-        // states. The broad physical density tolerance is unchanged.
+
+
         for(int i=1;i<32;++i) {
             Fixture rk;auto& r=rk.s;
             GpuReal initial[2]={1.f,GpuReal(i)*.01f};

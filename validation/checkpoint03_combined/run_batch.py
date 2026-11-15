@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Combined checkpoint03: freeze explicitly built inputs, then one declared, non-retrying batch."""
+pass
 from pathlib import Path
 import argparse, datetime, hashlib, json, math, os, platform, shutil, statistics
 import subprocess, threading, time, traceback
@@ -20,8 +20,8 @@ def capture(argv,cwd=None):
 def tracked(root):
     raw=subprocess.check_output(["git","-C",str(root),"ls-files","-z","--cached","--others","--exclude-standard"])
     names=set(os.fsdecode(x) for x in raw.split(b"\0") if x)
-    # Existing **/core ignore hides required FP32 source. Include actual files
-    # explicitly; this is source packaging, not a new rejection/admission gate.
+
+
     for name in ("Configuration.H","HostState.H","Types.H"):
         rel="precision/fp32/applications/CHMT/core/"+name
         if (root/rel).is_file():names.add(rel)
@@ -56,7 +56,7 @@ def freeze(args):
             target=dest/rel;target.parent.mkdir(parents=True,exist_ok=True)
             if src.is_symlink():target.symlink_to(os.readlink(src))
             else:shutil.copy2(src,target)
-        # New acceptance code is identical for both variants. Production remains distinct.
+
         target=dest/"validation/checkpoint03_combined"
         shutil.copytree(controls,target,dirs_exist_ok=True,ignore=shutil.ignore_patterns("__pycache__","README*","readme*"))
         for solver in SOLVERS:
@@ -181,7 +181,7 @@ def compare(node,records):
         error=abs(a[key]-b[key]);allowed=at+rt*max(abs(a[key]),abs(b[key]))
         errors[key]={"baseline":a[key],"candidate":b[key],"error":error,"allowed":allowed}
         assert math.isfinite(a[key]) and math.isfinite(b[key]),(key,errors[key])
-        # These are independently bounded diagnostic errors, not solution states.
+
         diagnostic=("residual" in key.lower() or "budget_error" in key.lower())
         errors[key]["diagnostic_only"]=diagnostic
         if not diagnostic and node["precision"]==64:assert error<=allowed,(key,errors[key])
@@ -255,10 +255,6 @@ def run(args):
           "Record actual radiation stopping status and warnings. A budget-exhausted solve is not strict convergence; old warnings never excuse a new defect."]
         save(out/"batch-status.json",status)
         save(out/"evidence-sha256.json",{str(p.relative_to(out)):digest(p) for tree in (results,out/"continuation") for p in tree.rglob("*") if p.is_file()})
-    summarizer=out/"source/candidate/validation/checkpoint03_combined/summarize.py"
-    with (out/"summary.log").open("w") as stream:
-        report=subprocess.run(["python3",str(summarizer),str(out)],stdout=stream,stderr=subprocess.STDOUT)
-    status["summary_exit"]=report.returncode;save(out/"batch-status.json",status)
     raise SystemExit(0 if status["status"]=="PASS_EXECUTION_REVIEW_REQUIRED" else 1)
 def main():
     p=argparse.ArgumentParser(description=__doc__);sub=p.add_subparsers(dest="action",required=True)

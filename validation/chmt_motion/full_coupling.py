@@ -16,17 +16,17 @@ prepare_original=existing.m.prepare
 run_original=existing.m.run
 def prepare(*args,**kwargs):
  result=prepare_original(*args,**kwargs);case=Path(args[1])
- # Cp=1000 J/kg/K, condensed mass density1000: material500K vs gas700K.
+
  material_energy=case/'0/solid/solidEnergyDensity'
  material_energy.write_text(re.sub(r'internalField uniform [^;]+;', 'internalField uniform 500000000;', material_energy.read_text()))
  momentum=case/'constant/momentumTransport'
  momentum.write_text(momentum.read_text().replace('model reactingSst;','model equilibriumOde;'))
- # Keep the shared solid-region and interface mapping intact. Particle input is
- # written by the parent native contact fixture after this prepare callback.
+
+
  scheme=case/'constant/scheme'
  existing.set_input(scheme,'couplingInterval',1e-6)
- # The case explicitly carried FP64 wall tolerances. Choose native FP32
- # case numerics rather than changing the shared wall-layer method.
+
+
  bits=int(sys.argv[sys.argv.index('--precision')+1]) if '--precision' in sys.argv else 64
  if bits==32:
   existing.set_input(scheme,'relativeTolerance',1e-4)
@@ -63,7 +63,7 @@ def run(command,log,*args,**kwargs):
  elapsed=run_original(command,log,*args,**kwargs)
  if solver_run:
   if Path(log).name=="restart.log":assert "DOM warm-start cache restored:" in Path(log).read_text(),"DOM restart did not restore warm seed"
-  # Check persisted physical DOM state, not the removed balance-print line.
+
   import struct,math,json
   text=Path(log).read_text()
   case=Path(command[command.index('-case')+1])
@@ -84,9 +84,9 @@ def run(command,log,*args,**kwargs):
    assert any(v>0 for v in values),('trivial DOM intensity',str(cache))
    initialized.append(dict(path=str(cache),cells=cells,angles=angles,precision=bits))
   assert initialized,'no initialized DOM checkpoint after successful solver execution'
-  # Native device diagnostics report final source/material/transport failure at
-  # 34001, phase failure at 34002 and true inner-linear failure at 34003.
-  # Do not substitute exit status or a finite intensity field for convergence.
+
+
+
   failure_rows=[line for line in text.splitlines() if re.search(r'\bsite=3400[0-3]\b',line)
        or re.search(r'DO (?:source|phase balance|linear) iteration budget exhausted',line)]
   assert not failure_rows,('native radiation convergence/failure diagnostic',failure_rows)

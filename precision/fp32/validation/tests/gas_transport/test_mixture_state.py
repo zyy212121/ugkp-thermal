@@ -1,4 +1,4 @@
-"""Shared mixture state/recovery contract; actual existing common kernels."""
+pass
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
 
 from pathlib import Path
@@ -13,8 +13,8 @@ def compile_probe(tmp_path,body,sanitizers=False,real_type=None):
     legacy=((VALIDATION_ROOT / 'tests/gas_transport/gas_state_probe.cpp')).read_text()
     pre=legacy[:legacy.index('void hashBytes')]
     if real_type is not None:
-        # Select the scalar only inside this generated test translation unit.
-        # The public numerical headers and GPU_R must agree with its Real arrays.
+
+
         pre=pre.replace('#include "GpuPrecisionTypes.H"',
                         '#include "GpuPrecisionTypes.H"\n#define GpuReal '+real_type,1)
     source=tmp_path/'mixture.cpp';source.write_text(pre+body)

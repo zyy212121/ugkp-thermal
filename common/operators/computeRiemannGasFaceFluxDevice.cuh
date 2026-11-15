@@ -189,8 +189,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
             if(!gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
         return false;
     }
-    // Retain each side's own MUSCL composition and R alongside its primitive
-    // T. The same state supplies the boundary and caloric flux inputs below.
+
+
     constexpr int faceSpeciesCount=ugkwp::GasStateTraits<GasState>::speciesCount;
     GPU_OPERATOR_REAL leftY[faceSpeciesCount>0?faceSpeciesCount:1];
     GPU_OPERATOR_REAL rightY[faceSpeciesCount>0?faceSpeciesCount:1];
@@ -210,8 +210,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
     if (boundaryKind == 1)
     {
         right = riemannFacePrimitiveForGradient(s, own, f);
-                                                                          
-                                                                            
+
+
         momentumFluxX = left.p*nx;
         momentumFluxY = left.p*ny;
         momentumFluxZ = left.p*nz;
@@ -389,8 +389,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::UnsupportedConfiguration);
                     return false;
                 }
-                // Preserve the existing reconstruction-failure result before
-                // consuming outputs retained from the first reconstruction.
+
+
                 if(s.gasReconstruction==1 && (!leftReconstructionEvaluated
                     || (nei>=0 && !rightReconstructionEvaluated)))
                 {ugkwp::gasRecordFaceFailure(s,f,!nativeRefinement?ugkwp::GasTransportCode::InvalidStorage:ugkwp::GasTransportCode::InvalidThermodynamics);return false;}
@@ -617,16 +617,16 @@ __device__ bool computeRiemannGasFaceFluxDevice
         energyFlux = result.flux[4];
         if (s.gasReconstruction == 2 && nei >= 0 && !ugkwp::mixtureGasActive(s))
         {
-                                                                      
-                                                                           
-                                                                         
-                                                                        
-                                                    
-                                                                           
-                                                                       
-                                                                          
-                                                                           
-                                                                     
+
+
+
+
+
+
+
+
+
+
             const GPU_OPERATOR_REAL ownerVelocitySquared =
                 s.Ux[own]*s.Ux[own]
               + s.Uy[own]*s.Uy[own]
@@ -732,14 +732,14 @@ __device__ bool computeRiemannGasFaceFluxDevice
         }
     }
 
-                                                                       
+
     // A fixed-temperature slip wall conducts heat while remaining stress-free.
     if (!ordinaryInviscid && (boundaryKind != 1 || s.riemannBoundaryTFix[f] != 0))
     {
-                                                                
-                                                                          
-                                                                     
-                                                    
+
+
+
+
         GPU_OPERATOR_REAL gradUxX = s.gradUxX[own];
         GPU_OPERATOR_REAL gradUxY = s.gradUxY[own];
         GPU_OPERATOR_REAL gradUxZ = s.gradUxZ[own];

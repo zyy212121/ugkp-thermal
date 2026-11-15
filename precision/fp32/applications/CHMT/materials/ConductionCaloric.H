@@ -19,8 +19,8 @@ struct SpeciesThermo {
         referenceEntropy=Real(s.referenceEntropy);hasEntropyReference=s.hasEntropyReference;return *this;
     }
 };
-// Immutable application POD -> short-lived common borrowed view. Copies own
-// their arrays; view() always points at the current object, never a prior copy.
+
+
 template<int Count>
 struct GasThermoAdapter {
     ugkwp::SpeciesThermoData<Real> data[Count]{};
@@ -29,9 +29,9 @@ struct GasThermoAdapter {
         for(int i=0;i<Count;++i) {
             const SpeciesThermo& s=input[i];auto& d=data[i];
             d.model=s.model;d.coefficientOffset=14*i;
-            // Inactive historical CHMT tables can be entirely unconfigured.
-            // Form invalid metadata without raising OpenFOAM's enabled FPE
-            // traps; common validation still rejects it when it is active.
+
+
+
             const Real Ru=ugkwp::universalGasConstant<Real>();
             const Real minimumR=Ru/std::numeric_limits<Real>::max();
 
@@ -65,8 +65,8 @@ CHMT_SHARED_SPECIES_PROPERTY(speciesE)
 CHMT_SHARED_SPECIES_PROPERTY(speciesH)
 #undef CHMT_SHARED_SPECIES_PROPERTY
 
-// Three-point Gauss integration is exact for NASA7's quartic cv on one
-// temperature branch and for LinearCp. Formation constants never enter.
+
+
 template<bool Terminal=false>
 CHMT_HD inline Real gasCapacitySecantBranch(const SpeciesThermo& s,Real a,Real b) {
     const Real midpoint=Real(.5)*(a+b),offset=Real(.5)*(b-a)*std::sqrt(Real(3)/5);
@@ -80,8 +80,8 @@ CHMT_HD inline Real speciesEnergySecant(const SpeciesThermo& s,Real a,Real b) {
     if((!finite(a)||!finite(b)||a<=0||b<=0))return undefinedValue();
     if(a>b){const Real swap=a;a=b;b=swap;}
     if(s.model==ugkwp::SpeciesThermoModel::NASA7&&a<=s.Tmid&&b>s.Tmid) {
-        // Evaluate both one-sided values with the shared evaluator. Source
-        // tables may have small jumps; integrating cv alone would refit them.
+
+
         GasThermoAdapter<1> upper(&s);
         for(int j=0;j<7;++j)upper.coefficients[j]=s.nasa7[j+7];
         const Real upperEnergy=ugkwp::speciesE(0,s.Tmid,upper.view());
@@ -124,8 +124,8 @@ struct MaterialConductionInventory {
         for(int i=0;i<Ns;++i)pore[i]=ConductionReal(q.pore[i]);return *this;
     }
 };
-// Keep the original material-caloric validation branches, while all
-// coefficients and their accumulation are formed from FP32 inputs.
+
+
 CHMT_HD inline MaterialCaloricCode makeMaterialConductionCaloric(const SolidQ& q,const PhysicsConfig& p,
     MaterialConductionCaloric& out,bool& numerical){
     numerical=true;MaterialConductionCaloric c;

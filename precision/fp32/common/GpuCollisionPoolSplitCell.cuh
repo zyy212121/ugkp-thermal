@@ -1,7 +1,7 @@
 #pragma once
 #include "GpuPoolMomentOperations.cuh"
 #include "GpuCollisionProbability.cuh"
-// Shared split-directory S1 protocol; scalar-tree/component reduction remains a compile-time policy.
+
 #if GPU_POOL_STATIC_DIRECTORY
 template<bool DirectParticleIndex, bool AddToExistingPool, bool HeavyReductionEnabled>
 __global__ void accumulatePoissonPoolSplitSegmentByCellKernel

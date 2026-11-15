@@ -116,7 +116,7 @@ public:
         const MieDoControls& controls
     );
 
-    // Call once after an accepted mesh motion, before the next radiation solve.
+
     void updateGeometry();
     const fvMesh& mesh() const noexcept;
     const MieTable& mieTable() const noexcept;

@@ -1,7 +1,7 @@
-"""Unified checkpoint D extension: prepare inputs, then execute old115 plus fixed30 once.
-No action occurs on import. Preparation performs file copies only, never a solver.
-Short extension cases prove configuration wiring, NOT mathematical convergence.
-"""
+pass
+
+
+
 from pathlib import Path
 import argparse, hashlib, json, math, os, re, shutil, subprocess, time
 HERE=Path(__file__).resolve().parent
@@ -9,8 +9,8 @@ HEADER='FoamFile { version 2.0; format ascii; class dictionary; object scheme; }
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 def save(path,obj): path.write_text(json.dumps(obj,indent=2,sort_keys=True)+"\n")
 def edit(path,key,value):
-    # Explicit target entry edits for this fixed test only. No legacy lookup,
-    # inferred aliases, include expansion or migration is performed.
+
+
     text=path.read_text();parts=key.split(".")
     start,end=0,len(text)
     for index,part in enumerate(parts[:-1]):
@@ -64,14 +64,14 @@ def prepare(args):
                 ident=f"{mode}-{app}-{bits}"; case=dest/ident
                 shutil.copytree(source/sources[app],case)
                 if app=="CHT":
-                    # The supported single-gas template shares the exact existing
-                    # two-region mesh definitions; copy meshes, never run blockMesh here.
+
+
                     mesh_source=source/"validation/shared_boundary/fixtures/cht"
                     for mesh in ("constant/polyMesh","constant/solid/polyMesh"):
                         shutil.copytree(mesh_source/mesh,case/mesh)
                 is_override=mode=="override"
                 if not is_override:
-                    # Preserve required physical scheduling while testing numerical defaults.
+
                     controls=HEADER
                     if app=="CHT":controls+="thermalCoupling { couplingInterval .00002; solidContactCouplingInterval .00002; radiationCouplingFrequency 1; }\n"
                     if app=="CHMT":controls+="thermalCoupling { couplingInterval .0005; }\ngasTimeStep { minDeltaT 1e-12; maxDeltaT 1e-5; maxCo .4; }\n"
@@ -158,7 +158,7 @@ def finite_output(case):
 def run(args):
     batch=args.batch.resolve(); mf=batch/"scheme-manifest.json"
     plan=json.loads(mf.read_text()); dest=batch/"scheme-results";dest.mkdir(exist_ok=False)
-    # Infrastructure checks apply only to this requested test runner, not production admissibility.
+
     for rel,h in plan["input_sha256"].items():
         if sha(batch/"scheme-inputs"/rel)!=h:raise RuntimeError("Changed frozen input "+rel)
     for path,h in plan["binary_sha256"].items():

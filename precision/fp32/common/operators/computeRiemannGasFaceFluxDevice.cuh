@@ -73,8 +73,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
 
         }
     }
-    // The inviscid impermeable wall has no species transport. Clear the
-    // complete returned operator, including a buffer used by a prior wall solve.
+
+
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
         if (ordinaryInviscid && ugkwp::mixtureGasActive(s) && (boundaryKind==1 || boundaryKind==2)) {
             if(!s.gasSpecies.flux){ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return false;}
@@ -110,11 +110,11 @@ __device__ bool computeRiemannGasFaceFluxDevice
             {
                 momFluxXArea=exchange.momentumX;momFluxYArea=exchange.momentumY;momFluxZArea=exchange.momentumZ;
                 energyFluxArea=exchange.energy;
-                // Keep the ordinary wall's local reconstructed pressure force.
-                // Matching pressure belongs to BVP thermodynamics; imposing it
-                // as a nonlocal acoustic boundary destabilizes the bulk row.
-                // Correct only p*n and p*w_n: species enthalpy, blowing kinetic
-                // energy, heat and traction work retain the evaluated wall state.
+
+
+
+
+
                 bool localAvailable=false;
                 const GasPrimDevice local=reconstructGasCellToFace(s,own,f,nativeRefinement,&localAvailable);
                 if(!localAvailable){if(!nativeRefinement)ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return false;}
@@ -190,8 +190,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
             if(!gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
         return false;
     }
-    // Retain each side's own MUSCL composition and R alongside its primitive
-    // T. The same state supplies the boundary and caloric flux inputs below.
+
+
     constexpr int faceSpeciesCount=ugkwp::GasStateTraits<GasState>::speciesCount;
     GPU_OPERATOR_REAL leftY[faceSpeciesCount>0?faceSpeciesCount:1];
     GPU_OPERATOR_REAL rightY[faceSpeciesCount>0?faceSpeciesCount:1];
@@ -211,8 +211,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
     if (boundaryKind == 1)
     {
         right = riemannFacePrimitiveForGradient(s, own, f);
-                                                                          
-                                                                            
+
+
         momentumFluxX = left.p*nx;
         momentumFluxY = left.p*ny;
         momentumFluxZ = left.p*nz;
@@ -235,9 +235,9 @@ __device__ bool computeRiemannGasFaceFluxDevice
     }
     else
     {
-        // The mixture MUSCL boundary is evaluated below together with its
-        // reconstructed Y. An earlier cell-Y EOS check could latch a spurious
-        // temperature-range failure before the consistent boundary exists.
+
+
+
         right = nei >= 0
           ? reconstructGasCellToFace(s,nei,f,nativeRefinement,&rightReconstructionEvaluated,rightY,&rightGasConstant)
           : (ugkwp::mixtureGasActive(s) && s.gasReconstruction==1)
@@ -390,14 +390,14 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::UnsupportedConfiguration);
                     return false;
                 }
-                // Preserve the existing reconstruction-failure result before
-                // consuming outputs retained from the first reconstruction.
+
+
                 if(s.gasReconstruction==1 && (!leftReconstructionEvaluated
                     || (nei>=0 && !rightReconstructionEvaluated)))
                 {ugkwp::gasRecordFaceFailure(s,f,!nativeRefinement?ugkwp::GasTransportCode::InvalidStorage:ugkwp::GasTransportCode::InvalidThermodynamics);return false;}
-                // The same reconstructed composition supplies EOS, full energy,
-                // acoustic speed and the selected conservative species flux.
-                // Derived Real flux input only: never feeds back into rhoE storage.
+
+
+
                 ugkpriemann::Conservative leftConserved
                 {{GPU_OPERATOR_REAL(s.rho[own]),GPU_OPERATOR_REAL(s.rhoUx[own]),GPU_OPERATOR_REAL(s.rhoUy[own]),GPU_OPERATOR_REAL(s.rhoUz[own]),GPU_OPERATOR_REAL(s.rhoE[own])}};
                 constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
@@ -514,18 +514,18 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 if(moving && !ugkwp::restoreGasFluxFromFaceFrame(result,meshFrame,result))
                 {gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry);return false;}
                 int massCarrier=Ns-1;
-                // Upwind contact fluxes must close on a species present in
-                // the actual (face-frame) donor. Downwind inventory cannot
-                // supply even roundoff outflow from an absent donor species.
-                // The largest donor fraction is least sensitive to closure.
+
+
+
+
                 if(upwindSpecies)
                 {
                     for(int k=0;k<Ns;++k)
                         if(donorSpecies[k]>donorSpecies[massCarrier])massCarrier=k;
                 }
-                // Diffusive schemes can transport species in both directions.
-                // A nonzero trace must retain its scalar flux too: close on
-                // the largest face carrier, not an arbitrarily ordered species.
+
+
+
                 else
                 {
                     for(int k=0;k<Ns;++k)
@@ -618,16 +618,16 @@ __device__ bool computeRiemannGasFaceFluxDevice
         energyFlux = result.flux[4];
         if (s.gasReconstruction == 2 && nei >= 0 && !ugkwp::mixtureGasActive(s))
         {
-                                                                      
-                                                                           
-                                                                         
-                                                                        
-                                                    
-                                                                           
-                                                                       
-                                                                          
-                                                                           
-                                                                     
+
+
+
+
+
+
+
+
+
+
             const GPU_OPERATOR_REAL ownerVelocitySquared =
                 s.Ux[own]*s.Ux[own]
               + s.Uy[own]*s.Uy[own]
@@ -733,14 +733,14 @@ __device__ bool computeRiemannGasFaceFluxDevice
         }
     }
 
-                                                                       
-    // A fixed-temperature slip wall conducts heat while remaining stress-free.
+
+
     if (!ordinaryInviscid && (boundaryKind != 1 || s.riemannBoundaryTFix[f] != 0))
     {
-                                                                
-                                                                          
-                                                                     
-                                                    
+
+
+
+
         GPU_OPERATOR_REAL gradUxX = s.gradUxX[own];
         GPU_OPERATOR_REAL gradUxY = s.gradUxY[own];
         GPU_OPERATOR_REAL gradUxZ = s.gradUxZ[own];
@@ -929,9 +929,9 @@ __device__ bool computeRiemannGasFaceFluxDevice
               ? (boundaryUy - s.Uy[own])*s.deltaCoeffs[f] : GPU_OPERATOR_R(0.0);
             const GPU_OPERATOR_REAL targetNormalGradUz = velocityFixed
               ? (boundaryUz - s.Uz[own])*s.deltaCoeffs[f] : GPU_OPERATOR_R(0.0);
-            // Component rows store grad(U_i). Replace only their normal
-            // derivative, as gaussGrad::correctBoundaryConditions does, so
-            // transpose and deviatoric traction use the same boundary snGrad.
+
+
+
             gradUxX += nx*(targetNormalGradUx - currentNormalGradUx);
             gradUxY += ny*(targetNormalGradUx - currentNormalGradUx);
             gradUxZ += nz*(targetNormalGradUx - currentNormalGradUx);
@@ -1081,13 +1081,13 @@ __device__ bool computeRiemannGasFaceFluxDevice
                         ugkptransport::Vector3T<GPU_OPERATOR_GEOMETRY>{mappedNeiCx,mappedNeiCy,mappedNeiCz},
                         ugkptransport::Vector3T<GPU_OPERATOR_GEOMETRY>{nx,ny,nz}
                     );
-                    // The nonorthogonal correction reconstructs the same
-                    // composition field as advection. An unlimited tangential
-                    // slope can export a species from an empty donor even when
-                    // both face-adjacent cells contain none. Use the shared
-                    // jointly admissible cell reconstruction; the two-point
-                    // normal difference and conservative diffusion closure stay
-                    // unchanged, including physical inflow into an empty cell.
+
+
+
+
+
+
+
                     const GPU_OPERATOR_REAL lo=s.gasSpecies.limiter[own];
                     const GPU_OPERATOR_REAL ln=s.gasSpecies.limiter[nei];
                     gradArea[k]=area*ugkptransport::correctedSnGrad

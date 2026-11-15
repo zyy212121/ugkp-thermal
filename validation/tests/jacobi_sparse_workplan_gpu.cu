@@ -1,7 +1,7 @@
-// Compile this fixture ALONE: it includes the implementation for public
-// resident coefficient-update graph replay regression.
-// Run separately against materialized fp32/fp64 trees; never link a second
-// SparseConjugateGradient.o. No encoded/compensated FP32 arithmetic is used.
+
+
+
+
 #include "../../common/GpuPrecisionTypes.H"
 #include "../../common/gpu/SparseConjugateGradient.cu"
 #include <cstdio>
@@ -19,12 +19,12 @@ template<class T> struct Buffer{
 };
 static double tol(){return sizeof(R)==4?3e-4:3e-10;}
 
-// Public PCG graph coefficient-replay regression; experimental multilevel
-// operator/SPD tests are preserved with the withdrawn candidate evidence.
+
+
 static void residentReplay(int n){
  using namespace ugkp::gpu;
  std::vector<int> owner(n-1),neighbour(n-1);
- // A permutation deliberately destroys contiguous spatial numbering.
+
  for(int f=0;f<n-1;++f){owner[f]=(5*f)%n;neighbour[f]=(5*(f+1))%n;}
  Buffer<R>d(n),u(n-1),l(n-1),b(n),x(n);
  SparseLduView topology;topology.rows=n;topology.faces=n-1;
@@ -35,7 +35,7 @@ static void residentReplay(int n){
  ConjugateGradientControls controls;controls.maximumIterations=4000;
  controls.tolerance=R(sizeof(R)==4?2e-6:1e-12);
  SparseConjugateGradient solver;
- // No configure between phases: updates must be observed by graph replay.
+
  solver.configureResidentLocalLdu(topology,values,controls);
  const auto signature=solver.residentExecutionSignature();
  for(int phase=0;phase<3;++phase){

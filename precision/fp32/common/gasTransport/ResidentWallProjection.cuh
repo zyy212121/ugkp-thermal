@@ -1,10 +1,10 @@
 #pragma once
 #include "gasTransport/GasPseudoTime.H"
 #include "gasTransport/GasConservativeMatching.H"
-// The PB inventories, primitives and reconstructed gradients retain their own
-// selected-precision storage. Global geometry is borrowed in double; bulk
-// boundary data and other read-only gas fields retain their actual float type.
-// This view never aliases a bulk float allocation through a double pointer.
+
+
+
+
 using WallProjectionBulkView=ugkwp::GasStateView<GpuReal,GpuTime,
     ugkwp::SstCoefficients,GpuEnergy,GpuGeometry,GpuWallEnergy>;
 using WallProjectionBorrowedSpecies=ugkwp::GasSpeciesState<GpuReal,2,GpuReal>;
@@ -68,8 +68,8 @@ __global__ void initializeWallProjectionView(State *state) {
   auto &s = *state;
   auto &d = s.gasBoundaryLayerModel.conservative;
   auto &v = *static_cast<WallProjectionView *>(d.projectedState);
-  // This metadata must exist even when a prior stage failed: subsequent shared
-  // kernels read the projected view's diagnostic pointer before any arrays.
+
+
   v.diagnostics = s.diagnostics;
   if(ugkp::diagnostics::hasFatal(s.diagnostics))return;
   auto& bulk=static_cast<WallProjectionBulkView&>(v);
@@ -84,7 +84,7 @@ __global__ void initializeWallProjectionView(State *state) {
   v.gasThermalConductivityConfigured = true;
   v.gasThermalConductivity = 0;
   v.gasMu = 0;
-  v.gasViscosity = {}; // PB reference operator remains inviscid.
+  v.gasViscosity = {};
   v.turbulenceModel = 0;
   v.sstWallTreatment = 3;
   if constexpr (ugkwp::compiledGasSpecies == 2)
@@ -273,8 +273,8 @@ __global__ void conservativeKFluxBudget(State *state, GpuTime stepDt) {
     }
     div += sign * volumeFlux / oldVolume;
   }
-  // Active wall sources use the coherent reconstruction precision.
-  // Ordinary bulk sources convert only when crossing this output boundary.
+
+
   GpuReal source = 0, omegaSource = 0;
   if (!sstSourcesForCell(s, c, GpuReal(div), source, omegaSource))
     return;

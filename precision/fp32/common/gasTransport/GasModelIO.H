@@ -1,8 +1,8 @@
 #ifndef UGKWP_GAS_MODEL_IO_H
 #define UGKWP_GAS_MODEL_IO_H
 
-// Host-only constant/gasModelProperties parser, shared by all application shells.
-// This owning object is never passed to a kernel or serialized as a raw struct.
+
+
 #include "GasModel.H"
 #include "GasModelCast.H"
 #include "MixtureThermo.H"
@@ -35,7 +35,7 @@ template<class Real> struct GasModelConfigurationStorage
     std::vector<std::string> elementNames;
     std::vector<Real> elementComposition;
     GasDiffusionModel diffusionModel = GasDiffusionModel::None;
-    std::vector<Real> diffusionCoefficients; // m2/s, in the exact species order
+    std::vector<Real> diffusionCoefficients;
     Real turbulentSchmidt = Real(0.7);
     ChemistryControls<Real> chemistryControls;
     std::string mechanism;
@@ -57,8 +57,8 @@ template<class Real> struct GasModelConfigurationStorage
         return view;
     }
 };
-// The application owns only float physical tables. Binary64 exists below only
-// while decoding the external dictionary and computing its compatible identity.
+
+
 using GasModelConfiguration = GasModelConfigurationStorage<float>;
 
 template<class D, class S>
@@ -277,8 +277,8 @@ inline void readNumericControls
         else if (whole != integers.end()) *whole->second = integer(scalar(dict, entry.first), entry.first, std::numeric_limits<int>::min());
     }
 }
-// The original chemistry model owns only these physical inversion bounds.
-// Numerical controls are not read from chemistryControls.
+
+
 inline void readThermoModelBounds(const Dictionary& dict,ChemistryControls<double>& c)
 {
     if (dict.count("thermo"))
@@ -289,8 +289,8 @@ inline void readThermoModelBounds(const Dictionary& dict,ChemistryControls<doubl
              {"maxTemperature", &c.thermo.maxTemperature}}, {});
     }
 }
-// This block is injected only from the immutable constant/scheme snapshot.
-// Model files no longer select numerical controls; absent scheme keys retain typed defaults.
+
+
 inline void applySolverControlOverrides(const Dictionary& dict,ChemistryControls<double>& c)
 {
     if(dict.count("chemistry"))
@@ -326,8 +326,8 @@ inline void hashWord(std::uint64_t& hash, const std::string& value)
 }
 inline void hashScalar(std::uint64_t& hash, double value)
 {
-    // Canonical IEEE-754 little-endian byte order, independent of host endian.
-    // Signed zero has the same physical identity.
+
+
     if (value == 0) value = 0;
     std::uint64_t bits = 0;
     static_assert(sizeof(bits) == sizeof(value), "gas model requires binary64 doubles");
@@ -360,12 +360,12 @@ inline void identities(GasModelConfigurationStorage<double>& model)
     for (const auto& name : model.elementNames) hashWord(model.thermoHash, name);
     for (double count : model.elementComposition) hashScalar(model.thermoHash, count);
 }
-} // namespace gasModelIoDetail
+}
 
 inline GasModelConfiguration parseGasModelProperties(const std::string& text, bool present = true)
 {
     using namespace gasModelIoDetail;
-    // Transient external wire values: do not retain these as a physical model.
+
     GasModelConfigurationStorage<double> model;
     if (!present) return castGasModelConfiguration<float>(model);
     Tokens tokens(text);
@@ -382,10 +382,10 @@ inline GasModelConfiguration parseGasModelProperties(const std::string& text, bo
     {
         model.mechanism = word(dict, "mechanism");
         if (dict.count("phase")) model.phase = word(dict, "phase");
-        // Keep the original physical bounds in their model interface.
+
         if (dict.count("chemistryControls"))
             readThermoModelBounds(subdict(dict,"chemistryControls"),model.chemistryControls);
-        // Iteration controls are supplied only through the startup scheme payload.
+
     }
     if(dict.count("solverControlOverrides"))
         applySolverControlOverrides(subdict(dict,"solverControlOverrides"),model.chemistryControls);
@@ -473,5 +473,5 @@ inline GasModelConfiguration readGasModelProperties(const std::string& path)
     return parseGasModelProperties(text);
 }
 
-} // namespace ugkwp
+}
 #endif

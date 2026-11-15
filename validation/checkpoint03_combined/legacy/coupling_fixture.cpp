@@ -1,6 +1,6 @@
-// Checkpoint 2A: production-header mixed coupling energy regression.
-// Numerical execution belongs to the parent checkpoint batch.
-// Runs unchanged production device functions serially on a host. Not CUDA execution.
+
+
+
 #include <cmath>
 using std::isfinite;
 using std::sqrt;
@@ -29,7 +29,7 @@ using Time=double;
 #define __global__
 #define __device__
 #define __forceinline__ inline
-// PTX traps are represented by process failure in this serial host emulator.
+
 #define asm(...) std::abort()
 struct ThreadIndex { int x=0; } blockIdx, threadIdx, blockDim;
 constexpr Real OfSmall=GPU_R(2.22044604925031308085e-16);
@@ -147,7 +147,7 @@ void record(const PairedState&s,double error){
  value("budget_error",error);
 }
 void directory(PairedState&s,int mode){if(mode==2){
- // Same active particles: bulk cell0={0}; injected cell0={1}, cell1={2}.
+
  s.preBaseCellOffset[0]=0;s.preBaseCellOffset[1]=1;s.preBaseCellOffset[2]=1;
  s.cellParticleOffset[0]=0;s.cellParticleOffset[1]=1;s.cellParticleOffset[2]=2;
  s.sortedParticleIndex[0]=1;s.sortedParticleIndex[1]=2;
@@ -247,7 +247,7 @@ void nonlinearCheck(int mode,int crossing=0){
   for(int i=0;i<3;++i){s.mixtureHeatInitialTemperature[i]=-999;s.mixtureHeatFraction[i]=-999;}
   if(crossing)nonlinearStep(s,3.,mode);else nonlinearStep<true>(s,repeat?.07:.03,mode);
   for(int c=0;c<2;++c)ck(s.gasSpecies.cellStatus[c]==0&&std::isfinite(s.Tgas[c]),"nonlinear EOS");
-  // Exercise the actual mutable aggregate cache, not only a bare parcel law.
+
   for(int c=0;c<2;++c){
    const double vol=double(s.epsGPrev[c])*s.V[c];
    const mixtureThermalParticles::Response<PairedState,mixtureParticles::SerialCouplingTeam> reused{s,c,.03,vol,mode==1,mode==2,{}};

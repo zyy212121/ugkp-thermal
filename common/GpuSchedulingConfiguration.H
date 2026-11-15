@@ -87,7 +87,7 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
     value.particleCapacity =
         properties.lookupOrDefault<label>("gpuResidentParticleCapacity", 1000000);
     value.maxFaceWalkHops = trackingMaxFaceWalkHops;
-    // Gas adaptive-step numerics now come only from constant/scheme/gasTimeStep.
+
     value.csrLevel = readGpuCsrLevel(properties);
     if (value.csrLevel == GpuCsrLevel::automatic)
     {
@@ -104,7 +104,7 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
     {
         value.heavyReductionMode = GpuHeavyReductionMode::enabled;
     }
-    // One startup plan shared by applications and GPU owners.
+
     auto& plan=ugkp::gpu::workPlan();
     plan.cellBlockThreads=properties.lookupOrDefault<label>("gpuCellBlockThreads",128);
     plan.faceBlockThreads=properties.lookupOrDefault<label>("gpuFaceBlockThreads",128);

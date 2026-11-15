@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze locally built inputs, then explicitly run one ordered acceptance batch."""
+pass
 from pathlib import Path
 import argparse, datetime, hashlib, json, os, platform, shutil, subprocess, threading, time, traceback
 from acceptance_support import failed_environment_scope
@@ -25,7 +25,7 @@ def freeze(args):
         rel=Path(name); p=root/rel
         if rel.parts[0] not in prefixes and name not in ("Allwmake","env.sh",".gitignore"): continue
         if not p.is_file() and not p.is_symlink(): continue
-        # No README is created or modified by this acceptance package.
+
         if p.name.lower().startswith("readme"): continue
         dst=source/rel; dst.parent.mkdir(parents=True,exist_ok=True)
         if p.is_symlink(): dst.symlink_to(os.readlink(p))
@@ -53,7 +53,7 @@ def freeze(args):
     command_files=[]
     for item in compiled["tasks"]:
         command_files.append(out/"fixtures"/item["executable"])
-    # Freeze original FP64 evidence and enumerate every root change for review.
+
     original=capture(["git","diff",ACCEPTED,"--","common","gpu","applications"],root)
     (out/"fp64-root-vs-checkpoint01.patch").write_text(original["output"])
     base_tree=subprocess.check_output(["git","-C",str(root),"ls-tree","-r","-z",ACCEPTED,"--","common","gpu","applications"])
@@ -229,10 +229,6 @@ def run(args):
     finally:
         status["finished"]=now();save(out/"batch-status.json",status)
         save(out/"evidence-sha256.json",{str(p.relative_to(out)):digest(p) for p in results.rglob("*") if p.is_file()})
-        summary=out/"source/validation/checkpoint02/acceptance/summarize.py"
-        if summary.exists():
-            with (out/"summary.log").open("w") as log:
-                subprocess.run(["python3",str(summary),str(out)],stdout=log,stderr=subprocess.STDOUT)
     if status["status"]!="PASS_EXECUTION_REVIEW_REQUIRED":raise SystemExit(1)
 def main():
     p=argparse.ArgumentParser(description=__doc__);subs=p.add_subparsers(dest="action",required=True)

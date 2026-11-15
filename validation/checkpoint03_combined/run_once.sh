@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Parent-declared checkpoint execution only. Never called by prepare.py.
+
 source "${OPENFOAM_BASHRC:-/opt/openfoam10/etc/bashrc}"
 set -euo pipefail
 export OMP_NUM_THREADS=4 PYTHONDONTWRITEBYTECODE=1

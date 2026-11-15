@@ -1,4 +1,4 @@
-"""Scheduled 2A/2B checks of wall-source and geometry precision boundaries."""
+pass
 import subprocess
 import pytest
 from validation.tools.paths import SOURCE_ROOT

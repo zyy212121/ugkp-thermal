@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare only: no solver, mesh generator, profiler or fixture is executed."""
+pass
 import argparse, hashlib, importlib.util, json, re, shutil
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
@@ -49,7 +49,7 @@ def main():
             text=re.sub(r'(wallLayer\s*\{[^{}]*\babsoluteTolerance\s+)[^;]+;',r'\g<1>9.5367431640625e-7;',text)
         scheme_path.write_text(text)
         meshes=copy_mesh(case,donor.resolve())
-        # Reproduce the existing fixture's thin-3D patch preparation only.
+
         if kind=='moving':
             for patch in [case/'constant/polyMesh/boundary',case/'constant/solid/polyMesh/boundary']:
                 patch.write_text(re.sub(r'\btype\s+empty\s*;','type patch;',patch.read_text()))

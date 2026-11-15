@@ -1,8 +1,8 @@
-// Exports gas primitive-gradient kernels and the SST wall-distance/viscosity helper used by them.
+
 #pragma once
 #include "gasStencilDiagnostics.cuh"
 #include "gasTransport/GasGeometryValidation.H"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<class GasState>
 __global__ void computeGasPrimitiveGradientsKernel
 (
@@ -63,9 +63,9 @@ __global__ void computeGasPrimitiveGradientsKernel
     {
         if (ugkwp::mixtureGasActive(s))
         {
-            // A nonzero trace needs its own physical stencil just as an absent
-            // species does. Put the gradient closure on the largest carrier,
-            // so carrier-sized Gauss roundoff cannot create a trace slope.
+
+
+
             int dependent=0;
             for(int k=1;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)
                 if(s.gasSpecies.rho[k*s.nCells+c]>s.gasSpecies.rho[dependent*s.nCells+c])dependent=k;
@@ -118,8 +118,8 @@ __device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue
         && !(ugkwp::gasBoundaryLayerUsesMacroSst(s)
             && ugkwp::gasBoundaryLayerOwnerSlot(s,owner)>=0))
     {
-        // OF10 viscous omegaWallFunction branch: wall nu, cell wall distance.
-        // This constrains the adjacent cell, not a wall Dirichlet value.
+
+
         return ugkwp::sstLowReWallOmega
         (
             nu, GPU_OPERATOR_R(s.sstWallDistance[owner]), s.sstCoefficients
@@ -165,12 +165,12 @@ __device__ GPU_OPERATOR_REAL sstBoundaryValue
     {
         if (!omegaField)
         {
-            // Selected numerical wall functions use zero normal k gradient;
-            // their material inflow TKE is separately prescribed as zero.
+
+
             return s.sstWallTreatment != 1 && ugkwp::gasBoundaryLayerFaceSlot(s,f)<0
               ? GPU_OPERATOR_R(0.0) : centre;
         }
-        // Copy constrained cell omega to the wall: zero wall diffusion flux.
+
         return centre;
     }
     if (boundaryKind == 1 || boundaryKind == 3 || boundaryKind == 4)
@@ -188,8 +188,8 @@ __device__ GPU_OPERATOR_REAL sstBoundaryValue
     }
     if (mode == 2)
     {
-        // inletOutlet uses the same-stage face flux, including pressure-driven
-        // inflow opposing the owner velocity. Zero flux is the outlet branch.
+
+
         return s.gasPhiRho[f] >= GPU_OPERATOR_R(0.0) ? centre : prescribed;
     }
     return centre;
@@ -218,7 +218,7 @@ __device__ GPU_OPERATOR_REAL sstFaceDensity(const GasState& s, const int f)
 template<class GasState>
 __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bool nativeRefinement=false)
 {
-    // A prior producer already diagnosed the fatal; retain its evidence until completion.
+
     if(ugkp::diagnostics::hasFatal(s.diagnostics))return;
     if
     (
@@ -248,9 +248,9 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
             s.rhoOmega[c]=clampMin(s.rho[c],s.rhoMin)*s.omega[c];
             return;
             }
-            // The macro wall row belongs to the current macro k inventory.
-            // Apply the ordinary viscous/log SST relation below; the BVP
-            // point omega is an auxiliary profile value, not this unknown.
+
+
+
         }
     }
     GPU_OPERATOR_REAL omegaSum = GPU_OPERATOR_R(0.0);
@@ -338,7 +338,7 @@ __global__ void initialiseSstConservativeStateKernel(GasState* sp, bool initiali
 template<class GasState>
 __device__ void recoverSstPrimitiveCell(GasState& s, const int c, const bool nativeRefinement=false)
 {
-    // A prior producer already diagnosed the fatal; retain its evidence until completion.
+
     if(ugkp::diagnostics::hasFatal(s.diagnostics))return;
     if (c >= s.nCells || s.sstConfigured == 0)
     {
@@ -360,10 +360,10 @@ __device__ void recoverSstPrimitiveCell(GasState& s, const int c, const bool nat
         || (s.sstWallTreatment == 2 && (ugkwp::gasBoundaryLayerOwnerSlot(s,c)<0
             || ugkwp::gasBoundaryLayerSlotReady(s,ugkwp::gasBoundaryLayerOwnerSlot(s,c)))))
     {
-        // Project the wall-adjacent omega equation after Euler updates and RK
-        // blends. Refresh the target from recovered k and the current gas state
-        // (including wall viscosity); do not freeze k or the gas equations.
-        // This is an explicit stage constraint, not an implicit OF10 solve.
+
+
+
+
         applySstWallFunctionStateCell(s, c,nativeRefinement);
     }
 }

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Serial production CHMT matrix. Fresh synthetic cases only; never edits baselines.
-Reports actual inventories, output differences, warnings, and process termination.
-Compact is covered separately by validation/tests/run_flat_pressure_cuda.py,
-which directly executes the production CUDA kernels, not a full solver variant.
-"""
+pass
+
+
+
+
 import argparse, ast, json, math, re, subprocess, time
 from pathlib import Path
 import chmt_particles_native as fixture
@@ -27,8 +27,8 @@ def prepare(case, level, injection):
     boundary=(case/"constant/polyMesh/boundary").read_text()
     patch=re.search(r"\bleft\s*\{([^}]+)",boundary)[1]
     face=int(re.search(r"startFace\s+(\d+)",patch)[1])
-    # 512 mobile + one attached in cell 0; cell 1 has only one mobile.
-    # The original 2x2x2 native fixture fixes these cell centres.
+
+
     rows=[]
     for i in range(513):
         cell=0 if i<512 else 1

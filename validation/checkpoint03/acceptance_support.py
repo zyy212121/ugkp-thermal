@@ -1,4 +1,4 @@
-"""Acceptance-only collection of failures and their existing dependencies."""
+pass
 import traceback
 from pathlib import Path
 FATAL_GPU = ("cudaerrorillegaladdress", "illegal memory access", "cudaerrorlaunchfailure",
@@ -8,7 +8,7 @@ FATAL_GPU = ("cudaerrorillegaladdress", "illegal memory access", "cudaerrorlaunc
              "cudaerrormemoryallocation", "cudaerrordeviceunavailable")
 FATAL_SYSTEM = ("no space left on device", "input/output error", "error while loading shared libraries")
 def failed_environment_scope(text, code=None, gpu=True):
-    # Called only after an original step already failed. This never changes PASS.
+
     lower=text.lower()
     for token in FATAL_SYSTEM:
         if token in lower: return {"scope":"all", "reason":token}

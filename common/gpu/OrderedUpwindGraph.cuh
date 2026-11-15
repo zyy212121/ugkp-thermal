@@ -118,9 +118,9 @@ public:
             checkedCudaUpwind(cudaStreamEndCapture(stream,&initializeGraph_));
             checkedCudaUpwind(cudaGraphInstantiateWithFlags(&initializeExecutable_,initializeGraph_,0));
             checkedCudaUpwind(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));
-            // Keep the existing 128-thread wide-level path. Up to 32 adjacent
-            // levels fitting one CTA share a graph node, with a barrier per level.
-            // These are scheduling constants, identical for FP32 and FP64.
+
+
+
             const int levelThreads=ugkp::gpu::workPlan().radiationBlockThreads; constexpr int narrowLevelBatch=32;
             snapshotUpwind<<<std::max(1,(cells_+levelThreads-1)/levelThreads),levelThreads,0,stream>>>(cells_,values,previous,&report_.ptr->active);
             for(std::size_t level=0;level+1<plan.levelOffsets.size();){
@@ -189,8 +189,8 @@ private:
         if(graph_)cudaGraphDestroy(graph_);if(initializeGraph_)cudaGraphDestroy(initializeGraph_);if(hostReport_)cudaFreeHost(hostReport_);
     }
 public:
-    // Measure the actual stored field after relaxation without changing the
-    // solve's iteration count, continuation state, target, or failure outcome.
+
+
     void measurePublished(OrderedUpwindDevice matrix,const int* owner,const int* neighbour,
         const RadiationReal* flux,const RadiationReal* diagonal,const RadiationReal* source,
         const RadiationReal* values,UpwindLinearControls controls,cudaStream_t stream){

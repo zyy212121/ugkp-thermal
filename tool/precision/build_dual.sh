@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Each precision owns a complete source, object, archive and executable tree.
+
 source_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd) || exit 1
 if [[ -z ${WM_PROJECT_DIR:-} ]]; then
     source "${OPENFOAM_BASHRC:-/opt/openfoam10/etc/bashrc}"
@@ -21,9 +21,6 @@ elif [[ $# != 0 ]]; then
     echo "Usage: build_dual.sh [--solver gasUGKP|gasUGKPSteady|CHT|CHMT]" >&2
     exit 2
 fi
-python3 "$source_root/tool/precision/report_overlay_pairs.py" --source-root "$source_root" \
-    --output "$source_root/.build/precision/overlay-pairs.json" \
-    || echo "Warning: overlay pair report unavailable; build is not blocked." >&2
 for bits in 64 32; do
     tree=$(python3 "$source_root/tool/precision/materialize_sources.py" \
         --source-root "$source_root" --precision "$bits")
@@ -49,7 +46,7 @@ for bits in 64 32; do
 done
 bash "$source_root/tool/precision/build_launcher.sh"
 launcher="${UGKP_LAUNCHER_BUILD:-$source_root/.build/precision/launcher}/ugkpPrecisionLauncher"
-# Publish only after both complete builds and the launcher have succeeded.
+
 mkdir -p "$output_bin/.precision/32" "$output_bin/.precision/64"
 for bits in 64 32; do
     tree="$source_root/.build/precision/fp$bits/source"

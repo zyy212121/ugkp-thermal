@@ -1,12 +1,12 @@
-"""Opt-in native FP32/FP64 optional Block8 regressions, not physical-case validation.
+pass
 
-Prepare both normal materialized precision trees first. Run:
-UGKP_RUN_SPARSE_BLOCK8_CUDA=1 python3 -m pytest -s validation/tests/test_sparse_block8_gpu.py
-UGKP_SPARSE_FP32_SOURCE / UGKP_SPARSE_FP64_SOURCE may select another materialized
-source tree. Each fixture includes the production implementation exactly once.
-Strict production convergence flags remain printed; the API fixture deliberately
-uses independent residual/error bounds and does not claim every strict flag true.
-"""
+
+
+
+
+
+
+
 import os
 from pathlib import Path
 import shutil

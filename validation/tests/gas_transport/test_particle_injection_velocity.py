@@ -1,4 +1,4 @@
-"""Execute the production injection kernel with current boundary programs."""
+pass
 import ast
 import subprocess
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT
@@ -8,7 +8,7 @@ def injection_fixture():
     function=next(x for x in tree.body if isinstance(x,ast.FunctionDef) and x.name=="test_actual_injection_initializes_reused_slot_without_other_solver_storage")
     assignment=next(x for x in function.body if isinstance(x,ast.Assign) and any(isinstance(t,ast.Name) and t.id=="code" for t in x.targets))
     code=ast.literal_eval(assignment.value).split("int main(){",1)[0]
-    code=code.replace('#include "GpuFrozenParticleRelease.cuh"', "")  # No cold-wall release in this injection test.
+    code=code.replace('#include "GpuFrozenParticleRelease.cuh"', "")
     code=code.replace("struct DeviceState {", '#include "gasBoundary/Definition.H"\nstruct DeviceState {\n ugkp::boundary::View gasBoundaryProgram;\n double Ux[1]={0},Uy[1]={.4},Uz[1]={0},epsS[1]={.2};')
     code=code.replace("blockIdx, threadIdx, blockDim;", "blockIdx, threadIdx, blockDim, gridDim;")
     return code
@@ -60,7 +60,7 @@ int main(){
     subprocess.run([str(exe)],check=True)
 
 def test_physical_open_patch_source_enumeration(tmp_path):
-    """Compile the actual host predicate: no geometric-constraint sources."""
+    pass
     import re
     for app in ("CHT", "gasUGKP"):
         header=(SOURCE_ROOT/f"applications/{app}/gpu/GpuResidentStrict.H").read_text()

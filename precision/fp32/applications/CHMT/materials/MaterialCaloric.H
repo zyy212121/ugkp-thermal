@@ -2,8 +2,8 @@
 #define CHMT_MATERIALS_MATERIALCALORIC_H
 #include "materials/Reaction.H"
 namespace chmt {
-// Condensed caloric polynomial plus shared gas calorics. Stable secants never
-// subtract two large formation inventories within a thermo branch.
+
+
 struct MaterialCaloric {
     PhysicalReal a0=0,a1=0,a2=0,minimumTemperature=0,maximumTemperature=0;
     SpeciesThermo gas[Ns]{};PhysicalReal pore[Ns]{};

@@ -6,9 +6,9 @@
 #define UGKP_ANCHORED_LINEAR_HD
 #endif
 namespace ugkp { namespace gpu {
-// B is angle-integrated black-body emission [W/m2], Q cell energy [J],
-// A=kappa*V [m2], G angle-integrated incident intensity [W/m2].
-// Real is the entire arithmetic type: no hidden wide accumulator.
+
+
+
 template<class Real> struct AnchoredRadiationLinearization {
     Real b=0,f=0,linearizedEmission=0,thermalFeedback=0,dtA=0,B0=0;
     bool valid=false,nonnegativeSlope=false;
@@ -24,20 +24,20 @@ UGKP_ANCHORED_LINEAR_HD AnchoredRadiationLinearization<Real> linearizeAnchoredRa
     r.valid=std::isfinite(Qtrial)&&std::isfinite(Btrial)&&std::isfinite(B0)
         &&std::isfinite(zeroSideDerivative)&&std::isfinite(dt)&&std::isfinite(A)
         &&std::isfinite(r.b)&&std::isfinite(r.dtA)&&std::isfinite(denominator)&&denominator>Real(0);
-    if(!r.valid)return r; // information only; caller owns solver policy
+    if(!r.valid)return r;
     r.f=Real(1)/denominator;
     const Real fourPi=Real(12.566370614359172953850573533118);
     r.linearizedEmission=r.f*B0/fourPi;
     r.thermalFeedback=Real(1)-r.f;
     r.valid=std::isfinite(r.f)&&std::isfinite(r.linearizedEmission)&&std::isfinite(r.thermalFeedback);
-    return r; // negative b is reported, never silently clamped
+    return r;
 }
 template<class Real> struct MaterialRadiationResidual {
     Real requestedByPhysics=0,residual=0,scale=0,normalized=0;
     bool valid=false;
 };
-// Bactual and kappaActual must be reevaluated by the caller at the actual
-// publishable material state, NOT the trial or a stored linearization.
+
+
 template<class Real>
 UGKP_ANCHORED_LINEAR_HD MaterialRadiationResidual<Real> materialRadiationResidual
 (Real actualQ,Real Bactual,Real kappaActual,Real volume,Real G,Real dt,Real scaleFloor){

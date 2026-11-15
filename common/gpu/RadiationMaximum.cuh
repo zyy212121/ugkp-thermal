@@ -4,10 +4,10 @@
 #include <cuda_runtime.h>
 #include <cmath>
 namespace ugkp { namespace gpu {
-// A segment of the native ordered max(a,b) = a>b ? a : b fold. NaN
-// discards the preceding prefix; retain the suffix after its last occurrence.
-// This associative segment representation permits parallel reduction without
-// changing the original non-finite semantics or treating ignored faces as zero.
+
+
+
+
 struct RadiationMaximum {RadiationReal value;int reset;int valid;};
 __host__ __device__ inline RadiationMaximum radiationMaximumSegment(RadiationReal value){return {value,std::isnan(value),1};}
 __host__ __device__ inline RadiationMaximum joinRadiationMaximum(RadiationMaximum left,RadiationMaximum right){

@@ -3,9 +3,9 @@
 #include "../gasNumerics/GpuParticlePhysicsAlgebra.cuh"
 #include "../gasNumerics/GpuDragModels.cuh"
 
-// Source-epoch values only: rebuild after gas or parcel state publication.
-// The two precision trees share this code; transport algebra remains GpuReal,
-// while time remains binary64 and physical responses use GpuReal.
+
+
+
 namespace mixtureParticles {
 struct DragCellProperties {
     GpuReal rho,ux,uy,uz,viscosity;
@@ -33,7 +33,7 @@ __device__ GpuReal beta(const State& s,int i,GpuReal epsG,const DragCellProperti
         GpuReal(s.dragParameter2),GpuReal(s.dragParameter3)};
     return fmax(GpuReal(0),DragModel::inverseResponseTime(input));
 }
-// Retain the scalar property-evaluation entry for reference callers.
+
 template<class DragModel,class State>
 __device__ GpuReal beta(const State& s,int c,int i,GpuReal epsG) {
     return beta<DragModel>(s,i,epsG,dragCellProperties(s,c));
@@ -52,9 +52,9 @@ template<class State>
 __device__ GpuReal heatFraction(const State& s,int c,int i,GpuTime dt) {
     return heatFraction(s,i,dt,heatCellProperties(s,c));
 }
-// Same operand precision and clamp semantics as particleGasHeatRelaxationRate.
-// The caller evaluates Reynolds and all caloric response intermediates in GpuReal,
-// then converts at the same rate-function boundary as before.
+
+
+
 __device__ inline GpuReal caloricHeatRate(const HeatCellProperties& properties,
     GpuReal reynolds,GpuReal diameter,GpuReal volumetricHeatCapacity) {
     const GpuReal nu=ugkwp::ranzMarshallNuFromPrOneThird(

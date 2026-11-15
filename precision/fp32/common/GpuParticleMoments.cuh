@@ -1,8 +1,8 @@
 #pragma once
 #include "GpuMaterialEnthalpyMoment.cuh"
-// The caller supplies scalar and physical-model constants, never runtime policy.
-// Preserve native S1 initialization and L2 outputs while sharing one loop body.
-// The caller owns reduction and thread selection. Preserve count/sentinel order.
+
+
+
 template<class MomentReal>
 __device__ __forceinline__ void publishParticleMomentsCell
 (
@@ -33,13 +33,13 @@ __global__ void accumulateParticleMomentsSegmentedKernel(DeviceState* sp)
     const int start = s.cellParticleOffset[c];
     const int end = s.cellParticleOffset[c + 1];
 #if GPU_MOMENT_THERMAL
-    // Retain the existing thermal entry guard and native instruction layout.
+
     if (s.csrHeavyReductionEnabled != 0) return;
 #else
     if constexpr (HeavyReductionEnabled) return;
 #endif
-// An empty directory has exactly zero moments. Publish all outputs and the
-    // sentinel without a block reduction; the decision is uniform per block.
+
+
     if (start == end)
     {
         if (threadIdx.x == 0)

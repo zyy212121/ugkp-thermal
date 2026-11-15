@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare CP6's declared 16 CHMT inputs. Never launch a solver or mesh generator."""
+pass
 import argparse, hashlib, json, math, re, shutil
 from pathlib import Path
 VARIANTS=('baseline32','candidate32','baseline64','candidate64')
@@ -65,7 +65,7 @@ def main():
    static=kind.startswith('static')
    template=Path(__file__).resolve().parent/'templates'/('static.scheme' if static else 'moving.scheme')
    laplacian='Gauss linear limited 0.5' if kind=='static-fallback' else 'Gauss linear corrected'
-   # Explicit reviewed fixture settings, not an importer or conversion of donor controls.
+
    wall_relative='1e-4' if bits==32 else '1e-8'
    wall_absolute='9.5367431640625e-7' if bits==32 else '1e-10'
    scheme=template.read_text().replace('@PRECISION@',str(bits)).replace('@SOLID_LAPLACIAN@',laplacian)
@@ -84,7 +84,7 @@ def main():
    if common_reference is None:common_reference=same
    pair_equal=bits not in reference or hashes==reference[bits]
    reference.setdefault(bits,hashes)
-   # Manifest observations only; these are not solver refusal gates.
+
    parameter_audit={'samePrecisionOldNewHashesEqual':pair_equal,
      'crossPrecisionNonSchemeHashesEqual':common_equal,
      'declaredCrossPrecisionSchemeDifferences':['precision']+([] if static else ['wallLayer.relativeTolerance','wallLayer.absoluteTolerance']),

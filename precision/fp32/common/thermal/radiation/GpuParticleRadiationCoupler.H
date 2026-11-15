@@ -95,8 +95,8 @@ ParticleRadiationMaterialResult solveParticleRadiationTransaction
 {
     scalarField canonicalTemperatureK(snapshot.particleMeanTemperatureK);
     scalarField canonicalDiameterM(snapshot.representativeDiameterM);
-    // Physical temperature drives black-body emission in both DO and the
-    // material response. Mie queries clamp their optical coordinates only.
+
+
     const bool canonicalCellArraysHaveMeshSize =
         snapshot.epsilonS.size() >= context.mesh.nCells()
      && canonicalTemperatureK.size() >= context.mesh.nCells()

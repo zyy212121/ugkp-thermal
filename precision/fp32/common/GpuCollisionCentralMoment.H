@@ -1,7 +1,7 @@
 #pragma once
 #include <cstring>
-// FP32 collision state. Energy Q is measured about the weighted mean, never
-// recovered by subtracting the bulk kinetic energy from a total energy.
+
+
 #ifdef __CUDACC__
 #define UGKP_CENTRAL_HD __host__ __device__
 #else
@@ -29,9 +29,9 @@ UGKP_CENTRAL_HD inline CollisionCentralMoment particleCollisionCentralMoment
 {
     return {mass, ux, uy, uz, 1.5f*mass*theta};
 }
-// The eighth reduction lane transports an integer count bit-for-bit.
-// Numeric conversion to float would lose odd counts above 2^24. Scratch
-// remains a compact float array; only this count lane uses integer addition.
+
+
+
 UGKP_CENTRAL_HD inline float collisionCountWord(int count)
 {
 #ifdef __CUDA_ARCH__

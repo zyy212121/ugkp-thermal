@@ -293,7 +293,7 @@ bool evaluate(const HostState& h,const PhysicsConfig& p,Real dt,
         if(!m.prescribedPressureGradient.empty())bodyPower-=h.film[f].mass/p.liquid.rho*dot(m.prescribedPressureGradient[f],a.meanVelocity);
         if(!source.topWorkIncluded)prescribedTopPower=a.area*(dot(e.shear[f],a.topVelocity)-a.pressure*a.normalVelocity);
         if(!source.bottomWorkIncluded)supportPower=a.area*(-dot(profile.bottomShear,a.baseVelocity)+a.pressure*a.solidNormalVelocity);
-        const Real localRadiation=0; // Public DOM is the only radiation source.
+        const Real localRadiation=0;
         e.rhs[f].enthalpy+=bodyPower+supportPower+prescribedTopPower+localRadiation;
         if((!finite(e.rhs[f].enthalpy)||!finite(a.normalVelocity)))
             return numericReject(error,"nonfinite surface source",f,numericalFailure);

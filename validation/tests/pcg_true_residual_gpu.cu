@@ -1,4 +1,4 @@
-// Real production PCG, both native precisions. Compile ALONE against a materialized tree.
+
 #include "../../common/GpuPrecisionTypes.H"
 #include "../../common/gpu/SparseConjugateGradient.cu"
 #include <cstdio>
@@ -16,7 +16,7 @@ static R norm(const std::vector<R>& terms,int B){
  std::vector<R> lane(B,0);for(int t=0;t<B;++t)for(int i=t;i<blocks;i+=B)lane[t]+=part[i];return tree(lane);
 }
 static void globalIdentity(void*,R*,int){}
-// Decision-unit coverage is separate from the real-matrix solves below.
+
 __global__ void confirmationDecisionChecks(int* ok){
  if(threadIdx.x)return;LocalSolveParameters p{};p.norm=1;p.initial=1;p.controls.tolerance=R(.01);p.controls.maximumIterations=100;
  R q[12]={};q[4]=R(.1);q[6]=54;q[8]=1;

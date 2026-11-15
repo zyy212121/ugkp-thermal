@@ -8,7 +8,7 @@
 #include <vector>
 using namespace ugkp::gpu;
 
-// Pending checkpoint-2 batch: this fixture must not run during implementation.
+
 static void encoding(){
     for(const auto& pair:{std::pair<double,double>{1e150,1e-150},
                          {1e-150,1e150},{1e-250,1e-250},{1e250,1e250}}){
@@ -45,8 +45,8 @@ static void solve(int n,double scale,bool heterogeneous,bool interfacePath){
     if(interfacePath){communication.globalSum=[](void*,double*,int){};
         communication.addInterface=[](void*,const double*,double*,int){};}
     ConjugateGradientControls controls;controls.tolerance=1e-12;controls.maximumIterations=4000;
-    // Scale the dimensional norm floor with A and b; the nondimensional
-    // accuracy target stays identical across the range-continuation fixtures.
+
+
     controls.normalizationSmall=std::abs(scale)*1e-20;
     SparseConjugateGradient solver;const auto report=solver.solve(matrix,rhs.data(),x.data(),controls,communication);
     double mean=0;for(double value:initial)mean+=value;mean/=n;
@@ -60,10 +60,10 @@ static void solve(int n,double scale,bool heterogeneous,bool interfacePath){
     }
     assert(report.converged&&!report.singular);
     assert(report.physicalResidualEvaluations>=2);
-    // Independent physical b-A*x check, not the recursive Krylov residual.
+
     assert(trueL1/norm<controls.tolerance);
     assert(std::abs(report.finalResidual-trueL1/norm)<1e-15);
-    // Interior face powers cancel; only diagonal inventory remains globally.
+
     assert(std::abs(signedResidual-inventoryDefect)<1e-12*sourceL1);
     if(scale<1e-40||scale>1e40)assert(report.preconditionerFallbackApplications>0);
     std::cout<<n<<' '<<scale<<' '<<heterogeneous<<' '<<interfacePath<<' '

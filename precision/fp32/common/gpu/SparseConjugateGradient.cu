@@ -25,7 +25,7 @@ template<class T> struct DeviceArray {
         reserve(count);queue.uploadConverted(ptr,host,count);
     }
 };
-// Host launch policy and actual device CTA width share one reduction contract.
+
 __host__ __device__ inline int sparseThreads(){
 #ifdef __CUDA_ARCH__
     return blockDim.x;
@@ -64,9 +64,9 @@ __global__ void assembleLdu(int n,const int* offsets,const int* entrySource,cons
     }
     rowSum[i]=sum;if(affine)affine[i]=jump;
 }
-// Preserve native affine initial-product and normFactor semantics. Subsequent
-// Krylov matvecs remain linear; moving jump into b alone would change the
-// OpenFOAM residual normalization and relative stopping criterion.
+
+
+
 __global__ void addInitialAffine(int n,const GpuReal* affine,GpuReal* product){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<n)product[i]+=affine[i];
 }
@@ -115,8 +115,8 @@ __global__ void applyBlock(const int* member,const R* factor,const int* valid,co
 __global__ void precondition(int n,const int* offsets,const GpuReal* values,const GpuReal* r,GpuReal* z,const GpuReal* stop){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<n&&!(stop&&stop[7]))z[i]=r[i]/values[offsets[i]];
 }
-// Recurrence: rho,pAp,previous rho,alpha,|r|1,singular,total iterations,stop,
-// changed components since confirmation,restart direction,replacements,stagnated.
+
+
 __global__ void direction(int n,const GpuReal* z,const GpuReal* recurrence,GpuReal* p){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;
     if(i<n&&!recurrence[7])p[i]=(recurrence[6]==0||recurrence[9]!=0)?z[i]:z[i]+(recurrence[0]/recurrence[2])*p[i];
@@ -128,8 +128,8 @@ __device__ bool confirmTrueResidual(LocalSolveParameters* parameters,GpuReal* re
     const bool converged=residual<c.tolerance ||
         (c.relativeTolerance>c.normalizationSmall&&residual<c.relativeTolerance*parameters->initial);
     const bool exhausted=recurrence[6]>=c.maximumIterations&&recurrence[6]>=c.minimumIterations;
-    // An exactly unchanged iterate at consecutive confirmations is a finite-
-    // precision fixed point/cycle, not an exhausted iteration budget.
+
+
     recurrence[11]=!converged&&!exhausted&&!recurrence[5]&&recurrence[8]==0;
     recurrence[7]=converged||exhausted||recurrence[5]||recurrence[11];
     if(!recurrence[7]){recurrence[9]=1;recurrence[10]+=1;}
@@ -190,8 +190,8 @@ __global__ void update(int n,const GpuReal* recurrence,const GpuReal* p,const Gp
     const int i=blockIdx.x*blockDim.x+threadIdx.x;
     if(i<n&&!recurrence[5]&&!recurrence[7]){x[i]+=recurrence[3]*p[i];r[i]-=recurrence[3]*ap[i];}
 }
-// Fixed reduction tree; no floating-point atomics or scheduling-dependent sums.
-// mode: sum, absolute sum, dot, finite-volume residual normalization.
+
+
 __global__ void partialReduction(int n,int mode,const GpuReal* a,const GpuReal* b,
     const GpuReal* rowSum,GpuReal mean,GpuReal* partial,const GpuReal* stop,const GpuReal* residentMean=nullptr){
     if(residentMean)mean=*residentMean;
@@ -222,8 +222,8 @@ __global__ void gatherInterface(int count,const int* cells,const GpuReal* x,cons
 __global__ void scatterInterface(int count,const int* cells,const GpuReal* packed,GpuReal* y){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)y[cells[i]]=packed[i];
 }
-// Keep each reduction's original grid-stride order and binary FP64 tree, while
-// producing its terms in the vector/matrix kernel that already owns the row.
+
+
 __device__ GpuReal localBlockSum(GpuReal value,GpuReal* scratch){
     scratch[threadIdx.x]=value;__syncthreads();
     for(int active=threads;active>1;active=(active+1)/2){
@@ -312,10 +312,10 @@ template<int Stage> __global__ void finishLocalReduction(int n,const GpuReal* pa
     }
 }
 
-// A matrix with at most one row per lane needs no inter-block dependencies.
-// Keep the identical CSR order and configured-width reduction tree, and synchronize
-// its complete PCG recurrence inside the owning block instead of dispatching
-// a graph node for each vector operation. No mesh/physics assumption is used.
+
+
+
+
 __global__ void solveLocalBlock(int n,const int* offsets,const int* columns,const GpuReal* values,
     const GpuReal* rowSum,const GpuReal* b,const GpuReal* affine,GpuReal* x,GpuReal* r,GpuReal* z,GpuReal* p,GpuReal* ap,GpuReal* confirmedX,
     ConjugateGradientControls settings,const ConjugateGradientControls* deviceSettings,
@@ -578,12 +578,12 @@ struct SparseConjugateGradient::Implementation {
         cudaGraphConditionalHandle confirmation;
         checked(cudaGraphConditionalHandleCreate(&confirmation,body,0,cudaGraphCondAssignDefault));
         const auto iterated=appendCaptured(body,{},stream,[&]{
-            // No inter-rank callbacks are involved in this resident loop.
-            // MPI/interface solves keep their existing exchange ordering below.
+
+
             const int blocks=std::max(1,std::min(1024,(n+threads-1)/threads));
-            // Amortize conditional-graph loop dispatch without changing a
-            // single physical iteration. Every stage observes the resident
-            // stop flag; unused stages after convergence perform no arithmetic.
+
+
+
             for(int batch=0;batch<4;++batch){
                 if(n)direction<<<(n+threads-1)/threads,threads,0,stream>>>(n,z.ptr,recurrence.ptr,p.ptr);
                 multiplyAndDot<<<blocks,threads,threads*sizeof(GpuReal),stream>>>(n,offsets.ptr,columns.ptr,values.ptr,p.ptr,ap.ptr,partial.ptr,recurrence.ptr);
@@ -684,7 +684,7 @@ ConjugateGradientReport SparseConjugateGradient::solve(const SparseMatrixView& m
     d.values.upload(matrix.values,matrix.entries,d.transfers);d.rowSum.upload(matrix.rowSum,n,d.transfers);
     d.b.upload(source,n,d.transfers);
     if(d.usingBlock(n))d.buildBlocks(n,std::vector<int>(matrix.offsets,matrix.offsets+n+1),std::vector<int>(matrix.columns,matrix.columns+matrix.entries));
-    // Raw CSR uploads replace the address storage, invalidating an LDU cache.
+
     d.cachedRows=-1;d.residentConfigured=false;
     return solvePrepared(n,solution,controls,comm);
 }
@@ -775,7 +775,7 @@ void SparseConjugateGradient::prepareLdu(const SparseLduView& matrix,const Spars
         d.entrySource.upload(indices.data(),indices.size(),d.transfers);d.entryKind.upload(kinds.data(),kinds.size(),d.transfers);
         d.boundaryOffsets.upload(bOffsets.data(),bOffsets.size(),d.transfers);d.boundaryIndices.upload(bIndices.data(),bIndices.size(),d.transfers);
         d.boundaryNeighbour.upload(matrix.boundaryNeighbour,nb,d.transfers);
-        // Complete async use of temporary topology buffers before releasing them.
+
         d.transfers.finish();
         const auto copy=[](std::vector<int>& out,const int* input,int count){out.clear();if(count)out.assign(input,input+count);};
         copy(d.cachedOwner,matrix.owner,nf);copy(d.cachedNeighbour,matrix.neighbour,nf);

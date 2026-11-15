@@ -3,8 +3,8 @@ if(sharedGasModel.model().mode==ugkwp::GasMode::MixtureChemistry)
         << "instantaneous transport-plus-reaction residuals. Retained split-step bias "
         << "may require reducing maxDeltaT; reacting steady validation is not part "
         << "of the frozen-mixture reference cases." << nl;
-// All numerical operators remain in the resident gas pipeline. OpenFOAM's
-// time directory labels count pseudo iterations, NOT elapsed physical time.
+
+
 SteadyRestartState gasSteadyRestart;
 const bool gasSteadyRestartLoaded=readSteadyRestartState
     ((runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),gasSteadyRestart);
@@ -26,12 +26,12 @@ Info<< "Steady local pseudo-time: Co=" << steadyCourant
 scalarField initialSteadyResidual;
 resident.steadyResidual(initialSteadyResidual);
 Info<< "Initial steady spatial Linf residual " << initialSteadyResidual << nl;
-// Initial host mirrors supply fixed dimensional reference scales only; no
-// active solution update or transport operator is evaluated on the host.
+
+
 const scalar referenceTime=steadyControls.referenceTime;
 const SteadyReal referenceWeight=SteadyReal(referenceTime);
-// OpenFOAM host mirrors are an interface boundary. Compute reference norms in
-// the active physical precision, including vector norms and global maxima.
+
+
 const SteadyReal emptyMaximum=std::numeric_limits<SteadyReal>::lowest();
 SteadyReal densityMaximum=emptyMaximum,pressureMaximum=emptyMaximum,kineticMaximum=emptyMaximum;
 SteadyReal momentumMaximum=emptyMaximum,kMaximum=emptyMaximum,omegaMaximum=emptyMaximum;
@@ -77,7 +77,7 @@ bool steadyConverged=false;
 while (runTime.run())
 {
     resident.prepareSteadyStep(steadyCourant, steadyMaxDt);
-    // Unit driver interval is scaled to dt_cell by the shared operator helper.
+
     resident.advanceOneStep(1, steadyBoundaryTime);
     runTime.setDeltaT(1);
     runTime++;

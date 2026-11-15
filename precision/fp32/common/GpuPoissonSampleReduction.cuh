@@ -1,8 +1,8 @@
 #pragma once
 #include "CsrPersistentQueue.cuh"
 #include "GpuCollisionCellCentralReduction.cuh"
-// Sampling still consumes the same two Gaussian pairs per selected parcel.
-// All five components form one weighted central-moment reduction.
+
+
 __device__ __forceinline__ void publishPoissonSampleMoments
 (DeviceState& s,int c,const GPU_OPERATOR_REAL* q) {
     s.poolThermalMass[c]=q[0];
@@ -99,7 +99,7 @@ int launchPoissonPoolSampling(DeviceState* s,int block,int particleGrid,int dire
                 error=cudaGetLastError();
             }
         } else {
-            // Light and unsorted-fallback rows use the same cell-owned group merge.
+
             samplePoissonPoolCellsCentralKernel<<<s->nCells,block,sharedBytes,queue>>>(s->deviceState,directory,0);
             error=cudaGetLastError();
         }

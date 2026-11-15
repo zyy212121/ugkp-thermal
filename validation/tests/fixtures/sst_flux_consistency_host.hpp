@@ -55,5 +55,5 @@ int coupledFaceNeighbour(const DeviceState&s,int f){return f<s.nInternalFaces||s
 void periodicMappedCellCentre(const DeviceState&s,int,int c,R&x,R&y,R&z){x=s.Cx[c];y=s.Cy[c];z=s.Cz[c];}
 R solidEpsFromMomentDevice(const DeviceState&s,int c){return s.epsSolid[c];}
 
-// This fixture owns all face arrays inline; no optional storage is absent.
+
 bool gasCoupledFaceStorageAvailable(const DeviceState&,int){return true;}

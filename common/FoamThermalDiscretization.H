@@ -4,8 +4,8 @@
 #include "fvMesh.H"
 #include "IStringStream.H"
 namespace ugkp { namespace solverControls {
-// Numerical selection is a startup snapshot; framework geometry/flux
-// registration remains owned by fvMesh. Native selection syntax is retained.
+
+
 class ThermalDiscretization {
     Foam::dictionary values_;
 public:

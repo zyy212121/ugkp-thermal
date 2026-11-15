@@ -8,7 +8,7 @@ struct CouplingSchedule {Foam::scalar interval;Foam::label radiationFrequency;bo
 inline CouplingSchedule readCouplingSchedule(const Foam::dictionary& coupling,const Foam::Time& time) {
     const auto& scheme=ugkp::solverControls::startupScheme(time);
     const auto controls=scheme.section("thermalCoupling");
-    // Coupling interval was required before migration; retain that contract.
+
     const auto base=controls.lookup<Foam::scalar>("couplingInterval");
     Foam::scalar interval=base;Foam::label frequency=1;
     scheme.read("thermalCoupling","solidContactCouplingInterval",interval,"couplingInterval");

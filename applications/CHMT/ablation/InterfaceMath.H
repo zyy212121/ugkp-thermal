@@ -883,7 +883,7 @@ CHMT_HD inline bool findFeasibleSurfaceRootImpl(const SurfacePhysicsInput& in, c
             }
         }
         const long long nextSubdivisions=static_cast<long long>(subdivisions)*p.numerics.surface.subdivisionGrowth;
-        // Exhaust the finite search budget without integer wrap or a nonadvancing schedule.
+
         if(nextSubdivisions<=subdivisions || nextSubdivisions>p.numerics.surface.maximumSubdivisions)break;
         subdivisions=static_cast<int>(nextSubdivisions);
     }

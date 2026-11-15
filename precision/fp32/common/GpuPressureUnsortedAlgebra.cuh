@@ -1,9 +1,9 @@
 #pragma once
 
-// Defined in GpuPressureLimiter.cuh; the shared recovery uses that same equation.
+
 __device__ PressureReal pressureKickInternalEnergy
 (PressureReal rhoP, PressureReal px, PressureReal py, PressureReal pz, PressureReal energy);
-// Face order and double-time -> physical-real conversion are retained.
+
 __device__ __forceinline__ void accumulatePressureFaceDelta
 (
     const DeviceState& s, const int c, const PressureTime kickDt,
@@ -58,8 +58,8 @@ struct UnsortedPressureKinematics
     bool resolved;
 };
 
-// Inputs are the sanitized published state. Subtract the kick AFTER publication;
-// using the original state changes rounding at the resolved-theta threshold.
+
+
 __device__ __forceinline__ UnsortedPressureKinematics recoverUnsortedPressureKinematics
 (
     const PressureReal rhoP,

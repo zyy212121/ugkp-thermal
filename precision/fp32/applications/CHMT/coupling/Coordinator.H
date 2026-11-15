@@ -5,9 +5,9 @@
 #include "materials/Reaction.H"
 #include <utility>
 namespace chmt {
-// Constant-composition, local-temperature compressible pore mass storage
-// dm/dp=phi*V/(Rmix*T). Empty pores use the largest configured R, so a
-// neighboring donor still gives a finite conservative pressure-relaxation bound.
+
+
+
 CHMT_HD inline PhysicalReal porePressureStorage(const SolidQ& q,PhysicalReal poreVolume,PhysicalReal temperature,const PhysicsConfig& p){
     PhysicalReal mass=0,weightedR=0,maximumR=0;for(int s=0;s<Ns;++s){mass+=q.pore[s];weightedR+=q.pore[s]*p.species[s].R;maximumR=maxValue(maximumR,p.species[s].R);}
     const PhysicalReal R=mass>0?weightedR/mass:maximumR;
@@ -18,9 +18,9 @@ CHMT_HD inline PhysicalReal darcyPressureRelaxation(PhysicalReal storage,Physica
     if(storage<=0||viscosity<=0||area<=0||distance<=0)return std::numeric_limits<PhysicalReal>::max();
     return permeability*faceDensity*area/(viscosity*distance*storage);
 }
-// Coupled gray radiation belongs to the material-side primary receiver.
-// A dry GasSolid face may retain an empty FilmQ for later melting; that does
-// not make the film the current radiation owner. Birth switches by packet kind.
+
+
+
 CHMT_HD inline bool filmReceivesSurfaceRadiation(bool coupled,const ExchangePacket* primary){
     return !coupled||(primary&&primary->kind==ExchangeKind::GasFilm);
 }
@@ -44,15 +44,15 @@ CHMT_HD inline FilmQ assembleFilmCandidate(const FilmQ& base,const FilmQ& rhs,Re
     next.enthalpy+=EnergyReal(dt)*radiation;
     for(int i=0;i<count;++i)if(packets[i].kind==ExchangeKind::SolidFilm&&packets[i].filmFace==face){
         const auto d=packetDelta(packets[i]).film;next.mass+=d.mass;
-        // Exact dry-event pairing uses the same arithmetic grouping as its
-        // packet owner: phase.energy=-(remainingU+outwardK). No clipping.
+
+
         next.enthalpy+=packets[i].liquidKineticAdvection;next.enthalpy+=packets[i].energy;
         for(int s=0;s<Ns;++s)next.species[s]+=d.species[s];
     }
     next.enthalpy+=storage.newPV;return next;
 }
-// Participants have ALREADY been assembled from their common base. This
-// function only records the exact common transfer; it never reapplies a source.
+
+
 CHMT_HD inline bool accountAssembledPacket(ExchangePacket& packet,
     const Tolerances& tol,DeviceStatus* status=nullptr) {
     if(!validatePacketMath(packet,tol,status))return false;
@@ -60,5 +60,5 @@ CHMT_HD inline bool accountAssembledPacket(ExchangePacket& packet,
     packet.consumerMask=requiredConsumers(packet.kind);return true;
 }
 
-} // namespace chmt
+}
 #endif

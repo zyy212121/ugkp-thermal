@@ -1,4 +1,4 @@
-"""Source wiring and host ownership model; CUDA arithmetic is in wall_block_team.cu."""
+pass
 from validation.tools.paths import SOURCE_ROOT
 import pytest
 

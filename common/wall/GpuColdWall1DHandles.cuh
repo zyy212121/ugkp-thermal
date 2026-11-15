@@ -19,9 +19,9 @@ __device__ inline int coldWallFieldSlot(const State& s,const Scalar* field,int i
         || p==static_cast<const void*>(s.pColdContactAge)
         ? coldWallSlot(s,i) : i;
 }
-// Persistent free stack. Push-only death/delete kernels complete before the
-// pop-only injection kernel on the same stream, including captured graph replay.
-// counts points to the single persistent free count.
+
+
+
 struct ColdWall1DHandles {
     int* particle; int* compact; int* freeHandles; int* counts; int capacity;
 };
@@ -32,7 +32,7 @@ static __global__ void initialiseColdWall1DHandlesKernel(ColdWall1DHandles p,int
     }
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<p.capacity;i+=blockDim.x*gridDim.x) {
         p.particle[i]=i<n?i:-1; p.compact[i]=-1;
-        // Reverse order makes initial allocation consume the unused identity tail.
+
         if(i<p.capacity-n)p.freeHandles[i]=p.capacity-1-i;
     }
 }
@@ -51,8 +51,8 @@ template<class State>
 __device__ inline void allocateColdWall1DHandle(const State& s,int i) {
     if constexpr(HasColdHandles<State>::value) {
         if(!s.pColdHandle)return;
-        // Successful particle reservation implies available pool capacity:
-        // every live particle owns exactly one slot and deaths release once.
+
+
         const int freeIndex=atomicSub(s.coldFreeCounts,1)-1;
         s.pColdHandle[i]=s.coldFreeHandles[freeIndex];
     }

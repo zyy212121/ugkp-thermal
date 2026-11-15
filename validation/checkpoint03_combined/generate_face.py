@@ -1,4 +1,4 @@
-"""Generate only. Never imports/runs the test module or a numerical executable."""
+pass
 from pathlib import Path
 import ast,argparse,re
 ap=argparse.ArgumentParser()
@@ -13,7 +13,7 @@ ret=next(n for n in fn.body if isinstance(n,ast.Return))
 body=ast.literal_eval(ret.value.func.value)
 fields=re.findall(r"    ([\w:]+\*) (\w+)\{\};",(here/"legacy_gas_fixture.hpp").read_text())
 assert fields, "No fixture allocation fields found"
-# Allocate each field with its actual production State pointer type.
+
 body=body.replace("ALLOCATE","\n".join(f"s.{name}=new std::remove_pointer_t<decltype(s.{name})>[8]{{}};" for ty,name in fields))
 state_header=(a.root/"common/gasTransport/GasStateView.H").read_text()
 mixed_tables="class TableReal = Real" in state_header
@@ -23,12 +23,12 @@ if mixed_tables:
 else:
  body=body.replace("GasStateView<Real,Time,ugkwp::SstCoefficients>","GasStateView<Real,Time,ugkwp::SstCoefficients,double>")
 
-# Candidate metadata and coefficients use the actual resident Real, including FP32.
+
 
 pre=(here/"gas_state_probe.cpp").read_text().split("void hashBytes")[0]
 main=Path(__file__).with_name("face_fixture.cpp").read_text()
 
-# Static extraction of the established refinement case; no module import.
+
 rt=ast.parse((here/"test_mixture_reconstruction.py").read_text())
 rf=next(n for n in rt.body if isinstance(n,ast.FunctionDef) and n.name=="test_smooth_periodic_muscl_has_refinement_gain_over_first_order")
 snippet=next(n.value for n in ast.walk(rf) if isinstance(n,ast.Constant) and isinstance(n.value,str) and "Real error(int n" in n.value)
@@ -43,8 +43,8 @@ large=large.replace("g.compositionBoundaryFixed=new int[3]{}","g.compositionBoun
 snippet=snippet.replace("Real error(int n,int reconstruction)","Real error(int n,int reconstruction,int scheme)").replace("SCHEME","scheme")
 snippet=re.sub(r"error\((16|32|64),([01])\)",r"error(\1,\2,scheme)",snippet)
 snippet=snippet.replace("int main(){","template<class Emit> void verify(int scheme,Emit emit){")
-# This opt-in is passed only for candidate32 by prepare.py. Historical and
-# candidate64 generation is byte-for-byte unchanged when the flag is absent.
+
+
 if a.candidate32_trend:
  snippet=snippet.replace("template<class Emit> void verify(int scheme,Emit emit){",
   "template<class Emit> void verify(int scheme,Emit emit,std::ostream& diagnostics){")
@@ -77,7 +77,7 @@ diagnostics<<" old_first_order_pass="<<(first32!=Real(0)&&first16/first32>1.8&&f
  main=main.replace('#include <string>','#include <string>\n#include <sstream>')
  main=main.replace('std::cout<<std::setprecision(17);','std::ostringstream refinementDiagnostics;refinementDiagnostics<<std::setprecision(17);\n std::cout<<std::setprecision(17);')
  main=main.replace('++checks;\n });','++checks;\n },refinementDiagnostics);')
- # Print separate diagnostics only after the complete original measurement JSON.
+
  closing=main.rfind('}')
  main=main[:closing]+'if(!perf)std::cout<<refinementDiagnostics.str();\n'+main[closing:]
 

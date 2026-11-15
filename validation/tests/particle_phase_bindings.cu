@@ -1,5 +1,5 @@
-// Binding/cache mechanism probe using the actual thermal backend functions.
-// This does not replace the application physical/conservation comparisons.
+
+
 #ifndef UGKP_PARTICLE_BACKEND_SOURCE
 #define UGKP_PARTICLE_BACKEND_SOURCE "../../common/thermal/GpuResidentStrict.cu"
 #endif
@@ -42,7 +42,7 @@ int main(){
         requireBinding(ugkp::thermal::setParticleNumericalControls(&s,controls));};
     for(int i=0;i<8;++i){bind();advance();}
     const int stableCaptures=captured;
-    // Real borrowed-address, host model branch, surface and control changes.
+
     gas.rho=static_cast<GpuReal*>(replacement);bind();advance();
     gas.species.mode=ugkwp::GasMode::MixtureFrozen;bind();advance();
     surface.temperature=static_cast<const GpuReal*>(replacement);bind();advance();
@@ -52,7 +52,7 @@ int main(){
 #ifdef UGKP_EXPECT_REUSE
     if(stableCaptures!=1||captured!=5)return 5;
 #else
-    // Previous owner intentionally invalidates on each of the three binds.
+
     if(stableCaptures!=8||captured!=12)return 6;
 #endif
     ugkp::gpu::releaseParticlePhaseGraphs(s.particlePhaseGraphs);

@@ -14,4 +14,4 @@ inline double reduceGasAcousticCourant(const Real* acoustic,int count,cudaStream
         thrust::device_pointer_cast(acoustic)+count,-std::numeric_limits<double>::infinity(),
         ScalarGasCourantMaximum{});
 }
-} // namespace ugkwp
+}

@@ -3,9 +3,9 @@
 #include "../gasWall/WallAcceptedHistory.H"
 #include "../gasWall/WallCoherentSolver.H"
 namespace ugkwp { namespace gaswall { namespace coherent {
-// Numerical continuation belongs to a physical wall, unlike pooled evaluation
-// scratch. This is not the accepted macro history: a last numerical iterate may
-// remain useful even when its publication carries an advisory residual.
+
+
+
 template<int M> struct PersistentWallState {
     Cache<M> cache;
     WallHistoryFrame<2> frame;
@@ -16,7 +16,7 @@ struct SolveStats {
     GpuReal physicalResidual=std::numeric_limits<GpuReal>::infinity();
     double seconds=0;
 };
-}} // gaswall::coherent
+}}
 inline std::size_t gasCoherentWallScratchBytes(int nodes) {
     switch(gasBoundaryLayerWorkspaceCapacity(nodes)) {
     case 24:return sizeof(gaswall::coherent::Scratch<24>);
@@ -39,8 +39,8 @@ UGKWP_GAS_HD inline bool sameCoherentCoordinates(
     for(int j=0;j<2;++j){if(a.wallU[j]!=b.wallU[j])return false;for(int d=0;d<3;++d)if(a.tangent[j][d]!=b.tangent[j][d])return false;}
     return true;
 }
-// accepted, when supplied, is already in the current frame. Geometry changes
-// discard only the numerical initial guess/Jacobian, never the physical step.
+
+
 template<int M,class Team>
 UGKWP_GAS_HD inline bool loadCoherentWallState(
     gaswall::coherent::PersistentWallState<M>& wall,
@@ -69,9 +69,9 @@ UGKWP_GAS_HD inline void saveCoherentWallState(
     team.sync();if(team.leader())wall.frame=frame;team.sync();
 }
 
-// Shared callable adapter. Preparation and advisory publication semantics are
-// the same as the existing reference route; only the numerical operator/cache
-// changes. accepted is immutable and has already been transformed by its owner.
+
+
+
 template<int M,class Team=gaswall::detail::SerialWallTeam>
 UGKWP_GAS_HD inline bool evaluateGasCoherentWallWorkspace(
     const gaswall::WallInput<GpuReal,2>& original,
@@ -108,4 +108,4 @@ UGKWP_GAS_HD inline bool evaluateGasCoherentWallWorkspace(
     }
     team.sync();return published;
 }
-} // ugkwp
+}

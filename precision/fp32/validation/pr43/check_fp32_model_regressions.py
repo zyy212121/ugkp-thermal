@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Prepare production-function regressions; execution requires explicit --run.
+pass
 
-During implementation use --syntax-only or --compile-only. The checkpoint-2
-batch may use --run. Radiation stubs replace scheduling/ownership only; the
-borrow function, borrowed view, and temperature import are production code.
-"""
+
+
+
+
 from pathlib import Path
 import argparse
 import subprocess

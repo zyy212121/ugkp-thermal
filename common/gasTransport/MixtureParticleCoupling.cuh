@@ -35,8 +35,8 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragAct
             }
             const auto b=mixtureParticles::beta<DragModel>(s,i,epsG,dragProperties);
             const double a=-expm1(-b*dt);
-            // Every eligible parcel is overwritten before the second pass.
-            // No sorting, migration or physical publication occurs in between.
+
+
             s.couplingDragBeta[i]=b;s.couplingResponseFraction[i]=a;
             const double w=s.pm[i]*a;
             weight+=w;x+=w*s.pux[i];y+=w*s.puy[i];z+=w*s.puz[i];
@@ -80,8 +80,8 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragAct
         const double kinetic=.5*(s.rhoUx[c]*s.rhoUx[c]+s.rhoUy[c]*s.rhoUy[c]+s.rhoUz[c]*s.rhoUz[c])/s.rho[c];
         const double oldInternal=s.rhoE[c]-kinetic;
         const double referenceTemperature=s.Tgas[c];
-        // Drag has published and recovered the gas state. Its viscosity
-        // cache is no longer valid for this heat source epoch.
+
+
         mixtureParticles::HeatCellProperties heatProperties{};
         bool heatPropertiesReady=false;
         double A=0,B=0;

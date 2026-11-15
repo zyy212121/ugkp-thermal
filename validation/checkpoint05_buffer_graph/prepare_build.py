@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Emit reviewed r5-derived freeze/build scripts. Does not run them."""
+pass
 from pathlib import Path
 import argparse,json,hashlib
 

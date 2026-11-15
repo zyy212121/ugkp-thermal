@@ -1,8 +1,8 @@
 #ifndef CHMT_CORE_NUMERICALCONTROLS_H
 #define CHMT_CORE_NUMERICALCONTROLS_H
 namespace chmt {
-// Startup-only numerical settings. These are not physical checkpoint identity
-// and are deliberately absent from the historical explicit checkpoint archive.
+
+
 template<class Number> struct SurfaceNumericalControls {
     int compositionMaximumIterations=60;
     Number compositionRelaxation=Number(.5),compositionAbsoluteTolerance=Number(1e-12);

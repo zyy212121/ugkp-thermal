@@ -1,4 +1,4 @@
-"""Valid FP64 authority must survive legacy EOS recovery without one-ULP repair."""
+pass
 from test_mixture_state import compile_probe
 from test_legacy_ale_transport import fixture
 

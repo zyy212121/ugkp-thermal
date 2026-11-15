@@ -10,7 +10,7 @@ __device__ bool gasEddyFinite(const GasState& s, int c, GPU_OPERATOR_REAL value,
         EntityKind::Cell,c,component,value,0,0,quantity));
     return false;
 }
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<class GasState>
 __global__ void computeGasEddyViscosityKernel(GasState* sp)
 {
@@ -57,7 +57,7 @@ __global__ void computeGasEddyViscosityKernel(GasState* sp)
         }
         const GPU_OPERATOR_REAL nu = ugkwp::gasCellMolecularViscosity(s,c)/rhoSafe;
         if(!gasEddyFinite(s,c,nu,30305)) return;
-        // Inspect the actual F2 operands before its finite min/max caps can erase a fault.
+
         const auto omegaSafe=ugkwp::sstPositive(s.omega[c],GPU_OPERATOR_TINY(1e-300));
         const auto ySafe=ugkwp::sstPositive(GPU_OPERATOR_R(s.sstWallDistance[c]),GPU_OPERATOR_TINY(1e-300));
         const GPU_OPERATOR_REAL denominators[] = {s.sstCoefficients.betaStar*omegaSafe*ySafe,ySafe*ySafe*omegaSafe};
@@ -116,8 +116,8 @@ __global__ void computeGasEddyViscosityKernel(GasState* sp)
     GPU_OPERATOR_REAL gradientScale = GPU_OPERATOR_R(0.0);
     if (s.turbulenceModel != 2)
     {
-        // Normalize before quadratic/quartic invariants can overflow in FP32.
-        // Raw nonfinite gradients have already been diagnosed above.
+
+
         for (int i = 0; i < 3; ++i)
             for (int j = 0; j < 3; ++j)
                 gradientScale = fmaxf(gradientScale, fabsf(g[i][j]));

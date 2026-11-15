@@ -139,7 +139,7 @@ namespace
 
 
 
-// Eight lanes cooperate on each retained axial profile (16 groups per CTA).
+
 #define coldWallBlockThreads (ugkp::gpu::workPlan().coldWallBlockThreads)
 #define particlePayloadThreads (ugkp::gpu::workPlan().particleBlockThreads)
 constexpr int particlePayloadSmBlocks = 0;
@@ -175,7 +175,7 @@ struct DeviceState
 {
 
     GpuWallEnergyState wallEnergy;
-    const void* particleTrackingKernel = nullptr; // host launch selection only
+    const void* particleTrackingKernel = nullptr;
     ugkp::boundary::View gasBoundaryProgram;
     ugkp::boundary::Resident* gasBoundaryOwner=nullptr;
     ugkwp::GasSpeciesState<GpuReal,ugkwp::compiledGasSpecies,GpuReal> gasSpecies,gasRejectedView;
@@ -301,7 +301,7 @@ struct DeviceState
     ugkwp::GasResidentInterval* gasGraphClock=nullptr;
     bool gasGraphIntervalSubmitted=false,gasGraphAdvancesInterval=false;
     bool gasGraphIncludesBoundary=false,gasGraphPreparedBoundary=false,gasGraphFrozenBoundary=false;
-    double gasGraphDt=-1; // NaN invalidates structural/configuration bindings.
+    double gasGraphDt=-1;
     int gasGraphMode = -1;
     int particleBlockThreads = 128;
     int reductionBlockThreads = 128;
@@ -355,12 +355,12 @@ struct DeviceState
     GpuReal* rhoUx = nullptr;
     GpuReal* rhoUy = nullptr;
     GpuReal* rhoUz = nullptr;
-    GpuEnergy* rhoE = nullptr; // authoritative energy density, independent of GpuReal
+    GpuEnergy* rhoE = nullptr;
     GpuReal* rhoNext = nullptr;
     GpuReal* rhoUxNext = nullptr;
     GpuReal* rhoUyNext = nullptr;
     GpuReal* rhoUzNext = nullptr;
-    GpuEnergy* rhoENext = nullptr; // full-precision RK initial state
+    GpuEnergy* rhoENext = nullptr;
     GpuReal* gasPhiRho = nullptr;
     GpuReal* gasPhiRhoUx = nullptr;
     GpuReal* gasPhiRhoUy = nullptr;
@@ -554,7 +554,7 @@ struct DeviceState
     GpuEnergy* radiationMobileTemperatureMass = nullptr;
     GpuEnergy* radiationMobileDiameterMass = nullptr;
     int* poolThermalCount = nullptr;
-    // Corrected sampling state: mean xyz and central random energy Q.
+
     GpuReal* poolThermalSumUx = nullptr;
     GpuReal* poolThermalSumUy = nullptr;
     GpuReal* poolThermalSumUz = nullptr;
@@ -564,11 +564,11 @@ struct DeviceState
     GpuReal* csrCollisionPartials = nullptr;
     int* poissonPoolSampleTargetCount = nullptr;
     GpuReal* poissonPoolMass = nullptr;
-    // Collision-only weighted means; these are not extensive momenta.
+
     GpuReal* poissonPoolMomX = nullptr;
     GpuReal* poissonPoolMomY = nullptr;
     GpuReal* poissonPoolMomZ = nullptr;
-    GpuReal* poissonPoolEnergy = nullptr; // FP32 central Q, not total energy
+    GpuReal* poissonPoolEnergy = nullptr;
     GpuReal* poissonPoolDiameter = nullptr;
     GpuReal* poissonPoolDiameter2 = nullptr;
 
@@ -578,15 +578,15 @@ struct DeviceState
     GpuReal* pux = nullptr;
     GpuReal* puy = nullptr;
     GpuReal* puz = nullptr;
-    // Source-epoch scratch, not particle payload: each coupling pass writes
-    // before reading, so restart, sorting and migration need no cache copies.
+
+
     GpuReal* couplingDragBeta = nullptr;
     GpuEnergy* couplingResponseFraction = nullptr;
     GpuReal* puxOld = nullptr;
     GpuReal* puyOld = nullptr;
     GpuReal* puzOld = nullptr;
     GpuReal* pT = nullptr;
-    // Source-epoch scratch; rebuilt after drag, never checkpointed or reordered.
+
     GpuReal* pTheta = nullptr;
     GpuTime* pContactAge = nullptr;
     GpuReal* pd = nullptr;
@@ -634,8 +634,8 @@ struct DeviceState
     int* csrCellTaskOffset = nullptr;
     CsrReductionTask* csrReductionTasks = nullptr;
     int* csrMultiTaskCellList = nullptr;
-    // All nonempty-cell tasks, including single-task cells.
-    // Only cells requiring multiple tasks and final reduction.
+
+
     int* csrHeavyCellList = nullptr;
     int* csrHeavyTaskCell = nullptr;
     int* csrHeavyTaskBegin = nullptr;
@@ -701,7 +701,7 @@ struct DeviceState
     GpuReal* compactPCold2DFrozenArea = nullptr;
     unsigned long long* compactPRng = nullptr;
     unsigned long long* compactPOrigId = nullptr;
-    // Cold-wall launch geometry must not inherit reduction-kernel occupancy.
+
     int coldWallWorkGrid = 0;
     int trackingWorkGrid = 0;
 
@@ -1133,8 +1133,8 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
         return;
     }
 
-    // Remove borrowed pointers only from the host teardown view. Outstanding
-    // kernels retain their device view until the following cudaFree completes.
+
+
 #define UGKP_PARTICLE_GAS_FIELD(Type,Name) \
     if(s->borrowedGasFields&(std::uint64_t(1)<<particleGasField_##Name))s->Name=nullptr;
 #include "ParticleGasFields.inc"
@@ -1494,8 +1494,8 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->compactPRng);
     release(s->compactPOrigId);
 
-    // All preceding cudaFree calls belong to the original teardown and have
-    // completed outstanding users. Drain before freeing diagnostic evidence.
+
+
     if(s->diagnosticOwner) {
         s->diagnosticOwner->observeCompletedWork();
         s->diagnosticOwner->dispatchPending();
@@ -2125,7 +2125,7 @@ __global__ void radiationEnthalpyApplyKernel(DeviceState* sp,const Foam::gpuTher
         if(s.pStatus[i]!=1||s.pStuck[i]!=Foam::gpuThermal::particleWallMobile)continue;
         const int c=s.pCellId[i];const auto law=particleCaloricDevice(s,i);
         const GpuReal q=requests[c].scale,capacity=s.radiationMobileMass[c];
-        // Reuse the evaluated candidate fraction; do not re-sum its denominator.
+
         const GpuReal fraction=publicationFraction?publicationFraction[c]:(capacity>GPU_R(0)?fminf(GPU_R(1),fabsf(q)/capacity):GPU_R(0));
         ugkwp::ParticleThermalCarry<GpuReal> candidate{s.pT[i]};
         const GpuReal delta=ugkp::gpu::radiationSpecificCapacity(law.enthalpy(candidate.temperature),
@@ -2709,8 +2709,8 @@ int prepareCsrHeavyReductionTasks(DeviceState* s, const int block)
 
 inline int configureAdditionalLaunchWorkGrids(DeviceState* s)
 {
-    // Contact groups contain eight cooperating lanes. Their register footprint
-    // and residency differ from the one-thread-per-particle transport kernels.
+
+
     int residentBlocks = 0;
     const auto error = cudaOccupancyMaxActiveBlocksPerMultiprocessor
     (
@@ -3260,8 +3260,8 @@ struct ChtSpeciesTrialPolicy {
 
 int advanceChtSharedGas(DeviceState* s,double dt,double simulationTime){
     if(s->particlesMayBePresent){setLastErrorText("mixture particle inventory coupling is not implemented");return 1;}
-    // The CHT resident API receives the accepted interval's end time.
-    // Shared RK stages use its beginning, as in gasUGKP's mixture path.
+
+
     const int rc=advanceGasRequestedInterval<ChtSpeciesTrialPolicy>(s,dt,simulationTime-dt,GasRequestedIntervalControls<double>{});
     const auto e=s->diagnosticOwner->observeCompletedWork(s->gasCaptureStream);
     if(e!=cudaSuccess){setLastError("complete CHT species transport",e);return 1;}
@@ -3765,8 +3765,8 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
     }
 
     s->nBoundarySources = nBoundarySources;
-    // A field table or extrapolated owner may become inflow later even if
-    // every startup rate is zero. Source existence keeps the path available.
+
+
     if(s->nBoundarySources>0)s->particlesMayBePresent=true;
     return syncDeviceState(s, "cudaMemcpy strict deviceState after boundary source upload");
 }
@@ -3983,7 +3983,7 @@ extern "C" int ugkwpGpuResidentStrictUpdateSolidInterfaceState
         wall.interfaceSourceIndices,wall.enabledFaceIds,view->temperature,view->effusivity,view->contactEnabled,
         s->gasBoundaryT,s->riemannBoundaryT,s->particleWallEffusivityByFace,view->emissivity,wall.interfaceEmissivityByFace,s->diagnostics);
     error=cudaGetLastError();
-    // Return ownership of the borrowed storage only after the mapping consumed it.
+
     if(error==cudaSuccess)error=cudaEventRecord(wall.interfaceInputReady,nullptr);
     if(error==cudaSuccess)error=cudaStreamWaitEvent(static_cast<cudaStream_t>(view->producerStream),wall.interfaceInputReady,0);
     if(error!=cudaSuccess){setLastError("publish resident solid interface state",error);return 1;}
@@ -4142,8 +4142,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasScalarSolvers(
         return 1;
     }
     s->gasScalarSolvers=ugkp::gasNumerics::castScalarSolverControls<GpuReal>(*controls);
-    // Publish only the startup controls: gasUGKP scrubs unrelated host physical
-    // scalars after field upload, so a whole-state upload would overwrite them.
+
+
     const cudaError_t error=cudaMemcpy(
         reinterpret_cast<unsigned char*>(s->deviceState)+offsetof(DeviceState,gasScalarSolvers),
         &s->gasScalarSolvers,sizeof(s->gasScalarSolvers),cudaMemcpyHostToDevice);
@@ -4292,15 +4292,15 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     if (err == cudaSuccess)
     {
         err = cudaDeviceSynchronize();
-    // Reuse this pre-existing completion point; do not add a synchronization.
+
     if(err==cudaSuccess) {
         err=s->diagnosticOwner->observeCompletedWork();
         if(s->diagnosticOwner->dispatchPending())return 1;
     }
     }
-    // Preserve the GPU-derived cache in the host mirror after the existing
-    // initialization completion point. Later whole-state publications must not
-    // overwrite these constants with their default zeros.
+
+
+
     if (err == cudaSuccess)
     {
         const size_t first = offsetof(DeviceState, sstJayatillekeP);
@@ -4423,7 +4423,7 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         convectiveBegin + s->nCells
     );
     *maxCo = *maxConvectiveIt;
-    // Courant's existing reduction has returned its host scalar.
+
     const auto diagnosticReadback=s->diagnosticOwner->observeCompletedWork();
     if(diagnosticReadback!=cudaSuccess) {setLastError("diagnostics at Courant readback",diagnosticReadback);return 1;}
     if(s->diagnosticOwner->dispatchPending())return 1;
@@ -4432,9 +4432,9 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
 
 namespace { int refreshParticleGeometryMoments(DeviceState*); }
 
-// Shared physical particle step. The application gas owner supplies the
-// resident gas state before this call; gas transport and final boundary
-// publication remain orchestration responsibilities of that owner.
+
+
+
 int submitResidentThermalParticles(DeviceState* s,double dt,double simulationTime
 #ifdef UGKP_DEVELOPMENT_PROBES
     ,DevelopmentAdvanceProbe* probe=nullptr
@@ -4612,8 +4612,8 @@ int submitResidentThermalParticles(DeviceState* s,double dt,double simulationTim
         setCsrAutomaticTimeStep<<<1,1,0,stream>>>(s->deviceState,dt);
         err=cudaGetLastError();if(err!=cudaSuccess){setLastError("publish CSR collision interval",err);return 1;}
     }
-    // Refresh the collision central state after the pressure kick, before
-    // any cell collision probability or pool-selection decision.
+
+
     if(!s->csrCellLocalPathEnabled && binParticlesByCell(s,block)!=0)return 1;
     const int centralDirectory=s->csrCellLocalPathEnabled ? (s->splitPreDirectoryActive?1:0) : 0;
     const size_t centralSharedBytes=8u*size_t((block+31)/32)*sizeof(float);
@@ -5019,7 +5019,7 @@ int advanceResidentThermalParticles(DeviceState* s,double dt,double simulationTi
 #endif
 ){
 #ifdef UGKP_DEVELOPMENT_PROBES
-    // Stage probes intentionally observe individual stage boundaries.
+
     return submitResidentThermalParticles(s,dt,simulationTime,probe);
 #else
     if(!s->particlesMayBePresent)return 0;
@@ -5073,9 +5073,9 @@ int bindParticleGas(void* handle,const ParticleGasBinding& gas) {
         const auto err=cudaEventCreateWithFlags(&s->particleGasDone,cudaEventDisableTiming);
         if(err!=cudaSuccess){setLastError("particle gas done event",err);return 1;}
     }
-    // Compare every rebound input, not the entire owner (which also contains
-    // evolving interval, directory and graph-cache metadata). Real address or
-    // model changes still invalidate; repeated publication alone does not.
+
+
+
     bool changed=!s->borrowedGasFields||!s->borrowedGasSpecies;
 #define UGKP_PARTICLE_GAS_FIELD(Type,Name) \
     changed=changed||(s->Name!=gas.Name)||!(s->borrowedGasFields&(std::uint64_t(1)<<particleGasField_##Name));
@@ -5193,7 +5193,7 @@ int advanceBoundParticlePhase(void* handle,double dt,double endTime,cudaStream_t
     int result=0;
     if(s->particleGeometryDirty)result=refreshParticleGeometryMoments(s);
     if(!result)result=advanceResidentThermalParticles(s,dt,endTime);
-    // Also order already submitted work if an asynchronous launch failed.
+
     if(orderGasAfterParticlePhase(handle,gasStream))return 1;
     return result;
 }
@@ -5207,15 +5207,15 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 )
 {
 
-    // Legacy/particle callers pass the committed interval end. Transport RK
-    // stages start at simulationTime-dt; injection and publication retain the end.
+
+
     DeviceState* s = asState(handle);
     if (validateState(s, "advance") != 0)
     {
         return 1;
     }
-    // Legacy launch tuning cannot consume a mixture/ODE wall before its
-    // first prepared profile. The shared stage selects its own valid launch.
+
+
     if(ugkwp::mixtureGasActive(*s))return advanceChtSharedGas(s,dt,simulationTime);
     if (publishStartupWorkPlan(s, dt, simulationTime-dt) != 0)
     {
@@ -5336,15 +5336,15 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
 )
 {
 
-    // Legacy/particle callers pass the committed interval end. Transport RK
-    // stages start at simulationTime-dt; injection and publication retain the end.
+
+
     DeviceState* s = asState(handle);
     if (validateState(s, "pure-gas advance") != 0)
     {
         return 1;
     }
-    // Legacy launch tuning cannot consume a mixture/ODE wall before its
-    // first prepared profile. The shared stage selects its own valid launch.
+
+
     if(ugkwp::mixtureGasActive(*s))return advanceChtSharedGas(s,dt,simulationTime);
     if (publishStartupWorkPlan(s, dt, simulationTime-dt) != 0)
     {
@@ -5430,7 +5430,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadFields
     rc |= copyToHost(Uz, s->Uz, n, "cudaMemcpy strict Uz result");
     rc |= copyToHost(p, s->p, n, "cudaMemcpy strict p result");
     rc |= copyToHost(Tgas, s->Tgas, n, "cudaMemcpy strict Tgas result");
-    // Tgas has just completed a pre-existing blocking field readback.
+
     const auto diagnosticReadback=n?s->diagnosticOwner->observeCompletedWork():cudaSuccess;
     if(diagnosticReadback!=cudaSuccess) {setLastError("diagnostics at field readback",diagnosticReadback);rc|=1;}
     if(s->diagnosticOwner->dispatchPending())return 1;
@@ -5519,7 +5519,7 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature
         return 1;
     }
     err = cudaDeviceSynchronize();
-    // Reuse this pre-existing completion point; do not add a synchronization.
+
     if(err==cudaSuccess) {
         err=s->diagnosticOwner->observeCompletedWork();
         if(s->diagnosticOwner->dispatchPending())return 1;
@@ -5556,8 +5556,8 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationDeviceEnergy(void* ha
     auto* s=asState(handle);
     if(validateState(s,"resident particle radiation enthalpy")||!input||!input->enabled||input->cells!=s->nCells||!input->energy)return 1;
     if(!s->particleRadiationAffineUpdate&&allocate(s->particleRadiationAffineUpdate,s->nCells,"resident radiation enthalpy requests"))return 1;
-    // The material view is asynchronous. Order both the read and the return
-    // of its borrowed storage on device, without waiting on the host.
+
+
     auto& wall=s->wallEnergy;
     cudaError_t err=cudaSuccess;
     if(!wall.interfaceInputReady)err=cudaEventCreateWithFlags(&wall.interfaceInputReady,cudaEventDisableTiming);
@@ -5587,7 +5587,7 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationDeviceEnergy(void* ha
     }
 
 #ifdef UGKP_RADIATION_PUBLICATION_OBSERVE
-    // One-shot isolated observation only. No state/acceptance changes.
+
     if(const char* prefix=std::getenv("UGKP_RADIATION_PUBLICATION_OBSERVE_PREFIX")) {
         static unsigned observation=0;
         int count=0;
@@ -5623,7 +5623,7 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationDeviceEnergy(void* ha
     }
 #endif
 
-    // Sticky device diagnostics are published at the owner's output boundary.
+
     return 0;
 }
 
@@ -5697,8 +5697,8 @@ extern "C" int ugkwpGpuResidentStrictBorrowRadiationParticleState(void* handle,u
     if(prepareResidentRadiationSums(s))return 1;
     const bool contact=s->particleStuckModelConfigured!=0&&s->particleWorkGrid>0;
     if(contact&&prepareParticleWallContactAreaScale(s,s->reductionBlockThreads))return 1;
-    // Name the borrowed fields explicitly: a device temperature pointer is
-    // data, never a CUDA stream. The producing kernels above use the default stream.
+
+
     *output={};
     output->enabled=true;output->cells=s->nCells;
     output->boundaryOffset=s->nInternalFaces;output->boundaryFaces=s->nFaces-s->nInternalFaces;
@@ -5886,9 +5886,9 @@ extern "C" int ugkwpGpuResidentStrictRefreshParticleEnthalpyPacked
             return 1;
         }
     }
-    // Consumers share the particle owner's stream. Publication observes the
-    // sticky device diagnostics; moment rebuilding does not require a host
-    // completion/readback between radiation and the next resident operator.
+
+
+
     return 0;
 }
 
@@ -7013,7 +7013,7 @@ extern "C" int ugkwpGpuResidentStrictSetDiagnosticOperation(void* handle,std::ui
     DeviceState* s=asState(handle);
     if(!s || !s->diagnostics)return 1;
     s->diagnosticOwner->setOperationContext(sequence,step,time);
-    // Ordered before graph replay, never captured with frozen timestep values.
+
     ugkp::diagnostics::beginOperationKernel<<<1,1>>>(s->diagnostics,sequence,step,time);
     const auto rc=cudaGetLastError();
     if(rc!=cudaSuccess){setLastError("begin diagnostic metadata",rc);return 1;}

@@ -5,8 +5,8 @@
 #include <limits>
 
 namespace ugkp { namespace precision {
-// New field streams inherit this value. Existing log streams keep their
-// formatting, and the default is restored immediately after persistence.
+
+
 class ScopedRestartWritePrecision
 {
     unsigned int previous_;

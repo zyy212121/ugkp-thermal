@@ -17,10 +17,10 @@ struct MaterialDriveRecordView {
     const GasWallMatchingSample& matching(std::size_t i)const{return record.gasWallMatching[i];}
     unsigned receiver(std::size_t i)const{return record.radiationReceiver[i];}
 };
-// Each cursor belongs to one immutable completed history. A material consumer
-// advances monotonically, so already-consumed records cannot match later times.
-// Backward/nonfinite queries reset the hint, preserving the ordinary first-match
-// semantics without imposing sorted-history assumptions on external callers.
+
+
+
+
 class MaterialDriveCursor {
     const IntervalHistory& history_;
     std::size_t record_=0;
@@ -40,9 +40,9 @@ public:
         while(record_<records.size()&&!(time<records[record_].localEnd))++record_;
         return record_<records.size()?&records[record_]:nullptr;
     }
-    // Exact open-interval samples for the source-variation audit. Arbitrary
-    // queries retain first-match ordering; monotone production queries reuse
-    // the same index without rescanning already-consumed records.
+
+
+
     void samplesInside(WindowTime begin,WindowTime end,std::vector<const GasIntervalRecord*>& output){
         output.clear();at(begin);
         const auto& records=history_.records();
@@ -51,8 +51,8 @@ public:
             if(r.localBegin>begin&&r.localBegin<end)output.push_back(&r);
         }
     }
-    // A LOCAL first-order lag control, not a bound on global PDE error. Keep
-    // source-variation comparisons in their original order and arithmetic.
+
+
     bool slabEndLocal(WindowTime begin,WindowTime requested,PhysicalReal tolerance,PhysicalReal tractionScale,
         WindowTime& output,std::string& error){
         const auto& history=history_;

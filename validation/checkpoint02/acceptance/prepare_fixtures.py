@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile-only recipe. No fixture, solver or benchmark is executed here."""
+pass
 from pathlib import Path
 import argparse, ast, hashlib, importlib.util, json, os, subprocess
 def digest(p): return hashlib.sha256(p.read_bytes()).hexdigest()
@@ -44,7 +44,7 @@ def main():
             for i,a in enumerate(run_args):
                 register(bits,name+("-"+str(i) if len(run_args)>1 else ""),exe,a,coverage)
             return exe
-        # Probe is compiled before the batch, never lazily by native postprocessing.
+
         source=tree/"validation/pr41/native_injection.py"
         probe=next(ast.literal_eval(n.value) for n in ast.parse(source.read_text()).body
             if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=="PROBE" for t in n.targets))
@@ -91,7 +91,7 @@ def main():
             host("model-regressions",tree/"validation/pr43/fp32_model_regressions.cpp",
                  coverage="WALE normalization, float epsilon and material-wall model algebra.")
             host("material-wall",generated,coverage="1200K material wall must not become 300K gas boundary.")
-        # Same public radiation fixture against each independent operator.
+
         radobj=dest/"DiscreteOrdinateRadiation.o"; mieobj=dest/"MieOpticalProperties.o"
         for name,obj in (("DiscreteOrdinateRadiation",radobj),("MieOpticalProperties",mieobj)):
             command(cu+["-c",tree/("common/gpu/"+name+".cu"),"-o",obj],

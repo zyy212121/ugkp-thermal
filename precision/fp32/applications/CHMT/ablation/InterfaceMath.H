@@ -42,8 +42,8 @@ CHMT_HD inline PhysicalReal interfacePartialPressure(PhysicalReal pressure, cons
     return R>0 ? pressure*Y[species]*p.species[species].R/R : undefinedValue();
 }
 #include "InterfaceCompositionArithmetic.H"
-// One producer per diagnostic site keeps component/value provenance while the
-// template policy suppresses only private mathematical trial diagnostics.
+
+
 template<bool Report>
 CHMT_HD inline bool compositionInputFailure(const PhysicsConfig& p,PhysicalReal value,int component=-1) {
     if(Report)return interfaceFailure(p,3840,value,component);
@@ -58,8 +58,8 @@ CHMT_HD inline bool compositionConfigurationFailure(const PhysicsConfig& p,Physi
     ugkp::diagnostics::Code code=ugkp::diagnostics::Code::InvalidPhysicalState) {
     return interfaceFailure(p,3842,value,component,code);
 }
-// Invocation-local fixed data. No candidate state, density or residual is cached
-// here. The owner keeps bulk, fluxes and PhysicsConfig immutable during the solve.
+
+
 struct CompositionResidualInputs {
     PhysicalReal gasR[Ns]{},totalFlux=0;
 };
@@ -104,7 +104,7 @@ CHMT_HD inline bool compositionResidualPolicy(const PhysicalReal* Y,const Physic
             return compositionInputFailure<Report>(p,denominators[component],component);
     DiffusionState diffusionState(pressure,T,distance,R);
     for(int i=0;i<Ns;++i){
-        // Evaluate rho*D/distance without an overflowing intermediate product.
+
         if(!diffusionState.scale(gasMolecularDiffusivity(p,i,T,pressure),a[i])
             ||!sumFinite(Y[i],-bulk[i],difference[i]))
             return compositionArithmeticFailure<Report>(p,std::numeric_limits<PhysicalReal>::infinity(),i);
@@ -171,8 +171,8 @@ CHMT_HD inline bool interfaceComposition(const PhysicalReal* Js,const PhysicalRe
  if(maxD==0)return composition_detail::linearComposition(Js,bulk,J,pressure,T,distance,p,tolerance,out,nullptr,&inputs);
  return composition_detail::scalarSolve(Js,bulk,pressure,T,distance,p,tolerance,out,nullptr,&inputs);
 }
-// Both the primitive builder and the temperature preflight consume this same
-// selected species model; retain one source producer for its diagnostic site.
+
+
 CHMT_HD inline bool interfaceSpeciesModelFailure(const PhysicsConfig& p,PhysicalReal value,
     int component,PhysicalReal reference=0) {
     return interfaceFailure(p,3843,value,component,
@@ -216,8 +216,8 @@ CHMT_HD inline bool makeInterfacePrimitive(const FractionReal* suppliedY, Energy
     if ((!finite(state.velocity) || !finite(state.rho) || state.rho<=0)) return false;
     out=state; return true;
 }
-// Config/host tables retain their independent input representation. This
-// invocation owns all physical coefficient arrays borrowed by the float BVP.
+
+
 struct SurfaceMolecularTransport {
     ugkwp::SutherlandSpecies<EnergyReal> species[Ns]{};
     ugkwp::PowerLawDiffusivity<EnergyReal> diffusion[Ns]{};
@@ -272,18 +272,18 @@ CHMT_HD inline PhysicalVec3 surfaceViscousTraction(const GasGradient& gradient,P
     return {traction.x,traction.y,traction.z};
 }
 
-// Borrowed stage data. The matching state and geometric quadrature are rebuilt
-// against the current stage; canonical mechanism storage remains with the caller.
+
+
 struct GasWallClosureContext {
     ugkwp::GasMechanismView<EnergyReal,Ns> mechanism{};
     ugkwp::gaswall::WallMatchingState<EnergyReal,Ns> matching{};
     ugkwp::gaswall::WallOwnerQuadrature<EnergyReal> quadrature{};
-    // Matching pressure closes EOS/BVP/film thermodynamics. Mechanical pressure
-    // is the local gas-face pressure used by momentum and its paired sweep work.
+
+
     EnergyReal matchingPressure=0,mechanicalPressure=0,matchingDistance=0,ownerDistance=0;
     void* workspace=nullptr;int workspaceCapacity=48;
     ugkwp::gaswall::WallStatus* failureStatus=nullptr;
-    // Optional per-worker publication owned by a cooperative execution team.
+
     ugkwp::gaswall::WallOutput<EnergyReal,Ns>* teamOutput=nullptr;
     ugkp::diagnostics::DeviceContext* teamDiagnostics=nullptr;
     const PhysicsConfig* quietPhysics=nullptr;
@@ -348,8 +348,8 @@ CHMT_HD inline bool evaluateInterfaceGasClosure(const GasPrimitive& bulk,const G
         result.traction={result.layer.traction[0],result.layer.traction[1],result.layer.traction[2]};
         result.conductiveHeatFlux=result.layer.conductiveHeatFlux;
     }else{
-        // The low-Re equations are retained with physical energy arithmetic in
-        // EnergyReal. Ordinary wall functions have no CHMT mass-transfer extension.
+
+
         if((p.wallModel.family!=ugkwp::gaswall::WallFamily::LowRe))return false;
         PhysicalReal Y[Ns]{},mass=0;for(int s=0;s<Ns;++s)mass+=species[s];
         if(!interfaceComposition(species,bulk.Y,bulk.pressure,temperature,distance,p,fluxTolerance,Y)
@@ -389,13 +389,13 @@ struct SurfacePhysicsInput {
     FilmQ film{}, filmBase{}, filmLocalRate{};
     FilmAux aux{};
     bool hasSolid=false, hasFilm=false, useAcceptedFlux=false;
-    bool ablating=true; // fixed conjugate faces exchange heat, not material
+    bool ablating=true;
     PhysicalReal solidVolume=0, area=0, gasDistance=0, solidDistance=0;Real dt=0;
     PhysicalVec3 normal{}, baseVelocity{};
     PhysicalReal gasArea=0, solidArea=0;
-    PhysicalVec3 gasNormal{}, solidNormal{}; // both point from material toward gas.
+    PhysicalVec3 gasNormal{}, solidNormal{};
     bool useSweptGeometry=false;
-    Real gasSweptRate=0, solidSweptRate=0; // physical normal swept volume rates, m^3/s.
+    Real gasSweptRate=0, solidSweptRate=0;
     PhysicalReal filmTransportMassRate=0;Real sideMeshVolumeRate=0;
     PhysicalReal acceptedGasSpecies[Ns]{}, acceptedPoreSpecies[Ns]{}, acceptedPoreSweep[Ns]{}, acceptedCondensed[Nc]{};
     PhysicalReal acceptedPhaseMass=0;
@@ -411,8 +411,8 @@ struct SurfacePhysicsResult {
     PhysicalReal solidSpeed=0, topSpeed=0;
     EnergyReal radiationFlux=0, thermalResidual=0;
     PhysicalReal gasWallSpeed=0, solidWallSpeed=0;
-    PhysicalReal liquidTopNormal=0, liquidBottomNormal=0; // components along reference normal.
-    Real solidRecessionResidual=0, filmVolumeResidual=0; // m^3/s, not heat sources.
+    PhysicalReal liquidTopNormal=0, liquidBottomNormal=0;
+    Real solidRecessionResidual=0, filmVolumeResidual=0;
     PhysicalVec3 shear{}, gasShear{}, traction{};
     bool wet=false;
 };
@@ -426,8 +426,8 @@ CHMT_HD inline EnergyReal phaseRateFromHeat(EnergyReal power, EnergyReal latent,
     }
     return (power>=0 ? 1 : -1)*EnergyReal(.5)*(low+high);
 }
-// Evaluate the product in logarithmic scale so individually overflowing powers
-// cannot poison a finite rate or trigger OpenFOAM's enabled overflow trap.
+
+
 CHMT_HD inline PhysicalReal surfaceDonorFraction(PhysicalReal available,PhysicalReal scale,PhysicalReal loss) {
     const PhysicalReal withdrawal=surfaceEnergyArithmetic::auditProduct(scale,loss);
     if(withdrawal<=available)return 1;
@@ -523,8 +523,8 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     for (int s=0; s<Ns; ++s) Y[s]=in.bulk.Y[s];
     bool compositionConverged=false;PhysicalReal compositionChange=0;
     InterfaceGasClosure wallClosure;
-    // This cache lives only inside this fixed-temperature evaluation. The bulk,
-    // model, geometry and matching state cannot change during this loop.
+
+
     bool wallClosureReady=false;
     PhysicalReal wallClosureSpecies[Ns]{},wallClosureSpeed=0;
     PhysicalVec3 wallClosureVelocity{};
@@ -581,7 +581,7 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
                     *((material.pressure-in.bulk.pressure)/in.solidDistance
                         +material.poreDensity*dot(p.gravity,in.solidNormal));
             }
-            // Recession exposes the pore volume even if permeability is zero.
+
             const PhysicalReal poreSweep=-material.porosity*trial.solidWallSpeed;
             for (int s=0; s<Ns; ++s) {
                 const PhysicalReal poreDensity=material.porosity>0
@@ -591,11 +591,11 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
                 trial.poreSweep[s]=solidRatio*(poreSweep>=0 ? poreSweep*poreDensity
                     : poreSweep*provisional.rho*Y[s]);
                 trial.poreSpecies[s]=trial.poreDarcy[s]+trial.poreSweep[s];
-                // The wet model needs a pore/film transfer operator only when
-                // actual species mass crosses this interface. A geometric pore
-                // sweep over an empty donor carries exactly zero mass/energy.
-                // Check the separate paths: counterflow can cancel net mass
-                // while still transporting donor-dependent energy.
+
+
+
+
+
                 if(result.wet&&(trial.poreDarcy[s]!=0||trial.poreSweep[s]!=0))
                     return interfaceFailure(p,3870,trial.poreDarcy[s]!=0?trial.poreDarcy[s]:trial.poreSweep[s],s,
                         ugkp::diagnostics::Code::MissingOperator,trial.poreDarcy[s]!=0?trial.poreSweep[s]:trial.poreDarcy[s]);
@@ -628,9 +628,9 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
             }
             if ((!finite(factor) || factor<0)) return false;
         }
-        // Actual geometric sweep is immutable during this evaluation. If a
-        // donor limit would rescale it, the entire geometry/source trial must be
-        // recomputed instead of silently changing only its diagnostic mass.
+
+
+
         if (in.useSweptGeometry && factor<1) {
             for (int species=0; species<Ns; ++species) if ((trial.poreSweep[species]!=0)) return false;
         }
@@ -714,7 +714,7 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
             +in.normal*result.liquidTopNormal;
     }
     GasGradient gradient=surfaceVelocityGradient(in.gradient,in.bulk.velocity,result.gasState.velocity,in.gasNormal,EnergyReal(in.gasDistance));
-    // Physical low-Re wall: molecular stress only, no owner nut or k stress.
+
     result.traction=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
         ?wallClosure.traction:surfaceViscousTraction(gradient,in.gasNormal,surfaceMolecularViscosity(p,result.gasState.temperature,result.gasState.Y));
     result.gasShear=result.traction-in.gasNormal*dot(result.traction,in.gasNormal);
@@ -746,7 +746,7 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
         }
         result.phaseConductive=solidHeat;
         result.phasePressureWork=solidRatio*EnergyReal(in.bulk.pressure)*EnergyReal(result.solidWallSpeed);
-        result.phaseViscousWork=0; // stationary rigid skeleton.
+        result.phaseViscousWork=0;
         result.phaseEnergy=result.phaseAdvective+result.phaseConductive+result.phasePressureWork;
         const PhysicalVec3 baseTangent=in.baseVelocity-in.normal*dot(in.baseVelocity,in.normal);
         result.liquidBottomNormal=(result.solidWallSpeed+result.phaseMass/(solidRatio*p.liquid.rho)
@@ -829,8 +829,8 @@ CHMT_HD inline EnergyReal surfaceThermalFluxTolerance(const SurfacePhysicsInput&
     return surfaceEnergyArithmetic::auditAdd(surfaceEnergyArithmetic::auditQuotientProduct(p.tolerances.absoluteEnergy,
         in.area,(in.dt>0?EnergyReal(in.dt):EnergyReal(1))),relativeFluxTolerance);
 }
-// The owner copies immutable physics once per root solve. CUDA device atomics
-// must never target an automatic/thread-local DeviceContext.
+
+
 template<class Team,class=void> struct SurfaceProbeExecution {static constexpr int count=1,depth=1;};
 template<class Team> struct SurfaceProbeExecution<Team,std::void_t<decltype(Team::probeCount)>> {static constexpr int count=Team::probeCount,depth=Team::probeDepth;};
 template<class Evaluation,class=void> struct SurfaceBisectionProbeType {using type=ugkp::gpu::OrderedBisectionProbe<EnergyReal,1>;};
@@ -902,18 +902,18 @@ CHMT_HD inline bool findFeasibleSurfaceRootImpl(const SurfacePhysicsInput& in, c
     if(Track){trace->attempted=preferred;trace->hasAttempt=true;}
     const bool seedValid=Evaluation::evaluate(trialInput,trialPhysics,material,filmT,preferred,false,seed,numericalFailure);
     if(Track&&seedValid){trace->completedState=seed;trace->hasCompleted=true;}
-    // Only a roundoff-sized fraction of the ordinary heat-balance tolerance
-    // qualifies for zero-update convergence. Do not relax the normal coupled
-    // energy and temperature-bracket criteria for a finite physical imbalance.
-    // Tiny nonzero reaction rates need not have a representable temperature
-    // correction, and must not force a scan to a remote state.
+
+
+
+
+
     const EnergyReal seedTolerance=std::numeric_limits<EnergyReal>::epsilon()*surfaceThermalFluxTolerance(in,p,seed);
     if(seedValid&&(seed.thermalResidual==0||energyArithmetic::absolute(seed.thermalResidual)<=seedTolerance)){
         out=seed;return true;
     }
     SurfacePhysicsResult last=seed;bool hasValid=seedValid;
-    // Invalid samples split feasible components; never bridge an observed hole.
-    // Refine bracket discovery without changing the physical time interval.
+
+
     for (int subdivisions=p.numerics.surface.initialSubdivisions; subdivisions>0 && subdivisions<=p.numerics.surface.maximumSubdivisions;) {
         SurfacePhysicsResult previous;
         EnergyReal previousT=lo;
@@ -943,12 +943,12 @@ CHMT_HD inline bool findFeasibleSurfaceRootImpl(const SurfacePhysicsInput& in, c
             }
         }
         const long long nextSubdivisions=static_cast<long long>(subdivisions)*p.numerics.surface.subdivisionGrowth;
-        // Exhaust the finite search budget without integer wrap or a nonadvancing schedule.
+
         if(nextSubdivisions<=subdivisions || nextSubdivisions>p.numerics.surface.maximumSubdivisions)break;
         subdivisions=static_cast<int>(nextSubdivisions);
     }
     if(!hasValid){
-        // Retain a real failure record when no mathematical state is evaluable.
+
         SurfacePhysicsResult failed;
         if(!Evaluation::evaluate(in,team.leader()?p:trialPhysics,material,filmT,preferred,false,failed,numericalFailure)){
             if(team.leader()&&!ugkp::diagnostics::hasFatal(p.diagnostics))interfaceFailure(p,3860,preferred);
@@ -956,14 +956,14 @@ CHMT_HD inline bool findFeasibleSurfaceRootImpl(const SurfacePhysicsInput& in, c
         }
         return false;
     }
-    // No bracket among feasible states is a finite residual budget,
-    // so retain the final mathematical iterate, without selecting an earlier state.
+
+
     if(team.leader())reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,3831,last.thermalResidual,0);
     out=last;return true;
 }
-// Scalar callers retain their original silent trial view. Cooperative owners
-// supply one immutable device-owned copy to the implementation above, avoiding
-// a large per-lane configuration copy at every face and root solve.
+
+
+
 template<bool Track=false,class Evaluation=LegacySurfaceEvaluation,class Team=ugkwp::gaswall::detail::SerialWallTeam>
 CHMT_HD inline bool findFeasibleSurfaceRoot(const SurfacePhysicsInput& in,const PhysicsConfig& p,
     const MaterialPrimitive& material,EnergyReal filmT,EnergyReal lo,EnergyReal hi,SurfacePhysicsResult& out,
@@ -995,8 +995,8 @@ CHMT_HD inline bool solveSurfaceInterface(const SurfacePhysicsInput& in,
         p.tolerances.relativeGeometry) || mag(in.gasNormal-in.solidNormal)>PhysicalReal(1e-10)))
         surfaceAreaWarning(p,in.gasArea-in.solidArea,mag(in.gasNormal-in.solidNormal));
     if (wet && p.material.enableSurfaceReactions) return interfaceFailure(p,3829,in.film.mass,-1,ugkp::diagnostics::Code::MissingOperator);
-    // Pore collapse/bubbling into a film needs an additional mechanical model.
-    // The first Stefan phase interface is a dense material phase boundary.
+
+
     if (in.hasSolid && p.material.enableMelting && Real(material.porosity)>p.tolerances.relativeGeometry) return interfaceFailure(p,3830,material.porosity,-1,ugkp::diagnostics::Code::MissingOperator);
     EnergyReal lo=0, hi=std::numeric_limits<EnergyReal>::max();
     for (int s=0; s<Ns; ++s) { lo=energyArithmetic::maximum(lo,p.species[s].Tmin); hi=energyArithmetic::minimum(hi,p.species[s].Tmax); }
@@ -1007,7 +1007,7 @@ CHMT_HD inline bool solveSurfaceInterface(const SurfacePhysicsInput& in,
     const EnergyReal filmT=wet ? filmAux.temperature : p.meltTemperature;
     SurfacePhysicsResult candidate;
     if (!findFeasibleSurfaceRoot(in,p,material,filmT,lo,hi,candidate,nullptr,numericalFailure)) return false;
-    // Only this final mathematical state publishes diagnostics to the owner.
+
     SurfacePhysicsResult accepted;
     if(!evaluateSurfaceTemperature(in,p,material,filmT,candidate.topTemperature,false,accepted,numericalFailure))return false;
     candidate=accepted;
@@ -1090,8 +1090,8 @@ CHMT_HD inline bool assembleSurfacePackets(const SurfacePhysicsInput& input,
         phase.energy=phase.advective+phase.conductive+phase.pressureWork+phase.viscousWork;
         phase.liquidKineticAdvection=energyScale*result.bottomKineticAdvection;
 
-        // Exact event transfer: the disappearing film hands its actual remaining
-        // internal energy to the solid. This is not a correction for R_K.
+
+
         FilmQ available=input.filmBase;
         available.mass+=dt*input.filmLocalRate.mass-primary.mass;
         for (int s=0; s<Ns; ++s) {
@@ -1132,5 +1132,5 @@ CHMT_HD inline bool assembleSurfacePackets(const SurfacePhysicsInput& input,
     output[0]=primary; output[1]=pore; output[2]=phase;
     return true;
 }
-} // namespace chmt
+}
 #endif

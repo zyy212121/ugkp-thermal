@@ -1,5 +1,5 @@
 #pragma once
-// Shuffle in input precision; each face/channel ledger accumulates in binary32.
+
 __device__ void atomicAddParticleWallEnergyByFace
 (
     DeviceState& s,

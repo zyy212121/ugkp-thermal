@@ -31,8 +31,8 @@ template<class Law> __device__ void anchorUpdateCell(int c,Law law,const Radiati
  const auto kap=anchorKappa(table,v.epsilon[c],v.diameter[c],oldT,a.cutoff);
  const auto searchResidual=materialRadiationResidual(a.searchActual[c],oldB.B,kap,v.volume[c],G,dt,RadiationReal(0));
  const auto l=linearizeAnchoredRadiation(a.searchActual[c],oldB.B,a.B0[c],slope,dt,kap*v.volume[c]);
- // Request is an iterative search coordinate, not an energy compensation state.
- // Every candidate is still replayed from the immutable window entrance.
+
+
  const auto predicted=oldQ-l.f*searchResidual.residual;
  a.inDomain[c]=domain.contains(predicted);RadiationReal q=oldQ;
  if(l.valid&&searchResidual.valid&&std::isfinite(predicted)){auto delta=predicted-oldQ;RadiationReal alpha=1;
@@ -47,8 +47,8 @@ template<class Law> __device__ void anchorUpdateCell(int c,Law law,const Radiati
   const auto candidateB=bandEmissionDerivative(table.temperature,table.band,table.temperatures,sample.temperature,G>=a.B0[c]);
   const auto candidateK=anchorKappa(table,v.epsilon[c],v.diameter[c],sample.temperature,a.cutoff);
   const auto candidateResidual=materialRadiationResidual(sample.actualEnergy,candidateB.B,candidateK,v.volume[c],G,dt,RadiationReal(0));
-  // Re-evaluate the retained state under THIS iteration's G and optical law.
-  // No residual sign or ranking from an earlier source generation is reused.
+
+
   const auto retainedB=bandEmissionDerivative(table.temperature,table.band,table.temperatures,a.temperature[c],G>=a.B0[c]);
   const auto retainedK=anchorKappa(table,v.epsilon[c],v.diameter[c],a.temperature[c],a.cutoff);
   const auto retainedResidual=materialRadiationResidual(a.actual[c],retainedB.B,retainedK,v.volume[c],G,dt,RadiationReal(0));
@@ -57,14 +57,14 @@ template<class Law> __device__ void anchorUpdateCell(int c,Law law,const Radiati
   }
  }
  a.valid[c]=candidateValid;
- // All DOM-facing coefficients and publication values refer to the retained
- // candidate, never to a different search temperature or requested energy.
+
+
  const auto B=bandEmissionDerivative(table.temperature,table.band,table.temperatures,a.temperature[c],G>=a.B0[c]);
  const auto k=anchorKappa(table,v.epsilon[c],v.diameter[c],a.temperature[c],a.cutoff);
  const auto residual=materialRadiationResidual(a.actual[c],B.B,k,v.volume[c],G,dt,RadiationReal(0));
  a.residual[c]=residual.residual;a.relative[c]=residual.valid&&a.valid[c]?residual.normalized:RadiationReal(INFINITY);
- // Preserve the physical residual. Only the stopping assessment adds the
- // explicitly accepted entrance-plus-output temperature-grid allowance.
+
+
  const auto assessment=assessMaterialPublication(a.actual[c],residual.requestedByPhysics,a.temperatureGrid[c],a.relativeTolerance);
  a.allowedResidual[c]=assessment.allowedResidual;a.usedTemperatureGrid[c]=assessment.usedTemperatureGrid;
  a.effectiveRelative[c]=assessment.valid&&residual.valid&&a.valid[c]?assessment.effectiveNormalized:RadiationReal(INFINITY);

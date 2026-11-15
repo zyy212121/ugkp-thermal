@@ -1,5 +1,5 @@
-// Statistical steady state uses the complete original physical gas/particle
-// step. Particle flight, collision, drag and heat exchange NEVER use gas LTS.
+
+
 SteadyRestartState samplingRestart;
 const bool samplingRestartLoaded=readSteadyRestartState
     ((runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),samplingRestart);
@@ -97,7 +97,7 @@ while(runTime.run())
         else resident.downloadNutToHostMirror(runTime,nut);
         const bool fieldsWritten = (converged || !runTime.run())
             ? runTime.writeNow() : runTime.write();
-        const bool heatWritten = rhoHp.write(); // Export the actual downloaded material-heat moment.
+        const bool heatWritten = rhoHp.write();
         (void)resident.writeParticleRestartMirror(runTime);
         const SteadyRestartState checkpoint{samplingBoundaryTime,samplingTime,std::uint64_t(totalSamples),samplingDeltaT};
         const bool clockWritten = writeSteadyRestartState(

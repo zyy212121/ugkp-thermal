@@ -1,5 +1,5 @@
-// Narrow CUDA lifecycle tests using production allocation/release helpers.
-// Does not replace a full thermal solver or performance benchmark.
+
+
 #include "wall/GpuColdWall1DHandles.cuh"
 #include <cassert>
 #include <cstdio>
@@ -39,19 +39,19 @@ struct Legacy{};
 __global__ void nonCold(int* out){Legacy legacy;Foam::gpuWall::releaseColdWall1DHandle(legacy,0);Foam::gpuWall::allocateColdWall1DHandle(legacy,0);State<float> s{};Foam::gpuWall::releaseColdWall1DHandle(s,0);Foam::gpuWall::allocateColdWall1DHandle(s,0);float ordinary=0;out[0]=Foam::gpuWall::coldWallSlot(legacy,7);out[1]=Foam::gpuWall::coldWallFieldSlot(s,&ordinary,9);}
 template<class R>void exercise(){
  auto* s=owner<R>(257,257);verify(s);
- // Arbitrary reorder moves handles only, preserving eight-node ownership.
+
  std::vector<int> id(257);for(int i=0;i<257;++i){int src=i*17%257;id[i]=s->identity[src];s->compactPColdHandle[i]=s->pColdHandle[src];}for(int i=0;i<257;++i)s->identity[i]=id[i];int* old=s->pColdHandle;s->pColdHandle=s->compactPColdHandle;s->compactPColdHandle=old;verify(s);
  deaths<<<3,128>>>(s);
- // WSL managed memory cannot be read by the host while a kernel is active.
- // Synchronize before dereferencing s to form the gather launch arguments.
+
+
  check(cudaDeviceSynchronize());
  R* deadPacked=alloc<R>(257*8);Foam::gpuWall::gatherColdWall1DStateKernel<R,8><<<17,128>>>(s,s->pColdNodeSpecificEnthalpy,deadPacked,257);check(cudaDeviceSynchronize());for(int i=0;i<257;++i)for(int k=0;k<8;++k)assert(deadPacked[8*i+k]==(i%3==0?R(0):R(16*s->identity[i]+k)));check(cudaFree(deadPacked));
- compact<<<1,1>>>(s);inject<<<3,128>>>(s,300,1000);verify(s);assert(*s->particleCountDevice==257); // reservation failure never pops
+ compact<<<1,1>>>(s);inject<<<3,128>>>(s,300,1000);verify(s);assert(*s->particleCountDevice==257);
  cudaStream_t stream;cudaGraph_t graph;cudaGraphExec_t exec;check(cudaStreamCreate(&stream));check(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));deaths<<<3,128,0,stream>>>(s);compact<<<1,1,0,stream>>>(s);inject<<<1,128,0,stream>>>(s,32,2000);check(cudaStreamEndCapture(stream,&graph));check(cudaGraphInstantiate(&exec,graph,nullptr,nullptr,0));
  for(int step=0;step<200;++step){check(cudaGraphLaunch(exec,stream));check(cudaStreamSynchronize(stream));verify(s);}check(cudaGraphExecDestroy(exec));check(cudaGraphDestroy(graph));check(cudaStreamDestroy(stream));
- // Packed restart into larger owner recreates a free stack once and identity live handles.
+
  int n=*s->particleCountDevice;R* packed=alloc<R>(n*8);Foam::gpuWall::gatherColdWall1DStateKernel<R,8><<<17,128>>>(s,s->pColdNodeSpecificEnthalpy,packed,n);check(cudaDeviceSynchronize());auto* restored=owner<R>(401,n);for(int i=0;i<n;++i){restored->identity[i]=s->identity[i];for(int j=0;j<8;++j)restored->pColdNodeSpecificEnthalpy[8*i+j]=packed[8*i+j];}verify(restored);inject<<<4,128>>>(restored,500,3000);verify(restored);
- // No injection performs no pool rebuild; all free-stack values stay unchanged.
+
  std::vector<int> freeBefore(s->coldFreeHandles,s->coldFreeHandles+s->coldFreeCounts[0]);int freeCount=s->coldFreeCounts[0];for(int step=0;step<100;++step)inject<<<1,128>>>(s,0,0);check(cudaDeviceSynchronize());assert(s->coldFreeCounts[0]==freeCount);for(int i=0;i<freeCount;++i)assert(s->coldFreeHandles[i]==freeBefore[i]);
  check(cudaFree(packed));destroy(restored);destroy(s);
 }

@@ -87,7 +87,7 @@ __device__ void appendSelectedStuckParticleIndex(DeviceState&,int){}
 template<bool Stuck> __device__ void finalizeOneThermalizedParticlePath(
  DeviceState& s,int i,float x,float y,float z,float,float,float)
 {
- // This fixture verifies routing, not the separately tested wall contact law.
+
  if(Stuck)atomicAdd(&s.contacts,1);
  s.pux[i]=x;s.puy[i]=y;s.puz[i]=z;s.pTheta[i]=0;s.pStatus[i]=1;
 }
@@ -142,7 +142,7 @@ void pool(DeviceState* s,int directory,int block,bool heavy,bool atomic){
  prepare<<<1,1>>>(s);check(cudaGetLastError());check(cudaDeviceSynchronize());
 }
 void sample(DeviceState* s,int directory,int block,bool heavy,int drag){
- // Cache immutable launch geometry before GPU work makes managed state inaccessible to the host.
+
  const int correctGrid=(s->active+block-1)/block;
  const size_t sh=5*((block+31)/32)*sizeof(float);
  if(heavy){
@@ -185,7 +185,7 @@ int main(){
   require(std::abs(e-q)<q*0.004,"central energy conservation");
   ++count;
  }
- // Repeat the real sample/correct singleton path without rebuilding theta.
+
  init(s,1,0,1000);const float theta=s->pTheta[0],ux=s->pux[0];
  for(int i=0;i<10000;++i){
   pool(s,0,32,false,true);const auto rng=s->pRng[0];sample(s,0,32,false,0);

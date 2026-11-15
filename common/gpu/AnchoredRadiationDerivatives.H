@@ -12,8 +12,8 @@ template<class Real> struct AnchoredTemperatureDerivative {
     Real derivative=0,capacityMagnitude=0,mass=0;
     bool valid=false,available=false;
 };
-// One-sided zero-Q derivative of the continuous entrance-enthalpy response.
-// Actual rounded publication is still evaluated by the response, not this tangent.
+
+
 template<class Real,class Caloric>
 UGKP_RAD_DERIV_HD AnchoredTemperatureDerivative<Real> anchoredTemperatureDerivative
 (const AnchoredParticleRadiationResponse<Real,Caloric>& response,bool heating){
@@ -24,7 +24,7 @@ UGKP_RAD_DERIV_HD AnchoredTemperatureDerivative<Real> anchoredTemperatureDerivat
     for(int i=0;i<response.count;++i){const auto& p=response.entries[i];if(!p.eligible||p.mass==Real(0))continue;
         const Real a=std::abs(response.specificCapacity(p,heating));
         const Real t=Real(ugkwp::effectiveParticleTemperature(p.thermal,response.caloric));
-        // Resolve phase/table junction to the requested side with the production H' law.
+
         const Real side=std::nextafter(t,heating?Real(INFINITY):-Real(INFINITY));
         const Real cp=response.caloric.enthalpyDerivative(side);
         if(!std::isfinite(cp)||!(cp>Real(0))){r.valid=false;continue;}
@@ -37,8 +37,8 @@ template<class Real> struct BandEmissionDerivative {
     Real band=0,bandDerivative=0,B=0,derivative=0;
     bool valid=false;
 };
-// Same linear band interpolation / constant extrapolation as mieBand.
-// At a knot select the requested side; physical T^4 is never table-clamped.
+
+
 template<class Real>
 UGKP_RAD_DERIV_HD BandEmissionDerivative<Real> bandEmissionDerivative
 (const Real* temperature,const Real* band,int count,Real t,bool heating){

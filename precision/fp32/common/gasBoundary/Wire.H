@@ -3,8 +3,8 @@
 namespace ugkp { namespace boundary {
 constexpr int FaceInts=16,FaceReals=12,FunctionInts=4;
 constexpr int LegacyFaceInts=14,LegacyFaceReals=11,LegacyComponents=6;
-// Term time and polynomial coefficient have different storage widths. The
-// legacy wire remains two doubles per term; function metadata selects meaning.
+
+
 inline std::vector<unsigned char> termUsage(const Definition& d) {
     std::vector<unsigned char> usage(d.terms.size(),0);
     for(const auto& f:d.functions)if(f.begin>=0&&f.count>0)
@@ -34,8 +34,8 @@ inline void encode(const Definition& d,std::vector<int>& iv,std::vector<double>&
 }
 inline Definition decode(const std::vector<int>& iv,const std::vector<double>& rv) {
     if(iv.size()<3||iv[0]<0||iv[1]<0||iv[2]<0)throw std::runtime_error("invalid boundary wire counts");
-    // Array lengths distinguish the historical six-component record from
-    // the extended inlet record. Old checkpoints remain readable as written.
+
+
     const auto matches=[&](int ints,int reals) {
         return iv.size()==3+std::size_t(iv[0])*ints+std::size_t(iv[1])*FunctionInts
             &&rv.size()==std::size_t(iv[0])*reals+iv[1]+std::size_t(iv[2])*2;

@@ -16,7 +16,7 @@
         clampMin(finiteOr(s.Tgas[c], s.TgasMin), s.TgasMin);
 
     s.thetaDragAlpha[c] = GPU_OPERATOR_R(1.0);
-    // A zero-time source may refresh coupling caches, never conserved state.
+
     if (dt == GPU_OPERATOR_TIME(0)) return;
     const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
 
@@ -87,10 +87,10 @@
     GPU_OPERATOR_REAL momGY = momGY0;
     GPU_OPERATOR_REAL momGZ = momGZ0;
 
-                                                                              
-                                                                                
-                                                                              
-                                                                            
+
+
+
+
     Energy enerG = enerG0;
     Energy enerS = enerS0;
 
@@ -115,8 +115,8 @@
     const Energy kgOld = std::is_same<Energy,double>::value
         ? Energy(epsG)*trueGasKineticDensity
         : Energy(0.5)*Energy(mg)*(Energy(ugx)*Energy(ugx)+Energy(ugy)*Energy(ugy)+Energy(ugz)*Energy(ugz));
-    // Subtract kinetic energy from the authoritative moment before rounding
-    // ordinary velocity caches. A double destination alone is insufficient.
+
+
     const Energy ksOld = Energy(0.5)
         *(Energy(momSX)*Energy(momSX)+Energy(momSY)*Energy(momSY)+Energy(momSZ)*Energy(momSZ))/Energy(ms);
 
@@ -150,9 +150,9 @@
             GPU_OPERATOR_R(1.0)
         );
 
-                                                                   
-                                                                    
-                                                      
+
+
+
     s.thetaDragAlpha[c] = alphaI;
 
     Energy isAfter = isOld*Energy(alphaI);
@@ -168,8 +168,8 @@
     const GPU_OPERATOR_REAL wy = ugy - usy;
     const GPU_OPERATOR_REAL wz = ugz - usz;
 
-    // Strictly zero resolved exchange must not reconstruct rounded momenta or
-    // phase-weighted energy. Preserve the existing repair for invalid inputs.
+
+
     if (!repairGasInternal && wx==GPU_OPERATOR_R(0) && wy==GPU_OPERATOR_R(0)
         && wz==GPU_OPERATOR_R(0) && dI==GPU_OPERATOR_R(0)) return;
 

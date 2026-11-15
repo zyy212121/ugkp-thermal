@@ -1,5 +1,5 @@
 #pragma once
-// One operator implementation; scalar/time adapters are compile-time only.
+
 __global__ void recoverPrimitivesKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
@@ -50,8 +50,8 @@ __global__ void recoverPrimitivesKernel(DeviceState* sp)
         );
         const GPU_OPERATOR_REAL Tp = clampRange(finiteOr(rawTp, s.TpMin), s.TpMin, s.TpMax);
         s.Tp[c] = Tp;
-        // Temperature is a rounded cache. Retain authoritative enthalpy unless
-        // the existing invalid-state or temperature-bound repair changed it.
+
+
         if (!finiteDevice(rawTp) || rawTp != Tp)
             s.rhoHp[c] = solidMass*particleSpecificEnthalpyDevice(Tp);
     }

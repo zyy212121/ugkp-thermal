@@ -3,8 +3,8 @@
 #include "wall/GpuColdWall1DHandles.cuh"
 #include "GpuParticleFields.cuh"
 #include "operators/swapParticlePointerDevice.cuh"
-// Cold1D profile pools retain their storage across permutation. Only their
-// handles move; legacy layouts without handles keep their existing payload copy.
+
+
 template<bool HasContactAge, bool PackedCold1D>
 struct CellLocalThermalExtraFields
 {

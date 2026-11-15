@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import pytest
 ROOT=SOURCE_ROOT
-# Use the real slot-selection implementation; HOST adapter only removes CUDA qualifiers.
+
 _HANDLE_SOURCE=(ROOT/'common/wall/GpuColdWall1DHandles.cuh').read_text()
 _HANDLE_SOURCE=_HANDLE_SOURCE[_HANDLE_SOURCE.index('namespace Foam'): _HANDLE_SOURCE.index('template<class State,class Scalar>')]+'} }\n'
 _HANDLE_SOURCE=_HANDLE_SOURCE.replace('__host__','').replace('__device__','')

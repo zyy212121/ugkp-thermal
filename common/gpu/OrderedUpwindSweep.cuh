@@ -42,9 +42,9 @@ __global__ void orderedUpwindLevel(int begin,int end,OrderedUpwindDevice matrix,
     const int row=begin+blockIdx.x*blockDim.x+threadIdx.x;if(row>=end)return;
     orderedUpwindCell(matrix.levelCells[row],matrix,diagonal,source,previous,current,reference,failures,firstFailure,deviceReference);
 }
-// A single CTA traverses a consecutive run of narrow dependency levels.
-// Every thread reaches the barrier, including rows whose physical check failed.
-// Kernel boundaries on either side retain the original wide-level dependencies.
+
+
+
 __global__ void orderedUpwindNarrowLevels(int firstLevel,int endLevel,const int* levelOffsets,
     OrderedUpwindDevice matrix,const RadiationReal* diagonal,const RadiationReal* source,
     const RadiationReal* previous,RadiationReal* current,RadiationReal reference,

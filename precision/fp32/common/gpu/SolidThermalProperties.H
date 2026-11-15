@@ -40,7 +40,7 @@ public:
     ~SolidThermalProperties();
     SolidThermalProperties(const SolidThermalProperties&)=delete;
     SolidThermalProperties& operator=(const SolidThermalProperties&)=delete;
-    // Residual history belongs to this region; havePrevious=false starts a window.
+
     double relax(double* current,const double* previous,int count,bool havePrevious,
         double relaxation,double minimum,double maximum,double small);
     GpuReal relaxResident(GpuReal* deviceCurrent,const GpuReal* devicePrevious,int count,bool havePrevious,
@@ -58,8 +58,8 @@ public:
         void* ownerStream,std::vector<ThermalPropertyResult>& results,
         const GpuReal* deviceBoundaryTemperature=nullptr,const std::vector<int>* boundarySources=nullptr,bool download=true);
     SolidThermalDeviceFields deviceFields() const;
-    // Compile query layouts during initialization. All later temperatures,
-    // caloric anchors and fixed-point history are read directly on device.
+
+
     int prepareResidentEvaluation(const std::vector<ThermalPropertyQuery>& boundaryQueries,
         const std::vector<int>& boundarySources,int cells,unsigned fields,bool cellsFirst,int plan=-1);
     void enqueueResidentEvaluation(int plan,const GpuReal* temperature,const GpuReal* previous,
@@ -93,8 +93,8 @@ struct SolidThermalResidentProblem {
     SolidThermalIterationControls controls;
     diagnostics::DeviceContext* diagnostics=nullptr;
 };
-// The prepared owners outlive this execution graph. Reconfiguration of their
-// topology, policies or buffer addresses requires rebuilding this graph.
+
+
 class SolidThermalIterationGraph {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:

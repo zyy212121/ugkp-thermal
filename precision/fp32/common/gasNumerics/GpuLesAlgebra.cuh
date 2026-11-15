@@ -25,8 +25,8 @@ UGKWP_LES_HD GpuReal smagorinskyNut
        *sqrt(fmax(GPU_R(2.0)*deviatoricStrainSquared, GPU_R(0.0)));
 }
 
-// These invariants are formed from a gradient divided by its largest
-// component. Their high powers are dimensionless, including diagnostics.
+
+
 struct WaleTerms
 {
     GpuReal numerator;
@@ -55,15 +55,15 @@ UGKWP_LES_HD GpuReal waleNutFromTerms
 )
 {
     if (gradientScale == GPU_R(0.0)) return GPU_R(0.0);
-    // Preserve the original dimensional denominator > small criterion.
-    // Divide sequentially instead of forming gradientScale to the fifth.
+
+
     GpuReal scaledSmall = small;
     for (int i = 0; i < 5; ++i) scaledSmall /= gradientScale;
     if (!(terms.denominator > scaledSmall)) return GPU_R(0.0);
 
-    // Restore nu = (Cw*delta)^2 * gradientScale * numerator/denominator.
-    // Keep binary exponents separate so a representable final viscosity
-    // does not disappear/overflow while squaring delta or restoring units.
+
+
+
     int ce = 0, de = 0, ge = 0, re = 0;
     const GpuReal cm = frexpf(coefficient, &ce);
     const GpuReal dm = frexpf(delta, &de);
@@ -81,8 +81,8 @@ UGKWP_LES_HD GpuReal waleNut
     const GpuReal small
 )
 {
-    // Retain the invariant-based entry for callers that already have them.
-    // The production kernel scales before even forming these invariants.
+
+
     const GpuReal s2 = fmaxf(symmetricGradientSquared, GPU_R(0.0));
     const GpuReal sd2 = fmaxf(tracelessSquaredGradientSquared, GPU_R(0.0));
     const GpuReal gradientScale = fmaxf(sqrtf(s2), sqrtf(sqrtf(sd2)));

@@ -2,19 +2,19 @@
 #define UGKP_GPU_RADIATION_RESIDENT_VIEW_H
 #include "RadiationPrecision.H"
 namespace ugkp { namespace diagnostics { struct DeviceContext; } namespace gpu {
-// Borrowed buffers remain valid until the next particle advance/aggregation.
-// The DO owner waits on producerStream before reading them. Radiation and
-// the shared production state use the selected radiation precision.
-// Optional device-owned thermal source iteration state. Null pointers disable it.
-// Emission is an intensity (f*B0/4pi); feedback is dimensionless (1-f).
-// These buffers are read only by DOM and remain live for the complete graph.
+
+
+
+
+
+
 struct RadiationThermalCouplingDeviceView {
     const RadiationReal *trialMeanTemperature=nullptr;
     const RadiationReal *linearizedEmission=nullptr,*thermalFeedback=nullptr;
     const RadiationReal *materialRelativeResidual=nullptr;
-    RadiationReal materialRelativeTolerance=RadiationReal(1e-10); // owner supplies boundedEnergyRelativeTolerance
+    RadiationReal materialRelativeTolerance=RadiationReal(1e-10);
     void* producerStream=nullptr;
-    // Host graph-cache identity. Zero keeps arbitrary hooks conservatively uncached.
+
     unsigned long long graphOwner=0,graphRevision=0;
 };
 struct RadiationParticleDeviceView {
@@ -27,8 +27,8 @@ struct RadiationParticleDeviceView {
     const RadiationReal* boundaryEmissivity=nullptr;
     diagnostics::DeviceContext* diagnostics=nullptr;
 };
-// Asynchronous DO state, owned by the radiation workspace. Consumers wait on
-// producerStream and return ownership after their final read.
+
+
 struct RadiationDeviceView {
     bool enabled=false;
     int cells=0,boundaryFaces=0;
@@ -37,11 +37,11 @@ struct RadiationDeviceView {
     void* producerStream=nullptr;
     diagnostics::DeviceContext* diagnostics=nullptr;
 };
-// Actual extensive particle heat after bounded enthalpy publication. The
-// owner retains the buffer until the consumer returns its stream dependency.
+
+
 struct RadiationAcceptedEnergyDeviceView {
     int cells=0;
-    const RadiationReal* energy=nullptr; // Null denotes an absent particle phase.
+    const RadiationReal* energy=nullptr;
     void* producerStream=nullptr;
 };
 struct RadiationMaterialDeviceView {
@@ -50,7 +50,7 @@ struct RadiationMaterialDeviceView {
     const RadiationReal *temperature=nullptr,*energy=nullptr,*boundaryEnergy=nullptr;
     void* producerStream=nullptr;
     diagnostics::DeviceContext* diagnostics=nullptr;
-    const RadiationReal* publicationFraction=nullptr; // optional owner-computed nonnegative capacity fraction
+    const RadiationReal* publicationFraction=nullptr;
 };
 }}
 #endif

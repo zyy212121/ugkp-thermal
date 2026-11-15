@@ -1,5 +1,5 @@
 
-// Appended to the existing gas-state host scaffold and actual fixture() body.
+
 #include <chrono>
 #include <iostream>
 #include <iomanip>

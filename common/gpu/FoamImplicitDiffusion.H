@@ -393,9 +393,9 @@ template<class Conductivity> inline FoamResidentThermalEquation residentImplicit
     return FoamResidentThermalEquation(equation,resident,sparse,true);
 }
 
-// The same selected scheme and boundary capability checks as assembly, before
-// deciding whether host constitutive fields have a consumer. Unsupported
-// policies retain the original publication path rather than being rejected.
+
+
+
 inline bool residentMaterialStartupSupported(const Foam::volScalarField& conductivity,
     const Foam::volScalarField& temperature){
     using namespace Foam;

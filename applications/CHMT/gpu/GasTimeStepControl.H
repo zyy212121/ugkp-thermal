@@ -2,7 +2,7 @@
 #include "../../../common/gasNumerics/GasWindowStep.H"
 #include <algorithm>
 namespace chmt {
-// Time-step policy only: the gas update and window geometry are unchanged.
+
 template<class Real> inline Real requestedGasMicrostep(bool adaptive,Real fixedDt,
     Real seed,Real cap,Real maximum) {
     if(!adaptive)return fixedDt;

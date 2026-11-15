@@ -206,8 +206,8 @@ struct DeviceState
     int gasLimiter = 1;
     int gasTimeIntegrator = 1;
     int turbulenceModel = 0;
-                                                                             
-                                                                             
+
+
     int hostGasFluxScheme = 2;
     int hostGasReconstruction = 0;
     int hostGasLimiter = 0;
@@ -371,9 +371,9 @@ struct DeviceState
     double* gasBoundaryUz = nullptr;
     double* gasBoundaryP = nullptr;
     double* gasBoundaryT = nullptr;
-                                                                           
-                                                                              
-                                                                            
+
+
+
     int* riemannBoundaryKind = nullptr;
     int* riemannBoundaryRhoFix = nullptr;
     int* riemannBoundaryUFix = nullptr;
@@ -407,10 +407,10 @@ struct DeviceState
     double* gradTX = nullptr;
     double* gradTY = nullptr;
     double* gradTZ = nullptr;
-                                                                     
-                                                                   
-                                                                           
-                                                                  
+
+
+
+
     double* gasGradientLimiterRho = nullptr;
     double* gasGradientLimiterUx = nullptr;
     double* gasGradientLimiterUy = nullptr;
@@ -474,7 +474,7 @@ struct DeviceState
     double* solidPressurePhiMomY = nullptr;
     double* solidPressurePhiMomZ = nullptr;
     double* solidPressurePhiEnergy = nullptr;
-                                                                             
+
     double* mobilePackingRho = nullptr;
     double* packingStuckRho = nullptr;
     double* mobilePackingMomX = nullptr;
@@ -490,10 +490,10 @@ struct DeviceState
     int* mobilePackingCorrectionCellCount = nullptr;
     int* mobilePackingFrontierCurrentCount = nullptr;
     int* mobilePackingFrontierNextCount = nullptr;
-    
-                                                                     
-                                                                                
-                                                            
+
+
+
+
     double* thetaDragAlpha = nullptr;
 
     double* momRhoP = nullptr;
@@ -523,8 +523,8 @@ struct DeviceState
     double* pux = nullptr;
     double* puy = nullptr;
     double* puz = nullptr;
-    // Source-epoch scratch, not particle payload: each coupling pass writes
-    // before reading, so restart, sorting and migration need no cache copies.
+
+
     GpuReal* couplingDragBeta = nullptr;
     double* couplingResponseFraction = nullptr;
     double* puxOld = nullptr;
@@ -541,9 +541,9 @@ struct DeviceState
     int* sortedParticleIndex = nullptr;
     int* cellParticleCount = nullptr;
     int* cellParticleOffset = nullptr;
-                                                                           
-                                                                              
-                                                                           
+
+
+
     int* preBaseCellOffset = nullptr;
     int* preBaseParticleCountDevice = nullptr;
     int preBaseDirectoryReady = 0;
@@ -570,10 +570,10 @@ struct DeviceState
     int* csrHeavyCellTaskStart = nullptr;
     int* csrHeavyCellTaskCount = nullptr;
     double* csrHeavyPartials = nullptr;
-                                                                        
-                                                                     
-                                                                        
-                                                                          
+
+
+
+
     int* preInjectionHeavyTaskCount = nullptr;
     int* preInjectionHeavyTaskCell = nullptr;
     int* preInjectionHeavyTaskBegin = nullptr;
@@ -694,8 +694,8 @@ const char* const developmentProbeStageNames[ProbeStageCount] =
     "boundary"
 };
 
-                                                                               
-                                                 
+
+
 enum DevelopmentProbeBadField : unsigned long long
 {
     ProbeBadGasConserved = 1ull << 0,
@@ -1862,18 +1862,18 @@ struct GasPrimDevice
 
 #include "operators/sstVelocityInvariants.cuh"
 
-  
-                                                              
-  
-                                                     
-                                                                          
-                                                                           
-                                                                           
-                                                                       
-                                                                     
-                                                                          
-                                             
-   
+
+
+
+
+
+
+
+
+
+
+
+
 #include "operators/computeGasHllcAdcSensorKernel.cuh"
 
 #include "operators/updateBarthLimiter.cuh"
@@ -1934,8 +1934,8 @@ int applyGasGravitySource
         return 1;
     }
 
-                                                                             
-                                                                       
+
+
     recoverGasPrimitivesKernel<<<grid, block, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -2056,9 +2056,9 @@ int applyCollisionalPressureKick(DeviceState* s,const double dt,const int block,
 }
 
 
-                                                                           
-                                                                           
-                                                                       
+
+
+
 constexpr double mobilePackingJacobiOmega = 0.8;
 
 #include "operators/clearMobilePackingActivityCountsKernel.cuh"
@@ -2155,14 +2155,14 @@ __device__ void relaxOneParticleToResidentGas(DeviceState& s, const int i, const
     {
     const double invTauDrag = DragModel::inverseResponseTime(dragInput);
 
-    
+
 #include "operators/ParticleDragMomentum.inl"
 
 
-                                                                      
-                                                                          
-                                                                          
-                                                                              
+
+
+
+
     decayParticleUnresolvedTheta(s, i, c);
     }
 
@@ -2463,8 +2463,8 @@ __global__ void solidRecoveryFromParticleMomentsKernel(DeviceState* sp);
 
 #include "operators/countParticlesByCellKernel.cuh"
 
-                                                                         
-                                                                           
+
+
 #include "GpuInjectionDirectory.cuh"
 
 
@@ -2761,9 +2761,9 @@ int rebuildResidentParticleMomentsFromParticles
         return 1;
     }
 
-                                          
-                                                                           
-                           
+
+
+
     initialiseEpsGPrevKernel<<<grid, block>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -4222,8 +4222,8 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 #endif
 
     s->nBoundarySources = nBoundarySources;
-    // A field table or extrapolated owner may become inflow later even if
-    // every startup rate is zero. Source existence keeps the path available.
+
+
     if(s->nBoundarySources>0)s->particlesMayBePresent=true;
     return syncDeviceState(s, "cudaMemcpy strict deviceState after boundary source upload");
 }
@@ -4418,8 +4418,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasScalarSolvers(
         return 1;
     }
     s->gasScalarSolvers=ugkp::gasNumerics::castScalarSolverControls<GpuReal>(*controls);
-    // Publish only the startup controls: gasUGKP scrubs unrelated host physical
-    // scalars after field upload, so a whole-state upload would overwrite them.
+
+
     const cudaError_t error=cudaMemcpy(
         reinterpret_cast<unsigned char*>(s->deviceState)+offsetof(DeviceState,gasScalarSolvers),
         &s->gasScalarSolvers,sizeof(s->gasScalarSolvers),cudaMemcpyHostToDevice);
@@ -4591,9 +4591,9 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
         if(s->diagnosticOwner->dispatchPending())return 1;
     }
     }
-    // Preserve the GPU-derived cache in the host mirror after the existing
-    // initialization completion point. Later whole-state publications must not
-    // overwrite these constants with their default zeros.
+
+
+
     if (err == cudaSuccess)
     {
         const size_t first = offsetof(DeviceState, sstJayatillekeP);
@@ -4897,9 +4897,9 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     }
     UGKP_DEV_PROBE_LEAVE(ProbePressurePre);
 
-                                                                
-                                                                        
-                                                     
+
+
+
 
     UGKP_DEV_PROBE_ENTER(ProbeCollisionPool);
     recoverPrimitivesKernel<<<grid, block,0,stream>>>(s->deviceState);
@@ -5078,9 +5078,9 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             return 1;
         }
 
-                                                                          
-                                                                             
-                                                                  
+
+
+
         if
         (
             s->nBoundarySources == 0
@@ -5142,8 +5142,8 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     }
     else
     {
-                                                                              
-                                                             
+
+
         UGKP_DEV_PROBE_ENTER(ProbeEulerianCoupling);
         UGKP_DEV_PROBE_LEAVE_IF(ProbeEulerianCoupling, false);
         UGKP_DEV_PROBE_ENTER(ProbeInjection);

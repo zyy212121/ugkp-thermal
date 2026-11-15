@@ -3,19 +3,19 @@
 namespace ugkwp {
 enum class MolecularViscosityModel : unsigned char { Constant, SutherlandWilke, MassFractionSutherland };
 template<class R> struct SutherlandSpecies {
-    R muRef=0,TRef=0,S=0,molarMass=0; // Pa s, K, K, kg/mol
+    R muRef=0,TRef=0,S=0,molarMass=0;
 };
-// D = DRef*(T/TRef)^temperatureExponent*(p/pRef)^pressureExponent.
+
 template<class R> struct PowerLawDiffusivity {
     R DRef=0,TRef=1,pRef=1,temperatureExponent=0,pressureExponent=0;
 };
-// Immutable, caller-owned tables. Upload once, then evaluate at local T,Y.
+
 template<class R> struct MolecularViscosityView {
     MolecularViscosityModel model=MolecularViscosityModel::Constant;
     int count=0;
     const SutherlandSpecies<R>* species=nullptr;
-    const R* massRatioQuarter=nullptr; // (Mj/Mi)^1/4, row-major
-    const R* wilkeDenominator=nullptr; // sqrt(8*(1+Mi/Mj)), row-major
+    const R* massRatioQuarter=nullptr;
+    const R* wilkeDenominator=nullptr;
     int compositionSpecies=-1;
     R compositionTRef=1,muCoefficients[3]{},sCoefficients[3]{};
     int prandtlSpecies=-1;
@@ -49,8 +49,8 @@ template<class R,class T> UGKWP_GAS_HD inline R sutherlandViscosity(
     const R ratio=temperature/R(sp.TRef);
     return R(sp.muRef)*ratio*std::sqrt(ratio)*(R(sp.TRef)+R(sp.S))/(temperature+R(sp.S));
 }
-// mass can be Y, partial density or mass: Wilke's normalization cancels.
-// Skip exact-zero components; a pure endpoint returns its pure viscosity.
+
+
 template<int N,class R,class T> UGKWP_GAS_HD inline R molecularViscosity(
     const MolecularViscosityView<T>& model,R constant,R temperature,const R* mass) noexcept {
     if(model.model==MolecularViscosityModel::Constant)return constant;
@@ -87,4 +87,4 @@ template<int N,class R,class T> UGKWP_GAS_HD inline R molecularViscosity(
     }
     return result;
 }
-} // namespace ugkwp
+}

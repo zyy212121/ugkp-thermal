@@ -123,9 +123,9 @@ UGKWP_GAS_HD inline ThermoStatus invertMixtureParticleHeatExchange
     if(status!=ThermoStatus::Success)return status;
     // Center on the exchange at the old gas temperature. This retains a
     // physical heat scale even though the total energy equation has RHS zero.
-    // The initial-temperature evaluation has seeded a segment near the root.
-    // Bound checks must not evict it while visiting the distant gas-table ends.
-    // Keep endpoint work local to this solve; no cache survives publication.
+
+
+
     const Response endpointResponse=response;
     struct CenteredResponse {
         const Response& source;

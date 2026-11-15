@@ -1,5 +1,5 @@
-// Execute unmodified production bodies on the host. Only CUDA qualifiers,
-// trap reporting and unrelated cold-wall profile initialization are adapted.
+
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -137,8 +137,8 @@ void checkContact(DeviceState& s, GpuTime dt, int face, int cell, Incident incid
         ? particleWallTransientRebound : particleWallTransientDeposit;
     require(s.pStuck[0] == state, "Sommerfeld selection uses current segment");
     require(s.pux[0] == 0 && s.puy[0] == 0 && s.puz[0] == 0, "bound velocity is zero");
-    // Deliberately retain the pre-existing laboratory-frame rebound convention,
-    // including for moving walls. This is not a moving-wall physics correction.
+
+
     const GpuReal factor = (GPU_R(1) + s.cellFaceRestitution[face])*un;
     near(s.puxOld[0], incident.x-factor*nx, "saved rebound x uses current segment");
     near(s.puyOld[0], incident.y-factor*ny, "saved rebound y uses current segment");
@@ -159,7 +159,7 @@ void checkContact(DeviceState& s, GpuTime dt, int face, int cell, Incident incid
         && s.cleared2D == (model != particleWallColdWall2D), "cold-wall initialization route");
     require(pointInsideCell(s, cell, s.px[0], s.py[0], s.pz[0]), "contact position remains inside");
 
-    // A later tracking call must preserve the rebound seed during contact.
+
     const Incident saved{s.puxOld[0], s.puyOld[0], s.puzOld[0]};
     trackOneParticleLocalFaceWalk(s, 0, dt);
     require(s.puxOld[0] == saved.x && s.puyOld[0] == saved.y && s.puzOld[0] == saved.z,
@@ -240,8 +240,8 @@ void run(const char* scenario, unsigned char model, bool deposit)
         s.cellFaceKind[0] = 1;
         s.puxOld[0] = GPU_R(4); s.pux[0] = 0;
         s.puyOld[0] = GPU_R(3); s.puy[0] = GPU_R(1);
-        // Segment (2,2,0) reflects with e=0.5 at x=1 before contacting x=-1.
-        // Re-averaging the original old velocity and reflected endpoint is wrong.
+
+
         incident = {GPU_R(-1), GPU_R(2), 0};
         dt = 3; face = 1;
     }

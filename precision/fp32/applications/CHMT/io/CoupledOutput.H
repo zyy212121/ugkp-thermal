@@ -7,8 +7,8 @@
 #include <ostream>
 #include <iomanip>
 namespace chmt { namespace io {
-// Caller supplies the accepted synchronized macro endpoint. No rejected gas
-// trial or partial CPU candidate may acquire output/restart authority.
+
+
 
 inline bool writeAcceptedCoupledSummary(std::ostream& stream,const HostState& state,
     const ModelConfig& model,std::string& error) {

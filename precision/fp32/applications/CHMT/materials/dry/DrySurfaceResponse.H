@@ -8,25 +8,25 @@
 
 namespace chmt { namespace dry {
 
-// Dry, zero-storage surface balance; normal points from material into gas.
-// Every flux is per CURRENT physical material-interface area. A mesh adapter, not this
-// constitutive kernel, maps areas/normals to gas faces conservatively.
-// This CPU kernel evaluates constitutive rates/residuals, not gas equations,
-// time stepping, inventory limiting, or a new gas wall closure. Its caller owns
-// the coupled wall temperature/composition solve and the accepted flux packet.
-// Mathematical reference (not copied implementation): Mutation++ GSI balances,
-// https://github.com/mutationpp/Mutationpp/blob/master/docs/input-files.md#gas-surface-interaction
-// No liquid film, equilibrium B-prime table, or empirical blowing correction.
+
+
+
+
+
+
+
+
+
 
 template<std::size_t Nc, std::size_t Ns>
 struct SurfaceMassAction {
     Stoichiometry<Nc, Ns> stoichiometry{};
-    // Signed stoichiometry is kg/mol extent; production positive in each phase.
-    // A*T^b*exp(-Ea/(Ru*T))*product(concentration^order) is mol/(m2 s).
-    // Both concentrations below are kg/m3, so A's units depend on the orders.
+
+
+
     PhysicalReal prefactor = 0;
     PhysicalReal temperaturePower = 0;
-    PhysicalReal activationEnergy = 0; // J/mol
+    PhysicalReal activationEnergy = 0;
     std::array<PhysicalReal, Nc> condensedOrder{};
     std::array<PhysicalReal, Ns> gasOrder{};
 };
@@ -61,9 +61,9 @@ CHMT_DRY_HD PhysicalReal surfaceExtentRate
 
 template<std::size_t Nc, std::size_t Ns>
 struct SurfaceProduction {
-    std::array<PhysicalReal, Nc> condensed{}; // signed production, kg/(m2 s)
-    std::array<PhysicalReal, Ns> gas{};       // includes negative oxidant consumption
-    PhysicalReal massResidual = 0;           // sum of all phase sources, diagnostic
+    std::array<PhysicalReal, Nc> condensed{};
+    std::array<PhysicalReal, Ns> gas{};
+    PhysicalReal massResidual = 0;
 };
 
 template<std::size_t Nc, std::size_t Ns, std::size_t Nr>
@@ -76,8 +76,8 @@ CHMT_DRY_HD SurfaceProduction<Nc, Ns> surfaceProduction
 )
 {
     SurfaceProduction<Nc, Ns> out;
-    // A reversible process is supplied as separately calibrated forward/reverse
-    // channels. No equilibrium composition or reaction enthalpy is invented.
+
+
     for (const auto& reaction : reactions) {
         const PhysicalReal rate = surfaceExtentRate(reaction, temperature,
             condensedConcentration, gasPartialDensity);
@@ -93,26 +93,26 @@ CHMT_DRY_HD SurfaceProduction<Nc, Ns> surfaceProduction
 
 template<std::size_t Ns>
 struct PoreSurfaceFlux {
-    // Signed mass fluxes per current physical interface area. Transport is physical Darcy
-    // advection plus diffusion; sweep is solely the moving-face inventory flux.
-    // Keep them separate: equal/opposite mass need not cancel donor energy.
+
+
+
     std::array<PhysicalReal, Ns> transport{};
     std::array<PhysicalReal, Ns> sweep{};
-    // Caller sums channel energy BEFORE combining signed mass fluxes, using
-    // the SAME thermo as the gas. Physical Darcy/diffusion carries h; geometric
-    // sweep carries stored e. Separate donor temperatures are allowed even if
-    // opposing Darcy/diffusion mass fluxes cancel exactly. Units W/m2.
+
+
+
+
     std::array<ThermalReal, Ns> transportEnergy{};
     std::array<ThermalReal, Ns> sweptEnergy{};
 };
 
 template<std::size_t Nc, std::size_t Ns>
 struct DryInterfaceFlux {
-    std::array<PhysicalReal, Nc> condensedConsumption{}; // positive loss; negative growth
-    std::array<PhysicalReal, Ns> gasSpecies{}; // total signed flux to gas, kg/(m2 s)
+    std::array<PhysicalReal, Nc> condensedConsumption{};
+    std::array<PhysicalReal, Ns> gasSpecies{};
     PhysicalReal gasMass = 0;
-    PhysicalReal recessionSpeed = 0; // m/s into stationary rigid material
-    PhysicalReal normalInterfaceSpeed = 0; // m/s along outward normal, negative recession
+    PhysicalReal recessionSpeed = 0;
+    PhysicalReal normalInterfaceSpeed = 0;
     PhysicalReal reactionMassResidual = 0;
 };
 
@@ -132,14 +132,14 @@ CHMT_DRY_HD DryInterfaceFlux<Nc, Ns> congruentDryInterfaceFlux
         if (out.condensedConsumption[c] != 0)
             consumedVolume += out.condensedConsumption[c]/condensedThermo[c].density;
     }
-    // Consumed true solid volume / packing fraction gives swept bulk volume.
-    // Geometry closure: ONE exposed effective condensed phase, or congruent
-    // recession of a mixture (loss_c = rho_c*alpha_c*recessionSpeed for every c).
-    // Multiphase pyrolysis belongs in the bulk model. Arbitrary selective
-    // multi-solid front chemistry is NOT closed by this geometry model: it
-    // would require an additional surface composition/storage evolution law.
-    // surfaceProduction above remains a generic stoichiometric flux routine.
-    // Pyrolysis arrival is NOT solid ablation and must not set recession speed.
+
+
+
+
+
+
+
+
     out.recessionSpeed = consumedVolume == 0 ? 0 : consumedVolume/(1-porosity);
     out.normalInterfaceSpeed = -out.recessionSpeed;
     for (std::size_t s=0; s<Ns; ++s) {
@@ -163,30 +163,30 @@ CHMT_DRY_HD std::array<PhysicalReal, Ns> surfaceSpeciesResidual
     for (std::size_t s=0; s<Ns; ++s)
         residual[s] = gasMassFlux*wallMassFraction[s]
             + gasDiffusiveFlux[s] - gasSpeciesFlux[s];
-    // Signed source flux is never normalized into a fictitious composition.
+
     return residual;
 }
 
 struct DryEnergyInput {
     ThermalReal wallTemperature = 0;
     ThermalReal gasPressure = 0;
-    ThermalReal gasSpecificKineticEnergy = 0; // |u_g|^2/2, laboratory frame
-    ThermalReal gasConductiveFlux = 0; // Fourier heat along outward normal, W/m2
-    ThermalReal gasTractionPower = 0;  // (tau.n).u_g, subtracted from outward flux
-    ThermalReal solidConductiveFlux = 0; // from material into interface, W/m2
-    ThermalReal radiationIntoInterface = 0; // absorbed minus emitted, W/m2
+    ThermalReal gasSpecificKineticEnergy = 0;
+    ThermalReal gasConductiveFlux = 0;
+    ThermalReal gasTractionPower = 0;
+    ThermalReal solidConductiveFlux = 0;
+    ThermalReal radiationIntoInterface = 0;
 };
 
 struct DryEnergyBalance {
     ThermalReal gasThermochemical = 0;
     ThermalReal gasKinetic = 0;
     ThermalReal gasPressureWork = 0;
-    ThermalReal gasEnergy = 0; // full outward laboratory energy flux
+    ThermalReal gasEnergy = 0;
     ThermalReal solidDonorEnergy = 0;
     ThermalReal poreTransportEnergy = 0;
     ThermalReal poreSweptEnergy = 0;
     ThermalReal materialEnergy = 0;
-    ThermalReal residual = 0; // outward gas - incoming material - absorbed radiation
+    ThermalReal residual = 0;
 };
 
 template<std::size_t Nc, std::size_t Ns, class GasThermo>
@@ -210,18 +210,18 @@ CHMT_DRY_HD DryEnergyBalance dryEnergyBalance
         out.solidDonorEnergy += ThermalReal(flux.condensedConsumption[c])
             *condensedThermo[c].internalEnergy(in.wallTemperature);
     out.gasKinetic = ThermalReal(flux.gasMass)*in.gasSpecificKineticEnergy;
-    // rho(u-vI)h + p*vI is the moving-control-surface total-energy flux.
-    // Solid is stationary: its swept inventory carries e, not a second p/rho.
+
+
     out.gasPressureWork = in.gasPressure*ThermalReal(flux.normalInterfaceSpeed);
     out.gasEnergy = out.gasThermochemical + out.gasKinetic + out.gasPressureWork
         + in.gasConductiveFlux - in.gasTractionPower;
     out.materialEnergy = out.solidDonorEnergy + out.poreTransportEnergy
         + out.poreSweptEnergy + in.solidConductiveFlux;
     out.residual = out.gasEnergy - out.materialEnergy - in.radiationIntoInterface;
-    // Formation energies in h/e already account for surface reaction heat.
-    // There is deliberately no additional Q_reaction or empirical blowing term.
+
+
     return out;
 }
 
-}} // namespace chmt::dry
+}}
 #endif

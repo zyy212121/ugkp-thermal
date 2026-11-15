@@ -1,4 +1,4 @@
-"""Current maintained startup scheduling contracts, without legacy migration."""
+pass
 from pathlib import Path
 import re
 from validation.tools.paths import SOURCE_ROOT

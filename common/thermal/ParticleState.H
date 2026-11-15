@@ -31,8 +31,8 @@ struct ParticleState {
     std::uint64_t rng=0;
     ParticleThermalHistory thermal{};
     // energy is the represented thermal inventory [J]. Once initialized,
-    // coldWall1D uses its raw eight-node profile alone. Other caloric models
-    // retain temperature/profile plus specificEnthalpyResidual as restart state;
+
+
     // energy is a derived output, never a second independent thermal update.
 };
 // Contact mechanical energy is a diagnostic of the deferred lab-frame

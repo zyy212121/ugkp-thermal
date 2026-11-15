@@ -18,7 +18,7 @@ void setMaterialDiagnosticsSink(MaterialBackend&,const ugkp::diagnostics::HostSi
 // state differing from the last full publication is explicitly re-imported;
 // unchanged window handoffs retain the device inventory and workspaces.
 bool beginMaterialWindow(MaterialBackend&,const HostState&,const PhysicsConfig&,std::string&);
-// Borrowed gas history remains owned by the producer until this material window finishes.
+
 bool beginResidentMaterialHistory(MaterialBackend&,const ResidentMaterialDriveHistory*,
     const IntervalHistory&,std::string&);
 bool prepareResidentMaterialConduction(MaterialBackend&,const HostMesh&,
@@ -87,7 +87,7 @@ bool advanceResidentMaterialSources(MaterialBackend&,const HostMesh& endpointMes
     std::string&,bool& numericalFailure,const std::vector<int>* observedCells=nullptr,
     const IntervalSliceMetadata* selectedSlice=nullptr);
 bool commitResidentMaterialStep(MaterialBackend&,Real time,std::string&);
-// Legacy direct callers use the original upload path without borrowed history.
+
 void commitResidentMaterialStep(MaterialBackend&,Real time);
 }
 #endif

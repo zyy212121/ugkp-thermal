@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile-only. Never execute a solver, generated binary, mathematical test, or benchmark."""
+pass
 from pathlib import Path
 import argparse, ast, hashlib, json, os, shutil, subprocess, time
 FAMILIES=("pressure","face","coupling","bath","probe")

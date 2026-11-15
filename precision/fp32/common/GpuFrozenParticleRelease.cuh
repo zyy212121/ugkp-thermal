@@ -1,9 +1,9 @@
 #pragma once
 #include "wall/GpuColdWall1DHandles.cuh"
 #include "GpuParticleCaloric.H"
-// The new zero-speed release changes the active caloric representation. Carry
-// profile enthalpy and the saved rebound kinetic reservoir into the free phase;
-// do not lose latent heat or the dissipated rebound energy when clearing nodes.
+
+
+
 template<class State>
 __device__ float frozenReleaseSpecificEnergy(const State& s,int i,int nodes)
 {

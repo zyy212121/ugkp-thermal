@@ -35,8 +35,8 @@ CHMT_HD inline PacketDelta packetDelta(const ExchangePacket& p) {
     }
     return d;
 }
-// Preserve every physical channel, including zero-net counterflow and energy
-// decompositions. Only an exactly empty optional exchange can be omitted.
+
+
 CHMT_HD inline bool hasPacketTransfer(const ExchangePacket& p) {
     if(p.mass!=0||p.momentum.x!=0||p.momentum.y!=0||p.momentum.z!=0
         ||p.energy!=0||p.conductive!=0||p.advective!=0||p.pressureWork!=0
@@ -45,22 +45,22 @@ CHMT_HD inline bool hasPacketTransfer(const ExchangePacket& p) {
     for(int c=0;c<Nc;++c)if(p.condensed[c]!=0)return true;
     return false;
 }
-// Physical packets never contain delta(pV). The film owner forms exactly one
-// storage update from accepted and candidate p,V for each face/stage.
+
+
 CHMT_HD inline EnergyReal filmPressureVolumeDelta(const FilmPressureVolumeUpdate& u) { return u.newPV-u.oldPV; }
 CHMT_HD bool validatePacketMath(const ExchangePacket&,const Tolerances&,DeviceStatus* status=nullptr);
-// Raw staged delta helper: caller MUST mark the successful consumer bit on the
-// uniquely owned packet before another invocation. It is not a stand-alone
-// consumer. Prefer applyPacketTransaction or consumePacket wrappers.
+
+
+
 CHMT_HD bool applyPacketDelta(const ExchangePacket&,unsigned consumerBit,GasQ* gas,SolidQ* solid,FilmQ* film,DeviceStatus* status=nullptr,bool pendingFilmStorage=false,ugkp::diagnostics::DeviceContext* diagnostics=nullptr);
 bool validatePacket(const ExchangePacket&,const PhysicsConfig&,std::string& error);
 bool consumePacket(ExchangePacket&,unsigned consumerBit,GasQ* gas,SolidQ* solid,FilmQ* film,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics=nullptr);
 CHMT_HD bool applyPacketTransaction(ExchangePacket&,GasQ*,SolidQ*,FilmQ*,FilmPressureVolumeUpdate*,const Tolerances&,DeviceStatus* status=nullptr);
 bool consumePacketTransaction(ExchangePacket&,GasQ*,SolidQ*,FilmQ*,FilmPressureVolumeUpdate*,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics=nullptr);
 bool consumeFilmPressureVolume(FilmPressureVolumeUpdate&,FilmQ&,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics=nullptr);
-// Generic particle transfer uses the same packetDelta, but ParticleQ's mass,
-// velocity and thermal-energy convention requires its owner to atomically
-// consume both particle and receiver. The host API above rejects ConsumeParticle.
-} // namespace chmt
+
+
+
+}
 #include "ExchangeLedger.C"
 #endif

@@ -1,6 +1,6 @@
 #pragma once
-// Shared DATA ONLY. Both historical writers use their own unmodified source
-// closures and their old types. No new serializer generates the legacy input.
+
+
 #define CHMT_ENERGY_FIELDS(X) \
  X(gas[0].energy,"J",103001.123456789) \
  X(solid[0].energy,"J",203002.234567891) \

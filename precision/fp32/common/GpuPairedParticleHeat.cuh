@@ -1,8 +1,8 @@
 #pragma once
 #include "gasTransport/ParticleHeatReservoir.H"
-// Contact/profile heat transaction. Membership is captured with the macro
-// source; coefficients use the corrected post-collision state, including a
-// parcel that has detached since it was excluded from the mobile source.
+
+
+
 __device__ __forceinline__ bool pairedParticleHeatMember(const DeviceState& s,int i)
 {
  if(!s.particleStuckModelConfigured)return false;
@@ -36,11 +36,11 @@ __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandida
  const float rate=conductancePerMass/cp;
  const float a=-std::expm1(-(rate>0.f?rate:0.f)*float(dt));
  if(count==64){
-  // The2D model applies gas power to its top surface during explicit
-  // conduction substeps. Reserve a positive upper budget; actual signed work
-  // is recorded by that existing solver, not replaced by a uniform source.
-  // Existing phase-changing substeps guarantee positive H/T but not a
-  // local temperature maximum principle across a sharp Cp transition.
+
+
+
+
+
   const float upper=conductancePerMass*float(dt)*(Tg>0.f?Tg:0.f);
   return {float(s.pm[i])*cp,float(s.pm[i])*cp*a,upper};
  }
@@ -51,10 +51,10 @@ __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandida
  const float upper=upperT>0.f?upperT:0.f;
  if(deltaT<lower)deltaT=lower;
  if(deltaT>upper)deltaT=upper;
- // Evaluate the caloric heat increment directly in binary32.
+
  float dh=law.enthalpyIncrement(Ti,deltaT);
- // Secant weights make Q = A*(Tg-weighted Ti) exactly in the unclipped
- // interval, preventing nonlinear-Cp gas-temperature overshoot.
+
+
  float effectiveA=a;
  if(Tg!=Ti)effectiveA=deltaT/(Tg-Ti);
  if(deltaT!=0.f)cp=dh/deltaT;
@@ -69,14 +69,14 @@ __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandida
  const float capacity=float(s.pm[i])*cp;
  return {capacity,capacity*effectiveA,dh};
 }
-// Called from the existing post-RK collision-pool clear, before any candidate.
+
 __device__ __forceinline__ void clearPairedParticleHeatCell(DeviceState& s,int c)
 {
  if(s.particleHeatCoefficient==nullptr||s.particleHeatBudget==nullptr)return;
  s.particleHeatCoefficient[c]=0.f;s.particleHeatBudget[c]=0.f;s.rhoENext[c]=0.f;
 }
-// Each receiver reaches this helper exactly once after its final collision
-// correction. The selected-stuck partition is owned by the correction kernels.
+
+
 __device__ __forceinline__ void accumulatePairedParticleHeatCandidate
 (DeviceState& s,int i,GpuTime dt)
 {
@@ -96,8 +96,8 @@ __device__ __forceinline__ float pairedGasEnergyFloor(const DeviceState&s,int c)
 {
  const GpuReal rhoSafe=clampMin(finiteOr(s.rho[c],s.rhoMin),s.rhoMin);
  const bool repairDensity=!finiteDevice(s.rho[c]) || s.rho[c]<s.rhoMin;
- // Match the actual conserved candidates and arithmetic order used by EOS
- // recovery, rather than the algebraically equivalent momentum-square form.
+
+
  const GpuReal mx=repairDensity||!finiteDevice(s.rhoUx[c]/rhoSafe)?rhoSafe*finiteOr(s.rhoUx[c]/rhoSafe,GPU_R(0)):s.rhoUx[c];
  const GpuReal my=repairDensity||!finiteDevice(s.rhoUy[c]/rhoSafe)?rhoSafe*finiteOr(s.rhoUy[c]/rhoSafe,GPU_R(0)):s.rhoUy[c];
  const GpuReal mz=repairDensity||!finiteDevice(s.rhoUz[c]/rhoSafe)?rhoSafe*finiteOr(s.rhoUz[c]/rhoSafe,GPU_R(0)):s.rhoUz[c];
@@ -115,8 +115,8 @@ __global__ void acceptPairedParticleHeatKernel(DeviceState*sp)
  const float volume=pairedGasPhysicalVolume(s,c);
  float Cg=volume*float(clampMin(finiteOr(s.rho[c],s.rhoMin),s.rhoMin))*float(s.Rgas)
   /ugkwp::gasLegacyCaloricDenominator(float(s.gammaGas),float(OfSmall));
- // Retain the existing finite-bath exponential and candidate/settlement
- // organization. Its gas capacity is the actual local caloric derivative.
+
+
  Cg=ugkwp::particleGasHeatCapacity(s,c,volume,Cg);
  float scale=C>0.f?ugkwp::pairedHeatBathFraction(A/C,C,Cg):0.f;
  const float available=(s.rhoE[c]-pairedGasEnergyFloor(s,c))*volume;
@@ -149,7 +149,7 @@ __global__ void settlePairedParticleHeatKernel(DeviceState*sp)
 {
  DeviceState&s=*sp;int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=s.nCells)return;
  const float q=s.particleHeatBudget[c];if(q==0.f)return;
- // Settle the represented exchange directly; no rounding carry is retained.
+
  s.rhoE[c]-=q/pairedGasPhysicalVolume(s,c);
  recoverGasPrimitiveCell(s,c);
 }

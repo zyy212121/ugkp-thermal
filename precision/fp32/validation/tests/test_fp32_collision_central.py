@@ -1,4 +1,4 @@
-"""Deferred preset-2 regression: these executables are not run during implementation."""
+pass
 from pathlib import Path
 import subprocess
 import pytest

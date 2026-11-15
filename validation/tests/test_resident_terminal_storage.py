@@ -86,7 +86,7 @@ def test_create_preserves_fields_and_admits_supplied_parameters(tmp_path,app):
     outputs=[]
     for label,rev in [('old',BASE),('current',None)]:
         d=tmp_path/label;d.mkdir();outputs.append(run_cpp(d,create_fixture(app,rev)))
-    # Added/retired fields and diameter law are not ABI parity requirements.
+
     parsed=[dict(re.findall(r'(\w+)=([^ ]+)',v.strip())) for v in outputs]
     common=parsed[0].keys() & parsed[1].keys()
     assert {'gammaGas','gasCp','rhoSolid','particleCapacity'} <= common
@@ -95,8 +95,8 @@ def test_create_preserves_fields_and_admits_supplied_parameters(tmp_path,app):
 
 
 def test_frozen_create_original_mock_default_is_rejected(tmp_path):
-    # Frozen BASE required gasRobustFallback in {0,1}; the original fixture
-    # supplied generic default 2. Record this pre-existing fixture failure.
+
+
     code=create_fixture('CHT',BASE).replace('int gasRobustFallback=0;', 'int gasRobustFallback=2;')
     first=code.index('assert(',code.index('int main'));end=code.index(');',first)+2
     check=code[first:end].replace('==0','!=0')

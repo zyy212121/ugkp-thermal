@@ -41,7 +41,7 @@ void requireFailure(const Action& action, const char* message)
     require(false, message);
 }
 
-}             
+}
 
 int main()
 {
@@ -124,7 +124,7 @@ int main()
         "near-equilibrium root must converge at floating-point resolution"
     );
 
-    // Compatibility helper reports raw signed balance, never a correction.
+
     const auto raw=conservativeBoundaryEnergyScale(-60,100,160,1e-12);
     require(raw.scale==1 && raw.residualJ==40,"raw exchange must not be balanced");
     const auto zero=conservativeBoundaryEnergyScale(-1,0,1,1e-12);

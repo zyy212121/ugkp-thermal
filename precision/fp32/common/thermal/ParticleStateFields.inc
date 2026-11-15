@@ -1,4 +1,4 @@
-// GPU storage <-> complete physical snapshot. No contact-age/theta packing.
+
 UGKP_PARTICLE_FIELD(px,position.x)
 UGKP_PARTICLE_FIELD(py,position.y)
 UGKP_PARTICLE_FIELD(pz,position.z)

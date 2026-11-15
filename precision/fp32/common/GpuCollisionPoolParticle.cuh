@@ -1,9 +1,9 @@
 #pragma once
 #include "GpuPoolSelection.cuh"
-// One selected-particle operation and Poisson access schedule for every app/hierarchy.
-// A directory assigns each particle to exactly one lane. Accepted RNG/status
-// stores follow contribution loads; rejected draws are still committed immediately.
-// The explicit false specialization remains usable for equivalence tests.
+
+
+
+
 template<bool PoissonMode, bool LateThetaAndRng = PoissonMode>
 __device__ __forceinline__ void accumulateOnePoolParticle
 (
@@ -53,8 +53,8 @@ __device__ __forceinline__ void accumulateOnePoolParticle
         }
     }
 
-    // Poisson rejection needs only status, cell and RNG. Read thermal data
-    // only for accepted particles; non-Poisson cutoff still precedes physics.
+
+
 #if GPU_POOL_THETA_AFTER_REJECTION
     if constexpr (!LateThetaAndRng)
     {

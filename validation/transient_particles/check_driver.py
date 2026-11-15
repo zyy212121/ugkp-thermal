@@ -7,7 +7,7 @@ def prepare_reference_case(case,fixture):
  m.copy_inputs(m.ROOT/'validation/steady_cuda/evidence/cases'/fixture,case)
  m.control(case,200,write=100)
  if fixture=='reconstructed':
-  # This regression explicitly exercises MUSCL and Barth-Jespersen, not upwind.
+
   p=case/'constant/scheme';text=p.read_text()
   text=re.sub(r'\bgasLimiter\s+[^;]+;','gasLimiter barthJespersen;',text)
   for key in ('div(phi,U)','div(phi,e)','div(phi,K)','div(phi,(p|rho))'):
@@ -45,7 +45,7 @@ def main():
   d=out/('adaptive' if adaptive else 'fixed_dt');prepare_adaptive_case(d,adaptive)
   run('candidate',d);cases.append(d)
  row=m.compare(m.dirs(cases[0])[-1],m.dirs(cases[1])[-1],32);row['case']='adaptive vs fixed 1e-5 physical dt';report['comparisons'].append(row);assert len(m.dirs(cases[1]))==11;save()
- # Mixture gas now uses the same startup boundary-field programs.
+
  d=out/'scheduled_mixture_fields';m.copy_inputs(m.ROOT/'validation/steady_cuda/evidence/cases/mixture_particles',d);m.control(d,1,write=1)
  for field,rows,initial in [('p','((0 207861.56545383102) (0.004 212018.79676290765))','207861.56545383102'),('epsilonS','((0 0.000001) (0.004 0.000002))','0.000001')]:
   path=d/'0'/field;text=path.read_text()

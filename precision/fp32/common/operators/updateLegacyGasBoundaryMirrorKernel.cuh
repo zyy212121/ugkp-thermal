@@ -2,7 +2,7 @@
 #include "GpuOperatorContract.cuh"
 #include "evaluateResidentBoundary.cuh"
 #include "gasTransport/GasResidentInterval.H"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<class GasState>
 __global__ void updateLegacyGasBoundaryMirrorKernel
 (
@@ -172,10 +172,10 @@ __device__ GasPrimDevice reconstructGasCellToFace
     GPU_OPERATOR_REAL uzIncrement = s.gasGradientLimiterUz[c]
       *(s.gradUzX[c]*dx + s.gradUzY[c]*dy + s.gradUzZ[c]*dz);
 
-                                                                             
-                                                                       
-                                                                           
-                                                                        
+
+
+
+
     const GPU_OPERATOR_REAL rho = s.rho[c] + rhoIncrement;
     const GPU_OPERATOR_REAL ux = s.Ux[c] + uxIncrement;
     const GPU_OPERATOR_REAL uy = s.Uy[c] + uyIncrement;

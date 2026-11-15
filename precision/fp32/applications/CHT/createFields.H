@@ -285,8 +285,8 @@ volScalarField omega
     zeroGradientFvPatchScalarField::typeName
 );
 
-// OpenFOAM fields are double API buffers; evaluate physical startup values
-// once in float before publishing them to those buffers.
+
+
 const auto startupValue=[](const auto& field,label i,label patch) {
     return patch<0?field[i]:field.boundaryField()[patch][i];
 };

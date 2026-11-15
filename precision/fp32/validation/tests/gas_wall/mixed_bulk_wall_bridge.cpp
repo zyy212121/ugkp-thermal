@@ -1,4 +1,4 @@
-// This fixture is executed only at the scheduled numerical checkpoint.
+
 #include "common/gasTransport/GasBoundaryLayerModelState.H"
 #include "validation/tests/gas_wall/fixtures/sst_restart004_capture.H"
 #include <cassert>
@@ -83,8 +83,8 @@ template<class R> struct Fixture {
         double sweep=0;
         assert(prepareGasBoundaryLayerInput(state,0,0,sweep));
         assert(std::isfinite(input.pressure)&&std::isfinite(input.matching.temperature));
-        // Exercise actual float bulk matching before enabling the conservative
-        // column, whose already prepared matching data are always double.
+
+
         matching=input.matching;pressure=input.pressure;
         column.cells[0]=0;column.edge[2]=input.matchingDistance;
         auto& d=state.gasBoundaryLayerModel.conservative;

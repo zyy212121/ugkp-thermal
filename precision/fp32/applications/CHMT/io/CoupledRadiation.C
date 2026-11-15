@@ -29,8 +29,8 @@ struct CoupledRadiation::Data {
         std::set<int> ids;for(int f:state.surface.gasFace)if(f>=0)ids.insert(mesh.boundaryMesh().whichPatch(f));
         patches.setSize(ids.size());int k=0;for(int id:ids){if(id<0)throw std::runtime_error("radiation coupled face is internal");patches[k++]=id;}
         const auto& d=m.subDict("do");
-        // The DOM boundary dictionary is the sole optical boundary source.
-        // Match its absorptivity-over-emissivity precedence, including defaults.
+
+
         const auto optical=[](const Foam::dictionary& values,Foam::scalar prior) {
             return values.lookupOrDefault<Foam::scalar>("absorptivity",
                 values.lookupOrDefault<Foam::scalar>("emissivity",prior));
@@ -77,7 +77,7 @@ bool CoupledRadiation::advance(Backend& backend,const WallProgram& program,HostS
     for(std::size_t f=0;f<state.surface.gasFace.size();++f){const int face=state.surface.gasFace[f];if(face<0)continue;
         const int patch=d.mesh.boundaryMesh().whichPatch(face),local=face-d.mesh.boundaryMesh()[patch].start();
         d.wallTemperature.boundaryFieldRef()[patch][local]=wall[f].temperature;
-        // Same exposed-area assumption as CHT; surface gas generation is independent.
+
         const double area=mag(d.mesh.Sf().boundaryField()[patch][local]);
         if(!material.resident.enabled)emissivity[patch][local]*=std::max(EnergyReal(0),EnergyReal(1)-std::min(EnergyReal(1),material.occupiedArea[face]/EnergyReal(area)));
     }
@@ -85,8 +85,8 @@ bool CoupledRadiation::advance(Backend& backend,const WallProgram& program,HostS
     const auto requested=d.coupler->solve(snapshot,false);
     ugkp::gpu::RadiationAcceptedEnergyDeviceView actual;
     if(!applyResidentRadiationEnergy(backend,requested.resident,actual,state,error))return false;
-    // The material history owner still consumes boundary records. Publish only
-    // its raw boundary energy here, never optical or per-cell heat fields.
+
+
     const auto result=d.coupler->collectBoundaryEnergy();
     std::vector<EnergyReal> wallHeat(state.surface.gasFace.size(),0);
     for(std::size_t f=0;f<wallHeat.size();++f){const int face=state.surface.gasFace[f];if(face<0)continue;

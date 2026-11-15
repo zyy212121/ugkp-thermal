@@ -2,15 +2,15 @@
 #define CHMT_GPU_GASWALLMATH_H
 #include "ablation/InterfaceMath.H"
 namespace chmt {
-// Gross gas withdrawals do not borrow from an opposing transfer in the same
-// interval. Pore geometric sweep and Darcy transport are distinct channels.
+
+
 CHMT_HD inline PhysicalReal gasPacketSpeciesWithdrawal(const ExchangePacket& packet,int species){
     return packet.kind==ExchangeKind::PoreGas
         ?energyArithmetic::maximum(0,-(packet.pore[species]-packet.poreSweep[species]))+energyArithmetic::maximum(0,-packet.poreSweep[species])
         :energyArithmetic::maximum(0,-packet.species[species]);
 }
-// Read-only CPU boundary program plus the current gas-side driving state. Rates
-// are per reference-surface area. No material state or material RHS is an input.
+
+
 struct GasWallInput {
     GasWallClosureContext wallContext{};
     const ugkwp::gaswall::WallExchangeOutput<EnergyReal,Ns>* preparedLayer=nullptr;
@@ -114,5 +114,5 @@ CHMT_HD inline bool evaluateGasWall(const GasWallInput& in,const SurfacePacketId
     }
     output=result;return true;
 }
-} // namespace chmt
+}
 #endif

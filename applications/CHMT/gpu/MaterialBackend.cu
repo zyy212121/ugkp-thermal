@@ -49,8 +49,8 @@ __global__ void conductionCoefficientsKernel(int count,const MaterialThermalInpu
     if(c<count){const auto value=materialThermalCoefficients(input[c],temperature[c],dt,*physics);
         output[c]=value;capacity[c]=value.capacity;source[c]=value.source;conductivity[c]=value.conductivity;}
 }
-// Initial publication diagnostics only. The repeated constitutive kernel above
-// remains unchanged, including its launch arguments and per-cell work.
+
+
 __global__ void inspectConductionStartupKernel(int count,const MaterialThermalCoefficients* coefficients,
     const PhysicsConfig* physics,MaterialStepResult* status){
     const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=count)return;
@@ -617,8 +617,8 @@ bool evaluateResidentMaterialTransport(MaterialBackend& b,const HostMesh& mesh,
 bool beginResidentMaterialHistory(MaterialBackend& b,const ResidentMaterialDriveHistory* supplied,
     const IntervalHistory& host,std::string& error){
     b.sliceReady=false;b.slicePending=false;b.borrowedHistory={};
-    // Optional borrowed view is an optimization only. External material callers
-    // and histories without the producer layout keep the original upload path.
+
+
     if(!supplied||!supplied->surface||!supplied->interval||!supplied->faces
         ||supplied->frames!=host.records().size())return true;
     for(const auto& record:host.records())if(record.radiationEnergy.size()!=supplied->faces
@@ -659,8 +659,8 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
     }
     b.slicePending=b.sliceReady&&selectedSlice;
     if(b.slicePending){
-        // These decisions were emitted by the same host cursor that produced
-        // the geometry/ledger packets. No device time comparison is repeated.
+
+
         b.pendingSlicePlan={};b.pendingSlicePlan.begin.record=selectedSlice->beginRecord;
         b.pendingSlicePlan.past=selectedSlice->beginRecord+selectedSlice->parts.size();
         b.pendingSlicePlan.end.record=selectedSlice->endRecord;
@@ -730,8 +730,8 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
 }
 bool commitResidentMaterialStep(MaterialBackend& b,Real time,std::string& error){
     if(b.slicePending){
-        // Advance accepted history only with the whole material transaction;
-        // a failed endpoint surface solve never consumes this candidate slice.
+
+
         if(!b.fault.check(commitResidentMaterialSlice(b.slicePlan.data(),b.candidateSlice(),b.currentSlice(),
             b.borrowedHistory.faces,b.sliceExternal.size(),b.sliceCursor.data(),nullptr,b.stream.get()),
             "commit borrowed material source slice"))return b.failure(error);
@@ -743,9 +743,9 @@ bool commitResidentMaterialStep(MaterialBackend& b,Real time,std::string& error)
 }
 
 void commitResidentMaterialStep(MaterialBackend& b,Real time){
-    // Preserve the old external entry point. Its default source path does not
-    // bind resident history, so no new cursor commit kernel is launched.
-    // The production driver uses the error-reporting overload above.
+
+
+
     std::string error;(void)commitResidentMaterialStep(b,time,error);
 }
 

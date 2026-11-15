@@ -1,4 +1,4 @@
-// Acceptance-only paired workload. Original production and FP64 fixture are unchanged.
+
 #ifndef UGKP_ACCEPTANCE_BITS
 #error Compile this fixture with an explicit selected precision
 #endif
@@ -50,7 +50,7 @@ int main(int argc,char** argv){
    g.reflectionOffsets.push_back(g.reflectionDonors.size());
   }g.transportDiagonal.push_back(diagonal);
  }}
- // Add real upwind dependencies; a periodic ring exercises SCC iteration.
+
  if(topology!="isolated"){
   if(cells<3)throw std::runtime_error("connected topology requires at least three cells");
   const bool cyclic=topology=="cycle";
@@ -85,7 +85,7 @@ int main(int argc,char** argv){
   for(int run=0;run<(instrumented?1:3);++run){
    const auto start=std::chrono::steady_clock::now();auto result=solver.solve(snap,false);
    const double seconds=std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();
-   // Diagnostic output only. No control, stopping condition or assertion is changed.
+
    std::vector<double> intensity;solver.downloadIntensities(intensity);
    std::cout<<std::setprecision(17);
    int diagnosticWarnings=0;
@@ -107,7 +107,7 @@ int main(int argc,char** argv){
    std::size_t diagnosticNonfinite=0;
    for(const auto* values:{&intensity,&result.power,&result.boundaryFlux})
     for(double value:*values)diagnosticNonfinite+=!std::isfinite(value);
-   // Missing diagnostic entries produce unavailable metrics, not a refusal.
+
    if(intensity.size()==std::size_t(cells)*angles&&result.power.size()>=std::size_t(cells)
       &&result.boundaryFlux.size()>=std::size_t(cells)*6){
     diagnosticClosure=0;diagnosticMirror=0;

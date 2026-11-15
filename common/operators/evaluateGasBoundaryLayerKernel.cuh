@@ -74,8 +74,8 @@ inline cudaError_t launchGasBoundaryLayerPool(GasState* state,const Model& model
     else if(model.config.model==ugkwp::gaswall::BoundaryLayerModel::EquilibriumOde
         &&model.config.nodes==8&&model.workspaceCapacity==24&&!model.conservative.enabled)
     {
-        // Eight-lane ownership is fixed; the number of independent tiles per
-        // CTA follows the same face-work policy as the analytic wall branch.
+
+
         const int block=ugkp::gpu::workPlan().faceBlockThreads;
         const int workersPerBlock=block/8;
         evaluateGasBoundaryLayerTile8Kernel<Capture><<<(workers+workersPerBlock-1)/workersPerBlock,block,0,stream>>>(state,active);

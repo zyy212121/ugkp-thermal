@@ -6,9 +6,9 @@
 #include "materials/DryMaterialAdapter.H"
 #include "materials/dry/PoreTransport.H"
 namespace chmt {
-// Shared material adapter: proposals retain WallFaceSample reference-area
-// units. The validated dry kernels always see current physical material area.
-// No accepted gas ExchangePacket is constructed, changed, or applied here.
+
+
+
 CHMT_HD inline dry::SurfaceProduction<Nc,Ns> drySurfaceProduction(const SurfacePhysicsInput& in,
     const GasPrimitive& gas,PhysicalReal T,const PhysicsConfig& p) {
     std::array<dry::SurfaceMassAction<Nc,Ns>,Nr> reactions{};
@@ -23,9 +23,9 @@ CHMT_HD inline dry::SurfaceProduction<Nc,Ns> drySurfaceProduction(const SurfaceP
     }
     return dry::surfaceProduction(reactions,T,condensed,partial);
 }
-// Sharp recession represents one exposed effective phase or a congruent mixture.
-// Bulk pyrolysis may contain independent condensed constituents; it does not by
-// itself imply their selective surface loss is a closed sharp-front model.
+
+
+
 template<class Team=ugkwp::gaswall::detail::SerialWallTeam>
 CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
     const PhysicsConfig& p, const MaterialPrimitive& material, EnergyReal filmT, EnergyReal topT,
@@ -65,8 +65,8 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
     bool compositionConverged=false;PhysicalReal compositionChange=0;
     InterfaceGasClosure wallClosure;
     EnergyReal physicalPoreEnergy[Ns]{};
-    // This cache lives only inside this fixed-temperature evaluation. The bulk,
-    // model, geometry and matching state cannot change during this loop.
+
+
     bool wallClosureReady=false;
     PhysicalReal wallClosureSpecies[Ns]{},wallClosureSpeed=0;
     PhysicalVec3 wallClosureVelocity{};
@@ -89,8 +89,8 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
             if (in.ablating && p.material.enableSurfaceReactions) {
                 if (!in.hasSolid) {if(numericalFailure)*numericalFailure=false;return false;}
                 const auto production=drySurfaceProduction(in,provisional,topT,p);
-                // Core uses CURRENT physical material area. Existing wall proposals
-                // use reference area; convert exactly here, never in the gas ledger.
+
+
                 for(int c=0;c<Nc;++c)trial.condensed[c]=-solidRatio*production.condensed[c];
                 for(int species=0;species<Ns;++species)trial.gasSpecies[species]=solidRatio*production.gas[species];
             }
@@ -123,12 +123,12 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
             dryAdapter::completePorePair(inside,outside);
             const auto physical=dry::poreFaceFlux(inside,outside,in.solidDistance,
                 superficial,effectiveDiffusivity,0,dryAdapter::GasCalorics{p});
-            // Recession exposes pore inventory even with zero permeability.
+
             const PhysicalReal poreSweep=-material.porosity*trial.solidWallSpeed;
             for (int species=0; species<Ns; ++species) {
                 const PhysicalReal poreDensity=material.porosity>0
                     ? in.solid.pore[species]/(material.porosity*in.solidVolume) : 0;
-                // Legacy name: poreDarcy now includes physical diffusion too.
+
                 trial.poreDarcy[species]=solidRatio*physical.species[species];
                 trialPoreEnergy[species]=solidRatio*physical.speciesEnergy[species];
                 trial.poreSweep[species]=solidRatio*(poreSweep>=0 ? poreSweep*poreDensity
@@ -156,17 +156,17 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
             }
             if ((!finite(factor) || factor<0)) return false;
         }
-        // A frozen, steady wall layer cannot withdraw a species absent at
-        // its matching boundary. This transport supply condition is independent
-        // of the time interval used for the finite-inventory bound.
+
+
+
         if(!in.useAcceptedFlux&&p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
             &&in.wallContext.mechanism.reactionCount==0){
             for(int s=0;s<Ns;++s)if(trial.gasSpecies[s]+trial.poreSpecies[s]<0
                 &&in.wallContext.matching.massFraction[s]==0)factor=0;
         }
-        // Actual geometric sweep is immutable during this evaluation. If a
-        // donor limit would rescale it, the entire geometry/source trial must be
-        // recomputed instead of silently changing only its diagnostic mass.
+
+
+
         if (in.useSweptGeometry && factor<1) {
             for (int species=0; species<Ns; ++species) if ((trial.poreSweep[species]!=0)) return false;
         }
@@ -229,7 +229,7 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
     }
     if (!compositionConverged) surfaceCompositionWarning(p,compositionChange,p.tolerances.relativeMass+p.numerics.surface.compositionAbsoluteTolerance);
     GasGradient gradient=surfaceVelocityGradient(in.gradient,in.bulk.velocity,result.gasState.velocity,in.gasNormal,EnergyReal(in.gasDistance));
-    // Physical low-Re wall: molecular stress only, no owner nut or k stress.
+
     result.traction=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
         ?wallClosure.traction:surfaceViscousTraction(gradient,in.gasNormal,surfaceMolecularViscosity(p,result.gasState.temperature,result.gasState.Y));
     result.gasShear=result.traction-in.gasNormal*dot(result.traction,in.gasNormal);
@@ -253,8 +253,8 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
     result.gasEnergy=result.gasAdvective+result.gasConductive+result.gasPressureWork+result.gasViscousWork;
     for (int c=0; c<Nc; ++c) if (result.condensed[c]!=0)
         solidDonorEnergy+=EnergyReal(result.condensed[c])*condensedE(p.condensed[c],topT);
-    // The accepted gas flux remains authoritative. This residual only closes a
-    // constitutive proposal; swept pore inventory carries e, Darcy transport h.
+
+
     result.thermalResidual=result.gasEnergy+result.poreEnergy-solidDonorEnergy-poreDonorEnergy
         -solidRatio*solidConductance*(EnergyReal(material.temperature)-topT)-result.radiationFlux;
     if ((!finite(result.thermalResidual) || !finite(result.phaseEnergy))) return surfaceEnergyFailure(p,result.thermalResidual,result.phaseEnergy);
@@ -328,9 +328,9 @@ CHMT_HD inline bool solveDrySurfaceInterface(const SurfacePhysicsInput& in,const
     }
     if(!evaluateDrySurfaceTemperature(in,lanePhysics,material,material.temperature,
         candidate.topTemperature,false,candidate,numericalFailure,team))return false;
-    // A common current-area/reference-area scale is an exact unit conversion.
-    // Other moving offsets retain the existing unsupported-geometry behavior;
-    // no tilted/nonconformal moving-front extension is claimed by this adapter.
+
+
+
     const bool scalarAreaNormalization=closeEnough(in.gasArea,in.solidArea,0,p.tolerances.relativeGeometry)
         &&mag(in.gasNormal-in.normal)<=PhysicalReal(1e-10)&&mag(in.solidNormal-in.normal)<=PhysicalReal(1e-10);
     const bool offsetGeometry=!closeEnough(in.gasArea,in.area,0,p.tolerances.relativeGeometry)
@@ -346,7 +346,7 @@ CHMT_HD inline bool solveDrySurfaceInterface(const SurfacePhysicsInput& in,const
         return failStatus(status,ErrorCode::Unsupported,-1,candidate.filmVolumeResidual,ErrorLocation::Face);
     out=candidate;return true;
 }
-// The proposal adapter uses the same reference-area units on CPU and GPU.
+
 CHMT_HD inline WallFaceSample dryWallFaceSample(const SurfacePhysicsInput& input,
     const SurfacePhysicsResult& physics,const PhysicsConfig& config) {
     WallFaceSample wall;wall.temperature=physics.topTemperature;wall.primaryKind=ExchangeKind::GasSolid;

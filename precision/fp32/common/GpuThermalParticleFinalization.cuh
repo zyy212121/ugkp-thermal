@@ -1,5 +1,5 @@
 #pragma once
-// Common finite-contact/capillary finalization with native contact-age storage.
+
 __device__ void finalizeOneThermalizedStuckParticle
 (
     DeviceState& s,
@@ -159,11 +159,11 @@ __device__ void finalizeOneThermalizedStuckParticle
                 ? static_cast<GPU_OPERATOR_REAL>(s.pCold2DFrozenArea[i]) : GPU_OPERATOR_R(0.0f);
             if (frozenArea > GPU_OPERATOR_R(0.0f)) {
                 frozenRelease = true;
-                // The corrected pool velocity is a new mechanical allocation,
-                // separate from the saved impact/rebound reservoir. Thermalize
-                // its remaining lab-frame energy after adhesion and reflection
-                // before enforcing zero-speed release. Fluctuation energy alone
-                // omits the pool mean and cross terms.
+
+
+
+
+
                 const float rx = releaseUx, ry = releaseUy, rz = releaseUz;
                 const float cancelledPoolSpecificEnergy =
                     0.5f*(rx*rx + ry*ry + rz*rz);
@@ -181,7 +181,7 @@ __device__ void finalizeOneThermalizedStuckParticle
         s.puzOld[i] = releaseUz;
         s.pStuck[i] = 0;
         s.pStuckFaceId[i] = -1;
-        // Contact age must not become unresolved kinetic energy after release.
+
         s.pTheta[i] = GPU_OPERATOR_R(0.0f);
         GPU_RESET_CONTACT_AGE(s, i)
         s.pDepositionArea[i] = 0.0f;

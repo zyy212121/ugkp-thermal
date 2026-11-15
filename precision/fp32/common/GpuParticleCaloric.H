@@ -6,8 +6,8 @@
 #define UGKWP_PARTICLE_CALORIC_HD
 #endif
 namespace ugkwp {
-// Single binary32 caloric state and arithmetic.
-// The caller selects the existing ordinary or active cold-profile law.
+
+
 struct ParticleCaloric {
  bool phaseChange=false;
  float meltingTemperature=2327.0f, mushyRange=20.0f, latentHeat=0.0f, solidCp=0.0f;
@@ -29,16 +29,16 @@ struct ParticleCaloric {
   const float ts=solidus(),tl=liquidus(),hs=solidCp*ts;
   if(t<=ts)return solidCp*t;
   if(t<=tl)return hs+mushyCp()*(t-ts);
-  // Same existing cold-wall caloric law, including its endpoint trapezoid.
+
   return hs+mushyCp()*mushyRange+0.5f*(liquidCp(tl)+liquidCp(t))*(t-tl);
  }
  UGKWP_PARTICLE_CALORIC_HD float specificHeat(float t)const {
   if(!phaseChange)return liquidCp(t);
   return t<=solidus()?solidCp:(t<liquidus()?mushyCp():liquidCp(t));
  }
- // Derivative of the stored enthalpy law. Above the phase liquidus the
- // existing endpoint trapezoid is authoritative, including outside the
- // tabulated liquid-Cp interval; specificHeat() retains its original meaning.
+
+
+
  UGKWP_PARTICLE_CALORIC_HD float enthalpyDerivative(float t)const {
   if(!phaseChange)return liquidCp(t);
   if(t<=solidus())return solidCp;
@@ -46,8 +46,8 @@ struct ParticleCaloric {
   const float slope=t>=2327.f&&t<4000.f?0.0031f/0.101961276f:0.f;
   return .5f*(liquidCp(liquidus())+liquidCp(t))+.5f*slope*(t-liquidus());
  }
- // Exact integral of the existing piecewise-linear heat-capacity law,
- // evaluated on the small interval rather than subtracting large H values.
+
+
  UGKWP_PARTICLE_CALORIC_HD float enthalpyIncrement(float t,float deltaT)const {
   if(deltaT==0.f)return 0.f;
   const bool reverse=deltaT<0.f;
@@ -84,7 +84,7 @@ struct ParticleCaloric {
   const float ts=solidus(),tl=liquidus(),hs=solidCp*ts,hl=hs+mushyCp()*mushyRange;
   if(h<=hs)return h/solidCp;
   if(h<=hl)return ts+(h-hs)/mushyCp();
-  // Invert each linear/quadratic segment of the existing trapezoidal law.
+
   float lo=tl;
   for(int k=0;k<3;++k){
    const float hi=lo<2327.0f?2327.0f:(lo<4000.0f?4000.0f:3.4028234663852886e38f);

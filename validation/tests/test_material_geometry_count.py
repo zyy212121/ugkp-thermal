@@ -1,4 +1,4 @@
-"""Resident geometry must select the populated-host material accuracy branch."""
+pass
 import subprocess
 from validation.tools.paths import SOURCE_ROOT
 

@@ -3,12 +3,12 @@
 #include <cstdio>
 
 namespace ugkwp { namespace gaswall {
-// Local, steady ODE transport with the published semilocal EWM2 viscosity.
-// The species/enthalpy/normal-advection equations and wall flux publication
-// are shared with ReactingWallLayer. No local k/omega inventory is invented.
-// The wall-stress scalar closes the constitutive law; it is not an imposed
-// target stress or an inventory constraint. Both transport and this scalar
-// consistency equation must converge before anything is published.
+
+
+
+
+
+
 template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam>
 UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
  const WallInput<R,N,TableReal>& originalInput,const WallModelConfig<R>& controls,
@@ -57,10 +57,10 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
     R initialNorm=std::numeric_limits<R>::infinity();
     bool stalledUpdate=false;
     for(int outer=0;outer<c.maxIterations;++outer){
-        // Relative momentum tolerance measures the active constitutive stress,
-        // not only its molecular estimate. Freeze this physical scale for the
-        // entire inner solve (residuals, Jacobian and line search); rebuild from
-        // the original estimate each outer step, with no fitted multiplier.
+
+
+
+
         for(int d=0;d<2;++d)ctx.scale[d]=max(molecularMomentumScale[d],ctx.equilibriumWallStress);
         if(!allResidual(in,c,ctx,w.state,w.y,w.residual,norm,team)){
             if(team.leader())fail(status,WallCode::InadmissibleState);
@@ -115,9 +115,9 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
             return team.broadcast(published);
         }
         if(updates>=c.maxIterations)break;
-        // A safeguarded secant update accelerates the scalar fixed point.
-        // Bounds are obtained only from evaluated signs, never prescribed
-        // by a target wall law, macro inventory, or fitting factor.
+
+
+
         if(defect>0){lower=stress;hasLower=true;}
         else {upper=stress;hasUpper=true;}
         R next=measuredStress;
@@ -137,12 +137,12 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
     if(team.leader()){
         fail(status,WallCode::NonConvergence);
         status.iteration=updates;status.residual=GpuReal(norm);
-        // Report existing stopping evidence only; no extra iterations or decision.
+
         printf("WALL_ODE_NONCONVERGENCE face=%d updates=%d maxIterations=%d initialResidual=%.9g finalResidual=%.9g relativeTolerance=%.9g absoluteTolerance=%.9g stalledUpdate=%d\n",
             int(in.diagnosticEntity),updates,c.maxIterations,double(initialNorm),double(norm),
             double(c.relativeTolerance),double(c.absoluteTolerance),int(stalledUpdate));
-        // Preserve the numerical failure before the application adapter adds
-        // its generic unavailable-output diagnostic.
+
+
         using namespace ugkp::diagnostics;
         if(in.diagnostics)recordFatal(in.diagnostics,makeRecord(
             gasFinite(norm)?Code::InvalidPhysicalState:Code::NonFinite,2422,23,in.diagnosticNode,

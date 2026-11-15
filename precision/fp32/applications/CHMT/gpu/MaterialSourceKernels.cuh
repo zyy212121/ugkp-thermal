@@ -34,9 +34,9 @@ __device__ void applyMaterialSourceCell(int c,const SolidQ* current,const SolidQ
         const int face=radiationFaces[e];
         if(receivers[face]==ConsumeSolid)result.energy+=radiation[face];
     }
-    // Lie splitting uses a single consistent inventory: transport and accepted
-    // boundary packets first, then the unchanged positive reaction integrator.
-    // Reaction cannot consume inventory already spent by old-state transport.
+
+
+
     if(!validSolidInventory(result)){status[c]={3,0,c,true};return;}
     SolidQ reactedResult;
     const auto reaction=advanceMaterialReactionsMath(result,volumes[c],*physics,
@@ -66,7 +66,7 @@ __global__ void applyMaterialSourcesKernel(int count,const SolidQ* current,const
         next,donor,status,reactionMaxStep,reactionCfl,reactionBudget);
 }
 __global__ void selectSourceFailure(const MaterialStepResult* status,int count,MaterialStepResult* result){
-    if(result->phase)return; // block-uniform; reaction failure retains precedence
+    if(result->phase)return;
     MaterialStepResult value{};
     for(int c=threadIdx.x;c<count;c+=blockDim.x)
         value=firstMaterialFailure(value,status[c],true);

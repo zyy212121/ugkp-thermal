@@ -41,8 +41,8 @@ def compile_run(tmp_path, code, flags=()):
 
 @pytest.mark.parametrize('contract', ['off', 'fast'])
 def test_finite_contact_increment_oracle_and_zero_identity(tmp_path, contract):
-    # Historical absolute-enthalpy bitwise oracle is retained in FINITE_REFERENCE,
-    # but is not the contract of the stable increment/zero-flux publication.
+
+
     result = compile_run(tmp_path, FINITE_INCREMENT_ORACLE, ['-ffp-contract=' + contract])[0]
     assert result['cases'] == 6000 and result['zero_identity'] == 6000
     assert result['maximum_normalized_error'] <= 128
@@ -97,7 +97,7 @@ struct ColdWallHeatPublication {bool valid;double acceptedSpecificHeat;};
 static unsigned long long scanCount=0;
 ''' + counted(COLD_REFERENCE) + counted(actual) + COLD_BODY
     if bits == 64:
-        # Native64 node publication is double, not float storage plus carry.
+
         code = re.sub(r'\bfloat\b', 'double', code)
     else:
         code = code.replace('double', 'float').replace('DBL_MAX', 'FLT_MAX')

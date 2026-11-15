@@ -76,8 +76,8 @@ inline cudaError_t prepareResidentMaterialSlice(ResidentMaterialSlice slice,
     if(count)material_slice_detail::prepare<<<material_slice_detail::blocks(count),ugkp::gpu::workPlan().materialBlockThreads,0,stream>>>(slice,candidate,external,externalFaces,total,radiation);
     return cudaGetLastError();
 }
-// The original host IntervalCursor already selected these record indices and
-// fractions. Reuse the same preparation arithmetic without a second clock decision.
+
+
 inline cudaError_t prepareHostSelectedMaterialSlice(ResidentMaterialSlice slice,
     MaterialSliceAccumulators candidate,const Real* external,std::size_t externalFaces,
     Real* radiation,cudaStream_t stream){

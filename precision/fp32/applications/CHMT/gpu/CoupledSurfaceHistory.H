@@ -3,8 +3,8 @@
 #include "coupling/IntervalContracts.H"
 #include "../../../common/Diagnostics.H"
 namespace chmt {
-// Accepted physical history stays resident until a consumer publishes it.
-// Raw fluxes and unweighted stage packets remain device-only.
+
+
 struct CoupledSurfaceDownload {
     GasPrimitive bulk{};GasGradient gradient{};PhysicalVec3 traction{};
     WallFaceSample acceptedWall{};
@@ -12,8 +12,8 @@ struct CoupledSurfaceDownload {
     EnergyReal radiationEnergy=0,particleWallEnergy=0;unsigned radiationReceiver=0;
     int failed=0;
 };
-// Matching and failure status are consumed by the material history. Full node
-// diagnostics remain resident until the gas-window endpoint is published.
+
+
 struct CoupledWallDownload {
     GasWallMatchingSample matching{};
     int transportCode=0;
@@ -34,10 +34,10 @@ CHMT_HD inline int coupledRecordOwnerFailure(const CoupledSurfaceDownload& recor
     if(record.particleWallEnergy!=0&&(record.primary.solidCell<0||record.primary.solidCell>=solids))return 3;
     return 0;
 }
-// Existing transaction validity decisions remain on the producer stream.
-// Wall failures take precedence over owner failures, and each category retains
-// its first face. The existing sticky diagnostic prevents later gas consumers
-// from advancing a rejected transaction without a per-microstep host read.
+
+
+
+
 CHMT_HD inline void reportCoupledRecordFailure(const CoupledRecordFailure& failure,int count,
     const CoupledSurfaceDownload* records,const CoupledWallDownload* walls,const int* faces,
     int solids,int films,ugkp::diagnostics::DeviceContext* context){

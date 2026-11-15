@@ -1,4 +1,4 @@
-"""Exercise production cache IO with a host device-transfer stand-in (no GPU)."""
+pass
 from pathlib import Path
 import subprocess
 import pytest

@@ -13,7 +13,7 @@ struct CpuMaterialControls {
     Real maxSubstep=0,reactionMaxSubstep=0;
     PhysicalReal transportCfl=.4f,reactionCfl=.1f;
     PhysicalReal driveRelativeTolerance=.05f,driveSourceFraction=.05f,driveTractionScale=1;
-    bool retainDonorHistory=true; // Explicit external consumer capability.
+    bool retainDonorHistory=true;
     int maxSubsteps=100000,nonlinearMaxIterations=50;
     int linearMaxIterations=2000;
     ugkp::gpu::SparsePreconditioner preconditioner=ugkp::gpu::SparsePreconditioner::Jacobi;
@@ -26,8 +26,8 @@ struct CpuMaterialReport {
     bool recoverable=false,geometryCorrection=false;Real eventTime=0,eventDuration=0;
     MaterialDonorPlan donorPlan{};
 };
-// Orchestrates resident CUDA material updates and the native implicit conduction solve.
-// Candidate solve never mutates the accepted native mesh: it builds an unregistered full-topology fvMesh for the real sparse solve.
+
+
 
 class CpuMaterialDriver {
     struct Implementation;std::unique_ptr<Implementation> data_;

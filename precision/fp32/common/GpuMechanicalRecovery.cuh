@@ -1,5 +1,5 @@
 #pragma once
-// Shared mechanical closure with native material-temperature closure.
+
 __device__ GPU_RECOVERY_INLINE void solidRecoveryFromParticleMomentsCell(DeviceState& s, const int c)
 {
     const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));

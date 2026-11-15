@@ -2,7 +2,7 @@
 #include "Diagnostics.H"
 #include "gasTransport/MixtureThermo.H"
 #include "gasTransport/GasGeometryValidation.H"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<class GasState>
 __device__ void gasFaceSubgridTransportProperties
 (
@@ -20,7 +20,7 @@ __device__ void gasFaceSubgridTransportProperties
 )
 {
     using namespace ugkp::diagnostics;
-    (void)nativeRefinement; // One physical evaluation; legacy trial selector is inert.
+    (void)nativeRefinement;
     if(evaluated)*evaluated=false;
     muTurbulent=kTurbulent=directWallHeatFlux=GPU_OPERATOR_R(0.0);
     directWallHeatFluxActive=0;
@@ -41,8 +41,8 @@ __device__ void gasFaceSubgridTransportProperties
         muTurbulent=mu;kTurbulent=conductivity;
         if(evaluated)*evaluated=true;
     };
-    // Stability estimation also calls this helper for laminar walls. Never
-    // evaluate a turbulent wall law (notably nu=0 Spalding) on that path.
+
+
     if(s.turbulenceModel==0)
     {
         muTurbulent=GPU_OPERATOR_R(0.0);kTurbulent=GPU_OPERATOR_R(0.0);
@@ -65,11 +65,11 @@ __device__ void gasFaceSubgridTransportProperties
             if(!ugkwp::gasFinite(inputs[component]))
             {failure(Code::NonFinite,2668,inputs[component],Quantity::Unspecified,component);return;}
         const GPU_OPERATOR_REAL ownerWeight=clampRange(s.faceWeight[f],GPU_OPERATOR_R(0),GPU_OPERATOR_R(1));
-        // The cell-wise timestep caller visits the same face from both cells.
+
         const GPU_OPERATOR_REAL w=own==s.faceOwner[f]?ownerWeight:GPU_OPERATOR_R(1)-ownerWeight;
-        // Interpolate the coefficients multiplying the physical gradients.
-        // Averaging nut first (or using reconstructed Riemann density) loses
-        // rho/nut/Cp correlations and the location of a non-midpoint face.
+
+
+
         const GPU_OPERATOR_REAL muOwner=clampMin(s.rho[own],s.rhoMin)*fmax(s.nut[own],GPU_OPERATOR_R(0.0));
         const GPU_OPERATOR_REAL muNeighbour=clampMin(s.rho[nei],s.rhoMin)*fmax(s.nut[nei],GPU_OPERATOR_R(0.0));
         publishTransport(w*muOwner+(GPU_OPERATOR_R(1)-w)*muNeighbour,
@@ -190,15 +190,15 @@ __device__ void gasFaceSubgridTransportProperties
             if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
                 if(ugkwp::mixtureGasActive(s))
                 {
-                    // Local viscosity or Pr uses the fixed boundary composition
-                    // when present: Cp and R must use that same wall state.
-                    // Legacy constant transport retains owner composition.
-                    // Thermodynamic properties are evaluated at wall temperature.
+
+
+
+
                     constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
                     using TableReal=std::remove_cv_t<std::remove_pointer_t<decltype(s.gasSpecies.thermo.coefficients)>>;
                     GPU_OPERATOR_REAL Y[Ns],sum=GPU_OPERATOR_R(0),clippedSum=GPU_OPERATOR_R(0);
-                    // Record failures at this face producer, with its operator and
-                    // component, rather than letting a property-only context win.
+
+
                     auto thermo=s.gasSpecies.thermo;thermo.diagnostics=nullptr;
                     wallCp=GPU_OPERATOR_R(0.0);
                     for(int species=0;species<Ns;++species)
@@ -248,8 +248,8 @@ __device__ void gasFaceSubgridTransportProperties
                     }
                     if(clippedSum==GPU_OPERATOR_R(0))
                     {failure(Code::ZeroDenominator,2659,clippedSum,Quantity::MassFraction);return;}
-                    // Raw fractions supply only the conservation audit. Physical
-                    // properties above and below consume the finite clipped Y.
+
+
                     if(!ugkwp::gasFinite(sum) || fabs(sum-GPU_OPERATOR_R(1))>s.gasSpecies.densityClosureTolerance)
                         recordWarning(s.diagnostics,makeRecord(Code::ConservationResidual,2660,26,0,
                             EntityKind::Face,f,-1,sum,1,sum,Quantity::Conservation));
@@ -270,17 +270,17 @@ __device__ void gasFaceSubgridTransportProperties
                         {failure(Code::NonFinite,2661,properties[component],component==1?Quantity::Density:Quantity::Unspecified,component);return;}
                     if(ugkwp::gasHasDirectConductivity(s)||ugkwp::gasVariablePrandtl(s))
                     {
-                        // Recompute thermal wall-function constants at the local Pr.
-                        // Constant-Pr transport retains the configuration-stage cache.
+
+
                         if(ugkwp::gasHasDirectConductivity(s))wallPr=muWall*wallCp/molecular;
                         const GPU_OPERATOR_REAL ratio=wallPr/clampMin(s.turbulentPrandtl,OfSmall);
                         wallP=ugkpwall::jayatillekeSmoothP(ratio);
                         thermalYPlus=ugkpwall::jayatillekeThermalYPlus(ratio,s.sstWallKappa,s.sstWallE,s.diagnostics,f,
                             s.gasScalarSolvers.thermalMaximumIterations,s.gasScalarSolvers.thermalRelativeTolerance);
                     }
-                    // The face flux adds owner-mixture molecular conductivity.
-                    // Return exactly its correction,
-                    // even when Cp(Twall) differs from Cp(Towner).
+
+
+
                     if(!ugkwp::gasHasDirectConductivity(s)&&!ugkwp::gasVariableViscosity(s)&&!ugkwp::gasVariablePrandtl(s))
                         molecularBaseline=muWall*s.gasSpecies.heatCapacity[own]/ugkwp::gasFaceMolecularPrandtl(s,f,own,nei);
                 }
@@ -304,8 +304,8 @@ __device__ void gasFaceSubgridTransportProperties
             for(int component=0;component<3;++component)
                 if(!ugkwp::gasFinite(outputs[component]))
                 {failure(Code::NonFinite,2662,outputs[component],Quantity::Unspecified,component);return;}
-            // This flag denotes failed arithmetic (including an unexposed
-            // nonfinite intermediate), never a convergence residual.
+
+
             if(thermal.valid==0)
             {failure(Code::InvalidPhysicalState,2663,GPU_OPERATOR_REAL(thermal.valid),Quantity::Unspecified);return;}
             muTurbulent = rhoSafe*wallState.nut;

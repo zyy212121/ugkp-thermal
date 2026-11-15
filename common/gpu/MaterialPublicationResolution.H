@@ -7,10 +7,10 @@
 #define UGKP_RES_HD
 #endif
 namespace ugkp { namespace gpu {
-// A per-endpoint one-temperature-storage-grid allowance. Exchange assessment
-// receives the sum of entrance and output allowances. This is not a
-// claim that the full thermal state (which may carry enthalpy) is quantized
-// by temperature alone, nor a proof of the best shared-fraction candidate.
+
+
+
+
 template<class Real,class Caloric> UGKP_RES_HD Real publicationTemperatureGrid(
  Real t,Real lo,Real hi,const Caloric& law) {
  const Real h=law.enthalpy(t);

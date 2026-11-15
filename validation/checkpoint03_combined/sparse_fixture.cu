@@ -21,9 +21,9 @@ struct Context{int n=0,sums=0,interfaces=0;R k=0;};
 void global(void*p,R*,int){++static_cast<Context*>(p)->sums;}
 void remote(void*p,const R*x,R*y,int n){auto&c=*static_cast<Context*>(p);++c.interfaces;ck(n==c.n,"interface vector count");y[0]-=c.k*x[n-1];y[n-1]-=c.k*x[0];}
 void solve(int n,double scale,bool heterogeneous,int path){
- // Host CSR/LDU entry points deliberately retain their declared double API.
- // Each coefficient/RHS is first rounded to R so independent observation uses
- // the same resident scalar equation, not a hidden double reference equation.
+
+
+
  std::vector<double>mass(n),d(n),upper(n-1),lower(n-1),exact(n),rhs(n),old(n),x(n),rowsum(n);
  std::vector<int>owner(n-1),neighbour(n-1),offsets{0},columns;
  std::vector<double>values;const double k=double(R(.15*scale));
@@ -80,7 +80,7 @@ void solve(int n,double scale,bool heterogeneous,int path){
  const double trueBound=4*double(oldTolerance)*norm+128*eps*sourceL1;
  const double closureBound=256*eps*sourceL1+1e-12*std::abs(scale);
  const double oldSolutionBound=std::max(2e-7,256*eps*301);
- // Predeclared FP32 engineering relative accuracy budget, not an epsilon chase.
+
  const double solutionReferenceScale=301.;
  const double solutionBound=sizeof(R)==4?1e-4*solutionReferenceScale:oldSolutionBound;
  std::cout<<"SPARSE bits="<<8*sizeof(R)<<" n="<<n<<" scale="<<scale<<" heterogeneous="<<heterogeneous<<" path="<<path

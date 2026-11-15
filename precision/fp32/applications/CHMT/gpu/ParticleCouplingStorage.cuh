@@ -8,8 +8,8 @@
 #include "../../../common/thermal/ParticleInitialization.H"
 #include "../../../common/thermal/GpuBackendApi.H"
 namespace chmt {
-// Application state adapter only. Evolution and contact/thermal mathematics
-// live in the common thermal owner, also used by CHT.
+
+
 class ParticleCouplingStorage {
     void* owner_=nullptr;
     CudaFault fault_;
@@ -49,7 +49,7 @@ public:
             ||!surfaceTemperature_.resize(faces,fault_)||!surfaceUx_.resize(faces,fault_)
             ||!surfaceUy_.resize(faces,fault_)||!surfaceUz_.resize(faces,fault_)||!surfaceEffusivity_.resize(faces,fault_)){
             error=fault_.message;return false;}
-        // Existing gas geometry policies provide wall/slip/periodic face kinds.
+
         std::vector<int> kinds(faces,0);
         for(int f=0;f<faces;++f){const auto kind=state.gasMesh.boundaryKind[f];
             kinds[f]=contact[f]?5:kind==BoundaryKind::Periodic?6:
@@ -81,7 +81,7 @@ public:
                 ||!result(ugkwpGpuResidentStrictConfigureParticleInjectionVelocity(owner_,inlet.velocitySpecified,
                     inlet.velocity[0],inlet.velocity[1],inlet.velocity[2]),error)
 )return false;
-            // Deliberately retain this initial inlet geometry across mesh motion.
+
             std::vector<int> offsets{0},vertices;
             for(int f:inlet.faces){
                 for(int j=state.gasMesh.faceOffsets[f];j<state.gasMesh.faceOffsets[f+1];++j)
@@ -103,9 +103,9 @@ public:
         if(!gas.refreshView()){error=gas.error();return false;}
         return refreshTrackingGeometry(gas,stream,error);
     }
-    // Coordinate-only motion updates existing gas arrays in place. Their
-    // borrowed addresses and physical configuration were bound at window load;
-    // rebuilding tracking planes does not republish either owner's descriptor.
+
+
+
     bool refreshTrackingGeometry(const SharedGasDeviceStorage& gas,cudaStream_t stream,std::string& error){
         if(!owner_)return true;
         return result(ugkp::thermal::refreshParticleTrackingGeometry(owner_,
@@ -122,15 +122,15 @@ public:
         if(!gas.observeDiagnostics()){error=gas.error();return false;}
         if(!refreshGeometry(gas,stream,error)||!gas.observeDiagnostics()){
             if(error.empty())error=gas.error();return false;}
-        // Full state transfer only at a committed window/restart boundary.
+
         std::vector<ugkp::thermal::ParticleState<>> particles;particles.reserve(state.particles.size());
         for(const auto& value:state.particles){auto p=ugkp::thermal::adaptParticleState<ugkp::thermal::ParticleVector>(value);
             if(!ugkp::thermal::initializeMobileParticleHistory(p,model.particlePhase)){
                 error="particle import requires a valid free-particle energy or complete attached thermal history";return false;}
             particles.push_back(p);
         }
-        // The upload rebuilds moments and initializes epsGPrev. Restore the
-        // accepted lagged phase fraction afterwards; do not recompute a restart.
+
+
         if(!result(ugkp::thermal::uploadParticleState(owner_,particles.size(),particles.data()),error))return false;
         if(!state.gasVoidFraction.empty()){
             const std::vector<double> wireFraction(state.gasVoidFraction.begin(),state.gasVoidFraction.end());

@@ -47,9 +47,9 @@ __device__ int mostViolatedPlane
     return plane;
 }
 
-// The existing plane-intersection arithmetic is independent of bulk storage.
-// In particular, its original binary64 denominator threshold must not pass
-// through GPU_OPERATOR_TINY, whose scalar follows the particle/gas bulk type.
+
+
+
 __device__ inline GPU_OPERATOR_GEOMETRY segmentPlaneIntersectionFraction
 (
     const GPU_OPERATOR_GEOMETRY d0,

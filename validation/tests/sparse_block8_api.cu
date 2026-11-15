@@ -1,7 +1,7 @@
-// Compile this fixture ALONE: it includes the implementation to exercise the
-// real device preconditioner kernels without adding a production test API.
-// Run separately against materialized fp32/fp64 trees; never link a second
-// SparseConjugateGradient.o. No encoded/compensated FP32 arithmetic is used.
+
+
+
+
 #include "GpuPrecisionTypes.H"
 #include "SparseConjugateGradient.cu"
 #include <cstdio>
@@ -21,13 +21,13 @@ template<class T> struct Buffer{
 };
 static double tol(){return sizeof(R)==4?3e-4:3e-10;}
 
-// Exercise the resident PCG API with fresh coefficients and graph replay.
-// Independent b-Ax and manufactured-solution checks are separate from the
-// strict production convergence flag, which is printed without concealment.
+
+
+
 static void residentReplay(int n){
  using namespace ugkp::gpu;
  std::vector<int> owner(n-1),neighbour(n-1);
- // A permutation deliberately destroys contiguous spatial numbering.
+
  for(int f=0;f<n-1;++f){owner[f]=(5*f)%n;neighbour[f]=(5*(f+1))%n;}
  Buffer<R>d(n),u(n-1),l(n-1),b(n),x(n);
  SparseLduView topology;topology.rows=n;topology.faces=n-1;
@@ -39,7 +39,7 @@ static void residentReplay(int n){
  controls.tolerance=R(sizeof(R)==4?2e-6:1e-12);
  SparseConjugateGradient solver;
  auto topologyStart=std::chrono::steady_clock::now();
- // No configure between phases: updates must be observed by graph replay.
+
  solver.configureResidentLocalLdu(topology,values,controls);
  std::printf("SETUP bits=%d n=%d ms=%.9g\n",int(8*sizeof(R)),n,std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-topologyStart).count());
  const auto signature=solver.residentExecutionSignature();
@@ -142,8 +142,8 @@ static void topologyRegrouping(){
  ConjugateGradientControls controls;controls.preconditioner=chosen;controls.tolerance=sizeof(R)==4?2e-6:1e-12;
  SparseConjugateGradient solver;ExecutionGraphSignature previous;
  for(int connected:{0,1,0}){
-  // Equal entry count keeps CSR capacities/addresses unchanged. Self edges
-  // cancel in the isolated SPD operator but retain the same storage footprint.
+
+
   matrix.faces=n-1;std::vector<R> diag(n,R(3)),rhs(n),exact(n),upper(n-1,R(-.8));
   for(int f=0;f<n-1;++f){own[f]=f;nei[f]=connected?f+1:f;diag[own[f]]+=R(.8);diag[nei[f]]+=R(.8);}
   for(int i=0;i<n;++i){exact[i]=R(1+.1*std::sin(i*.1));rhs[i]=diag[i]*exact[i];}

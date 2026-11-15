@@ -239,7 +239,7 @@ namespace chmt {
                     edges[std::minmax(a, b)].push_back({i, {a, b}});
                 }
             }
-            // Seam matches come from OpenFOAM cyclic point addressing, not coordinate/n labels.
+
             std::vector<std::map<int, int>> cyclicMaps;
             for (const auto& p:source.boundaryMesh())if (Foam::isA<Foam::cyclicPolyPatch>(p)) {
                 const auto& c = Foam::refCast<const Foam::cyclicPolyPatch>(p);
@@ -317,8 +317,8 @@ namespace chmt {
                         (T.boundaryField()[patch].type()=="totalTemperature"||T.boundaryField()[patch].type()=="uniformFixedValue")?Foam::word("fixedValue"):T.boundaryField()[patch].type(),state.gasMesh.boundaryKind[face],true);
                 }
             }
-            // Evaluate zeroGradient from its owner before importing a valid EOS
-            // primitive. The operator itself is retained independently above.
+
+
             ugkp::boundary::foam::initialiseStaticPatches(rho);ugkp::boundary::foam::initialiseStaticPatches(T);ugkp::boundary::foam::initialiseStaticPatches(U);
             for(int species=0;!single&&species<Ns;++species)Y[species].correctBoundaryConditions();
             state.gas.resize(mesh.nCells());
@@ -350,8 +350,8 @@ namespace chmt {
             }
             for (int patch = 0; patch<mesh.boundaryMesh().size(); ++patch)for (int f = 0; f<mesh.boundaryMesh()[patch].size(); ++f) {
                 const int face=mesh.boundaryMesh()[patch].start()+f;
-                // Empty poly patches have geometric faces but zero field values.
-                // Their unused per-face storage gets a valid owner EOS state.
+
+
                 state.gasMesh.boundaryPrimitive[face]=state.gasMesh.boundaryKind[face]==BoundaryKind::Empty
                     ?primitive(state.gasMesh.owner[face],-1,-1):primitive(-1,patch,f);
             }
@@ -365,8 +365,8 @@ namespace chmt {
             }
             auto boundary=ugkp::boundary::foam::read(mesh,rho,U,p,T,true);
             if(!single)ugkp::boundary::foam::readComposition(mesh,Y,boundary);
-            // A wave outlet carries pressure history independently of owner
-            // density/temperature, including its explicitly supplied initial value.
+
+
             for(std::size_t f=0;f<boundary.faces.size();++f)if(boundary.faces[f].wave)
                 state.gasMesh.boundaryPrimitive[f].pressure=boundary.faces[f].value[ugkp::boundary::Pressure];
             state.gasMesh.gasBoundary=std::make_shared<const ugkp::boundary::Definition>(std::move(boundary));
@@ -491,8 +491,8 @@ namespace chmt {
             state.solid.resize(n);
             auto energy = scalarField(mesh, "solidEnergyDensity", Foam::dimEnergy/Foam::dimVolume);
             auto porosity = scalarField(mesh, "porosity", Foam::dimless);
-            // Energy density initializes cell inventory; it is not a thermal
-            // boundary prescription and must not masquerade as a temperature.
+
+
             for(int patch=0;patch<mesh.boundaryMesh().size();++patch) {
                 const std::string type=energy.boundaryField()[patch].type();
                 require(type=="zeroGradient" || type=="calculated" || type=="cyclic" || type=="empty" || type=="wedge",

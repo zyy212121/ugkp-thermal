@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Generate field registries and verify typed lifecycle closure without CUDA.
+pass
 
-The CPU probe executes the actual allocation/release and transfer expressions,
-actual copy/swap/gather bodies and the current native checkpoint codec. It does not emulate launch
-scheduling, allocator failures, restart validation, or cold-wall rollback paths.
-"""
+
+
+
+
 from pathlib import Path
 import argparse
 import hashlib
@@ -261,8 +261,8 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
     code += 'struct DeviceState { int coldWallSolidificationEnabled=1,coldWall2DEnabled=1,particleCapacity=3;\n'
     code += ''.join(f'{pointers[n]}* {n}=nullptr;\n' for n in sorted(names)) + ''.join(f'int* {n}=nullptr;\n' for n in handle_names) + helper_state + '};\n'
     if app != 'gasUGKP':
-        # Execute the production handle/gather and copy bodies serially on HOST.
-        # Only CUDA syntax/builtin indices are adapted; no identity slot stub.
+
+
         code += '#define __global__\nstruct ProbeDim{int x;};ProbeDim blockIdx{0},threadIdx{0},blockDim{1},gridDim{1};\n'
         code += 'inline int atomicAdd(int*p,int v){int o=*p;*p+=v;return o;} inline int atomicSub(int*p,int v){int o=*p;*p-=v;return o;} inline int atomicExch(int*p,int v){int o=*p;*p=v;return o;}\n'
         handles=(root/'common/wall/GpuColdWall1DHandles.cuh').read_text().replace('#pragma once','').replace('#include <cuda_runtime.h>','')
@@ -321,7 +321,7 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
                 name,compact,width=f['name'],f['compact'],f['width']
                 typ=f['storage'][app]
                 code += f'std::vector<{typ}> kept_{name}(s->{name},s->{name}+n*{width}),kept_{compact}(s->{compact},s->{compact}+n*{width});\n'
-    # Exercise production copy: stable pool payload stays put, handles move.
+
     code += 'copyCellLocalParticle(*s,1,9,0);\n'
     for f in fields:
         name, compact, width = f['name'], f['compact'], f['width']
@@ -338,7 +338,7 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
         for f in fields:
             if f['name'] in stable_fields:
                 code += f'Foam::gpuWall::gatherColdWall1DStateKernel<{f["storage"][app]},{f["width"]}>(s,s->{f["name"]},s->{f["compact"]},int(n));\n'
-    # Read back uploaded arrays through the actual stable-pool export gather.
+
     code += ''.join(call + ';\n' for call in download_calls)
     if app == 'CHT':
         code += 'packParticleRestartTheta(n,pStuck,contactAge.data(),pTheta);\n'

@@ -201,9 +201,9 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
             return true;
         }
         if(deviceStartup){
-            // Capability lookup is only an optimization. If actual equation
-            // setup cannot retain the solve, publish the original inputs and
-            // assemble its native host path before taking any numerical step.
+
+
+
             if(!publishResidentMaterialConductionInput(thermal,thermalInput,error))return false;
             for(std::size_t c=0;c<n;++c){const auto& input=thermalInput[c];
                 caloric[c]=input.caloric;anchor[c]=input.anchor;target[c]=input.target;temperature[c]=input.anchor;}

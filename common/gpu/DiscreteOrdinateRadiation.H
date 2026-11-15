@@ -30,7 +30,7 @@ struct RadiationControls {
     // and sequential angular Gauss-Seidel updates; it is not a case selector.
     bool parallelAngles=false;
     int maximumConcurrentAngles=0; // 0 retains all-direction concurrency for API callers.
-    bool controlsAlreadyResolved=false; // Direct API callers retain precision defaults.
+    bool controlsAlreadyResolved=false;
 };
 struct RadiationSnapshot {
     std::vector<double> epsilon,temperature,diameter,wallTemperature,emissivity;
@@ -56,8 +56,8 @@ struct RadiationError:std::runtime_error {
     RadiationError(const std::string& reason,RadiationReal v,int i,int c,int p,int f):
         std::runtime_error(reason),value(v),iteration(i),cell(c),patch(p),face(f){}
 };
-// Called only during graph construction, never on a source-iteration replay.
-// power is physical kappa_a*(G-4pi*Ib(Ttrial)), not a linearized energy surrogate.
+
+
 struct RadiationThermalIterationDeviceView {
     int cells=0;
     const RadiationReal *incident=nullptr,*power=nullptr,*volume=nullptr;

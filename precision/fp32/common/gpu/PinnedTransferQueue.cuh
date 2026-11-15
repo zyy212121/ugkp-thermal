@@ -7,8 +7,8 @@
 #include <vector>
 #include <functional>
 namespace ugkp { namespace gpu {
-// Reusable pinned staging keeps pageable host mirrors out of CUDA's implicit
-// transfer synchronization. Download publication follows stream completion.
+
+
 class PinnedTransferQueue {
     struct Slot {void* data=nullptr;std::size_t capacity=0;};
     struct Read {void* destination;const void* source;std::size_t bytes;std::function<void()> convert;};
@@ -43,9 +43,9 @@ public:
         if(!bytes)return;void* stage=acquire(bytes);reads_.push_back({destination,stage,bytes});
         check(cudaMemcpyAsync(stage,source,bytes,cudaMemcpyDeviceToHost,stream_));
     }
-    // Host input/output representation is independent of the device scalar.
-    // Staging owns conversion inputs until stream completion, including graphs'
-    // asynchronous producer handoffs.
+
+
+
     template<class To,class From> void uploadConverted(To* destination,const From* source,std::size_t count){
         if(!count)return;
         auto* stage=static_cast<To*>(acquire(count*sizeof(To)));

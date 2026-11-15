@@ -8,7 +8,7 @@ d.nodes=s.nodes;
 d.maxIterations=s.maxIterations;
 d.relativeTolerance=s.relativeTolerance;
 d.absoluteTolerance=s.absoluteTolerance;
-// Startup scheme has already resolved defaults; preserve every explicit value.
+
 d.stretch=s.stretch;
 d.turbulentPrandtl=s.turbulentPrandtl;
 d.turbulentSchmidt=s.turbulentSchmidt;

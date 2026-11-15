@@ -77,7 +77,7 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     candidate.model.physics.gasViscosity=readPhysical(fluidTransport,"mu",0);
     candidate.model.physics.gasConductivity=readPhysical(fluidTransport,"kappa",0);
 
-    // Scheduling is read exactly once, before CUDA state and graph creation.
+
     Foam::IOdictionary scheduling(Foam::IOobject("schedulingProperties",time.constant(),time,
         Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE,false));
     const auto plan=Foam::readGpuSchedulingConfiguration(scheduling);

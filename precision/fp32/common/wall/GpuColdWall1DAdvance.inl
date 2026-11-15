@@ -1,5 +1,5 @@
-// Shared assembly, nonlinear enthalpy update and publication.
-// Precision policies retain the existing cache and stable PCR path.
+
+
 
 
     const bool inputValid =
@@ -116,8 +116,8 @@
     ColdWallThermalReal wallConductance = GPU_R(0.0);
 
 
-    // Gas exchange is already published in the paired path. For the
-    // standalone path include its uniform gas increment before classifying.
+
+
     const ColdWallThermalReal postGasTemperature = coldWallCarryTemperature
         (oldEnthalpy + gasSpecificEnthalpyIncrement, s.coldWallSolidificationParameters);
     const ColdWallThermalReal solidusTemperature =
@@ -147,9 +147,9 @@
           + (GPU_R(1.0) - solidFraction)*Foam::gpuThermal::aluminaThermalConductivityWmK;
         const ColdWallThermalReal bottomConductivity =
             __shfl_sync(mask, conductivity, 0, 8);
-        // Geometry, ages, wall properties and dt are fixed during this
-        // nonlinear solve. Re-evaluate the resistance integral only if its
-        // sole changing input (bottom conductivity) actually changes.
+
+
+
         if (iteration == 0 || bottomConductivity != previousBottomConductivity)
         {
             const ColdWallThermalReal particleResistance =
@@ -195,7 +195,7 @@
           + (lane > 0 ? leftFaceConductance : GPU_R(0.0))
           + (lane + 1 < 8 ? faceConductance : GPU_R(0.0));
         ColdWallThermalReal upper = lane + 1 < 8 ? -faceConductance : GPU_R(0.0);
-        // candidateEnthalpy is H_guess, not another physical time step.
+
         ColdWallThermalReal rightHandSide = capacity*guessedTemperature
           + nodeMass*(oldEnthalpy - candidateEnthalpy)
            /(GpuReal(deltaTSeconds) + GPU_REAL_MIN)
@@ -240,8 +240,8 @@
                 s.coldWallSolidificationParameters
             );
         acceptedWallPower = wallPower;
-        // Constant solid Cp and conductivity make the first solve complete.
-        // A candidate crossing the solidus retains the original iterations.
+
+
         if (iteration == 0 && initiallyAllSolid && __all_sync(mask, guessedTemperature <= solidusTemperature))
             break;
     }

@@ -2,13 +2,13 @@
 #include <cstdint>
 #include "../GpuPrecisionTypes.H"
 namespace ugkp { namespace thermal {
-// Complete physical thermal/contact history, independent of the application
-// mesh vector type. Per-step reduction/candidate scratch is deliberately absent.
+
+
 struct ParticleThermalHistory {
     bool initialized=false;
     int status=1;
     float temperature=0,theta=0;
-    float savedVelocity[3]{}; // Exact lab-frame pre-step/deferred rebound velocity.
+    float savedVelocity[3]{};
     float contactMaximumArea=0,contactPeakFraction=0;
     float coldNodeSpecificEnthalpy[8]{};
     float coldRingSolidMass[8]{},coldFrozenArea=0;
@@ -24,9 +24,9 @@ void visitParticleThermalHistory(Archive& a,History& h) {
     a(h.coldNodeSpecificEnthalpy);a(h.coldRingSolidMass);a(h.coldFrozenArea);a(h.coldContactAge);
     a(h.cold2DNodeSpecificEnthalpy);a(h.cold2DRingContactAge);a(h.cold2DFrozenArea);
 }
-// Global particle positions retain the tracking geometry scalar.
+
 struct ParticleVector {GpuGeometry x=0,y=0,z=0;};
-// Velocities are physical state, independent of the geometry vector type.
+
 struct ParticlePhysicalVector {GpuReal x=0,y=0,z=0;};
 template<class Vector=ParticleVector,class PhysicalVector=ParticlePhysicalVector>
 struct ParticleState {
@@ -38,13 +38,13 @@ struct ParticleState {
     GpuTime contactAge=0,contactDuration=0;
     std::uint64_t rng=0;
     ParticleThermalHistory thermal{};
-    // energy is the represented thermal inventory [J]. Once initialized,
-    // temperature/profile is the restart state;
-    // energy is a derived output, never a second independent thermal update.
+
+
+
 };
-// Contact mechanical energy is a diagnostic of the deferred lab-frame
-// rebound velocity, not an independently configurable inventory. Use the same
-// rule before initial output and after a resident snapshot download.
+
+
+
 template<class Vector,class PhysicalVector>
 #if defined(__CUDACC__)
 __host__ __device__

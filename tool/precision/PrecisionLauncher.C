@@ -55,7 +55,7 @@ int main(int argc, char** argv)
     Foam::setEnv("FOAM_CASENAME", directory.filename().string(), true);
     const int bits = selectedPrecision(directory);
     const auto solver = std::filesystem::path(argv[0]).filename();
-    // The installed entry points are copies of this launcher, not CUDA owners.
+
     const auto executable = std::filesystem::canonical("/proc/self/exe");
     const auto backend = executable.parent_path() / ".precision"
                        / std::to_string(bits) / solver;

@@ -1,4 +1,4 @@
-// Checkpoint 2 only: real FP32 bulk with FP64 tables, geometry and energy.
+
 #include "common/operators/advanceGasChemistryKernel.cuh"
 #include <cassert>
 #include <cmath>
@@ -64,8 +64,8 @@ int main() {
     assert(partial[1]>initialSpecies[1]);
     const double massResidual=double(partial[0])+partial[1]-rho[0];
     assert(std::abs(massResidual)<=64*std::numeric_limits<float>::epsilon()*rho[0]);
-    // Chemistry never publishes rhoE or cached temperature. Recovery consumes
-    // the unchanged double energy with the newly quantized species densities.
+
+
     assert(energy[0]==oldEnergy&&temperature[0]==700.f&&rho[0]==2.f);
     double acceptedSpecies[2]={partial[0],partial[1]},recoveredTemperature=700;
     bool recovered=false;

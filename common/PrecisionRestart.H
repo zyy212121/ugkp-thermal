@@ -73,8 +73,8 @@ inline bool checkRestartPrecision(const std::string& directory, std::string& err
     return true;
 }
 
-// Invalidate the old publication record before replacing any constituent
-// restart file, so a partial write is never labelled by an earlier record.
+
+
 inline void beginPrecisionWrite(const std::string& directory)
 {
     const auto target = metadataPath(directory);
@@ -83,9 +83,9 @@ inline void beginPrecisionWrite(const std::string& directory)
                   << ": " << std::strerror(errno) << '\n';
 }
 
-// Called only after the complete solver state has been written successfully.
-// File representation remains owned by its existing codecs. FP32 values
-// widened into a binary64 or 17-digit wire still have effective precision 32.
+
+
+
 inline void writeRestartPrecision(const std::string& directory)
 {
     const auto target = metadataPath(directory);

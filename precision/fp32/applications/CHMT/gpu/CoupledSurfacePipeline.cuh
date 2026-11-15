@@ -8,8 +8,8 @@
 #include "gpu/ResidentMaterialDrive.H"
 #include "coupling/IntervalContracts.H"
 namespace chmt {
-// Mutable geometry is supplied by the resident mesh/surface owners. Static
-// geometry and interface identities are installed once per gas window.
+
+
 struct CoupledSurfaceInput {
     SurfacePacketIdentity identity{};
     PhysicalReal area=0,gasDistance=0;Real sweptVolume=0;
@@ -63,10 +63,10 @@ __global__ void publishParticleMaterialSurfaceKernel(int count,const int* faces,
     temperature[f]=wall.temperature;effusivity[f]=wall.materialEffusivity;const auto velocity=geometry[slot].particleMaterialVelocity;
     ux[f]=velocity.x;uy[f]=velocity.y;uz[f]=velocity.z;
 }
-// The gas stage owns the final reactant budget. Proposals may outlive the
-// inventory from which the material predictor constructed them. Sum all faces
-// of a donor cell before choosing a common extent; no face can spend the same
-// inventory twice. Incoming flux is deliberately not borrowed in this stage.
+
+
+
+
 __global__ void boundSurfaceProgressKernel(const SharedGasDeviceView* state,
     const int* cells,int cellCount,const int* faceSlot,const CoupledSurfaceInput* geometry,const WallFaceSample* program,
     int count,GasWallProgramPosition position,Real dt,bool transportReady,PhysicalReal* progress,
@@ -86,8 +86,8 @@ __global__ void boundSurfaceProgressKernel(const SharedGasDeviceView* state,
             PhysicalReal primaryMass=0,darcyMass=0,sweepMass=0;
             for(int k=0;k<Ns;++k){
                 primaryMass+=w.speciesRate[k];darcyMass+=w.poreRate[k]-w.poreSweepRate[k];sweepMass+=w.poreSweepRate[k];
-                // Primary stoichiometry and Darcy exchange share an extent.
-                // Geometric pore sweep is fixed by the executed trajectory.
+
+
                 demand[k]+=geometry[slot].area*(maxValue(0,-w.speciesRate[k])
                     +maxValue(0,-(w.poreRate[k]-w.poreSweepRate[k])));
                 other[k]+=geometry[slot].area*maxValue(0,-w.poreSweepRate[k]);
@@ -103,7 +103,7 @@ __global__ void boundSurfaceProgressKernel(const SharedGasDeviceView* state,
     PhysicalReal factor=1;
     for(int k=0;k<Ns;++k)if(demand[k]>0&&dt>0){
         const PhysicalReal inventory=phase*v.gasSpecies.rho[k*v.nCells+cell]*volume;
-        // Available physical inventory after the already accepted outgoing flux.
+
         const PhysicalReal available=maxValue(0,inventory-PhysicalReal(dt)*other[k]);
         factor=minValue(factor,maxValue(0,minValue(1,available/(PhysicalReal(dt)*demand[k]))));
     }
@@ -208,14 +208,14 @@ __global__ void applyCoupledSurfaceKernel(SharedGasDeviceView* state,const int* 
     for(int c=0;c<Nc;++c)input.condensedRate[c]=w.condensedRate[c];
     auto identity=geometry.identity;identity.step=sequence;identity.geometry=geometryVersion;
     if(!evaluateGasWall(input,identity,p,record.rates)){record.failed=1;return;}
-    // Output diagnostics retain the original prepared gas-wall model result,
-    // including when the packet closure needed a distinct local evaluation.
+
+
     if(input.preparedLayer)record.rates.layer=*input.preparedLayer;
     const auto a=packetDelta(record.rates.primary).gas,c=packetDelta(record.rates.pore).gas;
     record.raw=(a+c)*(-PhysicalReal(1)/PhysicalReal(dt));
     record.raw.energy=-(a.energy+c.energy)/EnergyReal(dt);
-    // The packet remains a physical transfer. Intrinsic gas densities receive
-    // that transfer divided by the accepted gas phase fraction exactly once.
+
+
     const PhysicalReal phase=v.gasVolumeFraction?v.gasVolumeFraction[v.faceOwner[face]]:1;
     auto flux=record.raw*(PhysicalReal(1)/phase);
     flux.energy=record.raw.energy/EnergyReal(phase);
@@ -247,8 +247,8 @@ __global__ void accountCoupledSurfaceKernel(const SharedGasDeviceView* state,con
     auto primary=scaledIntervalPacket(record.rates.primary,EnergyReal(ledgerDt)/EnergyReal(stageDt)*scale);primary.consumerMask=ConsumeGas;
     auto pore=scaledIntervalPacket(record.rates.pore,EnergyReal(ledgerDt)/EnergyReal(stageDt)*scale);pore.consumerMask=ConsumeGas;
     addIntervalPacket(record.primary,primary);addIntervalPacket(record.pore,pore);
-    // Pair instantaneous accepted rates with this stage's matching state; the
-    // RK-integrated packets remain the sole material inventory transfers.
+
+
     for(int s=0;s<Ns;++s){record.acceptedWall.speciesRate[s]*=scale;
         record.acceptedWall.poreRate[s]*=scale;record.acceptedWall.poreSweepRate[s]*=scale;}
     for(int c=0;c<Nc;++c)record.acceptedWall.condensedRate[c]*=scale;

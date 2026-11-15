@@ -6,8 +6,8 @@
 #include <limits>
 
 namespace ugkwp {
-// A maximum has no rounding-sensitive sum order. Propagate nonfinite input
-// instead of letting an unavailable equation look converged.
+
+
 __device__ inline GpuReal componentMaximum(GpuReal a,GpuReal b)
 {
     return std::isnan(a)?a:std::isnan(b)?b:std::fmax(a,b);
@@ -38,8 +38,8 @@ inline cudaError_t batchedComponentMaximum(const GpuReal* values,int count,int c
         (workspace,parts,1,workspace+size_t(parts)*components);
     return cudaGetLastError();
 }
-// Component-major statistics: maxima first, then sums. All components share
-// the same reduction schedule and publish one compact device result array.
+
+
 static __global__ void componentStatisticsPartials(const GpuReal* values,int count,int parts,
     int maximumComponents,GpuReal* output)
 {
@@ -70,4 +70,4 @@ inline cudaError_t batchedComponentStatistics(const GpuReal* values,int count,in
         (workspace,parts,1,maximumComponents,workspace+size_t(parts)*components);
     return cudaGetLastError();
 }
-} // namespace ugkwp
+}

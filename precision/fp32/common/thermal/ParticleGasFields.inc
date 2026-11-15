@@ -1,4 +1,4 @@
-// Non-owning physical fields used by the common particle phase. No gas RK scratch.
+
 UGKP_PARTICLE_GAS_FIELD(GpuReal, V)
 UGKP_PARTICLE_GAS_FIELD(GpuGeometry, Cx)
 UGKP_PARTICLE_GAS_FIELD(GpuGeometry, Cy)
@@ -44,7 +44,7 @@ UGKP_PARTICLE_GAS_FIELD(int, cellPlaneStart)
 UGKP_PARTICLE_GAS_FIELD(int, cellPlaneCount)
 UGKP_PARTICLE_GAS_FIELD(int, cellFaceId)
 
-// Exact face metrics used only to rebuild FP64 particle tracking planes.
+
 UGKP_PARTICLE_GAS_FIELD(GpuGeometry, trackingSfx)
 UGKP_PARTICLE_GAS_FIELD(GpuGeometry, trackingSfy)
 UGKP_PARTICLE_GAS_FIELD(GpuGeometry, trackingSfz)

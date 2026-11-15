@@ -6,18 +6,18 @@
 #define UGKP_SURFACE_HD
 #endif
 namespace ugkp { namespace thermal {
-// Borrowed material surface fields, independent of gas injection/ejection.
-// A null view retains the existing gas-wall fields for applications whose
-// impermeable wall uses the same temperature and mechanical velocity.
+
+
+
 struct ParticleSurfaceState {
     const GpuReal* temperature=nullptr;
     const GpuReal* velocityX=nullptr;
     const GpuReal* velocityY=nullptr;
     const GpuReal* velocityZ=nullptr;
-    const GpuReal* effusivity=nullptr; // sqrt(k rho Cp), W s^(1/2)/(m^2 K).
+    const GpuReal* effusivity=nullptr;
 };
-// Borrowed cumulative heat ledgers [J] and contact area data. A consumer
-// snapshots/differences the ledgers on its stream; reading does not reset them.
+
+
 struct ParticleWallExchangeView {
     const GpuReal* depositedEnergy=nullptr;
     const GpuReal* reflectedEnergy=nullptr;

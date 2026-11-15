@@ -47,7 +47,7 @@ int main(int argc,char**argv){
     ck(std::abs(residuals[i])<=allowed);
     std::cout<<std::setprecision(17)<<"bath_case="<<i<<" requested_relative_energy="<<controls.relativeEnergyTolerance<<" requested_absolute_energy="<<controls.absoluteEnergyTolerance<<" residual_allowed="<<allowed<<" residual_actual="<<residuals[i]<<std::endl;
     temperatures[i]=t;
-    // Independent trial responses, including exact caloric cuts, cannot mutate parcel state.
+
     const auto saved=response.parcel;
     for(double trial:{100.,2327.,4000.,5000.}){response(trial,q,dq);ck(std::isfinite(q)&&std::isfinite(dq));}
     ck(response.parcel.initialTemperature==saved.initialTemperature);

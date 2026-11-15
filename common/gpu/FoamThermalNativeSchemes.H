@@ -1,30 +1,30 @@
-/*---------------------------------------------------------------------------*\
-  =========                 |
-  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
-   \\    /   O peration     | Website:  https://openfoam.org
-    \\  /    A nd           | Copyright (C) 2011-2022 OpenFOAM Foundation
-     \\/     M anipulation  |
--------------------------------------------------------------------------------
-License
-    This file is part of OpenFOAM.
 
-    OpenFOAM is free software: you can redistribute it and/or modify it
-    under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
-    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-    for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-\*---------------------------------------------------------------------------*/
 
-// Repository-local scalar adapter: native OpenFOAM 10 correction formula;
-// only the gradient dictionary source is replaced by the startup snapshot.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #ifndef UGKP_FOAM_THERMAL_NATIVE_SCHEMES_H
 #define UGKP_FOAM_THERMAL_NATIVE_SCHEMES_H
 #include "linearUpwind.H"
@@ -108,7 +108,7 @@ public:
                     gradVf.boundaryField()[patchi].patchNeighbourField()
                 );
 
-                // Build the d-vectors
+
                 const vectorField pd
                 (
                     Cf.boundaryField()[patchi].patch().delta()
