@@ -1,0 +1,42 @@
+{
+  "phase": "COMPLETE_LOCAL_REVIEW_PACKAGE",
+  "scope": "Three follow-up fixes; production actual convergence passed with separately documented synthetic/phase-balance limitations",
+  "reports": {
+    "32": [
+      {
+        "bits": 32.0,
+        "iterations": 45.0,
+        "max": 500.0,
+        "source": 1.2019645510008559e-06,
+        "sourceTarget": 9.999999747378752e-06,
+        "material": 5.459095063997665e-06,
+        "materialTarget": 9.999999747378752e-06,
+        "transport": 9.856304359345813e-07,
+        "transportTarget": 9.999999974752427e-07,
+        "allTargetsMet": true
+      }
+    ],
+    "64": [
+      {
+        "bits": 64.0,
+        "iterations": 47.0,
+        "max": 500.0,
+        "source": 1.05619613700912e-16,
+        "sourceTarget": 1e-05,
+        "material": 1.0968291234153157e-10,
+        "materialTarget": 1e-09,
+        "transport": 9.717106910064864e-09,
+        "transportTarget": 1e-08,
+        "allTargetsMet": true
+      }
+    ]
+  },
+  "finalWrittenTimes": {
+    "32": 0.30500099999999963,
+    "64": 0.3050009999999999
+  },
+  "finalExchangeSequence": {
+    "32": 61.0,
+    "64": 61.0
+  }
+}
