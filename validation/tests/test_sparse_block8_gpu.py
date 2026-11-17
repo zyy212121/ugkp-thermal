@@ -34,7 +34,7 @@ def sparse_executables(request, tmp_path_factory):
     )
     output = tmp_path_factory.mktemp(f"sparse-block8-{bits}")
     binaries = {}
-    for fixture in ("sparse_block8_api", "sparse_block8_embedded_graph"):
+    for fixture in ("sparse_block8_api", "sparse_block8_embedded_graph", "sparse_unified_api"):
         executable = output / fixture
         command = [
             nvcc, "--Ofast-compile=min", "-std=c++17", "-O2", "--fmad=false",
@@ -49,17 +49,16 @@ def sparse_executables(request, tmp_path_factory):
     return binaries
 
 
-@pytest.mark.parametrize("fixture", ["sparse_block8_api", "sparse_block8_embedded_graph"])
+@pytest.mark.parametrize("fixture", ["sparse_block8_api", "sparse_block8_embedded_graph", "sparse_unified_api"])
 @pytest.mark.parametrize("width", [128, 96])
-@pytest.mark.parametrize("choice", [0, 8])
-def test_sparse_optional_block8(sparse_executables, fixture, width, choice):
+def test_sparse_unified_default(sparse_executables, fixture, width):
     executable = sparse_executables[fixture]
     result = subprocess.run(
-        [str(executable), str(width), str(choice)],
+        [str(executable), str(width)],
         capture_output=True, text=True, timeout=300,
     )
     transcript = result.stdout + result.stderr
-    (executable.parent / f"{fixture}-B{width}-P{choice}.log").write_text(transcript)
+    (executable.parent / f"{fixture}-B{width}.log").write_text(transcript)
     print(transcript, end="")
     assert result.returncode == 0, transcript
     assert "PASS" in transcript

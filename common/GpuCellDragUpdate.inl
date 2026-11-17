@@ -14,6 +14,13 @@
     s.couplingUzOld[c] = finiteOr(s.Uz[c], GPU_OPERATOR_R(0.0));
     s.couplingTgasOld[c] =
         clampMin(finiteOr(s.Tgas[c], s.TgasMin), s.TgasMin);
+    s.couplingGasViscosity[c] = ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]);
+    if (s.solveParticleTemperature && s.particleGasHeatTransferModelId)
+    {
+        s.couplingGasConductivity[c] = molecularGasConductivity(s,c,s.couplingTgasOld[c]);
+        s.couplingGasPrandtl[c] = ugkwp::gasCellMolecularPrandtl(s,c);
+        s.couplingGasPrandtlOneThird[c] = ugkwp::gasCellPrandtlOneThird(s,c);
+    }
 
     s.thetaDragAlpha[c] = GPU_OPERATOR_R(1.0);
     // A zero-time source may refresh coupling caches, never conserved state.

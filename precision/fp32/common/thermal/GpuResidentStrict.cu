@@ -485,6 +485,10 @@ struct DeviceState
     GpuReal* couplingUyOld = nullptr;
     GpuReal* couplingUzOld = nullptr;
     GpuReal* couplingTgasOld = nullptr;
+    GpuReal* couplingGasViscosity = nullptr;
+    GpuReal* couplingGasConductivity = nullptr;
+    GpuReal* couplingGasPrandtl = nullptr;
+    GpuReal* couplingGasPrandtlOneThird = nullptr;
     GpuEnergy* particleHeatCoefficient = nullptr;
     GpuEnergy* particleHeatBudget = nullptr;
     GpuEnergy* particleMobileHeatMoments = nullptr;
@@ -1307,6 +1311,10 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->couplingUyOld);
     release(s->couplingUzOld);
     release(s->couplingTgasOld);
+    release(s->couplingGasViscosity);
+    release(s->couplingGasConductivity);
+    release(s->couplingGasPrandtl);
+    release(s->couplingGasPrandtlOneThird);
     release(s->particleHeatCoefficient);
     release(s->particleHeatBudget);
     release(s->particleMobileHeatMoments);
@@ -1662,6 +1670,10 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->couplingUyOld, nc, "cudaMalloc strict couplingUyOld");
     rc |= allocate(s->couplingUzOld, nc, "cudaMalloc strict couplingUzOld");
     rc |= allocate(s->couplingTgasOld, nc, "cudaMalloc strict couplingTgasOld");
+    rc |= allocate(s->couplingGasViscosity, nc, "cudaMalloc strict couplingGasViscosity");
+    rc |= allocate(s->couplingGasConductivity, nc, "cudaMalloc strict couplingGasConductivity");
+    rc |= allocate(s->couplingGasPrandtl, nc, "cudaMalloc strict couplingGasPrandtl");
+    rc |= allocate(s->couplingGasPrandtlOneThird, nc, "cudaMalloc strict couplingGasPrandtlOneThird");
     if (s->solveParticleTemperature != 0 && s->particleGasHeatTransferModelId != 0)
     {
         rc |= allocate(s->particleHeatCoefficient, nc, "cudaMalloc strict particleHeatCoefficient");

@@ -9,7 +9,6 @@
 #include <numeric>
 #include <chrono>
 using R=GpuReal;
-static ugkp::gpu::SparsePreconditioner chosen=ugkp::gpu::SparsePreconditioner::Jacobi;
 static void ck(cudaError_t e){if(e!=cudaSuccess)throw std::runtime_error(cudaGetErrorString(e));}
 static void require(bool x,const char* s){if(!x)throw std::runtime_error(s);}
 template<class T> struct Buffer{
@@ -35,7 +34,7 @@ static void residentReplay(int n){
  std::vector<double>hd(n),hu(n-1),hl(n-1),hb(n);
  topology.diagonal=hd.data();topology.upper=hu.data();topology.lower=hl.data();topology.source=hb.data();
  SparseDeviceLduValues values;values.diagonal=d.p;values.upper=u.p;values.lower=l.p;values.source=b.p;
- ConjugateGradientControls controls;controls.preconditioner=chosen;controls.maximumIterations=4000;
+ ConjugateGradientControls controls;controls.maximumIterations=4000;
  controls.tolerance=R(sizeof(R)==4?2e-6:1e-12);
  SparseConjugateGradient solver;
  auto topologyStart=std::chrono::steady_clock::now();
@@ -98,7 +97,7 @@ static void rawAndHostInterfaces(){
   rhs[i]=d*exact[i]-(i?.8*exact[i-1]:0)-(i+1<n?.8*exact[i+1]:0);
   if(i+1<n){owner[i]=i;neighbour[i]=i+1;}
  }
- ConjugateGradientControls controls;controls.preconditioner=chosen;controls.tolerance=sizeof(R)==4?2e-6:1e-12;
+ ConjugateGradientControls controls;controls.tolerance=sizeof(R)==4?2e-6:1e-12;
  SparseConjugateGradient solver;
  for(int route=0;route<3;++route){
   std::vector<double>x(n,0);ConjugateGradientReport report;
@@ -139,7 +138,7 @@ static void topologyRegrouping(){
  SparseLduView matrix;matrix.rows=n;matrix.owner=own.data();matrix.neighbour=nei.data();
  matrix.diagonal=hd.data();matrix.upper=hu.data();matrix.lower=hl.data();matrix.source=hb.data();
  SparseDeviceLduValues values;values.diagonal=d.p;values.upper=u.p;values.lower=l.p;values.source=b.p;
- ConjugateGradientControls controls;controls.preconditioner=chosen;controls.tolerance=sizeof(R)==4?2e-6:1e-12;
+ ConjugateGradientControls controls;controls.tolerance=sizeof(R)==4?2e-6:1e-12;
  SparseConjugateGradient solver;ExecutionGraphSignature previous;
  for(int connected:{0,1,0}){
 
@@ -151,7 +150,7 @@ static void topologyRegrouping(){
   d.put(diag);u.put(upper);l.put(upper);b.put(rhs);x.put(std::vector<R>(n,R(0)));
   solver.configureResidentLocalLdu(matrix,values,controls);
   auto current=solver.residentExecutionSignature();
-  if(connected && chosen==SparsePreconditioner::Block8)require(!(current==previous),"topology regrouping signature stale");
+  if(connected)require(!(current==previous),"topology regrouping signature stale");
   solver.enqueueResidentLocalLdu(x.p);auto report=solver.collectResidentLocalReport();auto answer=x.get();
   for(int i=0;i<n;++i)require(std::abs(double(answer[i]-exact[i]))<10*tol(),"same-size topology regrouping solve");
   require(!report.singular,"topology regrouping singular");previous=current;
@@ -164,7 +163,6 @@ int main(int argc,char**argv){
   const int block=argc>1?std::atoi(argv[1]):128;
   require(block==32||block==64||block==96||block==128||block==256,"fixture widths: 32/64/96/128/256");
   ugkp::gpu::workPlan().sparseBlockThreads=block;
-  chosen=argc>2&&std::atoi(argv[2])==8?ugkp::gpu::SparsePreconditioner::Block8:ugkp::gpu::SparsePreconditioner::Jacobi;
   largeUpdateCoverage();
   rawAndHostInterfaces();
   topologyRegrouping();

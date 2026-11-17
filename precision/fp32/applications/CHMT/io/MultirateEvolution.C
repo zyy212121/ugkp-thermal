@@ -9,7 +9,7 @@
 namespace chmt {
 bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const ModelConfig& model,
     const CouplingControls& controls,const CpuMaterialControls& materialControls,Real targetTime,
-    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport& report,std::string& error,WindowRadiation* radiation) {
+    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport& report,std::string& error,WindowRadiation* radiation,bool publishHostState) {
     report=WindowEvolutionReport{};
     try {
         const HostState& base=accepted;
@@ -40,7 +40,7 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
 
 
         HostState gasEndpoint;
-        if(!downloadGasWindow(backend,gasEndpoint,error))return false;
+        if(!(publishHostState?downloadGasWindow(backend,gasEndpoint,error):publishGasWindow(backend,gasEndpoint,error)))return false;
         const IntervalHistory& history=gasWindowHistory(backend);
         EnergyReal externalRadiationHeat=0;
         if(radiation&&!radiation->advance(backend,program,gasEndpoint,externalRadiationHeat,error))return false;

@@ -9,7 +9,6 @@
 #include <numeric>
 #include <chrono>
 using R=GpuReal;
-static ugkp::gpu::SparsePreconditioner chosen=ugkp::gpu::SparsePreconditioner::Jacobi;
 static void ck(cudaError_t e){if(e!=cudaSuccess)throw std::runtime_error(cudaGetErrorString(e));}
 static void require(bool x,const char* s){if(!x)throw std::runtime_error(s);}
 template<class T> struct Buffer{
@@ -29,7 +28,7 @@ static void embeddedGraph(int n, bool large){
  SparseLduView matrix;matrix.rows=n;matrix.owner=own.data();matrix.neighbour=nei.data();
  matrix.diagonal=hd.data();matrix.upper=hu.data();matrix.lower=hl.data();matrix.source=hb.data();
  SparseDeviceLduValues values;values.diagonal=d.p;values.upper=u.p;values.lower=l.p;values.source=b.p;
- ConjugateGradientControls controls;controls.preconditioner=chosen;controls.tolerance=sizeof(R)==4?2e-6:1e-12;
+ ConjugateGradientControls controls;controls.tolerance=sizeof(R)==4?2e-6:1e-12;
  SparseConjugateGradient solver;ExecutionGraphSignature previous;
  cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;int phase=0;
  for(int connected: (large?std::vector<int>{1,1}:std::vector<int>{0,1,0})){
@@ -42,7 +41,7 @@ static void embeddedGraph(int n, bool large){
   d.put(diag);u.put(upper);l.put(upper);b.put(rhs);x.put(std::vector<R>(n,R(0)));
   solver.configureResidentLocalLdu(matrix,values,controls);
   auto current=solver.residentExecutionSignature();
-  if(!large && phase && chosen==SparsePreconditioner::Block8)require(!(current==previous),"topology regrouping signature stale");
+  if(!large && phase)require(!(current==previous),"topology regrouping signature stale");
   bool rebuild=!executable || !(current==previous) || (!large && phase);
   if(rebuild){
    if(executable)ck(cudaGraphExecDestroy(executable));if(graph)ck(cudaGraphDestroy(graph));
@@ -52,7 +51,7 @@ static void embeddedGraph(int n, bool large){
   ck(cudaGraphLaunch(executable,0));ck(cudaDeviceSynchronize());
   auto report=solver.collectResidentLocalReport();auto answer=x.get();
   double maxError=0;for(int i=0;i<n;++i)maxError=std::max(maxError,std::abs(double(answer[i]-exact[i])));
-  std::printf("EMBEDDED bits=%d B=%d choice=%d n=%d phase=%d rebuild=%d converged=%d singular=%d residual=%.12g maxError=%.12g tail=%.12g\n",int(8*sizeof(R)),workPlan().sparseBlockThreads,int(chosen),n,phase,int(rebuild),int(report.converged),int(report.singular),double(report.finalResidual),maxError,double(answer.back()));
+  std::printf("EMBEDDED bits=%d B=%d n=%d phase=%d rebuild=%d converged=%d singular=%d residual=%.12g maxError=%.12g tail=%.12g\n",int(8*sizeof(R)),workPlan().sparseBlockThreads,n,phase,int(rebuild),int(report.converged),int(report.singular),double(report.finalResidual),maxError,double(answer.back()));
   ++phase;
   for(int i=0;i<n;++i)require(std::abs(double(answer[i]-exact[i]))<10*tol(),"same-size topology regrouping solve");
   require(!report.singular,"topology regrouping singular");previous=current;
@@ -62,6 +61,5 @@ static void embeddedGraph(int n, bool large){
 }
 int main(int argc,char**argv){try{
  ugkp::gpu::workPlan().sparseBlockThreads=argc>1?std::atoi(argv[1]):128;
- chosen=argc>2&&std::atoi(argv[2])==8?ugkp::gpu::SparsePreconditioner::Block8:ugkp::gpu::SparsePreconditioner::Jacobi;
  embeddedGraph(193,false);embeddedGraph(131201,true);return 0;
  }catch(const std::exception& e){std::fprintf(stderr,"FAIL %s\n",e.what());return 1;}}

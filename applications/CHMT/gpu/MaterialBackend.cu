@@ -106,6 +106,7 @@ __global__ void conductionAuditFinish(int count,const MaterialConductionAudit* p
 }
 
 struct MaterialConductionIteration {
+    int continuationStage=0;
     int preconditionerFallbackBlocks=0;
     int iteration=0,failure=0;bool valid=true,converged=false,stalled=false;
     Real residual=0,energyTolerance=0;
@@ -114,8 +115,18 @@ struct MaterialConductionIteration {
 };
 __global__ void beginConductionLoop(MaterialConductionIteration* report,
     ugkp::gpu::ConjugateGradientControls linear,ugkp::diagnostics::DeviceContext* context,cudaGraphConditionalHandle handle){
-    if(threadIdx.x)return;*report={};report->linear=linear;report->valid=!ugkp::diagnostics::hasFatal(context);
+    if(threadIdx.x)return;if(report->continuationStage==0){*report={};report->linear=linear;report->valid=!ugkp::diagnostics::hasFatal(context);report->continuationStage=1;}
     cudaGraphSetConditional(handle,report->valid);
+}
+__global__ void conductionSelect(MaterialConductionIteration* report,int stage,const int* pending,cudaGraphConditionalHandle handle){
+    if(!threadIdx.x)cudaGraphSetConditional(handle,report->valid&&report->continuationStage==stage&&(!pending||!*pending));
+}
+__global__ void conductionPrepared(MaterialConductionIteration* report){if(!threadIdx.x)report->continuationStage=2;}
+__global__ void conductionContinue(MaterialConductionIteration* report,const int* pending,CpuMaterialControls controls,cudaGraphConditionalHandle handle){
+    if(threadIdx.x)return;
+    if(pending&&*pending){cudaGraphSetConditional(handle,0);return;}
+    report->continuationStage=1;
+    cudaGraphSetConditional(handle,report->valid&&!report->converged&&!report->stalled&&report->iteration<controls.nonlinearMaxIterations);
 }
 __global__ void prepareConductionLinearControls(MaterialConductionIteration* report,const MaterialConductionAudit* audit,
     CpuMaterialControls controls,cudaGraphConditionalHandle permitted){
@@ -506,7 +517,7 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
     signature.add(normalizationSmall);signature.add(singularSmall);
     signature.add(controls.nonlinearMaxIterations);signature.add(controls.nonlinearRelativeTolerance);
     signature.add(controls.energyAbsoluteTolerance);signature.add(controls.energyRelativeTolerance);
-    signature.add(int(controls.preconditioner));signature.add(controls.linearMaxIterations);signature.add(controls.linearEnergyBudgetFraction);
+    signature.add(controls.linearMaxIterations);signature.add(controls.linearEnergyBudgetFraction);
     for(const void* pointer:{static_cast<const void*>(report.data()),static_cast<const void*>(b.diagnostics.device()),
         static_cast<const void*>(b.conductionInput.data()),static_cast<const void*>(b.devicePhysics.data()),
         static_cast<const void*>(b.conductionCoefficients.data()),static_cast<const void*>(b.conductionCapacity.data()),
@@ -517,40 +528,52 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
     using namespace ugkp::gpu;using executionGraphDetail::appendCaptured;
     try{
         if(!graph.executable){
-        executionGraphDetail::checked(cudaGraphCreate(&graph.graph,0));cudaGraphConditionalHandle handle,permitted;
+        executionGraphDetail::checked(cudaGraphCreate(&graph.graph,0));cudaGraphConditionalHandle handle,permitted,assembleAllowed,finishAllowed;
         executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&handle,graph.graph,0,cudaGraphCondAssignDefault));
-        ConjugateGradientControls linear;linear.preconditioner=controls.preconditioner;linear.maximumIterations=controls.linearMaxIterations;linear.normalizationSmall=normalizationSmall;linear.singularSmall=singularSmall;
+        ConjugateGradientControls linear;linear.maximumIterations=controls.linearMaxIterations;linear.normalizationSmall=normalizationSmall;linear.singularSmall=singularSmall;
         const auto initialized=appendCaptured(graph.graph,{},b.stream.get(),[&]{
             beginConductionLoop<<<1,1,0,b.stream.get()>>>(report.data(),linear,b.diagnostics.device(),handle);});
         cudaGraph_t body=nullptr;executionGraphDetail::addWhile(graph.graph,handle,{initialized},body);
         executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&permitted,body,0,cudaGraphCondAssignDefault));
-        const auto assembled=appendCaptured(body,{},b.stream.get(),[&]{
+        executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&assembleAllowed,body,0,cudaGraphCondAssignDefault));
+        const auto assemblySelected=appendCaptured(body,{},b.stream.get(),[&]{conductionSelect<<<1,1,0,b.stream.get()>>>(report.data(),1,sparse.capacityPendingDevice(),assembleAllowed);});
+        cudaGraph_t assemblyBody=nullptr;const auto assemblyDone=executionGraphDetail::addIf(body,assembleAllowed,{assemblySelected},assemblyBody);
+        const auto assembled=appendCaptured(assemblyBody,{},b.stream.get(),[&]{
             diffusion.enqueueResidentSnapshot(b.stream.get());
             if(b.cells)conductionCoefficientsKernel<<<(b.cells+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads,0,b.stream.get()>>>(b.cells,b.conductionInput.data(),
                 diffusion.deviceTemperature(),dt,b.devicePhysics.data(),b.conductionCoefficients.data(),b.conductionCapacity.data(),b.conductionSource.data(),b.conductionConductivity.data());
             diffusion.enqueueResidentAssembly(b.stream.get());
         });
-        const auto residual=sparse.appendResidentLocalResidual(body,assembled,diffusion.deviceSolution(),diffusion.deviceResidual());
-        const auto budget=appendCaptured(body,{residual},b.stream.get(),[&]{
+        const auto residual=sparse.appendResidentLocalResidual(assemblyBody,assembled,diffusion.deviceSolution(),diffusion.deviceResidual());
+        const auto budget=appendCaptured(assemblyBody,{residual},b.stream.get(),[&]{
             const auto audit=enqueueConductionAudit(b,diffusion.deviceTemperature(),nullptr,diffusion.deviceResidual(),nullptr,external.size(),dt,b.stream.get());
             prepareConductionLinearControls<<<1,1,0,b.stream.get()>>>(report.data(),audit,controls,permitted);
+            conductionPrepared<<<1,1,0,b.stream.get()>>>(report.data());
         });
-        cudaGraph_t solveBody=nullptr;const auto solve=executionGraphDetail::addIf(body,permitted,{budget},solveBody);
+        const auto solveSelected=appendCaptured(body,{assemblyDone},b.stream.get(),[&]{conductionSelect<<<1,1,0,b.stream.get()>>>(report.data(),2,sparse.capacityPendingDevice(),permitted);});
+        cudaGraph_t solveBody=nullptr;const auto solve=executionGraphDetail::addIf(body,permitted,{solveSelected},solveBody);
         const auto solved=sparse.appendResidentLocalLdu(solveBody,nullptr,diffusion.deviceSolution(),&report.data()->linear);
-        appendCaptured(solveBody,{solved},b.stream.get(),[&]{
+        executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&finishAllowed,solveBody,0,cudaGraphCondAssignDefault));
+        const auto finishSelected=appendCaptured(solveBody,{solved},b.stream.get(),[&]{conductionSelect<<<1,1,0,b.stream.get()>>>(report.data(),2,sparse.capacityPendingDevice(),finishAllowed);});
+        cudaGraph_t finishBody=nullptr;executionGraphDetail::addIf(solveBody,finishAllowed,{finishSelected},finishBody);
+        appendCaptured(finishBody,{},b.stream.get(),[&]{
             diffusion.enqueueResidentBoundaryTemperature(b.stream.get());diffusion.enqueueResidentBoundaryFlux(b.stream.get());
             enqueueConductionAudit(b,diffusion.deviceTemperature(),diffusion.devicePreviousSolution(),nullptr,diffusion.deviceBoundaryFlux(),external.size(),dt,b.stream.get());
+            finishConductionIteration<<<1,1,0,b.stream.get()>>>(report.data(),b.conductionAuditResult.data(),sparse.deviceReport(),controls,b.diagnostics.device(),handle);
         });
         appendCaptured(body,{solve},b.stream.get(),[&]{
-            finishConductionIteration<<<1,1,0,b.stream.get()>>>(report.data(),b.conductionAuditResult.data(),sparse.deviceReport(),controls,b.diagnostics.device(),handle);
+            conductionContinue<<<1,1,0,b.stream.get()>>>(report.data(),sparse.capacityPendingDevice(),controls,handle);
         });
         executionGraphDetail::checked(cudaGraphInstantiateWithFlags(&graph.executable,graph.graph,0));
         }
-        executionGraphDetail::checked(cudaGraphLaunch(graph.executable,b.stream.get()));
+        executionGraphDetail::checked(cudaMemsetAsync(&report.data()->continuationStage,0,sizeof(int),b.stream.get()));
         MaterialConductionIteration result;
-        if(!b.transfers.download(&result,report.data(),1)||!b.finish(error))return b.failure(error);
+        do{
+            executionGraphDetail::checked(cudaGraphLaunch(graph.executable,b.stream.get()));
+            if(!b.transfers.download(&result,report.data(),1)||!b.finish(error))return b.failure(error);
+        }while(sparse.servicePendingCapacity());
         if(result.preconditionerFallbackBlocks>0)
-            std::fprintf(stderr,"CHMT block8: Jacobi fallback used for up to %d blocks per linear solve\n",result.preconditionerFallbackBlocks);
+            std::fprintf(stderr,"CHMT AMG: fallback used for up to %d preconditioner blocks per linear solve\n",result.preconditionerFallbackBlocks);
         if(!result.valid){
             error=result.failure==1?(result.audit.coefficientError==1?"nonpositive implicit caloric secant":"material mass/geometry incompatible during implicit solve")
                 :result.failure==2?"nonfinite OpenFOAM implicit material sparse residual"

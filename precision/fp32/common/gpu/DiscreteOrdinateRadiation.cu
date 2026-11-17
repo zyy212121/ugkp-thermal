@@ -4,7 +4,10 @@
 #include "../Diagnostics.H"
 #include "MiePhaseBalance.cuh"
 #include "OrderedUpwindGraph.cuh"
+#include "SparseConjugateGradient.H"
+#include "RadiationFgmres.cuh"
 #include "PinnedTransferQueue.cuh"
+#include "GraphContinuationTask.cuh"
 #include <algorithm>
 #include <climits>
 #include <cstring>
@@ -58,10 +61,11 @@ __global__ void publishSourceDiagnostics(const SourceReport* report,
         recordWarning(context,makeRecord(Code::AccuracyResidual,34002,0,phase[i].iterations,
             EntityKind::Cell,i,-1,fmax(phase[i].rowError,phase[i].columnError),controls.phaseTolerance,0,Quantity::Accuracy));
     }
-    if(i<angles&&direction[i].linearIteration>0){
+    if(i<angles&&(direction[i].linearIteration>0||direction[i].stopReason)){
         const auto warning=direction[i];
-        recordWarning(context,makeRecord(Code::AccuracyResidual,34003,0,warning.sourceIteration,
-            EntityKind::None,i,warning.linearIteration,warning.residual,warning.limit,0,Quantity::LinearSystem));
+        auto record=makeRecord(Code::AccuracyResidual,34003,0,warning.sourceIteration,
+            EntityKind::None,i,warning.linearIteration,warning.residual,warning.limit,0,Quantity::LinearSystem);
+        record.metadata=warning.stopReason;recordWarning(context,record);
     }
 }
 enum Location {Incident=1,Specular,Diffuse,Scattering,Linear,Moment,Outgoing};
@@ -92,6 +96,20 @@ struct Fields {
     const RadiationReal* emissivity;
     const RadiationThermalCouplingDeviceView* thermal=nullptr;
 };
+#include "RadiationTransportKernels.cuh"
+__global__ void domCombine(std::size_t n,const RadiationReal* a,const RadiationReal* b,RadiationReal sign,RadiationReal* out){
+    const std::size_t i=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x;if(i<n)out[i]=a[i]+sign*b[i];
+}
+__global__ void domLinearWarning(int angles,const RadiationFgmres::Report* report,const SourceReport* source,
+    RadiationDirectionWarning* warnings,RadiationControls controls){
+    const int angle=blockIdx.x*blockDim.x+threadIdx.x;if(angle>=angles||source->failure.code)return;
+    const RadiationReal target=controls.linearTolerance;
+    if(!report->converged){
+        warnings[angle]={report->finalResidual,target,report->iterations,source->iterations};
+        warnings[angle].stopReason=int(report->stopReason);
+        warnings[angle].linearRelativeResidual=report->relativeResidual;warnings[angle].linearRelativeLimit=controls.linearRelativeTolerance;
+    }
+}
 __global__ void resetErrors(Errors errors){if(!threadIdx.x)*errors.first=ULLONG_MAX;}
 template<class Real> __global__ void importParticleState(int cells,RadiationParticleDeviceView input,
     const RadiationReal* volume,RadiationReal cutoff,MieOpticalTableView table,RadiationReal* epsilon,RadiationReal* mass,RadiationReal* temperature,RadiationReal* diameter){
@@ -243,7 +261,7 @@ __global__ void retainTransportResidual(SourceReport* report,const UpwindLinearR
         report->transportRelativeResidual=std::isfinite(r)?fmax(report->transportRelativeResidual,r):r;
 }
 __global__ void finishSourceIteration(SourceReport* report,const RadiationReal* change,RadiationControls controls,
-    cudaGraphConditionalHandle handle,const RadiationThermalCouplingDeviceView* thermal){
+    cudaGraphConditionalHandle handle,const RadiationThermalCouplingDeviceView* thermal,int* stage){
     if(threadIdx.x)return;report->maximumRelativeChange=*change;
     report->materialRelativeResidual=thermal->materialRelativeResidual?*thermal->materialRelativeResidual:0;
     report->materialResidualTarget=thermal->materialRelativeTolerance;
@@ -252,10 +270,20 @@ __global__ void finishSourceIteration(SourceReport* report,const RadiationReal* 
         &&(!(report->maximumRelativeChange<=controls.sourceTolerance)
             ||!(report->materialRelativeResidual<=report->materialResidualTarget)
             ||!(report->transportRelativeResidual<=report->transportResidualTarget));
-    cudaGraphSetConditional(handle,again);
+    cudaGraphSetConditional(handle,again);*stage=again?1:4;
 
 }
 
+__global__ void selectSourceStage(const int* stage,int expected,cudaGraphConditionalHandle handle){
+    if(!threadIdx.x)cudaGraphSetConditional(handle,*stage==expected);
+}
+__global__ void setSourceStage(int* stage,int value){if(!threadIdx.x)*stage=value;}
+__global__ void resumeSourceLoop(const int* stage,cudaGraphConditionalHandle handle){
+    if(!threadIdx.x)cudaGraphSetConditional(handle,*stage==1||*stage==2);
+}
+__global__ void sourcePreparationReady(int* stage,const int* pending,cudaGraphConditionalHandle loop){
+    if(threadIdx.x)return;if(pending&&*pending)cudaGraphSetConditional(loop,0);else *stage=3;
+}
 __global__ void ratio(const RadiationReal* a,const RadiationReal* b,RadiationReal* output){if(!threadIdx.x)*output=*a/ *b;}
 __global__ void moments(Geometry g,Fields f,const RadiationReal* intensities,int iteration,RadiationReal* incident,RadiationReal* power,Errors errors,const SourceReport* progress=nullptr){
     const int cell=blockIdx.x*blockDim.x+threadIdx.x;if(cell>=g.cells)return;
@@ -302,14 +330,21 @@ struct DiscreteOrdinateRadiation::Implementation {
     Array<int> reflectionOffsets,reflectionDonors;Array<RadiationReal> reflectionWeights;
     Array<RadiationMaximum> partialA,partialB;Array<RadiationReal> reductionA,reductionB;
     Array<unsigned long long> firstError;Array<Failure> failures;
-    Array<SourceReport> sourceReport;Array<RadiationDirectionWarning> warnings;
+    GraphContinuationTask sourceTask;Array<int> sourceStage;Array<SourceReport> sourceReport;Array<RadiationDirectionWarning> warnings;
     Array<RadiationThermalCouplingDeviceView> thermalCoupling;
     RadiationThermalCouplingDeviceView hostThermalCoupling;
     RadiationThermalIterationHook thermalIterationHook;
     unsigned long long thermalGraphOwner=0,thermalGraphRevision=0;
-    int sourceGraphWidth=0;
+    int sourceGraphWidth=0,sourceSparseWidth=0;
     cudaGraph_t sourceGraph=nullptr;cudaGraphExec_t sourceExecutable=nullptr;
     Geometry g{};Fields f{};
+    RadiationFgmres krylov;
+    SparseConjugateGradient lowOrder;
+    Array<OrderedUpwindDevice> transportMatrices;
+    Array<int> cellOffsets,cellFaces;
+    Array<RadiationReal> transportRhs,transportWork,coarseCorrection,sweepRhs,sweepCorrection;
+    Array<RadiationReal> lowDiagonal,lowUpper,lowLower,lowSource,lowBoundaryDiagonal,lowBoundarySource,lowRhs,lowCorrection;
+    std::vector<int> lowBoundaryNeighbour;
     struct DirectionWorkspace {
         Array<RadiationReal> diagonal,source,solved,previous;
         Array<unsigned long long> firstError;Array<Failure> failures;
@@ -318,7 +353,7 @@ struct DiscreteOrdinateRadiation::Implementation {
         ~DirectionWorkspace(){if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
     };
     struct Direction {
-        OrderedUpwindPlan plan;Array<int> offsets,neighbours,subtract,residualOrder,levels;Array<RadiationReal> flux;
+        OrderedUpwindPlan plan;Array<int> offsets,neighbours,subtract,residualOrder,levels,levelOffsets;Array<RadiationReal> flux;
         std::shared_ptr<DirectionWorkspace> workspace;
         Array<RadiationReal> &diagonal,&source,&solved,&previous;
         Array<unsigned long long>& firstError;Array<Failure>& failures;
@@ -355,8 +390,8 @@ struct DiscreteOrdinateRadiation::Implementation {
         checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfers.bind(stream);
         checked(cudaEventCreateWithFlags(&inputReady,cudaEventDisableTiming));
     }
-    ~Implementation(){transfers.discard();if(stream){cudaStreamSynchronize(stream);clearSourceGraph();directions.clear();cudaStreamDestroy(stream);}if(inputReady)cudaEventDestroy(inputReady);}
-    void clearSourceGraph(){if(sourceExecutable)cudaGraphExecDestroy(sourceExecutable);if(sourceGraph)cudaGraphDestroy(sourceGraph);sourceExecutable=nullptr;sourceGraph=nullptr;}
+    ~Implementation(){sourceTask.reset();transfers.discard();if(stream){cudaStreamSynchronize(stream);clearSourceGraph();directions.clear();cudaStreamDestroy(stream);}if(inputReady)cudaEventDestroy(inputReady);}
+    void clearSourceGraph(){sourceTask.wait();if(sourceExecutable)cudaGraphExecDestroy(sourceExecutable);if(sourceGraph)cudaGraphDestroy(sourceGraph);sourceExecutable=nullptr;sourceGraph=nullptr;}
     Errors errors(){return {firstError.ptr,failures.ptr};}
     void reset(){resetErrors<<<1,1,0,stream>>>(errors());checked(cudaMemsetAsync(failures.ptr,0,failures.size*sizeof(Failure),stream));}
     void checkErrors(){unsigned long long key=ULLONG_MAX;transfers.download(&key,firstError.ptr,sizeof(key));transfers.finish();
@@ -420,14 +455,14 @@ struct DiscreteOrdinateRadiation::Implementation {
         concurrentAngles=controls.parallelAngles?std::max(1,std::min(angles,controls.maximumConcurrentAngles>0?controls.maximumConcurrentAngles:angles)):1;
         std::vector<std::shared_ptr<DirectionWorkspace>> workspaces;
         for(int i=0;i<concurrentAngles;++i)workspaces.push_back(std::make_shared<DirectionWorkspace>());
-        sourceReport.resize(1);warnings.resize(angles);
+        sourceReport.resize(1);sourceStage.resize(1);warnings.resize(angles);
         thermalCoupling.resize(1);checked(cudaMemsetAsync(thermalCoupling.ptr,0,sizeof(RadiationThermalCouplingDeviceView),stream));f.thermal=thermalCoupling.ptr;
         for(int angle=0;angle<angles;++angle){
             std::unique_ptr<Direction> next(new Direction(workspaces[angle%concurrentAngles]));auto& d=*next;
             std::vector<RadiationReal> flux(geometry.internalFlux.begin()+std::size_t(angle)*g.faces,geometry.internalFlux.begin()+std::size_t(angle+1)*g.faces);
             d.plan.build(cells,geometry.owner,geometry.neighbour,geometry.cellOffsets,geometry.cellFaces,flux);
             d.offsets.upload(d.plan.offsets,transfers);d.neighbours.upload(d.plan.neighbour,transfers);d.subtract.upload(d.plan.subtract,transfers);
-            d.residualOrder.upload(d.plan.residualOrder,transfers);d.levels.upload(d.plan.levelCells,transfers);d.flux.upload(d.plan.flux,transfers);
+            d.residualOrder.upload(d.plan.residualOrder,transfers);d.levels.upload(d.plan.levelCells,transfers);d.levelOffsets.upload(d.plan.levelOffsets,transfers);d.flux.upload(d.plan.flux,transfers);
             for(auto* field:{&d.diagonal,&d.source,&d.solved,&d.previous})field->resize(cells);
             transfers.finish();
             d.firstError.resize(1);d.failures.resize(std::max(1,cells));
@@ -437,97 +472,170 @@ struct DiscreteOrdinateRadiation::Implementation {
                 {controls.linearTolerance,controls.linearRelativeTolerance,controls.small,controls.linearIterations,controls.controlsAlreadyResolved},d.firstError.ptr,controls.parallelAngles,false));
             directions.push_back(std::move(next));
         }
-        transfers.finish();buildSourceGraph();
+        std::vector<OrderedUpwindDevice> matrices;for(const auto& direction:directions)matrices.push_back(direction->matrix);
+        transportMatrices.upload(matrices,transfers);
+        cellOffsets.upload(geometry.cellOffsets,transfers);cellFaces.upload(geometry.cellFaces,transfers);
+        for(auto* field:{&transportRhs,&transportWork,&coarseCorrection,&sweepRhs,&sweepCorrection})field->resize(angular);
+        for(auto* field:{&lowDiagonal,&lowSource,&lowRhs,&lowCorrection})field->resize(cells);
+        lowUpper.resize(g.faces);lowLower.resize(g.faces);lowBoundaryDiagonal.resize(boundary);lowBoundarySource.resize(boundary);
+        if(cells)checked(cudaMemsetAsync(lowSource.ptr,0,cells*sizeof(RadiationReal),stream));
+        if(boundary)checked(cudaMemsetAsync(lowBoundarySource.ptr,0,boundary*sizeof(RadiationReal),stream));
+        lowBoundaryNeighbour.assign(boundary,-1);
+        SparseLduView lowMatrix;lowMatrix.rows=cells;lowMatrix.faces=g.faces;lowMatrix.boundaryFaces=boundary;
+        lowMatrix.owner=geometry.owner.data();lowMatrix.neighbour=geometry.neighbour.data();
+        lowMatrix.boundaryOwner=geometry.boundaryOwner.data();lowMatrix.boundaryNeighbour=lowBoundaryNeighbour.data();
+        SparseDeviceLduValues lowValues{lowDiagonal.ptr,lowUpper.ptr,lowLower.ptr,lowSource.ptr,lowBoundaryDiagonal.ptr,lowBoundarySource.ptr,stream};
+        ConjugateGradientControls lowControls;lowControls.maximumIterations=1;lowControls.minimumIterations=1;lowControls.tolerance=0;
+        transfers.finish();lowOrder.configureResidentLocalLdu(lowMatrix,lowValues,lowControls);
+        krylov.configure(int(angular));
+        buildSourceGraph();
+    }
+    ExecutionGraphNode appendTransportApply(ExecutionGraph graph,ExecutionGraphNode dependency,const RadiationReal* input,RadiationReal* output){
+        return executionGraphDetail::appendCaptured(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},stream,[&]{
+            const int width=workPlan().radiationBlockThreads;
+            domApply<<<std::max(std::size_t(1),(intensities.size+width-1)/width),width,0,stream>>>(g,f,transportMatrices.ptr,input,output);
+        });
+    }
+    ExecutionGraphNode appendTransportPreconditioner(ExecutionGraph graph,ExecutionGraphNode dependency,const RadiationReal* input,RadiationReal* output){
+        using executionGraphDetail::appendCaptured;const int width=workPlan().radiationBlockThreads;
+        const int blocks=std::max(1,(g.cells+width-1)/width);
+        const std::size_t angularBlocks=std::max(std::size_t(1),(intensities.size+width-1)/width);
+        auto node=appendCaptured(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},stream,[&]{
+            domRestrict<<<blocks,width,0,stream>>>(g,input,lowRhs.ptr);
+        });
+        node=lowOrder.appendResidentLocalPreconditioner(graph,node,lowRhs.ptr,lowCorrection.ptr);
+        node=appendCaptured(graph,{node},stream,[&]{domProlong<<<angularBlocks,width,0,stream>>>(g,lowCorrection.ptr,coarseCorrection.ptr);});
+        node=appendTransportApply(graph,node,coarseCorrection.ptr,transportWork.ptr);
+        node=appendCaptured(graph,{node},stream,[&]{
+            domCombine<<<angularBlocks,width,0,stream>>>(intensities.size,input,transportWork.ptr,RadiationReal(-1),sweepRhs.ptr);
+        });
+        std::vector<cudaGraphNode_t> finished;
+        for(int angle=0;angle<g.directions;++angle){auto& q=*directions[angle];
+            auto swept=appendCaptured(graph,{node},stream,[&]{
+                for(std::size_t level=0;level+1<q.plan.levelOffsets.size();){
+                    const int begin=q.plan.levelOffsets[level],end=q.plan.levelOffsets[level+1];std::size_t next=level+1;
+                    if(end-begin<=width){
+                        while(next+1<q.plan.levelOffsets.size()&&next-level<std::size_t(32)
+                            &&q.plan.levelOffsets[next+1]-q.plan.levelOffsets[next]<=width)++next;
+                    }
+                    if(next>level+1)domSweepNarrowLevels<<<1,width,0,stream>>>(int(level),int(next),q.levelOffsets.ptr,q.matrix,g,f,angle,
+                        sweepRhs.ptr+std::size_t(angle)*g.cells,sweepCorrection.ptr+std::size_t(angle)*g.cells);
+                    else if(end>begin)domSweepLevel<<<(end-begin+width-1)/width,width,0,stream>>>(begin,end,q.matrix,g,f,angle,
+                        sweepRhs.ptr+std::size_t(angle)*g.cells,sweepCorrection.ptr+std::size_t(angle)*g.cells);
+                    level=next;
+                }
+            });
+            finished.push_back(swept);
+        }
+        if(finished.empty())finished.push_back(node);
+        return appendCaptured(graph,finished,stream,[&]{
+            domCombine<<<angularBlocks,width,0,stream>>>(intensities.size,coarseCorrection.ptr,sweepCorrection.ptr,RadiationReal(1),output);
+        });
     }
     void buildSourceGraph(){
         clearSourceGraph();checked(cudaGraphCreate(&sourceGraph,0));
-        sourceGraphWidth=workPlan().radiationBlockThreads;
+        sourceGraphWidth=workPlan().radiationBlockThreads;sourceSparseWidth=workPlan().sparseBlockThreads;
         using upwindGraphDetail::appendCaptured;
-        const int blocks=std::max(1,(g.cells+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads),boundaryBlocks=std::max(1,(g.boundary+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads);
-        const auto initialized=appendCaptured(sourceGraph,{},stream,[&]{
+        const int width=workPlan().radiationBlockThreads;
+        const int blocks=std::max(1,(g.cells+width-1)/width),boundaryBlocks=std::max(1,(g.boundary+width-1)/width);
+        const std::size_t angularBlocks=std::max(std::size_t(1),(intensities.size+width-1)/width);
+        auto branch=[&](cudaGraph_t graph,cudaGraphNode_t dependency,int expected,cudaGraph_t& child){
+            cudaGraphConditionalHandle select;checked(cudaGraphConditionalHandleCreate(&select,graph,0,cudaGraphCondAssignDefault));
+            const auto node=appendCaptured(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},stream,[&]{
+                selectSourceStage<<<1,1,0,stream>>>(sourceStage.ptr,expected,select);
+            });
+            return executionGraphDetail::addIf(graph,select,{node},child);
+        };
+        cudaGraph_t initialBody=nullptr;
+        const auto initialized=branch(sourceGraph,nullptr,0,initialBody);
+        appendCaptured(initialBody,{},stream,[&]{
             initializeSource<<<1,1,0,stream>>>(sourceReport.ptr);
             if(warnings.size)checked(cudaMemsetAsync(warnings.ptr,0,warnings.size*sizeof(RadiationDirectionWarning),stream));
+            setSourceStage<<<1,1,0,stream>>>(sourceStage.ptr,1);
         });
         cudaGraphConditionalHandle handle;
-        checked(cudaGraphConditionalHandleCreate(&handle,sourceGraph,1,cudaGraphCondAssignDefault));
+        checked(cudaGraphConditionalHandleCreate(&handle,sourceGraph,0,cudaGraphCondAssignDefault));
+        const auto resumed=appendCaptured(sourceGraph,{initialized},stream,[&]{resumeSourceLoop<<<1,1,0,stream>>>(sourceStage.ptr,handle);});
         cudaGraph_t body=nullptr;
-        const auto loop=upwindGraphDetail::addWhile(sourceGraph,handle,{initialized},body);
-        const RadiationReal* angular=controls.parallelAngles?frozen.ptr:intensities.ptr;
-        auto tail=appendCaptured(body,{},stream,[&]{
+        const auto loop=upwindGraphDetail::addWhile(sourceGraph,handle,{resumed},body);
+        cudaGraph_t beginBody=nullptr;
+        const auto begun=branch(body,nullptr,1,beginBody);
+        appendCaptured(beginBody,{},stream,[&]{
             beginSourceIteration<<<1,1,0,stream>>>(sourceReport.ptr);reset();
-            if(controls.parallelAngles&&intensities.size)checked(cudaMemcpyAsync(frozen.ptr,intensities.ptr,intensities.size*sizeof(RadiationReal),cudaMemcpyDeviceToDevice,stream));
-            incidentFlux<<<boundaryBlocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,angular,incident.ptr,errors());
+            if(intensities.size)checked(cudaMemcpyAsync(frozen.ptr,intensities.ptr,intensities.size*sizeof(RadiationReal),cudaMemcpyDeviceToDevice,stream));
+            incidentFlux<<<boundaryBlocks,width,0,stream>>>(g,intensities.ptr,incident.ptr,errors());
             rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
+            domRhs<<<angularBlocks,width,0,stream>>>(g,f,transportRhs.ptr);
+            domLowFace<<<std::max(1,(g.faces+width-1)/width),width,0,stream>>>(g,lowUpper.ptr,lowLower.ptr);
+            domLowRows<<<blocks,width,0,stream>>>(g,f,cellOffsets.ptr,cellFaces.ptr,lowUpper.ptr,lowDiagonal.ptr);
+            domLowBoundary<<<boundaryBlocks,width,0,stream>>>(g,f,lowBoundaryDiagonal.ptr);
+            setSourceStage<<<1,1,0,stream>>>(sourceStage.ptr,2);
         });
-
-
-        for(int begin=0;begin<g.directions;begin+=concurrentAngles){
-            const int end=std::min(g.directions,begin+concurrentAngles);
-            std::vector<cudaGraphNode_t> complete;
-            for(int angle=begin;angle<end;++angle){auto& q=*directions[angle];
-                const auto prepared=appendCaptured(body,{tail},stream,[&]{reset(q,stream);
-                    stopFailedDirection<<<1,1,0,stream>>>(q.errors(),sourceReport.ptr);
-                    prepareDirection<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,angle,0,angular,incident.ptr,q.diagonal.ptr,q.source.ptr,q.solved.ptr,q.errors(),sourceReport.ptr);
-                });
-                complete.push_back(q.graph->appendSolve(body,{prepared},stream));
-            }
-
-
-            tail=appendCaptured(body,complete,stream,[&]{
-                for(int angle=begin;angle<end;++angle){auto& q=*directions[angle];
-                    finishDirectionReport<<<1,1,0,stream>>>(angle,q.graph->report(),q.errors(),sourceReport.ptr,warnings.ptr);
-                    relaxedDirection<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g.cells,angle,controls.sourceRelaxation,angular,q.solved.ptr,intensities.ptr,change.ptr,magnitude.ptr,sourceReport.ptr);
-
-
-                    if(controls.sourceRelaxation!=RadiationReal(1))q.graph->measurePublished(q.matrix,owner.ptr,neighbour.ptr,
-                        internalFlux.ptr+std::size_t(angle)*g.faces,q.diagonal.ptr,q.source.ptr,q.solved.ptr,
-                        {controls.linearTolerance,controls.linearRelativeTolerance,controls.small,controls.linearIterations,controls.controlsAlreadyResolved},stream);
-                    rememberPublishedResidual<<<1,1,0,stream>>>(angle,q.graph->report(),sourceReport.ptr,warnings.ptr);
-                    maximum(g.cells,change.ptr,nullptr,0,reductionA.ptr);maximum(g.cells,magnitude.ptr,nullptr,controls.small,reductionB.ptr);
-                    ratio<<<1,1,0,stream>>>(reductionA.ptr,reductionB.ptr,directionChange.ptr+angle);
-                }
+        auto prepared=lowOrder.appendResidentLocalPreparation(body,begun);
+        prepared=appendCaptured(body,{prepared},stream,[&]{sourcePreparationReady<<<1,1,0,stream>>>(sourceStage.ptr,lowOrder.capacityPendingDevice(),handle);});
+        cudaGraph_t solveBody=nullptr;
+        branch(body,prepared,3,solveBody);
+        cudaGraphNode_t tail=nullptr;
+        RadiationFgmres::Controls linearControls;
+        linearControls.tolerance=controls.linearTolerance;linearControls.relativeTolerance=controls.linearRelativeTolerance;
+        linearControls.small=controls.small;linearControls.maximumIterations=std::max(1,controls.linearIterations);
+        tail=krylov.append(solveBody,tail,stream,intensities.ptr,transportRhs.ptr,linearControls,
+            [&](ExecutionGraph graph,ExecutionGraphNode dep,const RadiationReal* input,RadiationReal* output){
+                return appendTransportApply(graph,dep,input,output);
+            },
+            [&](ExecutionGraph graph,ExecutionGraphNode dep,const RadiationReal* input,RadiationReal* output){
+                return appendTransportPreconditioner(graph,dep,input,output);
             });
-        }
-
-
-
+        tail=appendCaptured(solveBody,{tail},stream,[&]{
+            domLinearWarning<<<std::max(1,(g.directions+width-1)/width),width,0,stream>>>(g.directions,krylov.report(),sourceReport.ptr,warnings.ptr,controls);
+            for(int angle=0;angle<g.directions;++angle){
+                relaxedDirection<<<blocks,width,0,stream>>>(g.cells,angle,controls.sourceRelaxation,frozen.ptr,
+                    intensities.ptr+std::size_t(angle)*g.cells,intensities.ptr,change.ptr,magnitude.ptr,sourceReport.ptr);
+                maximum(g.cells,change.ptr,nullptr,0,reductionA.ptr);maximum(g.cells,magnitude.ptr,nullptr,controls.small,reductionB.ptr);
+                ratio<<<1,1,0,stream>>>(reductionA.ptr,reductionB.ptr,directionChange.ptr+angle);
+            }
+        });
         if(thermalIterationHook){
-            tail=appendCaptured(body,{tail},stream,[&]{
-                reset();moments<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,intensities.ptr,0,incidentRadiation.ptr,power.ptr,errors(),sourceReport.ptr);
+            tail=appendCaptured(solveBody,{tail},stream,[&]{
+                reset();moments<<<blocks,width,0,stream>>>(g,f,intensities.ptr,0,incidentRadiation.ptr,power.ptr,errors(),sourceReport.ptr);
                 rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
             });
             const RadiationThermalIterationDeviceView thermalView{g.cells,incidentRadiation.ptr,power.ptr,volume.ptr,
                 epsilon.ptr,mass.ptr,diameter.ptr,thermalCoupling.ptr};
-            tail=thermalIterationHook(body,tail,stream,thermalView);
-            tail=appendCaptured(body,{tail},stream,[&]{
-                optics<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,epsilon.ptr,temperature.ptr,diameter.ptr,controls.activeEpsilonMinimum,initial.ptr,initialValid.ptr);
-                if(g.cells)mieDetail::balancePhase<<<g.cells,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g.cells,g.directions,f.table,queries.ptr,weights.ptr,phaseBrackets.ptr,
+            tail=thermalIterationHook(solveBody,tail,stream,thermalView);
+            tail=appendCaptured(solveBody,{tail},stream,[&]{
+                optics<<<blocks,width,0,stream>>>(g,f,epsilon.ptr,temperature.ptr,diameter.ptr,controls.activeEpsilonMinimum,initial.ptr,initialValid.ptr);
+                if(g.cells)mieDetail::balancePhase<<<g.cells,width,0,stream>>>(g.cells,g.directions,f.table,queries.ptr,weights.ptr,phaseBrackets.ptr,
                     controls.phaseTolerance,controls.phaseIterations,scaling.ptr,nextScaling.ptr,rowError.ptr,columnError.ptr,phaseMetrics.ptr,scattering.ptr);
-                reset();incidentFlux<<<boundaryBlocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,intensities.ptr,incident.ptr,errors());
-                rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
-                moments<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,intensities.ptr,0,incidentRadiation.ptr,power.ptr,errors(),sourceReport.ptr);
-                rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
-                resetTransportResidual<<<1,1,0,stream>>>(sourceReport.ptr);
-                for(int angle=0;angle<g.directions;++angle){auto& q=*directions[angle];
-                    reset(q,stream);
-                    prepareDirection<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,angle,0,intensities.ptr,incident.ptr,q.diagonal.ptr,q.source.ptr,q.solved.ptr,q.errors(),sourceReport.ptr,true);
-                    rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,q.errors());
-                    q.graph->measurePublished(q.matrix,owner.ptr,neighbour.ptr,internalFlux.ptr+std::size_t(angle)*g.faces,
-                        q.diagonal.ptr,q.source.ptr,q.solved.ptr,{controls.linearTolerance,controls.linearRelativeTolerance,controls.small,controls.linearIterations,controls.controlsAlreadyResolved},stream);
-                    retainTransportResidual<<<1,1,0,stream>>>(sourceReport.ptr,q.graph->report());
-                }
             });
         }
-        appendCaptured(body,{tail},stream,[&]{
-            maximum(g.directions,directionChange.ptr,nullptr,0,reductionA.ptr);
-            finishSourceIteration<<<1,1,0,stream>>>(sourceReport.ptr,reductionA.ptr,controls,handle,thermalCoupling.ptr);
+        tail=appendCaptured(solveBody,{tail},stream,[&]{
+            reset();incidentFlux<<<boundaryBlocks,width,0,stream>>>(g,intensities.ptr,incident.ptr,errors());
+            rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
+            moments<<<blocks,width,0,stream>>>(g,f,intensities.ptr,0,incidentRadiation.ptr,power.ptr,errors(),sourceReport.ptr);
+            rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
+            resetTransportResidual<<<1,1,0,stream>>>(sourceReport.ptr);
+            for(int angle=0;angle<g.directions;++angle){auto& q=*directions[angle];
+                reset(q,stream);
+                prepareDirection<<<blocks,width,0,stream>>>(g,f,angle,0,intensities.ptr,incident.ptr,q.diagonal.ptr,q.source.ptr,q.solved.ptr,q.errors(),sourceReport.ptr,true);
+                rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,q.errors());
+                q.graph->measurePublished(q.matrix,owner.ptr,neighbour.ptr,internalFlux.ptr+std::size_t(angle)*g.faces,
+                    q.diagonal.ptr,q.source.ptr,q.solved.ptr,{controls.linearTolerance,controls.linearRelativeTolerance,controls.small,controls.linearIterations,controls.controlsAlreadyResolved},stream);
+                rememberPublishedResidual<<<1,1,0,stream>>>(angle,q.graph->report(),sourceReport.ptr,warnings.ptr);
+                retainTransportResidual<<<1,1,0,stream>>>(sourceReport.ptr,q.graph->report());
+            }
         });
-        appendCaptured(sourceGraph,{loop},stream,[&]{
-            reset();incidentFlux<<<boundaryBlocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,intensities.ptr,incident.ptr,errors());
+        appendCaptured(solveBody,{tail},stream,[&]{
+            maximum(g.directions,directionChange.ptr,nullptr,0,reductionA.ptr);
+            finishSourceIteration<<<1,1,0,stream>>>(sourceReport.ptr,reductionA.ptr,controls,handle,thermalCoupling.ptr,sourceStage.ptr);
+        });
+        cudaGraph_t finalBody=nullptr;branch(sourceGraph,loop,4,finalBody);
+        appendCaptured(finalBody,{},stream,[&]{
+            reset();incidentFlux<<<boundaryBlocks,width,0,stream>>>(g,intensities.ptr,incident.ptr,errors());
             rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
-            reset();moments<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,intensities.ptr,0,incidentRadiation.ptr,power.ptr,errors(),sourceReport.ptr);
+            reset();moments<<<blocks,width,0,stream>>>(g,f,intensities.ptr,0,incidentRadiation.ptr,power.ptr,errors(),sourceReport.ptr);
             rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
-            reset();boundaryResult<<<boundaryBlocks,ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(g,f,intensities.ptr,incident.ptr,0,wallFlux.ptr,errors(),sourceReport.ptr);
+            reset();boundaryResult<<<boundaryBlocks,width,0,stream>>>(g,f,intensities.ptr,incident.ptr,0,wallFlux.ptr,errors(),sourceReport.ptr);
             rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
         });
         checked(cudaGraphInstantiateWithFlags(&sourceExecutable,sourceGraph,0));
@@ -599,7 +707,9 @@ RadiationResult DiscreteOrdinateRadiation::solve(const RadiationSnapshot& snapsh
     if(g.cells)mieDetail::balancePhase<<<g.cells,ugkp::gpu::workPlan().radiationBlockThreads,0,d.stream>>>(g.cells,g.directions,f.table,d.queries.ptr,d.weights.ptr,d.phaseBrackets.ptr,
         d.controls.phaseTolerance,d.controls.phaseIterations,d.scaling.ptr,d.nextScaling.ptr,d.rowError.ptr,d.columnError.ptr,d.phaseMetrics.ptr,d.scattering.ptr);
     if(!warmStart)fillInitial<<<std::max(std::size_t(1),(d.intensities.size+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads),ugkp::gpu::workPlan().radiationBlockThreads,0,d.stream>>>(d.intensities.size,d.intensities.ptr,d.reference.ptr);
-    checked(cudaGraphLaunch(d.sourceExecutable,d.stream));
+    setSourceStage<<<1,1,0,d.stream>>>(d.sourceStage.ptr,0);
+    d.sourceTask.start(d.stream,d.sourceExecutable,[&d]{return d.lowOrder.servicePendingCapacity();},[]{});
+    d.sourceTask.wait();
     d.resultReady=true;
     if(!exportFields&&d.diagnostics){
         publishSourceDiagnostics<<<std::max(1,(std::max(g.cells,g.directions)+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads),ugkp::gpu::workPlan().radiationBlockThreads,0,d.stream>>>(
@@ -632,7 +742,7 @@ void DiscreteOrdinateRadiation::setThermalIterationHook(RadiationThermalIteratio
     auto& d=*data_;
     const bool sameStructure=bool(hook)==bool(d.thermalIterationHook);
     const bool reusable=sameStructure&&(!hook||(owner&&owner==d.thermalGraphOwner&&revision==d.thermalGraphRevision));
-    const bool widthChanged=d.sourceGraphWidth!=workPlan().radiationBlockThreads;
+    const bool widthChanged=d.sourceGraphWidth!=workPlan().radiationBlockThreads||d.sourceSparseWidth!=workPlan().sparseBlockThreads;
     const bool rebuild=!d.sourceExecutable||!reusable||widthChanged;
     if(rebuild)checked(cudaStreamSynchronize(d.stream));
     d.thermalIterationHook=std::move(hook);d.thermalGraphOwner=owner;d.thermalGraphRevision=revision;

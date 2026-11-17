@@ -5,22 +5,65 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <map>
+#include <set>
+#include <functional>
 namespace ugkp { namespace gpu { namespace executionGraphDetail {
 inline void checked(cudaError_t code){if(code!=cudaSuccess)throw std::runtime_error(std::string("CUDA execution graph: ")+cudaGetErrorString(code));}
-// Capture ordinary kernels as a child. Conditional nodes must be attached to
-// their owning graph directly because CUDA cannot clone them as child graphs.
+inline std::vector<cudaGraphNode_t> capturedDependencies(cudaGraphNode_t node){
+    size_t count=0;
+#if CUDART_VERSION >= 13000
+    checked(cudaGraphNodeGetDependencies(node,nullptr,nullptr,&count));
+    std::vector<cudaGraphNode_t> result(count);checked(cudaGraphNodeGetDependencies(node,result.data(),nullptr,&count));
+#else
+    checked(cudaGraphNodeGetDependencies(node,nullptr,&count));
+    std::vector<cudaGraphNode_t> result(count);checked(cudaGraphNodeGetDependencies(node,result.data(),&count));
+#endif
+    return result;
+}
+inline cudaGraphNode_t appendCapturedGraph(cudaGraph_t graph,const std::vector<cudaGraphNode_t>& dependencies,cudaGraph_t captured){
+    size_t count=0;checked(cudaGraphGetNodes(captured,nullptr,&count));
+    std::vector<cudaGraphNode_t> nodes(count);checked(cudaGraphGetNodes(captured,nodes.data(),&count));
+    std::map<cudaGraphNode_t,cudaGraphNodeType> types;
+    for(auto node:nodes){cudaGraphNodeType type;checked(cudaGraphNodeGetType(node,&type));types[node]=type;
+        bool preserveChild=type!=cudaGraphNodeTypeKernel&&type!=cudaGraphNodeTypeMemcpy&&type!=cudaGraphNodeTypeMemset&&type!=cudaGraphNodeTypeEmpty&&type!=cudaGraphNodeTypeGraph;
+#if CUDART_VERSION >= 13000
+        size_t edgeCount=0;checked(cudaGraphNodeGetDependencies(node,nullptr,nullptr,&edgeCount));
+        std::vector<cudaGraphNode_t> upstream(edgeCount);std::vector<cudaGraphEdgeData> edges(edgeCount);
+        checked(cudaGraphNodeGetDependencies(node,upstream.data(),edges.data(),&edgeCount));
+        for(const auto& edge:edges)preserveChild=preserveChild||edge.from_port||edge.to_port||edge.type;
+#endif
+        if(preserveChild){
+            cudaGraphNode_t child=nullptr;checked(cudaGraphAddChildGraphNode(&child,graph,dependencies.data(),dependencies.size(),captured));return child;
+        }
+    }
+    std::map<cudaGraphNode_t,cudaGraphNode_t> copied;
+    std::set<cudaGraphNode_t> terminals(nodes.begin(),nodes.end());
+    std::function<cudaGraphNode_t(cudaGraphNode_t)> append=[&](cudaGraphNode_t source){
+        auto found=copied.find(source);if(found!=copied.end())return found->second;
+        const auto original=capturedDependencies(source);std::vector<cudaGraphNode_t> before;
+        for(auto node:original){before.push_back(append(node));terminals.erase(node);}
+        if(original.empty())before=dependencies;
+        cudaGraphNode_t node=nullptr;
+        switch(types[source]){
+        case cudaGraphNodeTypeKernel:{cudaKernelNodeParams parameters{};checked(cudaGraphKernelNodeGetParams(source,&parameters));checked(cudaGraphAddKernelNode(&node,graph,before.data(),before.size(),&parameters));checked(cudaGraphKernelNodeCopyAttributes(node,source));break;}
+        case cudaGraphNodeTypeMemcpy:{cudaMemcpy3DParms parameters{};checked(cudaGraphMemcpyNodeGetParams(source,&parameters));checked(cudaGraphAddMemcpyNode(&node,graph,before.data(),before.size(),&parameters));break;}
+        case cudaGraphNodeTypeMemset:{cudaMemsetParams parameters{};checked(cudaGraphMemsetNodeGetParams(source,&parameters));checked(cudaGraphAddMemsetNode(&node,graph,before.data(),before.size(),&parameters));break;}
+        case cudaGraphNodeTypeGraph:{cudaGraph_t child=nullptr;checked(cudaGraphChildGraphNodeGetGraph(source,&child));node=appendCapturedGraph(graph,before,child);break;}
+        default:checked(cudaGraphAddEmptyNode(&node,graph,before.data(),before.size()));break;
+        }
+        copied[source]=node;return node;
+    };
+    for(auto node:nodes)append(node);
+    std::vector<cudaGraphNode_t> tails;for(auto node:terminals)tails.push_back(copied[node]);
+    if(tails.size()==1)return tails[0];if(nodes.empty())tails=dependencies;
+    cudaGraphNode_t joined=nullptr;checked(cudaGraphAddEmptyNode(&joined,graph,tails.data(),tails.size()));return joined;
+}
 template<class Capture> inline cudaGraphNode_t appendCaptured(cudaGraph_t graph,
     const std::vector<cudaGraphNode_t>& dependencies,cudaStream_t stream,Capture capture){
-    cudaGraph_t child=nullptr;
-    checked(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));
-    try{capture();checked(cudaStreamEndCapture(stream,&child));}
-    catch(...){cudaStreamCaptureStatus status;
-        if(cudaStreamIsCapturing(stream,&status)==cudaSuccess&&status!=cudaStreamCaptureStatusNone)
-            cudaStreamEndCapture(stream,&child);
-        if(child)cudaGraphDestroy(child);throw;}
-    cudaGraphNode_t node=nullptr;
-    const auto code=cudaGraphAddChildGraphNode(&node,graph,dependencies.data(),dependencies.size(),child);
-    cudaGraphDestroy(child);checked(code);return node;
+    cudaGraph_t captured=nullptr;checked(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));
+    try{capture();checked(cudaStreamEndCapture(stream,&captured));const auto node=appendCapturedGraph(graph,dependencies,captured);checked(cudaGraphDestroy(captured));return node;}
+    catch(...){cudaStreamCaptureStatus state;if(cudaStreamIsCapturing(stream,&state)==cudaSuccess&&state!=cudaStreamCaptureStatusNone)cudaStreamEndCapture(stream,&captured);if(captured)cudaGraphDestroy(captured);throw;}
 }
 inline cudaGraphNode_t addConditional(cudaGraph_t graph,cudaGraphConditionalHandle handle,
     const std::vector<cudaGraphNode_t>& dependencies,cudaGraph_t& body,cudaGraphConditionalNodeType type){

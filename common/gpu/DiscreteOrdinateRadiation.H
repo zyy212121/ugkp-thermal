@@ -40,7 +40,7 @@ struct RadiationSnapshot {
 };
 struct RadiationDirectionWarning {
     RadiationReal residual=0,limit=0;int linearIteration=0,sourceIteration=0;
-    RadiationReal publishedResidual=0,publishedTarget=0;
+    RadiationReal publishedResidual=0,publishedTarget=0;int stopReason=0;RadiationReal linearRelativeResidual=0,linearRelativeLimit=0;
 };
 struct RadiationResult {
     std::vector<RadiationReal> absorption,scattering,extinction,asymmetry,incident,power,boundaryFlux;

@@ -1,6 +1,7 @@
 #ifndef UGKP_GPU_SPARSE_CONJUGATE_GRADIENT_H
 #define UGKP_GPU_SPARSE_CONJUGATE_GRADIENT_H
 #include <memory>
+#include <future>
 #include "ExecutionGraph.H"
 namespace ugkp { namespace gpu {
 // Scalar finite-volume matrix in ordered CSR form. Each row starts with its
@@ -32,6 +33,20 @@ struct SparseLduView {
 };
 // Coefficients are borrowed device storage. Topology and boundary semantics
 // remain in SparseLduView; readyStream orders their producer without a host wait.
+struct SparsePhysicalDiffusionValues {
+    int internalFaces=0;
+    const int* cellOffsets=nullptr;
+    const int* cellFaces=nullptr;
+    const double* gamma=nullptr;
+    const double* area=nullptr;
+    const double* delta=nullptr;
+    const double* volume=nullptr;
+    const double* capacity=nullptr;
+    const double* interval=nullptr;
+    const double* gradientInternal=nullptr;
+    const double* gradientBoundary=nullptr;
+    bool transient=false,active=false;
+};
 struct SparseDeviceLduValues {
     const double* diagonal=nullptr;
     const double* upper=nullptr;
@@ -41,11 +56,10 @@ struct SparseDeviceLduValues {
     const double* boundarySource=nullptr;
     void* readyStream=nullptr;
     const double* boundaryJump=nullptr;
+    SparsePhysicalDiffusionValues diffusion{};
 };
-enum class SparsePreconditioner { Jacobi, Block8 };
 struct ConjugateGradientControls {
-    SparsePreconditioner preconditioner=SparsePreconditioner::Jacobi;
-    int maximumIterations=1000, minimumIterations=0;
+    int maximumIterations=300, minimumIterations=0;
     double tolerance=1e-6, relativeTolerance=0;
     double normalizationSmall=1e-20, singularSmall=1e-300;
 };
@@ -61,6 +75,7 @@ struct ConjugateGradientReport {
 struct ConjugateGradientDeviceReport {
     const ConjugateGradientReport* report=nullptr;
     void* readyStream=nullptr;
+    std::shared_future<void> completion;
 };
 // Communication hooks only: all local matrix/vector arithmetic remains CUDA.
 // addInterface supplies the missing coupled-interface contribution to A*x.
@@ -99,8 +114,12 @@ public:
     // Caller orders input/output ownership through graph dependencies.
     ExecutionGraphNode appendResidentLocalLdu(ExecutionGraph,ExecutionGraphNode dependency,double* deviceSolution,
         const ConjugateGradientControls* deviceControls=nullptr);
+    ExecutionGraphNode appendResidentLocalPreparation(ExecutionGraph,ExecutionGraphNode dependency);
+    ExecutionGraphNode appendResidentLocalPreconditioner(ExecutionGraph,ExecutionGraphNode dependency,const double* rhs,double* result);
     ExecutionGraphNode appendResidentLocalResidual(ExecutionGraph,ExecutionGraphNode dependency,
         double* deviceSolution,double* deviceResidual);
+    const int* capacityPendingDevice() const;
+    bool servicePendingCapacity();
     const ConjugateGradientReport* deviceReport() const;
     ConjugateGradientReport collectResidentLocalReport();
     void residualResidentLdu(const SparseLduView&,const SparseDeviceLduValues&,

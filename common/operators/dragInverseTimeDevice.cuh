@@ -16,7 +16,7 @@ __device__ GPU_OPERATOR_REAL dragInverseTimeDevice
     {
         gasDensity,
         gasVolumeFraction,
-        ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]),
+        s.couplingGasViscosity[c],
         s.rhoSolid,
         diameter,
         relativeSpeed

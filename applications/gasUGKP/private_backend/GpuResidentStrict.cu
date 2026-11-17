@@ -449,6 +449,10 @@ struct DeviceState
     double* couplingUyOld = nullptr;
     double* couplingUzOld = nullptr;
     double* couplingTgasOld = nullptr;
+    double* couplingGasViscosity = nullptr;
+    double* couplingGasConductivity = nullptr;
+    double* couplingGasPrandtl = nullptr;
+    double* couplingGasPrandtlOneThird = nullptr;
 
     double* epsS = nullptr;
     double* rhoUsx = nullptr;
@@ -1200,6 +1204,10 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->couplingUyOld);
     release(s->couplingUzOld);
     release(s->couplingTgasOld);
+    release(s->couplingGasViscosity);
+    release(s->couplingGasConductivity);
+    release(s->couplingGasPrandtl);
+    release(s->couplingGasPrandtlOneThird);
 
     release(s->epsS);
     release(s->rhoUsx);
@@ -1517,6 +1525,10 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->couplingUyOld, nc, "cudaMalloc strict couplingUyOld");
     rc |= allocate(s->couplingUzOld, nc, "cudaMalloc strict couplingUzOld");
     rc |= allocate(s->couplingTgasOld, nc, "cudaMalloc strict couplingTgasOld");
+    rc |= allocate(s->couplingGasViscosity, nc, "cudaMalloc strict couplingGasViscosity");
+    rc |= allocate(s->couplingGasConductivity, nc, "cudaMalloc strict couplingGasConductivity");
+    rc |= allocate(s->couplingGasPrandtl, nc, "cudaMalloc strict couplingGasPrandtl");
+    rc |= allocate(s->couplingGasPrandtlOneThird, nc, "cudaMalloc strict couplingGasPrandtlOneThird");
 
     rc |= allocate(s->epsS, nc, "cudaMalloc strict epsS");
     rc |= allocate(s->rhoUsx, nc, "cudaMalloc strict rhoUsx");
@@ -2135,7 +2147,7 @@ __device__ void relaxOneParticleToResidentGas(DeviceState& s, const int i, const
             finiteOr(s.pd[i], s.particleDiameterFallback),
             1.0e-12
         );
-    const double mu = clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]), 1.0e-30);
+    const double mu = clampMin(s.couplingGasViscosity[c], 1.0e-30);
     const ugkwpGpuDrag::DragInput dragInput =
     {
         rhoG,

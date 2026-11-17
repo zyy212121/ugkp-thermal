@@ -8,7 +8,7 @@ __device__ __forceinline__ GPU_OPERATOR_REAL cellDragInverseTime
     return dragInverseTimeDevice(s, c, rhoG, epsG, diameter, speed, model);
 #else
     const ugkwpGpuDrag::DragInput input =
-    {rhoG, ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]), epsG, s.rhoSolid, diameter, speed, OfSmall,
+    {rhoG, s.couplingGasViscosity[c], epsG, s.rhoSolid, diameter, speed, OfSmall,
      s.dragParameter0, s.dragParameter1, s.dragParameter2, s.dragParameter3};
     return DragModel::inverseResponseTime(input);
 #endif

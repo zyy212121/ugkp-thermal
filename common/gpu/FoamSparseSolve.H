@@ -1,7 +1,6 @@
 #ifndef UGKP_GPU_FOAM_SPARSE_SOLVE_H
 #define UGKP_GPU_FOAM_SPARSE_SOLVE_H
 #include "SparseConjugateGradient.H"
-#include "FoamSparsePreconditioner.H"
 #include "fvMatrices.H"
 #include "cyclicFvPatchFields.H"
 #include "jumpCyclicFvPatchFields.H"
@@ -84,8 +83,7 @@ inline Foam::solverPerformance solveFoamScalarMatrix(
     using namespace Foam;
     auto& temperature=const_cast<volScalarField&>(equation.psi());
     ConjugateGradientControls controls;
-    controls.preconditioner=readSparsePreconditioner(dictionary);
-    controls.maximumIterations=dictionary.lookupOrDefault<label>("maxIter",1000);
+    controls.maximumIterations=dictionary.lookupOrDefault<label>("maxIter",300);
     controls.minimumIterations=dictionary.lookupOrDefault<label>("minIter",0);
     controls.tolerance=dictionary.lookupOrDefault<scalar>("tolerance",1e-6);
     controls.relativeTolerance=dictionary.lookupOrDefault<scalar>("relTol",0);
@@ -95,10 +93,7 @@ inline Foam::solverPerformance solveFoamScalarMatrix(
         return resident?solver.solveResidentLdu(matrix,*resident,deviceSolution,controls,communication)
             :solver.solveLdu(matrix,temperature.primitiveFieldRef().begin(),controls,communication);
     });
-    if(controls.preconditioner==SparsePreconditioner::Block8&&report.preconditionerFallbackBlocks>0)
-        WarningInFunction << "block8 used Jacobi fallback for " << report.preconditionerFallbackBlocks
-            << " blocks in " << temperature.name() << Foam::nl;
-    solverPerformance performance(controls.preconditioner==SparsePreconditioner::Block8?"CudaBlock8PCG":"CudaDiagonalPCG",temperature.name(),report.initialResidual,
+    solverPerformance performance("CudaPCG",temperature.name(),report.initialResidual,
         report.finalResidual,report.iterations,report.converged,report.singular);
     if(!resident)temperature.correctBoundaryConditions();
     Residuals<scalar>::append(temperature.mesh(),performance);

@@ -23,9 +23,9 @@ __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandida
  const float ux=stuck?0.f:float(s.pux[i]),uy=stuck?0.f:float(s.puy[i]),uz=stuck?0.f:float(s.puz[i]);
  const float dx=float(s.couplingUxOld[c])-ux,dy=float(s.couplingUyOld[c])-uy,dz=float(s.couplingUzOld[c])-uz;
  const float d=float(clampMin(finiteOr(s.pd[i],s.particleDiameterFallback),GPU_R(1e-12f)));
- const float re=float(clampMin(s.couplingRhoOld[c],s.rhoMin))*d*std::sqrt(dx*dx+dy*dy+dz*dz)/float(clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]),GPU_R(1e-30f)));
- const float nu=2.f+.6f*std::sqrt(re>0.f?re:0.f)*float(ugkwp::gasCellPrandtlOneThird(s,c));
- const float conductancePerMass=6.f*nu*float(molecularGasConductivity(s,c,s.couplingTgasOld[c]))/(float(s.rhoSolid)*d*d);
+ const float re=float(clampMin(s.couplingRhoOld[c],s.rhoMin))*d*std::sqrt(dx*dx+dy*dy+dz*dz)/float(clampMin(s.couplingGasViscosity[c],GPU_R(1e-30f)));
+ const float nu=2.f+.6f*std::sqrt(re>0.f?re:0.f)*float(s.couplingGasPrandtlOneThird[c]);
+ const float conductancePerMass=6.f*nu*float(s.couplingGasConductivity[c])/(float(s.rhoSolid)*d*d);
  const float Tg=float(clampMin(s.couplingTgasOld[c],s.TgasMin));
  const int count=particleColdProfileNodeCountDevice(s,i);
  const float equilibriumIncrement=count==8 ? law.enthalpyIncrement(Ti,Tg-Ti) : 0.f;

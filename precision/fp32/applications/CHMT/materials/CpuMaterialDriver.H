@@ -15,8 +15,7 @@ struct CpuMaterialControls {
     PhysicalReal driveRelativeTolerance=.05f,driveSourceFraction=.05f,driveTractionScale=1;
     bool retainDonorHistory=true;
     int maxSubsteps=100000,nonlinearMaxIterations=50;
-    int linearMaxIterations=2000;
-    ugkp::gpu::SparsePreconditioner preconditioner=ugkp::gpu::SparsePreconditioner::Jacobi;
+    int linearMaxIterations=300;
     PhysicalReal linearEnergyBudgetFraction=PhysicalReal(.5);
     PhysicalReal nonlinearRelativeTolerance=1e-10f,energyAbsoluteTolerance=1e-10f,energyRelativeTolerance=1e-10f;
 };

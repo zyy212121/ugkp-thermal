@@ -909,9 +909,11 @@ MieDoResult MieDoRadiationSolver::solve
                     <<"; limit="<<effectiveControls.phaseTolerance<<"; retaining computed phase probabilities"<<endl;
         }
         for(std::size_t direction=0;direction<output.directionWarnings.size();++direction){const auto& warning=output.directionWarnings[direction];
-            if(warning.linearIteration>0)WarningInFunction<<"DO linear iteration budget exhausted; time="<<mesh.time().timeName()
+            const char* reason=warning.stopReason==4?"non-finite arithmetic":warning.stopReason==3?"Arnoldi breakdown without true-residual convergence":"iteration budget exhausted";
+            if(warning.linearIteration>0||warning.stopReason)WarningInFunction<<"DO FGMRES stopped: "<<reason<<"; time="<<mesh.time().timeName()
                 <<"; direction="<<direction<<"; sourceIteration="<<warning.sourceIteration<<"; linearIterations="<<warning.linearIteration
-                <<"; residual="<<warning.residual<<"; limit="<<warning.limit<<"; retaining computed intensity"<<endl;
+                <<"; residual="<<warning.residual<<"; limit="<<warning.limit
+                <<"; relativeResidual="<<warning.linearRelativeResidual<<"; relativeLimit="<<warning.linearRelativeLimit<<"; retaining computed intensity"<<endl;
         }
         if(output.maximumRelativeChange>effectiveControls.sourceTolerance)
             WarningInFunction<<"DO source iteration budget exhausted; time="<<mesh.time().timeName()<<"; iterations="<<output.sourceIterations

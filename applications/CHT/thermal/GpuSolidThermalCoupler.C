@@ -271,7 +271,7 @@ dictionary startupSolidLinearControls(const fvMesh& mesh,const char* module)
 {
     dictionary result;
     const auto& scheme=ugkp::solverControls::startupScheme(mesh.time());
-    label maximum=1000;
+    label maximum=300;
     label minimum=0;
     scalar tolerance=1e-6;
     scalar relative=0;
@@ -279,10 +279,6 @@ dictionary startupSolidLinearControls(const fvMesh& mesh,const char* module)
     scheme.read(module,"minIter",minimum,"effectiveDefault",mesh.name());
     scheme.read(module,"tolerance",tolerance,"effectiveDefault",mesh.name());
     scheme.read(module,"relTol",relative,"effectiveDefault",mesh.name());
-    Foam::word preconditioner("jacobi");
-    scheme.read(module,"preconditioner",preconditioner,"effectiveDefault",mesh.name());
-    result.set("preconditioner",preconditioner);
-    result.set("preconditioner",Foam::word(ugkp::gpu::sparsePreconditionerName(ugkp::gpu::readSparsePreconditioner(result))));
     result.set("maxIter",maximum);result.set("minIter",minimum);
     result.set("tolerance",tolerance);result.set("relTol",relative);
     return result;
@@ -355,6 +351,7 @@ void GpuSolidThermalCandidateSolver::advanceResident(void* producerStream) const
 void GpuSolidThermalCandidateSolver::publishResident(volScalarField& temperature) const
 {
     if(!residentGraph_||!residentAdvanced_)return;
+    residentGraph_->awaitCompletion();
     residentDiffusion_->downloadSolution(temperature.primitiveFieldRef().begin(),temperature.size());
     std::vector<double> boundary,normal;residentDiffusion_->downloadBoundaryState(boundary,normal);
     label offset=0;forAll(temperature.boundaryField(),p){auto& patch=temperature.boundaryFieldRef()[p];
@@ -909,6 +906,7 @@ ugkp::gpu::ThermalInterfaceStateDeviceView GpuSolidThermalCandidateSolver::inter
 ) const
 {
     if(!residentDiffusion_||!deviceProperties_||!residentDiffusion_->deviceBoundaryTemperature())return {};
+    if(residentGraph_&&residentAdvanced_)residentGraph_->awaitCompletion();
     labelList offsets(mesh_.boundary().size());label count=0;
     forAll(mesh_.boundary(),p){offsets[p]=count;count+=mesh_.boundary()[p].size();}
     std::vector<int> faces,contact;

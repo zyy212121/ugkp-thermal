@@ -32,6 +32,8 @@ ResidentMaterialDriveHistory residentGasWindowDriveHistory(const Backend&);
 std::vector<GasIntervalRecord> releaseGasWindowRecords(Backend&);
 bool gasWindowStageGeometry(Backend&,std::array<HostStageGeometry,2>&,std::array<HostStageGeometry,2>&,std::string&);
 bool downloadGasWindow(Backend&,HostState&,std::string&);
+bool publishGasWindow(Backend&,HostState&,std::string&);
+bool publishAcceptedState(Backend&,HostState&,std::string&);
 
 bool commitGasWindow(Backend&,HostState&,std::string&,bool preservePublishedEndpoint=false);
 bool downloadState(const Backend&,HostState&,std::string&);

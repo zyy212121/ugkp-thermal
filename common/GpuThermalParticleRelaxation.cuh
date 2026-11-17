@@ -134,7 +134,7 @@ __device__ void relaxOneParticleToResidentGas
     if (!stuck && s.solveParticleTemperature != 0 && s.particleGasHeatTransferModelId != 0
         && (!s.particleStuckModelConfigured || !s.particleContactHeatEpoch[i]))
     {
-        const auto mu=clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]),GPU_R(1e-30));
+        const auto mu=clampMin(s.couplingGasViscosity[c],GPU_R(1e-30));
         relaxMobileParticleThermalState(s,i,c,rhoG*dPart*relMag/mu,dPart,dt);
     }
 #endif
@@ -148,7 +148,7 @@ __device__ void relaxOneParticleToResidentGas
     {
         // With both particle/gas models disabled, no temperature snapshot exists.
         // Only this heat law needs Reynolds here; drag evaluates its own mu.
-        const GPU_OPERATOR_REAL mu = clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]), GPU_OPERATOR_R(1.0e-30));
+        const GPU_OPERATOR_REAL mu = clampMin(s.couplingGasViscosity[c], GPU_OPERATOR_R(1.0e-30));
         const GPU_OPERATOR_REAL re = rhoG*dPart*relMag/mu;
         const GPU_OPERATOR_REAL tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
         const GPU_OPERATOR_REAL particleCp = particleSpecificHeatDevice(tpOld);

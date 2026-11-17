@@ -123,6 +123,7 @@ int main(int argc,char** argv) {
             const bool full=force||(fieldInterval>0&&step%fieldInterval==0);
             const bool checkpoint=force||(checkpointInterval>0&&step%checkpointInterval==0);
             if(!diagnostics&&!full&&!checkpoint)return;
+            chmt::io::require(chmt::publishAcceptedState(*backend,input.state,error),error);
             const std::string suffix=std::to_string(input.state.acceptedSteps);
             if(diagnostics){
             std::ofstream summary((directory/Foam::fileName("accepted-"+suffix+".csv")).c_str());
@@ -154,7 +155,7 @@ int main(int argc,char** argv) {
         input.state.ledger.clear(); // already published audit packets are not PDE state
         while(input.state.time<end){
             chmt::WindowEvolutionReport report;
-            chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error,radiation.get()),error);
+            chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error,radiation.get(),false),error);
             publish(writeFinal&&input.state.time>=end);
             input.state.ledger.clear();ugkp::releaseUnusedHostPages();
             if
