@@ -60,10 +60,10 @@ CHMT_HD inline void reportCoupledRecordFailure(const CoupledRecordFailure& failu
     }
 }
 #if defined(__CUDACC__)
-__global__ void resetCoupledRecordFailure(CoupledRecordFailure* failure,int count){
+static __global__ void resetCoupledRecordFailure(CoupledRecordFailure* failure,int count){
     if(!blockIdx.x&&!threadIdx.x){failure->wall=count;failure->owner=count;}
 }
-__global__ void validateCoupledRecordKernel(const CoupledRecordFailure* failure,int count,
+static __global__ void validateCoupledRecordKernel(const CoupledRecordFailure* failure,int count,
     const CoupledSurfaceDownload* records,const CoupledWallDownload* walls,const int* faces,
     int solids,int films,ugkp::diagnostics::DeviceContext* context){
     if(!blockIdx.x&&!threadIdx.x)reportCoupledRecordFailure(*failure,count,records,walls,faces,solids,films,context);

@@ -3,6 +3,7 @@
 
 #include "fvCFD.H"
 #include <cmath>
+#include "gpu/WorkPlan.H"
 
 namespace Foam
 {
@@ -25,7 +26,6 @@ enum class GpuCsrLevel : label
 struct GpuSchedulingConfiguration
 {
     bool pureGasOnly = false;
-    bool dynamicInlet = false;
     label particleCapacity = 1000000;
     label maxFaceWalkHops = 32;
     label courantUpdateInterval = 1000;
@@ -77,22 +77,17 @@ inline GpuCsrLevel readGpuCsrLevel
 
 inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
 (
-    const dictionary& properties
+    const dictionary& properties,
+    const label trackingMaxFaceWalkHops = 32
 )
 {
     GpuSchedulingConfiguration value;
     value.pureGasOnly =
         properties.lookupOrDefault<bool>("gpuResidentPureGasOnly", false);
-    value.dynamicInlet =
-        properties.lookupOrDefault<bool>("gpuResidentDynamicInlet", false);
     value.particleCapacity =
         properties.lookupOrDefault<label>("gpuResidentParticleCapacity", 1000000);
-    value.maxFaceWalkHops =
-        properties.lookupOrDefault<label>("gpuResidentMaxFaceWalkHops", 32);
-    value.courantUpdateInterval =
-        properties.lookupOrDefault<label>("gpuResidentCourantUpdateInterval", 1000);
-    value.maxDeltaTGrowth =
-        properties.lookupOrDefault<scalar>("gpuResidentMaxDeltaTGrowth", 1.05);
+    value.maxFaceWalkHops = trackingMaxFaceWalkHops;
+
     value.csrLevel = readGpuCsrLevel(properties);
     if (value.csrLevel == GpuCsrLevel::automatic)
     {
@@ -109,11 +104,22 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
     {
         value.heavyReductionMode = GpuHeavyReductionMode::enabled;
     }
+
+    auto& plan=ugkp::gpu::workPlan();
+    plan.cellBlockThreads=properties.lookupOrDefault<label>("gpuCellBlockThreads",128);
+    plan.faceBlockThreads=properties.lookupOrDefault<label>("gpuFaceBlockThreads",128);
+    plan.sparseBlockThreads=properties.lookupOrDefault<label>("gpuSparseBlockThreads",128);
+    plan.radiationBlockThreads=properties.lookupOrDefault<label>("gpuRadiationBlockThreads",128);
+    plan.thermalBlockThreads=properties.lookupOrDefault<label>("gpuThermalBlockThreads",128);
+    plan.materialBlockThreads=properties.lookupOrDefault<label>("gpuMaterialBlockThreads",128);
+    plan.coldWallBlockThreads=properties.lookupOrDefault<label>("gpuColdWallBlockThreads",128);
     value.particleBlockThreads =
         properties.lookupOrDefault<label>("gpuParticleBlockThreads", 128);
     value.reductionBlockThreads =
         properties.lookupOrDefault<label>("gpuReductionBlockThreads", 128);
 
+    plan.particleBlockThreads=value.particleBlockThreads;
+    plan.reductionBlockThreads=value.reductionBlockThreads;
 
     if
     (

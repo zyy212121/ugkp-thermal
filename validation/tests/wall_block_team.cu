@@ -16,7 +16,7 @@ __global__ void run(Input* inputs,int* result){
  if(team.leader())result[blockIdx.x]=ok;
 }
 __global__ void runTiles(Input* inputs,int* result,int count){
- const int k=blockIdx.x*4+threadIdx.x/8;if(k>=count)return;
+ const int k=blockIdx.x*(blockDim.x/8)+threadIdx.x/8;if(k>=count)return;
  auto& item=inputs[k];detail::CudaWallTile8 team;
  const bool ok=detail::solveLayerNewtonSystem(item.config,item.work,team);
  if(team.leader())result[k]=ok;
@@ -49,10 +49,10 @@ int main(){
  for(size_t i=0;i<cpu.size();++i)if(detail::solveLayerNewtonSystem(cpu[i].config,cpu[i].work)!=bool(expected[i]))return 2;
  Input* device;int* result;check(cudaMalloc(&device,inputs.size()*sizeof(Input)));check(cudaMalloc(&result,inputs.size()*sizeof(int)));
  double maximum=0;
- for(int tile:{32,8}){
+ for(int block:{0,32,64,96,128,256}){
  check(cudaMemcpy(device,inputs.data(),inputs.size()*sizeof(Input),cudaMemcpyHostToDevice));
- if(tile==32)run<<<inputs.size(),32>>>(device,result);
- else runTiles<<<(inputs.size()+3)/4,32>>>(device,result,int(inputs.size()));
+ if(block==0)run<<<inputs.size(),32>>>(device,result);
+ else runTiles<<<(inputs.size()+block/8-1)/(block/8),block>>>(device,result,int(inputs.size()));
  auto output=inputs;std::vector<int> status(inputs.size());
  check(cudaMemcpy(output.data(),device,inputs.size()*sizeof(Input),cudaMemcpyDeviceToHost));check(cudaMemcpy(status.data(),result,status.size()*sizeof(int),cudaMemcpyDeviceToHost));
  for(size_t k=0;k<inputs.size();++k){
@@ -67,5 +67,5 @@ int main(){
  }
  }
  check(cudaFree(device));check(cudaFree(result));
- std::printf("PASS: %zu scaled, pivoted block systems and singular case; CPU/32-lane/8-lane maximum difference %.17g\n",inputs.size(),maximum);
+ std::printf("PASS: %zu scaled, pivoted block systems and singular case; CPU/32-lane/8-lane CTA32/64/96/128/256 maximum difference %.17g\n",inputs.size(),maximum);
 }

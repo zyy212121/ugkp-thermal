@@ -9,7 +9,7 @@
 namespace chmt {
 bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const ModelConfig& model,
     const CouplingControls& controls,const CpuMaterialControls& materialControls,Real targetTime,
-    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport& report,std::string& error,WindowRadiation* radiation) {
+    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport& report,std::string& error,WindowRadiation* radiation,bool publishHostState) {
     report=WindowEvolutionReport{};
     try {
         const HostState& base=accepted;
@@ -40,7 +40,7 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         // The backend owns the immutable history until material consumers
         // finish; ledger publication then consumes and releases its storage.
         HostState gasEndpoint;
-        if(!downloadGasWindow(backend,gasEndpoint,error))return false;
+        if(!(publishHostState?downloadGasWindow(backend,gasEndpoint,error):publishGasWindow(backend,gasEndpoint,error)))return false;
         const IntervalHistory& history=gasWindowHistory(backend);
         Real externalRadiationHeat=0;
         if(radiation&&!radiation->advance(backend,program,gasEndpoint,externalRadiationHeat,error))return false;
@@ -48,7 +48,8 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         ++report.materialSolves;
         auto executionControls=materialControls;
         executionControls.retainDonorHistory=false; // Corrected donor history is not replayed in this single-pass driver.
-        if(!material.advanceCandidate(base,gasEndpoint,history,executionControls,candidate,corrected,cpu,error,&program))return false;
+        const auto residentHistory=residentGasWindowDriveHistory(backend);
+        if(!material.advanceCandidate(base,gasEndpoint,history,executionControls,candidate,corrected,cpu,error,&program,&residentHistory))return false;
         candidate.radiationTime=gasEndpoint.radiationTime;
         candidate.budget.radiation+=externalRadiationHeat;
         WallProgramComparison comparison;
@@ -68,7 +69,7 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         candidate.commitSequence=base.commitSequence+1;
         candidate.lastAcceptedDt=interval.end-interval.begin;
         candidate.nextDt=report.nextGasDt;
-        if(!commitGasWindow(backend,candidate,error))return false;
+        if(!commitGasWindow(backend,candidate,error,true))return false;
         accepted=std::move(candidate);error.clear();return true;
     } catch(const Foam::error&) {
         // Preserve the original GPU/OpenFOAM diagnostic for the application

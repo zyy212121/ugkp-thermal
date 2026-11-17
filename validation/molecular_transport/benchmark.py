@@ -29,7 +29,7 @@ def main():
                 control=case/'system/controlDict'
                 matrix.entry(control,'endTime',end);matrix.entry(control,'deltaT',dt)
                 if solver!='CHMT':
-                    matrix.entry(control,'maxDeltaT',dt);matrix.entry(control,'writeInterval',end)
+                    matrix.entry(case/'constant/scheme','maxDeltaT',dt);matrix.entry(control,'writeInterval',end)
                 binary=(args.baseline_bin_dir if mode=='baseline' else args.bin_dir).resolve()/solver
                 elapsed=matrix.run([binary,'-case',case],case/'run.log')
                 if repeat:samples[mode].append(elapsed)

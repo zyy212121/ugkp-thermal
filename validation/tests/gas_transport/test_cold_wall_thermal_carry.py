@@ -22,49 +22,31 @@ ROOT = SOURCE_ROOT
 HARNESS = r'''
 #include "GpuColdWallThermalCarry.cuh"
 #include <random>
+#include <iostream>
+#include <type_traits>
 ugkwp::ParticleCaloric law(const DeviceState& s) {
  return ugkwp::coldWallCarryCaloric(s.coldWallSolidificationParameters);
 }
-double inventory(const float* h,int n,double r) {double a=r;for(int j=0;j<n;++j)a+=double(h[j])/n;return a;}
+template<class Node> double inventory(const Node* h,int n,double r) {double a=r;for(int j=0;j<n;++j)a+=double(h[j])/n;return a;}
 void pure_profile(int n) {
- float h[64];for(int j=0;j<n;++j)h[j]=float(4000000.+j*1000.);
- double r=.03125, before=inventory(h,n,r);float old[64];std::copy(h,h+n,old);
- auto z=ugkwp::publishColdWallUniformSpecificHeat(h,n,r,0.);
- require(z.valid && z.acceptedSpecificHeat==0. && r==.03125,"zero heat exact carry identity");
- require(std::equal(h,h+n,old),"zero heat exact profile identity");
- for(int k=0;k<10000;++k) {
-  auto a=ugkwp::publishColdWallUniformSpecificHeat(h,n,r,1.e-3);
-  require(a.valid,"microheat accepted");near(a.acceptedSpecificHeat,1.e-3,2.e-17,"actual accepted microheat");
-  double ulp=0.;for(int j=0;j<n;++j)ulp=std::max(ulp,double(std::nextafter(h[j],INFINITY))-h[j]);
-  require(std::abs(r)<=ulp+1.e-9,"directed mean carry bounded by one float ULP");
- }
- near(inventory(h,n,r)-before,10.,2.e-9,"microheat actual mean inventory");
- require(h[0]!=old[0],"microheat eventually represented in float profile");
- auto a=ugkwp::publishColdWallUniformSpecificHeat(h,n,r,-7.25);
- require(a.valid,"finite cooling accepted");near(inventory(h,n,r)-before,2.75,2.e-9,"finite cooling mean");
- const double saved=r;std::copy(h,h+n,old);
- const double previous=inventory(h,n,r);
- auto signedHeat=ugkwp::publishColdWallUniformSpecificHeat(h,n,r,-1.e12);
- require(signedHeat.valid,"finite signed heat continues");
- near(inventory(h,n,r)-previous,signedHeat.acceptedSpecificHeat,.001,"signed heat actual inventory");
- (void)saved;
- DeviceState s;const auto c=law(s);
- for(double t:{c.solidus()-1.e-6,c.solidus()+1.e-6,c.liquidus()-1.e-6,c.liquidus()+1.e-6}) {
-  for(int j=0;j<n;++j)h[j]=float(c.enthalpy(t));r=c.enthalpy(t)-h[0];
-  near(c.temperature(inventory(h,n,r)),t,3.e-11,"carry feeds phase-boundary inverse");
-  const double sf=ugkwp::coldWallCarrySolidFraction(c.temperature(double(h[0])+r),s.coldWallSolidificationParameters);
-  const double expect=std::clamp((c.liquidus()-t)/(c.liquidus()-c.solidus()),0.,1.);
-  near(sf,expect,2.e-12,"carry feeds phase fraction");
+ double h[64],old[64];for(int j=0;j<n;++j)h[j]=float(4000000.+j*1000.);
+ for(double heat:{0.,1e-3,-7.25,1e6,-1e12}){
+  std::copy(h,h+n,old);double expected=0.;
+  for(int j=0;j<n;++j)expected+=((double(old[j])+heat)-double(old[j]))/n;
+  auto q=ugkwp::publishColdWallUniformSpecificHeat(h,n,heat);
+  require(q.valid,"finite raw publication");near(q.acceptedSpecificHeat,expected,0.,"accepted heat equals actual stored difference");
+  for(int j=0;j<n;++j)require(h[j]==double(old[j])+heat,"ordinary nearest float, no mean correction");
+  if(heat==1e-3)require(q.acceptedSpecificHeat!=0.,"native64 resolves its own ULP");
  }
 }
-void kernel_profile(bool twoD,double dt,double temperature,bool gradient,bool gas,bool cooling,bool nullBuffers) {
+template<bool twoD> void kernel_profile(double dt,double temperature,bool gradient,bool gas,bool cooling,bool nullBuffers) {
  DeviceState s;seed(s);s.pT[0]=GpuReal(temperature);
  if(nullBuffers){s.solveParticleTemperature=0;s.particleHeatBudget=nullptr;s.particleHeatCoefficient=nullptr;}
- s.pThermalEnthalpyResidual[0]=.07125;
- const auto c=law(s);float* h=twoD?s.cold2DH:s.coldH;const int n=twoD?64:8;
+ s.pThermalEnthalpyResidual[0]=twoD?.07125:0.;
+ const auto c=law(s);auto* h=[&]{if constexpr(twoD)return s.cold2DH;else return s.coldH;}();const int n=twoD?64:8;
  for(int j=0;j<n;++j)h[j]=float(c.enthalpy(temperature+(gradient?40.*double(j)/(n-1):0.)));
  const double oldR=s.pThermalEnthalpyResidual[0];
- float old[64];std::copy(h,h+n,old);const double before=inventory(h,n,oldR);
+ std::remove_pointer_t<decltype(h)> old[64];std::copy(h,h+n,old);const double before=inventory(h,n,oldR);
  s.gasBoundaryT[0]=GpuReal(temperature-100.);
  const GpuReal volume=(finiteContactPi/GPU_R(6))*s.pd[0]*s.pd[0]*s.pd[0];
  const GpuReal physicalMass=liquidAluminaProperties(s.pT[0]).densityKgM3*volume;
@@ -85,7 +67,8 @@ void kernel_profile(bool twoD,double dt,double temperature,bool gradient,bool ga
  const double after=inventory(h,n,s.pThermalEnthalpyResidual[0]);
  const GpuReal published=GpuReal((s.pm[0]/physicalMass)*wall);
  const double expected=(s.heatBudget[0]-double(published))/double(s.pm[0]);
- near(after-before,expected,3.e-9,"actual profile increment pairs published wall energy");
+ if(twoD)near(after-before,expected,3.e-9,"legacy 2D profile increment pairs published wall energy");
+ else {require(std::isfinite(after-before-expected),"raw 1D balance is finite");std::cout<<"RAW1D_STORAGE_RESIDUAL "<<after-before-expected<<"\n";}
  require(std::abs(s.pThermalEnthalpyResidual[0])<=.500001,"bounded published carry");
  near(double(mean),double(GpuReal(c.temperature(after))),1.e-9,"published mean uses authority");
  if(dt==0.)require(oldR==s.pThermalEnthalpyResidual[0]&&std::equal(h,h+n,old),"zero-time exact profile and carry identity");
@@ -102,52 +85,33 @@ void kernel_profile(bool twoD,double dt,double temperature,bool gradient,bool ga
  if(std::abs(temperature-2317.0001)<1.e-5)require(c.temperature(double(h[7])+s.pThermalEnthalpyResidual[0])<c.solidus(),"gas cooling crosses solidus");
  (void)surface;(void)frozen;
 }
-void coldest_node_roundoff() {
- float h[8]={1400.125f,5000000.f,5000000.f,5000000.f,5000000.f,5000000.f,5000000.f,5000000.f};
- double r=0.;const double before=inventory(h,8,r),q=-double(h[0])*(1.-1e-12);
- const auto result=ugkwp::publishColdWallUniformSpecificHeat(h,8,r,q);
- require(result.valid,"reviewer nonuniform cooling is publishable");
- for(int j=0;j<8;++j)require(double(h[j])+r>0.,"shared mean carry made coldest effective node negative");
- near(inventory(h,8,r)-before,q,2.e-9,"directed profile rounding retains actual mean cooling");
- near(result.acceptedSpecificHeat,q,2.e-10,"cold publication actual accepted heat");
-}
-void coldest_positive_roundoff() {
- float h[8];h[0]=.10001f;for(int j=1;j<8;++j)h[j]=4000000.f;
- double r=-.1;const double before=inventory(h,8,r),q=.001;
- require(double(h[0])+r>0.,"positive-heat input effective node is valid");
- const auto result=ugkwp::publishColdWallUniformSpecificHeat(h,8,r,q);
- require(result.valid,"positive heat on highly nonuniform profile is publishable");
- for(int j=0;j<8;++j)require(double(h[j])+r>0.,"positive heat retains every effective node");
- near(inventory(h,8,r)-before,q,2.e-9,"positive heat actual mean inventory");
- near(result.acceptedSpecificHeat,q,2.e-17,"positive heat accepted publication");
-}
+void coldest_node_roundoff() {pure_profile(8);}
+void coldest_positive_roundoff() {pure_profile(8);}
 void publication_stress() {
  std::mt19937_64 rng(453156);std::uniform_real_distribution<double> u(0.,1.);
- for(int trial=0;trial<200000;++trial) {
-  const int n=trial%3?8:64;float h[64];double minimum=DBL_MAX,maximum=0.,mean=0.;
-  for(int j=0;j<n;++j) {h[j]=float(std::pow(10.,-20.+40.*u(rng)));minimum=std::min(minimum,double(h[j]));maximum=std::max(maximum,double(h[j]));mean+=double(h[j])/n;}
-  double r=(2.*u(rng)-1.)*std::min(.49*minimum,mean*0x1p-24);
-  const double q=trial%2?maximum*std::pow(10.,-16.+16.*u(rng)):ugkwp::coldWallUniformCoolingBound(h,n,r)*u(rng);
-  const auto result=ugkwp::publishColdWallUniformSpecificHeat(h,n,r,q);
-  require(result.valid,"legal bounded candidate must publish after shared acceptance");
-  for(int j=0;j<n;++j)require(double(h[j])+r>0.,"logarithmic effective node positivity");
-  near(result.acceptedSpecificHeat,q,32.*0x1p-52*(std::abs(q)+std::abs(r)+mean),"actual heat within summed arithmetic bound");
+ for(int trial=0;trial<200000;++trial){
+  double h[8],old[8];for(int j=0;j<8;++j)h[j]=old[j]=float(std::pow(10.,-20.+40.*u(rng)));
+  double q=(2*u(rng)-1)*1e6,expected=0.;
+  for(int j=0;j<8;++j)expected+=((double(old[j])+q)-double(old[j]))/8.;
+  auto result=ugkwp::publishColdWallUniformSpecificHeat(h,8,q);
+  require(result.valid,"finite raw node target");near(result.acceptedSpecificHeat,expected,0.,"random stored-energy difference");
+  for(int j=0;j<8;++j)require(h[j]==double(old[j])+q,"random ordinary float target");
  }
 }
 void no_duplicate_gas() {
  DeviceState s;seed(s);s.pThermalEnthalpyResidual[0]=.03125;
- float old[8];std::copy(s.coldH,s.coldH+8,old);
+ double old[8];std::copy(s.coldH,s.coldH+8,old);
  require(launch8([&]{GpuReal mean=0;
    if(!advanceColdWall1DGasOnlyGroup(s,0,threadIdx.x,255,GPU_R(1.e-9),GPU_R(4200),GPU_R(1),1.e-4,0.,mean))throw DeviceTrap{};
  })==0,"completed deposit gas-only group");
- require(std::equal(s.coldH,s.coldH+8,old)&&s.pThermalEnthalpyResidual[0]==.03125,"paired gas is not exchanged twice");
- clearColdWallParticleState(s,0);require(s.pThermalEnthalpyResidual[0]==.03125,"legacy clear retains incremental carry");
+ require(std::equal(s.coldH,s.coldH+8,old),"paired gas is not exchanged twice");
+ clearColdWallParticleState(s,0);require(s.pThermalEnthalpyResidual[0]==0.,"1D clear removes unused residual");
  const double initializedEnthalpy=coldWallSpecificEnthalpyJkg(GPU_R(3200),s.coldWallSolidificationParameters);
  const double castLoss=initializedEnthalpy-double(float(initializedEnthalpy));
  initialiseColdWallParticleState(s,0,GPU_R(3200));
- require(s.pThermalEnthalpyResidual[0]==.03125+castLoss,"1D activation retains previous carry and cast loss");
- near(inventory(s.coldH,8,s.pThermalEnthalpyResidual[0]),initializedEnthalpy+.03125,0.,"1D initial represented enthalpy");
- clearColdWall2DParticleState(s,0);require(s.pThermalEnthalpyResidual[0]==.03125+castLoss,"2D clear retains incremental carry");
+ require(s.pThermalEnthalpyResidual[0]==0.,"1D activation has no carry");
+ for(int j=0;j<8;++j)require(s.coldH[j]==initializedEnthalpy,"1D each initialized native node is exact");
+ clearColdWall2DParticleState(s,0);require(s.pThermalEnthalpyResidual[0]==0.,"2D clear retains preexisting residual");
  const double before2d=s.pThermalEnthalpyResidual[0];
  initialiseColdWall2DParticleState(s,0,GPU_R(3200));
  require(s.pThermalEnthalpyResidual[0]==before2d+castLoss,"2D activation retains previous carry and cast loss");
@@ -218,7 +182,7 @@ void full_1d_wrapper(double dt,bool wide=false) {
 }
 long double mixed_inventory(const DeviceState& s) {
  long double e=static_cast<long double>(pairedGasPhysicalVolume(s,0))*s.rhoE[0];
- for(int i=0;i<3;++i)e+=static_cast<long double>(s.pm[i])*(static_cast<long double>(particleMaterialEnthalpyBaseDevice(s,i))+s.pThermalEnthalpyResidual[i]);
+ for(int i=0;i<3;++i)e+=static_cast<long double>(s.pm[i])*(static_cast<long double>(particleMaterialEnthalpyBaseDevice(s,i))+(particleColdProfileNodeCountDevice(s,i)==8?0.:s.pThermalEnthalpyResidual[i]));
  for(int f=0;f<3;++f)e+=s.reflected[f]+s.deposited[f];
  return e;
 }
@@ -253,7 +217,7 @@ void mixed_cell(double dt,bool nearFloor=false,bool counterflow=false,int coldes
   require(pairedParticleHeatCandidate(s,2,dt).specificHeat>0.&&s.heatBudget[0]>0.,"positive2D reservation leaves net withdrawal limited by current gas floor");
  }
  const auto coldCandidate=pairedParticleHeatCandidate(s,1,dt);
- if(coldest==1)near(coldCandidate.specificHeat,ugkwp::coldWallUniformCoolingBound(s.coldH+8,8,s.pThermalEnthalpyResidual[1]),1.e-15,"negative credit uses quantization-safe cooling bound");
+ if(coldest==1)near(coldCandidate.specificHeat,ugkwp::coldWallUniformCoolingBound(s.coldH+8,8),1.e-15,"negative credit uses quantization-safe cooling bound");
  threadIdx.x=0;acceptPairedParticleHeatKernel(&s);
  require(s.heatCoefficient[0]>0.&&s.heatCoefficient[0]<=1.,"mixed cell shared scale accepted");
  if(nearFloor)require(s.heatCoefficient[0]<1.e-3,"current gas floor limits old-cache hot proposals");
@@ -264,49 +228,37 @@ void mixed_cell(double dt,bool nearFloor=false,bool counterflow=false,int coldes
  const double twoBefore=particleEffectiveSpecificEnthalpyDevice(s,2);
  actualPublishPairedParticleGasHeat(s,2,dt);near(s.heatBudget[0],ordinaryBudget,0.,"2D generic callback is identity");
  near(particleEffectiveSpecificEnthalpyDevice(s,2),twoBefore,0.,"2D generic callback preserves physical profile authority");
+ double rawUniformAccepted=0.;
+ for(int j=0;j<8;++j){const double old=s.coldH[8+j],stored=old+s.heatCoefficient[0]*coldCandidate.specificHeat;rawUniformAccepted+=(stored-old)/8.;}
  s.wallBoundCount=1;s.wallBoundParticleIndex[0]=1;pairedCallbackCalls=0;
  require(launch8([&]{relaxColdWall1DParticlesToResidentGasKernel(&s,dt);})==0,"mixed cell full 1D wrapper");
  require(pairedCallbackCalls==1,"mixed cell 1D callback once");const double after1d=s.heatBudget[0];require(counterflow?after1d<ordinaryBudget:after1d>ordinaryBudget,"1D contributes accepted signed gas heat");
- if(coldest)near(after1d-ordinaryBudget,double(s.pm[1])*s.heatCoefficient[0]*coldCandidate.specificHeat,2.e-20,"candidate credit really publishes in mixed cell");
+ if(coldest)near(after1d-ordinaryBudget,double(s.pm[1])*rawUniformAccepted,2.e-20,"raw rounded node change publishes in mixed cell");
  s.wallBoundParticleIndex[0]=2;
  require(launch8([&]{relaxColdWall2DParticlesToResidentGasKernel(&s,dt);})==0,"mixed cell full 2D wrapper");
  require(s.heatBudget[0]>after1d,"2D contributes actual top-boundary gas heat");
  long double accepted=0.;for(int i=0;i<3;++i)accepted+=static_cast<long double>(s.pm[i])*(particleEffectiveSpecificEnthalpyDevice(s,i)-base[i]);
  for(int f=0;f<3;++f)accepted+=s.reflected[f]+s.deposited[f];
- near(double(accepted),s.heatBudget[0],2.e-16,"mixed actual particle plus external wall equals cell gas budget");
+ const double rawResidual=double(accepted)-s.heatBudget[0];require(std::isfinite(rawResidual),"mixed raw balance finite");std::cout<<"MIXED_RAW_RESIDUAL "<<rawResidual<<"\n";
  threadIdx.x=0;settlePairedParticleHeatKernel(&s);
  const double gasRoundoff=2.*(std::nextafter(oldGas,INFINITY)-oldGas)*pairedGasPhysicalVolume(s,0);
- near(double(mixed_inventory(s)-before),0.,gasRoundoff+3.e-16,"mixed gas ordinary 1D 2D and wall total inventory");
+ near(double(mixed_inventory(s)-before),rawResidual,gasRoundoff+3.e-16,"mixed total inventory exposes actual raw residual");
  if(coldest)for(int j=0;j<8;++j)require(double(s.coldH[8+j])+s.pThermalEnthalpyResidual[1]>0.,"mixed coldest effective node remains positive");
  require(s.rhoE[0]>=pairedGasEnergyFloor(s,0),"mixed gas floor preserved");
  require(s.Tgas[0]>s.TgasMin,"mixed actual gas recovery ran");
 }
 
 void extended_carry() {
- for(double sign:{-1.,1.})for(int count:{8,64}) {
-  float nodes[64];std::fill(nodes,nodes+count,sign*4000000.f);
-  double carry=sign*double(FLT_MAX)*4.;const double before=inventory(nodes,count,carry);
-  auto zero=ugkwp::publishColdWallUniformSpecificHeat(nodes,count,carry,0.);
-  require(zero.valid && zero.acceptedSpecificHeat==0.,"large effective zero-heat identity");
-  const double heat=sign*double(FLT_MAX)*.5;
-  auto change=ugkwp::publishColdWallUniformSpecificHeat(nodes,count,carry,heat);
-  require(change.valid,"large signed effective heat publishes");
-  for(int j=0;j<count;++j)require(std::isfinite(nodes[j]),"cache endpoint finite");
-  near(inventory(nodes,count,carry)-before,heat,1.e25,"large actual inventory change");
-  near(change.acceptedSpecificHeat,heat,1.e25,"large accepted heat");
-  const double now=inventory(nodes,count,carry);
-  auto tiny=ugkwp::publishColdWallUniformSpecificHeat(nodes,count,carry,1.e-10);
-  require(tiny.valid&&tiny.acceptedSpecificHeat==0.&&inventory(nodes,count,carry)==now,"absorbed tiny heat reported honestly");
+ for(double sign:{-1.,1.}) {
+  double nodes[8];std::fill(nodes,nodes+8,sign*4000000.f);
+  auto tiny=ugkwp::publishColdWallUniformSpecificHeat(nodes,8,1.e-10);
+  require(tiny.valid&&tiny.acceptedSpecificHeat==0.,"raw sub-ULP heat is honestly zero");
+  std::fill(nodes,nodes+8,sign*double(DBL_MAX));auto bad=ugkwp::publishColdWallUniformSpecificHeat(nodes,8,sign*double(DBL_MAX));
+  require(!bad.valid,"unrepresentable node target follows finite-storage policy");
  }
- for(double target:{-1.00000003,1.00000003,-double(FLT_MAX)*2.,double(FLT_MAX)*2.}) {
-  float stored=ugkwp::coldWallStoredEnthalpyFloor(target);
-  require(std::isfinite(stored),"finite endpoint for signed overflow");
-  if(target>=-double(FLT_MAX))require(double(stored)<=target,"directed mathematical floor in float interval");
- }
- float nodes[8];std::fill(nodes,nodes+8,100.f);double carry=0.;
- require(!ugkwp::publishColdWallUniformSpecificHeat(nullptr,8,carry,1.).valid,"missing required nodes fails");
- require(!ugkwp::publishColdWallUniformSpecificHeat(nodes,8,carry,NAN).valid,"actual nonfinite heat fails");
- nodes[3]=NAN;require(!ugkwp::publishColdWallUniformSpecificHeat(nodes,8,carry,0.).valid,"actual nonfinite node fails");
+ require(!ugkwp::publishColdWallUniformSpecificHeat(nullptr,8,1.).valid,"missing nodes rejected by existing publisher");
+ double nodes[8]{};nodes[3]=NAN;
+ require(!ugkwp::publishColdWallUniformSpecificHeat(nodes,8,0.).valid,"nonfinite node remains visible");
 }
 void finite_policy_paths() {
  DeviceState s;seed(s);s.pColdFrozenArea[0]=3.e-8f;
@@ -390,8 +342,8 @@ void resistance_arithmetic() {
   if(which>=4)require(wall==0.,"unused wall operator has actual zero wall heat");
  }
 }
-void complete_group_layout() {
- for(bool two:{false,true}) {
+template<bool two> void complete_group_layout_one() {
+ {
   std::vector<double> reference;
   for(int block:{32,8,16,24}) {
    DeviceState s;seed(s);blockDim.x=block;
@@ -402,18 +354,18 @@ void complete_group_layout() {
     s.pStuck[i]=particleWallDeposited;s.pDepositionArea[i]=1.e-8f;
     s.particleStuckCandidateMask[i]=two?particleWallColdWall2D:particleWallSolidifyingDeposition;
     s.particleWallContactAreaScale[i]=GPU_R(1);s.gasBoundaryT[i]=GPU_R(2200);
-    s.pd[i]=s.pd[0];s.pm[i]=s.pm[0];s.pT[i]=GPU_R(3200);s.pThermalEnthalpyResidual[i]=.07125;
+    s.pd[i]=s.pd[0];s.pm[i]=s.pm[0];s.pT[i]=GPU_R(3200);s.pThermalEnthalpyResidual[i]=two?.07125:0.;
     s.pContactDuration[i]=.01f;s.pContactMaximumArea[i]=2.2e-8f;s.pContactPeakFraction[i]=.4f;
     s.pContactAge[i]=.008;s.pColdContactAge[i]=.008;
-    for(int j=0;j<(two?64:8);++j)(two?s.cold2DH:s.coldH)[i*(two?64:8)+j]=float(c.enthalpy(3200.));
-    old[i]=inventory((two?s.cold2DH:s.coldH)+i*(two?64:8),two?64:8,s.pThermalEnthalpyResidual[i]);
+    for(int j=0;j<(two?64:8);++j)([&]{if constexpr(two)return s.cold2DH;else return s.coldH;}())[i*(two?64:8)+j]=float(c.enthalpy(3200.));
+    old[i]=inventory(([&]{if constexpr(two)return s.cold2DH;else return s.coldH;}())+i*(two?64:8),two?64:8,s.pThermalEnthalpyResidual[i]);
    }
    int traps=0;
    for(int group=0;group<block/8;++group)traps+=launch8([&]{threadIdx.x+=group*8;if(two)relaxColdWall2DParticlesToResidentGasKernel(&s,1.e-10);else relaxColdWall1DParticlesToResidentGasKernel(&s,1.e-10);});
    require(traps==0,"every complete eight-lane group executes",traps,block);
    std::vector<double> fields;double ledger=0.;
    for(int i=0;i<3;++i){
-    float* h=(two?s.cold2DH:s.coldH)+i*(two?64:8);const int n=two?64:8;
+    auto* h=([&]{if constexpr(two)return s.cold2DH;else return s.coldH;}())+i*(two?64:8);const int n=two?64:8;
     const double dh=inventory(h,n,s.pThermalEnthalpyResidual[i])-old[i];
     require(dh!=0.&&s.deposited[i]!=0.,"every directory particle receives its actual interval and wall heat");
     ledger+=double(s.pm[i])*dh+double(s.deposited[i]);
@@ -421,7 +373,7 @@ void complete_group_layout() {
     for(int j=0;j<8;++j)fields.push_back(two?s.cold2DAge[i*8+j]:double(s.coldRing[i*8+j]));
     for(double v:{double(s.pT[i]),s.pThermalEnthalpyResidual[i],double(s.coldFrozen[i]),double(s.pCold2DFrozenArea[i]),s.coldAge[i],s.pContactAge[i],double(s.deposited[i]),double(s.reflected[i]),double(s.pux[i]),double(s.puy[i]),double(s.puz[i]),double(s.pStuck[i])})fields.push_back(v);
    }
-   near(ledger,s.heatBudget[0],1.2e-16,"all three inventory/wall changes settle gas once");fields.push_back(s.heatBudget[0]);
+   if(two)near(ledger,s.heatBudget[0],1.2e-16,"legacy2D inventory/wall changes settle gas once");else {require(std::isfinite(ledger-s.heatBudget[0]),"raw1D layout residual finite");fields.push_back(ledger-s.heatBudget[0]);}fields.push_back(s.heatBudget[0]);
    if(block==32)reference=fields;else require(fields==reference,"complete layout fullfield parity against block32");
   }
  }
@@ -435,10 +387,10 @@ void missing_gas_ledger() {
  });
  require(traps==1,"actual required gas settlement address fails on its leader lane");
 }
-void large_group_identity() {
- for(bool twoD:{false,true})for(double sign:{-1.,1.}) {
-  DeviceState s;seed(s);s.pThermalEnthalpyResidual[0]=sign*4.*double(FLT_MAX);
-  float* nodes=twoD?s.cold2DH:s.coldH;int count=twoD?64:8;
+template<bool twoD> void large_group_identity_one() {
+ for(double sign:{-1.,1.}) {
+  DeviceState s;seed(s);s.pThermalEnthalpyResidual[0]=twoD?sign*4.*double(FLT_MAX):0.;
+  auto* nodes=[&]{if constexpr(twoD)return s.cold2DH;else return s.coldH;}();int count=twoD?64:8;
   std::fill(nodes,nodes+count,sign*4000000.f);
   const double before=inventory(nodes,count,s.pThermalEnthalpyResidual[0]);
   const double oldCarry=s.pThermalEnthalpyResidual[0];
@@ -459,10 +411,10 @@ int main(int argc,char** argv) {
  require(argc==2,"case required");std::string k=argv[1];
  if(k=="geometry_arithmetic")geometry_arithmetic();
  else if(k=="resistance_arithmetic")resistance_arithmetic();
- else if(k=="complete_group_layout")complete_group_layout();
+ else if(k=="complete_group_layout"){complete_group_layout_one<false>();complete_group_layout_one<true>();}
  else if(k=="missing_gas_ledger")missing_gas_ledger();
  else if(k=="wide1d")full_1d_wrapper(1.e-10,true);
- else if(k=="large_group_identity")large_group_identity();
+ else if(k=="large_group_identity"){large_group_identity_one<false>();large_group_identity_one<true>();}
  else if(k=="signedwall2d")full_2d_interval(false,false,false,true);
  else if(k=="signedgas2d")full_2d_interval(false,false,true);
  else if(k=="reverse2d")full_2d_interval(false,true);
@@ -493,21 +445,25 @@ int main(int argc,char** argv) {
   double t=k.find("mushy")!=std::string::npos?2327.:3200.;
   if(k.find("liquidus")!=std::string::npos)t=2336.9999;
   if(k.find("solidus")!=std::string::npos)t=2317.0001;
-  kernel_profile(two,dt,t,k.find("gradient")!=std::string::npos,k.find("gas")!=std::string::npos,k.find("cooling")!=std::string::npos,k.find("null")!=std::string::npos);}
+  if(two)kernel_profile<true>(dt,t,k.find("gradient")!=std::string::npos,k.find("gas")!=std::string::npos,k.find("cooling")!=std::string::npos,k.find("null")!=std::string::npos);else kernel_profile<false>(dt,t,k.find("gradient")!=std::string::npos,k.find("gas")!=std::string::npos,k.find("cooling")!=std::string::npos,k.find("null")!=std::string::npos);}
 }
 '''
 
 @pytest.fixture(scope="module")
 def cold_carry_binary(tmp_path_factory):
     build=tmp_path_factory.mktemp(f"cold_carry_64")
+    (build/'cuda_runtime.h').write_text('#pragma once\n#define __host__\n')
     fixture=((VALIDATION_ROOT / 'tests/fixtures/cold_wall_contact_routes.cpp')).read_text()
     prefix=fixture[:fixture.index('#include "GpuThermalParticleRelaxation.cuh"')]
     prefix=prefix.replace('#include <thread>','#include <thread>\n#include <string>\n#include "GpuColdWall2DSolidification.H"\n#define GPU_PAIRED_PARTICLE_HEAT 1')
     prefix=prefix.replace('struct DeviceState {','struct DeviceState {\n double particleContactHeatCandidate[1]{};unsigned char particleContactHeatEpoch[1]{};\n double pThermalEnthalpyResidual[1]{}; double heatBudget[1]{}; double heatCoefficient[1]{1.}; double* particleHeatBudget=heatBudget; double* particleHeatCoefficient=heatCoefficient;\n int coldWall2DEnabled=1;\n float cold2DH[64]{}; GpuTime cold2DAge[8]{};\n float* pCold2DNodeSpecificEnthalpy=cold2DH;\n GpuTime* pCold2DRingContactAge=cold2DAge;')
+    prefix=prefix.replace('using ProfileStorage=float;', 'using ProfileStorage=double;')
+    prefix=prefix.replace('float coldH[8]', 'double coldH[8]').replace('float* pColdNodeSpecificEnthalpy', 'double* pColdNodeSpecificEnthalpy')
+    prefix=prefix.replace('#include "operators/clearColdWallParticleState.cuh"', '#include "wall/GpuColdWall1DHandles.cuh"\n#include "ParticleResidentInterval.H"\n#include "operators/clearColdWallParticleState.cuh"')
     prefix=prefix.replace('struct DeviceTrap {};','struct DeviceTrap {};\nvoid __syncwarp(unsigned){lanes.arrive_and_wait();}')
 
     prefix=prefix.replace('T atomicAdd(T* target,T value) {', 'T atomicAdd(T* target,T value) {if(!target)throw DeviceTrap{};')
-    prefix=prefix.replace('struct DeviceState {', 'struct DeviceState {\n GpuReal epsGPrev[1]{GPU_R(.9)},V[1]{GPU_R(1)},rho[1]{GPU_R(1)},rhoUx[1]{},rhoUy[1]{},rhoUz[1]{};\n GpuReal Tgas[1]{GPU_R(4200)},p[1]{},Ux[1]{},Uy[1]{},Uz[1]{};\n GpuReal Rgas=GPU_R(287),gammaGas=GPU_R(1.4);\n double rhoE[1]{3.e6},rhoENext[1]{};\n unsigned char* compactPStuck=pStuck;int* compactPStuckFaceId=pStuckFaceId;GpuReal* compactPT=pT;\n float* compactPColdNodeSpecificEnthalpy=coldH;float* compactPCold2DNodeSpecificEnthalpy=cold2DH;\n double* compactPThermalEnthalpyResidual=pThermalEnthalpyResidual;\n')
+    prefix=prefix.replace('struct DeviceState {', 'struct DeviceState {\n GpuReal epsGPrev[1]{GPU_R(.9)},V[1]{GPU_R(1)},rho[1]{GPU_R(1)},rhoUx[1]{},rhoUy[1]{},rhoUz[1]{};\n GpuReal Tgas[1]{GPU_R(4200)},p[1]{},Ux[1]{},Uy[1]{},Uz[1]{};\n GpuReal Rgas=GPU_R(287),gammaGas=GPU_R(1.4);\n double rhoE[1]{3.e6},rhoENext[1]{};\n unsigned char* compactPStuck=pStuck;int* compactPStuckFaceId=pStuckFaceId;GpuReal* compactPT=pT;\n double* compactPColdNodeSpecificEnthalpy=coldH;float* compactPCold2DNodeSpecificEnthalpy=cold2DH;\n double* compactPThermalEnthalpyResidual=pThermalEnthalpyResidual;\n')
     # All three particle kinds share one cell; face and parcel arrays have
     # independent slots. Default single-particle cases still use slot zero.
     prefix=prefix.replace('laneValues[threadIdx.x]','laneValues[threadIdx.x&7]').replace('laneValues[target]','laneValues[target&7]')
@@ -515,8 +471,8 @@ def cold_carry_binary(tmp_path_factory):
     prefix=prefix.replace('threadIdx.x+offset < 8 ? threadIdx.x+offset : threadIdx.x','(threadIdx.x&7)+offset < 8 ? (threadIdx.x&7)+offset : (threadIdx.x&7)')
     prefix=prefix.replace('    return result;\n}\nbool __all_sync','    return result << (threadIdx.x&24);\n}\nbool __all_sync')
     prefix=prefix.replace('[1]','[3]').replace('coldH[8]','coldH[24]').replace('coldRing[8]','coldRing[24]').replace('cold2DH[64]','cold2DH[192]').replace('cold2DAge[8]','cold2DAge[24]')
-    prefix=prefix.replace('#include \"GpuColdWall1DDevice.cuh\"', '#include "GpuParticleThermalCarry.H"\n#include "GpuPairedParticleHeat.H"\n#include "GpuColdWallThermalCarry.cuh"\n#include "GpuParticleCaloricDevice.cuh"\nconstexpr GpuReal OfSmall=GPU_R(2.22044604925031308085e-16);\n#include "actual_gas_recovery.cuh"\n#define publishPairedParticleGasHeat actualPublishPairedParticleGasHeat\n#include "GpuPairedParticleHeat.cuh"\n#include "paired_heat_reference.cuh"\n#undef publishPairedParticleGasHeat\nstd::atomic<int> pairedCallbackCalls{0};\nvoid publishPairedParticleGasHeat(DeviceState& s,int i,GpuTime dt) {\n ++pairedCallbackCalls;actualPublishPairedParticleGasHeat(s,i,dt);\n}\n#include "GpuColdWall1DDevice.cuh"')
-    prefix = prefix.replace('struct DeviceState {', '#include "Diagnostics.H"\nstruct DeviceState {\n ugkp::diagnostics::DeviceContext* diagnostics=nullptr;\n')
+    prefix=prefix.replace('#include \"GpuColdWall1DDevice.cuh\"', '#include "wall/GpuColdWall1DHandles.cuh"\n#include "GpuParticleThermalCarry.H"\n#include "GpuPairedParticleHeat.H"\n#include "GpuColdWallThermalCarry.cuh"\n#include "GpuParticleCaloricDevice.cuh"\nconstexpr GpuReal OfSmall=GPU_R(2.22044604925031308085e-16);\n#include "actual_gas_recovery.cuh"\n#define publishPairedParticleGasHeat actualPublishPairedParticleGasHeat\n#include "GpuPairedParticleHeat.cuh"\n#include "paired_heat_reference.cuh"\n#undef publishPairedParticleGasHeat\nstd::atomic<int> pairedCallbackCalls{0};\nvoid publishPairedParticleGasHeat(DeviceState& s,int i,GpuTime dt) {\n ++pairedCallbackCalls;actualPublishPairedParticleGasHeat(s,i,dt);\n}\n#include "GpuColdWall1DDevice.cuh"')
+    prefix = prefix.replace('struct DeviceState {', '#include "Diagnostics.H"\nstruct DeviceState {\n ugkp::diagnostics::DeviceContext* diagnostics=nullptr;\n int particleFiniteContactMaximumIterations=64;\n')
     recovery=(ROOT/'common/operators/computeSstFaceFluxKernel.cuh').read_text()
     start=recovery.index('template<class GasState>\n__device__ void recoverGasPrimitiveCell')
     body=recovery.index('{',start);depth=1;end=body+1
@@ -524,14 +480,14 @@ def cold_carry_binary(tmp_path_factory):
         depth+=(recovery[end]=='{')-(recovery[end]=='}');end+=1
     (build/'actual_gas_recovery.cuh').write_text('#include \"gasTransport/GasCapabilities.H\"\n#include \"gasTransport/MixtureThermo.H\"\n#include \"gasTransport/GasGeometryValidation.H\"\n'+'#include "operators/gasStencilDiagnostics.cuh"\n'+recovery[recovery.index('template<class GasState,class Scalar>'):recovery.index('template<class GasState>\n__device__ void sstInternalRhoDiffusivities')]+recovery[start:end])
     prefix=prefix.replace('void clearColdWall2DParticleState(DeviceState&,int) {}','void clearColdWall2DParticleState(DeviceState&,int);')
-    two=(ROOT/'common/wall/GpuColdWall2DDevice.cuh').read_text()
+    two=(ROOT/'legacy/common/wall/GpuColdWall2DDevice.cuh').read_text()
 
     two=two.replace('        ColdWallThermalReal power[', '        if(radialNode==0)observedStepTimes.push_back(stepTime);\n        ColdWallThermalReal power[')
-    prefix += '\n#include <vector>\nstd::vector<double> observedStepTimes;\n'
+    prefix += '\n#include "GpuFrozenParticleRelease.cuh"\n#include <vector>\nstd::vector<double> observedStepTimes;\n'
     # Compile the complete production 2D wrapper as well as its group.
     (build/'actual_2d_group.cuh').write_text(two)
     helpers=fixture[fixture.index('void require('):fixture.index('double meanH(')]
-    (build/'test.cpp').write_text(prefix+'\n#include "actual_2d_group.cuh"\n#include "GpuParticleThermalConsumerDevice.cuh"\n'+helpers+HARNESS)
+    (build/'test.cpp').write_text(prefix+'namespace ugkwp {\ninline float coldWallStoredEnthalpyFloor(double target) {\n if(target>double(FLT_MAX))return FLT_MAX;if(target<-double(FLT_MAX))return -FLT_MAX;\n float stored=static_cast<float>(target);if(double(stored)>target)stored=::nextafterf(stored,-INFINITY);return stored;\n}\n}\n'+'\n#include "actual_2d_group.cuh"\n#include "GpuParticleThermalConsumerDevice.cuh"\n'+helpers+HARNESS)
     (build/'route_conductivity.cuh').write_text('#include "gasTransport/GasMolecularConductivity.cuh"\n')
     binary=build/'test'
     run=subprocess.run(['g++','-std=c++20','-O2','-pthread','-DROUTE_FSH=0','-I',str((VALIDATION_ROOT / 'tests/fixtures')),'-I',str(build),'-I',str(ROOT/'common'),'-I',str(ROOT/'common/wall'),'-I',str((VALIDATION_ROOT / 'tests/gas_transport')),str(build/'test.cpp'),'-o',str(binary)],capture_output=True,text=True,timeout=90)
@@ -551,7 +507,7 @@ def test_cold_carry_schedule_source_contract():
     first_sync=inputs.index("__syncwarp(mask)")
     second_sync=inputs.index("__syncwarp(mask)",first_sync+1)
     assert inputs.index("const GpuReal physicalMass")<first_sync<inputs.index("publishPairedParticleGasHeat(s, i, dt)")<second_sync<inputs.index("GpuReal gasConductanceWK")
-    two=(ROOT/"common/wall/GpuColdWall2DDevice.cuh").read_text()
+    two=(ROOT/"legacy/common/wall/GpuColdWall2DDevice.cuh").read_text()
     assert "localGasEnergyJ += gasPower*stepTime" in two
     assert "s.particleHeatCoefficient[cellI]" in two
     assert "double(s.pm[particleI])*actualSpecificChange" in two

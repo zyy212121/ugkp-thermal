@@ -15,7 +15,7 @@ __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandida
  if(!(dt>0.)||s.pStatus[i]==0||!(s.pm[i]>0)||!pairedParticleHeatMember(s,i))return {0.,0.,0.};
  const int c=s.pCellId[i];if(c<0||c>=s.nCells)return {0.,0.,0.};
  const auto law=particleCaloricDevice(s,i);
- const double base=particleMaterialEnthalpyBaseDevice(s,i),carry=s.pThermalEnthalpyResidual[i];
+ const double base=particleMaterialEnthalpyBaseDevice(s,i),carry=particleColdProfileNodeCountDevice(s,i)==8?0.:s.pThermalEnthalpyResidual[i];
  const double oldH=base+carry,Ti=law.temperature(oldH);
  double cp=law.specificHeat(Ti);
  if(!(cp>0.)||!ugkwp::finiteThermalCarry(oldH)||!ugkwp::finiteThermalCarry(Ti))return {0.,0.,0.};
@@ -23,9 +23,9 @@ __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandida
  const double ux=stuck?0.:double(s.pux[i]),uy=stuck?0.:double(s.puy[i]),uz=stuck?0.:double(s.puz[i]);
  const double dx=double(s.couplingUxOld[c])-ux,dy=double(s.couplingUyOld[c])-uy,dz=double(s.couplingUzOld[c])-uz;
  const double d=double(clampMin(finiteOr(s.pd[i],s.particleDiameterFallback),GPU_R(1e-12)));
- const double re=double(clampMin(s.couplingRhoOld[c],s.rhoMin))*d*::sqrt(dx*dx+dy*dy+dz*dz)/double(clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]),GPU_R(1e-30)));
- const double nu=2.+.6*::sqrt(re>0.?re:0.)*double(ugkwp::gasCellPrandtlOneThird(s,c));
- const double conductancePerMass=6.*nu*double(molecularGasConductivity(s,c,s.couplingTgasOld[c]))/(double(s.rhoSolid)*d*d);
+ const double re=double(clampMin(s.couplingRhoOld[c],s.rhoMin))*d*::sqrt(dx*dx+dy*dy+dz*dz)/double(clampMin(s.couplingGasViscosity[c],GPU_R(1e-30)));
+ const double nu=2.+.6*::sqrt(re>0.?re:0.)*double(s.couplingGasPrandtlOneThird[c]);
+ const double conductancePerMass=6.*nu*double(s.couplingGasConductivity[c])/(double(s.rhoSolid)*d*d);
  const double Tg=double(clampMin(s.couplingTgasOld[c],s.TgasMin));
  const int count=particleColdProfileNodeCountDevice(s,i);
  const double equilibriumIncrement=count==8 ? law.enthalpyIncrement(Ti,Tg-Ti) : 0.;
@@ -66,7 +66,7 @@ __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandida
   effectiveA=a;
   if(Tg!=Ti)cp=equilibriumIncrement/(Tg-Ti);
   const double lower=ugkwp::coldWallUniformCoolingBound
-      (s.pColdNodeSpecificEnthalpy+i*8,8,carry);
+      (s.pColdNodeSpecificEnthalpy+Foam::gpuWall::coldWallSlot(s,i)*8,8);
   if(dh<lower){dh=lower;if(equilibriumIncrement!=0.)effectiveA=dh/equilibriumIncrement;}
  }
  const double capacity=double(s.pm[i])*cp;
@@ -84,13 +84,7 @@ __device__ __forceinline__ void accumulatePairedParticleHeatCandidate
 (DeviceState& s,int i,GpuTime dt)
 {
  if(s.particleHeatCoefficient==nullptr||s.particleHeatBudget==nullptr)return;
-#if defined(GPU_MIXTURE_PARTICLE_COUPLING)
- // Mixture free-particle coupling runs after collisions and owns the current
- // mobile set. It does not use the earlier single-gas macro partition.
- if(ugkwp::mixtureGasActive(s))
-  s.particleContactHeatEpoch[i]=s.pStuck[i]!=Foam::gpuThermal::particleWallMobile;
- else
-#endif
+
   s.particleContactHeatEpoch[i]=pairedParticleHeatMember(s,i);
  const auto p=pairedParticleHeatCandidate(s,i,dt);
  s.particleContactHeatCandidate[i]=p.capacity>0.?p.specificHeat:0.;
@@ -140,8 +134,8 @@ __device__ __forceinline__ void publishPairedParticleGasHeat(DeviceState&s,int i
  if(dh==0.)return;
  double accepted=0.;const int count=particleColdProfileNodeCountDevice(s,i);
  if(count){
-  float* nodes=(count==8?s.pColdNodeSpecificEnthalpy:s.pCold2DNodeSpecificEnthalpy)+i*count;
-  const auto result=ugkwp::publishColdWallUniformSpecificHeat(nodes,count,s.pThermalEnthalpyResidual[i],dh);
+  double* nodes=s.pColdNodeSpecificEnthalpy+Foam::gpuWall::coldWallSlot(s,i)*count;
+  const auto result=ugkwp::publishColdWallUniformSpecificHeat(nodes,count,dh);
   if(!result.valid)return;
   accepted=result.acceptedSpecificHeat;
   s.pT[i]=GpuReal(particleEffectiveTemperatureDevice(s,i));

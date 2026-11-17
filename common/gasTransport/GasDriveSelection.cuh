@@ -1,3 +1,4 @@
+#include "../gpu/WorkPlan.H"
 #pragma once
 #include "GasDriveSelection.H"
 #include <cuda_runtime.h>
@@ -53,9 +54,9 @@ inline cudaError_t selectGasDriveInterval(History history,const GasDriveControls
     GasDriveSelection* result,int* candidates,cudaStream_t stream){
     drive_selection_detail::initialize<<<1,1,0,stream>>>(history,controls,result);
     auto error=cudaGetLastError();if(error!=cudaSuccess)return error;
-    if(history.frames){const auto needed=history.frames/128+(history.frames%128!=0);
+    if(history.frames){const auto needed=history.frames/ugkp::gpu::workPlan().cellBlockThreads+(history.frames%ugkp::gpu::workPlan().cellBlockThreads!=0);
         const unsigned blocks=static_cast<unsigned>(needed<65535?needed:65535);
-        drive_selection_detail::compareCandidates<Ns><<<blocks,128,0,stream>>>(history,controls,result,candidates);
+        drive_selection_detail::compareCandidates<Ns><<<blocks,ugkp::gpu::workPlan().cellBlockThreads,0,stream>>>(history,controls,result,candidates);
         error=cudaGetLastError();if(error!=cudaSuccess)return error;}
     drive_selection_detail::finish<<<1,1,0,stream>>>(history,controls,candidates,result);
     return cudaGetLastError();

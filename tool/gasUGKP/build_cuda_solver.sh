@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 source_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+if [[ -z ${UGKP_INTERNAL_PRECISION_BITS:-} ]]; then
+    exec bash "$source_root/tool/precision/build_dual.sh" --solver gasUGKP
+fi
 if [ -z "${WM_PROJECT_DIR:-}" ]; then echo "OpenFOAM environment is not loaded" >&2; exit 1; fi
 set -euo pipefail
 solver_root="$source_root/applications/gasUGKP"

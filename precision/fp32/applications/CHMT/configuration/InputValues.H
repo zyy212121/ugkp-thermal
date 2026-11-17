@@ -1,0 +1,69 @@
+#ifndef CHMT_CONFIGURATION_INPUTVALUES_H
+#define CHMT_CONFIGURATION_INPUTVALUES_H
+#include "fvCFD.H"
+#include "core/HostState.H"
+#include "materials/Thermodynamics.H"
+#include <stdexcept>
+namespace chmt { namespace io {
+        inline void require(bool condition, const std::string& message) {
+            if (!condition) throw std::runtime_error(message);
+        }
+        inline Real readNumber(const Foam::dictionary& d, const char* key) {
+            const Real v = d.lookup<Foam::scalar>(key);
+            return v;
+        }
+        inline Real readNumber(const Foam::dictionary& d, const char* key, Real fallback) {
+            return d.found(key)?readNumber(d, key):fallback;
+        }
+        inline PhysicalReal readPhysical(const Foam::dictionary& d,const char* key) {
+            return PhysicalReal(readNumber(d,key));
+        }
+        inline PhysicalReal readPhysical(const Foam::dictionary& d,const char* key,PhysicalReal fallback) {
+            return d.found(key)?readPhysical(d,key):fallback;
+        }
+        template<class Scalar> inline Scalar readConfiguredNumber(const Foam::dictionary& d,const char* key,Scalar fallback) {
+            return d.found(key)?Scalar(readNumber(d,key)):fallback;
+        }
+        inline std::string text(const Foam::dictionary& d, const char* key) {
+            Foam::token value(d.lookup(key));
+            require(value.isWord() || value.isString(), std::string("expected word or quoted string for ")+key);
+            return value.isWord()?std::string(value.wordToken()):std::string(value.stringToken());
+        }
+        inline std::string text(const Foam::dictionary& d, const char* key, const std::string& fallback) {
+            return d.found(key)?text(d, key):fallback;
+        }
+        inline bool flag(const Foam::dictionary& d, const char* key, bool fallback = false) {
+            return d.lookupOrDefault<Foam::Switch>(key, Foam::Switch(fallback));
+        }
+        inline Vec3 readVector(const Foam::dictionary& d, const char* key, Vec3 fallback = {}) {
+            if (!d.found(key)) {
+                return fallback;
+            }
+            const Foam::vector v = d.lookup<Foam::vector>(key);
+            Vec3 out{v.x(), v.y(), v.z()};
+            return out;
+        }
+        inline PhysicalVec3 readPhysicalVector(const Foam::dictionary& d,const char* key,PhysicalVec3 fallback={}) {
+            if(!d.found(key))return fallback;
+            const Foam::vector v=d.lookup<Foam::vector>(key);
+            return {PhysicalReal(v.x()),PhysicalReal(v.y()),PhysicalReal(v.z())};
+        }
+        template<class Scalar=Real> inline std::vector<Scalar> scalars(const Foam::dictionary& d, const char* key) {
+            const Foam::scalarList v(d.lookup(key));
+            std::vector<Scalar> out(v.begin(), v.end());
+            return out;
+        }
+        template<class Scalar,int N> inline void array(const Foam::dictionary& d, const char* key, Scalar (&out)[N],
+            bool optional = false) {
+            if (optional && !d.found(key)) {
+                return;
+            }
+            const auto values = scalars(d, key);
+            for(int i=0;i<N;++i)out[i]=Scalar(values.at(i));
+        }
+        template<class Scalar,int N> inline void elements(const Foam::dictionary& d, Scalar (&out)[N], int count) {
+            const auto values = scalars(d, "element");
+            for(int i=0;i<N&&i<count;++i)out[i]=Scalar(values.at(i));
+        }
+}}
+#endif

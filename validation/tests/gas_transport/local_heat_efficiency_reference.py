@@ -57,7 +57,7 @@ template<class Storage, class Caloric>
 }
 '''
 
-COLD_REFERENCE = r'''
+LEGACY_COLD_REFERENCE = r'''
  inline ColdWallHeatPublication referenceColdHeat
 (float* nodes, int count, double& residual, double specificHeat) {
  if (!nodes || count<=0 || !(::fabs(residual)<=DBL_MAX)
@@ -95,7 +95,7 @@ PAIRED_REFERENCE = r'''
  if(!(dt>0.)||s.pStatus[i]==0||!(s.pm[i]>0))return {0.,0.,0.};
  const int c=s.pCellId[i];if(c<0||c>=s.nCells)return {0.,0.,0.};
  const auto law=particleCaloricDevice(s,i);
- const double base=particleMaterialEnthalpyBaseDevice(s,i),carry=s.pThermalEnthalpyResidual[i];
+ const double base=particleMaterialEnthalpyBaseDevice(s,i),carry=particleColdProfileNodeCountDevice(s,i)==8?0.:s.pThermalEnthalpyResidual[i];
  const double oldH=base+carry,Ti=law.temperature(oldH);
  double cp=law.specificHeat(Ti);
  if(!(cp>0.)||!ugkwp::finiteThermalCarry(oldH)||!ugkwp::finiteThermalCarry(Ti))return {0.,0.,0.};
@@ -142,10 +142,26 @@ PAIRED_REFERENCE = r'''
   effectiveA=a;
   if(Tg!=Ti)cp=equilibriumIncrement/(Tg-Ti);
   const double lower=ugkwp::coldWallUniformCoolingBound
-      (s.pColdNodeSpecificEnthalpy+i*8,8,carry);
+      (s.pColdNodeSpecificEnthalpy+i*8,8);
   if(dh<lower){dh=lower;if(equilibriumIncrement!=0.)effectiveA=dh/equilibriumIncrement;}
  }
  const double capacity=double(s.pm[i])*cp;
  return {capacity,capacity*effectiveA,dh};
+}
+'''
+
+
+COLD_REFERENCE = r'''
+inline ColdWallHeatPublication referenceColdHeat(float* nodes,int count,double heat) {
+ if(!nodes||count<=0||!std::isfinite(heat))return {false,0.};
+ for(int j=0;j<count;++j) {if(!std::isfinite(nodes[j]))return {false,0.};}
+ double accepted=0.;
+ for(int j=0;j<count;++j) {
+  double target=double(nodes[j])+heat;float stored=float(target);
+  if(!std::isfinite(target)||!std::isfinite(stored))return {false,0.};
+  accepted+=(double(stored)-double(nodes[j]))/double(count);
+ }
+ for(int j=0;j<count;++j) {nodes[j]=float(double(nodes[j])+heat);}
+ return {true,accepted};
 }
 '''

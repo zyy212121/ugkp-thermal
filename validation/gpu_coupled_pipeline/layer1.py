@@ -213,7 +213,7 @@ def main():
                     end,dt=durations[name];control=case/'system/controlDict'
                     matrix.entry(control,'endTime',end);matrix.entry(control,'deltaT',dt)
                     if solver!='CHMT':
-                        matrix.entry(control,'maxDeltaT',dt)
+                        matrix.entry(case/'constant/scheme','maxDeltaT',dt)
                         # Keep every coupled endpoint available for budget checks.
                         if solver=='gasUGKP':matrix.entry(control,'writeInterval',end/2)
                 if args.end_time is not None:

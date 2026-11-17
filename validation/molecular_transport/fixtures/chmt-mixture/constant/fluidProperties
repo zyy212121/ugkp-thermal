@@ -1,0 +1,2 @@
+FoamFile {version 2.0; format ascii; class dictionary; object fluidProperties;}
+mixture { transport { mu 0; kappa 1; } }

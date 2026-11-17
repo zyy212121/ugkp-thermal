@@ -26,7 +26,7 @@ double puxOld[128]={};c.puxOld=v.puxOld=puxOld;
 double puyOld[128]={};c.puyOld=v.puyOld=puyOld;
 double puzOld[128]={};c.puzOld=v.puzOld=puzOld;
 double pThermalEnthalpyResidual[128]={};c.pThermalEnthalpyResidual=v.pThermalEnthalpyResidual=pThermalEnthalpyResidual;
-float pColdNodeSpecificEnthalpy[128]={};c.pColdNodeSpecificEnthalpy=v.pColdNodeSpecificEnthalpy=pColdNodeSpecificEnthalpy;
+double pColdNodeSpecificEnthalpy[128]={};c.pColdNodeSpecificEnthalpy=v.pColdNodeSpecificEnthalpy=pColdNodeSpecificEnthalpy;
 float pCold2DNodeSpecificEnthalpy[128]={};c.pCold2DNodeSpecificEnthalpy=v.pCold2DNodeSpecificEnthalpy=pCold2DNodeSpecificEnthalpy;
 std::int32_t pCellId[128]={};c.pCellId=v.pCellId=pCellId;
 std::int32_t pStatus[128]={};c.pStatus=v.pStatus=pStatus;

@@ -3,12 +3,14 @@
 #include "thermal/ParticleTrackingGeometry.H"
 #include "gasBoundary/FoamInput.H"
 #include "gasBoundary/Api.H"
+#include "gasNumerics/GasScalarSolverControlsApi.H"
 #include "gasTransport/MolecularTransportApi.H"
 #include "gasTransport/FoamMolecularTransportInput.H"
 #ifndef GpuResidentStrict_H
 #define GpuResidentStrict_H
 
 #include "fvCFD.H"
+#include "../../../common/FoamSolverScheme.H"
 #include "../../../common/DiagnosticsFoam.H"
 #include "SharedGasModelInput.H"
 #include "BoundaryLayerInput.H"
@@ -161,19 +163,7 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
     const double* sourceMassRate
 );
 
-extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
-(
-    void* handle,
-    int nFaces,
-    const int* faceIds,
-    double inletTemperature,
-    int nPressureRows,
-    const double* pressureTimes,
-    const double* pressureValues,
-    int nVolumeFractionRows,
-    const double* volumeFractionTimes,
-    const double* volumeFractionValues
-);
+
 
 extern "C" int ugkwpGpuResidentStrictDownloadSourceResidualMass
 (
@@ -399,6 +389,15 @@ protected:
     scalar legacyRestartParcelMass_;
 
 public:
+    template<class Real>
+    void configureGasScalarSolvers(const ugkp::gasNumerics::ScalarSolverControls<Real>& controls)
+    {
+        requireInitialised("configureGasScalarSolvers");
+        const auto hostControls=ugkp::gasNumerics::castScalarSolverControls<double>(controls);
+        check(ugkwpGpuResidentStrictConfigureGasScalarSolvers(handle_,&hostControls),
+            "configure gas scalar solver controls");
+    }
+
     void configureMolecularTransport(const ugkwp::MolecularTransportConfiguration& config){
         if(ugkwpGpuResidentStrictConfigureMolecularTransport(handle_,&config))
             FatalErrorInFunction << "configure molecular transport: " << ugkwpGpuResidentStrictLastError() << exit(FatalError);
@@ -552,15 +551,10 @@ protected:
                 scalar(0.63)
             );
         const label packingProjectionIterations =
-            particleWallProps == nullptr
-          ? label(20)
-          : particleWallProps->lookupOrDefault<label>
-            (
-                "gpuResidentPackingProjectionIterations",
-                label(20)
-            );
-                                                                      
-                                                                         
+            ugkp::solverControls::startupScheme(runTime).value(
+                "particle.packing","iterations",label(20),"effectiveDefault",mesh.name());
+
+
 
         const bool csrCellLocalPathEnabled = scheduling.csrCellLocalPath;
         const int csrHeavyReductionMode = gpuHostValue<int>(scheduling.heavyReductionMode);
@@ -690,9 +684,9 @@ protected:
         if (enableParticleModule)
         {
             readParticleRestartMirrorIfPresent(runTime);
-                                                                             
-                                                                          
-                                                                             
+
+
+
             readEpsGPrevRestartMirrorIfPresent(runTime);
             readSourceResidualRestartMirrorIfPresent(runTime);
         }
@@ -1065,48 +1059,7 @@ public:
         nut.correctBoundaryConditions();
     }
 
-    void configureScheduledInlet
-    (
-        const labelList& faceIds,
-        const scalar inletTemperature,
-        const scalarField& pressureTimes,
-        const scalarField& pressureValues,
-        const scalarField& volumeFractionTimes,
-        const scalarField& volumeFractionValues
-    )
-    {
-        requireInitialised("configureScheduledInlet");
-        if
-        (
-            (!faceIds.empty() && pressureTimes.empty())
-         || pressureTimes.size() > pressureValues.size()
-         || (!faceIds.empty() && volumeFractionTimes.empty())
-         || volumeFractionTimes.size() > volumeFractionValues.size()
-        )
-        {
-            FatalErrorInFunction
-                << "Scheduled inlet is missing required interpolation samples"
-                << exit(FatalError);
-        }
 
-        check
-        (
-            ugkwpGpuResidentStrictConfigureScheduledInlet
-            (
-                handle_,
-                gpuHostValue<int>(faceIds.size()),
-                GpuHostReadView<int>(faceIds).begin(),
-                inletTemperature,
-                gpuHostValue<int>(pressureTimes.size()),
-                GpuHostReadView<double>(pressureTimes).begin(),
-                GpuHostReadView<double>(pressureValues).begin(),
-                gpuHostValue<int>(volumeFractionTimes.size()),
-                GpuHostReadView<double>(volumeFractionTimes).begin(),
-                GpuHostReadView<double>(volumeFractionValues).begin()
-            ),
-            "configure GPU resident scheduled inlet"
-        );
-    }
 
     void advanceOneStep(const scalar dt, const scalar simulationTime)
     {
@@ -2266,9 +2219,9 @@ protected:
                         )
                         {
                             kind = 1;
-                                                                         
-                                                                          
-                                                                        
+
+
+
                             restitution = gpuParticleBoundary::geometricReflectionRestitution;
                         }
                         else if
@@ -2418,7 +2371,14 @@ protected:
         forAll(mesh.boundary(), patchI)
         {
             const fvPatchScalarField& epsPatch = epsS.boundaryField()[patchI];
-            if (!epsPatch.fixesValue())
+            if (isA<wallPolyPatch>(mesh.boundaryMesh()[patchI])
+                || isA<emptyPolyPatch>(mesh.boundaryMesh()[patchI])
+
+
+                || isA<wedgePolyPatch>(mesh.boundaryMesh()[patchI])
+                || isA<symmetryPolyPatch>(mesh.boundaryMesh()[patchI])
+                || isA<symmetryPlanePolyPatch>(mesh.boundaryMesh()[patchI])
+                || mesh.boundaryMesh()[patchI].coupled())
             {
                 continue;
             }
@@ -2484,6 +2444,9 @@ protected:
                 {
                     thetaValue = scalar(0);
                 }
+
+
+                if(thetaPatch.type()=="zeroGradient")thetaValue=scalar(-1);
 
                 sourceGeometry.append(mesh, faceI);
                 sourceCell.append(cellI);

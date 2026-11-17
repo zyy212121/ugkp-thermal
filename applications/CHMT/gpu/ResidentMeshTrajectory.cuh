@@ -1,4 +1,5 @@
 #pragma once
+#include "../../../common/gpu/WorkPlan.H"
 #include "gpu/SharedGasDeviceStorage.cuh"
 #include "gpu/ResidentWallProgram.H"
 #include "mesh/GeometryGpu.H"
@@ -80,13 +81,13 @@ public:
     }
     bool prepare(double interval,const ResidentWallKnotTime* times,int knots,const ResidentWallClock* clock,
         ugkp::diagnostics::DeviceContext* diagnostics,cudaStream_t stream,std::string& error){
-        resident_mesh_detail::samplePointProgram<<<points_?(points_+127)/128:1,128,0,stream>>>(
+        resident_mesh_detail::samplePointProgram<<<points_?(points_+ugkp::gpu::workPlan().faceBlockThreads-1)/ugkp::gpu::workPlan().faceBlockThreads:1,ugkp::gpu::workPlan().faceBlockThreads,0,stream>>>(
             points_,current_.data(),program_.data(),times,knots,clock,interval,previous_.data(),endpoint_.data(),controls_.data());
         if(!fault_.check(cudaGetLastError(),"sample resident mesh point program")){error=fault_.message;return false;}
         stage_->prepare(previous_.data(),endpoint_.data(),controls_.data(),diagnostics,stream);return true;
     }
     bool accept(ugkp::diagnostics::DeviceContext* diagnostics,cudaStream_t stream,std::string& error){
-        if(points_)resident_mesh_detail::acceptPointTrajectory<<<(points_+127)/128,128,0,stream>>>(points_,endpoint_.data(),current_.data(),view().status,diagnostics);
+        if(points_)resident_mesh_detail::acceptPointTrajectory<<<(points_+ugkp::gpu::workPlan().faceBlockThreads-1)/ugkp::gpu::workPlan().faceBlockThreads,ugkp::gpu::workPlan().faceBlockThreads,0,stream>>>(points_,endpoint_.data(),current_.data(),view().status,diagnostics);
         if(!fault_.check(cudaGetLastError(),"accept resident point trajectory")){error=fault_.message;return false;}return true;
     }
     // Publication only: queue all reads on the owner's existing output stream.

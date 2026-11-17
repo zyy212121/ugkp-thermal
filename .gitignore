@@ -35,3 +35,6 @@
 /validation/composition_transport/REVIEW.txt
 /validation/composition_transport/PR_WALL_REVIEW.txt
 /validation/shared_boundary/REVIEW.txt
+
+# Independent precision source/object trees are generated, not source copies.
+/.build/

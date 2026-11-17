@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <iostream>
 #include "GpuSstAlgebra.cuh"
+#include "gasNumerics/GasScalarSolverControls.H"
 #include "gasTransport/GasStateView.H"
 #include "gasTransport/GasCapabilities.H"
 #include "gasTransport/MixtureThermo.H"
@@ -22,6 +23,8 @@ R clampMin(R x,R lo){return std::max(x,lo);} R clampRange(R x,R lo,R hi){return 
 R finiteOr(R x,R alt){return std::isfinite(x)?x:alt;} bool finiteDevice(R x){return std::isfinite(x);}
 R sqr3(R x,R y,R z){return x*x+y*y+z*z;}
 struct DeviceState {
+ ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
+ ugkp::gasNumerics::ScalarSolverControls<R> gasScalarSolvers{};
  int nCells=2,nFaces=2,nInternalFaces=0,sstConfigured=1,sstWallTreatment=0;
  int turbulenceModel=3,gasFluxScheme=1;
  int faceOwner[2]={0,0},faceNeighbour[2]={-1,-1},facePeriodicPair[2]={1,0}; bool periodic=false;
@@ -51,3 +54,6 @@ bool isPeriodicFace(const DeviceState&s,int){return s.periodic;}
 int coupledFaceNeighbour(const DeviceState&s,int f){return f<s.nInternalFaces||s.periodic?s.faceNeighbour[f]:-1;}
 void periodicMappedCellCentre(const DeviceState&s,int,int c,R&x,R&y,R&z){x=s.Cx[c];y=s.Cy[c];z=s.Cz[c];}
 R solidEpsFromMomentDevice(const DeviceState&s,int c){return s.epsSolid[c];}
+
+
+bool gasCoupledFaceStorageAvailable(const DeviceState&,int){return true;}

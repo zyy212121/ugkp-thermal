@@ -1,4 +1,5 @@
 #include "materials/MaterialTransport.H"
+#include "DiagnosticsHost.H"
 #include <cassert>
 #include <cmath>
 #include <iostream>
@@ -19,7 +20,13 @@ int main(){auto p=config();HostMesh m;m.volumes.assign(4,.001);m.cellCentres={{0
  assert(evaluateMaterialTransport(m,q,p,{},1,.4,out,error));for(auto&r:out.rates)assert(r.energy==0); // no duplicate explicit conduction
  p.enableReactions=true;p.nReactions=1;p.reactions[0].A=10;p.reactions[0].condensedNu[0]=-1;p.reactions[0].condensedNu[1]=1;p.reactions[0].order[0]=1;
  SolidQ next;std::uint64_t count=0;assert(advanceMaterialReactions(q[0],.001,p,.1,0,.1,10000,next,count,error));assert(count>1);assert(next.energy==q[0].energy);assert(next.condensed[0]<q[0].condensed[0]);assert(std::abs(next.condensed[0]+next.condensed[1]-.9)<1e-14);
- SolidQ unchanged=next;assert(!advanceMaterialReactions(q[0],.001,p,.1,0,.1,1,next,count,error));assert(next.condensed[0]==unchanged.condensed[0]);
+ const SolidQ reference=next;const auto referenceCount=count;
+ ugkp::diagnostics::DeviceContext diagnostics{};p.diagnostics=&diagnostics;
+ assert(advanceMaterialReactions(q[0],.001,p,.1,0,.1,1,next,count,error));
+ assert(count==referenceCount&&next.energy==reference.energy);
+ for(int c=0;c<Nc;++c)assert(next.condensed[c]==reference.condensed[c]);
+ const auto warning=ugkp::diagnostics::takeSnapshot(diagnostics);
+ assert(!warning.hasFatal&&!warning.warnings.empty());
 
 
 

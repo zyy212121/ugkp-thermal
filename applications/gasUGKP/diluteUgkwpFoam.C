@@ -1,3 +1,10 @@
+#include "FoamGasNumericsControls.H"
+#include "FoamSolverScheme.H"
+#include "FoamGasTimeStepControls.H"
+#include "FoamParticleSolverControls.H"
+#include "FoamGasSteadyControls.H"
+#include "gasNumerics/FoamGasScalarSolverControls.H"
+#include <type_traits>
 #include "FoamParticleDiameterDistribution.H"
 #include "fvCFD.H"
 #include "physicoChemicalConstants.H"
@@ -6,6 +13,7 @@
 #include "uniformDimensionedFields.H"
 #include "gasTransport/GasNumericsIO.H"
 #include "ProgressLogging.H"
+#include "FoamPrecisionIO.H"
 
 #ifndef UGKWP_USE_CUDA
 #error gasUGKP must be built with UGKWP_USE_CUDA; use private_backend/build_private_backend.sh
@@ -40,6 +48,15 @@ int main(int argc, char *argv[])
 {
     #include "setRootCase.H"
     #include "createTime.H"
+    (void)ugkp::solverControls::startupScheme(runTime);
+
+    Info<< "GPU precision=" << ugkp::precision::compiledBits << " (fixed at startup)" << nl;
+    std::string precisionError;
+    if (!ugkp::precision::checkRestartPrecision(runTime.timePath().c_str(), precisionError))
+    {
+        SeriousError<< precisionError << nl;
+        return 2;
+    }
 
     const label progressLogInterval =
         ugkwp::logging::progressLogInterval(runTime.controlDict());
@@ -67,7 +84,6 @@ int main(int argc, char *argv[])
 
     constexpr bool gpuResidentStrict = true;
     const bool gpuResidentPureGasOnly = gpuScheduling.pureGasOnly;
-    const Switch gpuResidentDynamicInlet(gpuScheduling.dynamicInlet);
     if (gpuResidentStrict)
     {
 #ifndef UGKWP_USE_CUDA
@@ -92,10 +108,9 @@ int main(int argc, char *argv[])
 
         const label gpuResidentMaxFaceWalkHops =
             gpuScheduling.maxFaceWalkHops;
-        const label gpuResidentCourantUpdateInterval =
-            gpuScheduling.courantUpdateInterval;
-        const scalar gpuResidentMaxDeltaTGrowth =
-            gpuScheduling.maxDeltaTGrowth;
+        const auto gasTimeStepControls=ugkp::solverControls::readGasTimeStepControls(runTime,mesh.name());
+        const label gpuResidentCourantUpdateInterval=gasTimeStepControls.courantUpdateInterval;
+        const scalar gpuResidentMaxDeltaTGrowth=gasTimeStepControls.maximumTimeStepGrowth;
 
         const scalar epsSMinStrict =
             ugkwpProps.lookupOrDefault<scalar>("epsSMin", 1.0e-12);
@@ -136,119 +151,14 @@ int main(int argc, char *argv[])
                 TpMaxStrict
             );
 
-        word gpuResidentInletPatch;
-        word gpuResidentPressureTable;
-        word gpuResidentVolumeFractionTable;
-        scalar gpuResidentInletTemperature = scalar(0);
-        labelList scheduledInletFaceIds;
-        autoPtr<GpuBoundaryScheduleTable> pressureSchedule;
-        autoPtr<GpuBoundaryScheduleTable> volumeFractionSchedule;
-        scalarField pressureTimes;
-        scalarField pressureValues;
-        scalarField volumeFractionTimes;
-        scalarField volumeFractionValues;
 
-        if (gpuResidentDynamicInlet)
-        {
-            gpuResidentInletPatch =
-                ugkwpProps.lookupOrDefault<word>
-                (
-                    "gpuResidentInletPatch",
-                    "inlet"
-                );
-            gpuResidentPressureTable =
-                ugkwpProps.lookupOrDefault<word>
-                (
-                    "gpuResidentPressureTable",
-                    "inletPressure.table"
-                );
-            gpuResidentVolumeFractionTable =
-                ugkwpProps.lookupOrDefault<word>
-                (
-                    "gpuResidentVolumeFractionTable",
-                    "inletVolumeFraction.table"
-                );
-            const label scheduledInletPatchId =
-                mesh.boundaryMesh().findPatchID(gpuResidentInletPatch);
-            if (scheduledInletPatchId < 0)
-            {
-                FatalErrorInFunction
-                    << "Cannot find scheduled inlet patch "
-                    << gpuResidentInletPatch << exit(FatalError);
-            }
-            const polyPatch& scheduledInletPatch =
-                mesh.boundaryMesh()[scheduledInletPatchId];
 
-            if
-            (
-                !p.boundaryField()[scheduledInletPatchId].fixesValue()
-             || !Tgas.boundaryField()[scheduledInletPatchId].fixesValue()
-             || !epsS.boundaryField()[scheduledInletPatchId].fixesValue()
-            )
-            {
-                FatalErrorInFunction
-                    << "Scheduled inlet requires fixed-value p, T, and "
-                    << "epsilonS on patch " << gpuResidentInletPatch
-                    << exit(FatalError);
-            }
-
-            const fvPatchScalarField& inletT =
-                Tgas.boundaryField()[scheduledInletPatchId];
-            if (!inletT.empty()) gpuResidentInletTemperature = inletT[0];
-            scheduledInletFaceIds.setSize(scheduledInletPatch.size());
-            forAll(scheduledInletFaceIds, faceI)
-            {
-                scheduledInletFaceIds[faceI] =
-                    scheduledInletPatch.start() + faceI;
-            }
-
-            pressureSchedule.reset
-            (
-                new GpuBoundaryScheduleTable
-                (
-                    runTime.path()/runTime.constant()/gpuResidentPressureTable
-                )
-            );
-            volumeFractionSchedule.reset
-            (
-                new GpuBoundaryScheduleTable
-                (
-                    runTime.path()
-                   /runTime.constant()
-                   /gpuResidentVolumeFractionTable
-                )
-            );
-            pressureSchedule->copyColumns(pressureTimes, pressureValues);
-            volumeFractionSchedule->copyColumns
-            (
-                volumeFractionTimes,
-                volumeFractionValues
-            );
-        }
-
-        const auto configureScheduledBoundary =
-        [&]
-        (
-            auto& resident
-        )
-        {
-            if (!gpuResidentDynamicInlet)
-            {
-                return;
-            }
-            resident.configureScheduledInlet
-            (
-                scheduledInletFaceIds,
-                gpuResidentInletTemperature,
-                pressureTimes,
-                pressureValues,
-                volumeFractionTimes,
-                volumeFractionValues
-            );
-        };
-
+        using GasSolverReal=typename std::conditional<ugkp::precision::compiledBits==32,float,double>::type;
+        const auto gasScalarSolvers=ugkp::gasNumerics::readGasScalarSolverControls<GasSolverReal>
+            (ugkp::solverControls::startupScheme(runTime),mesh.name());
         const auto configureResidentSst = [&](auto& resident)
         {
+            resident.configureGasScalarSolvers(gasScalarSolvers);
             if (gasTurbulenceModel != 3)
             {
                 return;
@@ -286,9 +196,9 @@ int main(int argc, char *argv[])
             );
         };
 
-        bool adjustTimeStep = false;
-        scalar maxCo = 0.5;
-        scalar maxDeltaT = GREAT;
+        const bool adjustTimeStep = gasTimeStepControls.adjustTimeStep;
+        const scalar maxCo = gasTimeStepControls.maxCo;
+        const scalar maxDeltaT = gasTimeStepControls.maxDeltaT;
 
         if (gpuResidentPureGasOnly)
         {
@@ -328,7 +238,6 @@ int main(int argc, char *argv[])
             resident.configureMolecularTransport(molecularTransport.config());
             resident.configureBoundaryLayer(boundaryLayerInput, runTime, mesh, Tgas);
 
-            configureScheduledBoundary(resident);
 
             scalar lastMeasuredCo = scalar(0);
             label stepsSinceCourant = gpuResidentCourantUpdateInterval;
@@ -338,7 +247,6 @@ int main(int argc, char *argv[])
 #else
             while (runTime.run())
             {
-                #include "readTimeControls.H"
 
                 const bool courantRefreshDue =
                     adjustTimeStep
@@ -401,6 +309,8 @@ int main(int argc, char *argv[])
 
                 if (runTime.writeTime())
                 {
+                    ugkp::precision::ScopedRestartWritePrecision writePrecision;
+                    ugkp::precision::beginPrecisionWrite(runTime.timePath().c_str());
                     resident.downloadToHostMirror
                     (
                         runTime,
@@ -428,7 +338,8 @@ int main(int argc, char *argv[])
                         resident.downloadNutToHostMirror(runTime, nut);
                     }
 
-                    runTime.write();
+                    if (runTime.write())
+                        ugkp::precision::writeRestartPrecision(runTime.timePath().c_str());
                 }
             }
 
@@ -502,7 +413,6 @@ int main(int argc, char *argv[])
             , &sharedGasModel
         );
         configureResidentSst(resident);
-        configureScheduledBoundary(resident);
 
         scalar lastMeasuredCo = scalar(0);
         resident.configureMolecularTransport(molecularTransport.config());
@@ -513,7 +423,6 @@ int main(int argc, char *argv[])
 #else
         while (runTime.run())
         {
-            #include "readTimeControls.H"
 
             const bool courantRefreshDue =
                 adjustTimeStep
@@ -567,6 +476,8 @@ int main(int argc, char *argv[])
 
             if (runTime.writeTime())
             {
+                ugkp::precision::ScopedRestartWritePrecision writePrecision;
+                ugkp::precision::beginPrecisionWrite(runTime.timePath().c_str());
                 resident.downloadToHostMirror
                 (
                     runTime,
@@ -602,8 +513,10 @@ int main(int argc, char *argv[])
                     resident.downloadNutToHostMirror(runTime, nut);
                 }
 
-                runTime.write();
+                const bool fieldsWritten = runTime.write();
                 (void)resident.writeParticleRestartMirror(runTime);
+                if (fieldsWritten)
+                    ugkp::precision::writeRestartPrecision(runTime.timePath().c_str());
             }
         }
 

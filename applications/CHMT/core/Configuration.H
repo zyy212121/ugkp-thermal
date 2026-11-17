@@ -1,6 +1,9 @@
 #ifndef CHMT_CORE_CONFIGURATION_H
 #define CHMT_CORE_CONFIGURATION_H
 #include "Types.H"
+#include "NumericalControls.H"
+#include "../../../common/gasNumerics/GasScalarSolverControls.H"
+#include "../../../common/thermal/ParticleNumericalControls.H"
 #include "../../../common/thermal/ParticleInletConfiguration.H"
 #include "../../../common/thermal/ParticlePhaseConfiguration.H"
 #include "../../../common/Diagnostics.H"
@@ -81,6 +84,8 @@ struct PhysicsConfig {
     FilmThermalMode filmThermalMode=FilmThermalMode::ThicknessAveraged;
     ReconstructionMode reconstruction=ReconstructionMode::LimitedLinear;
     SstConfig sst{};Tolerances tolerances{};
+    NumericalControls<Real> numerics{};
+    ugkp::gasNumerics::ScalarSolverControls<Real> gasScalarSolvers{};
     Real minDt=0,maxDt=0,cfl=0;int spatialOrder=2;
 };
 CHMT_HD inline void reportPhysicsWarning(const PhysicsConfig& p,ugkp::diagnostics::Code code,
@@ -129,6 +134,7 @@ struct ModelConfig {
     ugkp::thermal::ParticlePhaseConfiguration particlePhase{};
     ugkp::thermal::ParticleInletConfiguration particleInlet{};
     ugkp::thermal::ParticleContactConfiguration particleContact{};
+    ugkp::thermal::ParticleNumericalControls particleNumerics{};
     std::array<std::string,Ns> speciesNames{};
     std::array<std::string,Nc> condensedNames{};
     std::array<std::string,Ne> elementNames{};

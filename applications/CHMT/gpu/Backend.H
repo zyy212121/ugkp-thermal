@@ -12,7 +12,8 @@ namespace chmt {
 // Gas-window storage/scheduling boundary. All gas numerical stages are common.
 struct Backend;
 struct GasExecutionOptions {int fluxScheme=1,reconstruction=0,limiter=0,timeIntegrator=1,turbulenceModel=0;
-    int courantUpdateInterval=1;double maximumTimeStepGrowth=1.05;};
+    int courantUpdateInterval=1;double maximumTimeStepGrowth=1.05;
+    bool adjustTimeStep=true;double fixedDeltaT=0;};
 Backend* createBackend(const ModelConfig&,const ugkwp::GasModelConfiguration&,
     const ugkwp::GasMechanismConfiguration&,const GasExecutionOptions&,const HostState&,std::string&);
 void destroyBackend(Backend*) noexcept;
@@ -31,7 +32,10 @@ ResidentMaterialDriveHistory residentGasWindowDriveHistory(const Backend&);
 std::vector<GasIntervalRecord> releaseGasWindowRecords(Backend&); // after material consumers finish
 bool gasWindowStageGeometry(Backend&,std::array<HostStageGeometry,2>&,std::array<HostStageGeometry,2>&,std::string&);
 bool downloadGasWindow(Backend&,HostState&,std::string&);
-bool commitGasWindow(Backend&,HostState&,std::string&);
+bool publishGasWindow(Backend&,HostState&,std::string&);
+bool publishAcceptedState(Backend&,HostState&,std::string&);
+
+bool commitGasWindow(Backend&,HostState&,std::string&,bool preservePublishedEndpoint=false);
 bool downloadState(const Backend&,HostState&,std::string&);
 struct ParticleRadiationState {ugkp::gpu::RadiationParticleDeviceView resident{};std::vector<Real> mass,temperature,diameter,occupiedArea;ugkp::gpu::ParticleRadiationResponseView response{};};
 bool downloadRadiationState(Backend&,ParticleRadiationState&,std::string&);

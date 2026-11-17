@@ -16,6 +16,7 @@ struct State:ugkwp::GasStateView<double,double,int>{
  ugkwp::GasSpeciesState<double,2> gasSpecies;
  int *particleCountDevice,*pStatus,*pCellId,*cellParticleOffset,*sortedParticleIndex,particleCapacity=1;
  double *epsGPrev,*pm,*pd,*pux,*puy,*puz,*puxOld,*puyOld,*puzOld,*pTheta,*pT;
+ double *couplingDragBeta,*couplingResponseFraction;
  double rhoSolid=2500,particleThermalRho=2500,particleCp=800,particleThermalCapacity=2e6;
  double dragParameter0=0,dragParameter1=0,dragParameter2=0,dragParameter3=0;
  double gasPrOneThird=cbrt(.71),TpMin=100,TpMax=10000,gravityX=0,gravityY=0,gravityZ=0;
@@ -60,6 +61,7 @@ State* upload(State* h){
  MOVE(rho);MOVE(rhoUx);MOVE(rhoUy);MOVE(rhoUz);MOVE(rhoE);MOVE(Ux);MOVE(Uy);MOVE(Uz);MOVE(Tgas);MOVE(V);MOVE(epsGPrev);MOVE(thetaDragAlpha);
  MOVE(gasSpecies.rho);MOVE(gasSpecies.cellStatus);MOVE(gasSpecies.thermo.species);MOVE(gasSpecies.thermo.coefficients);
  MOVE(particleCountDevice);MOVE(pStatus);MOVE(pCellId);MOVE(sortedParticleIndex);MOVE(cellParticleOffset);MOVE(pStuck);
+ MOVE(couplingDragBeta);MOVE(couplingResponseFraction);
  MOVE(pm);MOVE(pd);MOVE(pux);MOVE(puy);MOVE(puz);MOVE(puxOld);MOVE(puyOld);MOVE(puzOld);MOVE(pTheta);MOVE(pT);MOVE(pThermalEnthalpyResidual);MOVE(mixtureHeatInitialTemperature);MOVE(mixtureHeatFraction);
 #undef MOVE
  State* device=relocated(h);check(cudaMemcpy(device,&d,sizeof(d),cudaMemcpyHostToDevice));return device;
@@ -83,6 +85,7 @@ State* create(int cells,int perCell){
  const int n=cells*perCell;s->particleCountDevice=allocate<int>(1);*s->particleCountDevice=n;
  s->pStatus=allocate<int>(n);s->pCellId=allocate<int>(n);s->sortedParticleIndex=allocate<int>(n);s->cellParticleOffset=allocate<int>(cells+1);s->pStuck=allocate<unsigned char>(n);
 #define PART(name) s->name=allocate<double>(n)
+ PART(couplingDragBeta);PART(couplingResponseFraction);
  PART(pm);PART(pd);PART(pux);PART(puy);PART(puz);PART(puxOld);PART(puyOld);PART(puzOld);PART(pTheta);PART(pT);PART(pThermalEnthalpyResidual);PART(mixtureHeatInitialTemperature);PART(mixtureHeatFraction);
 #undef PART
  for(int c=0;c<=cells;++c)s->cellParticleOffset[c]=c*perCell;

@@ -92,7 +92,7 @@
                 fmax
                 (
                     kinematicAreaMid,
-                    static_cast<GpuReal>(s.pColdFrozenArea[i])
+                    static_cast<GpuReal>(s.pColdFrozenArea[Foam::gpuWall::coldWallSlot(s,i)])
                 ) - damageArea,
                 GPU_R(0.0)
             );

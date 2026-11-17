@@ -26,10 +26,12 @@ __global__ void applyContactAwarePressureProjectionKernel(DeviceState* sp,Pressu
     const auto dt=ugkwp::particleResidentStepDt(*sp,requestedDt);
     const int c=blockIdx.x;if(c>=sp->nCells)return;
     constexpr auto directory=Split?PressureDirectory::Split:PressureDirectory::Full;
-    if(pressureDirectoryContainsContact<directory,Compact>(*sp,c))
+    const bool contact=pressureDirectoryContainsContact<directory,Compact>(*sp,c);
+    if(threadIdx.x==0)sp->pressureCellHasContact[c]=contact;
+    if(contact)
         runCellPressureProjection<ConstrainedPressureOperation<FullMoments>,directory,Compact>(sp,dt);
-    else
-        runCellPressureProjection<AnalyticPressureOperation,directory,Compact>(sp,dt);
+    else if(threadIdx.x==0)
+        sp->pressureProjectionCache[c]=preparePressureProjectionCell(*sp,c,dt);
 }
 __global__ void markPressureContactCellsKernel(DeviceState* sp)
 {
@@ -63,4 +65,20 @@ __global__ void publishContactPressureMomentsKernel(DeviceState* sp)
     if(c<s.nCells && s.pressureCellHasContact[c])
         publishPressureParticleMomentsDevice<FullMoments>(s,c,
             s.pressureParticleMoments+7u*static_cast<size_t>(c),s.pressureParticleCount[c]);
+}
+
+template<bool Compact>
+__global__ void applyFreePressureProjectionParticlesKernel(DeviceState* sp)
+{
+    DeviceState& s=*sp;
+    const int n=clampRange(Compact?s.cellParticleOffset[s.nCells]:*s.particleCountDevice,0,s.particleCapacity);
+    for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<n;i+=blockDim.x*gridDim.x) {
+        if((Compact?s.compactPStatus[i]:s.pStatus[i])==0)continue;
+        const int c=Compact?s.compactPCellId[i]:s.pCellId[i];
+        if(c<0||c>=s.nCells||s.pressureCellHasContact[c])continue;
+        const auto q=s.pressureProjectionCache[c];if(!q.active)continue;
+        applyCollisionalPressureProjectionOneParticle<Compact>(s,i,c,
+            q.ux0,q.uy0,q.uz0,q.ux1,q.uy1,q.uz1,q.theta1,
+            q.resolved,q.thermalScale,q.thetaScale);
+    }
 }

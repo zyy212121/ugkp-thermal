@@ -40,7 +40,6 @@ struct ParticleRadiationMaterialResult
     scalarField deltaParticleRadiationEnergyJ;
     List<scalarField> solidWallRadiationEnergyJ;
     scalar escapedBoundaryRadiationEnergyJ;
-    scalar radiativeEnergyMagnitudeJ=0,acceptedParticleRadiationEnergyJ=0;
     ugkp::gpu::RadiationMaterialDeviceView resident{};
 };
 
@@ -82,7 +81,7 @@ ParticleRadiationMaterialResult solveValidatedParticleRadiationTransaction
 (
     const ParticleRadiationTransactionContext& context,
     const ParticleRadiationMaterialSnapshot& snapshot,
-    const std::function<MieDoResult(const scalarField&)>& solveRadiation
+    const std::function<MieDoResult(const scalarField&, ugkp::gpu::RadiationThermalCouplingDeviceView, ugkp::gpu::RadiationThermalIterationHook)>& solveRadiation
 );
 
 template<class MakeWorkspace, class SolveRadiation>
@@ -137,8 +136,8 @@ ParticleRadiationMaterialResult solveParticleRadiationTransaction
     validateParticleRadiationSnapshot(context, canonicalSnapshot);
 
     auto workspace = makeWorkspace();
-    const std::function<MieDoResult(const scalarField&)> boundRadiationSolve =
-    [&](const scalarField& trialTemperatureK)
+    const std::function<MieDoResult(const scalarField&, ugkp::gpu::RadiationThermalCouplingDeviceView, ugkp::gpu::RadiationThermalIterationHook)> boundRadiationSolve =
+    [&](const scalarField& trialTemperatureK, ugkp::gpu::RadiationThermalCouplingDeviceView thermal, ugkp::gpu::RadiationThermalIterationHook hook)
     {
         const MieDoSnapshot trialSnapshot
         {
@@ -147,7 +146,7 @@ ParticleRadiationMaterialResult solveParticleRadiationTransaction
             canonicalSnapshot.representativeDiameterM,
             canonicalSnapshot.wallTemperatureK,
             canonicalSnapshot.coupledWallEmissivity,
-            canonicalSnapshot.resident
+            canonicalSnapshot.resident, thermal, hook
         };
         return solveRadiation(workspace, trialSnapshot);
     };
@@ -160,7 +159,7 @@ ParticleRadiationMaterialResult solveParticleRadiationTransaction
     );
 }
 
-}                    
+}
 
 class GpuParticleRadiationCoupler
 {
@@ -190,11 +189,12 @@ public:
         bool exportFields=true
     ) const;
     ParticleRadiationMaterialResult collect() const;
-    void settleAcceptedEnergy(const ugkp::gpu::RadiationAcceptedEnergyDeviceView&) const;
     ParticleRadiationMaterialResult collectBoundaryEnergy() const;
+    bool readWarmStart(const std::string& path) const;
+    bool writeWarmStart(const std::string& path) const;
 };
 
-}                        
-}                  
+}
+}
 
 #endif

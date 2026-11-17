@@ -63,7 +63,7 @@ ExecutionGraphNode InterfaceGasStage::appendTo(ExecutionGraph graph,ExecutionGra
     auto previous=d.motion->appendTo(graph,dependency,&input->motion);
     return appendCaptured(graph,{previous},d.stream,[&]{
         beginInterfaceGasStage<<<1,1,0,d.stream>>>(input,d.controls.pointer,d.diagnostics.pointer,d.motion->view().status,d.status.pointer);
-        if(d.points)selectInterfaceGasStagePoints<<<(d.points-1)/128+1,128,0,d.stream>>>(d.points,input,d.old.pointer);
+        if(d.points)selectInterfaceGasStagePoints<<<(d.points-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,d.stream>>>(d.points,input,d.old.pointer);
         d.stage->prepare(d.old.pointer,d.motion->view().points,d.controls.pointer,d.diagnostics.pointer,d.stream);
         publishInterfaceGasStageStatus<<<1,1,0,d.stream>>>(d.stage->view().status,d.status.pointer,d.motion->view().status,d.diagnostics.pointer);
     });

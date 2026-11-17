@@ -14,6 +14,13 @@
     s.couplingUzOld[c] = finiteOr(s.Uz[c], GPU_OPERATOR_R(0.0));
     s.couplingTgasOld[c] =
         clampMin(finiteOr(s.Tgas[c], s.TgasMin), s.TgasMin);
+    s.couplingGasViscosity[c] = ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]);
+    if (s.solveParticleTemperature && s.particleGasHeatTransferModelId)
+    {
+        s.couplingGasConductivity[c] = molecularGasConductivity(s,c,s.couplingTgasOld[c]);
+        s.couplingGasPrandtl[c] = ugkwp::gasCellMolecularPrandtl(s,c);
+        s.couplingGasPrandtlOneThird[c] = ugkwp::gasCellPrandtlOneThird(s,c);
+    }
 
     s.thetaDragAlpha[c] = GPU_OPERATOR_R(1.0);
     // A zero-time source may refresh coupling caches, never conserved state.
@@ -121,7 +128,7 @@
         ? Energy(epsG)*(s.rhoE[c]-trueGasKineticDensity) : enerG-kgOld;
     GPU_OPERATOR_REAL isOld = enerS - ksOld;
 
-    const GPU_OPERATOR_REAL igMin = mg*eMinGas;
+    const GPU_OPERATOR_REAL igMin = ugkwp::mixtureGasActive(s) ? epsG*ugkwp::particleGasMinimumInternalEnergy(s,c,rhoG*eMinGas) : mg*eMinGas;
     const GPU_OPERATOR_REAL isMin = GPU_OPERATOR_R(0.0);
 
     const bool repairGasInternal=!ugkwp::gasEnergyFallbackFinite(igOld) || igOld<igMin;

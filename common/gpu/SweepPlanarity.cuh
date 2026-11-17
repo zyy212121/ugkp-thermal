@@ -56,11 +56,11 @@ int ResidentSweepPlanarity::capacity()const{return data_->candidates;}
 SweepPlanarityView ResidentSweepPlanarity::view()const{const auto& d=*data_;return {d.planar.pointer,d.tolerance.pointer,d.count.pointer};}
 void ResidentSweepPlanarity::evaluate(const SweepPlanarityInput* input,void* rawStream){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
-    if(d.faces)classifySweepPlanes<<<(d.faces-1)/128+1,128,0,stream>>>(d.faces,d.topology(),d.candidateOffsets.pointer,input,
+    if(d.faces)classifySweepPlanes<<<(d.faces-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.faces,d.topology(),d.candidateOffsets.pointer,input,
         d.candidate.pointer,d.candidateTolerance.pointer,d.selected.pointer);
     endSweepPlaneFlags<<<1,1,0,stream>>>(d.candidates,d.selected.pointer);checked(cudaGetLastError());
     auto bytes=d.scratchBytes;checked(cub::DeviceScan::ExclusiveSum(d.scratch.pointer,bytes,d.selected.pointer,d.prefix.pointer,d.candidates+1,stream));
-    compactSweepPlanes<<<d.candidates?(d.candidates-1)/128+1:1,128,0,stream>>>(d.candidates,d.selected.pointer,d.prefix.pointer,
+    compactSweepPlanes<<<d.candidates?(d.candidates-1)/workPlan().faceBlockThreads+1:1,workPlan().faceBlockThreads,0,stream>>>(d.candidates,d.selected.pointer,d.prefix.pointer,
         d.candidate.pointer,d.candidateTolerance.pointer,d.planar.pointer,d.tolerance.pointer,d.count.pointer);checked(cudaGetLastError());
 }
 }}}

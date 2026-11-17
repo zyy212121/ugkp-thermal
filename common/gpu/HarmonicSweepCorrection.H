@@ -17,6 +17,7 @@ struct HarmonicSweepDefinition {
     std::vector<PlanarConstraint> planar;
     std::vector<HarmonicBoundaryMode> modes;
     double harmonicTolerance=0;
+    int harmonicMaximumIterations=20000;
 };
 struct HarmonicSweepDeviceProblem {
     const Point* old=nullptr;

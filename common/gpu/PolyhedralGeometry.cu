@@ -1,4 +1,5 @@
 #include "PolyhedralGeometry.H"
+#include "WorkPlan.H"
 #include "ResidentStageGeometry.H"
 #include "StageGeometryMath.H"
 #include "ResidentSurfaceGeometry.H"
@@ -100,14 +101,14 @@ __device__ double wallBoxLowerBound(Point p,const WallBox& box){
 __global__ void wallDistanceKernel(int count,TopologyView t,const Point* points,const Point* centres,
     int wallCount,const int* walls,const WallBox* boxes,WallDistanceResult* output){
     const int cell=blockIdx.x;if(cell>=count)return;
-    __shared__ double distance[128];__shared__ int invalid[128];
+    extern __shared__ double distance[];int* invalid=reinterpret_cast<int*>(distance+blockDim.x);
     // Pick a seed by bounding-box distance, not a mesh- or hardware-tuned
     // cutoff. The seed's actual triangle distance is a valid upper bound.
     double lower=maximumDistance;int seed=INT_MAX;
     for(int i=threadIdx.x;i<wallCount;i+=blockDim.x){const double bound=wallBoxLowerBound(centres[cell],boxes[i]);
         if(bound>=0&&bound<lower){lower=bound;seed=i;}}
     distance[threadIdx.x]=lower;invalid[threadIdx.x]=seed;__syncthreads();
-    for(int half=64;half;half/=2){if(threadIdx.x<half&&
+    for(int active=blockDim.x;active>1;active=(active+1)/2){const int half=(active+1)/2;if(threadIdx.x<active-half&&
         (distance[threadIdx.x+half]<distance[threadIdx.x]||
          (distance[threadIdx.x+half]==distance[threadIdx.x]&&invalid[threadIdx.x+half]<invalid[threadIdx.x]))){
         distance[threadIdx.x]=distance[threadIdx.x+half];invalid[threadIdx.x]=invalid[threadIdx.x+half];}__syncthreads();}
@@ -127,7 +128,7 @@ __global__ void wallDistanceKernel(int count,TopologyView t,const Point* points,
         if(firstInvalid!=INT_MAX)break;
     }
     distance[threadIdx.x]=best;invalid[threadIdx.x]=firstInvalid;__syncthreads();
-    for(int half=64;half;half/=2){if(threadIdx.x<half){
+    for(int active=blockDim.x;active>1;active=(active+1)/2){const int half=(active+1)/2;if(threadIdx.x<active-half){
         if(distance[threadIdx.x+half]<distance[threadIdx.x])distance[threadIdx.x]=distance[threadIdx.x+half];
         if(invalid[threadIdx.x+half]<invalid[threadIdx.x])invalid[threadIdx.x]=invalid[threadIdx.x+half];}__syncthreads();}
     if(!threadIdx.x){WallDistanceResult result;result.distance=wallCount?distance[0]:0;
@@ -158,7 +159,7 @@ __global__ void solveMotion(int count,const int* offsets,const int* neighbours,c
     const unsigned char* fixed,Penalties inputPenalties,Point* displacement,Point* next,double* partial,int* errors,MotionControl* control){
     const MotionPenalty* penalties=inputPenalties;
     auto grid=cooperative_groups::this_grid();const int index=blockIdx.x*blockDim.x+threadIdx.x,stride=blockDim.x*gridDim.x;
-    __shared__ double maxima[256];
+    extern __shared__ double maxima[];
     while(control->active){
         double local=0;
         for(int p=index;p<count;p+=stride){
@@ -169,7 +170,7 @@ __global__ void solveMotion(int count,const int* offsets,const int* neighbours,c
             const double residual=magnitude(next[p]-displacement[p]);if(local<residual)local=residual;
         }
         maxima[threadIdx.x]=local;__syncthreads();
-        for(int half=128;half;half/=2){if(threadIdx.x<half&&maxima[threadIdx.x]<maxima[threadIdx.x+half])maxima[threadIdx.x]=maxima[threadIdx.x+half];__syncthreads();}
+        for(int active=blockDim.x;active>1;active=(active+1)/2){const int half=(active+1)/2;if(threadIdx.x<active-half&&maxima[threadIdx.x]<maxima[threadIdx.x+half])maxima[threadIdx.x]=maxima[threadIdx.x+half];__syncthreads();}
         if(!threadIdx.x)partial[blockIdx.x]=maxima[0];grid.sync();
         if(control->errorPoint==INT_MAX)for(int p=index;p<count;p+=stride)displacement[p]=next[p];
         grid.sync();
@@ -182,9 +183,9 @@ __global__ void solveMotion(int count,const int* offsets,const int* neighbours,c
         grid.sync();
     }
 }
-template<class Kernel> int cooperativeBlocks(Kernel kernel,int requested,int threads){
+template<class Kernel> int cooperativeBlocks(Kernel kernel,int requested,int threads,std::size_t shared=0){
     int perSm=0,device=0,sms=0;checked(cudaGetDevice(&device));checked(cudaDeviceGetAttribute(&sms,cudaDevAttrMultiProcessorCount,device));
-    checked(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&perSm,kernel,threads,0));
+    checked(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&perSm,kernel,threads,shared));
     return std::max(1,std::min(requested,perSm*sms));
 }
 template<class Points,class Boundary>
@@ -255,17 +256,17 @@ PolyhedralGeometryDeviceView ResidentPolyhedralGeometry::view() const {
 void ResidentPolyhedralGeometry::rebuild(const Point* points,void* streamHandle){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(streamHandle);const auto t=d.topology();
     if(d.faces){
-        rebuildFacesKernel<<<(d.faces+127)/128,128,0,stream>>>(d.faces,t,points,d.face.pointer,d.area.pointer);
+        rebuildFacesKernel<<<(d.faces+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.faces,t,points,d.face.pointer,d.area.pointer);
         checked(cudaGetLastError());
     }
     if(d.cells){
         if(d.wallCount){
-            wallBoxesKernel<<<(d.wallCount+127)/128,128,0,stream>>>(d.wallCount,t,points,d.walls.pointer,d.boxes.pointer);
+            wallBoxesKernel<<<(d.wallCount+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.wallCount,t,points,d.walls.pointer,d.boxes.pointer);
             checked(cudaGetLastError());
         }
-        rebuildCellsKernel<<<(d.cells+127)/128,128,0,stream>>>(d.cells,t,points,d.area.pointer,d.cell.pointer,d.centre.pointer);
+        rebuildCellsKernel<<<(d.cells+workPlan().cellBlockThreads-1)/workPlan().cellBlockThreads,workPlan().cellBlockThreads,0,stream>>>(d.cells,t,points,d.area.pointer,d.cell.pointer,d.centre.pointer);
         checked(cudaGetLastError());
-        wallDistanceKernel<<<d.cells,128,0,stream>>>(d.cells,t,points,d.centre.pointer,d.wallCount,
+        wallDistanceKernel<<<d.cells,workPlan().reductionBlockThreads,workPlan().reductionBlockThreads*(sizeof(double)+sizeof(int)),stream>>>(d.cells,t,points,d.centre.pointer,d.wallCount,
             d.walls.pointer,d.boxes.pointer,d.distance.pointer);
         checked(cudaGetLastError());
     }
@@ -273,7 +274,7 @@ void ResidentPolyhedralGeometry::rebuild(const Point* points,void* streamHandle)
 void ResidentPolyhedralGeometry::sweep(const Point* old,const Point* endpoint,void* streamHandle){
     auto& d=*data_;
     if(d.faces){
-        sweepKernel<<<(d.faces+127)/128,128,0,static_cast<cudaStream_t>(streamHandle)>>>(
+        sweepKernel<<<(d.faces+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,static_cast<cudaStream_t>(streamHandle)>>>(
             d.faces,d.topology(),old,endpoint,d.sweptFaces.pointer);
         checked(cudaGetLastError());
     }
@@ -336,10 +337,10 @@ TrajectoryDeviceView ResidentLinearTrajectory::view()const{
 void ResidentLinearTrajectory::evaluate(const Point* old,const Point* endpoint,void* streamHandle){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(streamHandle);
     resetTrajectory<<<1,1,0,stream>>>(d.status.pointer,d.cells);checked(cudaGetLastError());
-    if(d.points){movingTrajectory<<<(d.points+127)/128,128,0,stream>>>(d.points,old,endpoint,d.status.pointer);checked(cudaGetLastError());}
-    if(d.cells){certifyTrajectory<<<(d.cells+63)/64,64,0,stream>>>(d.cells,d.topology(),old,endpoint,
+    if(d.points){movingTrajectory<<<(d.points+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.points,old,endpoint,d.status.pointer);checked(cudaGetLastError());}
+    if(d.cells){certifyTrajectory<<<(d.cells+workPlan().cellBlockThreads-1)/workPlan().cellBlockThreads,workPlan().cellBlockThreads,0,stream>>>(d.cells,d.topology(),old,endpoint,
         d.status.pointer,d.failure.pointer,d.diagnostics.pointer);checked(cudaGetLastError());}
-    finishTrajectory<<<std::max(1,(d.cells+127)/128),128,0,stream>>>(d.cells,d.status.pointer,d.failure.pointer,d.diagnostics.pointer);
+    finishTrajectory<<<std::max(1,(d.cells+workPlan().cellBlockThreads-1)/workPlan().cellBlockThreads),workPlan().cellBlockThreads,0,stream>>>(d.cells,d.status.pointer,d.failure.pointer,d.diagnostics.pointer);
     checked(cudaGetLastError());
 }
 #include "ResidentGeometryBoundary.cuh"
@@ -411,7 +412,7 @@ struct PolyhedralGeometry::Implementation {
     }
     void prepareWallBoxes(int count){
         wallBoxes.reserve(count);
-        if(count)wallBoxesKernel<<<(count+127)/128,128,0,stream>>>(count,view(),points.pointer,walls.pointer,wallBoxes.pointer);
+        if(count)wallBoxesKernel<<<(count+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(count,view(),points.pointer,walls.pointer,wallBoxes.pointer);
     }
     TopologyView view()const{return {faceOffsets.pointer,facePoints.pointer,cellOffsets.pointer,cellFaces.pointer,cellSigns.pointer,vertexOffsets.pointer,vertices.pointer};}
 };
@@ -467,7 +468,7 @@ ResidentBoundaryMotion::~ResidentBoundaryMotion()=default;
 const BoundaryMotionPoint* ResidentBoundaryMotion::points()const{return data_->result.pointer;}
 void ResidentBoundaryMotion::evaluate(const BoundaryMotionDeviceInput* input,void* rawStream){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
-    if(d.count)boundaryMotionKernel<<<(d.count-1)/128+1,128,0,stream>>>(d.count,DeviceValue<BoundaryMotionDeviceInput>{input},
+    if(d.count)boundaryMotionKernel<<<(d.count-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.count,DeviceValue<BoundaryMotionDeviceInput>{input},
         d.offsets.pointer,d.incident.pointer,d.sideOffsets.pointer,d.sides.pointer,d.normals.pointer,d.result.pointer);
     checked(cudaGetLastError());
 }
@@ -482,7 +483,7 @@ std::vector<BoundaryMotionPoint> PolyhedralGeometry::boundaryMotion(const Topolo
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);d.area.upload(areas,d.transfer);d.motionFaces.upload(faces,d.transfer);
     d.motionOffsets.upload(offsets,d.transfer);d.motionIncident.upload(incident,d.transfer);d.sideOffsets.upload(sideOffsets,d.transfer);d.sideIncident.upload(sideIncident,d.transfer);
     d.sideNormals.reserve(sideIncident.size());d.motionPoints.reserve(count);
-    if(count)boundaryMotionKernel<<<(count+127)/128,128,0,d.stream>>>(count,
+    if(count)boundaryMotionKernel<<<(count+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,d.stream>>>(count,
         BoundaryMotionDeviceInput{d.area.pointer,d.motionFaces.pointer,interval},d.motionOffsets.pointer,d.motionIncident.pointer,
         d.sideOffsets.pointer,d.sideIncident.pointer,d.sideNormals.pointer,d.motionPoints.pointer);
     std::vector<BoundaryMotionPoint> out;d.motionPoints.download(out,count,d.transfer);d.transfer.finish();return out;
@@ -490,13 +491,13 @@ std::vector<BoundaryMotionPoint> PolyhedralGeometry::boundaryMotion(const Topolo
 std::vector<FaceResult> PolyhedralGeometry::faces(const Topology& t,const std::vector<Point>& p){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);d.topology(t);d.points.upload(p,d.transfer);
     const int count=t.faceOffsets.empty()?0:int(t.faceOffsets.size()-1);d.faceResult.reserve(count);
-    if(count)facesKernel<<<(count+127)/128,128,0,d.stream>>>(count,d.view(),d.points.pointer,d.faceResult.pointer);
+    if(count)facesKernel<<<(count+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,d.stream>>>(count,d.view(),d.points.pointer,d.faceResult.pointer);
     std::vector<FaceResult> result;d.faceResult.download(result,count,d.transfer);d.transfer.finish();return result;
 }
 std::vector<CellResult> PolyhedralGeometry::cells(const Topology& t,const std::vector<Point>& p,const std::vector<Point>& area){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);d.topology(t);d.points.upload(p,d.transfer);d.area.upload(area,d.transfer);
     const int count=t.cellOffsets.empty()?0:int(t.cellOffsets.size()-1);d.cellResult.reserve(count);
-    if(count)cellsKernel<<<(count+127)/128,128,0,d.stream>>>(count,d.view(),d.points.pointer,d.area.pointer,d.cellResult.pointer);
+    if(count)cellsKernel<<<(count+workPlan().cellBlockThreads-1)/workPlan().cellBlockThreads,workPlan().cellBlockThreads,0,d.stream>>>(count,d.view(),d.points.pointer,d.area.pointer,d.cellResult.pointer);
     std::vector<CellResult> result;d.cellResult.download(result,count,d.transfer);d.transfer.finish();return result;
 }
 std::vector<WallDistanceResult> PolyhedralGeometry::wallDistance(const Topology& t,const std::vector<Point>& p,
@@ -504,20 +505,20 @@ std::vector<WallDistanceResult> PolyhedralGeometry::wallDistance(const Topology&
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);d.topology(t);d.points.upload(p,d.transfer);
     d.centres.upload(centres,d.transfer);d.walls.upload(walls,d.transfer);const int count=centres.size();d.distance.reserve(count);
     if(count)d.prepareWallBoxes(walls.size());
-    if(count)wallDistanceKernel<<<count,128,0,d.stream>>>(count,d.view(),d.points.pointer,d.centres.pointer,walls.size(),d.walls.pointer,d.wallBoxes.pointer,d.distance.pointer);
+    if(count)wallDistanceKernel<<<count,workPlan().reductionBlockThreads,workPlan().reductionBlockThreads*(sizeof(double)+sizeof(int)),d.stream>>>(count,d.view(),d.points.pointer,d.centres.pointer,walls.size(),d.walls.pointer,d.wallBoxes.pointer,d.distance.pointer);
     std::vector<WallDistanceResult> result;d.distance.download(result,count,d.transfer);d.transfer.finish();return result;
 }
 std::vector<SweepResult> PolyhedralGeometry::sweep(const Topology& t,const std::vector<Point>& p,const std::vector<Point>& endpoint){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);d.topology(t);d.points.upload(p,d.transfer);d.endpoint.upload(endpoint,d.transfer);
     const int count=t.faceOffsets.empty()?0:int(t.faceOffsets.size()-1);d.sweepResult.reserve(count);
-    if(count)sweepKernel<<<(count+127)/128,128,0,d.stream>>>(count,d.view(),d.points.pointer,d.endpoint.pointer,d.sweepResult.pointer);
+    if(count)sweepKernel<<<(count+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,d.stream>>>(count,d.view(),d.points.pointer,d.endpoint.pointer,d.sweepResult.pointer);
     std::vector<SweepResult> result;d.sweepResult.download(result,count,d.transfer);d.transfer.finish();return result;
 }
 std::vector<EdgeResult> PolyhedralGeometry::surfaceEdges(const Topology& t,const std::vector<Point>& old,const std::vector<Point>& end,
     const std::vector<SurfaceEdge>& edges,bool empty,int segments,double scale){
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);d.topology(t);d.points.upload(old,d.transfer);
     d.endpoint.upload(end,d.transfer);d.edges.upload(edges,d.transfer);const int count=edges.size();d.edgeResult.reserve(count);
-    if(count)surfaceEdgesKernel<<<(count+63)/64,64,0,d.stream>>>(count,d.view(),d.points.pointer,d.endpoint.pointer,d.edges.pointer,empty,segments,scale,d.edgeResult.pointer);
+    if(count)surfaceEdgesKernel<<<(count+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,d.stream>>>(count,d.view(),d.points.pointer,d.endpoint.pointer,d.edges.pointer,empty,segments,scale,d.edgeResult.pointer);
     std::vector<EdgeResult> out;d.edgeResult.download(out,count,d.transfer);d.transfer.finish();return out;
 }
 struct HarmonicPointMotion::Implementation {
@@ -526,8 +527,8 @@ struct HarmonicPointMotion::Implementation {
     Array<Point> points,boundary,displacement,next,result;Array<int> offsets,neighbours,preErrors,errors;Array<unsigned char> fixed;
     Array<double> weights,total,partial;Array<MotionControl> control;Array<MotionPenalty> penalties;Array<HarmonicDeviceStatus> status;
     Implementation(int n,double tol,int limit):count(n),
-        blocks(cooperativeBlocks(solveMotion<const MotionPenalty*>,std::max(1,(n+255)/256),256)),
-        selectedBlocks(cooperativeBlocks(solveMotion<DeviceValue<const MotionPenalty*>>,std::max(1,(n+255)/256),256)),
+        blocks(cooperativeBlocks(solveMotion<const MotionPenalty*>,std::max(1,(n+workPlan().reductionBlockThreads-1)/workPlan().reductionBlockThreads),workPlan().reductionBlockThreads,workPlan().reductionBlockThreads*sizeof(double))),
+        selectedBlocks(cooperativeBlocks(solveMotion<DeviceValue<const MotionPenalty*>>,std::max(1,(n+workPlan().reductionBlockThreads-1)/workPlan().reductionBlockThreads),workPlan().reductionBlockThreads,workPlan().reductionBlockThreads*sizeof(double))),
         maximumIterations(limit),tolerance(tol){
         checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);}
     ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
@@ -536,7 +537,7 @@ struct HarmonicPointMotion::Implementation {
         for(auto* array:{&boundary,&displacement,&next,&result})array->reserve(count);
         for(auto* array:{&preErrors,&errors})array->reserve(count);
         total.reserve(count);weights.reserve(adjacent.size());partial.reserve(std::max(blocks,selectedBlocks));control.reserve(1);status.reserve(1);
-        if(count)weightsKernel<<<(count+127)/128,128,0,stream>>>(count,points.pointer,offsets.pointer,neighbours.pointer,fixed.pointer,weights.pointer,total.pointer,preErrors.pointer);
+        if(count)weightsKernel<<<(count+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(count,points.pointer,offsets.pointer,neighbours.pointer,fixed.pointer,weights.pointer,total.pointer,preErrors.pointer);
         transfer.finish();
 
     }
@@ -544,19 +545,19 @@ struct HarmonicPointMotion::Implementation {
         const MotionPenalty* inputPenalties,const double* inputTolerance,bool represented,
         cudaStream_t callerStream,bool refreshWeights){
         if(refreshWeights&&count){
-            weightsKernel<<<(count+127)/128,128,0,callerStream>>>(count,inputPoints,offsets.pointer,
+            weightsKernel<<<(count+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,callerStream>>>(count,inputPoints,offsets.pointer,
                 neighbours.pointer,fixed.pointer,weights.pointer,total.pointer,preErrors.pointer);
             checked(cudaGetLastError());
         }
-        initializeMotion<<<std::max(1,(count+255)/256),256,0,callerStream>>>(count,inputBoundary,
+        initializeMotion<<<std::max(1,(count+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads),workPlan().faceBlockThreads,0,callerStream>>>(count,inputBoundary,
             fixed.pointer,displacement.pointer,preErrors.pointer,errors.pointer,control.pointer,
             tolerance,maximumIterations,inputTolerance);
         checked(cudaGetLastError());
         void* arguments[]={&count,&offsets.pointer,&neighbours.pointer,&weights.pointer,&total.pointer,
             &fixed.pointer,&inputPenalties,&displacement.pointer,&next.pointer,&partial.pointer,&errors.pointer,&control.pointer};
-        checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveMotion<const MotionPenalty*>),blocks,256,arguments,0,callerStream));
+        checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveMotion<const MotionPenalty*>),blocks,workPlan().reductionBlockThreads,arguments,workPlan().reductionBlockThreads*sizeof(double),callerStream));
         if(count){
-            publishMotion<<<(count+255)/256,256,0,callerStream>>>(count,inputPoints,displacement.pointer,
+            publishMotion<<<(count+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,callerStream>>>(count,inputPoints,displacement.pointer,
                 inputBoundary,fixed.pointer,represented,result.pointer,control.pointer);
             checked(cudaGetLastError());
         }
@@ -581,7 +582,7 @@ HarmonicDeviceView HarmonicPointMotion::solveDevice(const Point* points,const Po
 }
 void HarmonicPointMotion::prepareDeviceGeometry(const Point* points,void* rawStream){
     auto& d=*data_;d.externalGeometryUsed=true;const auto stream=static_cast<cudaStream_t>(rawStream);
-    if(d.count)weightsKernel<<<(d.count-1)/128+1,128,0,stream>>>(d.count,points,d.offsets.pointer,
+    if(d.count)weightsKernel<<<(d.count-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.count,points,d.offsets.pointer,
         d.neighbours.pointer,d.fixed.pointer,d.weights.pointer,d.total.pointer,d.preErrors.pointer);
     checked(cudaGetLastError());
 }
@@ -596,14 +597,14 @@ HarmonicDeviceView HarmonicPointMotion::solveSelectedDevice(const HarmonicMotion
     auto& d=*data_;d.externalGeometryUsed=true;const auto stream=static_cast<cudaStream_t>(rawStream);
     DeviceValue<const Point*> points{&input->points},boundary{&input->boundary};
     DeviceValue<const MotionPenalty*> penalties{&input->penalties};DeviceValue<const double*> tolerance{&input->tolerance};
-    if(d.count)weightsKernel<<<(d.count-1)/128+1,128,0,stream>>>(d.count,points,d.offsets.pointer,d.neighbours.pointer,
+    if(d.count)weightsKernel<<<(d.count-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.count,points,d.offsets.pointer,d.neighbours.pointer,
         d.fixed.pointer,d.weights.pointer,d.total.pointer,d.preErrors.pointer);
-    initializeMotion<<<std::max(1,(d.count+255)/256),256,0,stream>>>(d.count,boundary,d.fixed.pointer,
+    initializeMotion<<<std::max(1,(d.count+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads),workPlan().faceBlockThreads,0,stream>>>(d.count,boundary,d.fixed.pointer,
         d.displacement.pointer,d.preErrors.pointer,d.errors.pointer,d.control.pointer,d.tolerance,d.maximumIterations,tolerance);
     void* arguments[]={&d.count,&d.offsets.pointer,&d.neighbours.pointer,&d.weights.pointer,&d.total.pointer,
         &d.fixed.pointer,&penalties,&d.displacement.pointer,&d.next.pointer,&d.partial.pointer,&d.errors.pointer,&d.control.pointer};
-    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveMotion<DeviceValue<const MotionPenalty*>>),d.selectedBlocks,256,arguments,0,stream));
-    if(d.count)publishMotion<<<(d.count-1)/256+1,256,0,stream>>>(d.count,points,d.displacement.pointer,boundary,
+    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveMotion<DeviceValue<const MotionPenalty*>>),d.selectedBlocks,workPlan().reductionBlockThreads,arguments,workPlan().reductionBlockThreads*sizeof(double),stream));
+    if(d.count)publishMotion<<<(d.count-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.count,points,d.displacement.pointer,boundary,
         d.fixed.pointer,represented,d.result.pointer,d.control.pointer);
     publishMotionStatus<<<1,1,0,stream>>>(d.control.pointer,d.errors.pointer,d.status.pointer);checked(cudaGetLastError());return deviceView();
 }
@@ -680,7 +681,7 @@ struct DenseMinimumNorm::Implementation {
     Implementation(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);}
     ~Implementation(){transfer.discard();if(stream){cudaStreamSynchronize(stream);cudaStreamDestroy(stream);}}
     void prepare(int nr,int nc){
-        blocks=cooperativeBlocks(solveQr<int,int,double>,std::max(1,nr),128);
+        blocks=cooperativeBlocks(solveQr<int,int,double>,std::max(1,nr),workPlan().sparseBlockThreads);
         matrix.reserve(std::size_t(nr)*nc);rhs.reserve(nr);norm.reserve(nr);delta.reserve(nc);
         order.reserve(nr);invalid.reserve(nr);control.reserve(1);
     }
@@ -693,10 +694,10 @@ MinimumNormResult DenseMinimumNorm::solve(int nr,int nc,const std::vector<double
     auto& d=*data_;d.prepare(nr,nc);PinnedTransferQueue::Operation operation(d.transfer);
     d.matrix.upload(matrix,d.transfer);d.rhs.upload(rhs,d.transfer);
     if(nc)checked(cudaMemsetAsync(d.delta.pointer,0,std::size_t(nc)*sizeof(double),d.stream));
-    if(nr)qrNorms<<<(nr+127)/128,128,0,d.stream>>>(nr,nc,d.matrix.pointer,d.norm.pointer,d.order.pointer,d.invalid.pointer);
+    if(nr)qrNorms<<<(nr+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,d.stream>>>(nr,nc,d.matrix.pointer,d.norm.pointer,d.order.pointer,d.invalid.pointer);
     qrInitialize<<<1,1,0,d.stream>>>(nr,nc,d.norm.pointer,d.invalid.pointer,d.control.pointer);
     void* arguments[]={&nr,&nc,&tolerance,&d.matrix.pointer,&d.norm.pointer,&d.order.pointer,&d.rhs.pointer,&d.delta.pointer,&d.control.pointer};
-    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveQr<int,int,double>),d.blocks,128,arguments,0,d.stream));
+    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveQr<int,int,double>),d.blocks,workPlan().sparseBlockThreads,arguments,0,d.stream));
     QrControl state;d.transfer.download(&state,d.control.pointer,sizeof(state));d.transfer.finish();
     MinimumNormResult result;result.rank=state.rank;result.initialized=state.error!=1;result.valid=state.error==0;
     if(result.initialized){d.delta.download(result.delta,nc,d.transfer);d.rhs.download(result.rhs,nr,d.transfer);}
@@ -728,7 +729,7 @@ struct ResidentDenseMinimumNorm::Implementation {
     Implementation(int nr,int nc):rows(nr),columns(nc){
         if(nr<0||nc<0||(nc&&std::size_t(nr)>std::numeric_limits<std::size_t>::max()/sizeof(double)/std::size_t(nc)))
             throw std::invalid_argument("resident minimum-norm capacity is not representable");
-        blocks=cooperativeBlocks(solveQr<DeviceValue<int>,DeviceValue<int>,DeviceValue<double>>,std::max(1,nr),128);
+        blocks=cooperativeBlocks(solveQr<DeviceValue<int>,DeviceValue<int>,DeviceValue<double>>,std::max(1,nr),workPlan().sparseBlockThreads);
         matrix.reserve(std::size_t(nr)*nc);rhs.reserve(nr);norm.reserve(nr);delta.reserve(nc);
         order.reserve(nr);invalid.reserve(nr);control.reserve(1);shapeInvalid.reserve(1);operation.reserve(1);
     }
@@ -741,14 +742,14 @@ MinimumNormDeviceView ResidentDenseMinimumNorm::view()const{
 void ResidentDenseMinimumNorm::solve(const MinimumNormDeviceProblem* input,void* rawStream){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
     prepareQrProblem<<<1,1,0,stream>>>(input,d.rows,d.columns,d.operation.pointer,d.shapeInvalid.pointer);
-    copyQrProblem<<<d.blocks,128,0,stream>>>(d.operation.pointer,d.matrix.pointer,d.rhs.pointer,d.delta.pointer);
+    copyQrProblem<<<d.blocks,workPlan().sparseBlockThreads,0,stream>>>(d.operation.pointer,d.matrix.pointer,d.rhs.pointer,d.delta.pointer);
     DeviceValue<int> nr{&d.operation.pointer->rows},nc{&d.operation.pointer->columns};
     DeviceValue<double> tolerance{&d.operation.pointer->rankTolerance};
-    if(d.rows)qrNorms<<<(d.rows-1)/128+1,128,0,stream>>>(nr,nc,d.matrix.pointer,d.norm.pointer,d.order.pointer,d.invalid.pointer);
+    if(d.rows)qrNorms<<<(d.rows-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(nr,nc,d.matrix.pointer,d.norm.pointer,d.order.pointer,d.invalid.pointer);
     qrInitialize<<<1,1,0,stream>>>(nr,nc,d.norm.pointer,d.invalid.pointer,d.control.pointer);
     qrShapeStatus<<<1,1,0,stream>>>(d.shapeInvalid.pointer,d.control.pointer);
     void* arguments[]={&nr,&nc,&tolerance,&d.matrix.pointer,&d.norm.pointer,&d.order.pointer,&d.rhs.pointer,&d.delta.pointer,&d.control.pointer};
-    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveQr<DeviceValue<int>,DeviceValue<int>,DeviceValue<double>>),d.blocks,128,arguments,0,stream));
+    checked(cudaLaunchCooperativeKernel(reinterpret_cast<void*>(solveQr<DeviceValue<int>,DeviceValue<int>,DeviceValue<double>>),d.blocks,workPlan().sparseBlockThreads,arguments,0,stream));
     checked(cudaGetLastError());
 }
 namespace {
@@ -801,24 +802,24 @@ SweepLinearizationDeviceView ResidentSweepLinearization::view()const{
 }
 void ResidentSweepLinearization::planarity(const SweepLinearizationDeviceInput* input,void* rawStream){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
-    if(d.planarCount)planarValues<<<(d.planarCount-1)/128+1,128,0,stream>>>(d.planarCount,
+    if(d.planarCount)planarValues<<<(d.planarCount-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.planarCount,
         DeviceValue<SweepLinearizationDeviceInput>{input},d.polynomials.pointer);
     checked(cudaGetLastError());
 }
 void ResidentSweepLinearization::column(const SweepLinearizationDeviceInput* input,void* rawStream){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);const int work=d.faceCount+d.planarCount;
-    if(work)linearizationColumn<<<(work-1)/128+1,128,0,stream>>>(d.faceCount,d.planarCount,d.view(),
+    if(work)linearizationColumn<<<(work-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.faceCount,d.planarCount,d.view(),
         DeviceValue<SweepLinearizationDeviceInput>{input},d.faces.pointer,d.column.pointer);
     checked(cudaGetLastError());
 }
 void ResidentSweepLinearization::resetCorrection(void* rawStream){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
-    if(d.points)resetModeCorrection<<<(d.points-1)/128+1,128,0,stream>>>(d.points,d.correction.pointer);
+    if(d.points)resetModeCorrection<<<(d.points-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.points,d.correction.pointer);
     checked(cudaGetLastError());
 }
 void ResidentSweepLinearization::accumulate(const SweepLinearizationDeviceInput* input,void* rawStream){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
-    if(d.points)accumulateMode<<<(d.points-1)/128+1,128,0,stream>>>(d.points,
+    if(d.points)accumulateMode<<<(d.points-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.points,
         DeviceValue<SweepLinearizationDeviceInput>{input},d.correction.pointer);
     checked(cudaGetLastError());
 }
@@ -847,14 +848,14 @@ void SweepLinearization::endpoint(const std::vector<Point>& points){
 }
 std::vector<Polynomial> SweepLinearization::planarity(const std::vector<Point>& points){
     endpoint(points);auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfer);
-    if(d.planarCount)planarValues<<<(d.planarCount+127)/128,128,0,d.stream>>>(d.planarCount,
+    if(d.planarCount)planarValues<<<(d.planarCount+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,d.stream>>>(d.planarCount,
         SweepLinearizationDeviceInput{d.old.pointer,d.end.pointer,nullptr,nullptr,d.planar.pointer,0},d.polynomials.pointer);
     std::vector<Polynomial> out;d.polynomials.download(out,d.planarCount,d.transfer);d.transfer.finish();return out;
 }
 std::vector<double> SweepLinearization::column(const std::vector<Point>& mode){
     auto& d=*data_;if(mode.size()!=std::size_t(d.points))throw std::invalid_argument("sweep mode shape mismatch");
     PinnedTransferQueue::Operation operation(d.transfer);d.mode.upload(mode,d.transfer);const int work=d.faceCount+d.planarCount;
-    if(work)linearizationColumn<<<(work+127)/128,128,0,d.stream>>>(d.faceCount,d.planarCount,d.view(),
+    if(work)linearizationColumn<<<(work+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,d.stream>>>(d.faceCount,d.planarCount,d.view(),
         SweepLinearizationDeviceInput{d.old.pointer,d.end.pointer,d.mode.pointer,d.scales.pointer,d.planar.pointer,0},d.faces.pointer,d.column.pointer);
     std::vector<double> out;d.column.download(out,std::size_t(d.faceCount)+3*std::size_t(d.planarCount),d.transfer);d.transfer.finish();return out;
 }
@@ -862,7 +863,7 @@ void SweepLinearization::resetCorrection(){auto& d=*data_;if(d.points)checked(cu
 void SweepLinearization::accumulate(const std::vector<Point>& mode,double coefficient){
     auto& d=*data_;if(mode.size()!=std::size_t(d.points))throw std::invalid_argument("sweep correction mode shape mismatch");
     PinnedTransferQueue::Operation operation(d.transfer);d.mode.upload(mode,d.transfer);
-    if(d.points)accumulateMode<<<(d.points+127)/128,128,0,d.stream>>>(d.points,
+    if(d.points)accumulateMode<<<(d.points+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,d.stream>>>(d.points,
         SweepLinearizationDeviceInput{nullptr,nullptr,d.mode.pointer,nullptr,nullptr,coefficient},d.correction.pointer);
     d.transfer.finish();
 }

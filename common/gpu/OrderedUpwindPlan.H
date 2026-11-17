@@ -1,5 +1,6 @@
 #ifndef UGKP_GPU_ORDERED_UPWIND_PLAN_H
 #define UGKP_GPU_ORDERED_UPWIND_PLAN_H
+#include "RadiationPrecision.H"
 #include <algorithm>
 #include <vector>
 namespace ugkp { namespace gpu {
@@ -9,16 +10,16 @@ namespace ugkp { namespace gpu {
 struct OrderedUpwindPlan {
     int cells=0;
     std::vector<int> offsets,neighbour,subtract,face,residualOrder,levelOffsets,levelCells;
-    std::vector<double> flux;
+    std::vector<RadiationReal> flux;
     void build(int count,const std::vector<int>& owner,const std::vector<int>& adjacent,
-        const std::vector<int>& cellOffsets,const std::vector<int>& cellFaces,const std::vector<double>& orientedFlux){
+        const std::vector<int>& cellOffsets,const std::vector<int>& cellFaces,const std::vector<RadiationReal>& orientedFlux){
         cells=count;offsets.assign(1,0);neighbour.clear();subtract.clear();face.clear();flux.clear();residualOrder.clear();
         std::vector<int> level(count,0);
         for(int cell=0;cell<count;++cell){
             const int begin=neighbour.size();
             for(int i=cellOffsets[cell];i<cellOffsets[cell+1];++i){
                 const int f=cellFaces[i];if(f>=int(adjacent.size()))continue;
-                const double value=orientedFlux[f];int upstream=-1;bool negative=false;
+                const RadiationReal value=orientedFlux[f];int upstream=-1;bool negative=false;
                 if(cell==owner[f]&&value<0){upstream=adjacent[f];negative=true;}
                 else if(cell==adjacent[f]&&value>0)upstream=owner[f];
                 if(upstream<0)continue;

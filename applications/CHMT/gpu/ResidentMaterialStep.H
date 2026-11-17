@@ -21,7 +21,8 @@ CHMT_HD inline ResidentMaterialStep requestMaterialStep(ugkp::CompensatedTime be
     const Real remaining=ugkp::boundedTimeDuration(total,begin);
     const Real maximum=maxSubstep>0?maxSubstep:total.value();
     step.dt=remaining<maximum?remaining:maximum;
-    drive={begin,begin+step.dt,total,tolerance,tractionScale};return step;
+    drive={begin,begin+step.dt,total,static_cast<decltype(drive.tolerance)>(tolerance),
+        static_cast<decltype(drive.tractionScale)>(tractionScale)};return step;
 }
 CHMT_HD inline void alignMaterialStep(ResidentMaterialStep& step,const ugkwp::GasDriveSelection& drive,
     const ResidentWallKnotTime* knots,std::size_t count){

@@ -5,6 +5,10 @@ from pathlib import Path
 import subprocess
 import pytest
 ROOT=SOURCE_ROOT
+
+_HANDLE_SOURCE=(ROOT/'common/wall/GpuColdWall1DHandles.cuh').read_text()
+_HANDLE_SOURCE=_HANDLE_SOURCE[_HANDLE_SOURCE.index('namespace Foam'): _HANDLE_SOURCE.index('template<class State,class Scalar>')]+'} }\n'
+_HANDLE_SOURCE=_HANDLE_SOURCE.replace('__host__','').replace('__device__','')
 SOURCE=r'''
 #include <algorithm>
 #include <cmath>
@@ -34,7 +38,7 @@ struct DeviceState{
  unsigned char pStuck[4]={1,1},compactPStuck[4]={},particleStuckCandidateMask[1]={};
  GpuReal pT[4]={2800,3400},compactPT[4]={},pm[4]={100,100},pd[4]={.001,.002};
  GpuReal pux[4]={40000,40000},puy[4]={},puz[4]={};
- float pColdNodeSpecificEnthalpy[32]={},pCold2DNodeSpecificEnthalpy[256]={},compactPColdNodeSpecificEnthalpy[32]={},compactPCold2DNodeSpecificEnthalpy[256]={};
+ double pColdNodeSpecificEnthalpy[32]={},compactPColdNodeSpecificEnthalpy[32]={};float pCold2DNodeSpecificEnthalpy[256]={},compactPCold2DNodeSpecificEnthalpy[256]={};
  double pThermalEnthalpyResidual[4]={},compactPThermalEnthalpyResidual[4]={};
  GpuReal gasBoundaryT[1]={300};
  GpuReal couplingRhoOld[1]={1},couplingUxOld[1]={0},couplingUyOld[1]={},couplingUzOld[1]={},couplingTgasOld[1]={3200};
@@ -48,6 +52,7 @@ struct DeviceState{
  Foam::gpuThermal::ColdWallSolidificationParameters coldWallSolidificationParameters{};
 };
 GpuReal molecularGasConductivity(const DeviceState&){return GpuReal(.04);}
+''' + '\n#include <type_traits>\n' + _HANDLE_SOURCE + r'''
 #include "GpuParticleCaloricDevice.cuh"
 #include "GpuPairedParticleHeat.cuh"
 #include "paired_heat_reference.cuh"

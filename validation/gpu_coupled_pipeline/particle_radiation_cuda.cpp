@@ -36,10 +36,10 @@ int main(int argc,char** argv){
             temperature[i]=root.temperatureK;energy[i]=capacity*(root.temperatureK-x.temperature[i]);accepted+=energy[i];gross+=std::abs(energy[i]);
         }
         for(int i=0;i<faces;++i){boundary[i]=x.elapsed*x.boundaryArea[i]*x.boundaryFlux[i];rawTotal+=boundary[i];gross+=std::abs(boundary[i]);}
-        const auto scale=original::detail::conservativeBoundaryEnergyScale(accepted,rawTotal,gross,1e-10);
-        for(int i=0;i<faces;++i){const double value=scale.scale*boundary[i];boundary[i]=0;if(x.coupledBoundary[i])boundary[i]=value;else escaped+=value;}
+
+        for(int i=0;i<faces;++i){const double value=boundary[i];boundary[i]=0;if(x.coupledBoundary[i])boundary[i]=value;else escaped+=value;}
         auto actual=device.solve(x);for(int i=0;i<n;++i){same(temperature[i],actual.temperature[i]);same(energy[i],actual.energy[i]);}
         for(int i=0;i<faces;++i)same(boundary[i],actual.boundaryEnergy[i]);same(escaped,actual.escapedEnergy);++trials;
     }
-    std::cout<<"PASS "<<trials<<" frozen material-root, boundary-scaling and ordered-budget transactions\n";
+    std::cout<<"PASS "<<trials<<" frozen material-root, raw-boundary and ordered-budget transactions\n";
 }

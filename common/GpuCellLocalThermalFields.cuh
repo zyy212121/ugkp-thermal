@@ -1,9 +1,10 @@
 #pragma once
 #include <type_traits>
+#include "wall/GpuColdWall1DHandles.cuh"
 #include "GpuParticleFields.cuh"
 #include "operators/swapParticlePointerDevice.cuh"
-// Shared full thermal payload. Compile-time layout adapters preserve the
-// existing cold1D copy form; there is no runtime policy or extra traversal.
+
+
 template<bool HasContactAge, bool PackedCold1D>
 struct CellLocalThermalExtraFields
 {
@@ -18,8 +19,12 @@ struct CellLocalThermalExtraFields
         GPU_PARTICLE_FIELDS_CONTACT_SCALAR(GPU_SWAP_FIELD)
         if (s.coldWallSolidificationEnabled != 0)
         {
-            GPU_PARTICLE_FIELDS_COLD1D_ARRAY(GPU_SWAP_FIELD)
-            GPU_PARTICLE_FIELDS_COLD1D_SCALAR(GPU_SWAP_FIELD)
+            if constexpr (Foam::gpuWall::HasColdHandles<State>::value)
+                swapParticlePointerDevice(s.pColdHandle,s.compactPColdHandle);
+            else {
+                GPU_PARTICLE_FIELDS_COLD1D_ARRAY(GPU_SWAP_FIELD)
+                GPU_PARTICLE_FIELDS_COLD1D_SCALAR(GPU_SWAP_FIELD)
+            }
         }
         if (s.coldWall2DEnabled != 0)
         {
@@ -61,12 +66,16 @@ struct CellLocalThermalExtraFields
         GPU_PARTICLE_FIELDS_CONTACT_SCALAR(GPU_COPY_SCALAR)
         if (s.coldWallSolidificationEnabled != 0)
         {
+            if constexpr (Foam::gpuWall::HasColdHandles<State>::value)
+                s.compactPColdHandle[dst]=s.pColdHandle[i];
+            else {
 #define GPU_COPY_ARRAY(src, dest, width) \
             if constexpr (PackedCold1D) copyArray<width, true>(s.src, s.dest, i, dst); \
             else { for (int j = 0; j < width; ++j) s.dest[dst*width+j] = s.src[i*width+j]; }
             GPU_PARTICLE_FIELDS_COLD1D_ARRAY(GPU_COPY_ARRAY)
 #undef GPU_COPY_ARRAY
             GPU_PARTICLE_FIELDS_COLD1D_SCALAR(GPU_COPY_SCALAR)
+            }
         }
         if (s.coldWall2DEnabled != 0)
         {

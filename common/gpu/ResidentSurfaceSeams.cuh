@@ -9,7 +9,7 @@ __global__ void resetSurfaceSeams(int count,const SurfaceTopologyEdge* initial,
 __global__ void matchResidentSurfaceSeams(int count,const int* surfaceFaces,
     const SurfaceSeamPatch* patches,const Point* points,const FaceResult* faces,
     SurfaceTopologyEdge* edges,unsigned char* removed,SurfaceEdgeMap* output,SurfaceSeamStatus* status){
-    __shared__ int matches[128],first[128];
+    extern __shared__ int matches[];int* first=matches+blockDim.x;
     const int lane=threadIdx.x;const double tolerance=1e-10*status->scale;
     for(int i=0;i<count;++i){
         if(removed[i]||edges[i].neighbour>=0||patches[i].face<0)continue;
@@ -21,7 +21,7 @@ __global__ void matchResidentSurfaceSeams(int count,const int* surfaceFaces,
             found=found<2?found+1:2;minimum=j<minimum?j:minimum;
         }
         matches[lane]=found;first[lane]=minimum;__syncthreads();
-        for(int stride=64;stride;stride/=2){if(lane<stride){
+        for(int active=blockDim.x;active>1;active=(active+1)/2){const int stride=(active+1)/2;if(lane<active-stride){
             const int total=matches[lane]+matches[lane+stride];matches[lane]=total>2?2:total;
             first[lane]=first[lane]<first[lane+stride]?first[lane]:first[lane+stride];
         }__syncthreads();}
@@ -59,7 +59,7 @@ ResidentSurfaceSeams::ResidentSurfaceSeams(int points,int meshFaces,const std::v
             throw std::invalid_argument("resident surface seam addressing mismatch");
     }
     auto& d=*data_;d.points=points;d.edges=edges.size();d.install(d.surfaceFaces,surfaceFaces);d.install(d.initial,edges);d.install(d.patches,patches);
-    d.working.reserve(d.edges);d.removed.reserve(d.edges);d.output.reserve(d.edges);d.status.reserve(1);d.bounds.reserve((points+127)/128);
+    d.working.reserve(d.edges);d.removed.reserve(d.edges);d.output.reserve(d.edges);d.status.reserve(1);d.bounds.reserve((points+workPlan().reductionBlockThreads-1)/workPlan().reductionBlockThreads);
     if(d.edges)checked(cudaMemset(d.output.pointer,0,d.edges*sizeof(SurfaceEdgeMap)));
     // Construction completes before callers may use a nonblocking stream.
     checked(cudaStreamSynchronize(nullptr));
@@ -68,8 +68,8 @@ ResidentSurfaceSeams::~ResidentSurfaceSeams()=default;
 SurfaceSeamDeviceView ResidentSurfaceSeams::view()const{const auto& d=*data_;return {d.edges,d.output.pointer,d.status.pointer};}
 void ResidentSurfaceSeams::prepare(const Point* points,const FaceResult* faces,void* streamHandle){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(streamHandle);
-    resetSurfaceSeams<<<d.edges?(d.edges+127)/128:1,128,0,stream>>>(d.edges,d.initial.pointer,d.working.pointer,d.removed.pointer,d.status.pointer);checked(cudaGetLastError());
-    if(d.edges){geometryBounds<<<(d.points+127)/128,128,0,stream>>>(d.points,points,d.bounds.pointer);checked(cudaGetLastError());
-        geometryScale<<<1,128,0,stream>>>((d.points+127)/128,d.bounds.pointer,d.status.pointer);checked(cudaGetLastError());
-        matchResidentSurfaceSeams<<<1,128,0,stream>>>(d.edges,d.surfaceFaces.pointer,d.patches.pointer,points,faces,d.working.pointer,d.removed.pointer,d.output.pointer,d.status.pointer);checked(cudaGetLastError());}
+    resetSurfaceSeams<<<d.edges?(d.edges+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads:1,workPlan().faceBlockThreads,0,stream>>>(d.edges,d.initial.pointer,d.working.pointer,d.removed.pointer,d.status.pointer);checked(cudaGetLastError());
+    if(d.edges){geometryBounds<<<(d.points+workPlan().reductionBlockThreads-1)/workPlan().reductionBlockThreads,workPlan().reductionBlockThreads,workPlan().reductionBlockThreads*(sizeof(GeometryBounds)),stream>>>(d.points,points,d.bounds.pointer);checked(cudaGetLastError());
+        geometryScale<<<1,workPlan().reductionBlockThreads,workPlan().reductionBlockThreads*(sizeof(GeometryBounds)),stream>>>((d.points+workPlan().reductionBlockThreads-1)/workPlan().reductionBlockThreads,d.bounds.pointer,d.status.pointer);checked(cudaGetLastError());
+        matchResidentSurfaceSeams<<<1,workPlan().reductionBlockThreads,workPlan().reductionBlockThreads*(2*sizeof(int)),stream>>>(d.edges,d.surfaceFaces.pointer,d.patches.pointer,points,faces,d.working.pointer,d.removed.pointer,d.output.pointer,d.status.pointer);checked(cudaGetLastError());}
 }

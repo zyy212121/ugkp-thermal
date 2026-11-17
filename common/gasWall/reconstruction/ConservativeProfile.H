@@ -543,17 +543,17 @@ struct Profile {
     double va = value();
     coef = b;
     double vb = value();
-    for (int i = 0; i < 16 && va > target; ++i) {
-      a *= 2;
+    for (int i = 0; i < cfg.numerics.profileBracketIterations && va > target; ++i) {
+      a *= cfg.numerics.profileBracketGrowth;
       coef = a;
       va = value();
     }
-    for (int i = 0; i < 16 && vb < target; ++i) {
-      b *= 2;
+    for (int i = 0; i < cfg.numerics.profileBracketIterations && vb < target; ++i) {
+      b *= cfg.numerics.profileBracketGrowth;
       coef = b;
       vb = value();
     }
-    for (int i = 0; i < 70; ++i) {
+    for (int i = 0; i < cfg.numerics.profileBisectionIterations; ++i) {
       coef = (a + b) / 2;
       if (coef == a || coef == b)
         return;
@@ -795,7 +795,7 @@ struct Profile {
       for(int c=0;c<2;++c){int count=offsets[c+1]-offsets[c];for(int i=team.rank();i<count;i+=team.size()){auto&x=scratch.samples[offsets[c]+i];double r=affineCoordinate(x.y,c?1:-1)[0];x.speciesBasis[0]=1-r*r;x.speciesBasis[1]=r*r*(1-r);}}team.sync();
       struct SpeciesEvaluation{double f[2]{},j[2][2]{},norm=0;};
       auto evaluate=[&](double a,double b){++affineMomentEvaluations;SpeciesEvaluation e;for(int c=0;c<2;++c){double value=0,j0=0,j1=0;int count=offsets[c+1]-offsets[c];for(int i=team.rank();i<count;i+=team.size()){const auto&x=scratch.samples[offsets[c]+i];double Y=speciesLogistic(x.speciesBaseLogit+a*x.speciesBasis[0]+b*x.speciesBasis[1]),w=x.weight*x.rho;value+=w*Y;double dY=w*Y*(1-Y);j0+=dY*x.speciesBasis[0];j1+=dY*x.speciesBasis[1];}e.f[c]=team.sum(value)-segments[c].target[7];e.j[c][0]=team.sum(j0);e.j[c][1]=team.sum(j1);affineRawFinite=affineRawFinite&&std::isfinite(e.f[c])&&std::isfinite(e.j[c][0])&&std::isfinite(e.j[c][1]);e.norm=d::max(e.norm,::fabs(e.f[c])/d::max(1.,::fabs(segments[c].target[7])));}return e;};
-      auto e=evaluate(0,0);for(int k=0;k<cfg.maxIterations;++k){double det=e.j[0][0]*e.j[1][1]-e.j[0][1]*e.j[1][0],da=(-e.f[0]*e.j[1][1]+e.f[1]*e.j[0][1])/det,db=(-e.j[0][0]*e.f[1]+e.j[1][0]*e.f[0])/det,scale=1;bool improved=false;for(int line=0;line<40;++line){double a=affineSpeciesA+scale*da,b=affineSpeciesB+scale*db;if(a==affineSpeciesA&&b==affineSpeciesB)break;auto next=evaluate(a,b);if(next.norm<e.norm){affineSpeciesA=a;affineSpeciesB=b;e=next;improved=true;break;}scale*=.5;}++affineIterations;if(!improved)break;}
+      auto e=evaluate(0,0);for(int k=0;k<cfg.maxIterations;++k){double det=e.j[0][0]*e.j[1][1]-e.j[0][1]*e.j[1][0],da=(-e.f[0]*e.j[1][1]+e.f[1]*e.j[0][1])/det,db=(-e.j[0][0]*e.f[1]+e.j[1][0]*e.f[0])/det,scale=1;bool improved=false;for(int line=0;line<cfg.numerics.maximumLineSearchIterations;++line){double a=affineSpeciesA+scale*da,b=affineSpeciesB+scale*db;if(a==affineSpeciesA&&b==affineSpeciesB)break;auto next=evaluate(a,b);if(next.norm<e.norm){affineSpeciesA=a;affineSpeciesB=b;e=next;improved=true;break;}scale*=cfg.numerics.lineSearchReduction;}++affineIterations;if(!improved)break;}
     }
     // Last numerical fit remains publishable: observations do not add a gate.
     affineSpeciesMode=requested;

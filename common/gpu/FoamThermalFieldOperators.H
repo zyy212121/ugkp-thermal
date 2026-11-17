@@ -1,6 +1,8 @@
 #ifndef UGKP_GPU_FOAM_THERMAL_FIELD_OPERATORS_H
 #define UGKP_GPU_FOAM_THERMAL_FIELD_OPERATORS_H
 #include "ThermalFieldOperators.H"
+#include "FoamThermalNativeSchemes.H"
+#include "../FoamThermalDiscretization.H"
 #include "fvMesh.H"
 #include "linear.H"
 #include "gaussGrad.H"
@@ -81,7 +83,7 @@ public:
     explicit FoamThermalCorrectedGradient(const Foam::fvMesh& mesh):Foam::fv::correctedSnGrad<Foam::scalar>(mesh){}
     Foam::tmp<Foam::surfaceScalarField> correction(const Foam::volScalarField& field)const override {
         using namespace Foam;const auto& mesh=field.mesh();
-        const auto gradient=fv::gradScheme<scalar>::New(mesh,mesh.schemes().grad("grad("+field.name()+')'))().grad(field,"grad("+field.name()+')');
+        const auto gradient=fv::gradScheme<scalar>::New(mesh,ugkp::solverControls::thermalDiscretization(mesh).selection("gradSchemes","grad("+field.name()+')'))().grad(field,"grad("+field.name()+')');
         const auto& g=gradient();const auto& weights=mesh.weights();const auto& directions=mesh.nonOrthCorrectionVectors();
         std::vector<VectorFaceInterpolation> input;
         forAll(mesh.neighbour(),f)input.push_back({thermalVector(g[mesh.owner()[f]]),thermalVector(g[mesh.neighbour()[f]]),thermalVector(directions[f]),weights[f],0});
@@ -101,6 +103,9 @@ inline void installGpuThermalFields(){
         using NormalGradient=Foam::fv::snGradScheme<Foam::scalar>;
         Interpolation::MeshConstructorTablePtr_->set("linear",+[](const Foam::fvMesh& mesh,Foam::Istream&)->Foam::tmp<Interpolation>{return Foam::tmp<Interpolation>(new FoamThermalLinear(mesh));});
         Interpolation::MeshFluxConstructorTablePtr_->set("linear",+[](const Foam::fvMesh& mesh,const Foam::surfaceScalarField&,Foam::Istream&)->Foam::tmp<Interpolation>{return Foam::tmp<Interpolation>(new FoamThermalLinear(mesh));});
+        Interpolation::MeshConstructorTablePtr_->set("linearUpwind",+[](const Foam::fvMesh& mesh,Foam::Istream& input)->Foam::tmp<Interpolation>{return Foam::tmp<Interpolation>(new FoamThermalLinearUpwind(mesh,input));});
+        Interpolation::MeshFluxConstructorTablePtr_->set("linearUpwind",+[](const Foam::fvMesh& mesh,const Foam::surfaceScalarField& flux,Foam::Istream& input)->Foam::tmp<Interpolation>{return Foam::tmp<Interpolation>(new FoamThermalLinearUpwind(mesh,flux,input));});
+        NormalGradient::MeshConstructorTablePtr_->set("limited",+[](const Foam::fvMesh& mesh,Foam::Istream& input)->Foam::tmp<NormalGradient>{return thermalLimitedSnGrad(mesh,input);});
         Gradient::IstreamConstructorTablePtr_->set("Gauss",+[](const Foam::fvMesh& mesh,Foam::Istream& input)->Foam::tmp<Gradient>{return Foam::tmp<Gradient>(new FoamThermalGaussGradient(mesh,input));});
         NormalGradient::MeshConstructorTablePtr_->set("corrected",+[](const Foam::fvMesh& mesh,Foam::Istream&)->Foam::tmp<NormalGradient>{return Foam::tmp<NormalGradient>(new FoamThermalCorrectedGradient(mesh));});
         return true;

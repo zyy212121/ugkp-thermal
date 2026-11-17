@@ -108,7 +108,7 @@ CHMT_HD inline ugkwp::ThermoInversionControls<Real> gasThermoControls(const Tole
 }
 template<bool Terminal=false>
 CHMT_HD inline bool invertMaterialEnergy(const MaterialEnergyEvaluator& energy,Real target,
-    Real lo,Real hi,const Tolerances& tol,Real& temperature,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
+    Real lo,Real hi,const Tolerances& tol,Real& temperature,ugkp::diagnostics::DeviceContext* diagnostics=nullptr,int maximumIterations=100) {
     using namespace ugkp::diagnostics;
     // A valid sign bracket is mathematical solver state, not a physical trial.
     // If metadata endpoints do not bracket the target, retain extrapolating
@@ -121,7 +121,7 @@ CHMT_HD inline bool invertMaterialEnergy(const MaterialEnergyEvaluator& energy,R
         &&leftEnergy<=target&&target<=rightEnergy;
     Real candidate=bracket?left+(right-left)*Real(.5):lo,residual=0;
     const Real energyTolerance=auditTolerance(tol.absoluteEnergy,tol.relativeEnergy,absValue(target));
-    for(int iteration=0;iteration<100;++iteration){
+    for(int iteration=0;iteration<maximumIterations;++iteration){
         Real value=0,capacity=0;const auto status=energy(candidate,value,capacity);
         if(status!=ugkwp::ThermoStatus::Success)return materialInversionFailure(diagnostics,3839,status,target,candidate);
         residual=auditDifference(value,target);
@@ -138,7 +138,7 @@ CHMT_HD inline bool invertMaterialEnergy(const MaterialEnergyEvaluator& energy,R
         Real next=auditDifference(candidate,correction);
         if(bracket&&(!finite(next)||next<=left||next>=right))next=left+(right-left)*Real(.5);
         if(!finite(next))return materialInversionFailure(diagnostics,3853,ugkwp::ThermoStatus::NonFiniteInput,target,next);
-        if(iteration==99||next==candidate){
+        if(iteration+1==maximumIterations||next==candidate){
             recordWarning(diagnostics,makeRecord(Code::AccuracyResidual,3849,38,0,EntityKind::None,-1,-1,residual,energyTolerance,candidate,Quantity::InternalEnergy));break;
         }
         candidate=next;
@@ -179,7 +179,7 @@ CHMT_HD inline bool recoverGas(const GasQ& q,Real volume,const PhysicsConfig& p,
     const Vec3 velocity=q.momentum/q.mass;const Real kinetic=0.5*q.mass*dot(velocity,velocity);
     const GasThermoAdapter<Ns> thermo(p.species);
     const MaterialEnergyEvaluator energy{thermo.view(p.diagnostics),masses,0,0,0,p.species};
-    Real T=0;if(!invertMaterialEnergy(energy,q.energy-kinetic,lo,hi,p.tolerances,T,p.diagnostics))
+    Real T=0;if(!invertMaterialEnergy(energy,q.energy-kinetic,lo,hi,p.tolerances,T,p.diagnostics,p.numerics.thermoMaximumIterations))
         return failStatus(status,ErrorCode::PropertyRange,index,q.energy-kinetic,ErrorLocation::Cell);
     GasPrimitive candidate{};candidate.rho=q.mass/volume;candidate.velocity=velocity;candidate.temperature=T;
     Real internal=0,capacity=0;if(energy(T,internal,capacity)!=ugkwp::ThermoStatus::Success)return failStatus(status,ErrorCode::PropertyRange,index,T,ErrorLocation::Cell);
@@ -239,7 +239,7 @@ CHMT_HD inline bool recoverSolid(const SolidQ& q,const PhysicsConfig& p,Real& ou
     }
     const GasThermoAdapter<Ns> thermo(p.species);
     const MaterialEnergyEvaluator energy{thermo.view(p.diagnostics),q.pore,a0,a1,a2,p.species};
-    Real T=0;if((mass<=0)||!invertMaterialEnergy<Terminal>(energy,q.energy,lo,hi,p.tolerances,T,p.diagnostics)){
+    Real T=0;if((mass<=0)||!invertMaterialEnergy<Terminal>(energy,q.energy,lo,hi,p.tolerances,T,p.diagnostics,p.numerics.thermoMaximumIterations)){
         if(numericalFailure)*numericalFailure=false;
         return failStatus(status,ErrorCode::PropertyRange,index,q.energy,ErrorLocation::Cell);
     }
@@ -389,9 +389,7 @@ inline bool validatePhysicsConfig(const PhysicsConfig& p,const ValidationContext
         error="configuration transport/gravity: invalid coefficient";return false;
     }
     for(int s=0;s<Ns;++s)if(!finite(p.gasDiffusivity[s])||p.gasDiffusivity[s]<0){error="configuration diffusivity species "+std::to_string(s)+": invalid coefficient";return false;}
-    if(!finite(p.emissivity)||!finite(p.ambientTemperature)||p.ambientTemperature<0||(p.enableRadiation&&p.ambientTemperature<=0)){
-        error="configuration radiation: invalid emissivity or missing ambient temperature";return false;
-    }
+
     const Real absolute[]={p.tolerances.absoluteMass,p.tolerances.absoluteEnergy,p.tolerances.absoluteTemperature,p.tolerances.absoluteGeometry};
     const Real relative[]={p.tolerances.relativeMass,p.tolerances.relativeEnergy,p.tolerances.relativeTemperature,p.tolerances.relativeGeometry};
     for(int i=0;i<4;++i)if(!finite(absolute[i])||absolute[i]<0||!finite(relative[i])||relative[i]<0||absolute[i]+relative[i]==0){error="configuration tolerance "+std::to_string(i)+": must be finite, nonnegative and nonzero";return false;}

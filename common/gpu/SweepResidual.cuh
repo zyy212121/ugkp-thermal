@@ -46,20 +46,20 @@ __global__ void sweepResidualRows(int faces,int planes,const int* faceIds,const 
         if(row>=faces&&sweepResidualAbsolute(r)<=tolerance)r=0;
         rhs[row]=-r;value.rhs=sweepResidualAbsolute(r);value.hadRhsNaN=std::isnan(value.rhs);
     }
-    __shared__ SweepResidualSummary values[128];values[threadIdx.x]=value;__syncthreads();
-    for(int stride=1;stride<128;stride*=2){if(threadIdx.x%(2*stride)==0)values[threadIdx.x]=joinSweepSummary(values[threadIdx.x],values[threadIdx.x+stride]);__syncthreads();}
+    extern __shared__ double summaryShared[];auto* values=reinterpret_cast<SweepResidualSummary*>(summaryShared);values[threadIdx.x]=value;__syncthreads();
+    for(int stride=1;stride<blockDim.x;stride*=2){if(threadIdx.x%(2*stride)==0&&threadIdx.x+stride<blockDim.x)values[threadIdx.x]=joinSweepSummary(values[threadIdx.x],values[threadIdx.x+stride]);__syncthreads();}
     if(!threadIdx.x)partial[blockIdx.x]=values[0];
 }
 __global__ void finishSweepResidual(int points,int faces,int constrained,int planes,int blocks,const int* faceIds,
     const int* endpointFailure,const int* emptyFailure,const SweepResult* sweeps,
     const SweepResidualSummary* partial,const SweepResidualProblem* input,SweepResidualStatus* output){
     // Ordered reductions preserve the native first-failure phase and index.
-    __shared__ int badPoint[128],badEmpty[128],badFace[128];
+    extern __shared__ int badPoint[];int* badEmpty=badPoint+blockDim.x;int* badFace=badEmpty+blockDim.x;
     int p=INT_MAX,e=INT_MAX,f=INT_MAX;
-    for(int i=threadIdx.x;i<points;i+=128){if(endpointFailure[i]&&i<p)p=i;if(emptyFailure[i]&&i<e)e=i;}
-    for(int i=threadIdx.x;i<faces;i+=128)if((!finite(sweeps[i].area)||!std::isfinite(sweeps[i].volume))&&i<f)f=i;
+    for(int i=threadIdx.x;i<points;i+=blockDim.x){if(endpointFailure[i]&&i<p)p=i;if(emptyFailure[i]&&i<e)e=i;}
+    for(int i=threadIdx.x;i<faces;i+=blockDim.x)if((!finite(sweeps[i].area)||!std::isfinite(sweeps[i].volume))&&i<f)f=i;
     badPoint[threadIdx.x]=p;badEmpty[threadIdx.x]=e;badFace[threadIdx.x]=f;__syncthreads();
-    for(int stride=64;stride;stride/=2){if(threadIdx.x<stride){
+    for(int active=blockDim.x;active>1;active=(active+1)/2){const int stride=(active+1)/2;if(threadIdx.x<active-stride){
         if(badPoint[threadIdx.x+stride]<badPoint[threadIdx.x])badPoint[threadIdx.x]=badPoint[threadIdx.x+stride];
         if(badEmpty[threadIdx.x+stride]<badEmpty[threadIdx.x])badEmpty[threadIdx.x]=badEmpty[threadIdx.x+stride];
         if(badFace[threadIdx.x+stride]<badFace[threadIdx.x])badFace[threadIdx.x]=badFace[threadIdx.x+stride];}__syncthreads();}
@@ -94,7 +94,7 @@ ResidentSweepResidual::ResidentSweepResidual(const Topology& topology,int points
         ||std::size_t(planes)>(std::size_t(INT_MAX)-faces.size())/3||axis< -1||axis>2||(axis>=0&&mate.size()!=std::size_t(points)))
         throw std::invalid_argument("resident sweep residual topology shape mismatch");
     auto& d=*data_;d.points=points;d.faces=topology.faceOffsets.size()-1;d.constrained=faces.size();d.planes=planes;d.axis=axis;
-    const int rows=d.constrained+3*planes;d.blocks=rows?(rows-1)/128+1:0;
+    const int rows=d.constrained+3*planes;d.blocks=rows?(rows-1)/workPlan().reductionBlockThreads+1:0;
     PinnedTransferQueue transfer;PinnedTransferQueue::Operation pending(transfer);
     d.offsets.upload(topology.faceOffsets,transfer);d.vertices.upload(topology.facePoints,transfer);d.faceIds.upload(faces,transfer);d.mate.upload(mate,transfer);
     d.endpointFailure.reserve(points);d.emptyFailure.reserve(points);d.sweeps.reserve(d.faces);d.residual.reserve(rows);d.rhs.reserve(rows);
@@ -104,11 +104,11 @@ ResidentSweepResidual::~ResidentSweepResidual()=default;
 SweepResidualView ResidentSweepResidual::view()const{const auto& d=*data_;return {d.sweeps.pointer,d.residual.pointer,d.rhs.pointer,d.status.pointer};}
 void ResidentSweepResidual::evaluate(const SweepResidualProblem* input,void* rawStream){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
-    if(d.points)sweepResidualPoints<<<(d.points-1)/128+1,128,0,stream>>>(d.points,d.axis,d.mate.pointer,input,d.endpointFailure.pointer,d.emptyFailure.pointer);
-    if(d.faces)sweepResidualFaces<<<(d.faces-1)/128+1,128,0,stream>>>(d.faces,d.topology(),input,d.sweeps.pointer);
-    if(d.planes)sweepResidualPlanes<<<(d.planes-1)/128+1,128,0,stream>>>(d.planes,input,d.polynomials.pointer);
-    if(d.blocks)sweepResidualRows<<<d.blocks,128,0,stream>>>(d.constrained,d.planes,d.faceIds.pointer,input,d.sweeps.pointer,d.polynomials.pointer,d.residual.pointer,d.rhs.pointer,d.partial.pointer);
-    finishSweepResidual<<<1,128,0,stream>>>(d.points,d.faces,d.constrained,d.planes,d.blocks,d.faceIds.pointer,d.endpointFailure.pointer,d.emptyFailure.pointer,d.sweeps.pointer,d.partial.pointer,input,d.status.pointer);
+    if(d.points)sweepResidualPoints<<<(d.points-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.points,d.axis,d.mate.pointer,input,d.endpointFailure.pointer,d.emptyFailure.pointer);
+    if(d.faces)sweepResidualFaces<<<(d.faces-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.faces,d.topology(),input,d.sweeps.pointer);
+    if(d.planes)sweepResidualPlanes<<<(d.planes-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,stream>>>(d.planes,input,d.polynomials.pointer);
+    if(d.blocks)sweepResidualRows<<<d.blocks,workPlan().reductionBlockThreads,workPlan().reductionBlockThreads*(sizeof(SweepResidualSummary)),stream>>>(d.constrained,d.planes,d.faceIds.pointer,input,d.sweeps.pointer,d.polynomials.pointer,d.residual.pointer,d.rhs.pointer,d.partial.pointer);
+    finishSweepResidual<<<1,workPlan().reductionBlockThreads,workPlan().reductionBlockThreads*(3*sizeof(int)),stream>>>(d.points,d.faces,d.constrained,d.planes,d.blocks,d.faceIds.pointer,d.endpointFailure.pointer,d.emptyFailure.pointer,d.sweeps.pointer,d.partial.pointer,input,d.status.pointer);
     checked(cudaGetLastError());
 }
 namespace {

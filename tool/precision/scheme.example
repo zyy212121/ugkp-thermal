@@ -1,0 +1,10 @@
+FoamFile
+{
+    format ascii;
+    class dictionary;
+    object scheme;
+}
+
+// Add this entry to constant/scheme alongside the existing numerical controls.
+// Do not replace the numerical controls. An omitted precision defaults to 32.
+precision 32;

@@ -1,5 +1,6 @@
 #include "../../../common/gasBoundary/Wire.H"
 #include "Checkpoint.H"
+#include "../../../common/PrecisionRestart.H"
 #include <algorithm>
 #include <cerrno>
 #include <cstring>
@@ -76,7 +77,7 @@ template<class Archive> void visit(Archive&, const HostStageGeometry&);
 template<class Archive> void visit(Archive&, HostState&);
 template<class Archive> void visit(Archive&, const HostState&);
 struct Encoder {
-    unsigned configurationVersion=14;
+    unsigned configurationVersion=15;
     Bytes data;
     void integer(std::uint64_t x,int bytes){for(int i=0;i<bytes;++i){data.push_back(static_cast<unsigned char>(x&255));x>>=8;}}
     void operator()(const Real& x){static_assert(sizeof(Real)==8&&std::numeric_limits<Real>::is_iec559,"checkpoint requires IEEE binary64");std::uint64_t bits;std::memcpy(&bits,&x,8);integer(bits,8);}
@@ -94,7 +95,7 @@ struct Encoder {
     template<class T>typename std::enable_if<!std::is_enum<T>::value>::type operator()(const T& x){visit(*this,x);}
 };
 struct CountingEncoder {
-    unsigned configurationVersion=14;std::size_t bytes=0;
+    unsigned configurationVersion=15;std::size_t bytes=0;
     void integer(std::uint64_t,int n){bytes+=n;}
     void operator()(const Real&){bytes+=8;}
     void operator()(const float&){bytes+=4;}
@@ -111,7 +112,7 @@ struct CountingEncoder {
     template<class T>typename std::enable_if<!std::is_enum<T>::value>::type operator()(const T& x){visit(*this,x);}
 };
 struct Decoder {
-    unsigned configurationVersion=14;
+    unsigned configurationVersion=15;
     const Bytes& data;std::size_t offset=0;
     explicit Decoder(const Bytes& input):data(input){}
     std::uint64_t integer(int bytes){if(std::size_t(bytes)>data.size()-offset)throw std::runtime_error("truncated checkpoint");std::uint64_t x=0;for(int i=0;i<bytes;++i)x|=std::uint64_t(data[offset++])<<(8*i);return x;}
@@ -625,8 +626,7 @@ template<class Archive,class Value> void visitHostStateFields(Archive& a,Value& 
 }
 template<class Archive> void visit(Archive& a,HostState& x){visitHostStateFields(a,x);}
 template<class Archive> void visit(Archive& a,const HostState& x){visitHostStateFields(a,x);}
-constexpr std::uint64_t schema9FieldHash=2786795666536209721ULL;
-const char* const FieldSchema="Schema14:HostState.radiationTime;surface.ablating particleSourceFaces particleSourceResidualMass particleInlet;GasSstIntegralAudit:transportK transportOmega sourceK sourceOmega constraintK constraintOmega;ChemistryAudit:speciesMassChange massResidual maximumElementResidual energyResidual maximumLocalError integratedTime acceptedSteps rejectedSteps nonlinearIterations;ThermoInversionControls:minTemperature maxTemperature absoluteEnergyTolerance relativeEnergyTolerance absoluteTemperatureTolerance relativeTemperatureTolerance maximumIterations;ChemistryControls:relativeTolerance absoluteMassFractionTolerance absoluteTemperatureTolerance initialStep minimumStep maximumStep newtonTolerance maximumSteps maximumRejectedSteps maximumNewtonIterations maximumLineSearchIterations absoluteMassTolerance relativeConservationTolerance absoluteElementTolerance thermo;Vec3:x y z;GasQ:mass momentum energy species;GasPrimitive:rho velocity temperature pressure soundSpeed Y;SolidQ:condensed progress pore energy porosity;FilmQ:mass enthalpy species;FilmAux:pressure thickness temperature baseVelocity meanVelocity topVelocity normal area reserved normalVelocity solidNormalVelocity solidFront gasFront;ParticleQ:contactRelativeVelocity contactMechanicalEnergy id cell face state position velocity mass energy diameter contactAge contactDuration contactArea rng;SstQ:rhoK rhoOmega;SstPrimitive:k omega eddyViscosity blend1 blend2;SpeciesThermo:R cp0 cp1 e0 Tmin Tmax element model Tmid nasa7 referencePressure referenceTemperature referenceEntropy hasEntropyReference;CondensedThermo:rho cp0 cp1 e0 conductivity Tmin Tmax element;Reaction:A temperaturePower activationEnergy condensedNu gasNu order;ExchangePacket:step geometry face stage kind gasCell solidCell filmFace particleIndex mass species condensed pore poreSweep momentum energy conductive advective pressureWork viscousWork radiation liquidKineticAdvection consumerMask;FilmPressureVolumeUpdate:step geometry face stage filmFace oldPV newPV consumed;Tolerances:absoluteMass relativeMass absoluteEnergy relativeEnergy absoluteTemperature relativeTemperature absoluteGeometry relativeGeometry maxCouplingIterations maxRetries;Budget:boundaryMass boundarySpecies boundaryElements boundaryEnergy boundaryMomentum supportImpulse supportWork bodyWork radiation gclResidual exchangeMass exchangeSpecies exchangeEnergy exchangeMomentum filmPressureVolume filmKineticAdvection filmKineticStorage filmReducedResidual filmKineticDefect thinLayerGeometryDefect thinLayerStressDefect numericalEnergyResidual turbulenceOmegaConstraint turbulenceInventory turbulenceProduction turbulenceDissipation turbulenceBoundaryFlux consumedPackets;SstConfig:a1 betaStar beta1 beta2 gamma1 gamma2 sigmaK1 sigmaK2 sigmaOmega1 sigmaOmega2 turbulentPrandtl turbulentSchmidt productionLimit minimumK minimumOmega;MaterialPolicyConfig:minimumPorosity maximumPorosity phaseCondensed enableMelting enableSurfaceReactions enablePoreOutflow phaseFilmY nSurfaceReactions surfaceReactions surfaceGasOrder evaporation evaporationAccommodation saturationPressureScale saturationTemperature gasContactResistance solidContactResistance;ParticlePolicyConfig:condensedIndex maxFaceCrossings heatTransferCoefficient contactHeatTransferCoefficient contactDuration emissivity contact;MeshMotionConfig:policy amplitude spatialWaveNumber spatialOrigin angularFrequency timeOrigin;WallModelConfig:family model nodes maxIterations relativeTolerance absoluteTolerance stretch turbulentPrandtl turbulentSchmidt enableSst;PhysicsConfig:wallModel wallWorkspaceSlots enableGas gasMode singleGasSpecies gasThermoFingerprint gasMechanismFingerprint gasChemistryControls meshMotion particle material species condensed reactions nReactions nElements liquid liquidViscosity liquidReferencePressure meltTemperature permeability poreViscosity poreEffectiveDiffusivity gasViscosityModel gasViscositySpecies gasTransportFingerprint gasSutherland(muRef TRef S molarMass) gasMassRatioQuarter gasWilkeDenominator gasViscosity gasConductivity gasDiffusivity emissivity ambientTemperature gravity enableFilm enableReactions enableParticles enableSst enableRadiation filmThermalMode reconstruction sst tolerances minDt maxDt cfl spatialOrder;ModelConfig:physics speciesNames condensedNames elementNames modelName materialSource mechanismSource gasMechanismSource gasMechanismSourceSha256 gasPhase sourceFingerprint baseCommit;HostMesh:referencePoints points oldPoints cellCentres faceCentres areaVectors meshVelocity volumes oldVolumes wallDistance faceOffsets facePoints owner neighbour periodicPartner cellFaceOffsets cellFaces cellFaceSigns boundaryKind boundaryPrimitive thermalBoundary boundarySst faceIds geometryVersion topologyHash;SurfaceMesh:prescribedTopTraction prescribedPressureGradient edgeOwnerOffset edgeNeighbourOffset gasDistance solidDistance gasFace solidFace solidCell edgeOwner edgeNeighbour persistentId edgeLength area oldArea sweptEdgeArea edgeConormal centre normal meshVelocity baseVelocity gasMapOffsets gasMapFaces gasMapWeights normalOffsets normalCoordinates normalLayerMass normalLayerVolume oldNormalLayerVolume normalThickness normalPressure normalPressureRate bottomTemperature topTemperature bottomHeatFlux topHeatFlux;HostStageGeometry:interval geometryVersion topologyHash oldVolume newVolume evaluationVolume sweptVolume areaVector cellCentre faceCentre oldPoints newPoints;HostState:gasStages solidStages nextDt lastAcceptedDt gasMesh solidMesh surface gas gasChemistryAudit solid film filmAux particles sst solidSweepRemainder gasVoidFraction normalEnthalpy normalLiquidFraction normalAcceptedWallHeat ledger filmStorage gasSstAudit time acceptedSteps rejectedSteps commitSequence budget;GasNumericalState:gasTemperature extensionBytes CHMTNUM1;ParticleThermalHistory:initialized status temperature theta specificEnthalpyResidual savedVelocity[3f64] contactMaximumArea contactPeakFraction coldNodeSpecificEnthalpy[8f32] coldRingSolidMass[8f64] coldFrozenArea coldContactAge cold2DNodeSpecificEnthalpy[64f32] cold2DRingContactAge[8f64] cold2DFrozenArea;ParticlePhaseConfiguration:UGKPCFG1 phase(dn) contact";
+const char* const FieldSchema="SchemaNativeCold1D15_16:HostState.radiationTime;surface.ablating particleSourceFaces particleSourceResidualMass particleInlet;GasSstIntegralAudit:transportK transportOmega sourceK sourceOmega constraintK constraintOmega;ChemistryAudit:speciesMassChange massResidual maximumElementResidual energyResidual maximumLocalError integratedTime acceptedSteps rejectedSteps nonlinearIterations;ThermoInversionControls:minTemperature maxTemperature absoluteEnergyTolerance relativeEnergyTolerance absoluteTemperatureTolerance relativeTemperatureTolerance maximumIterations;ChemistryControls:relativeTolerance absoluteMassFractionTolerance absoluteTemperatureTolerance initialStep minimumStep maximumStep newtonTolerance maximumSteps maximumRejectedSteps maximumNewtonIterations maximumLineSearchIterations absoluteMassTolerance relativeConservationTolerance absoluteElementTolerance thermo;Vec3:x y z;GasQ:mass momentum energy species;GasPrimitive:rho velocity temperature pressure soundSpeed Y;SolidQ:condensed progress pore energy porosity;FilmQ:mass enthalpy species;FilmAux:pressure thickness temperature baseVelocity meanVelocity topVelocity normal area reserved normalVelocity solidNormalVelocity solidFront gasFront;ParticleQ:contactRelativeVelocity contactMechanicalEnergy id cell face state position velocity mass energy diameter contactAge contactDuration contactArea rng;SstQ:rhoK rhoOmega;SstPrimitive:k omega eddyViscosity blend1 blend2;SpeciesThermo:R cp0 cp1 e0 Tmin Tmax element model Tmid nasa7 referencePressure referenceTemperature referenceEntropy hasEntropyReference;CondensedThermo:rho cp0 cp1 e0 conductivity Tmin Tmax element;Reaction:A temperaturePower activationEnergy condensedNu gasNu order;ExchangePacket:step geometry face stage kind gasCell solidCell filmFace particleIndex mass species condensed pore poreSweep momentum energy conductive advective pressureWork viscousWork radiation liquidKineticAdvection consumerMask;FilmPressureVolumeUpdate:step geometry face stage filmFace oldPV newPV consumed;Tolerances:absoluteMass relativeMass absoluteEnergy relativeEnergy absoluteTemperature relativeTemperature absoluteGeometry relativeGeometry maxCouplingIterations maxRetries;Budget:boundaryMass boundarySpecies boundaryElements boundaryEnergy boundaryMomentum supportImpulse supportWork bodyWork radiation gclResidual exchangeMass exchangeSpecies exchangeEnergy exchangeMomentum filmPressureVolume filmKineticAdvection filmKineticStorage filmReducedResidual filmKineticDefect thinLayerGeometryDefect thinLayerStressDefect numericalEnergyResidual turbulenceOmegaConstraint turbulenceInventory turbulenceProduction turbulenceDissipation turbulenceBoundaryFlux consumedPackets;SstConfig:a1 betaStar beta1 beta2 gamma1 gamma2 sigmaK1 sigmaK2 sigmaOmega1 sigmaOmega2 turbulentPrandtl turbulentSchmidt productionLimit minimumK minimumOmega;MaterialPolicyConfig:minimumPorosity maximumPorosity phaseCondensed enableMelting enableSurfaceReactions enablePoreOutflow phaseFilmY nSurfaceReactions surfaceReactions surfaceGasOrder evaporation evaporationAccommodation saturationPressureScale saturationTemperature gasContactResistance solidContactResistance;ParticlePolicyConfig:condensedIndex maxFaceCrossings heatTransferCoefficient contactHeatTransferCoefficient contactDuration emissivity contact;MeshMotionConfig:policy amplitude spatialWaveNumber spatialOrigin angularFrequency timeOrigin;WallModelConfig:family model nodes maxIterations relativeTolerance absoluteTolerance stretch turbulentPrandtl turbulentSchmidt enableSst;PhysicsConfig:wallModel wallWorkspaceSlots enableGas gasMode singleGasSpecies gasThermoFingerprint gasMechanismFingerprint gasChemistryControls meshMotion particle material species condensed reactions nReactions nElements liquid liquidViscosity liquidReferencePressure meltTemperature permeability poreViscosity poreEffectiveDiffusivity gasViscosityModel gasViscositySpecies gasTransportFingerprint gasSutherland(muRef TRef S molarMass) gasMassRatioQuarter gasWilkeDenominator gasViscosity gasConductivity gasDiffusivity emissivity ambientTemperature gravity enableFilm enableReactions enableParticles enableSst enableRadiation filmThermalMode reconstruction sst tolerances minDt maxDt cfl spatialOrder;ModelConfig:physics speciesNames condensedNames elementNames modelName materialSource mechanismSource gasMechanismSource gasMechanismSourceSha256 gasPhase sourceFingerprint baseCommit;HostMesh:referencePoints points oldPoints cellCentres faceCentres areaVectors meshVelocity volumes oldVolumes wallDistance faceOffsets facePoints owner neighbour periodicPartner cellFaceOffsets cellFaces cellFaceSigns boundaryKind boundaryPrimitive thermalBoundary boundarySst faceIds geometryVersion topologyHash;SurfaceMesh:prescribedTopTraction prescribedPressureGradient edgeOwnerOffset edgeNeighbourOffset gasDistance solidDistance gasFace solidFace solidCell edgeOwner edgeNeighbour persistentId edgeLength area oldArea sweptEdgeArea edgeConormal centre normal meshVelocity baseVelocity gasMapOffsets gasMapFaces gasMapWeights normalOffsets normalCoordinates normalLayerMass normalLayerVolume oldNormalLayerVolume normalThickness normalPressure normalPressureRate bottomTemperature topTemperature bottomHeatFlux topHeatFlux;HostStageGeometry:interval geometryVersion topologyHash oldVolume newVolume evaluationVolume sweptVolume areaVector cellCentre faceCentre oldPoints newPoints;HostState:gasStages solidStages nextDt lastAcceptedDt gasMesh solidMesh surface gas gasChemistryAudit solid film filmAux particles sst solidSweepRemainder gasVoidFraction normalEnthalpy normalLiquidFraction normalAcceptedWallHeat ledger filmStorage gasSstAudit time acceptedSteps rejectedSteps commitSequence budget;GasNumericalState:gasTemperature extensionBytes CHMTNUM1;ParticleThermalHistory:initialized status temperature theta specificEnthalpyResidual savedVelocity[3f64] contactMaximumArea contactPeakFraction coldNodeSpecificEnthalpy[8nativePhysical] coldRingSolidMass[8f64] coldFrozenArea coldContactAge cold2DNodeSpecificEnthalpy[64f32] cold2DRingContactAge[8f64] cold2DFrozenArea;ParticlePhaseConfiguration:UGKPCFG1 phase(dn) contact";
 std::string systemError(const char* operation){return std::string(operation)+": "+std::strerror(errno);}
 bool syncDirectory(const std::string& path,const char* purpose,std::string& error){
     const int fd=::open(path.c_str(),O_RDONLY|O_DIRECTORY);
@@ -639,7 +639,7 @@ std::string parentDirectory(std::string path){
     while(path.size()>1&&path.back()=='/')path.pop_back();
     const auto slash=path.find_last_of('/');return slash==std::string::npos?".":(slash==0?"/":path.substr(0,slash));
 }
-template<class Archive> void encodeStatePayload(Archive& payload,const HostState& state){
+template<class Archive> void encodeStatePayload(Archive& payload,const HostState& state,const ModelConfig& config){
         payload(state);
         if(state.gasMesh.gasBoundary&&ugkp::boundary::needsCheckpoint(*state.gasMesh.gasBoundary)) {
             std::vector<int> integers;std::vector<double> values;
@@ -650,8 +650,11 @@ template<class Archive> void encodeStatePayload(Archive& payload,const HostState
         if(!state.particles.empty()) {
             payload.integer(0x31524150504b4755ULL,8); // UGKPPAR1, complete thermal/contact history
             payload.integer(state.particles.size(),8);
-            for(const auto& particle:state.particles)
-                ugkp::thermal::visitParticleThermalHistory(payload,particle.thermal);
+            for(const auto& particle:state.particles){
+                auto history=particle.thermal;
+                if(particle.state&&config.particleContact.model==3)history.specificEnthalpyResidual=0;
+                ugkp::thermal::visitParticleThermalHistory(payload,history);
+            }
         }
         if(!state.gasTemperature.empty()){
             payload(state.gasTemperature);
@@ -666,14 +669,15 @@ bool writeCheckpoint(const std::string& directory,const ModelConfig& config,cons
     std::string temp;int fd=-1;
     try{
         if(directory.empty()){error="empty checkpoint directory";return false;}
+        ugkp::precision::beginPrecisionWrite(directory);
         Encoder configData,payload;configData(config);
         configData.integer(0x31474643504b4755ULL,8); // UGKPCFG1
         ugkp::thermal::visitParticlePhaseConfiguration(configData,config.particlePhase);
         ugkp::thermal::visitParticleContactConfiguration(configData,config.particleContact);
         configData.integer(0x314c4157504b4755ULL,8); // UGKPWAL1
         configData(config.physics.wallModel.localStressCorrection);
-        CountingEncoder extent;encodeStatePayload(extent,state);
-        payload.data.reserve(extent.bytes);encodeStatePayload(payload,state);
+        CountingEncoder extent;encodeStatePayload(extent,state,config);
+        payload.data.reserve(extent.bytes);encodeStatePayload(payload,state,config);
         Encoder header;const unsigned char magic[8]={'C','H','M','T','C','P','2',0};header.data.insert(header.data.end(),magic,magic+8);
         header.integer(checkpointSchema,8);header.integer(0x01020304,4);header.integer(sizeof(Real),4);
         header.integer(Ns,4);header.integer(Nc,4);header.integer(Nr,4);header.integer(Ne,4);
@@ -696,11 +700,13 @@ bool writeCheckpoint(const std::string& directory,const ModelConfig& config,cons
         if(::close(fd)!=0){fd=-1;error=systemError("close checkpoint");::unlink(temp.c_str());return false;}fd=-1;
         if(::rename(temp.c_str(),(directory+"/state.chmt").c_str())!=0){error=systemError("atomic checkpoint rename");::unlink(temp.c_str());return false;}temp.clear();
         if(!syncDirectory(directory,"sync checkpoint directory",error))return false;
+        ugkp::precision::writeRestartPrecision(directory);
         error.clear();return true;
     }catch(const std::exception& e){if(fd>=0)::close(fd);if(!temp.empty())::unlink(temp.c_str());error=std::string("checkpoint write: ")+e.what();return false;}
 }
 bool readCheckpoint(const std::string& directory,const ModelConfig& expected,HostState& output,std::string& error){
     try{
+        if(!ugkp::precision::checkRestartPrecision(directory,error))return false;
         std::ifstream input(directory+"/state.chmt",std::ios::binary|std::ios::ate);if(!input){error="cannot open checkpoint state.chmt";return false;}
         const auto size=input.tellg();if(size<0){error="cannot determine checkpoint size";return false;}
         Bytes bytes(static_cast<std::size_t>(size));input.seekg(0);if(!bytes.empty())input.read(reinterpret_cast<char*>(bytes.data()),size);if(!input){error="truncated checkpoint read";return false;}
@@ -710,20 +716,12 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
         const unsigned char magic[8]={'C','H','M','T','C','P','2',0};
         for(int i=0;i<8;++i)if(decoder.integer(1)!=magic[i])throw std::runtime_error("checkpoint magic mismatch");
         const auto schema=decoder.integer(8);
-        if(schema<6||schema>checkpointSchema)throw std::runtime_error("unsupported checkpoint schema");
+        if(schema!=15)throw std::runtime_error("unsupported checkpoint schema; expected native FP64 schema15");
         const std::uint64_t dimensions[]={0x01020304,sizeof(Real),Ns,Nc,Nr,Ne};
         for(auto value:dimensions)if(decoder.integer(4)!=value)throw std::runtime_error("checkpoint scalar/species dimensions mismatch");
         const auto fieldSchema=decoder.integer(8);
-        if(schema==checkpointSchema&&fieldSchema!=checksum(reinterpret_cast<const unsigned char*>(FieldSchema),std::strlen(FieldSchema)))
+        if(fieldSchema!=checksum(reinterpret_cast<const unsigned char*>(FieldSchema),std::strlen(FieldSchema)))
             throw std::runtime_error("checkpoint field schema mismatch");
-        if(schema==13&&fieldSchema!=11848277699140295017ULL)throw std::runtime_error("legacy schema13 checkpoint field schema mismatch");
-        if(schema==12&&fieldSchema!=2797698836629422127ULL)throw std::runtime_error("legacy schema12 checkpoint field schema mismatch");
-        if(schema==11&&fieldSchema!=8253446169686022382ULL)
-            throw std::runtime_error("legacy schema11 checkpoint field schema mismatch");
-        if(schema==10&&fieldSchema!=80885912796147617ULL)
-            throw std::runtime_error("legacy schema10 checkpoint field schema mismatch");
-        if(schema==9&&fieldSchema!=schema9FieldHash)
-            throw std::runtime_error("legacy schema9 checkpoint field schema mismatch");
         const auto configSize=decoder.integer(8),stateSize=decoder.integer(8),bodyChecksum=decoder.integer(8);
         if(configSize>bytes.size()-decoder.offset||stateSize!=bytes.size()-decoder.offset-configSize)
             throw std::runtime_error("checkpoint payload length mismatch");
@@ -747,10 +745,18 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
                     oldParticle(saved.physics.enableParticles);newParticle(expected.physics.enableParticles);
                     auto oldModel=ugkp::thermal::particleModelIdentity(saved.particlePhase);
                     auto newModel=ugkp::thermal::particleModelIdentity(expected.particlePhase);
+
+
+
+                    oldModel.packingIterations=newModel.packingIterations;
+                    oldModel.maxFaceWalkHops=newModel.maxFaceWalkHops;
+                    auto oldContact=saved.particleContact;
+                    auto newContact=expected.particleContact;
+                    oldContact.nonlinearIterations=newContact.nonlinearIterations;
                     ugkp::thermal::visitParticlePhaseConfiguration(oldParticle,oldModel);
                     ugkp::thermal::visitParticlePhaseConfiguration(newParticle,newModel);
-                    ugkp::thermal::visitParticleContactConfiguration(oldParticle,saved.particleContact);
-                    ugkp::thermal::visitParticleContactConfiguration(newParticle,expected.particleContact);
+                    ugkp::thermal::visitParticleContactConfiguration(oldParticle,oldContact);
+                    ugkp::thermal::visitParticleContactConfiguration(newParticle,newContact);
                     if(oldParticle.data!=newParticle.data)
                         throw std::runtime_error("checkpoint particle model identity differs from current configuration");
                 }
@@ -808,8 +814,10 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
             if(decoder.integer(8)!=0x31524150504b4755ULL
                || decoder.integer(8)!=candidate.particles.size())
                 throw std::runtime_error("checkpoint particle history identity/count mismatch");
-            for(auto& particle:candidate.particles)
+            for(auto& particle:candidate.particles){
                 ugkp::thermal::visitParticleThermalHistory(decoder,particle.thermal);
+                if(particle.state&&expected.particleContact.model==3)particle.thermal.specificEnthalpyResidual=0;
+            }
         }
         if(schema<14)candidate.radiationTime=candidate.time; // old non-DO checkpoints start a new radiation epoch
         if(decoder.offset<stateEnd){

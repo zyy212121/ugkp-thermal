@@ -1,5 +1,6 @@
 #pragma once
 #include "GpuParticleFields.cuh"
+#include "wall/GpuColdWall1DHandles.cuh"
 #include "GpuParticleThermalCarryStorage.cuh"
 #include "operators/swapParticlePointerDevice.cuh"
 __host__ __device__ __forceinline__ void swapParticleBuffersDevice(DeviceState& s)

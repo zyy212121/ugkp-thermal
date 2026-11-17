@@ -80,7 +80,7 @@ int refreshParticleTrackingGeometry(void* owner,const ParticleTrackingBoundaryVi
         setLastErrorText("particle tracking requires matching resident boundary topology/coefficients");return 1;
     }
     if(s->nCells) {
-        refreshParticleTrackingGeometryKernel<<<(s->nCells+127)/128,128,0,stream>>>(s->deviceState,boundary);
+        refreshParticleTrackingGeometryKernel<<<(s->nCells+s->fixedCellBlockThreads-1)/s->fixedCellBlockThreads,s->fixedCellBlockThreads,0,stream>>>(s->deviceState,boundary);
         const auto error=cudaGetLastError();
         if(error!=cudaSuccess){setLastError("refresh resident particle tracking geometry",error);return 1;}
     }
@@ -115,5 +115,12 @@ int mapAttachedParticles(void* owner,const ParticleSurfaceGeometry& previous,
     }
     s->preBaseDirectoryReady=0;s->splitPreDirectoryActive=0;s->particleGeometryDirty=true;
     return 0;
+}
+int refreshAcceptedParticleGeometryMoments(void* owner,cudaStream_t gasStream){
+    auto* s=asState(owner);
+    if(orderParticlePhaseAfterGas(owner,gasStream))return 1;
+    const int code=s->particleGeometryDirty?refreshParticleGeometryMoments(s):0;
+    if(orderGasAfterParticlePhase(owner,gasStream))return 1;
+    return code;
 }
 }}

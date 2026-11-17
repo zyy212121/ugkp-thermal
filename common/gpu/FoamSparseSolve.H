@@ -83,7 +83,7 @@ inline Foam::solverPerformance solveFoamScalarMatrix(
     using namespace Foam;
     auto& temperature=const_cast<volScalarField&>(equation.psi());
     ConjugateGradientControls controls;
-    controls.maximumIterations=dictionary.lookupOrDefault<label>("maxIter",1000);
+    controls.maximumIterations=dictionary.lookupOrDefault<label>("maxIter",300);
     controls.minimumIterations=dictionary.lookupOrDefault<label>("minIter",0);
     controls.tolerance=dictionary.lookupOrDefault<scalar>("tolerance",1e-6);
     controls.relativeTolerance=dictionary.lookupOrDefault<scalar>("relTol",0);
@@ -93,7 +93,7 @@ inline Foam::solverPerformance solveFoamScalarMatrix(
         return resident?solver.solveResidentLdu(matrix,*resident,deviceSolution,controls,communication)
             :solver.solveLdu(matrix,temperature.primitiveFieldRef().begin(),controls,communication);
     });
-    solverPerformance performance("CudaDiagonalPCG",temperature.name(),report.initialResidual,
+    solverPerformance performance("CudaPCG",temperature.name(),report.initialResidual,
         report.finalResidual,report.iterations,report.converged,report.singular);
     if(!resident)temperature.correctBoundaryConditions();
     Residuals<scalar>::append(temperature.mesh(),performance);

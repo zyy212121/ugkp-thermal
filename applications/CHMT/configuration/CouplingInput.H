@@ -1,11 +1,18 @@
+#include "GpuSchedulingConfiguration.H"
+#include "FoamParticleInjectionVelocity.H"
 #ifndef CHMT_CONFIGURATION_COUPLINGINPUT_H
 #define CHMT_CONFIGURATION_COUPLINGINPUT_H
 #include "configuration/MultirateIO.H"
+#include "configuration/SharedPhasePhysics.H"
+#include "configuration/SolverControls.H"
+#include "../../../common/FoamGasSolverControls.H"
 #include "io/MeshIO.H"
 #include "gpu/StateValidation.H"
 #include "../../../common/gasTransport/GasNumericsIO.H"
+#include "../../../common/FoamGasNumericsControls.H"
 #include "../../../common/gasTransport/GasMechanismIO.H"
 #include "OStringStream.H"
+#include "uniformDimensionedFields.H"
 #include "../../../common/gasTransport/FoamMolecularTransportIO.H"
 #include <memory>
 #include "../../../common/thermal/ThermalCouplingSchedule.H"
@@ -26,9 +33,21 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     CoupledCaseInput candidate;
     Foam::IOdictionary gasProperties(Foam::IOobject("gasModelProperties",time.constant(),time,
         Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
+    Foam::IOdictionary solidProperties(Foam::IOobject("solidRegionProperties",time.constant(),time,
+        Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE,false));
+    const auto& sharedCoupling=solidProperties.subDict("solidThermalCoupling");
+    const Foam::word gasRegion(text(sharedCoupling,"gasRegion",Foam::polyMesh::defaultRegion));
+    const Foam::word solidRegion(text(sharedCoupling,"solidRegion"));
+    Foam::dictionary surface;
+    surface.set("patch",Foam::word(text(sharedCoupling,"solidPatch")));
+    surface.set("gasPatch",Foam::word(text(sharedCoupling,"fluidPatch")));
+    Foam::dictionary interfaceInput(d);
+    interfaceInput.set("surface",surface);
+    ugkp::solverControls::applyGasSolverControlOverrides(gasProperties,time,gasRegion);
     Foam::OStringStream expanded;expanded.precision(std::numeric_limits<double>::max_digits10);
     gasProperties.Foam::dictionary::write(expanded,false);
     candidate.gasModel=ugkwp::parseGasModelProperties(expanded.str());
+    ugkp::solverControls::reportGasSolverControls(candidate.gasModel,time,gasRegion);
     if(candidate.gasModel.mode!=ugkwp::GasMode::MixtureFrozen)
         throw std::runtime_error("CHMT requires frozen multicomponent gas; volumetric chemistry and single-component modes are not application capabilities. Surface reactions and pyrolysis remain available.");
 
@@ -41,6 +60,44 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
             candidate.gasModel.mode=ugkwp::GasMode::SingleLegacy;
     }
     candidate.model=readModel(d,candidate.gasModel);
+    Foam::uniformDimensionedVectorField gravityField
+    (
+        Foam::IOobject("g",time.constant(),time,Foam::IOobject::READ_IF_PRESENT,Foam::IOobject::NO_WRITE,false),
+        Foam::dimensionedVector("g",Foam::dimAcceleration,Foam::vector::zero)
+    );
+    using GravityScalar=decltype(candidate.model.physics.gravity.x);
+    candidate.model.physics.gravity={
+        GravityScalar(gravityField.value().x()),
+        GravityScalar(gravityField.value().y()),
+        GravityScalar(gravityField.value().z())};
+    Foam::IOdictionary fluidProperties(Foam::IOobject("fluidProperties",time.constant(),time,
+        Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE,false));
+    const auto& fluidMixture=fluidProperties.subDict("mixture");
+    const auto& fluidTransport=fluidMixture.subDict("transport");
+    candidate.model.physics.gasViscosity=readNumber(fluidTransport,"mu",0);
+    candidate.model.physics.gasConductivity=readNumber(fluidTransport,"kappa",0);
+
+
+    Foam::IOdictionary scheduling(Foam::IOobject("schedulingProperties",time.constant(),time,
+        Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE,false));
+    const auto plan=Foam::readGpuSchedulingConfiguration(scheduling);
+    Foam::IOdictionary momentum(Foam::IOobject("momentumTransport",time.constant(),time,
+        Foam::IOobject::READ_IF_PRESENT,Foam::IOobject::NO_WRITE,false));
+    Foam::IOdictionary particlePhysics(Foam::IOobject("particleProperties",time.constant(),time,
+        Foam::IOobject::READ_IF_PRESENT,Foam::IOobject::NO_WRITE,false));
+    readSharedPhasePhysics(candidate.model,momentum,particlePhysics,!plan.pureGasOnly);
+
+    auto& particlePlan=candidate.model.particlePhase;
+    particlePlan.capacity=plan.particleCapacity;
+    particlePlan.maxFaceWalkHops=plan.maxFaceWalkHops;
+    particlePlan.csrCellLocalPath=plan.csrCellLocalPath;
+    particlePlan.heavyReductionMode=int(plan.heavyReductionMode);
+    particlePlan.heavyAutoInterval=plan.heavyReductionAutoInterval;
+    particlePlan.particleBlockThreads=plan.particleBlockThreads;
+    particlePlan.reductionBlockThreads=plan.reductionBlockThreads;
+    particlePlan.warpAggregatedBinning=plan.warpAggregatedBinning;
+
+    readModelSolverControls(candidate.model,time,gasRegion,solidRegion);
     {
         auto names=candidate.gasModel.speciesNames;
         if(candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy)
@@ -72,57 +129,49 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
         candidate.model.physics.gasMechanismFingerprint=candidate.gasMechanism.mechanismHash;
         candidate.model.gasMechanismSourceSha256=candidate.gasMechanism.sourceSha256;
     }
-    candidate.gasMesh.reset(new Foam::fvMesh(Foam::IOobject(text(d,"gasRegion",Foam::polyMesh::defaultRegion),time.timeName(),time,Foam::IOobject::MUST_READ)));
-    candidate.solidMesh.reset(new Foam::fvMesh(Foam::IOobject(text(d,"solidRegion"),time.timeName(),time,Foam::IOobject::MUST_READ)));
-    candidate.gasNumerics=Foam::readGasNumericsConfiguration(candidate.gasMesh->schemes().dict());
+    candidate.gasMesh.reset(new Foam::fvMesh(Foam::IOobject(gasRegion,time.timeName(),time,Foam::IOobject::MUST_READ)));
+    candidate.solidMesh.reset(new Foam::fvMesh(Foam::IOobject(solidRegion,time.timeName(),time,Foam::IOobject::MUST_READ)));
+    candidate.gasNumerics=Foam::readGasNumericsConfiguration(ugkp::solverControls::readGasNumericsDictionary(time,gasRegion));
     auto& state=candidate.state;state.time=time.value();state.radiationTime=state.time;
-    state.gasMesh=importMesh(*candidate.gasMesh,d);
-    state.solidMesh=importMesh(*candidate.solidMesh,d.found("solidBoundaries")?d.subDict("solidBoundaries"):d);
+    state.gasMesh=importMesh(*candidate.gasMesh,solidProperties);
+    state.solidMesh=importMesh(*candidate.solidMesh,solidProperties.found("solidBoundaries")?solidProperties.subDict("solidBoundaries"):solidProperties);
+    Foam::volScalarField inletSolidFraction(Foam::IOobject("epsilonS",time.timeName(),*candidate.gasMesh,
+        Foam::IOobject::READ_IF_PRESENT,Foam::IOobject::NO_WRITE),*candidate.gasMesh,
+        Foam::dimensionedScalar("epsilonS",Foam::dimless,0));
     importGasFields(*candidate.gasMesh,candidate.model,state);
     importSolidFields(*candidate.solidMesh,candidate.model,state);
-    auto surface=importSurface(*candidate.solidMesh,state.solidMesh,d.subDict("surface"));
-    state.surface=surface.mesh;initializeDryInterfaceAux(state);
-    attachCoupledSurface(*candidate.gasMesh,d,state);
-    if(candidate.model.physics.enableParticles&&d.subDict("particle").found("inlet")){
-        const auto& inlet=d.subDict("particle").subDict("inlet");
+    auto importedSurface=importSurface(*candidate.solidMesh,state.solidMesh,surface);
+    state.surface=importedSurface.mesh;initializeDryInterfaceAux(state);
+    attachCoupledSurface(*candidate.gasMesh,interfaceInput,state);
+    if(candidate.model.physics.enableParticles){
+        Foam::IOdictionary particleProperties(Foam::IOobject("particleProperties",time.constant(),time,
+            Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
         auto& config=candidate.model.particleInlet;
-        config.faces=selectedPatchFaces(*candidate.gasMesh,inlet,"patches","patch");
-        config.temperature=readNumber(inlet,"temperature");config.theta=readNumber(inlet,"theta",0);
-        require(finite(config.temperature)&&config.temperature>=candidate.model.particlePhase.minimumTemperature
-            &&config.temperature<=candidate.model.particlePhase.maximumTemperature&&finite(config.theta)&&config.theta>=0,
-            "invalid particle inlet temperature/theta");
-        if(inlet.found("volumeFractionTable")){
-            const Foam::List<Foam::Tuple2<Foam::scalar,Foam::scalar>> rows(inlet.lookup("volumeFractionTable"));
-            for(const auto& row:rows){config.times.push_back(row.first());config.volumeFraction.push_back(row.second());}
-        }else{config.times={0};config.volumeFraction={readNumber(inlet,"volumeFraction")};}
-        require(!config.times.empty(),"empty particle inlet volume-fraction table");
-        for(std::size_t i=0;i<config.times.size();++i)
-            require(finite(config.times[i])&&(!i||config.times[i]>config.times[i-1])
-                &&finite(config.volumeFraction[i])&&config.volumeFraction[i]>=0&&config.volumeFraction[i]<1,
-                "invalid particle inlet volume-fraction table");
-        config.velocitySpecified=inlet.found("velocity");const auto u=readVector(inlet,"velocity");
-        require(finite(u),"invalid particle inlet velocity");
-        config.velocity[0]=u.x;config.velocity[1]=u.y;config.velocity[2]=u.z;
+        const auto& boundary=*state.gasMesh.gasBoundary;
+        for(std::size_t face=0;face<boundary.faces.size();++face)
+            if(boundary.faces[face].geometry==0&&boundary.faces[face].solidMode>=0
+                &&face>=std::size_t(candidate.gasMesh->nInternalFaces()))
+                config.faces.push_back(int(face));
+        config.temperature=readNumber(particleProperties,"gpuResidentInjectionTp",candidate.model.particlePhase.minimumTemperature);
+        config.theta=readNumber(particleProperties,"gpuResidentInjectionTheta",0);
+        const auto velocity=Foam::readParticleInjectionVelocity(particleProperties);
+        config.velocitySpecified=velocity.specified;
+        config.velocity[0]=velocity.value.x();config.velocity[1]=velocity.value.y();config.velocity[2]=velocity.value.z();
         state.particleSourceFaces=config.faces;state.particleSourceResidualMass.assign(config.faces.size(),0);
     }
-    importParticles(d,candidate.model,state);
+    importParticles(particlePhysics,candidate.model,state);
     std::string error;
     require(validateRuntimeState(candidate.model,state,error),error);
     const Real dt=time.controlDict().lookup<Foam::scalar>("deltaT");
     candidate.state.nextDt=dt;
-    if(text(d,"couplingSchedule","multirate")=="solidThermalCoupling"){
-        Foam::IOdictionary solidProperties(Foam::IOobject("solidRegionProperties",time.constant(),time,
-            Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
-        candidate.thermalSchedule=ugkp::thermal::readCouplingSchedule(solidProperties.subDict("solidThermalCoupling"));
-        Foam::IOdictionary radiationProperties(Foam::IOobject("radiationProperties",time.constant(),time,
-            Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
-        ugkp::thermal::readRadiationSchedule(candidate.thermalSchedule,radiationProperties);
-        require(finite(candidate.thermalSchedule.interval)&&candidate.thermalSchedule.interval>0
-            &&(!candidate.thermalSchedule.radiationEnabled||candidate.thermalSchedule.radiationFrequency>0),"invalid solid thermal coupling schedule");
-    }else require(text(d,"couplingSchedule","multirate")=="multirate","unknown couplingSchedule");
-    if(candidate.thermalSchedule.radiationEnabled)candidate.model.physics.enableRadiation=false; // DO owns radiation; no parallel ambient-grey source
-    candidate.coupling=readCouplingControls(d,dt,candidate.thermalSchedule.interval);
-    candidate.material=readCpuMaterialControls(d,candidate.coupling);
+    candidate.thermalSchedule=ugkp::thermal::readCouplingSchedule(sharedCoupling,time);
+    candidate.coupling=readCouplingControls(time,dt,candidate.thermalSchedule.interval);
+    Foam::IOdictionary radiationProperties(Foam::IOobject("radiationProperties",time.constant(),time,
+        Foam::IOobject::READ_IF_PRESENT,Foam::IOobject::NO_WRITE,false));
+    ugkp::thermal::readRadiationSchedule(candidate.thermalSchedule,radiationProperties,time);
+    candidate.material=readMaterialSolverControls(time,solidRegion);
+    candidate.coupling.gasMaxDt=candidate.model.physics.maxDt;
+    candidate.coupling.materialMaxSubstep=candidate.material.maxSubstep;
     out=std::move(candidate);
 }
 }}

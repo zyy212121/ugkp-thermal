@@ -43,8 +43,12 @@ def test_pressure_pipeline_has_no_preview_transaction():
     for removed in ('launchPressurePreflight', 'publishPressureCanonicalMomentsKernel',
                     'pressureFailure', 'cudaMemsetAsync', 'cudaDeviceSynchronize'):
         assert removed not in pipeline
-    for app, folder in [('gasUGKP', 'private_backend'), ('FSH', 'private_backend'), ('CHT', 'gpu')]:
-        source = (ROOT / 'applications' / app / folder / 'GpuResidentStrict.cu').read_text()
+    for app, path in [
+        ('gasUGKP', 'applications/gasUGKP/private_backend/GpuResidentStrict.cu'),
+        ('thermal/CHT/CHMT', 'common/thermal/GpuResidentStrict.cu'),
+        ('gasUGKP-fp32', 'precision/fp32/applications/gasUGKP/private_backend/GpuResidentStrict.cu'),
+        ('thermal-fp32', 'precision/fp32/common/thermal/GpuResidentStrict.cu')]:
+        source = (ROOT / path).read_text()
         for removed in ('pressurePreviewMoments', 'pressureFailure', 'GpuPressurePreflight.cuh',
                         'readValidatedPressureDelta', 'pressureDeltaIsZero'):
             assert removed not in source, (app, removed)

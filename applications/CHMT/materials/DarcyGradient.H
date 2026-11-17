@@ -19,10 +19,10 @@ CHMT_HD inline bool darcyNormalPressureGradient(Vec3 displacement, Vec3 normal,
 
 // For grad(p)=sum_j w_j*(p_j-p_c), 2*sum_j |w_j| bounds the
 // vector-valued stencil's absolute pressure sensitivity, including p_c.
-CHMT_HD inline Real darcyGradientSensitivity(const Symmetric3& matrix, Vec3 displacement) {
+CHMT_HD inline Real darcyGradientSensitivity(const Symmetric3& matrix, Vec3 displacement,int maximumIterations=32) {
     const Real squared=dot(displacement,displacement);
     if (!(squared>0)||!finite(squared)) return undefinedValue();
-    return 2*mag(solveLeastSquares(matrix,displacement/squared));
+    return 2*mag(solveLeastSquares(matrix,displacement/squared,maximumIterations));
 }
 
 // Half an upper bound on the corrected face derivative's absolute row sum.

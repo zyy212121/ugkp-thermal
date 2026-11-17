@@ -1,4 +1,5 @@
 #pragma once
+#include "wall/GpuColdWall1DHandles.cuh"
 // Shared weighted sampling correction; physical contact finalization is an extension.
 #if GPU_OPERATOR_THERMAL
 template<bool StuckPath>
@@ -35,6 +36,7 @@ __device__ void correctOnePoissonThermalizedParticle
     if (c < 0 || c >= s.nCells)
     {
         s.pStatus[i] = 0;
+        Foam::gpuWall::releaseColdWall1DHandle(s,i);
         return;
     }
 

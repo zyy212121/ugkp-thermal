@@ -145,7 +145,8 @@ __device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue
         s.sstCoefficients.beta1,
         s.sstWallCmu,
         s.sstWallKappa,
-        s.sstWallE, GPU_OPERATOR_R(0), s.diagnostics, f
+        s.sstWallE, GPU_OPERATOR_R(0), s.diagnostics, f,
+        s.gasScalarSolvers.laminarMaximumIterations, s.gasScalarSolvers.laminarRelativeTolerance
     ).omega;
 }
 
@@ -310,7 +311,8 @@ __global__ void initialiseSstConservativeStateKernel(GasState* sp, bool initiali
         (
             PrRatio,
             s.sstWallKappa,
-            s.sstWallE, s.diagnostics, c
+            s.sstWallE, s.diagnostics, c,
+            s.gasScalarSolvers.thermalMaximumIterations, s.gasScalarSolvers.thermalRelativeTolerance
         );
     }
     if (!initializeInventory || c >= s.nCells || s.sstConfigured == 0)

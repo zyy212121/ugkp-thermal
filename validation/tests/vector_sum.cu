@@ -36,7 +36,8 @@ int main(int argc,char** argv){
     int device,sm,blocks;check(cudaGetDevice(&device));
     check(cudaDeviceGetAttribute(&sm,cudaDevAttrMultiProcessorCount,device));
     check(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&blocks,
-        ugkwp::vectorSumPartials<6,256,Source>,256,0));
+        ugkwp::vectorSumPartials<6,Source>,ugkp::gpu::workPlan().reductionBlockThreads,
+        6*(ugkp::gpu::workPlan().reductionBlockThreads/32)*sizeof(double)));
     const int parts=sm*blocks;check(cudaMalloc(&workspace,size_t(parts)*6*sizeof(double)));
     cudaStream_t stream;check(cudaStreamCreate(&stream));Source source{values,count,capacity};
     for(int n:{0,1,31,32,33,255,256,257,8193,capacity})for(int split:{1,3,parts}){

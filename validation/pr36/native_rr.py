@@ -14,7 +14,8 @@ def main():
  for key,value in [('parcelMass',1e-9),('dS',1e-4)]:m.entry(out/'constant/particleProperties',key,value)
  path=out/'constant/particleProperties';path.write_text(path.read_text()+'\ndMin 3e-5; dMax 4e-4; dn 2.5;\nparticleInjectionVelocity (1 0 0);\ngpuResidentStuckModel { sommerfeldThreshold false; }\n')
  path=out/'0/epsilonS';path.write_text(path.read_text().replace('left{type zeroGradient;}','left{type fixedValue;value uniform .001;}'))
- for key,value in [('endTime',2e-6),('deltaT',1e-6),('maxDeltaT',1e-6),('writeInterval',2e-6)]:m.entry(out/'system/controlDict',key,value)
+ for key,value in [('endTime',2e-6),('deltaT',1e-6),('writeInterval',2e-6)]:m.entry(out/'system/controlDict',key,value)
+ m.entry(out/'constant/scheme','maxDeltaT',1e-6)
  m.run([ROOT/'bin'/args.solver,'-case',out],out/'run.log')
  final=m.times(out)[-1];chunks=[d for _,d in wire.iter_chunks(final/'gpuResidentStrictParticles.dat')]
  diameter=np.concatenate([d['pd'] for d in chunks]);mass=sum(float(d['pm'].sum()) for d in chunks)

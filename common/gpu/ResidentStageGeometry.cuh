@@ -182,17 +182,17 @@ struct ResidentStageGeometry::Implementation {
     }
     void publishWarnings(int rows,bool conservation,bool face,ugkp::diagnostics::DeviceContext* diagnostics,cudaStream_t stream){
         publishStageFirstWarning<<<1,1,0,stream>>>(rows,execution.pointer,warnings.pointer,conservation,face,diagnostics);checked(cudaGetLastError());
-        if(rows){publishStageWarningCounts<<<(rows+127)/128,128,0,stream>>>(rows,execution.pointer,warnings.pointer,conservation,face,diagnostics);checked(cudaGetLastError());}
+        if(rows){publishStageWarningCounts<<<(rows+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(rows,execution.pointer,warnings.pointer,conservation,face,diagnostics);checked(cudaGetLastError());}
     }
     void validate(ResidentPolyhedralGeometry& geometry,const Point* coordinates,StageGeometryPhase phase,int skip,
         ugkp::diagnostics::DeviceContext* diagnostics,cudaStream_t stream){
         const auto v=geometry.view();begin(phase,cells,skip,stream);
-        if(points){stageFinitePoints<<<(points+127)/128,128,0,stream>>>(points,coordinates,execution.pointer);checked(cudaGetLastError());}
-        if(faces){stageValidFaces<<<(faces+127)/128,128,0,stream>>>(faces,v.face,execution.pointer);checked(cudaGetLastError());}
-        if(cells){stageValidCells<<<(cells+127)/128,128,0,stream>>>(cells,v.cell,execution.pointer,warnings.pointer);checked(cudaGetLastError());}
+        if(points){stageFinitePoints<<<(points+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(points,coordinates,execution.pointer);checked(cudaGetLastError());}
+        if(faces){stageValidFaces<<<(faces+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(faces,v.face,execution.pointer);checked(cudaGetLastError());}
+        if(cells){stageValidCells<<<(cells+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(cells,v.cell,execution.pointer,warnings.pointer);checked(cudaGetLastError());}
         boundary->periodic(coordinates,v.face,stream);boundary->emptyUniqueness(coordinates,stream);
         stageBoundaryResults<<<1,1,0,stream>>>(boundary->periodicStatus(),boundary->emptyUniquenessStatus(),execution.pointer);checked(cudaGetLastError());
-        if(hasWalls&&cells){stageValidDistances<<<(cells+127)/128,128,0,stream>>>(cells,v.distance,execution.pointer);checked(cudaGetLastError());}
+        if(hasWalls&&cells){stageValidDistances<<<(cells+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(cells,v.distance,execution.pointer);checked(cudaGetLastError());}
         publishWarnings(cells,true,false,diagnostics,stream);
         finishStageGeometryPhase<<<1,1,0,stream>>>(v,boundary->periodicStatus(),execution.pointer,status.pointer);checked(cudaGetLastError());
     }
@@ -218,36 +218,36 @@ void ResidentStageGeometry::prepare(const Point* old,const Point* endpoint,const
     ugkp::diagnostics::DeviceContext* diagnostics,void* streamHandle){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(streamHandle);
     initializeStageGeometry<<<1,1,0,stream>>>(controls,d.execution.pointer,d.status.pointer);checked(cudaGetLastError());
-    if(d.points){compareStageEndpoints<<<(d.points+127)/128,128,0,stream>>>(d.points,old,endpoint,d.execution.pointer);checked(cudaGetLastError());}
+    if(d.points){compareStageEndpoints<<<(d.points+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.points,old,endpoint,d.execution.pointer);checked(cudaGetLastError());}
     d.old->rebuild(old,stream);d.validate(*d.old,old,StageGeometryPhase::Old,0,diagnostics,stream);
     d.boundary->emptyTrajectory(old,endpoint,stream);
     absorbEmptyStageTrajectory<<<1,1,0,stream>>>(d.boundary->emptyTrajectoryStatus(),d.status.pointer);checked(cudaGetLastError());
     d.end->rebuild(endpoint,stream);d.validate(*d.end,endpoint,StageGeometryPhase::Endpoint,1,diagnostics,stream);
     d.begin(StageGeometryPhase::LinearTrajectory,d.cells,1,stream);d.trajectory->evaluate(old,endpoint,stream);const auto trajectory=d.trajectory->view();
-    if(d.cells){importStageTrajectory<<<(d.cells+127)/128,128,0,stream>>>(trajectory,d.execution.pointer,d.warnings.pointer);checked(cudaGetLastError());}
+    if(d.cells){importStageTrajectory<<<(d.cells+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(trajectory,d.execution.pointer,d.warnings.pointer);checked(cudaGetLastError());}
     d.publishWarnings(d.cells,false,false,diagnostics,stream);
     finishStageTrajectory<<<1,1,0,stream>>>(trajectory,d.execution.pointer,d.status.pointer);checked(cudaGetLastError());
     for(int sample=0;sample<3;++sample){
         resetStageSample<<<1,1,0,stream>>>(d.execution.pointer);checked(cudaGetLastError());
-        if(d.points){interpolateStageSample<<<(d.points+127)/128,128,0,stream>>>(d.points,sample,d.axis,old,endpoint,d.sampledPoints.pointer,d.execution.pointer);checked(cudaGetLastError());}
+        if(d.points){interpolateStageSample<<<(d.points+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.points,sample,d.axis,old,endpoint,d.sampledPoints.pointer,d.execution.pointer);checked(cudaGetLastError());}
         d.sample->rebuild(d.sampledPoints.pointer,stream);
         const auto phase=sample==0?StageGeometryPhase::Midpoint:sample==1?StageGeometryPhase::OneThird:StageGeometryPhase::TwoThird;
         d.validate(*d.sample,d.sampledPoints.pointer,phase,2,diagnostics,stream);
-        if(sample&&d.cells){saveStageSampleVolumes<<<(d.cells+127)/128,128,0,stream>>>(d.cells,d.sample->view().cell,sample==1?d.oneThird.pointer:d.twoThird.pointer);checked(cudaGetLastError());}
+        if(sample&&d.cells){saveStageSampleVolumes<<<(d.cells+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.cells,d.sample->view().cell,sample==1?d.oneThird.pointer:d.twoThird.pointer);checked(cudaGetLastError());}
     }
     const auto initial=d.old->view(),final=d.end->view();d.begin(StageGeometryPhase::Volume,d.cells,0,stream);
-    if(d.cells){checkStageInteriorVolumes<<<(d.cells+127)/128,128,0,stream>>>(d.cells,initial.cell,final.cell,d.oneThird.pointer,d.twoThird.pointer,d.execution.pointer);checked(cudaGetLastError());}
+    if(d.cells){checkStageInteriorVolumes<<<(d.cells+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.cells,initial.cell,final.cell,d.oneThird.pointer,d.twoThird.pointer,d.execution.pointer);checked(cudaGetLastError());}
     finishSimpleStagePhase<<<1,1,0,stream>>>(StageGeometryFailure::InteriorInversion,d.execution.pointer,d.status.pointer);checked(cudaGetLastError());
     d.begin(StageGeometryPhase::Sweep,d.faces,0,stream);d.old->sweep(old,endpoint,stream);
-    if(d.faces){checkStageSweeps<<<(d.faces+127)/128,128,0,stream>>>(d.faces,initial.sweptFaces,d.execution.pointer);checked(cudaGetLastError());}
+    if(d.faces){checkStageSweeps<<<(d.faces+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.faces,initial.sweptFaces,d.execution.pointer);checked(cudaGetLastError());}
     finishSimpleStagePhase<<<1,1,0,stream>>>(StageGeometryFailure::NonfiniteSweep,d.execution.pointer,d.status.pointer);checked(cudaGetLastError());
     d.begin(StageGeometryPhase::Conservation,d.cells,0,stream);
-    if(d.cells){checkStageConservation<<<(d.cells+127)/128,128,0,stream>>>(initial,final,controls,d.execution.pointer,d.warnings.pointer);checked(cudaGetLastError());}
+    if(d.cells){checkStageConservation<<<(d.cells+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(initial,final,controls,d.execution.pointer,d.warnings.pointer);checked(cudaGetLastError());}
     d.publishWarnings(d.cells,true,false,diagnostics,stream);
     finishSimpleStagePhase<<<1,1,0,stream>>>(StageGeometryFailure::NonfiniteStageClosure,d.execution.pointer,d.status.pointer);checked(cudaGetLastError());
     d.begin(StageGeometryPhase::PeriodicSweep,d.faces,0,stream);
-    if(d.faces){checkPeriodicStageConservation<<<(d.faces+127)/128,128,0,stream>>>(d.faces,d.partner.pointer,initial.sweptFaces,controls,d.execution.pointer,d.warnings.pointer);checked(cudaGetLastError());}
+    if(d.faces){checkPeriodicStageConservation<<<(d.faces+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.faces,d.partner.pointer,initial.sweptFaces,controls,d.execution.pointer,d.warnings.pointer);checked(cudaGetLastError());}
     d.publishWarnings(d.faces,true,true,diagnostics,stream);
     const int rows=std::max(d.cells,d.faces);
-    if(rows){publishStageGeometryFields<<<(rows+127)/128,128,0,stream>>>(initial,final,controls,d.meshVelocity.pointer,d.oldVolume.pointer,d.newVolume.pointer,d.sweptVolume.pointer);checked(cudaGetLastError());}
+    if(rows){publishStageGeometryFields<<<(rows+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(initial,final,controls,d.meshVelocity.pointer,d.oldVolume.pointer,d.newVolume.pointer,d.sweptVolume.pointer);checked(cudaGetLastError());}
 }

@@ -15,7 +15,7 @@ def main():
  for rep in range(3):
   cases={}
   for key in (['reference','candidate'] if rep%2==0 else ['candidate','reference']):
-   d=o/(key+'-'+str(rep));m.copy_inputs(m.ROOT/'validation/steady_cuda/evidence/cases/mixture_particles',d);m.control(d,a.steps,steady=key=='reference',write=a.steps);m.set_entry(d/'system/controlDict','windowSamples',a.steps)
+   d=o/(key+'-'+str(rep));m.copy_inputs(m.ROOT/'validation/steady_cuda/evidence/cases/mixture_particles',d);m.control(d,a.steps,steady=key=='reference',write=a.steps);m.set_entry(d/'constant/scheme','windowSamples',a.steps)
    row=m.run(getattr(a,key).resolve(),d);row.update(binary=key,repetition=rep);result['runs'].append(row);assert row['exit']==0;cases[key]=d
    print(key,rep,row['seconds'],flush=True);(o/'results.json').write_text(json.dumps(result,indent=2)+'\n')
   aa=m.dirs(cases['reference'])[-1];bb=m.dirs(cases['candidate'])[-1];check=m.compare(aa,bb,32);check['repetition']=rep

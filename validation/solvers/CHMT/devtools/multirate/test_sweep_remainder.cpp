@@ -38,7 +38,7 @@ int main(){
     }
     require(nonzero,"real finite-precision geometry exercised a nonzero carried remainder");
     const auto accepted=base;HostMesh gas=base.gasMesh,solid=base.solidMesh;SurfaceMesh surface=base.surface;SweepConstraintReport report;
-    require(!moveCoupledMeshesConstrained(base,base.filmAux,{-3,-3},1,gas,solid,surface,report,error),"impossible carried trajectory rejects");
+    require(!moveCoupledMeshesConstrained(base,base.filmAux,{undefinedValue(),0},1,gas,solid,surface,report,error),"nonfinite carried target rejects");
     require(base.solidSweepRemainder==accepted.solidSweepRemainder,"rejected trajectory preserves accepted carry");
     std::vector<Real> sentinel={123,456};
     ugkp::diagnostics::DeviceContext diagnostics{};ugkp::diagnostics::reset(diagnostics,1,34);

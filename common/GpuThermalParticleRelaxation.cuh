@@ -1,4 +1,5 @@
 #pragma once
+#include "wall/GpuColdWall1DHandles.cuh"
 #include "GpuParticleGasHeatRelaxation.cuh"
 #include "GpuParticleThermalConsumerDevice.cuh"
 // Shared thermal relaxation; preserve native ordering of independent loads and stuck-state writes.
@@ -20,14 +21,11 @@ __device__ void relaxOneParticleToResidentGas
     if (c < 0 || c >= s.nCells)
     {
         s.pStatus[i] = 0;
+        Foam::gpuWall::releaseColdWall1DHandle(s,i);
         return;
     }
 
-#if defined(GPU_MIXTURE_PARTICLE_COUPLING)
-    // Free mixture parcels have already received the cell-owned paired source
-    // and external kick. Contact particles still advance their own lifecycle.
-    if(ugkwp::mixtureGasActive(s) && s.pStuck[i]==Foam::gpuThermal::particleWallMobile)return;
-#endif
+
 #if defined(GPU_PAIRED_PARTICLE_HEAT)
     if (particleColdProfileNodeCountDevice(s,i) != 8)
         publishPairedParticleGasHeat(s,i,dt);
@@ -136,7 +134,7 @@ __device__ void relaxOneParticleToResidentGas
     if (!stuck && s.solveParticleTemperature != 0 && s.particleGasHeatTransferModelId != 0
         && (!s.particleStuckModelConfigured || !s.particleContactHeatEpoch[i]))
     {
-        const auto mu=clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]),GPU_R(1e-30));
+        const auto mu=clampMin(s.couplingGasViscosity[c],GPU_R(1e-30));
         relaxMobileParticleThermalState(s,i,c,rhoG*dPart*relMag/mu,dPart,dt);
     }
 #endif
@@ -150,7 +148,7 @@ __device__ void relaxOneParticleToResidentGas
     {
         // With both particle/gas models disabled, no temperature snapshot exists.
         // Only this heat law needs Reynolds here; drag evaluates its own mu.
-        const GPU_OPERATOR_REAL mu = clampMin(ugkwp::gasCellMolecularViscosityAt(s,c,s.couplingTgasOld[c]), GPU_OPERATOR_R(1.0e-30));
+        const GPU_OPERATOR_REAL mu = clampMin(s.couplingGasViscosity[c], GPU_OPERATOR_R(1.0e-30));
         const GPU_OPERATOR_REAL re = rhoG*dPart*relMag/mu;
         const GPU_OPERATOR_REAL tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
         const GPU_OPERATOR_REAL particleCp = particleSpecificHeatDevice(tpOld);

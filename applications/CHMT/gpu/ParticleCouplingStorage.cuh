@@ -1,3 +1,4 @@
+#include <cmath>
 #pragma once
 #include "gpu/SharedGasDeviceStorage.cuh"
 #include "../../../common/thermal/ParticleGasBinding.H"
@@ -33,6 +34,7 @@ public:
         cudaStream_t stream,std::string& error) {
         if(!model.physics.enableParticles)return true;
         auto config=model.particlePhase;
+        config.packingIterations=model.particleNumerics.packingIterations;
         config.capacity=std::max(config.capacity,std::max(1,int(state.particles.size())));
         const int faces=state.gasMesh.owner.size();
         std::vector<unsigned char> contact(faces,0);
@@ -42,6 +44,7 @@ public:
         if(!result(ugkp::thermal::createBoundParticlePhase(config,model.particleContact,
             ugkp::thermal::particleGasBinding(gas.hostView()),state.gasMesh.cellFaces.size(),
             contact.data(),gravity,&owner_),error))return false;
+        if(!result(ugkp::thermal::setParticleNumericalControls(owner_,model.particleNumerics),error))return false;
         if(!boundaryKind_.resize(faces,fault_)||!restitution_.resize(faces,fault_)||!tangential_.resize(faces,fault_)
             ||!surfaceTemperature_.resize(faces,fault_)||!surfaceUx_.resize(faces,fault_)
             ||!surfaceUy_.resize(faces,fault_)||!surfaceUz_.resize(faces,fault_)||!surfaceEffusivity_.resize(faces,fault_)){
@@ -56,10 +59,16 @@ public:
         if(!gas.write(boundaryKind_.data(),kinds)||!gas.write(restitution_.data(),unit)||!gas.write(tangential_.data(),unit)){
             error=gas.error();return false;}
         if(!result(ugkp::thermal::bindParticleSurface(owner_,faces,surface()),error))return false;
+        if(state.gasMesh.gasBoundary) {
+            const auto& boundary=*state.gasMesh.gasBoundary;
+            if(!result(ugkwpGpuResidentStrictConfigureBoundary(owner_,int(boundary.faces.size()),
+                boundary.faces.data(),int(boundary.functions.size()),boundary.functions.data(),
+                int(boundary.terms.size()),boundary.terms.data()),error))return false;
+        }
         const auto& inlet=model.particleInlet;
         if(!inlet.faces.empty()){
             std::vector<int> cells;std::vector<double> px,py,pz,u(inlet.faces.size(),0),
-                temperature(inlet.faces.size(),inlet.temperature),theta(inlet.faces.size(),inlet.theta),
+                temperature(inlet.faces.size(),inlet.temperature),theta(inlet.faces.size(),std::isfinite(inlet.theta)&&inlet.theta>0?inlet.theta:0),
                 diameter(inlet.faces.size(),config.diameter);
             for(int f:inlet.faces){
                 const int cell=state.gasMesh.owner.at(f);cells.push_back(cell);
@@ -70,8 +79,7 @@ public:
                 px.data(),py.data(),pz.data(),u.data(),u.data(),u.data(),temperature.data(),theta.data(),diameter.data(),u.data()),error)
                 ||!result(ugkwpGpuResidentStrictConfigureParticleInjectionVelocity(owner_,inlet.velocitySpecified,
                     inlet.velocity[0],inlet.velocity[1],inlet.velocity[2]),error)
-                ||!result(ugkwpGpuResidentStrictConfigureScheduledInlet(owner_,inlet.faces.size(),inlet.faces.data(),inlet.temperature,
-                    0,nullptr,nullptr,inlet.times.size(),inlet.times.data(),inlet.volumeFraction.data()),error))return false;
+)return false;
             // Deliberately retain this initial inlet geometry across mesh motion.
             std::vector<int> offsets{0},vertices;
             for(int f:inlet.faces){
@@ -101,6 +109,11 @@ public:
         if(!owner_)return true;
         return result(ugkp::thermal::refreshParticleTrackingGeometry(owner_,
             {gas.hostView().nFaces,boundaryKind_.data(),restitution_.data(),tangential_.data()},stream),error);
+    }
+    bool retainAcceptedGeometry(SharedGasDeviceStorage& gas,cudaStream_t stream,std::string& error){
+        if(!owner_)return true;
+        return refreshGeometry(gas,stream,error)
+            &&result(ugkp::thermal::refreshAcceptedParticleGeometryMoments(owner_,stream),error);
     }
     bool load(const ModelConfig& model,const HostState& state,SharedGasDeviceStorage& gas,
         cudaStream_t stream,std::string& error){

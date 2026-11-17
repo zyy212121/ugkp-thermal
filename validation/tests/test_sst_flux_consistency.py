@@ -59,16 +59,17 @@ int main(){
 }
 '''
     src=tmp_path/'probe.cpp';src.write_text(body.replace('#pragma once','').replace('asm("trap;");','std::abort();'));exe=tmp_path/f'probe{64}'
-    subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(src),'-o',str(exe)],check=True)
+    subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),'-I'+str(ROOT/'common/operators'),str(src),'-o',str(exe)],check=True)
     p=subprocess.run([str(exe)],capture_output=True,text=True)
     assert p.returncode==0,p.stderr
 
 def test_all_sst_gradient_consumers_have_same_stage_mass_flux():
     advance=(ROOT/'common/GpuGasAdvance.cuh').read_text().split('int blendGasRungeKuttaStage')[0]
     assert advance.index('applyGasFluxPositivityScaleKernel<<<')<advance.index('computeSstGradientsKernel<<<')<advance.index('computeSstFaceFluxKernel<<<')
-    tuning=(ROOT/'common/GpuToolB1Launch.cuh').read_text()
-    assert 'computeSstGradientsKernel' not in tuning.split('int launchToolB1FaceBundle')[0]
-    assert tuning.index('computeGasInternalFaceFluxKernel')<tuning.index('computeSstGradientsKernel')<tuning.index('computeSstFaceFluxKernel')
+    publication=(ROOT/'common/GpuWorkPlanPublish.cuh').read_text()
+    assert 'computeSstGradientsKernel' not in publication
+    assert 'cudaEvent' not in publication
+    assert not (ROOT/'common/GpuToolB1Launch.cuh').exists()
     eddy=(ROOT/'common/operators/computeGasEddyViscosityKernel.cuh').read_text()
     assert 'gradKX' not in eddy and 'sstF1[c] =' not in eddy
 
@@ -80,7 +81,7 @@ def test_courant_scratch_no_longer_overwrites_sst_mass():
     assert 's.gasPhiRhoE[f] =' in face
     assert 'sumAmaxSf +=' in cell and 's.gasPhiRhoE[f]' in cell
 
-def test_volume_source_validates_before_commit_and_skips_disabled_arrays(tmp_path):
+def test_volume_source_preserves_propagation_and_skips_disabled_arrays(tmp_path):
     pre=((VALIDATION_ROOT / 'tests/fixtures/sst_flux_consistency_host.hpp')).read_text()
     pre=pre.replace('rhoK[2]={R(.2),R(1.6)},rhoOmega[2]={4,32}', 'rhoKBacking[2]={R(.2),R(1.6)},rhoOmegaBacking[2]={4,32}; R* rhoK=nullptr; R* rhoOmega=nullptr; R unused=0')
     kernel=(ROOT/'common/operators/applyGasVolumeFractionSourceKernel.cuh').read_text().replace('asm("trap;");','throw 1;')
@@ -91,7 +92,11 @@ int main(){
  s=DeviceState();s.rhoK=s.rhoKBacking;s.rhoOmega=s.rhoOmegaBacking;
  s.rhoK[0]=INFINITY;R rho=s.rho[0],mom=s.rhoUx[0],energy=s.rhoE[0],omega=s.rhoOmega[0];bool caught=false;
  try{applyGasVolumeFractionSourceKernel(&s,R(.01));}catch(int){caught=true;}
- if(!caught||s.rho[0]!=rho||s.rhoUx[0]!=mom||s.rhoE[0]!=energy||s.rhoOmega[0]!=omega)return 2;
+ // Base 63263fca already propagates nonfinite SST inventory; this source is
+ // not a preflight/rollback gate. Keep that behavior and phase scaling visible.
+ R scale=s.rho[0]/rho;
+ if(caught||!std::isinf(s.rhoK[0])||!std::isfinite(scale)||scale==R(1)
+    ||s.rhoUx[0]!=mom*scale||s.rhoOmega[0]!=omega*scale)return 2;
  s.rhoK[0]=R(.2);s.rhoOmega[0]=-1;caught=false;
  try{applyGasVolumeFractionSourceKernel(&s,R(.01));}catch(int){caught=true;}
  if(caught||!std::isfinite(s.rho[0])||!(s.rhoOmega[0]<0))return 3;
@@ -99,6 +104,6 @@ int main(){
 }
 '''
     path=tmp_path/'volume.cpp';path.write_text(body.replace('#pragma once',''));exe=tmp_path/'volume'
-    subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(path),'-o',str(exe)],check=True)
+    subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),'-I'+str(ROOT/'common/operators'),str(path),'-o',str(exe)],check=True)
     result=subprocess.run([str(exe)],capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr

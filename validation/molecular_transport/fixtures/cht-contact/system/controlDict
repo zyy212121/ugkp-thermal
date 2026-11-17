@@ -15,6 +15,3 @@ writeCompression off;
 timeFormat general;
 timePrecision 17;
 runTimeModifiable false;
-adjustTimeStep false;
-maxCo 0.3;
-maxDeltaT 0.00001;

@@ -664,7 +664,7 @@ UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool applyLayerNewtonUpdate(const WallInput<
     auto candidateInput=in;candidateInput.diagnostics=nullptr;
     candidateInput.model.thermo.diagnostics=nullptr;
     // Retain the historical bounded bisection budget, without a case parameter.
-    for(int line=0;line<40;++line){
+    for(int line=0;line<c.numerics.maximumLineSearchIterations;++line){
         bool feasible=true;
         for(int i=team.rank();i<c.nodes;i+=team.size()){
             for(int j=0;j<N+4;++j)w.trial[i][j]=w.state[i][j]+alpha*w.delta[i][j];
@@ -687,7 +687,7 @@ UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool applyLayerNewtonUpdate(const WallInput<
             // the complete residual above. Initial/final diagnostics stay live.
             norm=next;return true;
         }
-        alpha*=R(.5);
+        alpha*=c.numerics.lineSearchReduction;
     }
     // Restore the current iterate after an exhausted line search. The caller
     // must still certify convergence before publishing any physical flux.
@@ -1077,7 +1077,7 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
     // surrogate to a nearly shear-free basin that Newton cannot leave.
     // With no blowing the singular-wall seed needs only the consistent phase.
     for(int phase=ctx.mass>0?0:1;phase<2;++phase){
-    for(int iteration=0;iteration<200;++iteration){
+    for(int iteration=0;iteration<c.numerics.seedMaximumIterations;++iteration){
         bool valid=true,reusable=true;
         const SeedThermoRows<R,N,decltype(w.state)> base(w.state,w.lower,reuseThermo);
         for(int i=team.rank();i<c.nodes;i+=team.size()){LayerPoint<R,N> p;if(!evaluatePoint(in,c,ctx,base,w.y,i,p)){valid=false;break;}
@@ -1171,7 +1171,7 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
         if(!team.broadcast(systems))return false;
         R change=0;bool updated=true;
         if(team.leader()){
-        for(int i=1;i<c.nodes-1;++i){for(int d=0;d<2;++d){change=max(change,abs(w.delta[i][d]-w.state[i][d])/max(R(1),abs(ctx.edgeU[d])));w.state[i][d]=(w.state[i][d]+w.delta[i][d])/R(2);}
+        for(int i=1;i<c.nodes-1;++i){for(int d=0;d<2;++d){change=max(change,abs(w.delta[i][d]-w.state[i][d])/max(R(1),abs(ctx.edgeU[d])));w.state[i][d]=relaxWallSeed(w.state[i][d],w.delta[i][d],c.numerics.seedRelaxation);}
             if(w.delta[i][K]<0||w.delta[i][Z]<=0){updated=false;break;}
             const R oldK=w.state[i][K]*w.state[i][K],oldOmega=w.seed[i][7];
             // A tiny k is not a converged k. With max(1,k_match), an
@@ -1181,14 +1181,14 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
             const R kScale=max(oldK,max(w.delta[i][K],in.matching.k));
             if(kScale>0)change=max(change,abs(w.delta[i][K]-oldK)/kScale);
             change=max(change,abs(w.delta[i][Z]-oldOmega)/oldOmega);
-            w.state[i][K]=::sqrt((oldK+w.delta[i][K])/R(2));w.state[i][Z]=R(1)/::sqrt((oldOmega+w.delta[i][Z])/R(2));
+            w.state[i][K]=::sqrt(relaxWallSeed(oldK,w.delta[i][K],c.numerics.seedRelaxation));w.state[i][Z]=R(1)/::sqrt(relaxWallSeed(oldOmega,w.delta[i][Z],c.numerics.seedRelaxation));
             if(!gasFinite(w.state[i][K])||!gasFinite(w.state[i][Z])){updated=false;break;}}
         if(updated){w.state[0][Z]=wallZ;if(c.nodes>2)w.state[1][Z]=firstZ;}
         }
         if(!team.broadcast(updated))return false;
         change=team.broadcast(change);
-        if(change<R(1e-5))break;
-        if(iteration==199&&team.leader())wallWarning(in,ugkp::diagnostics::Code::AccuracyResidual,2428,change,1e-5);
+        if(change<c.numerics.seedRelativeTolerance)break;
+        if(iteration+1==c.numerics.seedMaximumIterations&&team.leader())wallWarning(in,ugkp::diagnostics::Code::AccuracyResidual,2428,change,c.numerics.seedRelativeTolerance);
     }
     }
     return true;

@@ -93,13 +93,7 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
     const double* sourceD, const double* sourceMassRate
 );
 
-extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
-(
-    void* handle, int nFaces, const int* faceIds, double inletTemperature,
-    int nPressureRows, const double* pressureTimes,
-    const double* pressureValues, int nVolumeFractionRows,
-    const double* volumeFractionTimes, const double* volumeFractionValues
-);
+
 
 extern "C" int ugkwpGpuResidentStrictDownloadSourceResidualMass
 (
@@ -214,7 +208,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     const int* pStuckFaceId, const double* pDepositionArea,
     const double* pContactDuration, const double* pContactMaximumArea,
     const double* pContactPeakFraction,
-    const float* pColdNodeSpecificEnthalpy,
+    const double* pColdNodeSpecificEnthalpy,
     const double* pColdRingSolidMass,
     const double* pColdFrozenArea,
     const double* pColdContactAge,
@@ -233,7 +227,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     unsigned char* pStuck, int* pStuckFaceId, double* pDepositionArea,
     double* pContactDuration, double* pContactMaximumArea,
     double* pContactPeakFraction,
-    float* pColdNodeSpecificEnthalpy,
+    double* pColdNodeSpecificEnthalpy,
     double* pColdRingSolidMass,
     double* pColdFrozenArea,
     double* pColdContactAge,

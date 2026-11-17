@@ -41,7 +41,7 @@ void requireFailure(const Action& action, const char* message)
     require(false, message);
 }
 
-}             
+}
 
 int main()
 {
@@ -124,58 +124,15 @@ int main()
         "near-equilibrium root must converge at floating-point resolution"
     );
 
-    const auto conservative = conservativeBoundaryEnergyScale
-    (
-        scalar(-60), scalar(100), scalar(160), scalar(1e-12)
-    );
-    require(near(conservative.scale, scalar(0.6), scalar(1e-14)),
-        "boundary scale must balance accepted particle energy");
-    require(near(conservative.residualJ, scalar(0), scalar(1e-14)),
-        "balanced transaction residual must be zero");
 
-    const auto zero = conservativeBoundaryEnergyScale
-    (
-        scalar(0), scalar(0), scalar(0), scalar(1e-12)
-    );
-    require(zero.scale == scalar(1) && zero.residualJ == scalar(0),
-        "zero transaction must retain unit scale");
+    const auto raw=conservativeBoundaryEnergyScale(-60,100,160,1e-12);
+    require(raw.scale==1 && raw.residualJ==40,"raw exchange must not be balanced");
+    const auto zero=conservativeBoundaryEnergyScale(-1,0,1,1e-12);
+    require(zero.scale==1 && zero.residualJ==-1,"zero boundary must preserve actual imbalance");
+    const auto nonfinite=conservativeBoundaryEnergyScale
+        (std::numeric_limits<scalar>::quiet_NaN(),1,1,1e-12);
+    require(nonfinite.scale==1 && std::isnan(nonfinite.residualJ),"nonfinite balance must remain visible");
 
-    const auto negativeScale = conservativeBoundaryEnergyScale
-    (
-        scalar(60), scalar(100), scalar(160), scalar(1e-12)
-    );
-    require(near(negativeScale.scale, scalar(-0.6), scalar(1e-14)),
-        "finite negative boundary scale must follow the actual division");
-    const auto amplifyingScale = conservativeBoundaryEnergyScale
-    (
-        scalar(-120), scalar(100), scalar(220), scalar(1e-12)
-    );
-    require(near(amplifyingScale.scale, scalar(1.2), scalar(1e-14)),
-        "finite amplifying boundary scale must follow the actual division");
-    requireFailure
-    (
-        []()
-        {
-            conservativeBoundaryEnergyScale
-            (
-                scalar(-1), scalar(0), scalar(1), scalar(1e-12)
-            );
-        },
-        "nonzero particle energy with zero boundary energy must be rejected"
-    );
-    requireFailure
-    (
-        []()
-        {
-            conservativeBoundaryEnergyScale
-            (
-                std::numeric_limits<scalar>::quiet_NaN(),
-                scalar(1), scalar(1), scalar(1e-12)
-            );
-        },
-        "nonfinite transaction energy must be rejected"
-    );
-
-    std::cout << "PASS: conservative implicit particle-radiation transaction math\n";
+    std::cout << "PASS: raw-energy implicit particle-radiation transaction math\n";
     return 0;
 }

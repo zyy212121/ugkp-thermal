@@ -34,6 +34,7 @@ struct NormalHeightPointMotionDefinition {
     std::vector<Point> points,reference;
     std::vector<unsigned char> fixed;
     double geometricTolerance=0;
+    int harmonicMaximumIterations=20000;
 };
 struct NormalHeightPointMotionInput {
     const Point* reference=nullptr;

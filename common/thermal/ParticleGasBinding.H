@@ -16,6 +16,7 @@ struct ParticleGasBinding {
 #undef UGKP_PARTICLE_GAS_FIELD
     double gammaGas=1.4,Rgas=287,gasCp=1004.5,gasMu=0,gasPrClamped=.7,gasPrOneThird=0;
     double rhoMin=1e-12,TgasMin=1,gasThermalConductivity=-1;
+    ugkp::gasNumerics::ScalarSolverControls<double> gasScalarSolvers;
     int sstConfigured=0;
     ugkwp::GasSpeciesState<double,ugkwp::compiledGasSpecies> species;
     ugkwp::MolecularViscosityView<double> viscosity;
@@ -30,6 +31,7 @@ template<class Gas> ParticleGasBinding particleGasBinding(const Gas& gas) {
     out.gammaGas=gas.gammaGas;out.Rgas=gas.Rgas;out.gasCp=gas.gasCp;out.gasMu=gas.gasMu;
     out.gasPrClamped=gas.gasPrClamped;out.gasPrOneThird=std::pow(gas.gasPrClamped,1./3.);
     out.rhoMin=gas.rhoMin;out.TgasMin=gas.TgasMin;out.gasThermalConductivity=gas.gasThermalConductivity;
+    out.gasScalarSolvers=gas.gasScalarSolvers;
     out.sstConfigured=gas.sstConfigured;out.species=gas.gasSpecies;
     out.viscosity=gas.gasViscosity;out.diagnostics=gas.diagnostics;
     return out;

@@ -75,7 +75,9 @@ UGKP_WALL_HD GpuReal wallYPlusLaminar
     const GpuReal kappa = GPU_R(0.41),
     const GpuReal E = GPU_R(9.8),
     ugkp::diagnostics::DeviceContext* diagnostics = nullptr,
-    const int entity = -1
+    const int entity = -1,
+    const int maxIterations = 10,
+    const GpuReal relativeTolerance = GPU_R(1.0e-8)
 )
 {
     using namespace ugkp::diagnostics;
@@ -87,7 +89,7 @@ UGKP_WALL_HD GpuReal wallYPlusLaminar
     }
     constexpr GpuReal small = GPU_R(2.2204460492503131e-16);
     GpuReal yPlus = GPU_R(11.0);
-    for (int iteration = 0; iteration < 10; ++iteration)
+    for (int iteration = 0; iteration < maxIterations; ++iteration)
     {
         const GpuReal argument = maximum(E*yPlus, GPU_R(1.0) + small);
         const GpuReal function = yPlus - log(argument)/kappa;
@@ -97,7 +99,7 @@ UGKP_WALL_HD GpuReal wallYPlusLaminar
         {
             break;
         }
-        if (fabs(updated - yPlus) <= GPU_R(1.0e-8)*maximum(yPlus, GPU_R(1.0)))
+        if (fabs(updated - yPlus) <= relativeTolerance*maximum(yPlus, GPU_R(1.0)))
         {
             yPlus = updated;
             break;
@@ -107,8 +109,8 @@ UGKP_WALL_HD GpuReal wallYPlusLaminar
     const GpuReal residual=yPlus-log(maximum(E*yPlus,GPU_R(1)+small))/kappa;
     if(!std::isfinite(yPlus)||!std::isfinite(residual)){
         if(diagnostics)recordFatal(diagnostics,makeRecord(Code::NonFinite,2831,32,0,EntityKind::Face,entity,-1,!std::isfinite(yPlus)?yPlus:residual));
-    }else if(fabs(residual)>GPU_R(1e-8)*maximum(yPlus,GPU_R(1)))
-        recordWarning(diagnostics,makeRecord(Code::AccuracyResidual,2832,32,0,EntityKind::Face,entity,-1,residual,GPU_R(1e-8)*maximum(yPlus,GPU_R(1)),yPlus,Quantity::Accuracy));
+    }else if(fabs(residual)>relativeTolerance*maximum(yPlus,GPU_R(1)))
+        recordWarning(diagnostics,makeRecord(Code::AccuracyResidual,2832,32,0,EntityKind::Face,entity,-1,residual,relativeTolerance*maximum(yPlus,GPU_R(1)),yPlus,Quantity::Accuracy));
     return yPlus;
 }
 
@@ -154,7 +156,9 @@ UGKP_WALL_HD SpaldingWallState spaldingWallStateFromNormalGradient
     const GpuReal kappa = GPU_R(0.41),
     const GpuReal E = GPU_R(9.8),
     ugkp::diagnostics::DeviceContext* diagnostics = nullptr,
-    const int entity = -1
+    const int entity = -1,
+    const int maxIterations = 64,
+    const GpuReal tolerance = GPU_R(32)*GPU_REAL_EPSILON
 )
 {
     using namespace ugkp::diagnostics;
@@ -181,7 +185,7 @@ UGKP_WALL_HD SpaldingWallState spaldingWallStateFromNormalGradient
                 2826,32,0,EntityKind::Face,entity,-1,!std::isfinite(reynolds)||reynolds<=0?reynolds:upper));
             const GpuReal nan=std::numeric_limits<GpuReal>::quiet_NaN();return {nan,nan,nan};
         }
-        for(int iteration=0;iteration<64;++iteration){
+        for(int iteration=0;iteration<maxIterations;++iteration){
             const GpuReal middle=lower+GPU_R(.5)*(upper-lower);
             if(middle==lower||middle==upper)break;
             ratio=spaldingReynoldsRatio(middle,reynolds,logReynolds,kappa,E);
@@ -189,7 +193,7 @@ UGKP_WALL_HD SpaldingWallState spaldingWallStateFromNormalGradient
                 if(diagnostics)recordFatal(diagnostics,makeRecord(Code::NonFinite,2828,32,0,EntityKind::Face,entity,iteration,ratio));
                 const GpuReal nan=std::numeric_limits<GpuReal>::quiet_NaN();return {nan,nan,nan};
             }
-            if(fabs(ratio-GPU_R(1))<=(GPU_R(32)*GPU_REAL_EPSILON)){lower=upper=middle;break;}
+            if(fabs(ratio-GPU_R(1))<=tolerance){lower=upper=middle;break;}
             if(ratio>GPU_R(1))upper=middle;else lower=middle;
         }
         const GpuReal terminal=lower+GPU_R(.5)*(upper-lower);
@@ -198,8 +202,8 @@ UGKP_WALL_HD SpaldingWallState spaldingWallStateFromNormalGradient
         if(!std::isfinite(residual)){
             if(diagnostics)recordFatal(diagnostics,makeRecord(Code::NonFinite,2834,32,0,EntityKind::Face,entity,-1,residual));
         }
-        else if(fabs(residual)>(GPU_R(32)*GPU_REAL_EPSILON))
-            recordWarning(diagnostics,makeRecord(Code::AccuracyResidual,2827,32,0,EntityKind::Face,entity,-1,residual,(GPU_R(32)*GPU_REAL_EPSILON),uTau,Quantity::Accuracy));
+        else if(fabs(residual)>tolerance)
+            recordWarning(diagnostics,makeRecord(Code::AccuracyResidual,2827,32,0,EntityKind::Face,entity,-1,residual,tolerance,uTau,Quantity::Accuracy));
     }
     uTau = maximum(uTau, GPU_R(0.0));
     const GpuReal nut = maximum
@@ -222,7 +226,9 @@ UGKP_WALL_HD SpaldingWallState spaldingWallState
     const GpuReal wallDistance,
     const GpuReal kinematicViscosity,
     const GpuReal kappa = GPU_R(0.41),
-    const GpuReal E = GPU_R(9.8)
+    const GpuReal E = GPU_R(9.8),
+    const int maxIterations = 64,
+    const GpuReal tolerance = GPU_R(32)*GPU_REAL_EPSILON
 )
 {
     constexpr GpuReal rootVSmall = GPU_TINY(1.4916681462400413e-154);
@@ -233,7 +239,7 @@ UGKP_WALL_HD SpaldingWallState spaldingWallState
         kinematicViscosity,
         maximum(velocityDifference, GPU_R(0.0))/maximum(wallDistance, rootVSmall),
         kappa,
-        E
+        E, nullptr, -1, maxIterations, tolerance
     );
 }
 
@@ -268,7 +274,9 @@ UGKP_WALL_HD OmegaWallFunctionState omegaWallFunctionState
     const GpuReal E = GPU_R(9.8),
     const GpuReal cellProduction = GPU_R(0.0),
     ugkp::diagnostics::DeviceContext* diagnostics = nullptr,
-    const int entity = -1
+    const int entity = -1,
+    const int laminarMaxIterations = 10,
+    const GpuReal laminarRelativeTolerance = GPU_R(1.0e-8)
 )
 {
     constexpr GpuReal small = GPU_R(2.2204460492503131e-16);
@@ -282,7 +290,7 @@ UGKP_WALL_HD OmegaWallFunctionState omegaWallFunctionState
     const GpuReal yPlus = Cmu25*reynoldsY;
     const GpuReal omegaViscous = GPU_R(6.0)*nu/(maximum(beta1, small)*y*y);
 
-    if (yPlus < wallYPlusLaminar(kappa, E, diagnostics, entity))
+    if (yPlus < wallYPlusLaminar(kappa, E, diagnostics, entity, laminarMaxIterations, laminarRelativeTolerance))
     {
         return OmegaWallFunctionState
         {
@@ -328,7 +336,8 @@ UGKP_WALL_HD GpuReal jayatillekeThermalYPlus
     const GpuReal E = GPU_R(9.8),
     ugkp::diagnostics::DeviceContext* diagnostics = nullptr,
     const int entity = -1,
-    const int maxIterations = 80
+    const int maxIterations = 80,
+    const GpuReal relativeTolerance = GPU_R(8)*GPU_REAL_EPSILON
 )
 {
     using namespace ugkp::diagnostics;
@@ -353,7 +362,7 @@ UGKP_WALL_HD GpuReal jayatillekeThermalYPlus
     GpuReal x=upper,residual=0,tolerance=0;
     for(int iteration=0;iteration<maxIterations;++iteration){
         residual=x-log(x)-A;
-        tolerance=GPU_R(8)*GPU_REAL_EPSILON*maximum(GPU_R(1),maximum(A,x));
+        tolerance=relativeTolerance*maximum(GPU_R(1),maximum(A,x));
         if(!std::isfinite(residual)){
             if(diagnostics)recordFatal(diagnostics,makeRecord(Code::NonFinite,2822,32,0,EntityKind::Face,entity,iteration,residual));
             return nan;
@@ -508,7 +517,9 @@ UGKP_WALL_HD JayatillekeWallHeatState jayatillekeWallHeatFlux
     const GpuReal uTau,
     const GpuReal yPlus,
     const GpuReal cellTemperature,
-    const GpuReal wallTemperature
+    const GpuReal wallTemperature,
+    const int thermalMaxIterations = 80,
+    const GpuReal thermalRelativeTolerance = GPU_R(8)*GPU_REAL_EPSILON
 )
 {
     constexpr GpuReal small = GPU_R(2.2204460492503131e-16);
@@ -524,7 +535,7 @@ UGKP_WALL_HD JayatillekeWallHeatState jayatillekeWallHeatFlux
         kappa,
         E,
         jayatillekeSmoothP(PrRatio),
-        jayatillekeThermalYPlus(PrRatio, kappa, E),
+        jayatillekeThermalYPlus(PrRatio, kappa, E, nullptr, -1, thermalMaxIterations, thermalRelativeTolerance),
         uTau,
         yPlus,
         cellTemperature,

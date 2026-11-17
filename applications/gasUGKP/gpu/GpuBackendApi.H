@@ -71,13 +71,7 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
     const double* sourceD, const double* sourceMassRate
 );
 
-extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
-(
-    void* handle, int nFaces, const int* faceIds, double inletTemperature,
-    int nPressureRows, const double* pressureTimes,
-    const double* pressureValues, int nVolumeFractionRows,
-    const double* volumeFractionTimes, const double* volumeFractionValues
-);
+
 
 extern "C" int ugkwpGpuResidentStrictDownloadSourceResidualMass
 (

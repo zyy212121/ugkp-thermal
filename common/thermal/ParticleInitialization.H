@@ -9,9 +9,9 @@ namespace ugkp { namespace thermal {
 template<class Vector>
 double particleSnapshotThermalEnergy(const ParticleState<Vector>& p,int contactModel) {
     double h=ugkwp::ParticleCaloric{}.enthalpy(p.thermal.temperature);
-    if(p.state&&contactModel==3){h=0;for(float value:p.thermal.coldNodeSpecificEnthalpy)h+=double(value)/8;}
+    if(p.state&&contactModel==3){h=0;for(double value:p.thermal.coldNodeSpecificEnthalpy)h+=double(value)/8;}
     if(p.state&&contactModel==4){h=0;for(float value:p.thermal.cold2DNodeSpecificEnthalpy)h+=double(value)/64;}
-    return p.mass*(h+p.thermal.specificEnthalpyResidual);
+    return p.mass*(h+(p.state&&contactModel==3?0.:p.thermal.specificEnthalpyResidual));
 }
 // Import of an uninitialized, free parcel. Attached profiles require their
 // complete history and cannot be reconstructed from one total energy value.

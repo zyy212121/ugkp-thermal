@@ -625,7 +625,7 @@ namespace chmt {
     bool harmonicPointMotionRepresentedImpl(const HostMesh& mesh, const std::vector<Vec3>& prescribedDisplacement,
         const std::vector<unsigned char>& prescribed, std::vector<Vec3>& output, std::string& error,
         const empty_detail::Extrusion* knownExtrusion,bool* numericalFailure=nullptr,ugkp::diagnostics::DeviceContext* diagnostics=nullptr,
-        const std::vector<ugkp::gpu::geometry::MotionPenalty>& penalties={},Real normalLengthScale=0) {
+        const std::vector<ugkp::gpu::geometry::MotionPenalty>& penalties={},Real normalLengthScale=0,const SweepConstraintControls& controls=SweepConstraintControls{}) {
         if(numericalFailure)*numericalFailure=true;
 
         const int np = static_cast<int>(mesh.points.size());
@@ -648,11 +648,11 @@ namespace chmt {
         std::vector<Vec3> displacement(np),next(np);
         for(int p=0;p<np;++p)if(prescribed[p])displacement[p]=prescribedDisplacement[p];
 #endif
-        Real tolerance = 1e-12*meshScale(mesh.points);
+        Real tolerance = controls.harmonicRelativeTolerance*meshScale(mesh.points);
         tolerance=ugkp::gpu::geometry::normalHeightMotionTolerance(tolerance,normalLengthScale);
 #ifdef CHMT_DEVICE_GEOMETRY
         std::vector<int> offsets,neighbours;geometry_device::adjacency(adjacency,offsets,neighbours);
-        geometry_device::backend::HarmonicPointMotion device(geometry_device::pack(mesh.points),offsets,neighbours,prescribed,tolerance,20000,penalties);
+        geometry_device::backend::HarmonicPointMotion device(geometry_device::pack(mesh.points),offsets,neighbours,prescribed,tolerance,controls.harmonicMaximumIterations,penalties);
         const auto result=device.solve(geometry_device::pack(prescribedDisplacement));
         if(result.errorPoint>=0)return errorAt(error,result.errorKind==1?"zero-length motion edge":"nonfinite harmonic displacement",result.errorPoint);
         if(np && !(result.residual<=tolerance))geometryWarning(diagnostics,result.residual,tolerance,-1,false);
@@ -660,7 +660,7 @@ namespace chmt {
 #else
         bool converged = np == 0;
         Real finalResidual=0;
-        for (int iter = 0; iter<20000 && !converged; ++iter) {
+        for (int iter = 0; iter<controls.harmonicMaximumIterations && !converged; ++iter) {
             Real residual = 0;
             for (int p = 0; p<np; ++p) {
                 if (prescribed[p]) {
@@ -946,7 +946,7 @@ namespace chmt {
 #endif
             std::vector<Vec3> start;
             if (!harmonicPointMotionRepresentedImpl(old,prescribedDisplacement,prescribed,start,error,
-                hasEmpty&&paired?&extrusion:nullptr,numericalFailure,tolerances.diagnostics)) return false;
+                hasEmpty&&paired?&extrusion:nullptr,numericalFailure,tolerances.diagnostics,{},0,controls)) return false;
 #ifdef CHMT_DEVICE_GEOMETRY
             geometry_device::backend::SweepResidualDefinition residualDefinition;
             residualDefinition.topology=geometry_device::faceTopology(old);residualDefinition.old=geometry_device::pack(old.points);
@@ -1077,7 +1077,7 @@ namespace chmt {
             sweep_detail::Budget workspace(controls.maximumWorkspaceBytes,report.peakWorkspaceBytes);
             Reals pointWeight(np,0,Allocator<Real>(workspace));
 #ifndef CHMT_DEVICE_GEOMETRY
-            HarmonicModes harmonic(old,prescribed,workspace,1e-12*length);
+            HarmonicModes harmonic(old,prescribed,workspace,controls.harmonicRelativeTolerance*length,controls.harmonicMaximumIterations);
             Points boundary(np,Vec3{},Allocator<Vec3>(workspace));
 #endif
             Points correction(np,Vec3{},Allocator<Vec3>(workspace));
@@ -1096,7 +1096,8 @@ namespace chmt {
             geometry_device::backend::HarmonicSweepDefinition definition;
             definition.topology=geometry_device::faceTopology(old);definition.points=geometry_device::pack(old.points);
             definition.fixed=prescribed;definition.faces=faces;definition.scales=sweepScale;
-            definition.harmonicTolerance=1e-12*length;
+            definition.harmonicTolerance=controls.harmonicRelativeTolerance*length;
+            definition.harmonicMaximumIterations=controls.harmonicMaximumIterations;
             std::set<std::pair<int,int>> edges;
             for(std::size_t f=0;f<old.owner.size();++f){const int lo=old.faceOffsets[f],hi=old.faceOffsets[f+1];
                 for(int k=lo;k<hi;++k){const int a=old.facePoints[k],b=old.facePoints[k+1==hi?lo:k+1];
@@ -1762,7 +1763,7 @@ namespace chmt {
         return rebuildTrajectorySurface(base.gasMesh,base.solidMesh,base.surface,gas,solid,interval,output,error,tolerances,numericalFailure);
     }
     bool moveCoupledMeshesConstrainedImpl(const HostState& accepted, const std::vector<FilmAux>& candidateFilm,
-        const std::vector<Real>& solidTargets, Real dt, HostMesh& gasOut, HostMesh& solidOut,
+        const std::vector<Real>& solidTargets, std::size_t materialCellCount, Real dt, HostMesh& gasOut, HostMesh& solidOut,
         SurfaceMesh& surfaceOut, SweepConstraintReport& report, std::string& error,
         const SweepConstraintControls& controls, const Tolerances& tolerances,bool* numericalFailure) {
         report=SweepConstraintReport{};
@@ -1924,7 +1925,8 @@ namespace chmt {
                 gasDefinition.topology=geometry_device::meshTopology(oldGas).topology;gasDefinition.owner=oldGas.owner;
                 gasDefinition.wallFaces=reference.gasFace;gasDefinition.points=geometry_device::pack(oldGas.points);
                 gasDefinition.reference=geometry_device::pack(oldGas.referencePoints.empty()?oldGas.points:oldGas.referencePoints);
-                gasDefinition.fixed=fixedGas;gasDefinition.geometricTolerance=1e-12*meshScale(oldGas.points);
+                gasDefinition.fixed=fixedGas;gasDefinition.geometricTolerance=controls.harmonicRelativeTolerance*meshScale(oldGas.points);
+                gasDefinition.harmonicMaximumIterations=controls.harmonicMaximumIterations;
                 geometry_device::adjacency(gasPointAdjacency,gasDefinition.offsets,gasDefinition.neighbours);
                 definition.solidTopology=geometry_device::faceTopology(oldSolid);definition.oldSolid=geometry_device::pack(oldSolid.points);
                 definition.solidFaces=reference.solidFace;definition.solidToGas=solidToGas;definition.pointThickness=newThickness;
@@ -1990,7 +1992,7 @@ namespace chmt {
                     minimumNormalHeight=std::min(minimumNormalHeight,height);
                 }
             }
-            const bool harmonicOk=harmonicPointMotionRepresentedImpl(oldGas,gasDisplacement,fixedGas,gasPoints,failure,nullptr,nullptr,diagnostics,penalties,minimumNormalHeight);
+            const bool harmonicOk=harmonicPointMotionRepresentedImpl(oldGas,gasDisplacement,fixedGas,gasPoints,failure,nullptr,nullptr,diagnostics,penalties,minimumNormalHeight,controls);
 
             if(!harmonicOk)return false;
             if(!stage(gasPoints))return false;
@@ -2020,9 +2022,9 @@ namespace chmt {
         // legacy wrapper) must meet the same cell-inventory accuracy. Geometry-
         // only callers retain their explicit controls and geometric floor.
         SweepConstraintControls materialControls=controls;
-        if (!accepted.solid.empty()) {
+        if (materialCellCount!=0) {
             std::vector<Real> limits;
-            if ((accepted.solid.size()!=oldSolid.volumes.size())
+            if ((materialCellCount!=oldSolid.volumes.size())
                 ||!materialSweepResidualLimits(oldSolid,reference.solidFace,limits)
                 ||(!controls.faceVolumeTolerance.empty()&&controls.faceVolumeTolerance.size()!=limits.size()))
                 return errorAt(error,"invalid material swept-volume accuracy ownership",-1);
@@ -2044,9 +2046,9 @@ namespace chmt {
         // the total difference from the unshifted physical target.
         const auto physicalSolveTargets=solveTargets;
         auto physicalLimits=materialControls.faceVolumeTolerance;
-        const Real materialMeshScale=!accepted.solid.empty()&&!solveTargets.empty()
+        const Real materialMeshScale=materialCellCount!=0&&!solveTargets.empty()
             ?meshScale(oldSolid.points):Real(0);
-        if(!accepted.solid.empty())for(std::size_t f=0;f<solveTargets.size();++f){
+        if(materialCellCount!=0)for(std::size_t f=0;f<solveTargets.size();++f){
             const Real requested=controls.absoluteVolumeTolerance+controls.relativeVolumeTolerance*absValue(solveTargets[f]);
             const Real floor=32*std::numeric_limits<Real>::epsilon()*mag(oldSolid.areaVectors[reference.solidFace[f]])*materialMeshScale;
             physicalLimits[f]=minValue(physicalLimits[f],maxValue(requested,floor));
@@ -2057,7 +2059,7 @@ namespace chmt {
         }
         if (!constrainedMotion(oldSolid,reference.solidFace,solveTargets,displacement,fixedSolid,directions,
             dt,solid,solidSweeps,report,error,materialControls,buildGas,tolerances,numericalFailure)) return false;
-        if(!accepted.solid.empty()){
+        if(materialCellCount!=0){
             report.maximumSweepResidual=0;
             for(std::size_t f=0;f<physicalLimits.size();++f){
                 const Real residual=solidSweeps[reference.solidFace[f]]-physicalSolveTargets[f];
@@ -2077,11 +2079,18 @@ namespace chmt {
         return true;
     }
     bool moveCoupledMeshesConstrained(const HostState& state,const std::vector<FilmAux>& film,const std::vector<Real>& targets,
-        Real dt,HostMesh& gas,HostMesh& solid,SurfaceMesh& surface,SweepConstraintReport& report,std::string& error,
+        std::size_t materialCellCount,Real dt,HostMesh& gas,HostMesh& solid,SurfaceMesh& surface,SweepConstraintReport& report,std::string& error,
         const SweepConstraintControls& controls,const Tolerances& tolerances,bool* numericalFailure) {
-        try{return moveCoupledMeshesConstrainedImpl(state,film,targets,dt,gas,solid,surface,report,error,controls,tolerances,numericalFailure);}
+        try{return moveCoupledMeshesConstrainedImpl(state,film,targets,materialCellCount,dt,gas,solid,surface,report,error,controls,tolerances,numericalFailure);}
         catch(const std::bad_alloc&){if(numericalFailure)*numericalFailure=false;throw;}
         catch(const std::length_error&){if(numericalFailure)*numericalFailure=false;throw;}
+    }
+
+    bool moveCoupledMeshesConstrained(const HostState& state,const std::vector<FilmAux>& film,const std::vector<Real>& targets,
+        Real dt,HostMesh& gas,HostMesh& solid,SurfaceMesh& surface,SweepConstraintReport& report,std::string& error,
+        const SweepConstraintControls& controls,const Tolerances& tolerances,bool* numericalFailure) {
+        return moveCoupledMeshesConstrained(state,film,targets,state.solid.size(),dt,gas,solid,surface,report,error,
+            controls,tolerances,numericalFailure);
     }
 
     bool moveCoupledMeshes(const HostState& accepted, const std::vector<FilmAux>& candidateFilm, double dt,

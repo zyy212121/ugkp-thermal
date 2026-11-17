@@ -50,11 +50,11 @@ void ResidentWallMatching::prepare(const Point* points,const CellResult* cells,c
     const WallPolygonTopology polygons{d.faces,d.topology.faceOffsets,d.topology.facePoints,d.triangleOffsets.pointer};
     const WallPolygonWorkspace workspace{d.ring.pointer,d.triangles.pointer,d.metrics.pointer,d.polygonFailure.pointer};
     resetResidentWallPolygonStatusKernel<<<1,1,0,stream>>>(d.faces,d.polygonFailure.pointer);checked(cudaGetLastError());
-    if(d.faces){rebuildResidentWallPolygonsKernel<<<(d.faces+127)/128,128,0,stream>>>(polygons,points,workspace);checked(cudaGetLastError());}
-    if(d.cells){combineWallConstraints<<<(d.cells+127)/128,128,0,stream>>>(d.cells,suppliedConstraints?suppliedConstraints:d.defaultConstrained.pointer,d.physicalOwner.pointer,d.constrained.pointer);checked(cudaGetLastError());}
+    if(d.faces){rebuildResidentWallPolygonsKernel<<<(d.faces+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(polygons,points,workspace);checked(cudaGetLastError());}
+    if(d.cells){combineWallConstraints<<<(d.cells+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.cells,suppliedConstraints?suppliedConstraints:d.defaultConstrained.pointer,d.physicalOwner.pointer,d.constrained.pointer);checked(cudaGetLastError());}
     resetResidentWallMatchingStatusKernel<<<1,1,0,stream>>>(d.rows,d.polygonFailure.pointer,d.faces,d.status.pointer);checked(cudaGetLastError());
     const WallMatchingTopology topology{polygons,d.cells,d.cellOffsets.pointer,d.cellFaces.pointer,d.owner.pointer,d.neighbour.pointer,
         d.physicalWall.pointer,d.constrained.pointer,suppliedGas?suppliedGas:d.defaultGas.pointer};
-    if(d.rows){rebuildResidentWallMatchingKernel<<<(d.rows+127)/128,128,0,stream>>>(d.rows,d.walls.pointer,topology,points,cells,workspace,d.reconstruct,d.result.pointer,d.status.pointer);checked(cudaGetLastError());}
+    if(d.rows){rebuildResidentWallMatchingKernel<<<(d.rows+workPlan().faceBlockThreads-1)/workPlan().faceBlockThreads,workPlan().faceBlockThreads,0,stream>>>(d.rows,d.walls.pointer,topology,points,cells,workspace,d.reconstruct,d.result.pointer,d.status.pointer);checked(cudaGetLastError());}
     finishResidentWallMatchingStatusKernel<<<1,1,0,stream>>>(d.rows,d.result.pointer,d.status.pointer);checked(cudaGetLastError());
 }

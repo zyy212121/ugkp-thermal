@@ -1,0 +1,5 @@
+FoamFile {version 2.0; format ascii; class dictionary; object solidRegionProperties;}
+solidThermalCoupling { formatVersion 1; mapping oneToOneConformal; solidRegion solid;
+ fluidPatch wall; solidPatch interface;
+}
+boundaries { sides {kind Slip;} inlet { kind Inlet; } outlet { kind Outlet; } wall { kind Interface; } top { kind Slip; } }

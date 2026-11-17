@@ -7,33 +7,41 @@ import subprocess
 ROOT = SOURCE_ROOT
 
 
-def test_timer_samples_accumulate_api_float_values_in_double(tmp_path):
-    source = (ROOT / 'common/GpuToolB1.cuh').read_text().split('int tuneFixedWorkBlockThreads', 1)[0]
-    source = '\n'.join(line for line in source.splitlines() if not line.startswith(('#include', '#pragma')))
+def test_startup_workplan_defaults_and_idempotent_publication(tmp_path):
+    source = (ROOT / 'common/GpuWorkPlanPublish.cuh').read_text().replace('#pragma once', '')
     body = r'''
-#include <algorithm>
-#include <vector>
 #include <cassert>
-using cudaEvent_t=int;using cudaError_t=int;constexpr int cudaSuccess=0;
-constexpr int toolB1WarmupRuns=0,toolB1MeasuredRuns=3;
-int sample=0;int cudaDeviceSynchronize(){return 0;}int cudaEventRecord(int){return 0;}
-int cudaEventSynchronize(int){return 0;}
-int cudaEventElapsedTime(float* p,int,int){const float values[3]={16777216.0f,1.0f,1.0f};*p=values[sample++];return 0;}
-void setLastError(const char*,int){}
+#include "gpu/WorkPlan.H"
+struct DeviceState { int fixedWorkBlockTuned=0; };
+struct GasHostPolicy { using Time=double; };
+int publications=0;
+int syncDeviceState(DeviceState*,const char*) { ++publications; return 0; }
 ''' + source + r'''
-int main(){double median=0,total=0;assert(measureToolB1Candidate([]{return 0;},0,0,median,total)==0);
-assert(median==1.0);assert(total==16777218.0);assert(sample==3);}
+int main() {
+  auto& p=ugkp::gpu::workPlan();
+  assert(p.cellBlockThreads==128 && p.faceBlockThreads==128);
+  assert(p.particleBlockThreads==128 && p.coldWallBlockThreads==128);
+  p.cellBlockThreads=64;
+  DeviceState s;
+  assert(publishStartupWorkPlan(&s,0.,0.)==0);
+  assert(publishStartupWorkPlan(&s,0.,0.)==0);
+  assert(publications==0 && s.fixedWorkBlockTuned==1 && p.cellBlockThreads==64);
+}
 '''
-    cpp = tmp_path / 'timer.cpp'; cpp.write_text(body)
-    exe = tmp_path / 'timer'
-    build = subprocess.run(['g++', '-std=c++17', '-O2', str(cpp), '-o', str(exe)], capture_output=True, text=True)
+    cpp = tmp_path / 'workplan.cpp'; cpp.write_text(body)
+    exe = tmp_path / 'workplan'
+    build = subprocess.run(['g++', '-std=c++17', '-O2', '-I'+str(ROOT/'common'), str(cpp), '-o', str(exe)], capture_output=True, text=True)
     assert build.returncode == 0, build.stderr
     subprocess.run([str(exe)], check=True)
 
 
 def test_native_probe_storage_is_double_with_cuda_float_temporaries():
-    for app, leaf in [('CHT', 'gpu'), ('FSH', 'private_backend'), ('gasUGKP', 'private_backend')]:
-        source = (ROOT / 'applications' / app / leaf / 'GpuResidentStrict.cu').read_text()
+    for path in (
+        'common/thermal/GpuResidentStrict.cu',
+        'applications/gasUGKP/private_backend/GpuResidentStrict.cu',
+        'precision/fp32/common/thermal/GpuResidentStrict.cu',
+        'precision/fp32/applications/gasUGKP/private_backend/GpuResidentStrict.cu'):
+        source = (ROOT / path).read_text()
         assert 'double totalMs' in source and 'double stageMs[ProbeStageCount]' in source
     thermal = (ROOT / 'common/GpuDevelopmentThermalProbeSample.cuh').read_text()
     assert '&sample.totalMs' not in thermal

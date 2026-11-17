@@ -11,7 +11,10 @@
 #include <vector>
 namespace Foam { namespace gpuThermalRestart {
 static constexpr std::uint32_t maximumChunkParticles = 262144u;
-static constexpr const char* currentChtMarker = "UGKP_CHT_PARTICLES_SCHEMA9_FLOAT_COLD_PROFILES_BIN";
+static constexpr const char* schema9ChtMarker = "UGKP_CHT_PARTICLES_SCHEMA9_FLOAT_COLD_PROFILES_BIN";
+static constexpr const char* native64ChtMarker = "UGKP_CHT_PARTICLES_SCHEMA11_NATIVE64_RAW_COLD_BIN";
+static constexpr const char* native32ChtMarker = "UGKP_CHT_PARTICLES_SCHEMA12_NATIVE32_RAW_COLD_BIN";
+static constexpr const char* currentChtMarker = native64ChtMarker;
 static constexpr const char* currentFshMarker = "UGKP_FSH_PARTICLES_SCHEMA8_FP64_FIELDS_BIN";
 template<class DiskTime> inline const char* marker();
 template<> inline const char* marker<float>() { return "UGKP_THERMAL_PARTICLES_SCHEMA7_T32_BIN"; }
@@ -178,6 +181,59 @@ inline void readCurrentPayload(std::istream& is,std::uint32_t bound,const View& 
         { readArray(is,p,b,n); });
         begin+=chunk;
     }
+}
+
+template<class View>
+inline void readNative64ChtPayload(std::istream& is,std::uint32_t bound,const View& v)
+{
+    (void)bound;
+    char sep=0;is.get(sep);if(sep=='\r')is.get(sep);
+    if(sep!='\n')throw std::runtime_error("invalid native64 particle header terminator");
+    for(std::size_t begin=0;begin<v.count;){
+        std::uint32_t chunk=0;readArray(is,&chunk,0,1);
+        if(!chunk||chunk>v.count-begin)throw std::runtime_error("invalid native64 particle chunk size");
+        fields(v,begin,chunk,[&](auto* p,std::size_t b,std::size_t n){
+            if(static_cast<const void*>(p)==static_cast<const void*>(v.pColdNodeSpecificEnthalpy)){
+                std::vector<double> nodes(n);readArray(is,nodes.data(),0,n);
+                for(std::size_t j=0;j<n;++j)p[b+j]=static_cast<float>(nodes[j]);
+            }else readArray(is,p,b,n);
+        });
+
+
+        std::vector<double> residual(chunk);readArray(is,residual.data(),0,chunk);
+        if(v.pThermalEnthalpyResidual)
+            for(std::size_t j=0;j<chunk;++j)v.pThermalEnthalpyResidual[begin+j]=0;
+        begin+=chunk;
+    }
+}
+
+template<class View>
+inline void writeNative32Cht(std::ostream& os,const View& v){
+ os<<native32ChtMarker<<' '<<v.count<<' '<<maximumChunkParticles<<'\n';
+ for(std::size_t begin=0;begin<v.count;){
+  const std::uint32_t chunk=std::min<std::size_t>(maximumChunkParticles,v.count-begin);writeArray(os,&chunk,0,1);
+  fields(v,begin,chunk,[&](const auto* p,std::size_t b,std::size_t n){
+   if(static_cast<const void*>(p)==static_cast<const void*>(v.pColdNodeSpecificEnthalpy)){
+    std::vector<float> nodes(n);for(std::size_t j=0;j<n;++j)nodes[j]=static_cast<float>(p[b+j]);writeArray(os,nodes.data(),0,n);
+   }else writeArray(os,p,b,n);
+  });begin+=chunk;
+ }
+}
+template<class View>
+inline void readNative32ChtPayload(std::istream& is,std::uint32_t bound,const View& v){
+ (void)bound;char sep=0;is.get(sep);if(sep=='\r')is.get(sep);
+ if(sep!='\n')throw std::runtime_error("invalid native32 particle header terminator");
+ for(std::size_t begin=0;begin<v.count;){
+  std::uint32_t chunk=0;readArray(is,&chunk,0,1);
+  if(!chunk||chunk>v.count-begin)throw std::runtime_error("invalid native32 particle chunk size");
+  fields(v,begin,chunk,[&](auto* p,std::size_t b,std::size_t n){
+   if(static_cast<const void*>(p)==static_cast<const void*>(v.pColdNodeSpecificEnthalpy))
+    readConverted<float>(is,p,b,n);
+   else readArray(is,p,b,n);
+  });
+  if(v.pThermalEnthalpyResidual)std::fill(v.pThermalEnthalpyResidual+begin,v.pThermalEnthalpyResidual+begin+chunk,0.);
+  begin+=chunk;
+ }
 }
 
 } }

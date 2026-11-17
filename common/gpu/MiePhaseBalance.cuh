@@ -3,26 +3,26 @@
 #include "MieOpticalProperties.H"
 #include <cuda_runtime.h>
 namespace ugkp { namespace gpu { namespace mieDetail {
-__device__ inline double orderedMaximum(double a,double b){return a>b?a:b;}
-__device__ inline double phaseProbability(MieOpticalTableView table,const MieBracket& diameter,
-    const MieBracket& temperature,const double* weights,const MieBracket* cosines,
-    const double* scaling,int directions,int row,int column){
-    const double raw=miePhaseAt(table,diameter,temperature,cosines[row*directions+column])
-        /12.56637061435917295385057353311801153679;
+__device__ inline RadiationReal orderedMaximum(RadiationReal a,RadiationReal b){return a>b?a:b;}
+__device__ inline RadiationReal phaseProbability(MieOpticalTableView table,const MieBracket& diameter,
+    const MieBracket& temperature,const RadiationReal* weights,const MieBracket* cosines,
+    const RadiationReal* scaling,int directions,int row,int column){
+    const RadiationReal raw=miePhaseAt(table,diameter,temperature,cosines[row*directions+column])
+        /RadiationReal(12.56637061435917295385057353311801153679);
     return weights[column]*scaling[row]*raw*scaling[column];
 }
-static __global__ void phaseBrackets(int count,MieOpticalTableView table,const double* cosines,MieBracket* brackets){
+static __global__ void phaseBrackets(int count,MieOpticalTableView table,const RadiationReal* cosines,MieBracket* brackets){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;
     if(i<count)brackets[i]=mieLinearBracket(table.mu,table.angles,cosines[i]);
 }
 static __global__ void balancePhase(int count,int directions,MieOpticalTableView table,const MieOpticalQuery* queries,
-    const double* weights,const MieBracket* cosines,double tolerance,int maximumIterations,
-    double* scaling,double* nextScaling,double* rowError,double* columnError,MiePhaseMetrics* metrics,
-    const double* scattering=nullptr){
+    const RadiationReal* weights,const MieBracket* cosines,RadiationReal tolerance,int maximumIterations,
+    RadiationReal* scaling,RadiationReal* nextScaling,RadiationReal* rowError,RadiationReal* columnError,MiePhaseMetrics* metrics,
+    const RadiationReal* scattering=nullptr){
     const int cell=blockIdx.x;if(cell>=count)return;
     const std::size_t offset=std::size_t(cell)*directions;
-    double* current=scaling+offset;double* next=nextScaling+offset;
-    double* rows=rowError+offset;double* columns=columnError+offset;
+    RadiationReal* current=scaling+offset;RadiationReal* next=nextScaling+offset;
+    RadiationReal* rows=rowError+offset;RadiationReal* columns=columnError+offset;
     if(scattering&&scattering[cell]==0){
         for(int row=threadIdx.x;row<directions;row+=blockDim.x)current[row]=1;
         if(!threadIdx.x)metrics[cell]={};return;
@@ -35,7 +35,7 @@ static __global__ void balancePhase(int count,int directions,MieOpticalTableView
     const int limit=maximumIterations>1?maximumIterations:1;
     for(int iteration=1;iteration<=limit;++iteration){
         for(int row=threadIdx.x;row<directions;row+=blockDim.x){
-            double sum=0;for(int column=0;column<directions;++column)
+            RadiationReal sum=0;for(int column=0;column<directions;++column)
                 sum+=phaseProbability(table,diameter,temperature,weights,cosines,current,directions,row,column);
             next[row]=current[row]/sqrt(sum);
         }
@@ -43,7 +43,7 @@ static __global__ void balancePhase(int count,int directions,MieOpticalTableView
         for(int row=threadIdx.x;row<directions;row+=blockDim.x)current[row]=next[row];
         __syncthreads();
         for(int row=threadIdx.x;row<directions;row+=blockDim.x){
-            double sum=0,weightedColumn=0;
+            RadiationReal sum=0,weightedColumn=0;
             for(int column=0;column<directions;++column){
                 sum+=phaseProbability(table,diameter,temperature,weights,cosines,current,directions,row,column);
                 weightedColumn+=weights[column]*phaseProbability(table,diameter,temperature,weights,cosines,current,directions,column,row);

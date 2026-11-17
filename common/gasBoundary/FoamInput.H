@@ -68,6 +68,53 @@ template<class Type> void function(Definition& out,const dictionary& dict,const 
         for(int i=0;i<count;++i)faces[start+i].function[firstComponent+c]=id;
     }
 }
+
+
+
+inline bool residentEpsilonFunctionSupported(const dictionary& dict,const word& key) {
+    if(!dict.found(key))return false;
+    dictionary input(dict);
+    const dictionary* sub=input.isDict(key)?&input.subDict(key):nullptr;
+    word kind;
+    if(sub) {
+        if(!sub->found("type"))return false;
+        kind=word(sub->lookup("type"));
+    } else input.lookup(key)>>kind;
+    if(kind=="constant"||kind=="polynomial")return true;
+    if(kind!="table"&&kind!="tableFile")return false;
+    if(kind=="tableFile"&&!sub)return false;
+    if(sub) {
+        const word interpolation=sub->lookupOrDefault<word>("interpolationScheme","linear");
+        const word bounds=sub->lookupOrDefault<word>("outOfBounds","clamp");
+        if(interpolation!="linear"||(bounds!="clamp"&&bounds!="warn"&&bounds!="repeat"))return false;
+    }
+    return true;
+}
+inline scalar epsilonStartupSnapshot(const scalar value,const int mode) {
+
+
+    return mode!=0&&std::isfinite(value)?value:scalar(0);
+}
+
+
+
+inline bool retainFiniteEpsilonProgram(Definition& out,std::size_t functions,
+    std::size_t terms,int start,int count) {
+    bool finite=true;
+    for(std::size_t i=functions;i<out.functions.size();++i) {
+        const auto& f=out.functions[i];
+        finite=finite&&std::isfinite(f.constant);
+        for(int j=0;j<f.count;++j) {
+            const auto& t=out.terms[f.begin+j];
+            if(!std::isfinite(t.x)||!std::isfinite(t.y))finite=false;
+        }
+    }
+    if(!finite) {
+        out.functions.resize(functions);out.terms.resize(terms);
+        for(int i=0;i<count;++i)out.faces[start+i].function[SolidFraction]=-1;
+    }
+    return finite;
+}
 inline void readComposition(const fvMesh& mesh,const PtrList<volScalarField>& Y,Definition& d) {
     forAll(mesh.boundaryMesh(),patch) {
         if(Y.empty())continue;
@@ -146,6 +193,48 @@ inline Definition read(const fvMesh& mesh,const volScalarField& rho,const volVec
         if(ppv.type()=="uniformFixedValue")function<scalar>(out,pd,"uniformValue",Pressure,out.faces,start,size);
         if(tp.type()=="uniformFixedValue")function<scalar>(out,td,"uniformValue",Temperature,out.faces,start,size);
         if(um==4)function<vector>(out,ud,"tangentialVelocity",Ux,out.faces,start,size);
+    }
+
+
+
+    if(mesh.foundObject<volScalarField>("epsilonS")) {
+        const auto& eps=mesh.lookupObject<volScalarField>("epsilonS");
+        forAll(mesh.boundaryMesh(),patch) {
+            const auto& pp=mesh.boundaryMesh()[patch];
+
+
+            if(isA<emptyPolyPatch>(pp))continue;
+            const auto& field=eps.boundaryField()[patch];
+            const auto config=configuration(field);
+            const int mode=field.fixesValue()?1:0;
+            for(int i=0;i<pp.size();++i) {
+                auto& face=out.faces[pp.start()+i];
+                face.solidMode=mode;face.value[SolidFraction]=epsilonStartupSnapshot(field[i],mode);
+            }
+            if(field.type()=="uniformFixedValue"
+                &&residentEpsilonFunctionSupported(config,"uniformValue")) {
+
+
+                const auto functions=out.functions.size(),terms=out.terms.size();
+                function<scalar>(out,config,"uniformValue",SolidFraction,out.faces,pp.start(),pp.size());
+                if(retainFiniteEpsilonProgram(out,functions,terms,pp.start(),pp.size())) {
+                    for(int i=0;i<pp.size();++i)
+                        if(out.faces[pp.start()+i].function[SolidFraction]>=0)
+                            out.faces[pp.start()+i].value[SolidFraction]=0;
+                } else {
+                    WarningInFunction
+                        << "epsilonS patch " << pp.name()
+                        << ": nonfinite resident uniformValue data; retaining the legacy startup snapshot "
+                        << "(not a GPU time-varying program)." << nl;
+                }
+            } else if(field.type()=="uniformFixedValue") {
+                WarningInFunction
+                    << "epsilonS patch " << pp.name()
+                    << ": this uniformValue program is outside the resident evaluator; "
+                    << "retaining the legacy startup snapshot (not a GPU time-varying program)."
+                    << nl;
+            }
+        }
     }
     validate(out);return out;
 }

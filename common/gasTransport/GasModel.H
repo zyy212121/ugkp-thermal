@@ -174,6 +174,8 @@ struct ThermoInversionControls
     Real absoluteTemperatureTolerance = Real(1e-9);   // K
     Real relativeTemperatureTolerance = Real(1e-10);
     int maximumIterations = 100;
+    bool explicitRelativeEnergyTolerance = false;
+    bool explicitRelativeTemperatureTolerance = false;
 };
 
 // Preserve user controls exactly while changing only local arithmetic precision.
@@ -188,6 +190,8 @@ UGKWP_GAS_HD inline ThermoInversionControls<To> castThermoControls
     out.absoluteTemperatureTolerance=To(input.absoluteTemperatureTolerance);
     out.relativeTemperatureTolerance=To(input.relativeTemperatureTolerance);
     out.maximumIterations=input.maximumIterations;
+    out.explicitRelativeEnergyTolerance=input.explicitRelativeEnergyTolerance;
+    out.explicitRelativeTemperatureTolerance=input.explicitRelativeTemperatureTolerance;
     return out;
 }
 

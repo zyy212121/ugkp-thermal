@@ -95,7 +95,7 @@ struct HarmonicSweepCorrection::Implementation {
         sweep.reset(new ResidentSweepLinearization(definition.topology,points,definition.faces,planarCount));
         rows=definition.faces.size()+3*std::size_t(planarCount);
         harmonic.reset(new HarmonicPointMotion(definition.points,definition.offsets,definition.neighbours,
-            definition.fixed,definition.harmonicTolerance));
+            definition.fixed,definition.harmonicTolerance,definition.harmonicMaximumIterations));
         qr.reset(new ResidentDenseMinimumNorm(rows,columns));
         checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);
         PinnedTransferQueue::Operation pending(transfer);
@@ -132,7 +132,7 @@ ExecutionGraphNode HarmonicSweepCorrection::appendTo(ExecutionGraph graph,Execut
     auto& d=*data_;using executionGraphDetail::appendCaptured;using executionGraphDetail::addWhile;
     auto previous=appendCaptured(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},d.stream,[&]{
         beginHarmonicSweep<<<1,1,0,d.stream>>>(problem,d.operation.pointer,d.points,d.rows,d.columns,d.planarCount,d.state.pointer);
-        if(d.points)copyHarmonicSweepCoordinates<<<(d.points-1)/128+1,128,0,d.stream>>>(d.points,d.operation.pointer,d.state.pointer,d.old.pointer);
+        if(d.points)copyHarmonicSweepCoordinates<<<(d.points-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,d.stream>>>(d.points,d.operation.pointer,d.state.pointer,d.old.pointer);
         d.harmonic->prepareDeviceGeometry(d.old.pointer,d.stream);
         d.sweep->resetCorrection(d.stream);
     });
@@ -150,7 +150,7 @@ ExecutionGraphNode HarmonicSweepCorrection::appendTo(ExecutionGraph graph,Execut
         });
         cudaGraph_t body=nullptr;previous=addWhile(graph,handle,{previous},body);
         appendCaptured(body,{},d.stream,[&]{
-            if(d.points)clearHarmonicBoundary<<<(d.points-1)/128+1,128,0,d.stream>>>(d.points,d.boundary.pointer);
+            if(d.points)clearHarmonicBoundary<<<(d.points-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,d.stream>>>(d.points,d.boundary.pointer);
             seedHarmonicBoundary<<<1,1,0,d.stream>>>(d.points,d.operation.pointer,d.state.pointer,d.boundary.pointer);
             const auto mode=d.harmonic->solvePreparedDevice(d.old.pointer,d.boundary.pointer,nullptr,
                 &d.operation.pointer->harmonicTolerance,true,d.stream);
@@ -158,7 +158,7 @@ ExecutionGraphNode HarmonicSweepCorrection::appendTo(ExecutionGraph graph,Execut
                 d.old.pointer,mode.points,d.qr->view().delta,d.sweepInput.pointer);
             if(!pass){
                 d.sweep->column(d.sweepInput.pointer,d.stream);
-                if(d.rows)scatterHarmonicColumn<<<(d.rows-1)/128+1,128,0,d.stream>>>(d.rows,d.operation.pointer,
+                if(d.rows)scatterHarmonicColumn<<<(d.rows-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,d.stream>>>(d.rows,d.operation.pointer,
                     d.state.pointer,d.sweep->view().column,d.matrix.pointer);
             }else d.sweep->accumulate(d.sweepInput.pointer,d.stream);
             nextHarmonicMode<<<1,1,0,d.stream>>>(d.operation.pointer,d.state.pointer,handle);

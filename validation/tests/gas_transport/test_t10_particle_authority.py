@@ -7,6 +7,11 @@ import pytest
 
 ROOT = SOURCE_ROOT
 
+@pytest.fixture(autouse=True)
+def host_cuda_stub(tmp_path):
+    (tmp_path/"cuda_runtime.h").write_text("")
+
+
 SOURCE = r'''
 #include <cassert>
 #include <cmath>
@@ -50,7 +55,7 @@ int main(){
 def test_affine_full_publication_and_outside_increment(tmp_path):
     src = tmp_path/'t10.cpp'; src.write_text(SOURCE.replace('STORAGE', 'double'))
     exe = tmp_path/'t10'
-    result = subprocess.run(['g++', '-std=c++17', '-O2', '-I'+str(ROOT/'common'), '-I'+str(ROOT), str(src), '-o', str(exe)],
+    result = subprocess.run(['g++', '-std=c++17','-I'+str(tmp_path), '-O2', '-I'+str(ROOT/'common'), '-I'+str(ROOT), str(src), '-o', str(exe)],
                             text=True, capture_output=True)
     assert result.returncode == 0, result.stdout+result.stderr
     result = subprocess.run([str(exe)], text=True, capture_output=True)
@@ -73,7 +78,7 @@ int main(){
 '''
     src=tmp_path/'candidate.cpp';src.write_text(prefix+source)
     exe=tmp_path/'candidate'
-    cmd=['g++','-std=c++17','-O2','-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(src),'-o',str(exe)]
+    cmd=['g++','-std=c++17','-I'+str(tmp_path),'-O2','-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(src),'-o',str(exe)]
     built=subprocess.run(cmd,text=True,capture_output=True)
     assert built.returncode==0,built.stdout+built.stderr
     run=subprocess.run([str(exe)],text=True,capture_output=True)
@@ -102,13 +107,15 @@ struct DeviceState {
  int pStuck[2]={},pStuckFaceId[2]={-1,-1},compactPStuck[2]={},compactPStuckFaceId[2]={-1,-1},particleStuckCandidateMask[1]={};
  GpuReal pT[2]={4000,4000},compactPT[2]={},pm[2]={1,2},pd[2]={.001,.002},TpMin=200,TpMax=4000,particleDiameterFallback=.001;
  GpuReal radiationMobileMass[1]={},radiationMobileTemperatureMass[1]={},radiationMobileDiameterMass[1]={};
- double pThermalEnthalpyResidual[2]={},compactPThermalEnthalpyResidual[2]={};float pColdNodeSpecificEnthalpy[16]={},pCold2DNodeSpecificEnthalpy[128]={},compactPColdNodeSpecificEnthalpy[16]={},compactPCold2DNodeSpecificEnthalpy[128]={};
+ double pThermalEnthalpyResidual[2]={},compactPThermalEnthalpyResidual[2]={};double pColdNodeSpecificEnthalpy[16]={},compactPColdNodeSpecificEnthalpy[16]={};float pCold2DNodeSpecificEnthalpy[128]={},compactPCold2DNodeSpecificEnthalpy[128]={};
  Cold coldWallSolidificationParameters;
 };
 GpuReal particleSpecificEnthalpyDevice(GpuReal t){return GpuReal(1000)*t;}
+struct Dim {int x=0;};Dim blockIdx,threadIdx,blockDim{1},gridDim{1};
+#define __host__
+#include "wall/GpuColdWall1DHandles.cuh"
 #include "GpuParticleCaloricDevice.cuh"
 #include "GpuRadiationContributions.cuh"
-struct Dim {int x=0;};Dim blockIdx,threadIdx,blockDim{1},gridDim{1};
 template<class T>void atomicAdd(T* p,T x){*p+=x;}
 template<int N>void blockReduceComponentSums(GpuReal (&)[N],GpuReal*){}
 GpuReal warpPartials[3]={};
@@ -145,7 +152,7 @@ def test_live_radiation_and_material_contributions(tmp_path):
                                           '__global__ void accumulatePackedMobileParticleRadiationSumsKernel'))
     src=tmp_path/'contributions.cpp';src.write_text(CONTRIBUTION_SOURCE.replace('KERNELS',kernels))
     exe=tmp_path/'contributions'
-    built=subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT/'common'),str(src),'-o',str(exe)],text=True,capture_output=True)
+    built=subprocess.run(['g++','-std=c++17','-I'+str(tmp_path),'-O2','-I'+str(ROOT/'common'),str(src),'-o',str(exe)],text=True,capture_output=True)
     assert built.returncode==0,built.stdout+built.stderr
     run=subprocess.run([str(exe)],text=True,capture_output=True)
     assert run.returncode==0,run.stdout+run.stderr
@@ -172,7 +179,7 @@ int main(){
 '''
     src=tmp_path/'pressure.cpp';src.write_text(source)
     exe=tmp_path/'pressure'
-    built=subprocess.run(['g++','-std=c++17','-O2','-DTEST_REAL=double',
+    built=subprocess.run(['g++','-std=c++17','-I'+str(tmp_path),'-O2','-DTEST_REAL=double',
                           '-I'+str(ROOT/'common'),str(src),'-o',str(exe)],text=True,capture_output=True)
     assert built.returncode==0,built.stdout+built.stderr
     run=subprocess.run([str(exe)],text=True,capture_output=True)
@@ -183,6 +190,14 @@ def test_whole_recovery_wrapper_gas_particle_and_initializer(tmp_path,mixed_ener
     from test_full_heat_advance import cache_path_fixture
     from test_mixture_state import HERE
     fixture=cache_path_fixture().split('int main(int argc',1)[0]
+
+    fixture="\n".join(line for line in fixture.splitlines() if not any(
+        old in line for old in ("s.pressureScheduleTimes=", "s.pressureScheduleValues=", "s.scheduledInletFaceMask=")))
+    fixture=fixture.replace('ThreadIndex gridDim{1};','')
+    fixture=fixture.replace('#include "GpuFrozenParticleRelease.cuh"',
+        'ThreadIndex gridDim{1};\n#include "gasTransport/ParticleHeatReservoir.H"\n#include "GpuFrozenParticleRelease.cuh"')
+    fixture=fixture.replace('Dim gridDim{1};','')
+
     fixture=fixture.replace('struct DeviceState:State{','struct DeviceState:State{\n Real compactPT[2]={};double pThermalEnthalpyResidual[2]={},compactPThermalEnthalpyResidual[2]={};',1)
     if not mixed_energy:
         fixture=fixture.replace('GasStateView<Real,Time,ugkwp::SstCoefficients,double>',
@@ -235,7 +250,7 @@ int main(){
 '''.replace('ENERGY_BYTES','8' if mixed_energy else '4')
     src=tmp_path/'wrapper.cpp';src.write_text(source)
     exe=tmp_path/'wrapper'
-    built=subprocess.run(['g++','-std=c++17','-O0','-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),
+    built=subprocess.run(['g++','-std=c++17','-I'+str(tmp_path),'-O0','-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),
                           str(src),'-o',str(exe)],text=True,capture_output=True)
     assert built.returncode==0,built.stdout+built.stderr
     run=subprocess.run([str(exe)],text=True,capture_output=True)
@@ -260,7 +275,7 @@ int main(){
 '''
     src=tmp_path/'large.cpp';src.write_text(prefix+source)
     exe=tmp_path/'large'
-    built=subprocess.run(['g++','-std=c++17','-O2','-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),
+    built=subprocess.run(['g++','-std=c++17','-I'+str(tmp_path),'-O2','-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),
                           str(src),'-o',str(exe)],text=True,capture_output=True)
     assert built.returncode==0,built.stdout+built.stderr
     run=subprocess.run([str(exe)],text=True,capture_output=True)
@@ -341,7 +356,7 @@ int main(){
 def test_radiation_finite_producers_and_dead_bound_work(tmp_path):
     src=tmp_path/'radiation_repair.cpp';src.write_text(REPAIR_SOURCE)
     exe=tmp_path/'radiation_repair'
-    built=subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT/'common'),'-I'+str(ROOT),str(src),'-o',str(exe)],
+    built=subprocess.run(['g++','-std=c++17','-I'+str(tmp_path),'-O2','-I'+str(ROOT/'common'),'-I'+str(ROOT),str(src),'-o',str(exe)],
                          text=True,capture_output=True)
     assert built.returncode==0,built.stdout+built.stderr
     run=subprocess.run([str(exe)],text=True,capture_output=True)

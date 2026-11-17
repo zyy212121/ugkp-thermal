@@ -1,0 +1,14 @@
+#pragma once
+#include "RadiationPrecision.H"
+namespace ugkp { namespace gpu {
+
+
+struct ParticleRadiationSolveControls {
+    int boundedMaximumIterations=100;
+    RadiationReal boundedTemperatureRelativeTolerance=radiationConvergenceTolerance(RadiationReal(1e-10),8);
+    RadiationReal boundedEnergyRelativeTolerance=sizeof(RadiationReal)<sizeof(double)?RadiationReal(1e-5):RadiationReal(1e-9);
+    int caloricMaximumIterations=256;
+    RadiationReal caloricEnergyRelativeTolerance=RadiationReal(64)*radiationEpsilon;
+    RadiationReal boundaryEnergyRelativeTolerance=RadiationReal(1e-10);
+};
+}}

@@ -34,15 +34,15 @@ def prepare(work):
     for name, fixture in CASES.items():
         baseline, candidate = (work/(name+"-"+kind) for kind in ("baseline", "candidate"))
         matrix.prepare(matrix.HERE/"fixtures"/fixture, baseline, metadata[fixture])
-        schemes = baseline/"system/fvSchemes"
-        text, count = re.subn(r"(ddtSchemes\s*\{\s*default\s+)Euler;", r"\1SSPRK3;", schemes.read_text())
+        schemes = baseline/"constant/scheme"
+        text, count = re.subn(r"(gasNumerics\s*\{[\s\S]*?ddtSchemes\s*\{\s*default\s+)Euler;", r"\1SSPRK3;", schemes.read_text(), count=1)
         assert count == 1, (schemes, "expected fixture Euler integrator")
         schemes.write_text(text)
         overrides = {"ddtSchemes/default": "SSPRK3"}
         if name == "moving-microsteps":
             props = baseline/"constant/chmtProperties"
-            interval = float(re.search(r"couplingInterval\s+([^;]+)", props.read_text())[1])
-            matrix.entry(props, "gasMaxDt", interval/4)
+            interval = float(re.search(r"couplingInterval\s+([^;]+)", (baseline/"constant/scheme").read_text())[1])
+            matrix.entry(baseline/"constant/scheme", "maxDeltaT", interval/4)
             text, count = re.subn(r"\bmodel\s+reactingSst;", "model constantTransport;", props.read_text())
             assert count == 1, props
             text, count = re.subn(r"\benableSst\s+true;", "enableSst false;", text)

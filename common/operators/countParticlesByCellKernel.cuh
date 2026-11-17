@@ -1,4 +1,5 @@
 #pragma once
+#include "../wall/GpuColdWall1DHandles.cuh"
 // One operator implementation; scalar/time adapters are compile-time only.
 template<bool WarpAggregated, bool SurvivorsOnly = false>
 __global__ void countParticlesByCellKernel(DeviceState* sp)
@@ -9,6 +10,7 @@ __global__ void countParticlesByCellKernel(DeviceState* sp)
     {
         const int c = s.pCellId[i];
         const bool valid = (SurvivorsOnly ? s.pStatus[i] == 1 : s.pStatus[i] != 0) && c >= 0 && c < s.nCells;
+        if constexpr(SurvivorsOnly)if(!valid)Foam::gpuWall::releaseColdWall1DHandle(s,i);
         if (!WarpAggregated)
         {
             if (valid)

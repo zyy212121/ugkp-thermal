@@ -445,6 +445,7 @@ GPU_COLD_WALL_HD inline ColdWallSolidificationStep advanceColdWallProfile
     GpuReal candidateEnthalpy[coldWallAxialNodeCount];
     GpuReal faceConductance[coldWallAxialNodeCount - 1];
     GpuReal ringCoolingPower[coldWallRadialRingCount];
+    GpuReal ringConductance[coldWallRadialRingCount]{};
     GpuReal ringWetArea[coldWallRadialRingCount];
     GpuReal meanOldEnthalpy = GPU_R(0.0);
     for (int node = 0; node < coldWallAxialNodeCount; ++node)
@@ -470,6 +471,17 @@ GPU_COLD_WALL_HD inline ColdWallSolidificationStep advanceColdWallProfile
     const GpuReal nodeGasPower = nodeMass*gasSpecificEnthalpyIncrement
       /(deltaTSeconds + GPU_REAL_MIN);
 
+    const GpuReal solidus = coldWallSolidusTemperature(parameters);
+    bool initiallyAllSolid = true;
+    for (int node = 0; node < coldWallAxialNodeCount; ++node)
+        initiallyAllSolid = initiallyAllSolid && coldWallTemperatureFromSpecificEnthalpyK
+            (oldEnthalpy[node] + gasSpecificEnthalpyIncrement, parameters) <= solidus;
+    if (initiallyAllSolid)
+        for (int node = 0; node < coldWallAxialNodeCount; ++node)
+        {
+            candidateEnthalpy[node] = oldEnthalpy[node] + gasSpecificEnthalpyIncrement;
+            guessedTemperature[node] = coldWallTemperatureFromSpecificEnthalpyK(candidateEnthalpy[node], parameters);
+        }
     GpuReal wallConductance = GPU_R(0.0);
     GpuReal acceptedWallPower = GPU_R(0.0);
     for (int iteration = 0; iteration == 0 || iteration < parameters.nonlinearIterations; ++iteration)
@@ -525,6 +537,7 @@ GPU_COLD_WALL_HD inline ColdWallSolidificationStep advanceColdWallProfile
             const GpuReal conductance =
                 conductanceIntegral/(deltaTSeconds + GPU_REAL_MIN);
 
+            ringConductance[ring] = conductance;
             wallConductance += conductance;
             ringCoolingPower[ring] = conductance*
                 (guessedTemperature[0] - wallTemperatureK);
@@ -624,7 +637,13 @@ GPU_COLD_WALL_HD inline ColdWallSolidificationStep advanceColdWallProfile
                 parameters
             );
         }
+        bool candidateAllSolid = initiallyAllSolid;
+        for (int node = 0; node < coldWallAxialNodeCount; ++node)
+            candidateAllSolid = candidateAllSolid && guessedTemperature[node] <= solidus;
+        if (iteration == 0 && candidateAllSolid) break;
     }
+    for (int ring = 0; ring < coldWallRadialRingCount; ++ring)
+        ringCoolingPower[ring] = ringConductance[ring]*(guessedTemperature[0] - wallTemperatureK);
 
     GpuReal enthalpySum = GPU_R(0.0);
     GpuReal connectedFraction = GPU_R(1.0);

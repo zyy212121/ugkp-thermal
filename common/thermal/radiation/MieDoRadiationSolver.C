@@ -1,3 +1,4 @@
+#include "FoamSolverScheme.H"
 #include "../../../common/gpu/SpecularReflection.H"
 #include "MieDoRadiationSolver.H"
 
@@ -9,6 +10,9 @@
 #include "wallPolyPatch.H"
 
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <fstream>
 #include <exception>
 #include <limits>
 #include <sstream>
@@ -242,7 +246,7 @@ label nearestDirection
     return best;
 }
 
-}             
+}
 
 class MieDoRadiationSolverData
 {
@@ -252,7 +256,7 @@ public:
     std::shared_ptr<int> geometryFamily=std::make_shared<int>(0);
     const MieTable mieTable;
     const labelList coupledPatchIds;
-    const MieDoControls controls;
+    MieDoControls controls;
     boolList isCoupledPatch;
     List<PatchRadiationControls> patchControls;
     vectorField directions;
@@ -283,39 +287,28 @@ public:
         isCoupledPatch(mesh.boundary().size(), false),
         patchControls(mesh.boundary().size()),
         diffuseDenominator(mesh.boundary().size()),
-        sourceRelaxation
-        (
-            radiationProperties.lookupOrDefault<scalar>
-            (
-                "sourceRelaxation",
-                scalar(1)
-            )
-        ),
-        linearSolverTolerance
-        (
-            radiationProperties.lookupOrDefault<scalar>
-            (
-                "linearSolverTolerance",
-                min(scalar(1e-12), controls.sourceRelativeTolerance*scalar(0.01))
-            )
-        ),
-        linearSolverRelativeTolerance
-        (
-            radiationProperties.lookupOrDefault<scalar>
-            (
-                "linearSolverRelTol",
-                scalar(0)
-            )
-        ),
-        linearSolverMaxIterations
-        (
-            radiationProperties.lookupOrDefault<label>
-            (
-                "linearSolverMaxIterations",
-                1000
-            )
-        )
+        sourceRelaxation(1),
+        linearSolverTolerance(min(scalar(1e-12),controls.sourceRelativeTolerance*scalar(0.01))),
+        linearSolverRelativeTolerance(0),
+        linearSolverMaxIterations(1000)
     {
+
+
+        controls.phaseBalanceTolerance=ugkp::gpu::radiationPhaseTolerance(
+            controls.phaseBalanceTolerance,controls.nTheta*controls.nPhi);
+        controls.sourceRelativeTolerance=ugkp::gpu::radiationConvergenceTolerance(controls.sourceRelativeTolerance);
+        linearSolverTolerance=ugkp::gpu::radiationConvergenceTolerance(linearSolverTolerance);
+        const auto& scheme=ugkp::solverControls::startupScheme(mesh.time());
+        scheme.read("radiation.do","radiationActiveEpsilonMin",controls.radiationActiveEpsilonMin,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","maxSourceIterations",controls.maxSourceIterations,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","sourceRelativeTolerance",controls.sourceRelativeTolerance,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","phaseBalanceTolerance",controls.phaseBalanceTolerance,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","maxPhaseBalanceIterations",controls.maxPhaseBalanceIterations,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","angleParallelThreads",controls.angleParallelThreads,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","sourceRelaxation",sourceRelaxation,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","linearSolverTolerance",linearSolverTolerance,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","linearSolverRelTol",linearSolverRelativeTolerance,"effectiveDefault",mesh.name());
+        scheme.read("radiation.do","linearSolverMaxIterations",linearSolverMaxIterations,"effectiveDefault",mesh.name());
         if (Pstream::parRun())
         {
             solveFailure("MieDoRadiationSolver requires a reconstructed serial fvMesh");
@@ -639,9 +632,10 @@ ugkp::gpu::RadiationControls radiationControls(const MieDoRadiationSolverData& d
     result.phaseIterations=data.controls.maxPhaseBalanceIterations;result.sourceIterations=data.controls.maxSourceIterations;result.linearIterations=data.linearSolverMaxIterations;
     result.maximumConcurrentAngles=min(max(data.controls.angleParallelThreads,label(1)),max(data.directions.size(),label(1)));
     result.parallelAngles=result.maximumConcurrentAngles>1;
+    result.controlsAlreadyResolved=true;
     return result;
 }
-void copyRadiationField(const std::vector<double>& source,scalarField& target)
+template<class Real> void copyRadiationField(const std::vector<Real>& source,scalarField& target)
 {
     target.setSize(source.size());forAll(target,i)target[i]=source[i];
 }
@@ -656,6 +650,10 @@ public:
     void prepare(const std::shared_ptr<const MieDoRadiationSolverData>& data)
     {
         if(owner==data)return;
+
+
+
+        if(gpu)gpu->setThermalIterationHook({});
         if(owner&&owner->geometryFamily==data->geometryFamily){
             gpu->updateGeometry(radiationGeometry(*data));owner=data;return;
         }
@@ -672,6 +670,12 @@ public:
 namespace {
 MieDoResult publishedRadiationResult(const fvMesh& mesh,MieDoRadiationWorkspaceData& scratch,const ugkp::gpu::RadiationResult& output){
     MieDoResult result;result.resident=scratch.gpu->deviceView();
+    result.materialRelativeResidual=output.materialRelativeResidual;
+    result.transportRelativeResidual=output.transportRelativeResidual;
+    result.materialResidualTarget=output.materialResidualTarget;
+    result.transportResidualTarget=output.transportResidualTarget;
+    result.sourceIterations=output.sourceIterations;
+
     if(output.power.empty()&&mesh.nCells()){
         result.integratedParticlePowerW=result.integratedBoundaryPowerW=result.conservationResidualW=0;
         result.sourceIterations=output.sourceIterations;result.angleThreadsUsed=1;return result;
@@ -786,6 +790,60 @@ MieDoRadiationWorkspace MieDoRadiationSolver::makeWorkspace() const
     );
 }
 
+
+namespace {
+std::uint64_t warmLayout(const MieDoRadiationSolverData& data) {
+    std::uint64_t hash=1469598103934665603ULL;
+    const auto append=[&](const auto& value){const auto* p=reinterpret_cast<const unsigned char*>(&value);
+        for(std::size_t i=0;i<sizeof(value);++i){hash^=p[i];hash*=1099511628211ULL;}};
+
+    append(data.mesh.nCells());
+    for(const auto v:data.mesh.owner())append(v);
+    for(const auto v:data.mesh.neighbour())append(v);
+    for(const auto& patch:data.mesh.boundary()){append(patch.start());append(patch.size());}
+    for(const auto& direction:data.directions)for(int i=0;i<3;++i){const double v=direction[i];append(v);}
+    for(const auto weight:data.weights){const double v=weight;append(v);}
+    return hash;
+}
+}
+bool MieDoRadiationSolver::writeWarmStart(MieDoRadiationWorkspace& workspace,const std::string& path) const {
+    auto& scratch=*workspace.data_;
+    const std::uint64_t header[]={0x55474b50444f4d31ULL,2,sizeof(ugkp::gpu::RadiationReal),
+        std::uint64_t(data_->mesh.nCells()),std::uint64_t(data_->directions.size()),warmLayout(*data_),
+        std::uint64_t(scratch.intensitiesInitialized)};
+    std::vector<double> values;
+    if(scratch.intensitiesInitialized){scratch.prepare(data_);scratch.gpu->downloadIntensities(values);}
+    const std::string temporary=path+".tmp";
+    std::ofstream out(temporary,std::ios::binary|std::ios::trunc);
+    out.write(reinterpret_cast<const char*>(header),sizeof(header));
+    const std::vector<ugkp::gpu::RadiationReal> payload(values.begin(),values.end());
+    if(!payload.empty())out.write(reinterpret_cast<const char*>(payload.data()),payload.size()*sizeof(ugkp::gpu::RadiationReal));
+    out.close();
+    if(!out||std::rename(temporary.c_str(),path.c_str())!=0){
+        WarningInFunction<<"DOM warm-start cache write failed: "<<path<<"; physical checkpoint remains usable with cold start"<<endl;return false;}
+    return true;
+}
+bool MieDoRadiationSolver::readWarmStart(MieDoRadiationWorkspace& workspace,const std::string& path) const {
+    auto& scratch=*workspace.data_;scratch.intensitiesInitialized=false;
+    std::ifstream in(path,std::ios::binary);
+    if(!in){Info<<"DOM warm-start cache absent; using compatible cold start: "<<path<<endl;return false;}
+    std::uint64_t header[7]={};in.read(reinterpret_cast<char*>(header),sizeof(header));
+    const std::uint64_t cells=data_->mesh.nCells(),angles=data_->directions.size();
+    const auto invalid=[&](){WarningInFunction<<"DOM warm-start cache incompatible or incomplete; using cold start: "<<path<<endl;return false;};
+
+
+    if(!in||header[0]!=0x55474b50444f4d31ULL||header[1]!=2||header[2]!=sizeof(ugkp::gpu::RadiationReal)
+        ||header[3]!=cells||header[4]!=angles||header[5]!=warmLayout(*data_)||header[6]>1)return invalid();
+    if(!header[6])return true;
+    std::vector<ugkp::gpu::RadiationReal> payload(std::size_t(cells*angles));
+    in.read(reinterpret_cast<char*>(payload.data()),payload.size()*sizeof(ugkp::gpu::RadiationReal));
+    const std::vector<double> values(payload.begin(),payload.end());
+    if(!in||in.peek()!=std::char_traits<char>::eof())return invalid();
+    for(const double v:values)if(!std::isfinite(v))return invalid();
+    scratch.prepare(data_);scratch.gpu->uploadIntensities(values);scratch.intensitiesInitialized=true;
+    Info<<"DOM warm-start cache restored: "<<path<<endl;return true;
+}
+
 MieDoResult MieDoRadiationSolver::solve(const MieDoSnapshot& snapshot) const
 {
     MieDoRadiationWorkspace workspace = makeWorkspace();
@@ -815,6 +873,8 @@ MieDoResult MieDoRadiationSolver::solve
     const label nCells=mesh.nCells();
     ugkp::gpu::RadiationSnapshot input;
     input.resident=snapshot.resident;
+    input.thermalCoupling=snapshot.thermalCoupling;
+    scratch.gpu->setThermalIterationHook(snapshot.thermalIterationHook, snapshot.thermalCoupling.graphOwner, snapshot.thermalCoupling.graphRevision);
     if(!input.resident.enabled){
         input.epsilon.assign(snapshot.epsilonS.begin(),snapshot.epsilonS.begin()+nCells);
         input.temperature.assign(snapshot.particleTemperatureK.begin(),snapshot.particleTemperatureK.begin()+nCells);
@@ -832,20 +892,23 @@ MieDoResult MieDoRadiationSolver::solve
     catch(const ugkp::gpu::RadiationError& error){solveFailure(error.what(),error.iteration,error.value,error.cell,error.patch,error.face);}
     catch(const std::exception& error){solveFailure(std::string("CUDA Mie DO solve failed: ")+error.what());}
     if(exportFields&&hostDiagnosticWarningsEnabled()){
+        const auto effectiveControls=radiationControls(data);
         for(label cellI=0;cellI<nCells;++cellI){const auto& phase=output.phaseMetrics[cellI];
-            if(phase.rowError>data.controls.phaseBalanceTolerance||phase.columnError>data.controls.phaseBalanceTolerance)
+            if(phase.rowError>effectiveControls.phaseTolerance||phase.columnError>effectiveControls.phaseTolerance)
                 WarningInFunction<<"DO phase balance iteration budget exhausted; time="<<mesh.time().timeName()<<"; cell="<<cellI
                     <<"; iterations="<<phase.iterations<<"; rowResidual="<<phase.rowError<<"; columnResidual="<<phase.columnError
-                    <<"; limit="<<data.controls.phaseBalanceTolerance<<"; retaining computed phase probabilities"<<endl;
+                    <<"; limit="<<effectiveControls.phaseTolerance<<"; retaining computed phase probabilities"<<endl;
         }
         for(std::size_t direction=0;direction<output.directionWarnings.size();++direction){const auto& warning=output.directionWarnings[direction];
-            if(warning.linearIteration>0)WarningInFunction<<"DO linear iteration budget exhausted; time="<<mesh.time().timeName()
+            const char* reason=warning.stopReason==4?"non-finite arithmetic":warning.stopReason==3?"Arnoldi breakdown without true-residual convergence":"iteration budget exhausted";
+            if(warning.linearIteration>0||warning.stopReason)WarningInFunction<<"DO FGMRES stopped: "<<reason<<"; time="<<mesh.time().timeName()
                 <<"; direction="<<direction<<"; sourceIteration="<<warning.sourceIteration<<"; linearIterations="<<warning.linearIteration
-                <<"; residual="<<warning.residual<<"; limit="<<warning.limit<<"; retaining computed intensity"<<endl;
+                <<"; residual="<<warning.residual<<"; limit="<<warning.limit
+                <<"; relativeResidual="<<warning.linearRelativeResidual<<"; relativeLimit="<<warning.linearRelativeLimit<<"; retaining computed intensity"<<endl;
         }
-        if(output.maximumRelativeChange>data.controls.sourceRelativeTolerance)
+        if(output.maximumRelativeChange>effectiveControls.sourceTolerance)
             WarningInFunction<<"DO source iteration budget exhausted; time="<<mesh.time().timeName()<<"; iterations="<<output.sourceIterations
-                <<"; residual="<<output.maximumRelativeChange<<"; limit="<<data.controls.sourceRelativeTolerance<<"; retaining computed intensities"<<endl;
+                <<"; residual="<<output.maximumRelativeChange<<"; limit="<<effectiveControls.sourceTolerance<<"; retaining computed intensities"<<endl;
     }
     scratch.intensitiesInitialized=true;return publishedRadiationResult(mesh,scratch,output);
 }

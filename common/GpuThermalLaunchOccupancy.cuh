@@ -134,7 +134,7 @@ int configureLaunchOccupancy(DeviceState* s)
     std::fprintf
     (
         stderr,
-        "Launch geometry: B1cell=%d B1face=%d (ToolB1 pending) "
+        "Launch geometry: B1cell=%d B1face=%d (startup WorkPlan) "
         "B2=%d B3=%d SM=%d "
         "lightBlocksPerSM=%d heavyBlocksPerSM=%d\n",
         s->fixedCellBlockThreads,

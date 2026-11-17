@@ -51,7 +51,8 @@ UGKP_BOUNDARY_HD GpuReal subsonicInletMach
 (
     const GpuReal outgoingInvariant,
     const GpuReal reservoirSoundSpeed,
-    const GpuReal gamma
+    const GpuReal gamma,
+    const int maxIterations = 48
 )
 {
     const GpuReal gammaMinusOne = maximum(gamma - GPU_R(1.0), GPU_R(1.0e-12));
@@ -72,7 +73,7 @@ UGKP_BOUNDARY_HD GpuReal subsonicInletMach
 
     GpuReal lower = GPU_R(0.0);
     GpuReal upper = GPU_R(1.0);
-    for (int iteration = 0; iteration < 48; ++iteration)
+    for (int iteration = 0; iteration < maxIterations; ++iteration)
     {
         const GpuReal middle = GPU_R(0.5)*(lower + upper);
         const GpuReal ratio =
@@ -101,7 +102,8 @@ UGKP_BOUNDARY_HD Primitive totalConditionInletState
     const GpuReal gamma,
     const GpuReal gasConstant,
     const GpuReal densityFloor,
-    const GpuReal temperatureFloor
+    const GpuReal temperatureFloor,
+    const int inletMachMaxIterations = 48
 )
 {
     const GpuReal safeGamma = maximum(finiteOr(gamma, GPU_R(1.4)), GPU_R(1.0) + GPU_R(1.0e-12));
@@ -142,7 +144,8 @@ UGKP_BOUNDARY_HD Primitive totalConditionInletState
     (
         outgoingInvariant,
         reservoirSoundSpeed,
-        safeGamma
+        safeGamma,
+        inletMachMaxIterations
     );
     const GpuReal totalFactor =
         GPU_R(1.0) + GPU_R(0.5)*gammaMinusOne*mach*mach;

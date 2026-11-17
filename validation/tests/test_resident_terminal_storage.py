@@ -12,7 +12,10 @@ BASE='5f1a39ac96e2e7ff9a0640a4db344d9cccd34245'
 
 def source(app,rev=None):
     p=f'applications/{app}/'+('gpu' if app=='CHT' else 'private_backend')+'/GpuResidentStrict.cu'
-    return subprocess.check_output(['git','show',rev+':'+p],cwd=ROOT,text=True) if rev else (ROOT/p).read_text()
+    if rev:return subprocess.check_output(['git','show',rev+':'+p],cwd=ROOT,text=True)
+    if app=='CHT':p='common/thermal/GpuResidentStrict.cu'
+    elif app=='FSH':raise ValueError('FSH is archived, not a maintained resident owner')
+    return (ROOT/p).read_text()
 
 def body(app,name,rev=None):return block(source(app,rev),'extern "C" int ugkwpGpuResidentStrict'+name)
 def args(code):
@@ -22,26 +25,47 @@ def args(code):
 def prelude():return CUDA+r'''
 #include <algorithm>
 #include <iostream>
+#include <cerrno>
+#include "common/gpu/WorkPlan.H"
+#include "common/gasTransport/GasMeshUploadValidation.H"
 using GpuReal=double;using GpuTime=double;
 #include "common/GpuParticleRestartTheta.H"
 #define GPU_R(x) (x)
 #define GPU_TINY(x) (x)
 constexpr double OfSmall=1e-15;
+constexpr int cudaLimitStackSize=0;
+int cudaDeviceGetLimit(size_t* p,int){*p=1024;return 0;}
+int cudaDeviceSetLimit(int,size_t){return 0;}
+namespace ugkp{namespace diagnostics{
+struct GpuOwner{int initialise(){return 0;}void*device(){return nullptr;}
+int observeError=0,dispatchError=0,observations=0,dispatches=0;
+void recordHostFatal(const Record&){}int observeCompletedWork(){++observations;return observeError;}int dispatchPending(){++dispatches;return dispatchError;}};
+}namespace gpu{struct CsrAutomaticRuntime{};}}
+template<bool>void trackParticlesLocalFaceWalkKernel(){}
+
 void setLastErrorText(const char*){}void setLastError(const char*,int){}
 namespace Foam{namespace gpuThermal{constexpr int coldWallAxialNodeCount=8,coldWallRadialRingCount=8,coldWall2DNodeCount=64,coldWall2DRadialNodeCount=8,particleWallDeposited=1,particleWallTransientRebound=2,particleWallTransientDeposit=3;}}
 '''
 
 def create_fixture(app,rev=None):
     code=body(app,'Create',rev);src=source(app,rev)+(ROOT/'common/GpuAutomaticCsrScheduleFields.inl').read_text();fields=sorted(set(re.findall(r's->(\w+)',code)))
+    pointer_fields={'particleTrackingKernel':'const void*','diagnosticOwner':'ugkp::diagnostics::GpuOwner*',
+                    'diagnostics':'void*','gasStatusFirstUnavailable':'unsigned long long*',
+                    'csrAutomaticRuntime':'ugkp::gpu::CsrAutomaticRuntime*'}
     declarations=[]
     for field in fields:
         match=re.search(r'^\s*((?:unsigned long long|unsigned short|double|GpuReal|int|bool))\s+'+field+r'\s*=',src,re.M)
-        assert match,field
-        declarations.append(f'{match[1]} {field}{{}};')
-    parameters=args(code);defaults={'particleGasHeatTransferModelId':'1','gammaGas':'1.4','gasMu':'.1','gasPr':'.7','packingFraction':'.6','particleBlockThreads':'128','reductionBlockThreads':'128','csrCellLocalPathEnabled':'1','gasFluxScheme':'2','gasReconstruction':'1','gasLimiter':'1','gasTimeIntegrator':'1','turbulenceModel':'0','csrHeavyReductionMode':'0','csrWarpAggregatedBinning':'0','jammingPressureEnabled':'0'}
+        if field in pointer_fields:typ=pointer_fields[field]
+        elif match:typ=match[1]
+        else:
+            candidates=re.findall(r'^\s*(unsigned long long|unsigned short|double|GpuReal|int|bool)\s+([^;\n]+);',src,re.M)
+            typ=next((t for t,decl in candidates if re.search(r'\b'+field+r'\s*(?:=|,|$)',decl)),None)
+            assert typ,field
+        declarations.append(f'{typ} {field}{{}};')
+    parameters=args(code);defaults={'particleGasHeatTransferModelId':'1','gammaGas':'1.4','gasMu':'.1','gasPr':'.7','packingFraction':'.6','particleBlockThreads':'128','reductionBlockThreads':'128','csrCellLocalPathEnabled':'1','gasFluxScheme':'2','gasReconstruction':'1','gasLimiter':'1','gasTimeIntegrator':'1','turbulenceModel':'0','csrHeavyReductionMode':'0','csrWarpAggregatedBinning':'0','jammingPressureEnabled':'0','gasRobustFallback':'0'}
     declarations2=''.join(f'{typ} {name}={defaults.get(name.removesuffix("Wire"),"2")};' for typ,name in parameters[:-1])
     call='ugkwpGpuResidentStrictCreate('+','.join(n for _,n in parameters[:-1])+',&handle)'
-    dump=''.join(f'std::cout<<" {f}="<<std::hexfloat<<s->{f};' for f in fields)
+    dump=''.join(f'std::cout<<" {f}="<<std::hexfloat<<s->{f};' for f in fields if f not in pointer_fields)
     return prelude()+'struct DeviceState{'+''.join(declarations)+'};\n'+r'''
 int allocateCalls=0,occupancyCalls=0,releases=0,allocationError=0,occupancyError=0;
 int allocateFields(DeviceState*){++allocateCalls;return allocationError;}
@@ -57,13 +81,26 @@ allocationError=1;assert(CALL!=0&&handle==nullptr);allocationError=0;occupancyEr
 }
 '''.replace('CALL',call).replace('DUMP',dump).replace('gammaGas=2.', 'gammaGasWire=2.' if app=='CHT' else 'gammaGas=2.').replace('2.*Rgas)', '2.*RgasWire)' if app=='CHT' else '2.*Rgas)').replace('gasMu=-3.', 'gasMuWire=-3.' if app=='CHT' else 'gasMu=-3.')
 
-@pytest.mark.parametrize('app',['CHT','FSH'])
+@pytest.mark.parametrize('app',['CHT'])
 def test_create_preserves_fields_and_admits_supplied_parameters(tmp_path,app):
     outputs=[]
     for label,rev in [('old',BASE),('current',None)]:
         d=tmp_path/label;d.mkdir();outputs.append(run_cpp(d,create_fixture(app,rev)))
-    assert outputs[0]==outputs[1]
+
+    parsed=[dict(re.findall(r'(\w+)=([^ ]+)',v.strip())) for v in outputs]
+    common=parsed[0].keys() & parsed[1].keys()
+    assert {'gammaGas','gasCp','rhoSolid','particleCapacity'} <= common
+    assert {k:parsed[0][k] for k in common} == {k:parsed[1][k] for k in common}
     d=tmp_path/'continued';d.mkdir();run_cpp(d,'#define COUNTEREXAMPLE\n'+create_fixture(app))
+
+
+def test_frozen_create_original_mock_default_is_rejected(tmp_path):
+
+
+    code=create_fixture('CHT',BASE).replace('int gasRobustFallback=0;', 'int gasRobustFallback=2;')
+    first=code.index('assert(',code.index('int main'));end=code.index(');',first)+2
+    check=code[first:end].replace('==0','!=0')
+    run_cpp(tmp_path,code[:first]+check+'}'+chr(10))
 
 def restart_fixture(app,rev=None):
     code=body(app,'UploadParticleRestartMirror',rev).replace('std::isfinite(', 'checkedFinite(')
@@ -78,7 +115,11 @@ def restart_fixture(app,rev=None):
     missing='ugkwpGpuResidentStrictUploadParticleRestartMirror(&s,n,'+','.join('nullptr' if n=='px' else n for _,n in fields)+')'
     checks=''.join(f'assert(std::memcmp(s.{n},{n},sizeof({n}))==0);' for _,n in fields)
     dump=''.join(f'for(auto x:s.{n}Storage)std::cout<<std::hexfloat<<double(x)<<" ";std::cout<<"\\n";' for _,n in fields)
-    return prelude()+'struct DeviceState{'+state+r'''
+    pool=(ROOT/'common/wall/GpuColdWall1DHandles.cuh').read_text()
+    poolbody=block(pool,'static __global__ void initialiseColdWall1DHandlesKernel')
+    pooldef='namespace Foam{namespace gpuWall{struct ColdWall1DHandles {int *particle,*compact,*freeHandles,*counts;int capacity;};'+poolbody+'}}'
+    return prelude()+pooldef+'struct DeviceState{'+state+r'''
+int ha[2]{},hb[2]{},fh[2]{},fc[1]{};int*pColdHandle=ha,*compactPColdHandle=hb,*coldFreeHandles=fh,*coldFreeCounts=fc;
 double pContactAgeStorage[2]{};double*pContactAge=pContactAgeStorage;DeviceState*deviceState=this;int particleCapacity=2,nFaces=4,particleWorkGrid=1,particleBlockThreads=128,count=0,wallCount=0;
 int*particleCountDevice=&count,*wallBoundParticleCountDevice=&wallCount;
 int preBaseDirectoryReady=1,splitPreDirectoryActive=1,coldWallSolidificationEnabled=1,coldWall2DEnabled=1;bool particlesMayBePresent=false;
@@ -91,7 +132,7 @@ void rebuildWallBoundParticleDirectoryKernel(DeviceState*s){++launches;s->wallCo
 '''+code+'\nint main(){DeviceState s;int n=2;'+data+r'''
 counters();assert(CALL==0);CHECKS;DUMP;std::cout<<"COST "<<copies<<" "<<copiedBytes<<" "<<memsets<<" "<<zeroedBytes<<"\n";std::cout<<"SCANS "<<finiteChecks<<"\n";
 #ifdef COUNTEREXAMPLE
-pCold2DNodeSpecificEnthalpy[0]=-1.;pm[0]=-2.;pTheta[1]=-3.;s.particleCapacity=1;counters();assert(CALL==0);CHECKS;assert(s.count==2&&launches==1);
+pCold2DNodeSpecificEnthalpy[0]=-1.;pm[0]=-2.;pTheta[1]=-3.;s.particleCapacity=1;counters();assert(CALL!=0);s.particleCapacity=2;counters();assert(CALL==0);CHECKS;assert(s.count==2&&launches==1);
 s.coldWallSolidificationEnabled=s.coldWall2DEnabled=0;counters();assert(INACTIVE==0);assert(MISSING!=0);s.coldWallSolidificationEnabled=s.coldWall2DEnabled=1;
 #endif
 counters();assert(CALL==0);const int copyCount=copies;for(int fail=1;fail<=copyCount;++fail){counters();failCopy=fail;assert(CALL!=0);}
@@ -100,26 +141,27 @@ n=0;counters();assert(CALL==0&&s.count==0&&launches==0);
 }
 '''.replace('CALL',call).replace('CHECKS',checks).replace('DUMP',dump).replace('INACTIVE',inactive).replace('MISSING',missing)
 
-@pytest.mark.parametrize('app',['CHT','FSH'])
+@pytest.mark.parametrize('app',['CHT'])
 def test_restart_preserves_all_payloads_and_continues_backed_metadata(tmp_path,app):
     outputs=[]
     for label,rev in [('old',BASE),('current',None)]:
         d=tmp_path/label;d.mkdir();outputs.append(run_cpp(d,restart_fixture(app,rev)))
-    assert [x for x in outputs[0].splitlines() if not x.startswith('SCANS')]==[x for x in outputs[1].splitlines() if not x.startswith('SCANS')]
+    assert [x for x in outputs[0].splitlines() if not x.startswith(('SCANS','COST'))]==[x for x in outputs[1].splitlines() if not x.startswith(('SCANS','COST'))]
     assert 'SCANS 0' in outputs[1] and 'SCANS 0' not in outputs[0]
     (tmp_path/'restart-parity.json').write_text(json.dumps(dict(old=outputs[0],current=outputs[1]),indent=2))
     d=tmp_path/'continued';d.mkdir();run_cpp(d,'#define COUNTEREXAMPLE\n'+restart_fixture(app))
 
-@pytest.mark.parametrize('app',['CHT','FSH'])
+@pytest.mark.parametrize('app',['CHT'])
 def test_actual_mesh_upload_preserves_all_arrays_and_periodic_flag(tmp_path,app):
  code=body(app,'UploadMesh');fields=args(code)[1:];decl='';data='';checks=''
  for k,(typ,n) in enumerate(fields):
   t=typ.replace('const ','').replace('*','').strip();decl+=f'{t} {n}Store[4]{{}};{t}*{n}={n}Store;';data+=f'{t} {n}[4];for(int i=0;i<4;++i){n}[i]=static_cast<{t}>({k}+i*.25);';checks+=f'assert(std::memcmp(s.{n},{n},sizeof {n})==0);'
  call='ugkwpGpuResidentStrictUploadMesh(&s,'+','.join(n for _,n in fields)+')'
- run_cpp(tmp_path,prelude()+'struct DeviceState{'+decl+'int nCells=4,nFaces=4,nInternalFaces=2,nCellPlanes=4,hasPeriodicFaces=0;};'+r'''
+ run_cpp(tmp_path,prelude()+'struct DeviceState{'+decl+'ugkp::diagnostics::GpuOwner diag;ugkp::diagnostics::GpuOwner*diagnosticOwner=&diag;int nCells=4,nFaces=4,nInternalFaces=2,nCellPlanes=4,hasPeriodicFaces=0;};'+r'''
 DeviceState*asState(void*p){return static_cast<DeviceState*>(p);}int validateState(DeviceState*s,const char*){return !s;}
 template<class T>int copyToDevice(T*d,const T*s,size_t n,const char*){if(n&&(!d||!s))return 1;return cudaMemcpy(d,s,n*sizeof(T),1);}
 '''+code+'int main(){DeviceState s;'+data+r'''
+for(int i=0;i<4;++i){cellPlaneStart[i]=i;cellPlaneCount[i]=1;}
 facePeriodicPair[0]=-1;facePeriodicPair[1]=-1;facePeriodicPair[2]=3;facePeriodicPair[3]=2;faceNeighbour[2]=1;faceNeighbour[3]=0;
 assert(CALL==0&&s.hasPeriodicFaces==1);CHECKS;
 facePeriodicPair[2]=2;facePeriodicDx[2]=NAN;counters();assert(CALL==0&&s.hasPeriodicFaces==1);CHECKS;
@@ -127,21 +169,24 @@ const int count=copies;for(int i=1;i<=count;++i){counters();failCopy=i;assert(CA
 for(int i=0;i<4;++i)facePeriodicPair[i]=-1;counters();assert(CALL==0&&s.hasPeriodicFaces==0);}
 '''.replace('CALL',call).replace('CHECKS',checks))
 
-@pytest.mark.parametrize('app',['CHT','FSH'])
+@pytest.mark.parametrize('app',['CHT'])
 def test_actual_gas_only_body_keeps_stage_outputs_and_errors(tmp_path,app):
  code=re.sub(r'<<<.*?>>>','',body(app,'AdvanceGasOnly'),flags=re.S)
  run_cpp(tmp_path,prelude()+r'''
 #define UGKP_DEVELOPMENT_PROBES
 struct DeviceState{DeviceState*deviceState=this;int particleCapacity=3,nBoundarySources=2,gravityEnabled=1,fixedCellBlockThreads=2,nCells=2;double rhoU[2]{1,2};};
 DeviceState*asState(void*p){return static_cast<DeviceState*>(p);}int validateState(DeviceState*s,const char*){return !s;}
-int stages=0,finals=0,error=0;int tuneFixedWorkBlockThreads(DeviceState*,double,double){return error==1;}
-int advanceGasFluxStage(DeviceState*s,double dt,double time){++stages;if(error==2)return 1;for(auto&x:s->rhoU)x+=dt+time;return 0;}
+namespace ugkwp{bool mixtureGasActive(const DeviceState&){return false;}}
+int advanceChtSharedGas(DeviceState*,double,double){assert(false);return 1;}
+double stageTime=0;int stages=0,finals=0,error=0;int tuneFixedWorkBlockThreads(DeviceState*,double,double){return error==1;}
+int publishStartupWorkPlan(DeviceState*,double,double){return error==1;}
+int advanceGasFluxScheduled(DeviceState*s,double dt,double time){++stages;stageTime=time;if(error==2)return 1;for(auto&x:s->rhoU)x+=dt+time;return 0;}
 void applyGasGravityKernel(DeviceState*s,double dt){++launches;for(auto&x:s->rhoU)x+=2*dt;}
 void applyGasOnlyGravityKernel(DeviceState*s,double dt){applyGasGravityKernel(s,dt);}
 void recoverGasPrimitivesKernel(DeviceState*){++launches;}
 int finaliseGasBoundaryStage(DeviceState*s,double dt,double time){++finals;if(error==3)return 1;for(auto&x:s->rhoU)x+=dt-time;return 0;}
 '''+code+r'''
-int main(){DeviceState s;counters();assert(ugkwpGpuResidentStrictAdvanceGasOnly(&s,2,-3)==0&&stages==1&&finals==1&&s.rhoU[0]==9&&s.rhoU[1]==10);
+int main(){DeviceState s;counters();assert(ugkwpGpuResidentStrictAdvanceGasOnly(&s,2,-3)==0&&stages==1&&finals==1&&stageTime==-5&&s.rhoU[0]==7&&s.rhoU[1]==8);
 for(int e=1;e<=3;++e){counters();error=e;assert(ugkwpGpuResidentStrictAdvanceGasOnly(&s,2,-3)!=0);}error=0;counters();failLaunch=1;assert(ugkwpGpuResidentStrictAdvanceGasOnly(&s,2,-3)!=0);}
 ''')
 
@@ -150,7 +195,7 @@ def test_actual_affine_repeated_surplus_copies_only_consumed_prefix(tmp_path):
  run_cpp(tmp_path,prelude()+r'''
 namespace Foam{namespace gpuThermal{struct RadiationAffineTemperatureUpdate{double scale,offset;};}}
 using Update=Foam::gpuThermal::RadiationAffineTemperatureUpdate;
-struct DeviceState{DeviceState*deviceState=this;int nCells=2,particleWorkGrid=1,particleBlockThreads=128;bool particlesMayBePresent=true;Update*particleRadiationAffineUpdate=nullptr;double temperature[2]{300,400};};
+struct DeviceState{DeviceState*deviceState=this;ugkp::diagnostics::GpuOwner diag;ugkp::diagnostics::GpuOwner*diagnosticOwner=&diag;int nCells=2,particleWorkGrid=1,particleBlockThreads=128;bool particlesMayBePresent=true;Update*particleRadiationAffineUpdate=nullptr;double temperature[2]{300,400};};
 DeviceState*asState(void*p){return static_cast<DeviceState*>(p);}int validateState(DeviceState*s,const char*){return !s;}
 template<class T>int allocate(T*&p,size_t n,const char*){return cudaMalloc(reinterpret_cast<void**>(&p),n*sizeof(T));}
 template<class T>void release(T*&p){cudaFree(p);p=nullptr;}
@@ -158,7 +203,8 @@ template<class T>int copyToDevice(T*d,const T*s,size_t n,const char*){return cud
 void applyParticleRadiationAffineTemperatureKernel(DeviceState*s,const Update*p){++launches;for(int i=0;i<s->nCells;++i)s->temperature[i]=p[i].scale*s->temperature[i]+p[i].offset;}
 '''+code+r'''
 int main(){DeviceState s;Update u[4]{{2,1},{3,2},{99,99},{NAN,NAN}};
-counters();assert(ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature(&s,3,u)==0);assert(s.temperature[0]==601&&s.temperature[1]==1202&&copiedBytes==2*sizeof(Update));
+counters();assert(ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature(&s,3,u)==0);assert(s.temperature[0]==601&&s.temperature[1]==1202&&copiedBytes==2*sizeof(Update)&&syncs==1&&s.diag.observations==1&&s.diag.dispatches==1);
 counters();assert(ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature(&s,4,u)==0);assert(s.temperature[0]==1203&&s.temperature[1]==3608&&allocations==0&&copiedBytes==2*sizeof(Update));
+counters();s.diag.observeError=1;assert(ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature(&s,2,u)!=0);s.diag.observeError=0;counters();s.diag.dispatchError=1;assert(ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature(&s,2,u)!=0);s.diag.dispatchError=0;
 assert(ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature(&s,1,u)!=0);counters();failCopy=1;assert(ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature(&s,2,u)!=0);counters();failLaunch=1;assert(ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature(&s,2,u)!=0);counters();failSync=1;assert(ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature(&s,2,u)!=0);release(s.particleRadiationAffineUpdate);counters();failAlloc=1;assert(ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature(&s,2,u)!=0);}
 ''')

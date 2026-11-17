@@ -1,0 +1,43 @@
+FoamFile { version 2.0; format ascii; class dictionary; object scheme; }
+precision @PRECISION@;
+gasNumerics
+{
+ fluxScheme Tadmor;
+ ddtSchemes { default Euler; }
+ gradSchemes { default Gauss linear; }
+ divSchemes
+ {
+  default none;
+  "div(phi,U)" Gauss upwind;
+  "div(phi,e)" Gauss upwind;
+  "div(phi,K)" Gauss upwind;
+  "div(phi,(p|rho))" Gauss upwind;
+  "div(((rho*nuEff)*dev2(T(grad(U)))))" Gauss linear;
+ }
+ laplacianSchemes { default Gauss linear corrected; }
+ interpolationSchemes { default linear; "reconstruct(.*)" upwind; }
+ snGradSchemes { default corrected; }
+}
+regions
+{
+ solid
+ {
+  solidDiscretization
+  {
+   laplacianSchemes { default @SOLID_LAPLACIAN@; }
+   gradSchemes { default Gauss linear; }
+   interpolationSchemes { default linear; "reconstruct(.*)" upwind; }
+   ddtSchemes { default Euler; }
+  }
+ }
+}
+gasTimeStep { minDeltaT 1e-12; maxCo 0.4; maxDeltaT 1e-5; }
+thermalCoupling { couplingInterval 7.450580596923828125e-9; }
+wallLayer
+{
+ maxIterations 60;
+ relativeTolerance @WALL_RELATIVE_TOLERANCE@;
+ absoluteTolerance @WALL_ABSOLUTE_TOLERANCE@;
+ nodes 8;
+ stretch 2;
+}

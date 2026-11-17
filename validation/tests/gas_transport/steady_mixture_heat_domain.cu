@@ -13,6 +13,7 @@ struct State:ugkwp::GasStateView<double,double,int>{
  ugkwp::GasSpeciesState<double,2> gasSpecies;
  int *particleCountDevice,*pStatus,*pCellId,*cellParticleOffset,*sortedParticleIndex,particleCapacity=1;
  double *epsGPrev,*pm,*pd,*pux,*puy,*puz,*puxOld,*puyOld,*puzOld,*pTheta,*pT;
+ double *couplingDragBeta,*couplingResponseFraction;
  double rhoSolid=2500,particleThermalRho=2500,particleCp=800,particleThermalCapacity=2e6;
  double dragParameter0=0,dragParameter1=0,dragParameter2=0,dragParameter3=0;
  double gasPrOneThird=cbrt(.71),TpMin=100,TpMax=10000,gravityX=0,gravityY=0,gravityZ=0;
@@ -31,6 +32,7 @@ struct Data {State s;double rho=1,mx=0,my=0,mz=0,energy=0,ux=0,uy=0,uz=0,T=1000,
  double species[2]={.9,.1},coeff[6]={1000,-.22,0,1000,-.22,0};ugkwp::SpeciesThermoData<double> metadata[2];
  int count=1,status=1,cell=0,offsets[2]={0,1},index=0,thermoStatus=0;
  double mass=1e-6,diameter=.001,vx=0,vy=0,vz=0,oldx=0,oldy=0,oldz=0,theta=0,Tp=10000;
+ double couplingDragBeta=0,couplingResponseFraction=0;
 };
 int main(int argc,char** argv){Data* d=nullptr;if(cudaMallocManaged(&d,sizeof(Data))!=cudaSuccess)return 2;new(d)Data{};auto&s=d->s; if(argc>2)d->coeff[1]=d->coeff[4]=std::strtod(argv[2],nullptr); if(argc>3)d->Tp=std::strtod(argv[3],nullptr); const double initialTp=d->Tp;
  s.nCells=1;s.rho=&d->rho;s.rhoUx=&d->mx;s.rhoUy=&d->my;s.rhoUz=&d->mz;s.rhoE=&d->energy;
@@ -43,6 +45,7 @@ int main(int argc,char** argv){Data* d=nullptr;if(cudaMallocManaged(&d,sizeof(Da
  d->energy=ugkwp::mixtureEnergy(d->species,d->T,s.gasSpecies.thermo);
  s.particleCountDevice=&d->count;s.pStatus=&d->status;s.pCellId=&d->cell;s.cellParticleOffset=d->offsets;s.sortedParticleIndex=&d->index;
  s.pm=&d->mass;s.pd=&d->diameter;s.pux=&d->vx;s.puy=&d->vy;s.puz=&d->vz;s.puxOld=&d->oldx;s.puyOld=&d->oldy;s.puzOld=&d->oldz;s.pTheta=&d->theta;s.pT=&d->Tp;
+ s.couplingDragBeta=&d->couplingDragBeta;s.couplingResponseFraction=&d->couplingResponseFraction;
  const double volume=d->eps*d->V,oldEnergy=d->energy,capacity=d->mass*800,dt=argc>1?std::strtod(argv[1],nullptr):100;
  const double a=-expm1(-6*2*.06/(2e6*.001*.001)*dt);
  // Independent long-double analytic solution for the linear-Cp fixture.

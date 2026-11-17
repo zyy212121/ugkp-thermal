@@ -1,3 +1,4 @@
+#include <future>
 #ifndef UGKP_GPU_SOLID_THERMAL_PROPERTIES_H
 #define UGKP_GPU_SOLID_THERMAL_PROPERTIES_H
 #include "SolidThermalMath.H"
@@ -99,6 +100,12 @@ public:
     SolidThermalIterationGraph(SolidThermalProperties&,ImplicitDiffusion&,SparseConjugateGradient&,const SolidThermalResidentProblem&);
     ~SolidThermalIterationGraph();
     void enqueue(void* producerStream);
+    void awaitCompletion()const;
+    void acceptExternalCompletion(const std::shared_future<void>& completion);
+    void resetContinuation(void* stream);
+    const int* continuationStage() const;
+    const int* capacityPendingDevice() const;
+    bool servicePendingCapacity();
     ExecutionGraphNode appendTo(ExecutionGraph,ExecutionGraphNode dependency=nullptr,bool contactCandidate=false);
     void prepareContactWindow(const std::vector<int>& cells);
     void enqueueContactWindowStart(void* executionStream);
@@ -141,6 +148,7 @@ public:
     SolidContactIterationGraph(SolidThermalIterationGraph& primary,SolidThermalIterationGraph& auxiliary,
         SolidThermalContact&,const SolidContactIterationControls&,double interval,const double* deviceInterval);
     ~SolidContactIterationGraph();
+    void awaitCompletion()const;
     void enqueue(void* producerStream);
     SolidContactIteration collect();
 };

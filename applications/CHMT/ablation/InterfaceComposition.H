@@ -181,7 +181,7 @@ namespace composition_detail {
     // Keep lower-level critical points as well, which covers higher multiplicity.
     // These are only mathematical candidates; the original equations certify them.
 
-    CHMT_HD inline int criticalPoints(Poly original,Real* points) {
+    CHMT_HD inline int criticalPoints(Poly original,Real* points,int maximumIterations=80) {
         Poly hierarchy[Ns];
         hierarchy[0]=original;
         for(int level=1;level<Ns;++level){
@@ -202,7 +202,7 @@ namespace composition_detail {
                 if(fl==0)appendCandidate(points,count,lo);
                 if(fh==0)appendCandidate(points,count,hi);
                 if(fl==0||fh==0||(fl>0)==(fh>0))continue;
-                for(int iteration=0;iteration<80;++iteration){
+                for(int iteration=0;iteration<maximumIterations;++iteration){
                     Real mid=(lo+hi)/2;
                     if(mid==lo||mid==hi)break;
                     Real fm=polynomialValue(p,mid);
@@ -223,7 +223,7 @@ namespace composition_detail {
         return count;
     }
 
-    CHMT_HD inline int roots(Poly p,Info& info,Real* output,bool* genuine=nullptr){
+    CHMT_HD inline int roots(Poly p,Info& info,Real* output,bool* genuine=nullptr,int bisectionIterations=80,int isolatedIterations=80){
         int count=0;if(genuine)for(int i=0;i<ScalarCandidateCapacity;++i)genuine[i]=false;
         if(Ns==2){
             // A quadratic is the complete scalar problem for two species.
@@ -281,7 +281,7 @@ namespace composition_detail {
                 Real lo=0,hi=1,t=.5;
                 Real sign=0;for(int k=0;k<=Ns;++k)if(a.p.c[k]!=0){sign=a.p.c[k];break;}
                 bool settled=false;
-                for(int it=0;it<80;++it){
+                for(int it=0;it<isolatedIterations;++it){
                     Real derivative=0,value=polynomialValueDerivative(a.p,t,derivative);
                     if(value==0){settled=true;break;}
                     if((value>0)==(sign>0))lo=t;else hi=t;
@@ -320,7 +320,7 @@ namespace composition_detail {
         if(genuine)for(int i=0;i<count;++i)genuine[i]=true;
         if(lostVariation){
             Real critical[ScalarCandidateCapacity]{};
-            int n=criticalPoints(p,critical);
+            int n=criticalPoints(p,critical,bisectionIterations);
             for(int i=0;i<n&&count<ScalarCandidateCapacity;++i){
                 output[count++]=critical[i];
                 ++info.criticalCandidates;
@@ -397,7 +397,7 @@ namespace composition_detail {
     CHMT_HD inline void refine(Real* Y,const Real* bulk,const Real* Js,Real pressure,
     Real T,Real distance,const PhysicsConfig& supplied,Info& info,const CompositionResidualInputs* prepared=nullptr) {
         const PhysicsConfig& p=supplied;
-        for(int it=0;it<8;++it){
+        for(int it=0;it<p.numerics.surface.refinementIterations;++it){
             Real f[Ns]{},jac[Ns*Ns]{};
             if(!compositionResidualPolicy<false>(Y,bulk,Js,pressure,T,distance,p,f,jac,prepared))return;
             ++info.refine;
@@ -590,7 +590,7 @@ namespace composition_detail {
     }
 
     CHMT_HD inline bool recoverPole(Real d0,const Real* d,const Real* u,const Real* v,
-    const Real* r,const Real* bulk,Real rmin,Real rmax,Real* Y) {
+    const Real* r,const Real* bulk,Real rmin,Real rmax,Real* Y,int maximumIterations=160) {
         int index[Ns]{},count=0;
         Real A=0,B=0,AR=0,BR=0,a[Ns]{},b[Ns]{};
         Real lo=rmin,hi=rmax,fixedR=0;
@@ -652,7 +652,7 @@ namespace composition_detail {
         bool v1=poleProfile(x1,index,count,r,bulk,a,b,A,B,AR,BR,y1,f1);
         bool v2=poleProfile(x2,index,count,r,bulk,a,b,A,B,AR,BR,y2,f2);
         if(!v1||!v2)return false;
-        for(int iteration=0;iteration<160;++iteration){
+        for(int iteration=0;iteration<maximumIterations;++iteration){
             if(x1==x2||x1==left||x2==right)break;
             if(f1<=f2){
                 right=x2;
@@ -703,7 +703,7 @@ namespace composition_detail {
             for(int j=0;j<i;++j)duplicate=duplicate||d[j]==d[i];
             if(duplicate||-d[i]<a||-d[i]>b)continue;
             Real Y[Ns]{};
-            if(recoverPole(d[i],d,u,v,r,bulk,rmin,rmax,Y))
+            if(recoverPole(d[i],d,u,v,r,bulk,rmin,rmax,Y,trial.numerics.surface.poleSearchIterations))
             certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false,prepared);
         }
         // The closed admissible interval can contain a pure-species boundary root.
@@ -779,7 +779,7 @@ namespace composition_detail {
         Real T,Real distance,const PhysicsConfig& p,Real tolerance,Selection& best,Info& info,
         const CompositionResidualInputs* prepared) {
         Real Y[Ns];for(int i=0;i<Ns;++i)Y[i]=bulk[i];
-        for(int iteration=0;iteration<8;++iteration){
+        for(int iteration=0;iteration<p.numerics.surface.structuredNewtonIterations;++iteration){
             Real rm=0,dy=0;int dependent=0;
             for(int i=0;i<Ns;++i){rm+=r[i]*Y[i];dy+=d[i]*Y[i];if(Y[i]>Y[dependent])dependent=i;}
             const Real z=J*rm+Db-dy;
@@ -933,7 +933,7 @@ namespace composition_detail {
             Poly poly=polynomial(left,right,d,u,v,r);
             ++info.polynomialCount;
             Real isolated[ScalarCandidateCapacity]{};bool genuine[ScalarCandidateCapacity]{};
-            int rootCount=roots(poly,info,isolated,genuine);
+            int rootCount=roots(poly,info,isolated,genuine,p.numerics.surface.polynomialBisectionIterations,p.numerics.surface.isolatedRootIterations);
             for(int root=0;root<rootCount;++root){
                 ++info.candidates;
                 Real z=left+(right-left)*isolated[root],Y[Ns]{};

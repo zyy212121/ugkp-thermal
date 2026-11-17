@@ -30,11 +30,14 @@ struct MaterialSurfaceView {
     const PhysicsConfig* quietPhysics=nullptr;
     std::size_t workspaceStride=0;
     int workspaceCapacity=0,workers=0;
+    int scalarWorkersPerBlock=0;
 };
 template<class View>
 __global__ void evaluateMaterialSurfaceKernel(View binding,const PhysicsConfig* physics) {
     const MaterialSurfaceView view=binding;
-    const std::size_t worker=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x;
+    const int active=view.scalarWorkersPerBlock>0?view.scalarWorkersPerBlock:int(blockDim.x);
+    if(int(threadIdx.x)>=active)return;
+    const std::size_t worker=std::size_t(blockIdx.x)*active+threadIdx.x;
     if(worker>=std::size_t(view.workers))return;
     for(std::size_t face=worker;face<std::size_t(view.count);face+=view.workers){
         auto& status=view.status[face];status=MaterialSurfaceStatus{};

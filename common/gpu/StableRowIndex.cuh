@@ -1,5 +1,6 @@
 #pragma once
 #include <cuda_runtime.h>
+#include "WorkPlan.H"
 #include <cub/device/device_radix_sort.cuh>
 #include <cub/device/device_scan.cuh>
 #include <cstddef>
@@ -34,7 +35,7 @@ cudaError_t buildStableRowIndex(int items,int rows,Row row,const StableRowIndexV
     if(items<0||rows<0)return cudaErrorInvalidValue;
     auto error=cudaMemsetAsync(view.counts,0,std::size_t(rows+1)*sizeof(int),stream);
     if(error==cudaSuccess&&items){
-        prepareStableRowIndex<<<(items+255)/256,256,0,stream>>>(items,rows,row,view);
+        prepareStableRowIndex<<<(items+workPlan().reductionBlockThreads-1)/workPlan().reductionBlockThreads,workPlan().reductionBlockThreads,0,stream>>>(items,rows,row,view);
         error=cudaGetLastError();
     }
     if(error==cudaSuccess){auto available=bytes;

@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "status": "PREPARED_NOT_RUN",
+  "numerical_execution": false,
+  "candidate_frozen": false,
+  "nodes": [
+    "chmt_codec_fp32",
+    "chmt_codec_fp64",
+    "chmt_closure_fp32",
+    "chmt_closure_fp64"
+  ],
+  "families": {
+    "chmt_codec": {
+      "leaves": [
+        "legacy_cp2",
+        "legacy_cp3",
+        "native_roundtrip",
+        "unknown_metadata"
+      ],
+      "energy_fields": "CHMT_ENERGY_FIELDS in chmt_seed.H: 49 explicit nonzero signed energy/temperature/pressure channels, including chemistry energy residual and ParticleQ energy/mechanical energy.",
+      "independent_fields": "CHMT_INDEPENDENT_FIELDS: geometry and time retain precise values; final owner exception list still pending, no blanket mass double assertion.",
+      "thresholds": {
+        "field_import": "exact bits of destination member static_cast from original double; no nonexistent FP32 mantissa bits",
+        "native_roundtrip": "exact selected-type values and identical reserialization",
+        "legacy_particle_h": "FP64 2e-9 J/kg; FP32 2e-9 + 4*epsilon(float)*abs(old_total_h)",
+        "legacy_particle_temperature": "FP32 exactly float(Told + 0.125/(153.5/0.101961276)) for mobile linear branch",
+        "wire": "old and new state.chmt byte length equal; all old writer translation units use historical unmodified Checkpoint.C",
+        "unknown_metadata": "existing read succeeds and values preserved; known precision directions owned by shared planner codec"
+      },
+      "physical_fields": "CHMT_PHYSICAL_FIELDS: 78 selected-width mass/species/progress/porosity/source-residual/velocity/momentum and particle/contact fields. Every seeded value is checked on legacy import and native roundtrip. Physical residual meaning remains intact.",
+      "particle_fields": "Compile-time scalar widths: physical fields selected, global position/contact times double, historical 8/64 enthalpy profile arrays float. Exact selected-value wire checks include ParticleQ mass, energy, diameter, area, velocity/contact-relative velocity, saved velocity, ring masses, position and contact times. Mobile carry import has its separate fixed formula."
+    },
+    "chmt_closure": {
+      "leaves": [
+        "thermal_hot",
+        "thermal_cold",
+        "film_advection",
+        "pressure_volume",
+        "interface_channels",
+        "radiation",
+        "wet_ledger",
+        "phase_rate"
+      ],
+      "thresholds": {
+        "rule": "All expected values and bounds fixed before execution. E=decltype(GasQ.energy), eps=epsilon(E). For FP64 use old_bound; FP32 old_bound + operation_count*eps*participating_scale. Every measurement prints actual/expected/scale/old_bound/new_bound and dimensional unit.",
+        "thermal": "real solveSurfaceInterface and solveDrySurfaceInterface, T strictly between 600 and1000 hot or400 and900 cold, signed conductive heat, both independent Fourier+radiation and returned residual <=4*(absEnergy/(area*dt)+relEnergy*flux_scale)+256*eps*flux_scale; adapter T old1e-7K+64eps*Tscale; dt=0.01s, hot ambient750K/cold700K, radiation required nonzero; transfer magnitude >16eps*max(inventories) and signed gas/solid updates with individual2eps state budgets",
+        "film": "Energy old1e-10 W/m+4eps*abs(H*speed); mass old1e-14 kg/(m s)+4eps*abs(m*speed); both signs",
+        "PV": "identity old1e-12J+16eps*(|p1V1|+|p0V0|); storage old1e-10J+8eps*sum_inventory_PV",
+        "interface": "total 32eps; liquid 48eps; solid24eps; old1e-10 W/m2",
+        "radiation": "old1e-8 W/m2 +16eps*|power| and required hot/cold sign",
+        "ledger": "64 gasfilm/solidfilm transactions, all decomposition channels and PV nonzero; total old1e-8J+256eps*(initial inventories + sum abs transfers); mass old1e-12kg; per-gas/solid energy32eps, film128eps state-scale; film expected delta must exceed its allowance; per gas/solid mass64eps state-scale; signed nonzero physical inventory changes required. These prevent gross total budget hiding a no-op.",
+        "phase_rate": "old1e-9W/m2+48eps*|power|; signed cubic residual and direction",
+        "thermal_mass": "old1e-14kg+4eps mass scale; wet total old1e-12kg+128eps mass scale"
+      }
+    }
+  },
+  "limitations": [
+    "Host fixtures exercise actual production headers, not CUDA device execution.",
+    "No full mesh motion, dynamic boundary-layer profile, chemistry reaction-network or general wet evaporation root coverage claimed.",
+    "Legacy mobile carry is covered; active8/64 profile values are wire width/order checked but active-profile carry import is not numerically covered.",
+    "Ordinary algorithmic residuals and geometric sweep remainder remain tested and are not treated as forbidden energy carry.",
+    "Final candidate source remains unfrozen; provisional owner closure compilation is not final binary acceptance.",
+    "Design revision3 is code/type preparation only. Actual consumed source hashes and host compilation are provisional, not final candidate or numerical evidence."
+  ],
+  "provenance": {
+    "cp2": "8bde9d6d",
+    "cp3": "cbbacfc6"
+  },
+  "design_revision": 3,
+  "design_principle": "FP32 physical energy, mass, composition and non-geometric film fields are one selected-precision value; no carry/second low word. Only explicitly justified global geometry/tracking/microretreat/time/API-wire exceptions remain double."
+}

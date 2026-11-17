@@ -89,7 +89,7 @@ ExecutionGraphNode InterfaceGasPointMotion::appendTo(ExecutionGraph graph,Execut
     auto previous=appendCaptured(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},d.stream,[&]{
         d.displacement->evaluate(&input->interface,d.stream);const auto displacement=d.displacement->view();
         beginInterfaceGasMotion<<<1,1,0,d.stream>>>(input,d.heightInput.pointer,d.status.pointer,displacement.displacement,d.failure.pointer);
-        if(d.points)validateInterfaceGasMotion<<<(d.points-1)/128+1,128,0,d.stream>>>(d.points,d.axis,d.mate.pointer,d.valence.pointer,
+        if(d.points)validateInterfaceGasMotion<<<(d.points-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,d.stream>>>(d.points,d.axis,d.mate.pointer,d.valence.pointer,
             d.motion->fixedPoints(),displacement.displacement,displacement.changed,d.failure.pointer);
         selectInterfaceGasMotion<<<1,1,0,d.stream>>>(d.points,d.anchored,d.failure.pointer,displacement.changed,d.status.pointer,handle);
     });
@@ -101,7 +101,7 @@ ExecutionGraphNode InterfaceGasPointMotion::appendTo(ExecutionGraph graph,Execut
     return appendCaptured(graph,{previous},d.stream,[&]{
         // The selected harmonic result has a stable owner address even when
         // this replay took the unchanged branch and did not execute the solve.
-        if(d.points)publishInterfaceGasMotion<<<(d.points-1)/128+1,128,0,d.stream>>>(d.points,input,d.status.pointer,
+        if(d.points)publishInterfaceGasMotion<<<(d.points-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,d.stream>>>(d.points,input,d.status.pointer,
             d.motion->deviceView().points,d.result.pointer);
     });
 }

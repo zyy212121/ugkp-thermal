@@ -168,7 +168,8 @@ __device__ void gasFaceSubgridTransportProperties
                 muWall/rhoSafe,
                 velocityDifference*clampMin(s.deltaCoeffs[f], GPU_OPERATOR_R(0.0)),
                 s.turbulenceModel == 3 ? s.sstWallKappa : GPU_OPERATOR_R(0.41),
-                s.turbulenceModel == 3 ? s.sstWallE : GPU_OPERATOR_R(9.8), s.diagnostics, f
+                s.turbulenceModel == 3 ? s.sstWallE : GPU_OPERATOR_R(9.8), s.diagnostics, f,
+                s.gasScalarSolvers.spaldingMaximumIterations, s.gasScalarSolvers.spaldingTolerance
             );
         const GPU_OPERATOR_REAL mechanicalOutputs[]={wallState.uTau,wallState.yPlus,wallState.nut};
         for(int component=0;component<3;++component)
@@ -274,7 +275,8 @@ __device__ void gasFaceSubgridTransportProperties
                         if(ugkwp::gasHasDirectConductivity(s))wallPr=muWall*wallCp/molecular;
                         const GPU_OPERATOR_REAL ratio=wallPr/clampMin(s.turbulentPrandtl,OfSmall);
                         wallP=ugkpwall::jayatillekeSmoothP(ratio);
-                        thermalYPlus=ugkpwall::jayatillekeThermalYPlus(ratio,s.sstWallKappa,s.sstWallE,s.diagnostics,f);
+                        thermalYPlus=ugkpwall::jayatillekeThermalYPlus(ratio,s.sstWallKappa,s.sstWallE,s.diagnostics,f,
+                            s.gasScalarSolvers.thermalMaximumIterations,s.gasScalarSolvers.thermalRelativeTolerance);
                     }
                     // The face flux adds owner-mixture molecular conductivity.
                     // Return exactly its correction,

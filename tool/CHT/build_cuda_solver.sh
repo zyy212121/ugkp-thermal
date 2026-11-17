@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
 source_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+if [[ -z ${UGKP_INTERNAL_PRECISION_BITS:-} ]]; then
+    exec bash "$source_root/tool/precision/build_dual.sh" --solver CHT
+fi
 solver_root="${source_root}/applications/CHT"
 if [ -z "${WM_PROJECT_DIR:-}" ]; then echo "OpenFOAM environment is not loaded" >&2; exit 1; fi
 set -euo pipefail
@@ -30,7 +33,8 @@ log="${log_dir}/cuda_solver_build_$(date +%Y%m%d_%H%M%S).log"
     if [ "${UGKP_DEVELOPMENT_PROBES:-0}" = 1 ]; then
         probe_flags=(-DUGKP_DEVELOPMENT_PROBES=1)
     fi
-    echo "[cuda-build] physical=64 time=64"
+    precision_bits=$(sed -n 's/.*compiledBits = \([0-9]*\).*/\1/p' "$source_root/common/PrecisionBuild.H")
+    echo "[cuda-build] physical=$precision_bits time=64"
     ugkp_nvcc "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 --expt-relaxed-constexpr -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -O3 -lineinfo --fmad=false \
         -arch="${cuda_arch}" -Xcompiler -fPIC "${probe_flags[@]}" \
         -I"${solver_root}/thermal" -I"${solver_root}/../../common" \

@@ -1,4 +1,5 @@
 #pragma once
+#include "gasTransport/ParticleHeatReservoir.H"
 #include "ParticleResidentInterval.H"
 #include "GpuCellDragRate.cuh"
 // One operator implementation; scalar/time adapters are compile-time only.
