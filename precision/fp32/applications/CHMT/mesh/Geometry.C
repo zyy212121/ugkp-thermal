@@ -96,15 +96,6 @@ namespace chmt {
 
 
 
-        bool identicalPoints(const std::vector<Vec3>& a,const std::vector<Vec3>& b) {
-            if(a.size()!=b.size())return false;
-            for(std::size_t p=0;p<a.size();++p)
-                if(std::memcmp(&a[p].x,&b[p].x,sizeof(Real))
-                    || std::memcmp(&a[p].y,&b[p].y,sizeof(Real))
-                    || std::memcmp(&a[p].z,&b[p].z,sizeof(Real)))return false;
-            return true;
-        }
-
         bool periodicGeometry(const HostMesh& m, std::string& error) {
             const int nf = static_cast<int>(m.owner.size());
             const Real scale = meshScale(m.points), tol = 1e-10*scale;

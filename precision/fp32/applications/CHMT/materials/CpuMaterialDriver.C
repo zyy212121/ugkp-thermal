@@ -12,6 +12,7 @@
 #include "materials/MaterialSourceAudit.H"
 #include "materials/MaterialRecessionMath.H"
 #include "materials/SurfacePacketAddressing.H"
+#include "materials/MaterialStepReuse.H"
 #include "ablation/CpuSurfaceInterface.H"
 #include "ablation/WallClosureHost.H"
 #include "mesh/Geometry.H"
@@ -536,6 +537,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
         state.solid.clear();
         const bool staticGeometry=p.meshMotion.policy==MeshMotionPolicy::Static;
         HostState trial;
+        MaterialStepReuse reuse;
         if(staticGeometry){trial.gasMesh=state.gasMesh;trial.solidMesh=state.solidMesh;
             trial.gasStages=state.gasStages;trial.solidStages=state.solidStages;}
         WallProgram program;program.interval=window;program.surface=base.surface;
@@ -677,6 +679,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                         for(std::size_t i=0;i<gp.size();++i)gp[i]+=(geometryEndpoint.gasMesh.points[i]-gp[i])*fraction;
                         for(std::size_t i=0;i<sp.size();++i)sp[i]+=(geometryEndpoint.solidMesh.points[i]-sp[i])*fraction;
                     }
+                    if(reuse.useStationaryGeometry(state,gp,sp,trial,gasSweep,solidSweep))return true;
                     if(!stageGeometry(state.gasMesh,gp,dt,trial.gasMesh,gasSweep,lastFailure)||!stageGeometry(state.solidMesh,sp,dt,trial.solidMesh,solidSweep,lastFailure))return false;
                     if(!state.surface.area.empty()&&!trajectorySurface(state,trial.gasMesh,trial.solidMesh,dt,trial.surface,lastFailure))return false;
                     return true;
@@ -694,7 +697,8 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 const HostState& evaluation=state;
                 std::vector<FilmAux> aux;std::vector<Real> target;
                 sideVolume.assign(state.surface.area.size(),0);
-                if(!data_->evaluate(evaluation,p,bulk,driveRecord->gasGradient,true,false,dt,window.identity.sequence,surface,error,&sideVolume,&driveRecord->gasWallMatching,&driveRecord->gasAcceptedWall.values())){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
+                if(!reuse.takeSurface(elapsed,dt,sideVolume,surface)
+                    &&!data_->evaluate(evaluation,p,bulk,driveRecord->gasGradient,true,false,dt,window.identity.sequence,surface,error,&sideVolume,&driveRecord->gasWallMatching,&driveRecord->gasAcceptedWall.values())){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
 
 
                 target.assign(state.surface.area.size(),0);
@@ -807,7 +811,9 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 WallKnot ending=beginning;ending.time=trial.time;ending.localTime=trialElapsed;ending.gasPoints=trial.gasMesh.points;ending.solidPoints=trial.solidMesh.points;
                 if(trialElapsed<windowEnd){CpuSurfaceResult endpointProposal;
                     if(!endpointRecord){error="missing endpoint wall matching record";break;}if(!data_->evaluate(trial,p,*endpointBulk,endpointRecord->gasGradient,false,true,dt,window.identity.sequence,endpointProposal,error,nullptr,&endpointRecord->gasWallMatching,&endpointRecord->gasAcceptedWall.values())){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
-                    ending.faces=endpointProposal.wall;for(std::size_t f=0;f<ending.faces.size();++f)ending.faces[f].primaryKind=beginning.faces[f].primaryKind;}
+                    ending.faces=endpointProposal.wall;
+                    reuse.rememberSurface(trialElapsed,dt,*endpointRecord,std::move(endpointProposal));
+                    for(std::size_t f=0;f<ending.faces.size();++f)ending.faces[f].primaryKind=beginning.faces[f].primaryKind;}
                 for(std::size_t f=0;f<ending.faces.size();++f){ending.faces[f].solidNormalVelocity=aux[f].solidNormalVelocity;ending.faces[f].normalVelocity=aux[f].normalVelocity;}
                 program.knots.push_back(std::move(ending));
                 if(streamWallProgram&&program.knots.size()==3){

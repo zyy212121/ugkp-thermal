@@ -208,10 +208,12 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
         }else if (!interfaceComposition(allSpecies,in.bulk.Y,in.bulk.pressure,topT,in.gasDistance,
             p,fluxTolerance,nextY)) return false;
         PhysicalReal change=0;
-        for (int s=0; s<Ns; ++s) change=energyArithmetic::maximum(change,energyArithmetic::absolute(nextY[s]-Y[s]));
-        for (int s=0; s<Ns; ++s) Y[s]=p.numerics.surface.compositionRelaxation==PhysicalReal(.5)
-            ? PhysicalReal(.5)*(Y[s]+nextY[s])
-            : (PhysicalReal(1)-p.numerics.surface.compositionRelaxation)*Y[s]+p.numerics.surface.compositionRelaxation*nextY[s];
+        if(!in.useAcceptedFlux){
+            for (int s=0; s<Ns; ++s) change=energyArithmetic::maximum(change,energyArithmetic::absolute(nextY[s]-Y[s]));
+            for (int s=0; s<Ns; ++s) Y[s]=p.numerics.surface.compositionRelaxation==PhysicalReal(.5)
+                ? PhysicalReal(.5)*(Y[s]+nextY[s])
+                : (PhysicalReal(1)-p.numerics.surface.compositionRelaxation)*Y[s]+p.numerics.surface.compositionRelaxation*nextY[s];
+        }
         result.gasState=provisional;
         for (int s=0; s<Ns; ++s) {
             result.gasSpecies[s]=trial.gasSpecies[s]; result.poreSpecies[s]=trial.poreSpecies[s];
@@ -225,7 +227,7 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
         if (!makeInterfacePrimitive(nextY,topT,in.bulk.pressure,in.baseVelocity,in.gasNormal,
             trial.gasWallSpeed,J/gasRatio,p,result.gasState,numericalFailure)) return false;
         compositionChange=change;
-        if (change<=p.tolerances.relativeMass+p.numerics.surface.compositionAbsoluteTolerance) { compositionConverged=true; break; }
+        if (in.useAcceptedFlux||change<=p.tolerances.relativeMass+p.numerics.surface.compositionAbsoluteTolerance) { compositionConverged=true; break; }
     }
     if (!compositionConverged) surfaceCompositionWarning(p,compositionChange,p.tolerances.relativeMass+p.numerics.surface.compositionAbsoluteTolerance);
     GasGradient gradient=surfaceVelocityGradient(in.gradient,in.bulk.velocity,result.gasState.velocity,in.gasNormal,EnergyReal(in.gasDistance));

@@ -1,7 +1,17 @@
 #ifndef CHMT_MESH_GEOMETRY_H
 #define CHMT_MESH_GEOMETRY_H
 #include "core/HostState.H"
+#include <cstring>
 namespace chmt {
+    inline bool identicalPoints(const std::vector<Vec3>& a,const std::vector<Vec3>& b){
+        if(a.size()!=b.size())return false;
+        for(std::size_t i=0;i<a.size();++i){
+            if(std::memcmp(&a[i].x,&b[i].x,sizeof(Real))
+                ||std::memcmp(&a[i].y,&b[i].y,sizeof(Real))
+                ||std::memcmp(&a[i].z,&b[i].z,sizeof(Real)))return false;
+        }
+        return true;
+    }
 
 
     bool rebuildGeometry(HostMesh&, std::string& error,ugkp::diagnostics::DeviceContext* diagnostics=nullptr);
